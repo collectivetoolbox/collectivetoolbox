@@ -26,8 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::{Result, anyhow};
 pub use crate as ctb_formats_math;
+use anyhow::{Result, anyhow};
 
 use crate::base::{
     BaseAlphabet, BaseConversionPaddingMode, BaseStringFormatSettings,
@@ -81,7 +81,6 @@ pub struct BaseArgs {
     // ------------------------------------------------------------------------
     // Padding & Chunking
     // ------------------------------------------------------------------------
-
     /// Shortcut for byte-sized conversion: chunks numbers into byte units
     /// (`--limit 255 --pad`) and suppresses non-fatal warnings.
     ///
@@ -144,13 +143,8 @@ pub struct BaseArgs {
     // ------------------------------------------------------------------------
     // Formatting & Delimiters
     // ------------------------------------------------------------------------
-
     /// Prefix to prepend to each output number (e.g. "0x" for hexadecimal).
-    #[arg(
-        long,
-        default_value = "",
-        help_heading = "Formatting & Delimiters"
-    )]
+    #[arg(long, default_value = "", help_heading = "Formatting & Delimiters")]
     pub prefix: String,
 
     /// Delimiter string inserted between separate output numbers.
@@ -174,7 +168,6 @@ pub struct BaseArgs {
     // ------------------------------------------------------------------------
     // Input Parsing & Filtering
     // ------------------------------------------------------------------------
-
     /// Recognize and strip standard radix prefixes (such as "0x", "0b", "0o")
     /// from input numbers.
     #[arg(
@@ -216,7 +209,6 @@ pub struct BaseArgs {
     // ------------------------------------------------------------------------
     // Numeral Systems & Alphabets
     // ------------------------------------------------------------------------
-
     /// Alphabet to use for parsing input numbers. Bases > 36 (up to 64) require
     /// specifying an alphabet like `base64_standard`.
     #[arg(
@@ -240,7 +232,6 @@ pub struct BaseArgs {
     // ------------------------------------------------------------------------
     // Output Options
     // ------------------------------------------------------------------------
-
     /// Suppress non-fatal warning messages.
     #[arg(
         short,
@@ -537,14 +528,11 @@ mod tests {
     fn test_run_base2base_base1() {
         let base_args = BaseArgs::default();
 
-        let test_cases_to_base1 = [
-            ("0", ""),
-            ("1", "0"),
-            ("2", "00"),
-            ("3", "000"),
-        ];
+        let test_cases_to_base1 =
+            [("0", ""), ("1", "0"), ("2", "00"), ("3", "000")];
         for (input, expected) in test_cases_to_base1 {
-            let args = vec!["10".to_string(), "1".to_string(), input.to_string()];
+            let args =
+                vec!["10".to_string(), "1".to_string(), input.to_string()];
             let res = run_base2base(&args, &base_args).unwrap();
             match res {
                 ToolResult::Immediate {
@@ -552,27 +540,30 @@ mod tests {
                 } => {
                     assert_eq!(exit_code, 0);
                     // Output has trailing newline
-                    assert_eq!(String::from_utf8(stdout).unwrap(), format!("{expected}\n"));
+                    assert_eq!(
+                        String::from_utf8(stdout).unwrap(),
+                        format!("{expected}\n")
+                    );
                 }
                 _ => panic!("Expected immediate result"),
             }
         }
 
-        let test_cases_from_base1 = [
-            ("", "0"),
-            ("0", "1"),
-            ("00", "2"),
-            ("000", "3"),
-        ];
+        let test_cases_from_base1 =
+            [("", "0"), ("0", "1"), ("00", "2"), ("000", "3")];
         for (input, expected) in test_cases_from_base1 {
-            let args = vec!["1".to_string(), "10".to_string(), input.to_string()];
+            let args =
+                vec!["1".to_string(), "10".to_string(), input.to_string()];
             let res = run_base2base(&args, &base_args).unwrap();
             match res {
                 ToolResult::Immediate {
                     stdout, exit_code, ..
                 } => {
                     assert_eq!(exit_code, 0);
-                    assert_eq!(String::from_utf8(stdout).unwrap(), format!("{expected}\n"));
+                    assert_eq!(
+                        String::from_utf8(stdout).unwrap(),
+                        format!("{expected}\n")
+                    );
                 }
                 _ => panic!("Expected immediate result"),
             }
@@ -702,11 +693,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_base2base_base30_base64_alphabet() {
-        let args = vec![
-            "10".to_string(),
-            "30".to_string(),
-            "25516010".to_string(),
-        ];
+        let args =
+            vec!["10".to_string(), "30".to_string(), "25516010".to_string()];
         let base_args = BaseArgs {
             bytes: false,
             no_pad: false,
@@ -737,11 +725,8 @@ mod tests {
         }
 
         // Roundtrip back to base 10
-        let args_back = vec![
-            "30".to_string(),
-            "10".to_string(),
-            "BBPBDU".to_string(),
-        ];
+        let args_back =
+            vec!["30".to_string(), "10".to_string(), "BBPBDU".to_string()];
         let base_args_back = BaseArgs {
             bytes: false,
             no_pad: false,
@@ -783,9 +768,14 @@ mod tests {
         )
         .unwrap();
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "26 43 60");
+                assert_eq!(
+                    String::from_utf8(stdout).unwrap().trim(),
+                    "26 43 60"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -799,9 +789,14 @@ mod tests {
         )
         .unwrap();
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "ff 80 40");
+                assert_eq!(
+                    String::from_utf8(stdout).unwrap().trim(),
+                    "ff 80 40"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -814,9 +809,14 @@ mod tests {
         let res = run_base_convert(&Some(16), &Some(16), "1a 2b", &base_args)
             .unwrap();
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout).unwrap().trim(), "0x1a 0x2b");
+                assert_eq!(
+                    String::from_utf8(stdout).unwrap().trim(),
+                    "0x1a 0x2b"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -830,7 +830,9 @@ mod tests {
         )
         .unwrap();
         match res_scalar {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 assert_eq!(
                     String::from_utf8(stdout).unwrap().trim(),
@@ -854,7 +856,9 @@ mod tests {
         )
         .unwrap();
         match res_bytes {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 assert_eq!(
                     String::from_utf8(stdout).unwrap().trim(),
@@ -864,7 +868,6 @@ mod tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
     }
-
 
     #[crate::ctb_test]
     fn test_hex2dec_dec2hex_hexfmt_unquoted_and_continuous_cli() -> Result<()> {
@@ -878,7 +881,9 @@ mod tests {
             &BaseArgs::default(),
         )?;
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 assert_eq!(String::from_utf8(stdout)?.trim(), "26 43 60");
             }
@@ -893,7 +898,9 @@ mod tests {
             &BaseArgs::default(),
         )?;
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 assert_eq!(String::from_utf8(stdout)?.trim(), "ff 80 40");
             }
@@ -911,7 +918,9 @@ mod tests {
             },
         )?;
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 assert_eq!(String::from_utf8(stdout)?.trim(), "0x1a 0x2b");
             }
@@ -926,7 +935,9 @@ mod tests {
             &BaseArgs::default(),
         )?;
         match res_scalar {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 assert_eq!(String::from_utf8(stdout)?.trim(), "3735928559");
             }
@@ -945,9 +956,14 @@ mod tests {
             },
         )?;
         match res_bytes {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout)?.trim(), "222 173 190 239");
+                assert_eq!(
+                    String::from_utf8(stdout)?.trim(),
+                    "222 173 190 239"
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -955,4 +971,3 @@ mod tests {
         Ok(())
     }
 }
-

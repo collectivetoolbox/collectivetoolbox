@@ -306,8 +306,7 @@ pub fn resolve_binary_path_supporting_tests_or_example(
         // If running from a subfolder like `deps/`, check sibling `examples/`
         // or parent directory.
         if let Some(grandparent) = parent.parent() {
-            let candidate =
-                grandparent.join("examples").join(example_name);
+            let candidate = grandparent.join("examples").join(example_name);
             if candidate_exists(&candidate) {
                 return Ok(candidate);
             }
@@ -326,8 +325,7 @@ pub fn resolve_binary_path_supporting_tests_or_example(
                     return Ok(candidate);
                 }
 
-                let candidate =
-                    grandparent.join(format!("{example_name}.exe"));
+                let candidate = grandparent.join(format!("{example_name}.exe"));
                 if candidate_exists(&candidate) {
                     return Ok(candidate);
                 }
@@ -373,7 +371,9 @@ pub fn resolve_binary_path_supporting_tests_or_example(
         }
     }
 
-    bail!("failed to resolve binary path for '{example_name}': executable not found")
+    bail!(
+        "failed to resolve binary path for '{example_name}': executable not found"
+    )
 }
 
 /*

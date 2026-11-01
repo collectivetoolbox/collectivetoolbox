@@ -212,7 +212,9 @@ impl UnicodeDataTables {
 /// Parses a cross-reference line from NamesList.txt to extract the target codepoint.
 fn parse_nameslist_xref(text: &str) -> Option<u32> {
     let trimmed = text.trim();
-    if let Some(inside) = trimmed.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+    if let Some(inside) =
+        trimmed.strip_prefix('(').and_then(|s| s.strip_suffix(')'))
+    {
         let inside = inside.trim();
         if let Some((_name, hex_part)) = inside.rsplit_once('-') {
             u32::from_str_radix(hex_part.trim(), 16).ok()
@@ -395,7 +397,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                         let entry = char_data.entry(cp).or_default();
                         let trimmed_formal = formal.trim();
                         if !trimmed_formal.is_empty() {
-                            entry.formal_aliases.push(trimmed_formal.to_string());
+                            entry
+                                .formal_aliases
+                                .push(trimmed_formal.to_string());
                         }
                     }
                 }

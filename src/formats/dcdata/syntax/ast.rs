@@ -60,15 +60,19 @@ impl CharTarget {
     pub fn to_u128(&self) -> u128 {
         match self {
             Self::Dc(id) => DcChar::from_short(*id).to_u128(),
-            Self::Format(fid) => {
+            Self::Format(fid) =>
+            {
                 #[expect(
                     clippy::expect_used,
                     reason = "Every FormatId variant maps to a known Global Graph Dc ID"
                 )]
-                fid.dc_id()
-                    .expect("FormatId always maps to a valid Global Graph Dc ID")
+                fid.dc_id().expect(
+                    "FormatId always maps to a valid Global Graph Dc ID",
+                )
             }
-            Self::FormatRegionEnd => ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END,
+            Self::FormatRegionEnd => {
+                ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END
+            }
             Self::Unicode(cp) => u128::from(*cp),
         }
     }
@@ -79,9 +83,13 @@ impl CharTarget {
         let dc = DcChar::from_u128(val);
         if let Ok(short) = dc.to_short() {
             Some(Self::Dc(short))
-        } else if let Some(fid) = ctb_utilities::format_id::FormatId::from_dc_id(val) {
+        } else if let Some(fid) =
+            ctb_utilities::format_id::FormatId::from_dc_id(val)
+        {
             Some(Self::Format(fid))
-        } else if val == ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END {
+        } else if val
+            == ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END
+        {
             Some(Self::FormatRegionEnd)
         } else if let Ok(cp) = dc.to_unicode() {
             Some(Self::Unicode(cp))
@@ -105,7 +113,9 @@ impl std::fmt::Display for CharTarget {
 }
 
 /// Quantifier applied to a syntax term.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize,
+)]
 pub enum Quantifier {
     /// Exactly one occurrence (default).
     #[default]
@@ -117,10 +127,7 @@ pub enum Quantifier {
     /// Zero or one occurrence (`?` or bracketed optional construct `[...]`).
     Optional,
     /// Bounded repetition range (e.g. `{min..max}`, `{min,max}`, `{n}`).
-    Range {
-        min: usize,
-        max: Option<usize>,
-    },
+    Range { min: usize, max: Option<usize> },
 }
 
 impl Quantifier {
@@ -165,7 +172,13 @@ impl Quantifier {
     /// because matching once is already the default semantics of an unquantified term.
     #[must_use]
     pub const fn is_redundant(self) -> bool {
-        matches!(self, Self::Range { min: 1, max: Some(1) })
+        matches!(
+            self,
+            Self::Range {
+                min: 1,
+                max: Some(1)
+            }
+        )
     }
 
     /// Formats this quantifier as its canonical DSL suffix (`""`, `"+"`, `"*"`, `"?"`, or `"{...}"`).
@@ -202,14 +215,9 @@ pub enum SyntaxTerm {
         members: Vec<CharTarget>,
     },
     /// Contiguous character range (e.g. `[260-265]`).
-    CharRange {
-        start: CharTarget,
-        end: CharTarget,
-    },
+    CharRange { start: CharTarget, end: CharTarget },
     /// Macro expansion of another character's syntax rule (e.g. `260:` or `[260:]`).
-    RuleRef {
-        target: CharTarget,
-    },
+    RuleRef { target: CharTarget },
     /// Named syntactic non-terminal construct (e.g. `[identifier $ident]`,
     /// `[type:transformation]`, `[statement]`).
     NamedConstruct {
@@ -228,7 +236,8 @@ impl SyntaxTerm {
     pub fn unconstrained(&self) -> Option<Self> {
         match self {
             Self::NamedConstruct { name, subtype, .. }
-                if name != "script" && (subtype.is_some() || name.starts_with("list(")) =>
+                if name != "script"
+                    && (subtype.is_some() || name.starts_with("list(")) =>
             {
                 let base_name = if name.starts_with("list(") {
                     "list".to_owned()
@@ -306,7 +315,10 @@ impl SyntaxElement {
 
     /// Creates a new element with the given quantifier.
     #[must_use]
-    pub const fn with_quantifier(term: SyntaxTerm, quantifier: Quantifier) -> Self {
+    pub const fn with_quantifier(
+        term: SyntaxTerm,
+        quantifier: Quantifier,
+    ) -> Self {
         Self { term, quantifier }
     }
 
@@ -343,7 +355,8 @@ impl SyntaxPattern {
                 })
             }
             Self::Alternation(branches) => {
-                !branches.is_empty() && branches.iter().all(Self::starts_with_self)
+                !branches.is_empty()
+                    && branches.iter().all(Self::starts_with_self)
             }
         }
     }
@@ -353,11 +366,13 @@ impl SyntaxPattern {
     #[must_use]
     pub fn starts_with_self_or_charset(&self) -> bool {
         match self {
-            Self::Sequence(elems) => elems.first().is_some_and(|e| match &e.term {
-                SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-                SyntaxTerm::Group(sub) => sub.starts_with_self_or_charset(),
-                _ => false,
-            }),
+            Self::Sequence(elems) => {
+                elems.first().is_some_and(|e| match &e.term {
+                    SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+                    SyntaxTerm::Group(sub) => sub.starts_with_self_or_charset(),
+                    _ => false,
+                })
+            }
             Self::Alternation(branches) => {
                 branches.iter().any(Self::starts_with_self_or_charset)
             }
@@ -447,7 +462,8 @@ impl SyntaxAction {
             .map(|arg| match arg {
                 ActionArg::Variable(var) => format!("${var}"),
                 ActionArg::Literal(lit) => {
-                    let escaped = lit.replace('\\', "\\\\").replace('"', "\\\"");
+                    let escaped =
+                        lit.replace('\\', "\\\\").replace('"', "\\\"");
                     format!("\"{escaped}\"")
                 }
             })
@@ -525,10 +541,14 @@ pub fn normalize_syntax_pattern(
                 if let Some(self_id) = self_short {
                     let self_gid = DcChar::from_short(self_id).to_u128();
                     // Reason for fallback: token not in canonical_map is self-canonical.
-                    let canon_self = canonical_map.get(&self_gid).copied().unwrap_or(self_gid);
+                    let canon_self = canonical_map
+                        .get(&self_gid)
+                        .copied()
+                        .unwrap_or(self_gid);
                     let ct_gid = ct.to_u128();
                     // Reason for fallback: token not in canonical_map is self-canonical.
-                    let canon_ct = canonical_map.get(&ct_gid).copied().unwrap_or(ct_gid);
+                    let canon_ct =
+                        canonical_map.get(&ct_gid).copied().unwrap_or(ct_gid);
                     canon_self == canon_ct
                 } else {
                     false
@@ -538,44 +558,52 @@ pub fn normalize_syntax_pattern(
     };
 
     match pattern {
-        SyntaxPattern::Sequence(elements) => {
-            SyntaxPattern::Sequence(
-                elements
-                    .iter()
-                    .map(|elem| {
-                        let term = match &elem.term {
-                            SyntaxTerm::CharRef(ct) if is_self(ct) => SyntaxTerm::SelfChar,
-                            SyntaxTerm::CharRef(ct) => SyntaxTerm::CharRef(norm_target(ct)),
-                            SyntaxTerm::CharSet { negated, members } => {
-                                let mut norm_members: Vec<CharTarget> =
-                                    members.iter().map(norm_target).collect();
-                                norm_members.sort();
-                                norm_members.dedup();
-                                SyntaxTerm::CharSet {
-                                    negated: *negated,
-                                    members: norm_members,
-                                }
+        SyntaxPattern::Sequence(elements) => SyntaxPattern::Sequence(
+            elements
+                .iter()
+                .map(|elem| {
+                    let term = match &elem.term {
+                        SyntaxTerm::CharRef(ct) if is_self(ct) => {
+                            SyntaxTerm::SelfChar
+                        }
+                        SyntaxTerm::CharRef(ct) => {
+                            SyntaxTerm::CharRef(norm_target(ct))
+                        }
+                        SyntaxTerm::CharSet { negated, members } => {
+                            let mut norm_members: Vec<CharTarget> =
+                                members.iter().map(norm_target).collect();
+                            norm_members.sort();
+                            norm_members.dedup();
+                            SyntaxTerm::CharSet {
+                                negated: *negated,
+                                members: norm_members,
                             }
-                            SyntaxTerm::CharRange { start, end } => SyntaxTerm::CharRange {
+                        }
+                        SyntaxTerm::CharRange { start, end } => {
+                            SyntaxTerm::CharRange {
                                 start: norm_target(start),
                                 end: norm_target(end),
-                            },
-                            SyntaxTerm::RuleRef { target } => SyntaxTerm::RuleRef {
-                                target: norm_target(target),
-                            },
-                            SyntaxTerm::Group(group_pat) => SyntaxTerm::Group(
-                                normalize_syntax_pattern(group_pat, self_short, canonical_map),
-                            ),
-                            other => other.clone(),
-                        };
-                        SyntaxElement {
-                            term,
-                            quantifier: elem.quantifier,
+                            }
                         }
-                    })
-                    .collect(),
-            )
-        }
+                        SyntaxTerm::RuleRef { target } => SyntaxTerm::RuleRef {
+                            target: norm_target(target),
+                        },
+                        SyntaxTerm::Group(group_pat) => {
+                            SyntaxTerm::Group(normalize_syntax_pattern(
+                                group_pat,
+                                self_short,
+                                canonical_map,
+                            ))
+                        }
+                        other => other.clone(),
+                    };
+                    SyntaxElement {
+                        term,
+                        quantifier: elem.quantifier,
+                    }
+                })
+                .collect(),
+        ),
         SyntaxPattern::Alternation(branches) => SyntaxPattern::Alternation(
             branches
                 .iter()
@@ -603,9 +631,7 @@ pub enum FramingShape {
         has_trailing_after_closer: bool,
     },
     /// Closing delimiter that terminates a paired block opened by `opener`.
-    Closer {
-        opener: CharTarget,
-    },
+    Closer { opener: CharTarget },
     /// Fixed-arity prefix construct `:~ [atom_dc]{N}` where each argument is an
     /// `[atom_dc]` (either 1 atomic token or `Dc 616` + `[value]`).
     PrefixAtomArity(u8),
@@ -641,12 +667,16 @@ impl FramingShape {
 
 fn pattern_contains_self(pattern: &SyntaxPattern) -> bool {
     match pattern {
-        SyntaxPattern::Sequence(elements) => elements.iter().any(|el| match &el.term {
-            SyntaxTerm::SelfChar => true,
-            SyntaxTerm::Group(sub) => pattern_contains_self(sub),
-            _ => false,
-        }),
-        SyntaxPattern::Alternation(branches) => branches.iter().any(pattern_contains_self),
+        SyntaxPattern::Sequence(elements) => {
+            elements.iter().any(|el| match &el.term {
+                SyntaxTerm::SelfChar => true,
+                SyntaxTerm::Group(sub) => pattern_contains_self(sub),
+                _ => false,
+            })
+        }
+        SyntaxPattern::Alternation(branches) => {
+            branches.iter().any(pattern_contains_self)
+        }
     }
 }
 
@@ -689,7 +719,9 @@ fn is_inline_paired_subframe(elements: &[SyntaxElement]) -> bool {
     let (Some(first), Some(last)) = (elements.first(), elements.last()) else {
         return false;
     };
-    if first.quantifier != Quantifier::ExactOne || last.quantifier != Quantifier::ExactOne {
+    if first.quantifier != Quantifier::ExactOne
+        || last.quantifier != Quantifier::ExactOne
+    {
         return false;
     }
     matches!(
@@ -727,7 +759,9 @@ fn term_fixed_frame_arity(term: &SyntaxTerm) -> Option<u8> {
             };
             for branch in branches.get(1..)? {
                 let branch_arity = match branch {
-                    SyntaxPattern::Sequence(s) => sequence_fixed_frame_arity(s)?,
+                    SyntaxPattern::Sequence(s) => {
+                        sequence_fixed_frame_arity(s)?
+                    }
                     SyntaxPattern::Alternation(_) => return None,
                 };
                 if branch_arity != first_arity {
@@ -766,7 +800,9 @@ fn sequence_fixed_frame_arity(elements: &[SyntaxElement]) -> Option<u8> {
                 continue;
             }
         }
-        if let (Some(e0), Some(e1)) = (elements.get(idx), elements.get(idx.saturating_add(1))) {
+        if let (Some(e0), Some(e1)) =
+            (elements.get(idx), elements.get(idx.saturating_add(1)))
+        {
             if e0.quantifier == Quantifier::ExactOne
                 && e1.quantifier == Quantifier::ExactOne
                 && matches!(
@@ -829,7 +865,9 @@ pub fn classify_rule_framing_shape(
             }
             if self_idx > 0
                 && self_idx.saturating_add(1) == elements.len()
-                && elements.last().is_some_and(|el| el.quantifier == Quantifier::ExactOne)
+                && elements
+                    .last()
+                    .is_some_and(|el| el.quantifier == Quantifier::ExactOne)
             {
                 if let Some(first) = elements.first() {
                     if first.quantifier == Quantifier::ExactOne {
@@ -910,7 +948,9 @@ pub fn classify_rule_framing_shape(
                 } else {
                     return None;
                 };
-                let Some(branch_arity) = sequence_fixed_frame_arity(branch_tail) else {
+                let Some(branch_arity) =
+                    sequence_fixed_frame_arity(branch_tail)
+                else {
                     return Some(FramingShape::PrefixVariableArity);
                 };
                 if let Some(prev) = common_arity {
@@ -922,15 +962,19 @@ pub fn classify_rule_framing_shape(
                 }
             }
             // Reason for fallback: when no branch was evaluated (e.g. empty choice list), prefix variable arity is assumed.
-            return Some(common_arity.map_or(FramingShape::PrefixVariableArity, FramingShape::PrefixArity));
+            return Some(common_arity.map_or(
+                FramingShape::PrefixVariableArity,
+                FramingShape::PrefixArity,
+            ));
         }
         _ => {}
     }
 
-    if matches!(target, CharTarget::Format(_)) && !pattern_contains_self(&rule.pattern) {
+    if matches!(target, CharTarget::Format(_))
+        && !pattern_contains_self(&rule.pattern)
+    {
         return Some(FramingShape::ValueConstraint);
     }
 
     None
 }
-

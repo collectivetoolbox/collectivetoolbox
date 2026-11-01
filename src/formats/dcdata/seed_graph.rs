@@ -65,7 +65,7 @@ use crate::dc::{
     DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
     DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
     DC_NEGATED_PATTERN, DC_NICKNAME, DC_PATTERN_ALTERNATION,
-    DC_PATTERN_CAPTURE, DC_PATTERN_REPLACEMENT, DC_PATTERN_REPETITION,
+    DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION, DC_PATTERN_REPLACEMENT,
     DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
     DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
     DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
@@ -77,9 +77,7 @@ use crate::dc::{
     DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::dc_def::{DcDefn, FormatDetails};
-use crate::format_spec::{
-    DcToken, FormatExpr, decode_dc_stream,
-};
+use crate::format_spec::{DcToken, FormatExpr, decode_dc_stream};
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_integer_value_tokens,
     decode_nodes_from_ctbnbdl_bytes, decode_string_value_tokens,
@@ -329,8 +327,9 @@ impl SeedGraphIndex {
             return Ok(Self::from_nodes(active_nodes));
         }
 
-        let mut merged =
-            Vec::with_capacity(active_nodes.len().saturating_add(history_nodes.len()));
+        let mut merged = Vec::with_capacity(
+            active_nodes.len().saturating_add(history_nodes.len()),
+        );
         let mut a_iter = active_nodes.into_iter().peekable();
         let mut h_iter = history_nodes.into_iter().peekable();
         while let (Some(a), Some(h)) = (a_iter.peek(), h_iter.peek()) {
@@ -423,7 +422,9 @@ impl SeedGraphIndex {
                     format!("Failed to decode .ctbnbdl bundle '{asset_path}'")
                 })?;
             let Some(first_node) = bundle_nodes.first() else {
-                bail!("Decoded .ctbnbdl bundle '{asset_path}' contains 0 nodes");
+                bail!(
+                    "Decoded .ctbnbdl bundle '{asset_path}' contains 0 nodes"
+                );
             };
             ensure!(
                 first_node.id == expected_first_id,
@@ -432,7 +433,8 @@ impl SeedGraphIndex {
             );
             for (idx, node) in bundle_nodes.into_iter().enumerate() {
                 ensure!(
-                    (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&node.id),
+                    (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                        .contains(&node.id),
                     "{asset_path} (node index {idx}): node ID l{} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})",
                     node.id
                 );
@@ -487,8 +489,7 @@ impl SeedGraphIndex {
         let sh_char_script = sh(DC_CHARACTER_SCRIPT);
         let sh_uni_script = sh(DC_UNICODE_SCRIPT);
         let sh_entity_type = sh(DC_ENTITY_TYPE);
-        let sh_data_source =
-            sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE);
+        let sh_data_source = sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE);
         let sh_this_element = sh(DC_THIS_ELEMENT);
 
         let mut node_index_by_id = HashMap::with_capacity(nodes.len());
@@ -503,8 +504,10 @@ impl SeedGraphIndex {
         let mut value_node_by_tokens = HashMap::new();
         let mut string_by_node_id: HashMap<u128, String> = HashMap::new();
         let mut integer_by_node_id: HashMap<u128, u128> = HashMap::new();
-        let mut active_has_val_by_stmt: HashMap<u128, Vec<(u128, DcShorthand)>> =
-            HashMap::new();
+        let mut active_has_val_by_stmt: HashMap<
+            u128,
+            Vec<(u128, DcShorthand)>,
+        > = HashMap::new();
         let mut active_pref_qual_by_stmt: HashMap<u128, Vec<u128>> =
             HashMap::new();
         let mut orphaned_stmt_ids: Vec<u128> = Vec::new();
@@ -640,18 +643,24 @@ impl SeedGraphIndex {
             if inactive_ids.contains(&node.id) {
                 continue;
             }
-            if let Some((inner_verb, inner_subj, inner_obj, _list_type, targets)) =
-                parse_for_each_statement_tokens(&node.tokens)
+            if let Some((
+                inner_verb,
+                inner_subj,
+                inner_obj,
+                _list_type,
+                targets,
+            )) = parse_for_each_statement_tokens(&node.tokens)
             {
-                let resolve_iter_tok = |pat: DcShorthand, elem: DcShorthand| -> DcShorthand {
-                    if pat == sh_this_element {
-                        elem
-                    } else if pat == sh_enclosing_doc {
-                        DcShorthand::Long(node.id)
-                    } else {
-                        pat
-                    }
-                };
+                let resolve_iter_tok =
+                    |pat: DcShorthand, elem: DcShorthand| -> DcShorthand {
+                        if pat == sh_this_element {
+                            elem
+                        } else if pat == sh_enclosing_doc {
+                            DcShorthand::Long(node.id)
+                        } else {
+                            pat
+                        }
+                    };
                 if inner_verb == sh_has_a {
                     if let Some(has_vals) = active_has_val_by_stmt.get(&node.id)
                         && !has_vals.is_empty()
@@ -661,8 +670,10 @@ impl SeedGraphIndex {
                             for &(has_val_id, val_tok) in has_vals {
                                 provenance_stmt_ids.insert(has_val_id);
                                 for &elem in &targets {
-                                    let subj = resolve_iter_tok(inner_subj, elem);
-                                    if let DcShorthand::Long(target_node_id) = subj
+                                    let subj =
+                                        resolve_iter_tok(inner_subj, elem);
+                                    if let DcShorthand::Long(target_node_id) =
+                                        subj
                                     {
                                         node_data_source
                                             .insert(target_node_id, val_tok);
@@ -670,7 +681,8 @@ impl SeedGraphIndex {
                                 }
                             }
                         } else {
-                            let pref_ids = active_pref_qual_by_stmt.get(&node.id);
+                            let pref_ids =
+                                active_pref_qual_by_stmt.get(&node.id);
                             let preferred_id =
                                 pref_ids.and_then(|ids| ids.last().copied());
                             if preferred_id.is_some() {
@@ -678,13 +690,16 @@ impl SeedGraphIndex {
                             }
                             for &(has_val_id, val_tok) in has_vals {
                                 for &elem in &targets {
-                                    let subj = resolve_iter_tok(inner_subj, elem);
+                                    let subj =
+                                        resolve_iter_tok(inner_subj, elem);
                                     let obj = resolve_iter_tok(inner_obj, elem);
                                     if single_valued_props.contains(&obj) {
                                         single_props_by_subj_prop
                                             .entry((subj, obj))
                                             .or_default()
-                                            .push((node.id, has_val_id, val_tok));
+                                            .push((
+                                                node.id, has_val_id, val_tok,
+                                            ));
                                         active_single_props.insert(
                                             (subj, obj),
                                             (node.id, has_val_id, val_tok),
@@ -789,7 +804,8 @@ impl SeedGraphIndex {
                             provenance_stmt_ids.insert(node.id);
                             for &(has_val_id, val_tok) in has_vals {
                                 provenance_stmt_ids.insert(has_val_id);
-                                node_data_source.insert(target_node_id, val_tok);
+                                node_data_source
+                                    .insert(target_node_id, val_tok);
                             }
                             continue;
                         }
@@ -798,8 +814,10 @@ impl SeedGraphIndex {
                     let first_pref_id =
                         pref_ids.and_then(|ids| ids.last().copied());
                     if let Some(ids) = pref_ids {
-                        for &extra_pref_id in
-                            ids.get(..ids.len().saturating_sub(1)).into_iter().flatten()
+                        for &extra_pref_id in ids
+                            .get(..ids.len().saturating_sub(1))
+                            .into_iter()
+                            .flatten()
                         {
                             orphaned_stmt_ids.push(extra_pref_id);
                         }
@@ -818,7 +836,9 @@ impl SeedGraphIndex {
                                 let key_opt = if class_sh == sh_bidi_class
                                     && obj == sh_prog_ident
                                 {
-                                    Some(SeedEntityKey::BidiClass(label.clone()))
+                                    Some(SeedEntityKey::BidiClass(
+                                        label.clone(),
+                                    ))
                                 } else if (class_sh == sh_char_gen_cat
                                     || class_sh == sh_dc_gen_cat)
                                     && obj == sh_prog_ident
@@ -917,7 +937,10 @@ impl SeedGraphIndex {
                     .entry((verb, subj, obj))
                     .or_default()
                     .push(node.id);
-                if active_direct_stmts.insert((verb, subj, obj), node.id).is_none() {
+                if active_direct_stmts
+                    .insert((verb, subj, obj), node.id)
+                    .is_none()
+                {
                     direct_objects_by_verb_subj
                         .entry((verb, subj))
                         .or_default()
@@ -1430,7 +1453,8 @@ impl SeedGraphIndex {
                 (sh_compat, "compat"),
             ] {
                 for entry in self.get_multi_properties(subj, decomp_prop) {
-                    let payload = self.decode_decomposition_payload(entry.value);
+                    let payload =
+                        self.decode_decomposition_payload(entry.value);
                     decompositions.push(format!("<{tag}>{payload}"));
                 }
             }
@@ -1652,7 +1676,8 @@ impl SeedGraphIndex {
                 (sh_compat, "compat"),
             ] {
                 for entry in self.get_multi_properties(subj, decomp_prop) {
-                    let payload = self.decode_decomposition_payload(entry.value);
+                    let payload =
+                        self.decode_decomposition_payload(entry.value);
                     decompositions.push(format!("<{tag}>{payload}"));
                 }
             }
@@ -1693,9 +1718,9 @@ impl SeedGraphIndex {
                     if let Some(s) = self.get_string(e.value) {
                         Some(s.to_string())
                     } else if let DcShorthand::Long(pat_id) = e.value {
-                        self.decode_pattern_node(pat_id)
-                            .ok()
-                            .and_then(|r| format_extension_regex_pattern(&r.pattern))
+                        self.decode_pattern_node(pat_id).ok().and_then(|r| {
+                            format_extension_regex_pattern(&r.pattern)
+                        })
                     } else {
                         None
                     }
@@ -1784,17 +1809,17 @@ impl SeedGraphIndex {
                 .map(str::to_string);
             for entry in self.get_multi_properties(subj, sh_var_aspect) {
                 if let DcShorthand::Format(_) = entry.value {
-                    if let Some(nick) =
-                        self.get_single_property_string(entry.value, sh_var_nick)
+                    if let Some(nick) = self
+                        .get_single_property_string(entry.value, sh_var_nick)
                     {
                         let v_script = format!(".Formats:v:{nick}");
                         let direct_script = format!(".Formats:{nick}");
                         if self
                             .seed_entity_ids
                             .contains_key(&SeedEntityKey::Script(v_script))
-                            || self
-                                .seed_entity_ids
-                                .contains_key(&SeedEntityKey::Script(direct_script))
+                            || self.seed_entity_ids.contains_key(
+                                &SeedEntityKey::Script(direct_script),
+                            )
                         {
                             variant_type_items.push(nick.to_string());
                         } else {
@@ -1811,29 +1836,28 @@ impl SeedGraphIndex {
                 Some(variant_type_items.join(", "))
             };
 
-            let default_line_ending = match self
-                .get_single_property(subj, sh_def_variant)
-            {
-                Some(tok) if tok == sh(DC_LINE_ENDING_LF) => {
-                    Some("lf".to_string())
-                }
-                Some(tok) if tok == sh(DC_LINE_ENDING_CR) => {
-                    Some("cr".to_string())
-                }
-                Some(tok) if tok == sh(DC_LINE_ENDING_CR_LF) => {
-                    Some("crlf".to_string())
-                }
-                Some(tok) if tok == sh(DC_LINE_ENDING_LF_CR) => {
-                    Some("lfcr".to_string())
-                }
-                Some(tok) if tok == sh(DC_LINE_ENDING_RS) => {
-                    Some("rs".to_string())
-                }
-                Some(tok) if tok == sh(DC_LINE_ENDING_NL) => {
-                    Some("nl".to_string())
-                }
-                _ => None,
-            };
+            let default_line_ending =
+                match self.get_single_property(subj, sh_def_variant) {
+                    Some(tok) if tok == sh(DC_LINE_ENDING_LF) => {
+                        Some("lf".to_string())
+                    }
+                    Some(tok) if tok == sh(DC_LINE_ENDING_CR) => {
+                        Some("cr".to_string())
+                    }
+                    Some(tok) if tok == sh(DC_LINE_ENDING_CR_LF) => {
+                        Some("crlf".to_string())
+                    }
+                    Some(tok) if tok == sh(DC_LINE_ENDING_LF_CR) => {
+                        Some("lfcr".to_string())
+                    }
+                    Some(tok) if tok == sh(DC_LINE_ENDING_RS) => {
+                        Some("rs".to_string())
+                    }
+                    Some(tok) if tok == sh(DC_LINE_ENDING_NL) => {
+                        Some("nl".to_string())
+                    }
+                    _ => None,
+                };
 
             let fmt_implies = if implies.is_empty() {
                 None
@@ -1956,15 +1980,16 @@ impl SeedGraphIndex {
                         || tok == sh(DC_TYPE_INTERSECTION)
                         || tok == sh(DC_FORMAT_PARAM_APPLICATION)
                 };
-                let starts_format_expr = node.tokens.first().is_some_and(|&t| {
-                    is_format_op(t)
-                        || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
-                            && node
-                                .tokens
-                                .get(1)
-                                .copied()
-                                .is_some_and(is_format_op))
-                });
+                let starts_format_expr =
+                    node.tokens.first().is_some_and(|&t| {
+                        is_format_op(t)
+                            || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
+                                && node
+                                    .tokens
+                                    .get(1)
+                                    .copied()
+                                    .is_some_and(is_format_op))
+                    });
                 if starts_format_expr {
                     if let Ok(expr) = self.decode_format_expr_node(node_id) {
                         return crate::format_spec::format_expr(&expr);
@@ -1992,11 +2017,16 @@ impl SeedGraphIndex {
                         || tok == sh(DC_TYPE_INTERSECTION)
                         || tok == sh(DC_FORMAT_PARAM_APPLICATION)
                 };
-                let starts_format_expr = node.tokens.first().is_some_and(|&t| {
-                    is_format_op(t)
-                        || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
-                            && node.tokens.get(1).copied().is_some_and(is_format_op))
-                });
+                let starts_format_expr =
+                    node.tokens.first().is_some_and(|&t| {
+                        is_format_op(t)
+                            || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
+                                && node
+                                    .tokens
+                                    .get(1)
+                                    .copied()
+                                    .is_some_and(is_format_op))
+                    });
                 if starts_format_expr {
                     if let Ok(expr) = self.decode_format_expr_node(node_id) {
                         return crate::format_spec::format_expr(&expr);
@@ -2028,8 +2058,7 @@ impl SeedGraphIndex {
         &self,
         subj: DcShorthand,
     ) -> Result<Option<DcSyntaxRule>> {
-        let Some(val_tok) =
-            self.get_single_property(subj, sh(DC_SYNTAX_RULE))
+        let Some(val_tok) = self.get_single_property(subj, sh(DC_SYNTAX_RULE))
         else {
             return Ok(None);
         };
@@ -2107,7 +2136,9 @@ impl SeedGraphIndex {
             }
         }
         let Some(start) = open_idx else {
-            bail!("Unbalanced EndAssociativityGroup (299) in pattern token stream");
+            bail!(
+                "Unbalanced EndAssociativityGroup (299) in pattern token stream"
+            );
         };
         let group_slice = tokens
             .get(start..)
@@ -2222,8 +2253,7 @@ impl SeedGraphIndex {
         let mut elements = Vec::new();
         let mut idx = 0usize;
         while idx < tokens.len() {
-            let (term, after_term) =
-                self.decode_syntax_term_at(tokens, idx)?;
+            let (term, after_term) = self.decode_syntax_term_at(tokens, idx)?;
             let (quantifier, after_quant) =
                 self.decode_optional_quantifier_at(tokens, after_term)?;
             elements.push(SyntaxElement::with_quantifier(term, quantifier));
@@ -2708,8 +2738,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_supersession_chains_and_retractions_in_seed_graph_index() -> Result<()>
-    {
+    fn test_supersession_chains_and_retractions_in_seed_graph_index()
+    -> Result<()> {
         let mut defn = make_test_defn(900, "Name v1", "Desc v1");
         defn.combining_class = 230;
         defn.casing_partner = Some(901);
@@ -2754,7 +2784,7 @@ mod tests {
         assert!(idx1.has_direct_statement(
             sh(DC_IS_DEPRECATED),
             subj,
-            sh( crate::dc::DC_BOOLEAN_TRUE )
+            sh(crate::dc::DC_BOOLEAN_TRUE)
         ));
         assert_eq!(
             idx1.get_preferred_replacements(subj),
@@ -2838,14 +2868,15 @@ mod tests {
             idx3.get_multi_properties(subj, sh(DC_INFORMAL_ALIAS))
                 .is_empty()
         );
-        assert!(idx3.get_direct_objects(sh(DC_IS_SUBTYPE_OF), subj).is_empty());
         assert!(
-            !idx3.has_direct_statement(
-                sh(DC_IS_DEPRECATED),
-                subj,
-                sh(crate::dc::DC_BOOLEAN_TRUE)
-            )
+            idx3.get_direct_objects(sh(DC_IS_SUBTYPE_OF), subj)
+                .is_empty()
         );
+        assert!(!idx3.has_direct_statement(
+            sh(DC_IS_DEPRECATED),
+            subj,
+            sh(crate::dc::DC_BOOLEAN_TRUE)
+        ));
         assert!(idx3.get_preferred_replacements(subj).is_empty());
         assert!(idx3.retracted_count() > 0);
 
@@ -3003,19 +3034,10 @@ mod tests {
             full_index.inactive_count() > 0,
             "Full index with history should include superseded nodes from data/graph/system/*.ctbnbdl"
         );
-        assert_eq!(
-            index.active_single_props,
-            full_index.active_single_props
-        );
-        assert_eq!(
-            index.active_multi_props,
-            full_index.active_multi_props
-        );
+        assert_eq!(index.active_single_props, full_index.active_single_props);
+        assert_eq!(index.active_multi_props, full_index.active_multi_props);
         assert_eq!(index.active_preferred, full_index.active_preferred);
-        assert_eq!(
-            index.active_direct_stmts,
-            full_index.active_direct_stmts
-        );
+        assert_eq!(index.active_direct_stmts, full_index.active_direct_stmts);
         assert_eq!(index.seed_entity_ids, full_index.seed_entity_ids);
 
         Ok(())
@@ -3030,7 +3052,10 @@ mod tests {
         let supersession_id = original_id.saturating_add(4);
         let reference_id = original_id.saturating_add(5);
         let retraction_id = original_id.saturating_add(6);
-        for (first, second) in [(candidate_one, candidate_two), (candidate_two, candidate_one)] {
+        for (first, second) in [
+            (candidate_one, candidate_two),
+            (candidate_two, candidate_one),
+        ] {
             let mut nodes = crate::graph_ledger::load_ledger_nodes_from_str(
                 &format!(
                     "l{original_id}: u78\nl{candidate_one}: 587 900 901\nl{candidate_two}: 587 900 902\nl{ambiguity_id}: 348 310 275 l{first} 312 l{second} 311\nl{supersession_id}: 591 l{ambiguity_id} l{original_id}\nl{reference_id}: 588 900 l{candidate_one}\n"
@@ -3038,10 +3063,25 @@ mod tests {
                 "ambiguity-test",
             )?;
             let index = SeedGraphIndex::from_nodes(nodes.clone());
-            assert_eq!(index.get_ambiguous_candidates(original_id), Some(vec![first, second]));
-            assert!(index.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(901)));
-            assert!(index.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(902)));
-            assert!(index.has_direct_statement(DcShorthand::Short(588), DcShorthand::Short(900), DcShorthand::Long(candidate_one)));
+            assert_eq!(
+                index.get_ambiguous_candidates(original_id),
+                Some(vec![first, second])
+            );
+            assert!(index.has_direct_statement(
+                DcShorthand::Short(587),
+                DcShorthand::Short(900),
+                DcShorthand::Short(901)
+            ));
+            assert!(index.has_direct_statement(
+                DcShorthand::Short(587),
+                DcShorthand::Short(900),
+                DcShorthand::Short(902)
+            ));
+            assert!(index.has_direct_statement(
+                DcShorthand::Short(588),
+                DcShorthand::Short(900),
+                DcShorthand::Long(candidate_one)
+            ));
 
             nodes.extend(crate::graph_ledger::load_ledger_nodes_from_str(
                 &format!("l{retraction_id}: 592 615 l{candidate_one}\n"),
@@ -3050,9 +3090,20 @@ mod tests {
             let revised = SeedGraphIndex::from_nodes(nodes);
             assert!(!revised.is_node_active(candidate_one));
             assert!(revised.is_node_active(candidate_two));
-            assert!(!revised.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(901)));
-            assert!(revised.has_direct_statement(DcShorthand::Short(587), DcShorthand::Short(900), DcShorthand::Short(902)));
-            assert_eq!(revised.get_ambiguous_candidates(original_id), Some(vec![first, second]));
+            assert!(!revised.has_direct_statement(
+                DcShorthand::Short(587),
+                DcShorthand::Short(900),
+                DcShorthand::Short(901)
+            ));
+            assert!(revised.has_direct_statement(
+                DcShorthand::Short(587),
+                DcShorthand::Short(900),
+                DcShorthand::Short(902)
+            ));
+            assert_eq!(
+                revised.get_ambiguous_candidates(original_id),
+                Some(vec![first, second])
+            );
         }
         Ok(())
     }
@@ -3061,14 +3112,17 @@ mod tests {
     fn test_ambiguity_recovery_prefix_invariants() -> Result<()> {
         let full_index = SeedGraphIndex::load_with_history_from_asset_bundle()?;
         let full_index = SeedGraphIndex::from_nodes(
-            full_index.nodes.into_iter()
+            full_index
+                .nodes
+                .into_iter()
                 .filter(|node| node.id <= 8_589_958_343)
                 .collect(),
         );
-        let (active_nodes, _) = crate::ctbnbdl::partition_active_and_inactive_nodes_with(
-            &full_index.nodes,
-            crate::graph_ledger::default_ctbnbdl_framing_dcs(),
-        );
+        let (active_nodes, _) =
+            crate::ctbnbdl::partition_active_and_inactive_nodes_with(
+                &full_index.nodes,
+                crate::graph_ledger::default_ctbnbdl_framing_dcs(),
+            );
         let active_index = SeedGraphIndex::from_nodes(active_nodes);
 
         // 1. Exact node counts after Step 2a (2,465), Step 2b (2,838), and Step 3 (616 retractions):
@@ -3176,4 +3230,3 @@ mod tests {
         Ok(())
     }
 }
-

@@ -27,14 +27,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::{
-    session_context, JournalErrorRecord, JournalErrorRecordPayload,
-    JournalSessionRecord, JournalWarningRecord, JournalWarningRecordPayload,
-    JournalWarningRecordStringPayload,
+    JournalErrorRecord, JournalErrorRecordPayload, JournalSessionRecord,
+    JournalWarningRecord, JournalWarningRecordPayload,
+    JournalWarningRecordStringPayload, session_context,
 };
 use ctb_formats_dcdata::dc;
 use ctb_formats_dcstring::{
-    DcDocumentNavigator, DcFrameHeaderInfo, DcFrameStub,
-    DcProjectionPolicy, DcSyntaxArena, SharedValueContext,
+    DcDocumentNavigator, DcFrameHeaderInfo, DcFrameStub, DcProjectionPolicy,
+    DcSyntaxArena, SharedValueContext,
 };
 use ctb_io::file::FileEntityWithPayload;
 use std::fs::File;
@@ -67,7 +67,10 @@ fn retain_recovery_diagnostics(
         return;
     }
     for diagnostic in arena.diagnostics() {
-        if !diagnostic.message.starts_with("Deprecated Document Character") {
+        if !diagnostic
+            .message
+            .starts_with("Deprecated Document Character")
+        {
             warnings.push(JournalWarningRecord {
                 code: "journal-decode-diagnostic".to_owned(),
                 message: diagnostic.message.clone(),
@@ -167,7 +170,7 @@ pub(crate) fn scan(
                 break;
             }
             Err(error) => {
-                return Err(error).context("Invalid journal record structure")
+                return Err(error).context("Invalid journal record structure");
             }
         };
         if stub.is_unclosed() {
@@ -182,14 +185,22 @@ pub(crate) fn scan(
         match stub.head_dc {
             head if head == dc::DC_BEGIN_CHECKSUMMED_SECTION => {
                 let (sequence, digest_valid) = match stub.header_info {
-                    DcFrameHeaderInfo::ChecksummedSection { sequence_id: Some(sequence), digest_valid, .. } => (sequence, digest_valid),
-                    _ => bail!("Missing sequence identifier in closed checksummed section"),
+                    DcFrameHeaderInfo::ChecksummedSection {
+                        sequence_id: Some(sequence),
+                        digest_valid,
+                        ..
+                    } => (sequence, digest_valid),
+                    _ => bail!(
+                        "Missing sequence identifier in closed checksummed section"
+                    ),
                 };
                 if !digest_valid {
                     if policy.is_strict() {
                         bail!("Digest mismatch in journal batch {sequence}");
                     }
-                    let message = format!("Journal batch {sequence} was salvaged despite an invalid section digest; its integrity is not verified");
+                    let message = format!(
+                        "Journal batch {sequence} was salvaged despite an invalid section digest; its integrity is not verified"
+                    );
                     policy.handle(policy.syntax_error, &message)?;
                     result.warnings.push(JournalWarningRecord {
                         code: "journal-digest-mismatch".to_owned(),
@@ -219,7 +230,11 @@ pub(crate) fn scan(
                     members.push(navigator.decode_frame_with_arena::<FileEntityWithPayload>(
                         &child, &mut arena, Some(&context), policy)
                         .with_context(|| format!("Failed to decode FileEntity in batch {sequence}"))?);
-                    retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
+                    retain_recovery_diagnostics(
+                        &arena,
+                        policy,
+                        &mut result.warnings,
+                    );
                 }
                 navigator.exit_frame()?;
                 result.members.extend(members);
@@ -229,7 +244,8 @@ pub(crate) fn scan(
             head if head == dc::DC_OPERATION_COMPLETED => {
                 ensure!(
                     stub.outer_span.len()
-                        == navigator.char_encoded_len(dc::DC_OPERATION_COMPLETED),
+                        == navigator
+                            .char_encoded_len(dc::DC_OPERATION_COMPLETED),
                     "Invalid completion marker"
                 );
                 result.completed = true;
@@ -244,7 +260,11 @@ pub(crate) fn scan(
                         policy,
                     )
                     .context("Invalid journal error record")?;
-                retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
+                retain_recovery_diagnostics(
+                    &arena,
+                    policy,
+                    &mut result.warnings,
+                );
                 result.errors.push(payload.to_record(policy)?);
             }
             head if head == dc::DC_BEGIN_WARNING_RECORD => {
@@ -255,7 +275,11 @@ pub(crate) fn scan(
                     &context,
                     policy,
                 )?;
-                retain_recovery_diagnostics(&arena, policy, &mut result.warnings);
+                retain_recovery_diagnostics(
+                    &arena,
+                    policy,
+                    &mut result.warnings,
+                );
                 result.warnings.push(w);
             }
             head => bail!(
@@ -334,8 +358,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn either_magic_accepts_batches_optional_bodies_and_diagnostics(
-    ) -> Result<()> {
+    fn either_magic_accepts_batches_optional_bodies_and_diagnostics()
+    -> Result<()> {
         let journal = fixture(JournalMagic::JournalV5)?;
         let archive = fixture(JournalMagic::ArchiveV2)?;
         ensure!(journal.get(8..) == archive.get(8..));
@@ -389,17 +413,19 @@ mod tests {
                 &DcProjectionPolicy::forgiving_quiet(),
             )?;
             ensure!(salvaged.members.len() == 1 && !salvaged.completed);
-            ensure!(salvaged
-                .warnings
-                .iter()
-                .any(|warning| warning.code == "journal-digest-mismatch"));
+            ensure!(
+                salvaged
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.code == "journal-digest-mismatch")
+            );
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn journal_sequence_and_completion_rules_apply_to_either_magic(
-    ) -> Result<()> {
+    fn journal_sequence_and_completion_rules_apply_to_either_magic()
+    -> Result<()> {
         for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let session = JournalSessionRecord {
                 sources: Vec::new(),
@@ -455,12 +481,14 @@ mod tests {
             file.write_all(&bytes)?;
             for length in (8..bytes.len()).rev() {
                 file.set_len(u64::try_from(length)?)?;
-                ensure!(scan(
-                    file.try_clone()?,
-                    ReadMode::Complete,
-                    &DcProjectionPolicy::strict(),
-                )
-                .is_err());
+                ensure!(
+                    scan(
+                        file.try_clone()?,
+                        ReadMode::Complete,
+                        &DcProjectionPolicy::strict(),
+                    )
+                    .is_err()
+                );
                 if let Ok(scanned) = scan(
                     file.try_clone()?,
                     ReadMode::Recover,

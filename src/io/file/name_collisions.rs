@@ -27,9 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::apple_single_double::{
-    AppleDoubleStyle, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
-    get_companion_path, split_windows_ads_companion_bytes, APPLESINGLE_MAGIC_BE,
-    APPLESINGLE_MAGIC_LE,
+    APPLESINGLE_MAGIC_BE, APPLESINGLE_MAGIC_LE, AppleDoubleStyle,
+    AppleReadOptions, AppleSingleExtension, AppleWriteMode, get_companion_path,
+    split_windows_ads_companion_bytes,
 };
 use crate::traversal::DirEntryItem;
 use std::collections::HashMap;
@@ -38,8 +38,15 @@ use std::path::{Path, PathBuf};
 
 /// Inspects a candidate source file to determine if it is a valid AppleSingle file
 /// that should have its extension stripped on read.
-fn is_valid_apple_single_with_ext(path: &Path, extension: AppleSingleExtension) -> bool {
-    if path.file_name().and_then(|name| extension.strip_from_name(name)).is_none() {
+fn is_valid_apple_single_with_ext(
+    path: &Path,
+    extension: AppleSingleExtension,
+) -> bool {
+    if path
+        .file_name()
+        .and_then(|name| extension.strip_from_name(name))
+        .is_none()
+    {
         return false;
     }
 
@@ -100,15 +107,25 @@ pub fn validate_and_order_directory_entries(
         let mut base_name = entry_name.clone();
         if !item.is_dir && !item.is_symlink {
             if read_options.read_apple_single_as
-                && is_valid_apple_single_with_ext(&src_path, AppleSingleExtension::As)
+                && is_valid_apple_single_with_ext(
+                    &src_path,
+                    AppleSingleExtension::As,
+                )
             {
-                if let Some(name) = AppleSingleExtension::As.strip_from_name(&base_name) {
+                if let Some(name) =
+                    AppleSingleExtension::As.strip_from_name(&base_name)
+                {
                     base_name = name.to_os_string();
                 }
             } else if read_options.read_apple_single_asf
-                && is_valid_apple_single_with_ext(&src_path, AppleSingleExtension::Asf)
+                && is_valid_apple_single_with_ext(
+                    &src_path,
+                    AppleSingleExtension::Asf,
+                )
             {
-                if let Some(name) = AppleSingleExtension::Asf.strip_from_name(&base_name) {
+                if let Some(name) =
+                    AppleSingleExtension::Asf.strip_from_name(&base_name)
+                {
                     base_name = name.to_os_string();
                 }
             }
@@ -156,7 +173,8 @@ pub fn validate_and_order_directory_entries(
 
     // Collision Detection:
     // 1. Multiple source items targeting the exact same destination path or file/dir conflicts
-    let mut target_to_entry: HashMap<PathBuf, (OsString, bool)> = HashMap::new();
+    let mut target_to_entry: HashMap<PathBuf, (OsString, bool)> =
+        HashMap::new();
     for action in &planned_actions {
         let entry_name = &action.entry.file_name;
 
@@ -187,23 +205,35 @@ pub fn validate_and_order_directory_entries(
                 );
             }
         } else {
-            target_to_entry.insert(action.dest_path.clone(), (entry_name.clone(), action.entry.is_dir));
+            target_to_entry.insert(
+                action.dest_path.clone(),
+                (entry_name.clone(), action.entry.is_dir),
+            );
         }
 
         // Check if an entry is a regular file named '__MACOSX' when writing Zip AppleDouble,
         // or '.AppleDouble' when writing Netatalk AppleDouble.
         if !action.entry.is_dir {
-            if write_mode == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Zip) && entry_name == "__MACOSX" {
+            if write_mode
+                == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Zip)
+                && entry_name == "__MACOSX"
+            {
                 anyhow::bail!(
                     "Target collision: regular file '__MACOSX' collides with AppleDouble zip directory '__MACOSX'"
                 );
             }
-            if write_mode == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Netatalk) && entry_name == ".AppleDouble" {
+            if write_mode
+                == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Netatalk)
+                && entry_name == ".AppleDouble"
+            {
                 anyhow::bail!(
                     "Target collision: regular file '.AppleDouble' collides with Netatalk companion directory '.AppleDouble'"
                 );
             }
-            if write_mode == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Netatalk) && entry_name == ".Parent" {
+            if write_mode
+                == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Netatalk)
+                && entry_name == ".Parent"
+            {
                 anyhow::bail!(
                     "Companion collision: regular file '.Parent' companion collides with reserved Netatalk directory metadata '.AppleDouble/.Parent'"
                 );
@@ -212,16 +242,20 @@ pub fn validate_and_order_directory_entries(
 
         // Check if write mode generates companion paths that collide with preexisting independent source files
         if !action.entry.is_dir {
-            if write_mode == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Netatalk) {
+            if write_mode
+                == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Netatalk)
+            {
                 let dot_appledouble = curr_src.join(".AppleDouble");
                 if dot_appledouble.is_dir() {
-                    let candidate = dot_appledouble.join(&action.entry.file_name);
+                    let candidate =
+                        dot_appledouble.join(&action.entry.file_name);
                     if candidate.exists() {
-                        let companion_display = if let Some(p) = &action.companion_path {
-                            p.display().to_string()
-                        } else {
-                            String::new()
-                        };
+                        let companion_display =
+                            if let Some(p) = &action.companion_path {
+                                p.display().to_string()
+                            } else {
+                                String::new()
+                            };
                         anyhow::bail!(
                             "Companion collision detected: AppleDouble companion for '{}' at '{}' collides with independent source file in '.AppleDouble'",
                             entry_name.to_string_lossy(),
@@ -229,11 +263,17 @@ pub fn validate_and_order_directory_entries(
                         );
                     }
                 }
-            } else if write_mode == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Zip) {
+            } else if write_mode
+                == AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Zip)
+            {
                 // If top-level or relative __MACOSX exists in source
                 let direct_macosx = get_companion_path(
-                    curr_src, Path::new(&action.effective_dest_name), false,
-                    AppleDoubleStyle::Zip, Some(curr_src), None,
+                    curr_src,
+                    Path::new(&action.effective_dest_name),
+                    false,
+                    AppleDoubleStyle::Zip,
+                    Some(curr_src),
+                    None,
                 );
                 let mut root_cand = curr_src;
                 for _ in dir_rel.components() {
@@ -243,8 +283,12 @@ pub fn validate_and_order_directory_entries(
                 }
                 let relative = dir_rel.join(&action.effective_dest_name);
                 let root_macosx = get_companion_path(
-                    curr_src, Path::new(&action.effective_dest_name), false,
-                    AppleDoubleStyle::Zip, Some(root_cand), Some(&relative),
+                    curr_src,
+                    Path::new(&action.effective_dest_name),
+                    false,
+                    AppleDoubleStyle::Zip,
+                    Some(root_cand),
+                    Some(&relative),
                 );
                 if direct_macosx.exists() || root_macosx.exists() {
                     anyhow::bail!(
@@ -276,7 +320,9 @@ pub fn validate_and_order_directory_entries(
 
             // Ancestor collision: companion needs its parent directories to be directories
             for ancestor in comp.ancestors().skip(1) {
-                if let Some((colliding_entry, is_dir)) = target_to_entry.get(ancestor) {
+                if let Some((colliding_entry, is_dir)) =
+                    target_to_entry.get(ancestor)
+                {
                     if !is_dir {
                         anyhow::bail!(
                             "Target collision: entry '{}' maps to destination '{}' as a file, \
@@ -296,7 +342,7 @@ pub fn validate_and_order_directory_entries(
                 }
             }
 
-        // Check if companion path itself already exists on disk as a directory
+            // Check if companion path itself already exists on disk as a directory
             if comp.exists() && comp.is_dir() {
                 anyhow::bail!(
                     "Companion collision: companion path '{}' already exists on disk as a directory",
@@ -307,9 +353,9 @@ pub fn validate_and_order_directory_entries(
 
         if write_mode == AppleWriteMode::ForceWindowsAds {
             let entry_name = &action.entry.file_name;
-            if let Some((base_bytes, _)) =
-                split_windows_ads_companion_bytes(action.effective_dest_name.as_encoded_bytes())
-            {
+            if let Some((base_bytes, _)) = split_windows_ads_companion_bytes(
+                action.effective_dest_name.as_encoded_bytes(),
+            ) {
                 let base_dest_path = {
                     #[cfg(unix)]
                     {
@@ -324,7 +370,9 @@ pub fn validate_and_order_directory_entries(
                         }
                     }
                 };
-                if let Some((base_entry, _)) = target_to_entry.get(&base_dest_path) {
+                if let Some((base_entry, _)) =
+                    target_to_entry.get(&base_dest_path)
+                {
                     if base_entry != entry_name {
                         anyhow::bail!(
                             "Companion collision detected: Windows ADS companion for '{}' collides with destination path for '{}'",
@@ -363,16 +411,14 @@ pub fn validate_and_order_directory_entries(
     // adaptation so adapted siblings that collide with them disambiguate cleanly;
     // remaining ties are broken deterministically by original filename bytes.
     let priority_key = |i: usize| {
-        let needs_adaptation = planned_actions
-            .get(i)
-            .is_some_and(|a| {
-                crate::clean_name::adapt_component_for_materialization(
-                    &a.effective_dest_name,
-                    true,
-                )
-                .1
-                .is_some()
-            });
+        let needs_adaptation = planned_actions.get(i).is_some_and(|a| {
+            crate::clean_name::adapt_component_for_materialization(
+                &a.effective_dest_name,
+                true,
+            )
+            .1
+            .is_some()
+        });
         // Reason for fallback: valid index into planned_actions always yields Some
         let name_bytes = planned_actions
             .get(i)
@@ -427,8 +473,10 @@ pub fn validate_and_order_directory_entries(
 )]
 mod tests {
     use super::*;
-    use crate::apple_double::{AppleArchive, write_apple_single_double, VERSION_2_0_BE, AppleFormat};
-    use crate::traversal::{read_dir_safe, TraversalOptions};
+    use crate::apple_double::{
+        AppleArchive, AppleFormat, VERSION_2_0_BE, write_apple_single_double,
+    };
+    use crate::traversal::{TraversalOptions, read_dir_safe};
     use std::fs;
     use tempfile::tempdir;
 
@@ -453,8 +501,13 @@ mod tests {
         fs::create_dir(destination.join("name\u{fffd}"))?;
         let entries = read_dir_safe(&source, &TraversalOptions::new())?;
         let ordered = validate_and_order_directory_entries(
-            entries, &source, &destination, &destination, Path::new(""),
-            &AppleReadOptions::default(), AppleWriteMode::NativeOnly,
+            entries,
+            &source,
+            &destination,
+            &destination,
+            Path::new(""),
+            &AppleReadOptions::default(),
+            AppleWriteMode::NativeOnly,
             AppleSingleExtension::WithoutExtension,
         )?;
         ensure!(ordered.len() == names.len());
@@ -471,17 +524,35 @@ mod tests {
         let name = std::ffi::OsString::from_vec(b"name\xff".to_vec());
         let mut companion = std::ffi::OsString::from("._");
         companion.push(&name);
-        for style in [AppleDoubleStyle::Alongside, AppleDoubleStyle::Zip, AppleDoubleStyle::Netatalk] {
+        for style in [
+            AppleDoubleStyle::Alongside,
+            AppleDoubleStyle::Zip,
+            AppleDoubleStyle::Netatalk,
+        ] {
             let path = get_companion_path(
-                Path::new("destination"), Path::new(&name), false, style,
-                Some(Path::new("destination")), Some(&PathBuf::from("nested").join(&name)),
+                Path::new("destination"),
+                Path::new(&name),
+                false,
+                style,
+                Some(Path::new("destination")),
+                Some(&PathBuf::from("nested").join(&name)),
             );
             let expected = match style {
-                AppleDoubleStyle::Alongside => PathBuf::from("destination").join(&companion),
-                AppleDoubleStyle::Zip => PathBuf::from("destination/__MACOSX/nested").join(&companion),
-                AppleDoubleStyle::Netatalk => PathBuf::from("destination/.AppleDouble").join(&name),
+                AppleDoubleStyle::Alongside => {
+                    PathBuf::from("destination").join(&companion)
+                }
+                AppleDoubleStyle::Zip => {
+                    PathBuf::from("destination/__MACOSX/nested")
+                        .join(&companion)
+                }
+                AppleDoubleStyle::Netatalk => {
+                    PathBuf::from("destination/.AppleDouble").join(&name)
+                }
             };
-            ensure!(path == expected, "Companion path changed native filename: {style:?}");
+            ensure!(
+                path == expected,
+                "Companion path changed native filename: {style:?}"
+            );
         }
         Ok(())
     }
@@ -498,23 +569,43 @@ mod tests {
         fs::write(source.join(&name), b"original")?;
         let entity = crate::entity::FileEntity::from_vec(b"encoded".to_vec());
         let archive = crate::apple_double::create_apple_archive_from_entity(
-            &entity, AppleFormat::AppleSingle, Some(b"encoded".to_vec()),
+            &entity,
+            AppleFormat::AppleSingle,
+            Some(b"encoded".to_vec()),
         )?;
         let mut encoded_name = name.clone();
         encoded_name.push(".As");
-        fs::write(source.join(&encoded_name), write_apple_single_double(&archive)?)?;
-        let read_options = AppleReadOptions { read_apple_single_as: true, ..Default::default() };
+        fs::write(
+            source.join(&encoded_name),
+            write_apple_single_double(&archive)?,
+        )?;
+        let read_options = AppleReadOptions {
+            read_apple_single_as: true,
+            ..Default::default()
+        };
         let entries = read_dir_safe(&source, &TraversalOptions::new())?;
         let result = validate_and_order_directory_entries(
-            entries, &source, &destination, &destination, Path::new(""),
-            &read_options, AppleWriteMode::NativeOnly, AppleSingleExtension::WithoutExtension,
+            entries,
+            &source,
+            &destination,
+            &destination,
+            Path::new(""),
+            &read_options,
+            AppleWriteMode::NativeOnly,
+            AppleSingleExtension::WithoutExtension,
         );
-        ensure!(result.is_err(), "Raw AppleSingle stem collision was not detected");
+        ensure!(
+            result.is_err(),
+            "Raw AppleSingle stem collision was not detected"
+        );
 
         fs::remove_file(source.join(&name))?;
-        let decoded = crate::entity::FileEntity::from_filesystem_with_apple_options(
-            &source.join(&encoded_name), Some(&source), &read_options,
-        )?;
+        let decoded =
+            crate::entity::FileEntity::from_filesystem_with_apple_options(
+                &source.join(&encoded_name),
+                Some(&source),
+                &read_options,
+            )?;
         ensure!(decoded.identity.relative_path == Some(PathBuf::from(name)));
         Ok(())
     }
@@ -536,7 +627,9 @@ mod tests {
         let entries = read_dir_safe(&src, &traversal_opts)?;
 
         let read_opts = AppleReadOptions::default();
-        for input_entries in [entries.clone(), entries.into_iter().rev().collect()] {
+        for input_entries in
+            [entries.clone(), entries.into_iter().rev().collect()]
+        {
             let ordered = validate_and_order_directory_entries(
                 input_entries,
                 &src,
@@ -551,9 +644,18 @@ mod tests {
             // Foo -> Foo.as, Foo.as -> Foo.as.as, Foo.as.as -> Foo.as.as.as.
             // Therefore Foo.as.as must be ordered BEFORE Foo.as, which must be ordered BEFORE Foo!
             ensure!(ordered.len() == 3);
-            ensure!(ordered.first().map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as.as")));
-            ensure!(ordered.get(1).map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as")));
-            ensure!(ordered.get(2).map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo")));
+            ensure!(
+                ordered.first().map(|e| e.file_name.as_os_str())
+                    == Some(std::ffi::OsStr::new("Foo.as.as"))
+            );
+            ensure!(
+                ordered.get(1).map(|e| e.file_name.as_os_str())
+                    == Some(std::ffi::OsStr::new("Foo.as"))
+            );
+            ensure!(
+                ordered.get(2).map(|e| e.file_name.as_os_str())
+                    == Some(std::ffi::OsStr::new("Foo"))
+            );
         }
 
         Ok(())
@@ -607,7 +709,10 @@ mod tests {
 
         ensure!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
-        ensure!(err_msg.contains("Target collision") || err_msg.contains("collision"));
+        ensure!(
+            err_msg.contains("Target collision")
+                || err_msg.contains("collision")
+        );
 
         Ok(())
     }
@@ -644,7 +749,10 @@ mod tests {
 
         ensure!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
-        ensure!(err_msg.contains("Companion collision") || err_msg.contains("collision"));
+        ensure!(
+            err_msg.contains("Companion collision")
+                || err_msg.contains("collision")
+        );
 
         Ok(())
     }
@@ -697,7 +805,8 @@ mod tests {
             read_windows_ads_alongside: false,
             ..Default::default()
         };
-        let traversal_opts = TraversalOptions::new().apple_read_options(read_opts);
+        let traversal_opts =
+            TraversalOptions::new().apple_read_options(read_opts);
         let entries = read_dir_safe(&src, &traversal_opts)?;
 
         let res = validate_and_order_directory_entries(
@@ -713,9 +822,11 @@ mod tests {
 
         ensure!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
-        ensure!(err_msg.contains("Companion collision") || err_msg.contains("collision"));
+        ensure!(
+            err_msg.contains("Companion collision")
+                || err_msg.contains("collision")
+        );
 
         Ok(())
     }
 }
-

@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Specialized deep parsers and container inspection subsystem.
 //!
 //! Implements procedural format validators ported from `file`:
@@ -504,11 +503,7 @@ fn decode_tar_octal(bytes: &[u8]) -> Option<u32> {
         }
     }
 
-    if found {
-        Some(val)
-    } else {
-        None
-    }
+    if found { Some(val) } else { None }
 }
 
 /// Inspects source for a valid 512-byte TAR header with matching checksum.
@@ -914,11 +909,7 @@ pub fn scan_json(bytes: &[u8]) -> u8 {
         }
     }
 
-    if count > 1 {
-        2
-    } else {
-        0
-    }
+    if count > 1 { 2 } else { 0 }
 }
 
 /// Inspects source for JSON text data or NDJSON.
@@ -992,7 +983,13 @@ pub fn inspect_csv_tsv<S: DetectionSource + ?Sized>(
     }
 
     // Try CSV with ','
-    if let Some(cand) = check_delimited_table(sample, b',', FormatId::Csv, "text/csv", "CSV text") {
+    if let Some(cand) = check_delimited_table(
+        sample,
+        b',',
+        FormatId::Csv,
+        "text/csv",
+        "CSV text",
+    ) {
         return Ok(Some(cand));
     }
 
@@ -1066,7 +1063,9 @@ fn check_delimited_table(
             confidence: ConfidenceTier::Moderate,
             score: 70,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: format!("Consistent {line_count} rows with {target_fields:?} columns"),
+                detail: format!(
+                    "Consistent {line_count} rows with {target_fields:?} columns"
+                ),
                 score: 70,
             }],
             chain_layers: None,
@@ -1114,13 +1113,19 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
     }];
     if !elf.x86_properties.is_empty() {
         evidence.push(DetectionEvidence::ContainerStructure {
-            detail: format!("x86 security properties: {}", elf.x86_properties.join(", ")),
+            detail: format!(
+                "x86 security properties: {}",
+                elf.x86_properties.join(", ")
+            ),
             score: 95,
         });
     }
     if !elf.aarch64_properties.is_empty() {
         evidence.push(DetectionEvidence::ContainerStructure {
-            detail: format!("AArch64 security properties: {}", elf.aarch64_properties.join(", ")),
+            detail: format!(
+                "AArch64 security properties: {}",
+                elf.aarch64_properties.join(", ")
+            ),
             score: 95,
         });
     }
@@ -1189,7 +1194,10 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
         return Ok(None);
     }
 
-    let Some(&[s0, s1]) = header.get(30..32).and_then(|s| <&[u8; 2]>::try_from(s).ok()) else {
+    let Some(&[s0, s1]) = header
+        .get(30..32)
+        .and_then(|s| <&[u8; 2]>::try_from(s).ok())
+    else {
         return Ok(None);
     };
     let sector_shift = u16::from_le_bytes([s0, s1]);
@@ -1199,13 +1207,17 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
     }
     let sector_size: u64 = if sector_shift == 12 { 4096 } else { 512 };
 
-    let Some(&[f0, f1, f2, f3]) = header.get(48..52).and_then(|s| <&[u8; 4]>::try_from(s).ok()) else {
+    let Some(&[f0, f1, f2, f3]) = header
+        .get(48..52)
+        .and_then(|s| <&[u8; 4]>::try_from(s).ok())
+    else {
         return Ok(None);
     };
     let first_dir_sector = u32::from_le_bytes([f0, f1, f2, f3]);
 
     // Directory sector offset is (first_dir_sector + 1) * sector_size
-    let dir_offset = u64::from(first_dir_sector.saturating_add(1)).saturating_mul(sector_size);
+    let dir_offset = u64::from(first_dir_sector.saturating_add(1))
+        .saturating_mul(sector_size);
 
     let dir_buf_len = if sector_size == 4096 { 4096 } else { 512 };
     let mut dir_buf = vec![0u8; dir_buf_len];
@@ -1219,17 +1231,27 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
     let valid_read = dir_read.min(dir_buf.len());
     if let Some(read_slice) = dir_buf.get(..valid_read) {
         for entry in read_slice.chunks_exact(128) {
-            let name_len = if let Some(&[n0, n1]) = entry.get(64..66).and_then(|s| <&[u8; 2]>::try_from(s).ok()) {
+            let name_len = if let Some(&[n0, n1]) =
+                entry.get(64..66).and_then(|s| <&[u8; 2]>::try_from(s).ok())
+            {
                 u16::from_le_bytes([n0, n1])
             } else {
                 0
             };
             let name_bytes_len = usize::from(name_len).min(64);
             if name_bytes_len >= 2 {
-                if let Some(name_bytes) = entry.get(..name_bytes_len.saturating_sub(2)) {
+                if let Some(name_bytes) =
+                    entry.get(..name_bytes_len.saturating_sub(2))
+                {
                     let name_words: Vec<u16> = name_bytes
                         .chunks_exact(2)
-                        .map(|c| if let &[b0, b1] = c { u16::from_le_bytes([b0, b1]) } else { 0 })
+                        .map(|c| {
+                            if let &[b0, b1] = c {
+                                u16::from_le_bytes([b0, b1])
+                            } else {
+                                0
+                            }
+                        })
                         .collect();
                     if let Ok(name) = String::from_utf16(&name_words) {
                         stream_names.push(name);
@@ -1240,11 +1262,13 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
     }
 
     // Check DROID declarative OLE2 container signatures
-    if let Ok(Some(cand)) = crate::detection::droid::evaluate_droid_ole2_container(
-        source,
-        &stream_names,
-        &crate::detection::droid::DROID_CONTAINER_DB,
-    ) {
+    if let Ok(Some(cand)) =
+        crate::detection::droid::evaluate_droid_ole2_container(
+            source,
+            &stream_names,
+            &crate::detection::droid::DROID_CONTAINER_DB,
+        )
+    {
         return Ok(Some(cand));
     }
 
@@ -1282,7 +1306,8 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                 format_id: None,
                 dc_id: None,
                 mime: Some("application/vnd.ms-powerpoint".to_string()),
-                description: "Microsoft PowerPoint 97-2004 Presentation".to_string(),
+                description: "Microsoft PowerPoint 97-2004 Presentation"
+                    .to_string(),
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
@@ -1311,7 +1336,9 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                 format_id: None,
                 dc_id: None,
                 mime: Some("application/x-hwp".to_string()),
-                description: "Hancom HWP (Hangul Word Processor) file, version 5.0".to_string(),
+                description:
+                    "Hancom HWP (Hangul Word Processor) file, version 5.0"
+                        .to_string(),
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
@@ -1331,7 +1358,8 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
         confidence: ConfidenceTier::Strong,
         score: 80,
         evidence: vec![DetectionEvidence::ContainerStructure {
-            detail: "Identified OLE2 Compound Document File structure".to_string(),
+            detail: "Identified OLE2 Compound Document File structure"
+                .to_string(),
             score: 80,
         }],
         chain_layers: None,
@@ -1348,7 +1376,9 @@ const ZIP_LOCAL_HEADER_MAGIC: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
 pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
     source: &mut S,
 ) -> Result<Option<DetectionCandidate>> {
-    if let Ok(Some(cand)) = crate::detection::droid::inspect_zip_container_comprehensive(source) {
+    if let Ok(Some(cand)) =
+        crate::detection::droid::inspect_zip_container_comprehensive(source)
+    {
         return Ok(Some(cand));
     }
 
@@ -1367,7 +1397,9 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
     let mut file_names = Vec::new();
     let mut pos: usize = 0;
     while pos.saturating_add(30) <= sample.len() {
-        if sample.get(pos..pos.saturating_add(4)) == Some(&ZIP_LOCAL_HEADER_MAGIC) {
+        if sample.get(pos..pos.saturating_add(4))
+            == Some(&ZIP_LOCAL_HEADER_MAGIC)
+        {
             let Some(&[f0, f1, e0, e1]) = sample
                 .get(pos.saturating_add(26)..pos.saturating_add(30))
                 .and_then(|s| <&[u8; 4]>::try_from(s).ok())
@@ -1383,7 +1415,9 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     file_names.push(name.to_string());
                 }
             }
-            pos = name_end.saturating_add(usize::from(elen)).max(pos.saturating_add(1));
+            pos = name_end
+                .saturating_add(usize::from(elen))
+                .max(pos.saturating_add(1));
         } else {
             pos = pos.saturating_add(1);
         }
@@ -1441,16 +1475,20 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                 }],
                 chain_layers: None,
             }));
-        } else if name.starts_with("Contents/content.hwpml") || name.starts_with("version.xml") {
+        } else if name.starts_with("Contents/content.hwpml")
+            || name.starts_with("version.xml")
+        {
             return Ok(Some(DetectionCandidate {
                 format_id: None,
                 dc_id: None,
                 mime: Some("application/x-hwpx".to_string()),
-                description: "Hancom HWP (Hangul Word Processor) file, HWPX".to_string(),
+                description: "Hancom HWP (Hangul Word Processor) file, HWPX"
+                    .to_string(),
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: "Identified HWPX structure with Contents/ entry".to_string(),
+                    detail: "Identified HWPX structure with Contents/ entry"
+                        .to_string(),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -1459,12 +1497,15 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
             return Ok(Some(DetectionCandidate {
                 format_id: None,
                 dc_id: None,
-                mime: Some("application/vnd.android.package-archive".to_string()),
+                mime: Some(
+                    "application/vnd.android.package-archive".to_string(),
+                ),
                 description: "Android package (APK)".to_string(),
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: "Identified APK with AndroidManifest.xml".to_string(),
+                    detail: "Identified APK with AndroidManifest.xml"
+                        .to_string(),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -1478,12 +1519,15 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::Strong,
                 score: 90,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: "Identified JAR with META-INF/MANIFEST.MF".to_string(),
+                    detail: "Identified JAR with META-INF/MANIFEST.MF"
+                        .to_string(),
                     score: 90,
                 }],
                 chain_layers: None,
             }));
-        } else if name == "mimetype" && sample.windows(20).any(|w| w == b"application/epub+zip") {
+        } else if name == "mimetype"
+            && sample.windows(20).any(|w| w == b"application/epub+zip")
+        {
             return Ok(Some(DetectionCandidate {
                 format_id: None,
                 dc_id: None,
@@ -1552,7 +1596,10 @@ fn get_simh_record_len(
     };
 
     if n == 0xFFFF_FFFF {
-        return Some(SimhLen { raw: 0xFFFF_FFFF, padded: 0 });
+        return Some(SimhLen {
+            raw: 0xFFFF_FFFF,
+            padded: 0,
+        });
     }
 
     // Upstream check: Bits 24 to 27 are not used (must match).
@@ -1567,7 +1614,10 @@ fn get_simh_record_len(
         padded = padded.saturating_add(1);
     }
     let padded_usize = usize::try_from(padded).ok()?;
-    Some(SimhLen { raw, padded: padded_usize })
+    Some(SimhLen {
+        raw,
+        padded: padded_usize,
+    })
 }
 
 fn simh_parse_endian(data: &[u8], endianness: SimhEndianness) -> bool {
@@ -1659,7 +1709,8 @@ pub fn inspect_simh<S: DetectionSource + ?Sized>(
         confidence: ConfidenceTier::Moderate,
         score: 80,
         evidence: vec![DetectionEvidence::ContainerStructure {
-            detail: "SIMH magnetic tape image format with valid record framing".to_string(),
+            detail: "SIMH magnetic tape image format with valid record framing"
+                .to_string(),
             score: 80,
         }],
         chain_layers: None,
@@ -1847,7 +1898,10 @@ mod tests {
 
         let mut source: &[u8] = &elf_bytes;
         let cand = inspect_elf(&mut source).unwrap().unwrap();
-        assert!(cand.description.contains("ELF 64-bit LSB executable, x86-64"));
+        assert!(
+            cand.description
+                .contains("ELF 64-bit LSB executable, x86-64")
+        );
         assert_eq!(cand.mime.as_deref(), Some("application/x-executable"));
         assert_eq!(cand.format_id, Some(FormatId::Elf));
     }
@@ -1889,7 +1943,8 @@ mod tests {
         elf[n1 + 12..n1 + 17].copy_from_slice(b"CORE\0");
         // PRPSOFFSETS64[2] is 56 (Linux command line): write "myprog -v\0" at n1 + 20 + 56
         let cmd_bytes = b"myprog -v\0";
-        elf[n1 + 20 + 56..n1 + 20 + 56 + cmd_bytes.len()].copy_from_slice(cmd_bytes);
+        elf[n1 + 20 + 56..n1 + 20 + 56 + cmd_bytes.len()]
+            .copy_from_slice(cmd_bytes);
 
         // Note 2: NT_PRSTATUS (1), size 256
         let n2 = n1 + 20 + 128;
@@ -1902,7 +1957,8 @@ mod tests {
         // pid = 4321 at n2 + 20 + 32
         elf[n2 + 20 + 32..n2 + 20 + 36].copy_from_slice(&4321u32.to_le_bytes());
         // rip = 0x401234 at n2 + 20 + 240
-        elf[n2 + 20 + 240..n2 + 20 + 248].copy_from_slice(&0x401234u64.to_le_bytes());
+        elf[n2 + 20 + 240..n2 + 20 + 248]
+            .copy_from_slice(&0x401234u64.to_le_bytes());
 
         let mut source: &[u8] = &elf;
         let cand = inspect_elf(&mut source).unwrap().unwrap();
@@ -1915,7 +1971,9 @@ mod tests {
             .evidence
             .iter()
             .filter_map(|e| match e {
-                DetectionEvidence::ContainerStructure { detail, .. } => Some(detail.clone()),
+                DetectionEvidence::ContainerStructure { detail, .. } => {
+                    Some(detail.clone())
+                }
                 _ => None,
             })
             .collect();
@@ -1966,7 +2024,8 @@ mod tests {
         let mut malformed_sectors = vec![0u8; 1024];
         malformed_sectors[..8].copy_from_slice(&OLE2_MAGIC);
         malformed_sectors[30..32].copy_from_slice(&60u16.to_le_bytes());
-        malformed_sectors[48..52].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+        malformed_sectors[48..52]
+            .copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
         let mut src_sectors: &[u8] = &malformed_sectors;
         assert!(inspect_ole2_cdf(&mut src_sectors).unwrap().is_none());
 
@@ -1978,13 +2037,17 @@ mod tests {
         valid_cdf[48..52].copy_from_slice(&0u32.to_le_bytes());
 
         let dir_offset: usize = 512;
-        let word_doc_utf16: Vec<u16> = "WordDocument\0".encode_utf16().collect();
+        let word_doc_utf16: Vec<u16> =
+            "WordDocument\0".encode_utf16().collect();
         for (i, &w) in word_doc_utf16.iter().enumerate() {
             let byte_idx = dir_offset.saturating_add(i.saturating_mul(2));
-            valid_cdf[byte_idx..byte_idx.saturating_add(2)].copy_from_slice(&w.to_le_bytes());
+            valid_cdf[byte_idx..byte_idx.saturating_add(2)]
+                .copy_from_slice(&w.to_le_bytes());
         }
-        let name_bytes_len = u16::try_from(word_doc_utf16.len().saturating_mul(2)).unwrap();
-        valid_cdf[dir_offset.saturating_add(64)..dir_offset.saturating_add(66)].copy_from_slice(&name_bytes_len.to_le_bytes());
+        let name_bytes_len =
+            u16::try_from(word_doc_utf16.len().saturating_mul(2)).unwrap();
+        valid_cdf[dir_offset.saturating_add(64)..dir_offset.saturating_add(66)]
+            .copy_from_slice(&name_bytes_len.to_le_bytes());
 
         let mut src_valid: &[u8] = &valid_cdf;
         let cand = inspect_ole2_cdf(&mut src_valid).unwrap().unwrap();

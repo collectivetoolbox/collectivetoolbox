@@ -765,7 +765,8 @@ mod tests {
         }
         manifest.add_file(file1_entry);
         let (private_key, public_key) = generate_keypair();
-        manifest.signature = Some(sign_manifest(&manifest, &private_key).unwrap());
+        manifest.signature =
+            Some(sign_manifest(&manifest, &private_key).unwrap());
         let key_response = serde_json::json!({
             "public_key": public_key_to_base64(&public_key),
             "key_id": KeyId::from_public_key(&public_key).to_hex(),
@@ -791,9 +792,11 @@ mod tests {
         let orig_cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(&bundle_dir).unwrap();
 
-        let load_res = crate::workflow::load_manifest_and_features_with_downloader(
-            "en", &downloader,
-        );
+        let load_res =
+            crate::workflow::load_manifest_and_features_with_downloader(
+                "en",
+                &downloader,
+            );
         let (loaded_manifest, features) = match load_res {
             Ok(val) => val,
             Err(e) => {

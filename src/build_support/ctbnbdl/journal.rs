@@ -30,7 +30,8 @@ use crate::utilities::*;
 
 use super::{
     CtbnbdlFramingDcs, LedgerNode, MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE,
-    MAX_NODES_PER_CHUNK, SYSTEM_REGION_START, decode_nodes_from_ctbnbdl_bytes_with,
+    MAX_NODES_PER_CHUNK, SYSTEM_REGION_START,
+    decode_nodes_from_ctbnbdl_bytes_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits, format_chunk_bundle_filename,
     format_chunk_filename, highwater_shadow_dirs, list_chunk_files,
     load_ledger_nodes_from_dir_raw, load_ledger_nodes_from_str,
@@ -113,8 +114,7 @@ pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
                     tokens_by_id.get(&claim_id)
                 {
                     if subj == prop && matches!(subj, DcShorthand::Short(_)) {
-                        bootstrap_triple =
-                            Some((has_a_dc, has_value_dc, prop));
+                        bootstrap_triple = Some((has_a_dc, has_value_dc, prop));
                         break;
                     }
                 }
@@ -126,34 +126,30 @@ pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
         "Failed to bootstrap HasA, HasValue, and ProgrammaticIdentifier from system graph",
     )?;
 
-    let extract_prog_ident_subj = |claim_tokens: &[DcShorthand]| -> Option<DcShorthand> {
-        match claim_tokens {
-            &[ha, subj, prop]
-            | &[ha, _, subj, prop]
-                if ha == has_a_dc
-                    && prop == prog_ident_dc
-                    && matches!(subj, DcShorthand::Short(_)) =>
-            {
-                Some(subj)
+    let extract_prog_ident_subj =
+        |claim_tokens: &[DcShorthand]| -> Option<DcShorthand> {
+            match claim_tokens {
+                &[ha, subj, prop] | &[ha, _, subj, prop]
+                    if ha == has_a_dc
+                        && prop == prog_ident_dc
+                        && matches!(subj, DcShorthand::Short(_)) =>
+                {
+                    Some(subj)
+                }
+                _ => None,
             }
-            _ => None,
-        }
-    };
+        };
 
     let mut raw_ident_to_short: HashMap<&str, DcShorthand> = HashMap::new();
     for node in nodes {
-        if let &[
-            pred,
-            DcShorthand::Long(claim_id),
-            DcShorthand::Long(str_id),
-        ] = node.tokens.as_slice()
+        if let &[pred, DcShorthand::Long(claim_id), DcShorthand::Long(str_id)] =
+            node.tokens.as_slice()
         {
             if pred == has_value_dc {
                 if let Some(claim_tokens) = tokens_by_id.get(&claim_id) {
                     if let Some(subj) = extract_prog_ident_subj(claim_tokens) {
                         if let Some(ident_str) = strings_by_id.get(&str_id) {
-                            raw_ident_to_short
-                                .insert(ident_str.as_str(), subj);
+                            raw_ident_to_short.insert(ident_str.as_str(), subj);
                         }
                     }
                 }
@@ -190,11 +186,8 @@ pub fn resolve_ctbnbdl_framing_dcs_from_nodes(
         if inactive_ids.contains(&node.id) {
             continue;
         }
-        if let &[
-            pred,
-            DcShorthand::Long(claim_id),
-            DcShorthand::Long(str_id),
-        ] = node.tokens.as_slice()
+        if let &[pred, DcShorthand::Long(claim_id), DcShorthand::Long(str_id)] =
+            node.tokens.as_slice()
         {
             if pred == has_value_dc && !inactive_ids.contains(&claim_id) {
                 if let Some(claim_tokens) = tokens_by_id.get(&claim_id) {
@@ -277,7 +270,10 @@ fn open_or_create_lock_canary(repo_root: &Path) -> Result<File> {
             .truncate(false)
             .open(&canary_path)
             .with_context(|| {
-                format!("Failed to create lock canary {}", canary_path.display())
+                format!(
+                    "Failed to create lock canary {}",
+                    canary_path.display()
+                )
             })?;
     }
     OpenOptions::new()
@@ -564,8 +560,9 @@ pub fn sha256_bytes_hex(bytes: &[u8]) -> String {
 
 /// Computes the lowercase hex SHA-256 digest of a file on disk.
 pub fn sha256_file_hex(path: &Path) -> Result<String> {
-    let bytes = fs::read(path)
-        .with_context(|| format!("Failed to read {} for SHA-256", path.display()))?;
+    let bytes = fs::read(path).with_context(|| {
+        format!("Failed to read {} for SHA-256", path.display())
+    })?;
     Ok(sha256_bytes_hex(&bytes))
 }
 
@@ -586,9 +583,8 @@ pub fn fsync_dir(dir: &Path) -> Result<()> {
     let f = File::open(dir).with_context(|| {
         format!("Failed to open directory {} for fsync", dir.display())
     })?;
-    f.sync_all().with_context(|| {
-        format!("Failed to fsync directory {}", dir.display())
-    })
+    f.sync_all()
+        .with_context(|| format!("Failed to fsync directory {}", dir.display()))
 }
 
 /// Returns the `.ctbnodes` chunk filename (`85899_34592.ctbnodes`, ...) that owns `node_id`.
@@ -711,7 +707,11 @@ fn decode_bundle_dir_nodes(
         let stem = name.strip_suffix(".ctbnbdl").unwrap_or(name);
         let digits: String = stem.chars().filter(|&c| c != '_').collect();
         let start_id: u128 = digits.parse().with_context(|| {
-            format!("Invalid .ctbnbdl bundle filename {} in {}", name, dir.display())
+            format!(
+                "Invalid .ctbnbdl bundle filename {} in {}",
+                name,
+                dir.display()
+            )
         })?;
         keyed_files.push((start_id, path));
     }
@@ -796,14 +796,11 @@ pub fn verify_compiled_bundles_match_ledger(
     let (expected_active, expected_history) =
         partition_active_and_inactive_nodes_with(committed_nodes, framing);
 
-fn project_node_id_tokens(
-    slice: &[LedgerNode],
-) -> Vec<(u128, &[crate::shorthand::DcShorthand])> {
-    slice
-        .iter()
-        .map(|n| (n.id, n.tokens.as_slice()))
-        .collect()
-}
+    fn project_node_id_tokens(
+        slice: &[LedgerNode],
+    ) -> Vec<(u128, &[crate::shorthand::DcShorthand])> {
+        slice.iter().map(|n| (n.id, n.tokens.as_slice())).collect()
+    }
 
     let decoded_active_pairs = project_node_id_tokens(&decoded_active);
     let expected_active_pairs = project_node_id_tokens(&expected_active);
@@ -898,7 +895,11 @@ pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
     let runtime_graph_dir =
         write_guard.repo_root().join("built/assets/data/graph");
     if runtime_graph_dir.is_dir() {
-        write_ctbnbdl_bundles_to_dir(&runtime_graph_dir, &active_bundles, true)?;
+        write_ctbnbdl_bundles_to_dir(
+            &runtime_graph_dir,
+            &active_bundles,
+            true,
+        )?;
     }
     let staged_history_dir = write_guard
         .repo_root()
@@ -962,7 +963,8 @@ pub fn inspect_ledger_journal(journal_path: &Path) -> Result<ParsedJournal> {
                 })?;
                 records.push(rec);
             }
-            valid_prefix_len = valid_prefix_len.saturating_add(line_bytes.len());
+            valid_prefix_len =
+                valid_prefix_len.saturating_add(line_bytes.len());
         } else if !line_bytes.iter().all(u8::is_ascii_whitespace) {
             torn_trailing_fragment = Some(line_bytes.to_vec());
         }
@@ -998,7 +1000,8 @@ pub fn inspect_ledger_journal(journal_path: &Path) -> Result<ParsedJournal> {
                         && pending.baseline_ledger_sha256
                             == rec.baseline_ledger_sha256
                         && pending.final_last_id == rec.final_last_id
-                        && pending.final_ledger_sha256 == rec.final_ledger_sha256
+                        && pending.final_ledger_sha256
+                            == rec.final_ledger_sha256
                         && pending.manifest_sha256 == rec.manifest_sha256,
                     "CRITICAL: BATCH_COMMITTED (batch_id={}) does not match preceding BATCH_PENDING (batch_id={}) in {}",
                     rec.batch_id,
@@ -1034,7 +1037,10 @@ pub fn repair_torn_journal_suffix(
     valid_prefix_len: usize,
 ) -> Result<()> {
     let raw = fs::read(journal_path).with_context(|| {
-        format!("Failed to read {} for torn-suffix repair", journal_path.display())
+        format!(
+            "Failed to read {} for torn-suffix repair",
+            journal_path.display()
+        )
     })?;
     let prefix = raw.get(..valid_prefix_len).context(
         "valid_prefix_len exceeds journal file length during torn-suffix repair",
@@ -1168,10 +1174,16 @@ fn load_nodes_from_dir_allowing_torn_tail(
         let raw = fs::read(&path).with_context(|| {
             format!("Failed to read .ctbnodes chunk {}", path.display())
         })?;
-        let complete_len = if is_last_file && !raw.is_empty() && raw.last() != Some(&b'\n') {
-            let complete_len = raw.iter().rposition(|&byte| byte == b'\n')
+        let complete_len = if is_last_file
+            && !raw.is_empty()
+            && raw.last() != Some(&b'\n')
+        {
+            let complete_len = raw
+                .iter()
+                .rposition(|&byte| byte == b'\n')
                 .map_or(0, |last_nl| last_nl.saturating_add(1));
-            let tail = raw.get(complete_len..)
+            let tail = raw
+                .get(complete_len..)
                 .context("Invalid complete prefix length in .ctbnodes chunk")?;
             torn_tail = Some((path.clone(), tail.to_vec()));
             complete_len
@@ -1183,18 +1195,21 @@ fn load_nodes_from_dir_allowing_torn_tail(
             );
             raw.len()
         };
-        let complete_bytes = raw.get(..complete_len)
+        let complete_bytes = raw
+            .get(..complete_len)
             .context("Invalid complete prefix length in .ctbnodes chunk")?;
-        let text_to_parse = std::str::from_utf8(complete_bytes)
-            .with_context(|| {
+        let text_to_parse =
+            std::str::from_utf8(complete_bytes).with_context(|| {
                 format!(
                     "CRITICAL: Invalid UTF-8 in complete .ctbnodes lines in {}",
                     path.display()
                 )
             })?;
 
-        let chunk_nodes =
-            load_ledger_nodes_from_str(text_to_parse, &path.display().to_string())?;
+        let chunk_nodes = load_ledger_nodes_from_str(
+            text_to_parse,
+            &path.display().to_string(),
+        )?;
         all_nodes.extend(chunk_nodes);
     }
 
@@ -1218,7 +1233,8 @@ fn verify_and_extract_baseline_for_pending(
     let appended_nodes: &[LedgerNode] =
         disk_nodes.get(baseline_count..).unwrap_or_default();
 
-    let actual_baseline_sha = compute_nodes_slice_ledger_sha256(&baseline_nodes);
+    let actual_baseline_sha =
+        compute_nodes_slice_ledger_sha256(&baseline_nodes);
     ensure!(
         actual_baseline_sha == pending.baseline_ledger_sha256,
         "CRITICAL: {label} ({}) baseline prefix (<= l{}) SHA-256 {} does not match BATCH_PENDING.baseline_ledger_sha256 {}",
@@ -1243,7 +1259,8 @@ fn verify_and_extract_baseline_for_pending(
         };
         let actual_line = node.format_line();
         ensure!(
-            node.id == expected_item.node_id && actual_line == expected_item.raw_line,
+            node.id == expected_item.node_id
+                && actual_line == expected_item.raw_line,
             "CRITICAL: {label} ({}) appended node at offset {idx} (l{}: {:?}) does not match BATCH_PENDING item (l{}: {:?})",
             dir.display(),
             node.id,
@@ -1312,7 +1329,8 @@ fn append_single_node_to_ledger_dir(
         bail!("append_single_node_to_ledger_dir called with empty node slice");
     };
     let chunk_name = chunk_filename_for_node_id(last_node.id);
-    let Some(chunk_start_id) = parse_chunk_filename_start_id(&chunk_name) else {
+    let Some(chunk_start_id) = parse_chunk_filename_start_id(&chunk_name)
+    else {
         bail!("Invalid chunk filename {chunk_name}");
     };
     let chunk_end_id = chunk_start_id
@@ -1358,8 +1376,10 @@ fn reprotect_shadow_chunks(shadow_dir: &Path) {
         use std::os::unix::fs::PermissionsExt;
         if let Ok(files) = list_chunk_files(shadow_dir) {
             for file in files {
-                let _ =
-                    fs::set_permissions(&file, fs::Permissions::from_mode(0o444));
+                let _ = fs::set_permissions(
+                    &file,
+                    fs::Permissions::from_mode(0o444),
+                );
             }
         }
     }
@@ -1390,9 +1410,7 @@ pub fn recover_pending_ledger_journal(
     } else {
         None
     };
-    let manifest_ref = loaded_manifest
-        .as_ref()
-        .map(|(m, s)| (m, s.as_str()));
+    let manifest_ref = loaded_manifest.as_ref().map(|(m, s)| (m, s.as_str()));
     recover_pending_ledger_journal_with_guard(
         &write_guard,
         repo_root,
@@ -1531,8 +1549,11 @@ pub fn recover_pending_ledger_journal_with_guard(
     let mut touched_shadow_chunks: Vec<PathBuf> = Vec::new();
     let mut touched_allocated_files: Vec<PathBuf> = Vec::new();
 
-    for (idx, (item, node)) in
-        pending.items.iter().zip(planned_nodes.into_iter()).enumerate()
+    for (idx, (item, node)) in pending
+        .items
+        .iter()
+        .zip(planned_nodes.into_iter())
+        .enumerate()
     {
         progressive_nodes.push(node);
 
@@ -1619,7 +1640,9 @@ pub fn recover_pending_ledger_journal_with_guard(
     }
 
     if fault == Some(FaultInjectionPoint::BeforeFsync) {
-        bail!("Simulated fault injection: crash after all writes/renames before fsync");
+        bail!(
+            "Simulated fault injection: crash after all writes/renames before fsync"
+        );
     }
 
     // Unconditionally fsync all touched primary chunks, shadow chunks, allocated files, and directories.
@@ -1663,9 +1686,7 @@ pub fn recover_pending_ledger_journal_with_guard(
         pending.final_last_id
     );
 
-    let framing = resolve_ctbnbdl_framing_dcs_from_nodes(
-        &progressive_nodes,
-    )?;
+    let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&progressive_nodes)?;
     let (active_bundles_sha256, history_bundles_sha256) =
         compile_nodes_slice_to_ctbnbdl_with_write_guard(
             write_guard,
@@ -2019,9 +2040,7 @@ pub fn ensure_ledger_journal_clean(
         last_committed.final_last_id
     );
 
-    let framing = resolve_ctbnbdl_framing_dcs_from_nodes(
-        &committed_nodes,
-    )?;
+    let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&committed_nodes)?;
     verify_compiled_bundles_match_ledger(
         &graph_dir,
         &committed_nodes,
@@ -2074,11 +2093,8 @@ where
         &LedgerWriteGuard,
         &[LedgerNode],
         &[(JournalRecord, JournalRecord)],
-    ) -> Result<(
-        Vec<PlannedLedgerItem>,
-        BTreeMap<String, String>,
-        T,
-    )>,
+    )
+        -> Result<(Vec<PlannedLedgerItem>, BTreeMap<String, String>, T)>,
 {
     let write_guard = LedgerWriteGuard::acquire(repo_root)?;
     let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
@@ -2108,9 +2124,7 @@ where
     } else {
         None
     };
-    let manifest_ref = loaded_manifest
-        .as_ref()
-        .map(|(m, s)| (m, s.as_str()));
+    let manifest_ref = loaded_manifest.as_ref().map(|(m, s)| (m, s.as_str()));
 
     // Step 1: Pending-first recovery BEFORE committed-only provenance validation!
     let recovered_pending = recover_pending_ledger_journal_with_guard(
@@ -2122,15 +2136,14 @@ where
     )?;
 
     if !dry_run && manifest_ref.is_none() {
-        let _ = compact_closed_ledger_chunks_with_guard(&write_guard, repo_root)?;
+        let _ =
+            compact_closed_ledger_chunks_with_guard(&write_guard, repo_root)?;
     }
 
     let parsed = inspect_ledger_journal(&journal_path)?;
     if dry_run && recovered_pending {
-        let pending_items = parsed
-            .open_pending
-            .as_ref()
-            .map_or(0, |p| p.items.len());
+        let pending_items =
+            parsed.open_pending.as_ref().map_or(0, |p| p.items.len());
         return Ok(DurableTransactionOutcome {
             resumed_or_already_committed: true,
             files_written: 0,
@@ -2147,10 +2160,11 @@ where
     if let Some((manifest, manifest_sha)) = manifest_ref {
         if let Some(last_committed) = &parsed.last_committed {
             if last_committed.manifest_sha256.as_deref() == Some(manifest_sha) {
-                let current_nodes = load_ledger_nodes_from_dir_with_write_guard(
-                    &write_guard,
-                    &graph_dir,
-                )?;
+                let current_nodes =
+                    load_ledger_nodes_from_dir_with_write_guard(
+                        &write_guard,
+                        &graph_dir,
+                    )?;
                 let actual_sha = compute_ledger_dir_sha256(&graph_dir)?;
                 ensure!(
                     actual_sha == manifest.final_ledger_sha256
@@ -2161,9 +2175,7 @@ where
                     manifest.manifest_id
                 );
                 let framing =
-                    resolve_ctbnbdl_framing_dcs_from_nodes(
-                        &current_nodes,
-                    )?;
+                    resolve_ctbnbdl_framing_dcs_from_nodes(&current_nodes)?;
                 verify_compiled_bundles_match_ledger(
                     &graph_dir,
                     &current_nodes,
@@ -2189,7 +2201,8 @@ where
 
     // Step 3: Fresh-Start Path. Verify clean committed journal state.
     ensure!(
-        parsed.open_pending.is_none() && parsed.torn_trailing_fragment.is_none(),
+        parsed.open_pending.is_none()
+            && parsed.torn_trailing_fragment.is_none(),
         "CRITICAL: Journal {} still has pending/torn state after recovery step",
         journal_path.display()
     );
@@ -2243,11 +2256,8 @@ where
         );
     }
 
-    let (planned_items, actual_input_sha256s, payload) = planner_fn(
-        &write_guard,
-        &baseline_nodes,
-        &parsed.committed_pairs,
-    )?;
+    let (planned_items, actual_input_sha256s, payload) =
+        planner_fn(&write_guard, &baseline_nodes, &parsed.committed_pairs)?;
 
     let planned_nodes = parse_planned_items_to_nodes(&planned_items)?;
     let mut updated_nodes = baseline_nodes.clone();
@@ -2404,7 +2414,10 @@ mod tests {
             {
                 use std::os::unix::fs::PermissionsExt;
                 let shadow_dir = highwater_shadow_dirs(&self.0)
-                    .into_iter().next().unwrap().1;
+                    .into_iter()
+                    .next()
+                    .unwrap()
+                    .1;
                 if shadow_dir.is_dir() {
                     if let Ok(entries) = fs::read_dir(&shadow_dir) {
                         for entry in entries.flatten() {
@@ -2438,9 +2451,10 @@ mod tests {
         )
         .unwrap();
 
-        let all_nodes =
-            load_ledger_nodes_from_dir_raw(&real_root.join("assets/data/graph"))
-                .unwrap();
+        let all_nodes = load_ledger_nodes_from_dir_raw(
+            &real_root.join("assets/data/graph"),
+        )
+        .unwrap();
         let baseline_nodes: Vec<LedgerNode> =
             all_nodes.into_iter().take(17_833).collect();
         assert_eq!(baseline_nodes.len(), 17_833);
@@ -2521,7 +2535,9 @@ mod tests {
         };
         append_journal_record(&journal_path, &pending, None)?;
         if !commit_record {
-            bail!("Simulated fault injection: crash after BATCH_PENDING before BATCH_COMMITTED");
+            bail!(
+                "Simulated fault injection: crash after BATCH_PENDING before BATCH_COMMITTED"
+            );
         }
         let committed = JournalRecord {
             state: "BATCH_COMMITTED".to_string(),
@@ -2583,9 +2599,7 @@ mod tests {
         fs::remove_file(&journal_path).unwrap();
         let err_reader = load_ledger_nodes_from_dir(&graph_dir).unwrap_err();
         assert!(
-            err_reader
-                .to_string()
-                .contains("initialized_marker=true"),
+            err_reader.to_string().contains("initialized_marker=true"),
             "Expected post-initialization missing journal error, got: {err_reader}"
         );
     }
@@ -2643,22 +2657,22 @@ mod tests {
     }
 
     #[test]
-    fn test_bundle_verification_catches_token_and_partition_corruption_at_same_max_id() {
+    fn test_bundle_verification_catches_token_and_partition_corruption_at_same_max_id()
+     {
         let tmp = setup_checkout_fixture();
         let root = tmp.path();
         let graph_dir = root.join("assets/data/graph");
         write_initial_checkpoint_for_test(root, true).unwrap();
 
         let nodes = load_ledger_nodes_from_dir_raw(&graph_dir).unwrap();
-        let framing =
-            resolve_ctbnbdl_framing_dcs_from_nodes(&nodes)
-                .unwrap();
+        let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&nodes).unwrap();
 
         // Corrupt a single token on an interior node (keeping the highest node ID l8589952424 unchanged!)
         // and re-encode the active bundle.
         let (mut active_nodes, _inactive_nodes) =
             partition_active_and_inactive_nodes_with(&nodes, framing);
-        active_nodes[10].tokens = vec![crate::shorthand::DcShorthand::Unicode(999)];
+        active_nodes[10].tokens =
+            vec![crate::shorthand::DcShorthand::Unicode(999)];
         let corrupted_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
             &active_nodes,
             framing,

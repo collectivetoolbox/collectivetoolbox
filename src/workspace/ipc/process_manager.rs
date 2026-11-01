@@ -181,7 +181,8 @@ where
     let acknowledged = match time::timeout(ack_timeout, send_shutdown()).await {
         Ok(Ok(resp)) => resp.acknowledged,
         Ok(Err(_)) => {
-            let exited = process_manager.wait_for_exit(pid, exit_timeout).await?;
+            let exited =
+                process_manager.wait_for_exit(pid, exit_timeout).await?;
             if exited {
                 return Ok(GracefulShutdownOutcome {
                     acknowledged: false,
@@ -501,8 +502,8 @@ mod tests {
     }
 
     #[crate::ctb_test("tokio")]
-    async fn graceful_shutdown_closed_connection_child_exits_cleanly(
-    ) -> Result<()> {
+    async fn graceful_shutdown_closed_connection_child_exits_cleanly()
+    -> Result<()> {
         let exited = Arc::new(tokio::sync::Notify::new());
         let pm = MockProcessManager::new(exited.clone());
         let pid = ProcessId::default();
@@ -533,8 +534,8 @@ mod tests {
     }
 
     #[crate::ctb_test("tokio")]
-    async fn graceful_shutdown_closed_connection_child_hung_forces_kill(
-    ) -> Result<()> {
+    async fn graceful_shutdown_closed_connection_child_hung_forces_kill()
+    -> Result<()> {
         let exited = Arc::new(tokio::sync::Notify::new());
         let pm = MockProcessManager::new(exited.clone());
         let pid = ProcessId::default();

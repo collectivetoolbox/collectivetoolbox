@@ -40,7 +40,9 @@ use serde::{Deserialize, Serialize};
 /// within the `supported_formats` field of [`crate::environment::EnvDescription`]
 /// (along with its `kernel_version`), and this structured representation can be
 /// retrieved via the [`crate::environment::EnvDescription::identity`] accessor.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize,
+)]
 pub struct EnvironmentIdentity {
     /// Authoritative kernel format if detected (e.g. `FormatId::Linux`,
     /// `FormatId::Xnu`, `FormatId::WinNtKernel`, `FormatId::Wsl2`).
@@ -68,7 +70,9 @@ pub struct EnvironmentIdentity {
 /// within the `supported_formats` field of [`crate::environment::EnvDescription`],
 /// and this structured representation can be retrieved via the
 /// [`crate::environment::EnvDescription::capabilities`] accessor.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize,
+)]
 pub struct EnvironmentCapabilities {
     /// Active device capabilities (e.g. `[FormatId::RasterDisplay,
     /// FormatId::Videoterminal, FormatId::WebUi]`).
@@ -179,7 +183,8 @@ pub fn detect_identity() -> EnvironmentIdentity {
         detected.push(FormatId::NetBsd);
     } else if cfg!(target_os = "dragonfly") {
         detected.push(FormatId::DragonFlyBsd);
-    } else if cfg!(target_os = "hurd") || Path::new("/servers/socket").exists() {
+    } else if cfg!(target_os = "hurd") || Path::new("/servers/socket").exists()
+    {
         detected.push(FormatId::Hurd);
     } else if super::looks_like_nextstep_or_openstep() {
         detected.push(FormatId::NextStep);
@@ -200,7 +205,9 @@ pub fn detect_identity() -> EnvironmentIdentity {
     if super::looks_like_nextstep_or_openstep() {
         detected.push(FormatId::NextStep);
     }
-    if Path::new("/bin/busybox").exists() || Path::new("/usr/bin/busybox").exists() {
+    if Path::new("/bin/busybox").exists()
+        || Path::new("/usr/bin/busybox").exists()
+    {
         detected.push(FormatId::BusyBoxUtilities);
     }
     if env::var_os("WINDIR").is_some() || env::var_os("SYSTEMROOT").is_some() {
@@ -219,13 +226,18 @@ pub fn detect_identity() -> EnvironmentIdentity {
     {
         detected.push(FormatId::Homebrew);
     }
-    if env::var_os("MACPORTS_PREFIX").is_some() || Path::new("/opt/local/bin/port").exists() {
+    if env::var_os("MACPORTS_PREFIX").is_some()
+        || Path::new("/opt/local/bin/port").exists()
+    {
         detected.push(FormatId::MacPorts);
     }
-    if env::var_os("NIX_PROFILES").is_some() || Path::new("/nix/store").exists() {
+    if env::var_os("NIX_PROFILES").is_some() || Path::new("/nix/store").exists()
+    {
         detected.push(FormatId::Nix);
     }
-    if env::var_os("GUIX_ENVIRONMENT").is_some() || Path::new("/gnu/store").exists() {
+    if env::var_os("GUIX_ENVIRONMENT").is_some()
+        || Path::new("/gnu/store").exists()
+    {
         detected.push(FormatId::Guix);
     }
 
@@ -296,24 +308,23 @@ pub fn detect_identity() -> EnvironmentIdentity {
         Some(FormatId::DragonFlyBsd)
     } else if detected.contains(&FormatId::Android) {
         Some(FormatId::Android)
-    } else if detected.contains(&FormatId::GnuLinux) || detected.contains(&FormatId::Linux) {
+    } else if detected.contains(&FormatId::GnuLinux)
+        || detected.contains(&FormatId::Linux)
+    {
         Some(FormatId::GnuLinux)
     } else if detected.contains(&FormatId::NextStep) {
         Some(FormatId::NextStep)
     } else {
-        detected
-            .iter()
-            .copied()
-            .find(|f| {
-                f.category() == FormatCategory::Os
-                    && !matches!(
-                        f,
-                        FormatId::Unix
-                            | FormatId::Windows
-                            | FormatId::MacOs
-                            | FormatId::WinClassic
-                    )
-            })
+        detected.iter().copied().find(|f| {
+            f.category() == FormatCategory::Os
+                && !matches!(
+                    f,
+                    FormatId::Unix
+                        | FormatId::Windows
+                        | FormatId::MacOs
+                        | FormatId::WinClassic
+                )
+        })
     };
 
     let os_families: Vec<FormatId> = detected
@@ -368,7 +379,9 @@ pub fn detect_display_server() -> Option<FormatId> {
         Some(FormatId::WaylandDisplay)
     } else if env::var_os("DISPLAY").is_some() {
         Some(FormatId::X11Display)
-    } else if cfg!(target_os = "macos") && env::var_os("SSH_CONNECTION").is_none() {
+    } else if cfg!(target_os = "macos")
+        && env::var_os("SSH_CONNECTION").is_none()
+    {
         Some(FormatId::QuartzDisplay)
     } else if cfg!(target_os = "windows") {
         Some(FormatId::Win32Display)
@@ -397,12 +410,13 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
 
     // Reason for fallback: unset TERM defaults to empty string baseline
     let term = env::var("TERM").unwrap_or_default();
-    let (mut terminal_caps, term_device_caps) = detect_terminal_capabilities_for(
-        &term,
-        is_stdout_terminal,
-        is_stdin_terminal,
-        is_stderr_terminal,
-    );
+    let (mut terminal_caps, term_device_caps) =
+        detect_terminal_capabilities_for(
+            &term,
+            is_stdout_terminal,
+            is_stdin_terminal,
+            is_stderr_terminal,
+        );
     device_caps.extend(term_device_caps);
 
     // Reason for fallback: unset COLORTERM defaults to empty string baseline
@@ -481,17 +495,15 @@ pub fn detect_terminal_capabilities_for(
             terminal_caps.push(FormatId::Videoterminal);
 
             // Reason for fallback: unconfirmed cursor addressing capability defaults to false to avoid sending unsupported escape sequences
-            let can_edit_past_lines = term_info
-                .as_ref()
-                .is_some_and(Terminfo::can_cursor_address);
+            let can_edit_past_lines =
+                term_info.as_ref().is_some_and(Terminfo::can_cursor_address);
             if can_edit_past_lines {
                 terminal_caps.push(FormatId::TerminalCanEditPastLines);
             }
 
             // Reason for fallback: unconfirmed line editing capability defaults to false to avoid sending unsupported escape sequences
-            let can_edit = term_info
-                .as_ref()
-                .is_some_and(Terminfo::can_edit_line);
+            let can_edit =
+                term_info.as_ref().is_some_and(Terminfo::can_edit_line);
             if can_edit {
                 terminal_caps.push(FormatId::TerminalCanEdit);
             }
@@ -506,25 +518,21 @@ pub fn detect_terminal_capabilities_for(
 
             // Note: User-facing CLI or pc_settings configuration may be added later.
             // Reason for fallback: unconfirmed mouse reporting capability defaults to false to avoid sending unsupported escape sequences
-            let has_mouse = term_info
-                .as_ref()
-                .is_some_and(Terminfo::has_mouse);
+            let has_mouse = term_info.as_ref().is_some_and(Terminfo::has_mouse);
             if has_mouse {
                 terminal_caps.push(FormatId::TerminalMouse);
             }
 
             // Reason for fallback: unconfirmed 24-bit color capability defaults to false to avoid emitting unhandled escape sequences
-            let is_truecolor = term_info
-                .as_ref()
-                .is_some_and(Terminfo::has_truecolor);
+            let is_truecolor =
+                term_info.as_ref().is_some_and(Terminfo::has_truecolor);
 
             if is_truecolor {
                 terminal_caps.push(FormatId::TerminalColors24bit);
             } else {
                 // Reason for fallback: unconfirmed color count defaults to 0 monochrome baseline to avoid printing unsupported color sequences
-                let max_colors = term_info
-                    .as_ref()
-                    .map_or(0, Terminfo::max_colors);
+                let max_colors =
+                    term_info.as_ref().map_or(0, Terminfo::max_colors);
                 if max_colors >= 256 {
                     terminal_caps.push(FormatId::TerminalColors8bit);
                 } else if max_colors >= 8 {
@@ -536,15 +544,21 @@ pub fn detect_terminal_capabilities_for(
 
             let is_interactive = is_stdout_terminal && is_stdin_terminal;
 
-            if detect_sixel_support(term_info.as_ref(), is_interactive) == Some(true) {
+            if detect_sixel_support(term_info.as_ref(), is_interactive)
+                == Some(true)
+            {
                 terminal_caps.push(FormatId::TerminalSixelGraphics);
                 device_caps.push(FormatId::TerminalSixelGraphics);
             }
-            if detect_kitty_support(term_info.as_ref(), is_interactive, term) == Some(true) {
+            if detect_kitty_support(term_info.as_ref(), is_interactive, term)
+                == Some(true)
+            {
                 terminal_caps.push(FormatId::TerminalKittyGraphics);
                 device_caps.push(FormatId::TerminalKittyGraphics);
             }
-            if detect_iterm_support(term_info.as_ref(), is_interactive) == Some(true) {
+            if detect_iterm_support(term_info.as_ref(), is_interactive)
+                == Some(true)
+            {
                 terminal_caps.push(FormatId::TerminalIterm2Graphics);
                 device_caps.push(FormatId::TerminalIterm2Graphics);
             }
@@ -616,7 +630,9 @@ pub fn detect_kitty_support(
     term: &str,
 ) -> Option<bool> {
     // Reason for fallback: absent terminfo cannot refute video terminal capabilities
-    if term_info.is_some_and(|info| !info.can_cursor_address() || info.name == "dumb") {
+    if term_info
+        .is_some_and(|info| !info.can_cursor_address() || info.name == "dumb")
+    {
         return Some(false);
     }
 
@@ -641,7 +657,9 @@ pub fn detect_kitty_support(
 
     if can_query {
         match viuer::get_kitty_support() {
-            viuer::KittySupport::Local | viuer::KittySupport::Remote => Some(true),
+            viuer::KittySupport::Local | viuer::KittySupport::Remote => {
+                Some(true)
+            }
             viuer::KittySupport::None => Some(false),
         }
     } else {
@@ -659,7 +677,9 @@ pub fn detect_iterm_support(
     is_interactive: bool,
 ) -> Option<bool> {
     // Reason for fallback: absent terminfo cannot refute video terminal capabilities
-    if term_info.is_some_and(|info| !info.can_cursor_address() || info.name == "dumb") {
+    if term_info
+        .is_some_and(|info| !info.can_cursor_address() || info.name == "dumb")
+    {
         return Some(false);
     }
 
@@ -682,11 +702,7 @@ pub fn detect_iterm_support(
         // Reason for fallback: absent terminfo cannot confirm escape query support
         && term_info.is_some_and(Terminfo::supports_da1);
 
-    if can_query {
-        Some(false)
-    } else {
-        None
-    }
+    if can_query { Some(false) } else { None }
 }
 
 /// Collect and deduplicate all [`FormatId`] elements representing an
@@ -867,7 +883,8 @@ pub fn decode_environment_from_formats(
                         | FormatId::OpenBsd
                         | FormatId::NetBsd
                         | FormatId::DragonFlyBsd
-                ) && primary_os.is_none() {
+                ) && primary_os.is_none()
+                {
                     primary_os = Some(f);
                 }
             }
@@ -910,7 +927,8 @@ pub fn decode_environment_from_formats(
                         other_terminal_caps.push(f);
                     }
                 }
-                FormatId::RenderModeInteractive | FormatId::RenderModeImmediate => {
+                FormatId::RenderModeInteractive
+                | FormatId::RenderModeImmediate => {
                     if !render_modes.contains(&f) {
                         render_modes.push(f);
                     }
@@ -1070,8 +1088,12 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_xterm_256color_capabilities() {
-        let (term_caps, dev_caps) =
-            detect_terminal_capabilities_for("xterm-256color", true, true, true);
+        let (term_caps, dev_caps) = detect_terminal_capabilities_for(
+            "xterm-256color",
+            true,
+            true,
+            true,
+        );
         assert!(term_caps.contains(&FormatId::Videoterminal));
         assert!(term_caps.contains(&FormatId::TerminalCanEditPastLines));
         assert!(term_caps.contains(&FormatId::TerminalCanEdit));
@@ -1154,7 +1176,10 @@ mod tests {
     #[crate::ctb_test]
     fn test_kitty_and_iterm_detection() {
         let dumb = Terminfo::from_name("dumb");
-        assert_eq!(detect_kitty_support(dumb.as_ref(), false, "dumb"), Some(false));
+        assert_eq!(
+            detect_kitty_support(dumb.as_ref(), false, "dumb"),
+            Some(false)
+        );
         assert_eq!(detect_iterm_support(dumb.as_ref(), false), Some(false));
 
         let xterm_kitty = Terminfo::from_name("xterm-kitty");

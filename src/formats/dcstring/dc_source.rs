@@ -34,11 +34,20 @@ use std::ops::Range;
 
 /// Field encoding supplied by tagged-record derives, using inline bindings.
 pub trait DcMixedFields: DcMixedDecode {
-    fn encode_dc_field(&self, field: &str, target: &mut DcMstring) -> Result<()> {
+    fn encode_dc_field(
+        &self,
+        field: &str,
+        target: &mut DcMstring,
+    ) -> Result<()> {
         self.encode_dc_field_to(field, &mut target.writer())
     }
 
-    fn encode_dc_map_field(&self, field: &str, target: &mut DcMstring, encoding: crate::DcKvMapEncoding) -> Result<()> {
+    fn encode_dc_map_field(
+        &self,
+        field: &str,
+        target: &mut DcMstring,
+        encoding: crate::DcKvMapEncoding,
+    ) -> Result<()> {
         self.encode_dc_map_field_to(field, &mut target.writer(), encoding)
     }
 
@@ -222,13 +231,26 @@ impl DcSource for DcMstr {
         policy: &crate::DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<DcMstring> {
-        ensure!(range.start >= crate::DCMM_HEADER_LEN, "Cannot select string header");
-        let payload = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
+        ensure!(
+            range.start >= crate::DCMM_HEADER_LEN,
+            "Cannot select string header"
+        );
+        let payload = self
+            .as_bytes()
+            .get(range.clone())
+            .context("Invalid source fragment range")?;
         let mut bytes = DcMstring::new().into_bytes();
         bytes.extend_from_slice(payload);
         let original = DcMstring::from_bytes_with_policy(bytes, policy)?;
-        let replacement = DcMstring::from_slice_with_policy(fragment.as_bytes(), policy)?;
-        let revised = crate::source_edit::preserve_source_with_policy_and_resolver(&original, &replacement, policy, resolver)?;
+        let replacement =
+            DcMstring::from_slice_with_policy(fragment.as_bytes(), policy)?;
+        let revised =
+            crate::source_edit::preserve_source_with_policy_and_resolver(
+                &original,
+                &replacement,
+                policy,
+                resolver,
+            )?;
         self.replace_source_field(range, &revised)
     }
 
@@ -297,13 +319,28 @@ impl DcSource for DcStr {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<DcString> {
         ensure!(
-            self.is_char_boundary(range.start) && self.is_char_boundary(range.end),
+            self.is_char_boundary(range.start)
+                && self.is_char_boundary(range.end),
             "Source range splits a Dc character"
         );
-        let bytes = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
-        let replacement = fragment.to_dc_string_with_policy_and_resolver(policy, resolver)?;
-        let revised = crate::source_edit::preserve_text_with_policy_and_resolver(DcStr::from_bytes(bytes)?, &replacement, policy, resolver)?;
-        Ok(DcString::from_dctf(splice(self.as_bytes(), range, revised.as_bytes())?)?)
+        let bytes = self
+            .as_bytes()
+            .get(range.clone())
+            .context("Invalid source fragment range")?;
+        let replacement =
+            fragment.to_dc_string_with_policy_and_resolver(policy, resolver)?;
+        let revised =
+            crate::source_edit::preserve_text_with_policy_and_resolver(
+                DcStr::from_bytes(bytes)?,
+                &replacement,
+                policy,
+                resolver,
+            )?;
+        Ok(DcString::from_dctf(splice(
+            self.as_bytes(),
+            range,
+            revised.as_bytes(),
+        )?)?)
     }
 
     fn replace_source_field(
@@ -415,14 +452,24 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         } else {
             nav.parse_document_into_arena(&mut arena, policy)
         };
-        let mut diagnostics: Vec<DcDiagnostic> = arena.diagnostics().iter().map(|diagnostic| DcDiagnostic {
-            position: diagnostic.token_offset,
-            error: anyhow::anyhow!(diagnostic.message.clone()),
-        }).collect();
+        let mut diagnostics: Vec<DcDiagnostic> = arena
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| DcDiagnostic {
+                position: diagnostic.token_offset,
+                error: anyhow::anyhow!(diagnostic.message.clone()),
+            })
+            .collect();
         if let Err(err) = parsed {
             let err_msg = err.to_string();
-            if diagnostics.last().is_none_or(|d| d.error.to_string() != err_msg) {
-                diagnostics.push(DcDiagnostic { position: nav.position(), error: err });
+            if diagnostics
+                .last()
+                .is_none_or(|d| d.error.to_string() != err_msg)
+            {
+                diagnostics.push(DcDiagnostic {
+                    position: nav.position(),
+                    error: err,
+                });
             }
             return Self {
                 source,
@@ -448,26 +495,41 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             let result = T::decode_dc_document(&mut ctx, roots);
             let trailing_error = if let Ok((_, consumed)) = &result {
                 match roots.get(*consumed..) {
-                    Some(remaining) => ctx.handle_remaining_nodes(remaining).err(),
-                    None => Some(anyhow::anyhow!("Invalid document root consumption")),
+                    Some(remaining) => {
+                        ctx.handle_remaining_nodes(remaining).err()
+                    }
+                    None => Some(anyhow::anyhow!(
+                        "Invalid document root consumption"
+                    )),
                 }
             } else {
                 None
             };
             let fields = std::mem::take(&mut ctx.annotations);
             let projection_diagnostics = ctx.diagnostics().to_vec();
-            (result, fields, ctx.current_position, projection_diagnostics, trailing_error)
+            (
+                result,
+                fields,
+                ctx.current_position,
+                projection_diagnostics,
+                trailing_error,
+            )
         };
 
-        diagnostics.extend(projection_diagnostics.into_iter().map(|diagnostic| DcDiagnostic {
-            position: diagnostic.token_offset,
-            error: anyhow::anyhow!(diagnostic.message),
-        }));
+        diagnostics.extend(projection_diagnostics.into_iter().map(
+            |diagnostic| DcDiagnostic {
+                position: diagnostic.token_offset,
+                error: anyhow::anyhow!(diagnostic.message),
+            },
+        ));
         let value = match result {
             Ok((value, _)) => Some(value),
             Err(e) => {
                 let err_msg = e.to_string();
-                if diagnostics.last().is_none_or(|d| d.error.to_string() != err_msg) {
+                if diagnostics
+                    .last()
+                    .is_none_or(|d| d.error.to_string() != err_msg)
+                {
                     let pos = if ctx_pos != 0 {
                         ctx_pos
                     } else {
@@ -483,8 +545,14 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         };
         if let Some(error) = trailing_error {
             let err_msg = error.to_string();
-            if diagnostics.last().is_none_or(|d| d.error.to_string() != err_msg) {
-                diagnostics.push(DcDiagnostic { position: ctx_pos, error });
+            if diagnostics
+                .last()
+                .is_none_or(|d| d.error.to_string() != err_msg)
+            {
+                diagnostics.push(DcDiagnostic {
+                    position: ctx_pos,
+                    error,
+                });
             }
         }
 
@@ -560,28 +628,42 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         );
         let mut fragment = DcMstring::new();
         if let Some(encoding) = annotation.map_encoding {
-            updated.encode_dc_map_field(annotation.field, &mut fragment, encoding)?;
+            updated.encode_dc_map_field(
+                annotation.field,
+                &mut fragment,
+                encoding,
+            )?;
         } else {
             updated.encode_dc_field(annotation.field, &mut fragment)?;
         }
         let strict_with_limits = crate::DcProjectionPolicy::strict()
-            .with_max_depth(self.policy.max_depth, crate::DiagnosticAction::Error)
-            .with_max_encapsulation_metadata_depth(self.policy.max_encapsulation_metadata_depth)
-            .with_max_encapsulation_payload_bytes(self.policy.max_encapsulation_payload_bytes);
+            .with_max_depth(
+                self.policy.max_depth,
+                crate::DiagnosticAction::Error,
+            )
+            .with_max_encapsulation_metadata_depth(
+                self.policy.max_encapsulation_metadata_depth,
+            )
+            .with_max_encapsulation_payload_bytes(
+                self.policy.max_encapsulation_payload_bytes,
+            );
         if let Some(resolver) = self.resolver {
-            self.source.replace_typed_source_field_with_policy_and_resolver(
-                annotation.range(),
-                &fragment,
-                &strict_with_limits,
-                resolver,
-            )
+            self.source
+                .replace_typed_source_field_with_policy_and_resolver(
+                    annotation.range(),
+                    &fragment,
+                    &strict_with_limits,
+                    resolver,
+                )
         } else {
-            self.source.replace_typed_source_field_with_policy_and_resolver(
-                annotation.range(),
-                &fragment,
-                &strict_with_limits,
-                ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
-            )
+            self.source
+                .replace_typed_source_field_with_policy_and_resolver(
+                    annotation.range(),
+                    &fragment,
+                    &strict_with_limits,
+                    ctb_formats_dcdata::syntax::default_syntax_resolver()
+                        .as_ref(),
+                )
         }
     }
 }
@@ -618,11 +700,7 @@ impl DcMstr {
     /// Annotates an interpretation, preserving source even when decoding fails.
     #[must_use]
     pub fn inspect<T: DcMixedDecode>(&self) -> DcInspection<'_, T> {
-        DcInspection::read(
-            self,
-            None,
-            &crate::DcProjectionPolicy::strict(),
-        )
+        DcInspection::read(self, None, &crate::DcProjectionPolicy::strict())
     }
 
     /// Annotates with an explicit projection policy.
@@ -729,7 +807,9 @@ impl DcStr {
     ) -> Result<T> {
         let mut nav = crate::DcDocumentNavigator::from_dc_str(self);
         let mut arena = crate::DcSyntaxArena::new();
-        nav.parse_document_into_arena_with_resolver(&mut arena, policy, resolver)?;
+        nav.parse_document_into_arena_with_resolver(
+            &mut arena, policy, resolver,
+        )?;
         let roots = arena.roots();
         let mut ctx = DcProjectionContext::with_all_resolvers(
             &arena,
@@ -740,18 +820,18 @@ impl DcStr {
             None,
         );
         let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
-        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
+        ctx.handle_remaining_nodes(
+            roots
+                .get(consumed..)
+                .context("Invalid document root consumption")?,
+        )?;
         Ok(res)
     }
 
     /// Annotates an interpretation without copying or changing the source.
     #[must_use]
     pub fn inspect<T: DcMixedDecode>(&self) -> DcInspection<'_, T, DcStr> {
-        DcInspection::read(
-            self,
-            None,
-            &crate::DcProjectionPolicy::strict(),
-        )
+        DcInspection::read(self, None, &crate::DcProjectionPolicy::strict())
     }
 
     /// Annotates with an explicit projection policy.
@@ -827,7 +907,10 @@ impl DcFieldAnnotation {
         }
     }
 
-    pub(crate) fn with_map_encoding(mut self, encoding: crate::DcKvMapEncoding) -> Self {
+    pub(crate) fn with_map_encoding(
+        mut self,
+        encoding: crate::DcKvMapEncoding,
+    ) -> Self {
         self.map_encoding = Some(encoding);
         self
     }

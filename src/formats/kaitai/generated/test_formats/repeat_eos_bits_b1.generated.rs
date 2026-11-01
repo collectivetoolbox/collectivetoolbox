@@ -100,7 +100,11 @@ impl KStruct for RepeatEosBitsB1 {
     type Root = RepeatEosBitsB1;
     type Parent = RepeatEosBitsB1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,7 +120,10 @@ impl KStruct for RepeatEosBitsB1 {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.bits.borrow_mut().push(_io.read_bits_int_be(1)? != 0);
+                self_rc
+                    .bits
+                    .borrow_mut()
+                    .push(_io.read_bits_int_be(1)? != 0);
                 _i = _i.saturating_add(1);
             }
         }
@@ -125,8 +132,7 @@ impl KStruct for RepeatEosBitsB1 {
         Ok(())
     }
 }
-impl RepeatEosBitsB1 {
-}
+impl RepeatEosBitsB1 {}
 impl RepeatEosBitsB1 {
     pub fn bits(&self) -> Ref<'_, Vec<bool>> {
         self.bits.borrow()

@@ -20,7 +20,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Comprehensive table validators for Document Characters (Dcs), Formats, and
 //! Global Graph Layout datasets.
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 use std::collections::{HashMap, HashSet};
@@ -93,7 +97,8 @@ pub fn validate_all_data_tables_from_repo(
     }
 
     // 2. Validate Scripts Registry table
-    let scripts_path = repo_root.join("src/formats/dcdata/data-src/README.scripts.csv");
+    let scripts_path =
+        repo_root.join("src/formats/dcdata/data-src/README.scripts.csv");
     let Ok(bytes) = std::fs::read(&scripts_path) else {
         report.add_error(
             "src/formats/dcdata/data-src/README.scripts.csv",
@@ -114,13 +119,20 @@ pub fn validate_all_data_tables_from_repo(
     }
 
     // 3. Validate Formats category files
-    let formats_dir = repo_root.join("src/formats/dcdata/data-src/categories/formats");
-    let format_rows =
-        validate_all_format_files_from_disk(&formats_dir, Some(&known_scripts), &mut report);
+    let formats_dir =
+        repo_root.join("src/formats/dcdata/data-src/categories/formats");
+    let format_rows = validate_all_format_files_from_disk(
+        &formats_dir,
+        Some(&known_scripts),
+        &mut report,
+    );
     let known_format_ids: HashSet<usize> =
         format_rows.iter().filter_map(|r| r.short_id).collect();
-    let known_format_with_syntax: HashSet<usize> =
-        format_rows.iter().filter(|r| r.syntax.is_some()).filter_map(|r| r.short_id).collect();
+    let known_format_with_syntax: HashSet<usize> = format_rows
+        .iter()
+        .filter(|r| r.syntax.is_some())
+        .filter_map(|r| r.short_id)
+        .collect();
 
     // 4. Validate Decompositions table
     let decomp_path =
@@ -201,7 +213,9 @@ pub fn validate_all_data_tables_from_repo(
         .collect();
     for &fid in &known_format_with_syntax {
         if let Some(format_id) =
-            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{fid}"))
+            ctb_utilities::format_id::FormatId::from_shorthand(&format!(
+                "f{fid}"
+            ))
         {
             known_syntax_targets.insert(CharTarget::Format(format_id));
         }
@@ -316,8 +330,11 @@ pub fn validate_scripts_table(
 /// Loads and validates the known scripts table from embedded assets.
 ///
 /// Returns `None` if the file could not be found or if validation failed.
-pub fn load_embedded_known_scripts(report: &mut ValidationReport) -> Option<HashSet<String>> {
-    let Some(scripts_bytes) = crate::get_dc_data_file("README.scripts.csv") else {
+pub fn load_embedded_known_scripts(
+    report: &mut ValidationReport,
+) -> Option<HashSet<String>> {
+    let Some(scripts_bytes) = crate::get_dc_data_file("README.scripts.csv")
+    else {
         report.add_error(
             "data/README.scripts.csv",
             None,
@@ -327,7 +344,11 @@ pub fn load_embedded_known_scripts(report: &mut ValidationReport) -> Option<Hash
         );
         return None;
     };
-    let scripts = validate_scripts_table(&scripts_bytes, "data/README.scripts.csv", report);
+    let scripts = validate_scripts_table(
+        &scripts_bytes,
+        "data/README.scripts.csv",
+        report,
+    );
     if report.has_errors() && scripts.is_empty() {
         None
     } else {
@@ -377,7 +398,9 @@ pub fn validate_decompositions_table(
                 Some(line_no),
                 None,
                 format!("Row has {} columns, expected at least 2", row.len()),
-                Some("Ensure row has 'Decomposition' and 'Description' columns"),
+                Some(
+                    "Ensure row has 'Decomposition' and 'Description' columns",
+                ),
             );
             continue;
         };
@@ -488,7 +511,8 @@ pub fn validate_named_types_table(
 
     let default_syntax_targets = HashSet::new();
     // Reason for fallback: optional known syntax targets registry defaults to empty set when omitted
-    let syntax_targets = known_syntax_targets.unwrap_or(&default_syntax_targets);
+    let syntax_targets =
+        known_syntax_targets.unwrap_or(&default_syntax_targets);
 
     let mut seen_names = HashSet::new();
     for i in 0..table.row_count() {
@@ -497,7 +521,8 @@ pub fn validate_named_types_table(
             continue;
         };
 
-        let (Some(raw_name), Some(raw_syntax)) = (row.first(), row.get(1)) else {
+        let (Some(raw_name), Some(raw_syntax)) = (row.first(), row.get(1))
+        else {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -568,7 +593,6 @@ pub fn validate_named_types_table(
     seen_names
 }
 
-
 /// Parses the composite Aliases/cross-reference/decomposition/syntax column and
 /// validates all spacing, delimiter, and formatting conventions in a single pass.
 ///
@@ -596,11 +620,7 @@ pub fn parse_dc_aliases_column(
     report: &mut ValidationReport,
 ) -> (Vec<String>, Vec<String>, Vec<String>, Option<String>) {
     let parsed = crate::column_spec::parse_aliases_or_base_column(
-        raw,
-        file_path,
-        line_no,
-        report,
-        false,
+        raw, file_path, line_no, report, false,
     );
     (
         parsed.aliases,
@@ -776,7 +796,8 @@ pub fn derive_el_routine_syntax(name: &str) -> Result<Option<DcSyntaxRule>> {
                 converted_branches.push(format!("[{type_content}]"));
             } else {
                 let clean_var = param_name.trim_start_matches('$');
-                converted_branches.push(format!("[{type_content} ${clean_var}]"));
+                converted_branches
+                    .push(format!("[{type_content} ${clean_var}]"));
             }
         }
 
@@ -785,7 +806,8 @@ pub fn derive_el_routine_syntax(name: &str) -> Result<Option<DcSyntaxRule>> {
                 rule_parts.push(format!("258 {single} 259"));
             }
         } else {
-            rule_parts.push(format!("258 ({}) 259", converted_branches.join(" | ")));
+            rule_parts
+                .push(format!("258 ({}) 259", converted_branches.join(" | ")));
         }
     }
 
@@ -909,15 +931,17 @@ pub fn validate_dc_category_file(
                             format!("Unicode codepoint 'u{hex_part}' exceeds maximum Unicode 0x10FFFF"),
                             Some("Ensure codepoint is within 0x0..=0x10FFFF"),
                         );
-                    } else if dc_str
-                        .strip_prefix('u')
-                        .is_some_and(|h| !h.is_empty() && h.chars().all(|c| c.is_ascii_hexdigit()))
-                    {
+                    } else if dc_str.strip_prefix('u').is_some_and(|h| {
+                        !h.is_empty()
+                            && h.chars().all(|c| c.is_ascii_hexdigit())
+                    }) {
                         report.add_error(
                             file_path,
                             Some(line_no),
                             Some("Dc"),
-                            format!("Invalid hex in Unicode reference: '{dc_str}'"),
+                            format!(
+                                "Invalid hex in Unicode reference: '{dc_str}'"
+                            ),
                             Some("Must be 'u' followed by valid lowercase hex"),
                         );
                     } else {
@@ -990,7 +1014,8 @@ pub fn validate_dc_category_file(
                 continue;
             };
 
-            let expected_dc = SHORT_DC_REGION_START.saturating_add(u128::from(parsed_short));
+            let expected_dc =
+                SHORT_DC_REGION_START.saturating_add(u128::from(parsed_short));
             if dc_id != expected_dc {
                 report.add_error(
                     file_path,
@@ -1034,7 +1059,8 @@ pub fn validate_dc_category_file(
                 clippy::expect_used,
                 reason = "is_unicode_char guarantees dc_id was constructed from a u32 <= 0x10_FFFF"
             )]
-            let cp = u32::try_from(dc_id).expect("dc_id fits in u32 for unicode chars");
+            let cp = u32::try_from(dc_id)
+                .expect("dc_id fits in u32 for unicode chars");
             // Reason for fallback: characters without standard Unicode names use raw name from CSV category definition
             let uni_name = ctb_formats_unicode::get_unicode_name(cp)
                 .unwrap_or_else(|| {
@@ -1056,67 +1082,73 @@ pub fn validate_dc_category_file(
             (n, dep)
         };
 
-        let (combining_class, bidi_class, general_category, script) = if is_unicode_char {
-            #[expect(
-                clippy::expect_used,
-                reason = "is_unicode_char guarantees dc_id was constructed from a u32 <= 0x10_FFFF"
-            )]
-            let cp = u32::try_from(dc_id).expect("dc_id fits in u32 for unicode chars");
-            let cc = ctb_formats_unicode::combining_class(cp);
-            // Reason for fallback: unassigned Unicode codepoints default to Boundary Neutral bidi class
-            let bc = validate_bidi_class(ctb_formats_unicode::bidi_class_code(cp))
+        let (combining_class, bidi_class, general_category, script) =
+            if is_unicode_char {
+                #[expect(
+                    clippy::expect_used,
+                    reason = "is_unicode_char guarantees dc_id was constructed from a u32 <= 0x10_FFFF"
+                )]
+                let cp = u32::try_from(dc_id)
+                    .expect("dc_id fits in u32 for unicode chars");
+                let cc = ctb_formats_unicode::combining_class(cp);
+                // Reason for fallback: unassigned Unicode codepoints default to Boundary Neutral bidi class
+                let bc = validate_bidi_class(
+                    ctb_formats_unicode::bidi_class_code(cp),
+                )
                 .unwrap_or(BidiClass::BN);
-            // Reason for fallback: unassigned Unicode codepoints default to NonUnicodeControl general category
-            let gc = validate_general_category(ctb_formats_unicode::general_category_code(cp))
+                // Reason for fallback: unassigned Unicode codepoints default to NonUnicodeControl general category
+                let gc = validate_general_category(
+                    ctb_formats_unicode::general_category_code(cp),
+                )
                 .unwrap_or(GeneralCategory::NonUnicodeControl);
-            // Reason for fallback: unassigned Unicode codepoints default to Common script
-            let sc = ctb_formats_unicode::script_name(cp)
-                .unwrap_or("Common")
-                .to_string();
-            (cc, bc, gc, sc)
-        } else {
-            let cc = match validate_combining_class(&combining_str) {
-                Ok(val) => val,
-                Err(e) => {
-                    report.add_error(
-                        file_path,
-                        Some(line_no),
-                        Some("◌"),
-                        format!("Invalid combining class: {e}"),
-                        Some("Must be integer 0..=254"),
-                    );
-                    0
-                }
-            };
-            let bc = match validate_bidi_class(&bidi_str) {
-                Ok(b) => b,
-                Err(e) => {
-                    report.add_error(
+                // Reason for fallback: unassigned Unicode codepoints default to Common script
+                let sc = ctb_formats_unicode::script_name(cp)
+                    .unwrap_or("Common")
+                    .to_string();
+                (cc, bc, gc, sc)
+            } else {
+                let cc = match validate_combining_class(&combining_str) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some("◌"),
+                            format!("Invalid combining class: {e}"),
+                            Some("Must be integer 0..=254"),
+                        );
+                        0
+                    }
+                };
+                let bc = match validate_bidi_class(&bidi_str) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        report.add_error(
                         file_path,
                         Some(line_no),
                         Some("⇆"),
                         format!("Invalid Bidi Class: {e}"),
                         Some("Use standard Unicode Bidi class abbreviation (e.g. BN, L, ON)"),
                     );
-                    BidiClass::BN
-                }
+                        BidiClass::BN
+                    }
+                };
+                let gc = match validate_general_category(&general_cat_str) {
+                    Ok(cat) => cat,
+                    Err(e) => {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some("Type"),
+                            format!("Invalid General Category: {e}"),
+                            Some("Use standard Unicode category or '!Cx'"),
+                        );
+                        GeneralCategory::NonUnicodeControl
+                    }
+                };
+                let sc = script.trim().to_string();
+                (cc, bc, gc, sc)
             };
-            let gc = match validate_general_category(&general_cat_str) {
-                Ok(cat) => cat,
-                Err(e) => {
-                    report.add_error(
-                        file_path,
-                        Some(line_no),
-                        Some("Type"),
-                        format!("Invalid General Category: {e}"),
-                        Some("Use standard Unicode category or '!Cx'"),
-                    );
-                    GeneralCategory::NonUnicodeControl
-                }
-            };
-            let sc = script.trim().to_string();
-            (cc, bc, gc, sc)
-        };
 
         let casing_partner = if casing_str.is_empty() {
             None
@@ -1342,7 +1374,9 @@ fn collect_format_ids_from_expr(
             for p in params {
                 match &p.value {
                     crate::format_spec::ParamValue::Dc(
-                        ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_id),
+                        ctb_storage_minimal::shorthand::DcShorthand::Format(
+                            fmt_id,
+                        ),
                     ) => {
                         ids.push(*fmt_id);
                     }
@@ -1396,7 +1430,9 @@ fn validate_target_token(
                             "Ensure referenced format ID is defined in formats category files",
                         ),
                     );
-                } else if let (Some(dep_fmts), Some(tag)) = (deprecated_format_ids, tag_name) {
+                } else if let (Some(dep_fmts), Some(tag)) =
+                    (deprecated_format_ids, tag_name)
+                {
                     if dep_fmts.contains(&fmt_id) {
                         report.add_error(
                             source_file,
@@ -1454,7 +1490,9 @@ fn validate_target_token(
                     format!("Referenced Format ID '{shorthand}' does not exist in formats registry"),
                     Some("Ensure referenced format ID is defined in formats category files"),
                 );
-            } else if let (Some(dep_fmts), Some(tag)) = (deprecated_format_ids, tag_name) {
+            } else if let (Some(dep_fmts), Some(tag)) =
+                (deprecated_format_ids, tag_name)
+            {
                 if short_id.is_some_and(|id| dep_fmts.contains(&id)) {
                     let shorthand = fmt_id.shorthand();
                     report.add_error(
@@ -1515,7 +1553,9 @@ fn validate_target_token(
                     format!("Referenced Dc ID '{target_dc}' does not exist in Document Characters registry"),
                     Some("Ensure referenced Dc ID is defined in a Dc category file"),
                 );
-            } else if let (Some(dep_ids), Some(tag)) = (deprecated_dc_ids, tag_name) {
+            } else if let (Some(dep_ids), Some(tag)) =
+                (deprecated_dc_ids, tag_name)
+            {
                 if dep_ids.contains(&target_dc) {
                     report.add_error(
                         source_file,
@@ -1612,7 +1652,10 @@ where
                     Some("Ensure each character has a unique Dc ID"),
                 );
             } else {
-                dc_id_map.insert(row.dc_id, (row.source_file.clone(), row.line_number));
+                dc_id_map.insert(
+                    row.dc_id,
+                    (row.source_file.clone(), row.line_number),
+                );
             }
 
             all_rows.push(row);
@@ -1653,7 +1696,9 @@ where
     if let Some(fmts_with_syntax) = known_format_with_syntax {
         for &fid in fmts_with_syntax {
             if let Some(format_id) =
-                ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{fid}"))
+                ctb_utilities::format_id::FormatId::from_shorthand(&format!(
+                    "f{fid}"
+                ))
             {
                 known_syntax_targets.insert(CharTarget::Format(format_id));
             }
@@ -1714,7 +1759,12 @@ where
             r.short_id.map(|sid| {
                 (
                     sid,
-                    (&r.syntax, &r.closes, r.source_file.as_str(), r.line_number),
+                    (
+                        &r.syntax,
+                        &r.closes,
+                        r.source_file.as_str(),
+                        r.line_number,
+                    ),
                 )
             })
         })
@@ -1728,7 +1778,8 @@ where
         for decomp in &r.decompositions {
             if let Some((tag_raw, payload)) = decomp.split_once('>') {
                 if tag_raw.trim_start_matches('<').trim() == "equiv" {
-                    let tokens: Vec<&str> = payload.split_whitespace().collect();
+                    let tokens: Vec<&str> =
+                        payload.split_whitespace().collect();
                     if tokens.len() == 1 {
                         if let Some(&target_tok) = tokens.first() {
                             if let Ok(sh) = ctb_storage_minimal::shorthand::DcShorthand::parse(target_tok) {
@@ -1747,11 +1798,17 @@ where
     }
     if let Some(reg) = format_registry {
         for fmt_info in reg.formats_by_id.values() {
-            if let Ok(fmt_sh) = ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_info.short_id).to_global_id() {
+            if let Ok(fmt_sh) =
+                ctb_storage_minimal::shorthand::DcShorthand::Format(
+                    fmt_info.short_id,
+                )
+                .to_global_id()
+            {
                 for decomp in &fmt_info.decompositions {
                     if let Some((tag_raw, payload)) = decomp.split_once('>') {
                         if tag_raw.trim_start_matches('<').trim() == "equiv" {
-                            let tokens: Vec<&str> = payload.split_whitespace().collect();
+                            let tokens: Vec<&str> =
+                                payload.split_whitespace().collect();
                             if tokens.len() == 1 {
                                 if let Some(&target_tok) = tokens.first() {
                                     if let Ok(sh) = ctb_storage_minimal::shorthand::DcShorthand::parse(target_tok) {
@@ -1775,8 +1832,13 @@ where
         let dc = DcChar::from_u128(token);
         if let Ok(sid) = dc.to_short() {
             deprecated_dc_ids.contains(&sid)
-        } else if let Some(fid) = ctb_utilities::format_id::FormatId::from_dc_id(token) {
-            fid.shorthand().trim_start_matches('f').parse::<usize>().ok()
+        } else if let Some(fid) =
+            ctb_utilities::format_id::FormatId::from_dc_id(token)
+        {
+            fid.shorthand()
+                .trim_start_matches('f')
+                .parse::<usize>()
+                .ok()
                 .is_some_and(|id| deprecated_format_ids.contains(&id))
         } else {
             false
@@ -1806,18 +1868,19 @@ where
         let terminal_targets: Vec<u128> = component
             .iter()
             .copied()
-            .filter(|m| equiv_targets.contains(m) && !equiv_sources.contains(m) && !is_dep(*m))
+            .filter(|m| {
+                equiv_targets.contains(m)
+                    && !equiv_sources.contains(m)
+                    && !is_dep(*m)
+            })
             .collect();
         let non_dep_targets: Vec<u128> = component
             .iter()
             .copied()
             .filter(|m| equiv_targets.contains(m) && !is_dep(*m))
             .collect();
-        let non_dep_members: Vec<u128> = component
-            .iter()
-            .copied()
-            .filter(|m| !is_dep(*m))
-            .collect();
+        let non_dep_members: Vec<u128> =
+            component.iter().copied().filter(|m| !is_dep(*m)).collect();
         let any_targets: Vec<u128> = component
             .iter()
             .copied()
@@ -1839,28 +1902,33 @@ where
         }
     }
 
-    let are_openers_equivalent = |s: &ctb_storage_minimal::shorthand::DcShorthand,
-                                  t: &ctb_storage_minimal::shorthand::DcShorthand|
-     -> bool {
-        if s == t {
-            return true;
-        }
-        match (s.to_global_id(), t.to_global_id()) {
-            (Ok(s_gid), Ok(t_gid)) => {
-                // Reason for fallback: tokens not in canonical_map are self-canonical.
-                let s_canon = canonical_map.get(&s_gid).copied().unwrap_or(s_gid);
-                // Reason for fallback: token not in canonical_map is self-canonical.
-                let t_canon = canonical_map.get(&t_gid).copied().unwrap_or(t_gid);
-                s_canon == t_canon
+    let are_openers_equivalent =
+        |s: &ctb_storage_minimal::shorthand::DcShorthand,
+         t: &ctb_storage_minimal::shorthand::DcShorthand|
+         -> bool {
+            if s == t {
+                return true;
             }
-            _ => false,
-        }
-    };
+            match (s.to_global_id(), t.to_global_id()) {
+                (Ok(s_gid), Ok(t_gid)) => {
+                    // Reason for fallback: tokens not in canonical_map are self-canonical.
+                    let s_canon =
+                        canonical_map.get(&s_gid).copied().unwrap_or(s_gid);
+                    // Reason for fallback: token not in canonical_map is self-canonical.
+                    let t_canon =
+                        canonical_map.get(&t_gid).copied().unwrap_or(t_gid);
+                    s_canon == t_canon
+                }
+                _ => false,
+            }
+        };
 
     let mut opener_to_closer: HashMap<u32, u128> = HashMap::new();
-    let mut closing_delimiters: HashMap<u32, crate::syntax::CharTarget> = HashMap::new();
+    let mut closing_delimiters: HashMap<u32, crate::syntax::CharTarget> =
+        HashMap::new();
     for row in &all_rows {
-        let Some(short_id) = row.short_id.and_then(|id| u32::try_from(id).ok()) else {
+        let Some(short_id) = row.short_id.and_then(|id| u32::try_from(id).ok())
+        else {
             continue;
         };
         let Some(closes) = &row.closes else {
@@ -1875,8 +1943,10 @@ where
                 })
             }
             ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
-                ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{id}"))
-                    .map(crate::syntax::CharTarget::Format)
+                ctb_utilities::format_id::FormatId::from_shorthand(&format!(
+                    "f{id}"
+                ))
+                .map(crate::syntax::CharTarget::Format)
             }
             ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
                 Some(crate::syntax::CharTarget::Unicode(*cp))
@@ -1926,7 +1996,8 @@ where
                     );
                 }
             }
-            let enforce_deprecation = tag_name == "equiv" || tag_name == "approx";
+            let enforce_deprecation =
+                tag_name == "equiv" || tag_name == "approx";
             let tag_opt = if enforce_deprecation {
                 Some(tag_name)
             } else {
@@ -1973,7 +2044,11 @@ where
                         );
                     }
                 } else if let Some(&target_token) = tokens.first() {
-                    if let Ok(shorthand) = ctb_storage_minimal::shorthand::DcShorthand::parse(target_token) {
+                    if let Ok(shorthand) =
+                        ctb_storage_minimal::shorthand::DcShorthand::parse(
+                            target_token,
+                        )
+                    {
                         match shorthand {
                             ctb_storage_minimal::shorthand::DcShorthand::Short(target_sid) => {
                                 let sid_usize = usize::try_from(target_sid).ok();
@@ -2174,11 +2249,14 @@ where
             };
 
             // Reason for fallback: when optional known_named_types set is None, start with empty set.
-            let mut combined_named_types = known_named_types.cloned().unwrap_or_default();
+            let mut combined_named_types =
+                known_named_types.cloned().unwrap_or_default();
             if !combined_named_types.is_empty() {
                 for r in &all_rows {
                     if r.script == ".EL Types" {
-                        if let Some(el_type_name) = extract_el_type_name(&r.name) {
+                        if let Some(el_type_name) =
+                            extract_el_type_name(&r.name)
+                        {
                             combined_named_types.insert(el_type_name);
                         }
                     }
@@ -2202,7 +2280,11 @@ where
             let target = crate::syntax::CharTarget::Dc(short_id_u32);
             let closer = opener_to_closer.get(&short_id_u32).copied();
             let has_trailing = closer.is_some_and(|c| {
-                !crate::syntax::extract_trailing_after_closer(&syntax_rule.pattern, c).is_empty()
+                !crate::syntax::extract_trailing_after_closer(
+                    &syntax_rule.pattern,
+                    c,
+                )
+                .is_empty()
             });
             let closing_opener = closing_delimiters.get(&short_id_u32).cloned();
             let shape = crate::syntax::classify_rule_framing_shape(
@@ -2227,7 +2309,8 @@ where
                 }
                 Some(ref valid_shape) => {
                     let is_equiv_alias = equiv_sources.contains(&row.dc_id);
-                    if short_id_u32 > crate::syntax::MAX_LEGACY_FRAMING_SHORT_DC_ID
+                    if short_id_u32
+                        > crate::syntax::MAX_LEGACY_FRAMING_SHORT_DC_ID
                         && !is_equiv_alias
                         && !valid_shape.is_allowed_for_new_dc()
                     {
@@ -2250,15 +2333,21 @@ where
         for imp in &row.implies {
             let trimmed = imp.trim();
             if trimmed.starts_with('[') && trimmed.ends_with(']') {
-                if let (Some(short_id), Ok(imp_rule)) = (row.short_id, parse_dc_syntax(&format!(":{trimmed}"))) {
+                if let (Some(short_id), Ok(imp_rule)) =
+                    (row.short_id, parse_dc_syntax(&format!(":{trimmed}")))
+                {
                     if let Ok(short_id_u32) = u32::try_from(short_id) {
                         // Reason for fallback: when optional known_named_types set is None, start with empty set.
-            let mut combined_named_types = known_named_types.cloned().unwrap_or_default();
+                        let mut combined_named_types =
+                            known_named_types.cloned().unwrap_or_default();
                         if !combined_named_types.is_empty() {
                             for r in &all_rows {
                                 if r.script == ".EL Types" {
-                                    if let Some(el_type_name) = extract_el_type_name(&r.name) {
-                                        combined_named_types.insert(el_type_name);
+                                    if let Some(el_type_name) =
+                                        extract_el_type_name(&r.name)
+                                    {
+                                        combined_named_types
+                                            .insert(el_type_name);
                                     }
                                 }
                             }
@@ -2393,7 +2482,6 @@ pub fn validate_all_dc_files_from_disk(
     )
 }
 
-
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -2412,13 +2500,11 @@ mod tests {
         SupportLevel, validate_extension_entry, validate_rust_identifier,
         validate_support_level,
     };
-    use crate::syntax::{
-        ActionArg, Quantifier, SyntaxPattern, SyntaxTerm,
-    };
+    use crate::syntax::{ActionArg, Quantifier, SyntaxPattern, SyntaxTerm};
     use crate::updater::{
-        assign_and_update_dc_categories, assign_and_update_format_categories,
-        generate_merged_csvs, read_csv_file, write_csv_file,
-        UNIFIED_SCHEMA_HEADER,
+        UNIFIED_SCHEMA_HEADER, assign_and_update_dc_categories,
+        assign_and_update_format_categories, generate_merged_csvs,
+        read_csv_file, write_csv_file,
     };
 
     #[crate::ctb_test]
@@ -2462,10 +2548,8 @@ mod tests {
                 .find(|row| row.short_id == Some(short_id))
                 .context("Missing fixed-dimensional math format")?;
             assert_eq!(row.ident.as_deref(), Some(ident));
-            let details = row
-                .format
-                .as_ref()
-                .context("Missing format details")?;
+            let details =
+                row.format.as_ref().context("Missing format details")?;
             assert_eq!(details.implies.as_deref(), Some(base));
             assert!(row.syntax.is_some());
             assert!(row.decompositions.is_empty());
@@ -2632,7 +2716,8 @@ mod tests {
         let repo = temp_dir.path();
 
         let dc_cats = repo.join("src/formats/dcdata/data-src/categories");
-        let fmt_cats = repo.join("src/formats/dcdata/data-src/categories/formats");
+        let fmt_cats =
+            repo.join("src/formats/dcdata/data-src/categories/formats");
         std::fs::create_dir_all(&dc_cats).unwrap();
         std::fs::create_dir_all(&fmt_cats).unwrap();
 
@@ -2676,7 +2761,9 @@ mod tests {
             "References".to_string(),
         ];
         write_csv_file(
-            &repo.join("src/formats/dcdata/data-src/categories/formats/schema.csv"),
+            &repo.join(
+                "src/formats/dcdata/data-src/categories/formats/schema.csv",
+            ),
             &fmt_schema_header,
             &[],
         )
@@ -2838,9 +2925,11 @@ mod tests {
         assert!(!all_csv_path.exists());
 
         // Verify JSON files are NOT generated
-        let dc_json_path = repo.join("src/formats/dcdata/data-src/DcList.generated.json");
+        let dc_json_path =
+            repo.join("src/formats/dcdata/data-src/DcList.generated.json");
         assert!(!dc_json_path.exists());
-        let fmt_json_path = repo.join("src/formats/dcdata/data-src/formats.generated.json");
+        let fmt_json_path =
+            repo.join("src/formats/dcdata/data-src/formats.generated.json");
         assert!(!fmt_json_path.exists());
     }
 
@@ -2854,19 +2943,27 @@ mod tests {
         assert_eq!(
             parse_target_token("f80"),
             Some(CharTarget::Format(
-                ctb_utilities::format_id::FormatId::from_shorthand("f80").unwrap()
+                ctb_utilities::format_id::FormatId::from_shorthand("f80")
+                    .unwrap()
             ))
         );
         assert_eq!(
             parse_target_token("f0"),
             Some(CharTarget::Format(
-                ctb_utilities::format_id::FormatId::from_shorthand("f0").unwrap()
+                ctb_utilities::format_id::FormatId::from_shorthand("f0")
+                    .unwrap()
             ))
         );
 
         // Valid Unicode codepoints (lowercase hex only)
-        assert_eq!(parse_target_token("u0020"), Some(CharTarget::Unicode(0x20)));
-        assert_eq!(parse_target_token("u12ab"), Some(CharTarget::Unicode(0x12ab)));
+        assert_eq!(
+            parse_target_token("u0020"),
+            Some(CharTarget::Unicode(0x20))
+        );
+        assert_eq!(
+            parse_target_token("u12ab"),
+            Some(CharTarget::Unicode(0x12ab))
+        );
         assert_eq!(parse_target_token("u0"), Some(CharTarget::Unicode(0)));
 
         // Rejected format variants
@@ -2900,7 +2997,10 @@ mod tests {
                 }
             );
             assert_eq!(elements[1].quantifier, Quantifier::OneOrMore);
-            assert_eq!(elements[2].term, SyntaxTerm::CharRef(CharTarget::Dc(248)));
+            assert_eq!(
+                elements[2].term,
+                SyntaxTerm::CharRef(CharTarget::Dc(248))
+            );
         } else {
             panic!("Expected sequence pattern");
         }
@@ -2962,7 +3062,8 @@ mod tests {
         }
 
         // Parameterized named construct with capture variable: :[list:([filename] | 513) $path]
-        let rule6 = parse_dc_syntax(":[list:([filename] | 513) $path]").unwrap();
+        let rule6 =
+            parse_dc_syntax(":[list:([filename] | 513) $path]").unwrap();
         if let SyntaxPattern::Sequence(elements) = &rule6.pattern {
             assert_eq!(elements.len(), 1);
             assert_eq!(
@@ -2995,7 +3096,12 @@ mod tests {
         // Bare pipe in negated character set must be an error
         let err_rule = parse_dc_syntax(":[^314 | 312]");
         assert!(err_rule.is_err());
-        assert!(err_rule.unwrap_err().to_string().contains("enclosed in parentheses"));
+        assert!(
+            err_rule
+                .unwrap_err()
+                .to_string()
+                .contains("enclosed in parentheses")
+        );
 
         // Parenthesized alternation in positive character set: :[(246 | 247)]
         let rule8 = parse_dc_syntax(":[(246 | 247)]").unwrap();
@@ -3016,7 +3122,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_dc_syntax_validator_checks() {
         let mut report = ValidationReport::new();
-        let known_dcs: HashSet<u32> = [246, 248, 255, 260].into_iter().collect();
+        let known_dcs: HashSet<u32> =
+            [246, 248, 255, 260].into_iter().collect();
         let known_fmts: HashSet<usize> = [80].into_iter().collect();
         let mut known_named_types: HashSet<String> = HashSet::new();
         known_named_types.insert("identifier".to_string());
@@ -3061,8 +3168,10 @@ mod tests {
 
         // Unbound variable in action
         let mut report2 = ValidationReport::new();
-        let unbound_action_rule =
-            parse_dc_syntax(":[identifier $ident] ~ : lang.assign($ident, $unbound)").unwrap();
+        let unbound_action_rule = parse_dc_syntax(
+            ":[identifier $ident] ~ : lang.assign($ident, $unbound)",
+        )
+        .unwrap();
         validate_dc_syntax(
             &unbound_action_rule,
             269,
@@ -3096,7 +3205,11 @@ mod tests {
             13,
         );
         assert!(report3.has_errors());
-        assert!(report3.format_report().contains("Unknown named type construct '[unknown_type]'"));
+        assert!(
+            report3
+                .format_report()
+                .contains("Unknown named type construct '[unknown_type]'")
+        );
 
         // Macro expansion of target without syntax: f80 has no syntax
         let mut report4 = ValidationReport::new();
@@ -3115,11 +3228,14 @@ mod tests {
             14,
         );
         assert!(report4.has_errors());
-        assert!(report4.format_report().contains("references target that does not define its own syntax rule"));
+        assert!(report4.format_report().contains(
+            "references target that does not define its own syntax rule"
+        ));
 
         // Unknown script in [script:...]: [script:Nonexistent]
         let mut report5 = ValidationReport::new();
-        let unknown_script_rule = parse_dc_syntax(":[script:Nonexistent]").unwrap();
+        let unknown_script_rule =
+            parse_dc_syntax(":[script:Nonexistent]").unwrap();
         validate_dc_syntax(
             &unknown_script_rule,
             246,
@@ -3134,7 +3250,11 @@ mod tests {
             15,
         );
         assert!(report5.has_errors());
-        assert!(report5.format_report().contains("Unknown script '[script:Nonexistent]'"));
+        assert!(
+            report5
+                .format_report()
+                .contains("Unknown script '[script:Nonexistent]'")
+        );
 
         // [data] without subtype is valid
         let mut report6 = ValidationReport::new();
@@ -3211,7 +3331,9 @@ mod tests {
             17,
         );
         assert!(report_checksum.has_errors());
-        assert!(report_checksum.format_report().contains("Unknown format identifier 'checksum' in '[data:checksum]'"));
+        assert!(report_checksum.format_report().contains(
+            "Unknown format identifier 'checksum' in '[data:checksum]'"
+        ));
 
         // [data:f9999] rejects unknown format
         let mut report_unknown_fmt = ValidationReport::new();
@@ -3230,7 +3352,11 @@ mod tests {
             18,
         );
         assert!(report_unknown_fmt.has_errors());
-        assert!(report_unknown_fmt.format_report().contains("Unknown format identifier 'f9999' in '[data:f9999]'"));
+        assert!(
+            report_unknown_fmt.format_report().contains(
+                "Unknown format identifier 'f9999' in '[data:f9999]'"
+            )
+        );
 
         // [data:NoExport] rejects format without both import and export
         let mut report_no_export = ValidationReport::new();
@@ -3249,7 +3375,11 @@ mod tests {
             19,
         );
         assert!(report_no_export.has_errors());
-        assert!(report_no_export.format_report().contains("must have both import and export support"));
+        assert!(
+            report_no_export
+                .format_report()
+                .contains("must have both import and export support")
+        );
 
         // [data:Sha256] and [data:f248] succeed when format has both import and export
         let mut report_ok = ValidationReport::new();
@@ -3272,7 +3402,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_redundant_quantifier_syntax_validation() {
-        let known_dcs: HashSet<u32> = [246, 248, 255, 260, 262].into_iter().collect();
+        let known_dcs: HashSet<u32> =
+            [246, 248, 255, 260, 262].into_iter().collect();
         let known_fmts: HashSet<usize> = [80].into_iter().collect();
         let mut known_named_types: HashSet<String> = HashSet::new();
         known_named_types.insert("identifier".to_string());
@@ -3315,7 +3446,9 @@ mod tests {
                 "Expected validation error for redundant quantifier in '{pattern}'"
             );
             assert!(
-                report.format_report().contains("Redundant quantifier '{1}'"),
+                report
+                    .format_report()
+                    .contains("Redundant quantifier '{1}'"),
                 "Error report for '{pattern}' should mention redundant quantifier"
             );
         }
@@ -3366,7 +3499,11 @@ mod tests {
 
         // 1. Dc category with row having 9 columns instead of 10
         let invalid_dc_csv = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Null,0,BN,,Cc,Controls,\n";
-        validate_dc_category_file(invalid_dc_csv, "invalid_dc.csv", &mut report);
+        validate_dc_category_file(
+            invalid_dc_csv,
+            "invalid_dc.csv",
+            &mut report,
+        );
         assert!(report.has_errors());
         assert!(
             report
@@ -3468,11 +3605,9 @@ mod tests {
             &mut report_equiv_uni,
         );
         assert!(report_equiv_uni.has_errors());
-        assert!(
-            report_equiv_uni
-                .format_report()
-                .contains("references deprecated Unicode character 'u17a3' (U+17A3)")
-        );
+        assert!(report_equiv_uni.format_report().contains(
+            "references deprecated Unicode character 'u17a3' (U+17A3)"
+        ));
 
         // 4. <approx> referencing deprecated Unicode codepoint (u0149)
         let mut report_approx_uni = ValidationReport::default();
@@ -3489,11 +3624,9 @@ mod tests {
             &mut report_approx_uni,
         );
         assert!(report_approx_uni.has_errors());
-        assert!(
-            report_approx_uni
-                .format_report()
-                .contains("references deprecated Unicode character 'u0149' (U+0149)")
-        );
+        assert!(report_approx_uni.format_report().contains(
+            "references deprecated Unicode character 'u0149' (U+0149)"
+        ));
 
         // 5. Cross references and <ambiguous> may reference deprecated Dcs without error
         let mut report_allowed = ValidationReport::default();
@@ -3602,7 +3735,11 @@ mod tests {
             &mut report,
         );
         assert!(report.has_errors());
-        assert!(report.format_report().contains("Unknown decomposition tag '<unknown_decomp>'"));
+        assert!(
+            report
+                .format_report()
+                .contains("Unknown decomposition tag '<unknown_decomp>'")
+        );
 
         // Valid decomposition tag <equiv>
         let mut report_valid = ValidationReport::default();
@@ -3633,7 +3770,11 @@ mod tests {
             &mut report,
         );
         assert!(report.has_errors());
-        assert!(report.format_report().contains("Invalid Short format ID integer: 'F0'"));
+        assert!(
+            report
+                .format_report()
+                .contains("Invalid Short format ID integer: 'F0'")
+        );
     }
 
     #[crate::ctb_test]
@@ -3798,7 +3939,11 @@ mod tests {
             None,
             &mut report_ok,
         );
-        assert!(!report_ok.has_errors(), "Expected success but got: {}", report_ok.format_report());
+        assert!(
+            !report_ok.has_errors(),
+            "Expected success but got: {}",
+            report_ok.format_report()
+        );
 
         // 2. Mismatched syntax (one has rule, one has None) fails validation
         let mut report_missing = ValidationReport::default();
@@ -3877,7 +4022,11 @@ mod tests {
             None,
             &mut report_norm_closes,
         );
-        assert!(!report_norm_closes.has_errors(), "Expected normalized @closes to pass: {}", report_norm_closes.format_report());
+        assert!(
+            !report_norm_closes.has_errors(),
+            "Expected normalized @closes to pass: {}",
+            report_norm_closes.format_report()
+        );
 
         // 6. Truly mismatched @closes targets still fail validation
         let mut report_mismatched_target = ValidationReport::default();
@@ -3925,7 +4074,11 @@ mod tests {
             Some(&fmt_registry_syntax),
             &mut report_fmt_ok,
         );
-        assert!(!report_fmt_ok.has_errors(), "Expected format equiv to pass: {}", report_fmt_ok.format_report());
+        assert!(
+            !report_fmt_ok.has_errors(),
+            "Expected format equiv to pass: {}",
+            report_fmt_ok.format_report()
+        );
 
         // 8. Format ID <equiv> with mismatched syntax rules fails
         let mut report_fmt_diff = ValidationReport::default();
@@ -4016,10 +4169,11 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(say_rule.raw, ":~ 258 [string $text] 259");
-        let assign_rule =
-            derive_el_routine_syntax("void lang.assign([identifier] identifier, [value] value)")
-                .unwrap()
-                .unwrap();
+        let assign_rule = derive_el_routine_syntax(
+            "void lang.assign([identifier] identifier, [value] value)",
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(
             assign_rule.raw,
             ":~ 258 [identifier $identifier] 259 258 [value $value] 259"

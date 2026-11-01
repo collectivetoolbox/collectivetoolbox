@@ -107,7 +107,9 @@ impl FormatOp {
             Self::Convert,
             Self::Transmute,
             Self::Intersection,
-        ].into_iter().find(|&op| ch == op.dc_char())
+        ]
+        .into_iter()
+        .find(|&op| ch == op.dc_char())
     }
 
     /// Returns the textual symbol for this operator.
@@ -179,7 +181,9 @@ impl FormatExpr {
     pub fn depth(&self) -> usize {
         match self {
             Self::Dc(_) | Self::NamedType(_) => 1,
-            Self::Convert(l, r) | Self::Transmute(l, r) | Self::Transform(l, r) => {
+            Self::Convert(l, r)
+            | Self::Transmute(l, r)
+            | Self::Transform(l, r) => {
                 let max_child = l.depth().max(r.depth());
                 max_child.saturating_add(1)
             }
@@ -207,12 +211,12 @@ impl FormatExpr {
     pub fn node_count(&self) -> usize {
         match self {
             Self::Dc(_) | Self::NamedType(_) => 1,
-            Self::Convert(l, r) | Self::Transmute(l, r) | Self::Transform(l, r) => {
+            Self::Convert(l, r)
+            | Self::Transmute(l, r)
+            | Self::Transform(l, r) => {
                 let left_nodes = l.node_count();
                 let right_nodes = r.node_count();
-                left_nodes
-                    .saturating_add(right_nodes)
-                    .saturating_add(1)
+                left_nodes.saturating_add(right_nodes).saturating_add(1)
             }
             Self::Union(children) | Self::Intersection(children) => {
                 let mut total = 1usize;
@@ -242,7 +246,10 @@ impl FormatExpr {
 }
 
 impl Serialize for FormatExpr {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -259,4 +266,3 @@ impl<'de> Deserialize<'de> for FormatExpr {
         super::parser::parse_format_expr(&s).map_err(serde::de::Error::custom)
     }
 }
-

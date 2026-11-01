@@ -303,7 +303,11 @@ fn collect_bundle_entries(
         })?;
         let path_string = normalize_relative_path(relative)?;
         let meta = entry.metadata()?;
-        entries.push(AssetBundleDiskSourceEntry::new(path_string, &path, meta.len()));
+        entries.push(AssetBundleDiskSourceEntry::new(
+            path_string,
+            &path,
+            meta.len(),
+        ));
     }
 
     Ok(())
@@ -332,10 +336,12 @@ fn get_or_compute_delta(
     target_disk_path: &Path,
     cache_dir: &Path,
 ) -> Result<(PathBuf, u64)> {
-    let base_contents = fs::read(base_disk_path)
-        .with_context(|| format!("Failed to read {}", base_disk_path.display()))?;
-    let target_contents = fs::read(target_disk_path)
-        .with_context(|| format!("Failed to read {}", target_disk_path.display()))?;
+    let base_contents = fs::read(base_disk_path).with_context(|| {
+        format!("Failed to read {}", base_disk_path.display())
+    })?;
+    let target_contents = fs::read(target_disk_path).with_context(|| {
+        format!("Failed to read {}", target_disk_path.display())
+    })?;
 
     let base_hash = compute_sha256_hex(&base_contents);
     let target_hash = compute_sha256_hex(&target_contents);
@@ -352,8 +358,8 @@ fn get_or_compute_delta(
         &base_contents,
         &target_contents,
     )?;
-    let payload_len = u64::try_from(payload.len())
-        .context("Delta payload too large")?;
+    let payload_len =
+        u64::try_from(payload.len()).context("Delta payload too large")?;
 
     // Cache to disk
     let _ = fs::create_dir_all(cache_dir);
@@ -487,7 +493,10 @@ fn write_resource_bundle(
                         let sha256_hex = asset_bundle_format::format_sha256_hex(
                             &existing_header.content_sha256,
                         );
-                        return Ok((existing_header.bundle_uuid.to_string(), sha256_hex));
+                        return Ok((
+                            existing_header.bundle_uuid.to_string(),
+                            sha256_hex,
+                        ));
                     }
                 }
             }
@@ -516,15 +525,17 @@ fn write_resource_bundle(
         bundle_path.with_file_name(format!(".{bundle_name}.tmp_stream"));
 
     let custom_uuid = existing_header.as_ref().map(|h| h.bundle_uuid);
-    let header = asset_bundle_format::write_asset_bundle_from_disk_entries_with_details(
-        &entries,
-        &temp_bundle_path,
-        asset_bundle_format::RESOURCE_BUNDLE_VERSION,
-        custom_uuid,
-        None,
-    )?;
+    let header =
+        asset_bundle_format::write_asset_bundle_from_disk_entries_with_details(
+            &entries,
+            &temp_bundle_path,
+            asset_bundle_format::RESOURCE_BUNDLE_VERSION,
+            custom_uuid,
+            None,
+        )?;
 
-    let sha256_hex = asset_bundle_format::format_sha256_hex(&header.content_sha256);
+    let sha256_hex =
+        asset_bundle_format::format_sha256_hex(&header.content_sha256);
 
     if let Some(ref existing) = existing_header {
         if existing.content_sha256 == header.content_sha256 {
@@ -810,7 +821,9 @@ fn prepare_runtime_assets(
     let input_graph_dir = project_root.join("assets/data/graph");
     let framing_dcs =
         crate::dc_codegen::resolve_ctbnbdl_framing_dcs(&input_graph_dir)
-            .context("Failed to resolve .ctbnbdl framing Dcs from system graph")?;
+            .context(
+                "Failed to resolve .ctbnbdl framing Dcs from system graph",
+            )?;
     crate::ctbnbdl::compile_ctbnodes_dir_to_ctbnbdl(
         &input_graph_dir,
         &input_graph_dir,
@@ -834,7 +847,9 @@ fn prepare_runtime_assets(
         &history_stage_dir.join("data/graph/system"),
         framing_dcs,
     )
-    .context("Failed to stage inactive system graph history .ctbnbdl bundles")?;
+    .context(
+        "Failed to stage inactive system graph history .ctbnbdl bundles",
+    )?;
     let (
         system_graph_history_asset_pack_uuid,
         system_graph_history_asset_pack_sha256,
@@ -965,9 +980,8 @@ fn prepare_runtime_assets(
     let mut v86_asset_pack_sha256 = None;
     if let Some(hdr) = read_existing_asset_bundle_header(&dest_rsrc)? {
         v86_asset_pack_uuid = Some(hdr.bundle_uuid.to_string());
-        v86_asset_pack_sha256 = Some(
-            asset_bundle_format::format_sha256_hex(&hdr.content_sha256),
-        );
+        v86_asset_pack_sha256 =
+            Some(asset_bundle_format::format_sha256_hex(&hdr.content_sha256));
     }
 
     let (asset_pack_uuid, asset_pack_sha256) = write_resource_bundle(
@@ -1277,7 +1291,10 @@ mod tests {
         let stage_dir = temp_dir.join("stage");
         fs::create_dir_all(stage_dir.join("subdir"))?;
         fs::write(stage_dir.join("hello.txt"), b"Hello World")?;
-        fs::write(stage_dir.join("subdir/nested.bin"), b"Binary Content 12345")?;
+        fs::write(
+            stage_dir.join("subdir/nested.bin"),
+            b"Binary Content 12345",
+        )?;
 
         let bundle_path = temp_dir.join("test.rsrc");
         let (uuid1, sha1) = write_resource_bundle(&stage_dir, &bundle_path)?;
@@ -1332,4 +1349,3 @@ mod tests {
         Ok(())
     }
 }
-

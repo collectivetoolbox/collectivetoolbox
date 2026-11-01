@@ -176,8 +176,9 @@ mod tests {
         ];
 
         for &val in &boundary_values {
-            let packed = pack32(val)
-                .unwrap_or_else(|e| panic!("failed to pack supported value 0x{val:X}: {e}"));
+            let packed = pack32(val).unwrap_or_else(|e| {
+                panic!("failed to pack supported value 0x{val:X}: {e}")
+            });
             assert!(
                 is_pack32_char(&packed),
                 "is_pack32_char returned false for packed 0x{val:X}"

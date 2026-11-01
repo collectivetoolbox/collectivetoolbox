@@ -57,7 +57,11 @@ impl KStruct for Avi {
     type Root = Avi;
     type Parent = Avi;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -71,28 +75,40 @@ impl KStruct for Avi {
         let _io = io;
         *self_rc.magic1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic1() == vec![0x52u8, 0x49u8, 0x46u8, 0x46u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic2() == vec![0x41u8, 0x56u8, 0x49u8, 0x20u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/2".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_data = _io.read_bytes(usize::try_from((*self_rc.file_size()).saturating_sub(4_u32))?)?;
+        let _raw_data = _io.read_bytes(usize::try_from(
+            (*self_rc.file_size()).saturating_sub(4_u32),
+        )?)?;
         *self_rc.data_raw.borrow_mut() = _raw_data.clone();
         let _io_data = BytesReader::from(_raw_data);
-        let t = Self::read_into::<BytesReader, Avi_Blocks>(&_io_data, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<BytesReader, Avi_Blocks>(
+            &_io_data,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.data.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Avi {
-}
+impl Avi {}
 impl Avi {
     pub fn magic1(&self) -> Ref<'_, Vec<u8>> {
         self.magic1.borrow()
@@ -179,13 +195,15 @@ impl From<&Avi_ChunkType> for i64 {
             Avi_ChunkType::Movi => 1769369453,
             Avi_ChunkType::Hdrl => 1819436136,
             Avi_ChunkType::Strl => 1819440243,
-            Avi_ChunkType::Unknown(v) => v
+            Avi_ChunkType::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Avi_ChunkType {
-    fn default() -> Self { Avi_ChunkType::Unknown(0) }
+    fn default() -> Self {
+        Avi_ChunkType::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -220,13 +238,15 @@ impl From<&Avi_HandlerType> for i64 {
             Avi_HandlerType::Dts => 8193,
             Avi_HandlerType::Cvid => 1684633187,
             Avi_HandlerType::Xvid => 1684633208,
-            Avi_HandlerType::Unknown(v) => v
+            Avi_HandlerType::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Avi_HandlerType {
-    fn default() -> Self { Avi_HandlerType::Unknown(0) }
+    fn default() -> Self {
+        Avi_HandlerType::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -258,15 +278,16 @@ impl From<&Avi_StreamType> for i64 {
             Avi_StreamType::Vids => 1935960438,
             Avi_StreamType::Auds => 1935963489,
             Avi_StreamType::Txts => 1937012852,
-            Avi_StreamType::Unknown(v) => v
+            Avi_StreamType::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Avi_StreamType {
-    fn default() -> Self { Avi_StreamType::Unknown(0) }
+    fn default() -> Self {
+        Avi_StreamType::Unknown(0)
+    }
 }
-
 
 /**
  * Main header of an AVI file, defined as AVIMAINHEADER structure
@@ -328,7 +349,11 @@ impl KStruct for Avi_AvihBody {
     type Root = Avi;
     type Parent = Avi_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -366,8 +391,7 @@ impl KStruct for Avi_AvihBody {
         Ok(())
     }
 }
-impl Avi_AvihBody {
-}
+impl Avi_AvihBody {}
 impl Avi_AvihBody {
     pub fn micro_sec_per_frame(&self) -> Ref<'_, u32> {
         self.micro_sec_per_frame.borrow()
@@ -604,7 +628,11 @@ impl KStruct for Avi_Block {
     type Root = Avi;
     type Parent = Avi_Blocks;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -616,34 +644,59 @@ impl KStruct for Avi_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.four_cc.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.four_cc.borrow_mut() =
+            i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.four_cc() {
             Avi_ChunkType::Avih => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into();
+                *self_rc.data_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(*self_rc.block_size())?)?
+                    .into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Avi_AvihBody>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<BytesReader, Avi_AvihBody>(
+                    &_t_data_raw_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Avi_ChunkType::List => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into();
+                *self_rc.data_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(*self_rc.block_size())?)?
+                    .into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Avi_ListBody>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<BytesReader, Avi_ListBody>(
+                    &_t_data_raw_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Avi_ChunkType::Strh => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into();
+                *self_rc.data_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(*self_rc.block_size())?)?
+                    .into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Avi_StrhBody>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<BytesReader, Avi_StrhBody>(
+                    &_t_data_raw_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into());
+                *self_rc.data.borrow_mut() = Some(
+                    _io.read_bytes(usize::try_from(*self_rc.block_size())?)?
+                        .into(),
+                );
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -651,8 +704,7 @@ impl KStruct for Avi_Block {
         Ok(())
     }
 }
-impl Avi_Block {
-}
+impl Avi_Block {}
 impl Avi_Block {
     pub fn four_cc(&self) -> Ref<'_, Avi_ChunkType> {
         self.four_cc.borrow()
@@ -729,7 +781,11 @@ impl KStruct for Avi_Blocks {
     type Root = Avi;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -745,7 +801,12 @@ impl KStruct for Avi_Blocks {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Avi_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Avi_Block>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -755,8 +816,7 @@ impl KStruct for Avi_Blocks {
         Ok(())
     }
 }
-impl Avi_Blocks {
-}
+impl Avi_Blocks {}
 impl Avi_Blocks {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Avi_Block>>> {
         self.entries.borrow()
@@ -819,7 +879,11 @@ impl KStruct for Avi_ListBody {
     type Root = Avi;
     type Parent = Avi_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -831,17 +895,22 @@ impl KStruct for Avi_ListBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.list_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.list_type.borrow_mut() =
+            i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Avi_Blocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, Avi_Blocks>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.data.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Avi_ListBody {
-}
+impl Avi_ListBody {}
 impl Avi_ListBody {
     pub fn list_type(&self) -> Ref<'_, Avi_ChunkType> {
         self.list_type.borrow()
@@ -911,7 +980,11 @@ impl KStruct for Avi_Rect {
     type Root = Avi;
     type Parent = Avi_StrhBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -935,8 +1008,7 @@ impl KStruct for Avi_Rect {
         Ok(())
     }
 }
-impl Avi_Rect {
-}
+impl Avi_Rect {}
 impl Avi_Rect {
     pub fn left(&self) -> Ref<'_, i16> {
         self.left.borrow()
@@ -1016,7 +1088,11 @@ impl KStruct for Avi_StrfBody {
     type Root = Avi;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1032,8 +1108,7 @@ impl KStruct for Avi_StrfBody {
         Ok(())
     }
 }
-impl Avi_StrfBody {
-}
+impl Avi_StrfBody {}
 impl Avi_StrfBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -1108,7 +1183,11 @@ impl KStruct for Avi_StrhBody {
     type Root = Avi;
     type Parent = Avi_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1120,9 +1199,11 @@ impl KStruct for Avi_StrhBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.fcc_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.fcc_type.borrow_mut() =
+            i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.fcc_handler.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.fcc_handler.borrow_mut() =
+            i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1146,15 +1227,19 @@ impl KStruct for Avi_StrhBody {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sample_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Avi_Rect>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Avi_Rect>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.frame.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Avi_StrhBody {
-}
+impl Avi_StrhBody {}
 
 /**
  * Type of the data contained in the stream

@@ -109,7 +109,11 @@ impl KStruct for StrLiterals {
     type Root = StrLiterals;
     type Parent = StrLiterals;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,10 +130,12 @@ impl KStruct for StrLiterals {
     }
 }
 impl StrLiterals {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn backslashes(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn backslashes(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_backslashes.get() {
             return Ok(self.backslashes.borrow());
@@ -138,22 +144,28 @@ impl StrLiterals {
         *self.backslashes.borrow_mut() = "\\\\\\".to_string();
         Ok(self.backslashes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn complex_str(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn complex_str(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_complex_str.get() {
             return Ok(self.complex_str.borrow());
         }
         self.f_complex_str.set(true);
-        *self.complex_str.borrow_mut() = "\0\u{1}\u{2}\u{7}\u{8}\n\r\t\u{b}\u{c}\u{1b}=\u{7}\n$☻".to_string();
+        *self.complex_str.borrow_mut() =
+            "\0\u{1}\u{2}\u{7}\u{8}\n\r\t\u{b}\u{c}\u{1b}=\u{7}\n$☻"
+                .to_string();
         Ok(self.complex_str.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn double_quotes(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn double_quotes(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_double_quotes.get() {
             return Ok(self.double_quotes.borrow());
@@ -162,10 +174,12 @@ impl StrLiterals {
         *self.double_quotes.borrow_mut() = "\"\"\"".to_string();
         Ok(self.double_quotes.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn octal_eatup(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn octal_eatup(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_octal_eatup.get() {
             return Ok(self.octal_eatup.borrow());
@@ -174,10 +188,12 @@ impl StrLiterals {
         *self.octal_eatup.borrow_mut() = "\022".to_string();
         Ok(self.octal_eatup.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn octal_eatup2(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn octal_eatup2(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_octal_eatup2.get() {
             return Ok(self.octal_eatup2.borrow());

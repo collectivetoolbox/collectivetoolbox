@@ -145,8 +145,7 @@ fn normalize_with_dialect(
             } else {
                 bail!("Disallowed byte in StageL v2 source: {c}");
             }
-        } else if c.is_ascii_digit() && dialect == NormalizerDialect::New
-        {
+        } else if c.is_ascii_digit() && dialect == NormalizerDialect::New {
             let shifted = c
                 .checked_add(17)
                 .context("Overflow shifting digit character")?;

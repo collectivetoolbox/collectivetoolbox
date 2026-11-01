@@ -38,21 +38,22 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use serde::{Deserialize, Serialize};
 use ctb_utilities::pc_settings::{PcSettingU16Key, get_u16_setting};
+use serde::{Deserialize, Serialize};
 
 pub mod detection;
-pub use detection::{
-    EnvironmentCapabilities, EnvironmentIdentity, detect_architecture, detect_capabilities,
-    detect_display_server, detect_identity,
-};
 pub use ctb_formats_utilities::format_id::FormatId;
+pub use detection::{
+    EnvironmentCapabilities, EnvironmentIdentity, detect_architecture,
+    detect_capabilities, detect_display_server, detect_identity,
+};
 
 pub use ctb_utilities::environment::{
-    ProcessRole, ctb_version, ctb_version_semver, get_process_role, is_cargo_target_binary,
-    is_debug_build, is_official_public_website, is_official_signed_build,
-    is_public_website, reset_process_role_for_testing,
-    set_process_role, verify_official_signed_build,
+    ProcessRole, ctb_version, ctb_version_semver, get_process_role,
+    is_cargo_target_binary, is_debug_build, is_official_public_website,
+    is_official_signed_build, is_public_website,
+    reset_process_role_for_testing, set_process_role,
+    verify_official_signed_build,
 };
 
 /// Is a lightweight CLI command running (without workspace boot)?
@@ -155,7 +156,6 @@ pub fn unix_system_time_now() -> u128 {
         .unwrap_or(Duration::ZERO)
         .as_nanos()
 }
-
 
 /// Detect the resolution of the system clock in nanoseconds.
 ///
@@ -317,15 +317,17 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
         bail!("Invalid endpoint URL host: {url}");
     }
 
-    if is_in_test() && !ctb_utilities::https::crlite::has_test_download_override() {
+    if is_in_test()
+        && !ctb_utilities::https::crlite::has_test_download_override()
+    {
         bail!("Remote IP discovery requires a download override in tests");
     }
 
     let url_string = url.to_string();
     let test_name = crate::testing::try_get_current_test_name();
     let test_storage_dir = crate::testing::try_get_test_storage_dir();
-    let handle = std::thread::spawn(
-        move || -> Result<(IpAddr, u128, u128, u128)> {
+    let handle =
+        std::thread::spawn(move || -> Result<(IpAddr, u128, u128, u128)> {
             let _test_scope = crate::testing::push_current_test_name(test_name);
             crate::testing::TEST_STORAGE_DIR_SYNC.with(|storage| {
                 *storage.borrow_mut() = test_storage_dir;
@@ -347,8 +349,7 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
                 .parse()
                 .context("Failed to parse IP address in server response")?;
             Ok((ip, parsed.server_time_nanos, t0, t1))
-        },
-    );
+        });
 
     handle
         .join()
@@ -481,7 +482,6 @@ pub fn env_cache_reset() {
     init_boot_env();
 }
 
-
 /// Is running on Unix-ish OS?
 pub fn is_unix() -> bool {
     capture_quick_arc().is_unix()
@@ -554,7 +554,10 @@ pub fn looks_like_gnustep() -> bool {
 /// guess, not confirmed.
 pub fn looks_like_nextstep_or_openstep() -> bool {
     if let Ok(path) = env::var("PATH") {
-        if path.split(':').any(|entry| entry.trim_end_matches('/') == "/NextApps") {
+        if path
+            .split(':')
+            .any(|entry| entry.trim_end_matches('/') == "/NextApps")
+        {
             return true;
         }
     }
@@ -588,7 +591,6 @@ pub fn is_freebsd() -> bool {
 pub fn is_netbsd() -> bool {
     capture_quick_arc().is_netbsd()
 }
-
 
 /// Is this a local client instance, as opposed to the public website server?
 pub fn is_local() -> bool {
@@ -670,7 +672,6 @@ pub fn cwd() -> Result<String> {
     Ok(std::env::current_dir()?.to_string_lossy().into_owned())
 }
 
-
 pub fn is_in_test() -> bool {
     testing::is_in_test()
 }
@@ -682,7 +683,17 @@ pub fn is_branded_build() -> bool {
 /// Detailed snapshot of the current application and platform environment.
 /// Operating system family for platform-specific file attributes, flags, and APIs.
 #[ipc_dto]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(names)]
 pub enum OsFamily {
     /// Apple macOS / Darwin.
@@ -806,7 +817,9 @@ impl OsFamily {
             | FormatId::Wsl
             | FormatId::Wsl2
             | FormatId::Android => Some(Self::Linux),
-            FormatId::Windows | FormatId::WinNt | FormatId::WinClassic => Some(Self::Windows),
+            FormatId::Windows | FormatId::WinNt | FormatId::WinClassic => {
+                Some(Self::Windows)
+            }
             _ => None,
         }
     }
@@ -817,10 +830,22 @@ impl OsFamily {
 /// JSON deserialization. Unknown JSON fields are rejected; JSON is a debugging
 /// representation, not a lossless document interchange format.
 #[ipc_dto]
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[serde(default, deny_unknown_fields)]
 #[dc(begin = 340, end = 341)]
-#[expect(clippy::struct_excessive_bools, reason = "Execution environment runtime flags are distinct individual attributes")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Execution environment runtime flags are distinct individual attributes"
+)]
 pub struct EnvDescription {
     #[dc(short = 342)]
     pub os: String,
@@ -924,21 +949,14 @@ impl EnvDescription {
     pub(crate) fn capture_quick() -> Self {
         let ident = detect_identity();
         let caps = detect_capabilities();
-        let supported_formats = detection::collect_all_format_ids(&ident, &caps);
+        let supported_formats =
+            detection::collect_all_format_ids(&ident, &caps);
 
         let mut local_ips = Vec::new();
-        if let Some(v4) = CACHED_LOCAL_IPV4
-            .read()
-            .ok()
-            .and_then(|l| *l)
-        {
+        if let Some(v4) = CACHED_LOCAL_IPV4.read().ok().and_then(|l| *l) {
             local_ips.push(IpAddr::V4(v4));
         }
-        if let Some(v6) = CACHED_LOCAL_IPV6
-            .read()
-            .ok()
-            .and_then(|l| *l)
-        {
+        if let Some(v6) = CACHED_LOCAL_IPV6.read().ok().and_then(|l| *l) {
             local_ips.push(IpAddr::V6(v6));
         }
 
@@ -1084,8 +1102,7 @@ impl EnvDescription {
 
     #[must_use]
     pub fn is_windows(&self) -> bool {
-        self.has_format(FormatId::Windows)
-            || self.has_format(FormatId::WinNt)
+        self.has_format(FormatId::Windows) || self.has_format(FormatId::WinNt)
     }
 
     #[must_use]
@@ -1120,8 +1137,7 @@ impl EnvDescription {
 
     #[must_use]
     pub fn is_darwin(&self) -> bool {
-        self.has_format(FormatId::Darwin)
-            || self.has_format(FormatId::MacOs)
+        self.has_format(FormatId::Darwin) || self.has_format(FormatId::MacOs)
     }
 
     #[must_use]
@@ -1209,7 +1225,10 @@ impl EnvDescription {
     pub fn is_gui(&self) -> bool {
         let caps = self.capabilities();
         caps.device_caps.contains(&FormatId::RasterDisplay)
-            && !matches!(caps.display_server, None | Some(FormatId::HeadlessDisplay))
+            && !matches!(
+                caps.display_server,
+                None | Some(FormatId::HeadlessDisplay)
+            )
     }
 
     #[must_use]
@@ -1257,13 +1276,16 @@ impl EnvDescription {
             Err(error) => warn_fmt!("Public IPv6 discovery failed: {error:#}"),
         }
         desc.public_ips = public_ips;
-        desc.server_system_time_offset_nanos = match cached_server_system_time_offset_nanos() {
-            Ok(offset) => Some(offset),
-            Err(error) => {
-                warn_fmt!("Server clock offset discovery failed: {error:#}");
-                None
-            }
-        };
+        desc.server_system_time_offset_nanos =
+            match cached_server_system_time_offset_nanos() {
+                Ok(offset) => Some(offset),
+                Err(error) => {
+                    warn_fmt!(
+                        "Server clock offset discovery failed: {error:#}"
+                    );
+                    None
+                }
+            };
         desc
     }
 
@@ -1381,8 +1403,7 @@ impl ScopeSlot {
     }
 }
 
-static GLOBAL_OPERATION_ENV: RwLock<Option<ScopeSlot>> =
-    RwLock::new(None);
+static GLOBAL_OPERATION_ENV: RwLock<Option<ScopeSlot>> = RwLock::new(None);
 static OPERATION_EPOCH: AtomicU64 = AtomicU64::new(1);
 
 thread_local! {
@@ -1509,7 +1530,9 @@ where
 /// public/local IPv4 or server time offset), which remain cached across
 /// operations.
 pub fn advance_operation_epoch() -> u64 {
-    OPERATION_EPOCH.fetch_add(1, Ordering::SeqCst).wrapping_add(1)
+    OPERATION_EPOCH
+        .fetch_add(1, Ordering::SeqCst)
+        .wrapping_add(1)
 }
 
 /// Invalidate the unscoped quick environment snapshot cache without resetting
@@ -1533,10 +1556,13 @@ pub fn capture_quick_arc() -> Arc<EnvDescription> {
     }
 
     // Reason for fallback: poisoned lock error retains active global scope slot so quick environment capture can resolve it
-    let slot = GLOBAL_OPERATION_ENV.read().unwrap_or_else(|error| {
-        warn!("Recovering poisoned operation environment scope");
-        error.into_inner()
-    }).clone();
+    let slot = GLOBAL_OPERATION_ENV
+        .read()
+        .unwrap_or_else(|error| {
+            warn!("Recovering poisoned operation environment scope");
+            error.into_inner()
+        })
+        .clone();
     if let Some(slot) = slot {
         return slot.resolve();
     }
@@ -1598,7 +1624,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_os_and_environment_detection() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if is_linux() {
             assert!(!is_windows());
             assert!(!is_mac_os_10_or_newer());
@@ -1622,7 +1650,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_env_description_capture_and_serialization() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let desc = EnvDescription::capture();
         assert_eq!(desc.os, os());
         assert_eq!(desc.usize_width, usize());
@@ -1657,7 +1687,6 @@ mod tests {
         let empty_desc = EnvDescription::from_json("{}")
             .expect("failed to deserialize empty JSON");
         assert_eq!(empty_desc, EnvDescription::default());
-
     }
 
     #[crate::ctb_test]
@@ -1726,7 +1755,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_process_role_tracking() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_process_role_for_testing();
         assert_eq!(get_process_role(), ProcessRole::Unknown);
         assert!(!is_cli_lightweight());
@@ -1761,7 +1792,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_env_cache_reset() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         // Calling env_cache_reset flushes and refills caches
         env_cache_reset();
 
@@ -1779,7 +1812,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_capture_quick_arc() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_boot_cached_env();
         // Repeated calls within the same epoch share the exact same Arc
         let arc1 = capture_quick_arc();
@@ -1808,7 +1843,8 @@ mod tests {
         // GlobalEnvironmentScope works across threads
         let global_custom = Arc::new(capture_quick());
         {
-            let _global_scope = GlobalEnvironmentScope::enter(Arc::clone(&global_custom));
+            let _global_scope =
+                GlobalEnvironmentScope::enter(Arc::clone(&global_custom));
             let current = capture_quick_arc();
             assert!(Arc::ptr_eq(&current, &global_custom));
         }
@@ -1825,7 +1861,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_boot_cached_env() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_boot_cached_env();
         assert!(get_boot_cached_env().is_none());
 
@@ -1864,7 +1902,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_lazy_scopes() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_boot_cached_env();
 
         // 1. Thread-local lazy scope: enter_fresh lazily resolves on first capture_quick_arc
@@ -1893,7 +1933,14 @@ mod tests {
         {
             let _scope_full = GlobalEnvironmentScope::enter_full();
             assert!(
-                GLOBAL_OPERATION_ENV.read().unwrap().as_ref().unwrap().env.get().is_none()
+                GLOBAL_OPERATION_ENV
+                    .read()
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .env
+                    .get()
+                    .is_none()
             );
             let arc_full = capture_quick_arc();
             assert_eq!(arc_full.os, os());
@@ -1911,15 +1958,19 @@ mod tests {
             EnvDescription::default()
         }
 
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_boot_cached_env();
         CAPTURES.store(0, Ordering::SeqCst);
         let slot = ScopeSlot::lazy(counted_capture);
         assert_eq!(CAPTURES.load(Ordering::SeqCst), 0);
-        let handles: Vec<_> = (0..8).map(|_| {
-            let slot = slot.clone();
-            std::thread::spawn(move || slot.resolve())
-        }).collect();
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let slot = slot.clone();
+                std::thread::spawn(move || slot.resolve())
+            })
+            .collect();
         let env = slot.resolve();
         for handle in handles {
             assert!(Arc::ptr_eq(&env, &handle.join().unwrap()));
@@ -1929,13 +1980,18 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_quick_capture_preserves_cached_network_metadata() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_boot_cached_env();
         let v4 = Ipv4Addr::new(192, 0, 2, 1);
         let v6 = Ipv6Addr::LOCALHOST;
         let previous_v4 = CACHED_PUBLIC_IPV4.write().unwrap().replace(v4);
         let previous_v6 = CACHED_PUBLIC_IPV6.write().unwrap().replace(v6);
-        let previous_offset = CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap().replace(123);
+        let previous_offset = CACHED_SERVER_TIME_OFFSET_NANOS
+            .write()
+            .unwrap()
+            .replace(123);
 
         let quick = capture_quick();
         *CACHED_PUBLIC_IPV4.write().unwrap() = previous_v4;
@@ -1955,9 +2011,14 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
+    #[allow(
+        unsafe_code,
+        reason = "Modifying environment variable is unsafe in Rust 2024"
+    )]
     fn test_looks_like_gnustep() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         // SAFETY: Test runs with mutex lock and restores variable
         unsafe {
             env::set_var("TERM_PROGRAM", "GNUstep_Terminal");
@@ -1970,9 +2031,14 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
+    #[allow(
+        unsafe_code,
+        reason = "Modifying environment variable is unsafe in Rust 2024"
+    )]
     fn test_looks_like_nextstep_or_openstep() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let original_path = env::var("PATH").ok();
         // SAFETY: Test runs with mutex lock and restores variable
         unsafe {
@@ -1990,9 +2056,14 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
+    #[allow(
+        unsafe_code,
+        reason = "Modifying environment variable is unsafe in Rust 2024"
+    )]
     fn test_detect_identity_gnustep_and_nextstep() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let original_path = env::var("PATH").ok();
         let original_term = env::var("TERM_PROGRAM").ok();
         // SAFETY: Test runs with mutex lock and restores variables
@@ -2023,25 +2094,41 @@ mod tests {
     #[crate::ctb_test]
     fn test_environment_source_preserving_edit() -> Result<()> {
         use ctb_formats_dcstring::{DcChar, DcMixedFields, DcMstring};
-        let original = EnvDescription { os: "original".to_owned(), ..EnvDescription::default() };
-        let updated = EnvDescription { os: "revised".to_owned(), ..EnvDescription::default() };
+        let original = EnvDescription {
+            os: "original".to_owned(),
+            ..EnvDescription::default()
+        };
+        let updated = EnvDescription {
+            os: "revised".to_owned(),
+            ..EnvDescription::default()
+        };
         let mut source = DcMstring::new();
         source.push_char(DcChar::from_short(340));
         original.encode_dc_field("os", &mut source)?;
         let suffix_start = source.len();
         source.push_char(DcChar::from_short(600));
-        source.push_binary_with_sha256(b"future environment field").unwrap();
+        source
+            .push_binary_with_sha256(b"future environment field")
+            .unwrap();
         source.push_char(DcChar::from_short(341));
         let view = source.inspect::<EnvDescription>();
         assert!(view.value().is_none());
         assert!(view.diagnostic().is_some());
         let revised = view.replace_field("os", &updated)?;
         let revised_view = revised.inspect::<EnvDescription>();
-        let revised_field = revised_view.fields().first().context("Missing revised environment field")?;
-        assert_eq!(revised.as_bytes().get(revised_field.range().end..), source.as_bytes().get(suffix_start..));
+        let revised_field = revised_view
+            .fields()
+            .first()
+            .context("Missing revised environment field")?;
+        assert_eq!(
+            revised.as_bytes().get(revised_field.range().end..),
+            source.as_bytes().get(suffix_start..)
+        );
         assert_eq!(view.source_bytes(), source.as_bytes());
         let text = source.to_dc_string()?;
-        let revised = text.inspect::<EnvDescription>().replace_field("os", &updated)?;
+        let revised = text
+            .inspect::<EnvDescription>()
+            .replace_field("os", &updated)?;
         assert!(revised.inspect::<EnvDescription>().diagnostic().is_some());
         Ok(())
     }
@@ -2059,7 +2146,9 @@ mod tests {
             ],
             public_ips: vec![
                 IpAddr::V4(std::net::Ipv4Addr::new(8, 8, 8, 8)),
-                IpAddr::V6(std::net::Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888)),
+                IpAddr::V6(std::net::Ipv6Addr::new(
+                    0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888,
+                )),
             ],
             system_time_resolution_nanos: Some(1),
             server_system_time_offset_nanos: Some(-1000),
@@ -2093,7 +2182,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_environment_identity_and_capabilities() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let ident = identity();
         let caps = capabilities();
         let formats = all_format_ids();
@@ -2164,7 +2255,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_capture_quick_uses_detection() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_quick_env_cache();
         let desc = EnvDescription::capture_quick();
         let ident = desc.identity();
@@ -2194,7 +2287,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_decode_environment_unconfirmed() {
-        let (ident, caps) = detection::decode_environment_from_formats(&[], None);
+        let (ident, caps) =
+            detection::decode_environment_from_formats(&[], None);
         assert_eq!(ident.os, None);
         assert_eq!(ident.kernel, None);
         assert_eq!(ident.libc, None);

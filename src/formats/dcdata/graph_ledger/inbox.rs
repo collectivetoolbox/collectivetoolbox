@@ -34,15 +34,15 @@ use super::{
     SYSTEM_REGION_START, default_ctbnbdl_framing_dcs, parse_statement_tokens,
     sh,
 };
-use crate::seed_graph::{
-    compute_effective_inactive_ids, parse_ambiguous_values_tokens,
-};
 use crate::ctbnbdl::{
     DurableTransactionOutcome, FaultInjectionPoint, JournalRecord,
     LEDGER_JOURNAL_REL_PATH, LedgerReadGuard, PlannedLedgerItem,
     chunk_filename_for_node_id, ensure_ledger_journal_clean,
     execute_durable_ledger_transaction_with_planner, inspect_ledger_journal,
     is_relationship_verb_with, load_ledger_nodes_from_dir, sha256_bytes_hex,
+};
+use crate::seed_graph::{
+    compute_effective_inactive_ids, parse_ambiguous_values_tokens,
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
@@ -162,9 +162,10 @@ pub fn parse_ctbnode_incoming_file(
                     provenance.is_none(),
                     "{filename}:{line_no}: duplicate # @provenance directive"
                 );
-                provenance = Some(NodeProvenance::parse(val).with_context(
-                    || format!("{filename}:{line_no}: invalid # @provenance"),
-                )?);
+                provenance =
+                    Some(NodeProvenance::parse(val).with_context(|| {
+                        format!("{filename}:{line_no}: invalid # @provenance")
+                    })?);
             } else if let Some(val) = directive.strip_prefix("@rationale:") {
                 let clean = val.trim();
                 ensure!(
@@ -204,7 +205,9 @@ pub fn parse_ctbnode_incoming_file(
     }
 
     let prov = provenance.with_context(|| {
-        format!("{filename}: missing required '# @provenance: csv|manual' header")
+        format!(
+            "{filename}: missing required '# @provenance: csv|manual' header"
+        )
     })?;
     if prov == NodeProvenance::Manual {
         ensure!(
@@ -218,13 +221,20 @@ pub fn parse_ctbnode_incoming_file(
         "{filename}: expected exactly 1 non-comment node body line, found {}",
         body_lines.len()
     );
-    let &(line_no, raw_body) = body_lines.first().with_context(|| {
-        format!("{filename}: missing node body line")
-    })?;
+    let &(line_no, raw_body) = body_lines
+        .first()
+        .with_context(|| format!("{filename}: missing node body line"))?;
     let (token_part, inline_comment) =
         if let Some((lhs, rhs)) = raw_body.split_once('#') {
             let c = rhs.trim();
-            (lhs.trim(), if c.is_empty() { None } else { Some(c.to_string()) })
+            (
+                lhs.trim(),
+                if c.is_empty() {
+                    None
+                } else {
+                    Some(c.to_string())
+                },
+            )
         } else {
             (raw_body, None)
         };
@@ -232,7 +242,9 @@ pub fn parse_ctbnode_incoming_file(
     let mut tokens = Vec::new();
     for tok_str in token_part.split_whitespace() {
         let sh_tok = DcShorthand::parse(tok_str).with_context(|| {
-            format!("{filename}:{line_no}: invalid DcShorthand token {tok_str:?}")
+            format!(
+                "{filename}:{line_no}: invalid DcShorthand token {tok_str:?}"
+            )
         })?;
         tokens.push(sh_tok);
     }
@@ -385,10 +397,11 @@ pub fn load_and_validate_node_provenance(
 
     // Also populate in-graph provenance (`Dc 635` -> `Dc 636` Csv / `Dc 637` Manual) from the graph itself.
     let single_props = super::single_valued_property_set();
-    let seed_idx = crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
-        nodes.to_vec(),
-        &single_props,
-    );
+    let seed_idx =
+        crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
+            nodes.to_vec(),
+            &single_props,
+        );
     for (&node_id, &src_tok) in &seed_idx.node_data_source {
         let in_graph_prov = if src_tok
             == sh(crate::dc::DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE)
@@ -464,7 +477,11 @@ pub fn verify_repo_committed_node_provenance(
     let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
     let nodes = load_ledger_nodes_from_dir(&graph_dir)?;
     let parsed = inspect_ledger_journal(&journal_path)?;
-    load_and_validate_node_provenance(repo_root, &nodes, &parsed.committed_pairs)
+    load_and_validate_node_provenance(
+        repo_root,
+        &nodes,
+        &parsed.committed_pairs,
+    )
 }
 
 /// Prevalidates a batch of `.dcsh` inbox files `(inbox_name, inbox_sha256, content)` in memory
@@ -485,10 +502,8 @@ pub fn prevalidate_and_plan_inbox_items(
     let sh_enclosing_doc = sh(DC_ENCLOSING_DOCUMENT);
 
     let mut working_nodes: Vec<LedgerNode> = existing_nodes.to_vec();
-    let mut node_by_id: HashMap<u128, LedgerNode> = working_nodes
-        .iter()
-        .map(|n| (n.id, n.clone()))
-        .collect();
+    let mut node_by_id: HashMap<u128, LedgerNode> =
+        working_nodes.iter().map(|n| (n.id, n.clone())).collect();
     let mut working_prov = provenance_map.clone();
     let mut planned_items: Vec<PlannedLedgerItem> =
         Vec::with_capacity(inbox_files.len());
@@ -649,12 +664,12 @@ pub fn prevalidate_and_plan_inbox_items(
                     );
                 };
                 let check_node_is_has_a = |n: &LedgerNode| -> bool {
-                    parse_statement_tokens(&n.tokens)
-                        .is_some_and(|(v, _, o)| v == sh_has_a && o != sh_preferred)
-                        || super::parse_for_each_statement_tokens(&n.tokens)
-                            .is_some_and(|(v, _, o, _, _)| {
-                                v == sh_has_a && o != sh_preferred
-                            })
+                    parse_statement_tokens(&n.tokens).is_some_and(
+                        |(v, _, o)| v == sh_has_a && o != sh_preferred,
+                    ) || super::parse_for_each_statement_tokens(&n.tokens)
+                        .is_some_and(|(v, _, o, _, _)| {
+                            v == sh_has_a && o != sh_preferred
+                        })
                 };
                 let mut is_has_a = check_node_is_has_a(target_node);
                 if !is_has_a {
@@ -852,8 +867,7 @@ pub fn process_inbox_nodes_with_fault(
                     {
                         continue;
                     }
-                    let Some(name) =
-                        path.file_name().and_then(|n| n.to_str())
+                    let Some(name) = path.file_name().and_then(|n| n.to_str())
                     else {
                         continue;
                     };
@@ -861,9 +875,10 @@ pub fn process_inbox_nodes_with_fault(
                         format!("Failed to read {}", path.display())
                     })?;
                     let sha = sha256_bytes_hex(&raw_bytes);
-                    let text = String::from_utf8(raw_bytes).with_context(
-                        || format!("Invalid UTF-8 in {}", path.display()),
-                    )?;
+                    let text =
+                        String::from_utf8(raw_bytes).with_context(|| {
+                            format!("Invalid UTF-8 in {}", path.display())
+                        })?;
                     sorted_files.insert(name.to_string(), (sha, text));
                 }
             }
@@ -962,7 +977,9 @@ mod tests {
         let root = tmp.path();
         fs::write(root.join(".ctoolbox_workspace_root"), b"")?;
         fs::write(root.join("Cargo.toml"), b"[workspace]\n")?;
-        fs::create_dir_all(root.join("src/formats/dcdata/data-src/nodes/inbox"))?;
+        fs::create_dir_all(
+            root.join("src/formats/dcdata/data-src/nodes/inbox"),
+        )?;
         fs::create_dir_all(
             root.join("src/formats/dcdata/data-src/nodes/allocated"),
         )?;
@@ -1078,10 +1095,7 @@ mod tests {
             serde_json::to_string(&committed)?
         );
         fs::write(root.join(LEDGER_JOURNAL_REL_PATH), journal_content)?;
-        fs::write(
-            root.join(JOURNAL_INITIALIZED_REL_PATH),
-            b"initialized\n",
-        )?;
+        fs::write(root.join(JOURNAL_INITIALIZED_REL_PATH), b"initialized\n")?;
 
         Ok((tmp, nodes))
     }
@@ -1091,8 +1105,8 @@ mod tests {
     -> Result<()> {
         let (_tmp, baseline_nodes) = setup_minimal_repo_for_inbox_tests()?;
         let prov_map = NodeProvenanceMap::default();
-        let next_id = SYSTEM_REGION_START
-            + u128::try_from(baseline_nodes.len()).unwrap();
+        let next_id =
+            SYSTEM_REGION_START + u128::try_from(baseline_nodes.len()).unwrap();
 
         // 1. Missing `# @provenance`
         assert!(
@@ -1274,15 +1288,19 @@ mod tests {
                 "# @provenance: csv\n# @allow-duplicate-of: l{next_id}\nu78 u79\n"
             ),
         ));
-        let ok_planned =
-            prevalidate_and_plan_inbox_items(&baseline_nodes, &prov_map, &batch)?;
+        let ok_planned = prevalidate_and_plan_inbox_items(
+            &baseline_nodes,
+            &prov_map,
+            &batch,
+        )?;
         assert_eq!(ok_planned.len(), 4);
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_repository_state_and_reconstructible_highwater_cache() -> Result<()> {
+    fn test_repository_state_and_reconstructible_highwater_cache() -> Result<()>
+    {
         let (temp_dir, baseline_nodes) = setup_minimal_repo_for_inbox_tests()?;
         let root = temp_dir.path();
         let graph_dir = root.join("assets/data/graph");
@@ -1320,15 +1338,19 @@ mod tests {
     -> Result<()> {
         for character in ["\u{e9}", "\u{20ac}", "\u{1f642}"] {
             for partial_bytes in 1..character.len() {
-                let (temp_dir, baseline_nodes) = setup_minimal_repo_for_inbox_tests()?;
+                let (temp_dir, baseline_nodes) =
+                    setup_minimal_repo_for_inbox_tests()?;
                 let root = temp_dir.path();
                 let graph_dir = root.join("assets/data/graph");
-                let inbox_dir = root.join("src/formats/dcdata/data-src/nodes/inbox");
+                let inbox_dir =
+                    root.join("src/formats/dcdata/data-src/nodes/inbox");
                 let journal_path = root.join(LEDGER_JOURNAL_REL_PATH);
                 let baseline_journal = fs::read(&journal_path)?;
                 fs::write(
                     inbox_dir.join("01_journal.ctbnode-incoming"),
-                    format!("# @provenance: csv\n# @comment: \"{character}\"\nu61 u62\n"),
+                    format!(
+                        "# @provenance: csv\n# @comment: \"{character}\"\nu61 u62\n"
+                    ),
                 )?;
                 let err = process_inbox_nodes_with_fault(
                     root,
@@ -1337,28 +1359,42 @@ mod tests {
                     Some(FaultInjectionPoint::TornPendingRecord {
                         bytes_to_keep: usize::MAX,
                     }),
-                ).unwrap_err();
-                assert!(format!("{err:#}").contains("Simulated fault injection"));
-                let parsed = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
+                )
+                .unwrap_err();
+                assert!(
+                    format!("{err:#}").contains("Simulated fault injection")
+                );
+                let parsed =
+                    crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
                 let fragment = parsed.torn_trailing_fragment.unwrap();
-                let split_at = std::str::from_utf8(&fragment)?.find(character).unwrap()
-                    + partial_bytes;
+                let split_at =
+                    std::str::from_utf8(&fragment)?.find(character).unwrap()
+                        + partial_bytes;
                 let torn_fragment = &fragment[..split_at];
                 assert!(std::str::from_utf8(torn_fragment).is_err());
                 let mut torn_journal = baseline_journal.clone();
                 torn_journal.extend_from_slice(torn_fragment);
                 fs::write(&journal_path, &torn_journal)?;
-                let parsed = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
+                let parsed =
+                    crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
                 assert_eq!(parsed.valid_prefix_len, baseline_journal.len());
-                assert_eq!(parsed.torn_trailing_fragment.as_deref(), Some(torn_fragment));
+                assert_eq!(
+                    parsed.torn_trailing_fragment.as_deref(),
+                    Some(torn_fragment)
+                );
                 assert!(load_ledger_nodes_from_dir(&graph_dir).is_err());
                 recover_pending_ledger_journal(root, None, false)?;
                 assert_eq!(fs::read(&journal_path)?, baseline_journal);
-                assert_eq!(process_inbox_nodes(root, None, false)?.appended_count, 1);
+                assert_eq!(
+                    process_inbox_nodes(root, None, false)?.appended_count,
+                    1
+                );
 
                 fs::write(
                     inbox_dir.join("02_chunk.ctbnode-incoming"),
-                    format!("# @provenance: csv\n# @comment: \"{character}\"\nu63 u64\n"),
+                    format!(
+                        "# @provenance: csv\n# @comment: \"{character}\"\nu63 u64\n"
+                    ),
                 )?;
                 let err = process_inbox_nodes_with_fault(
                     root,
@@ -1367,15 +1403,21 @@ mod tests {
                     Some(FaultInjectionPoint::AfterItemAppendedAndMoved {
                         item_index: 0,
                     }),
-                ).unwrap_err();
-                assert!(format!("{err:#}").contains("Simulated fault injection"));
-                let pending = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?
-                    .open_pending.unwrap();
+                )
+                .unwrap_err();
+                assert!(
+                    format!("{err:#}").contains("Simulated fault injection")
+                );
+                let pending =
+                    crate::ctbnbdl::inspect_ledger_journal(&journal_path)?
+                        .open_pending
+                        .unwrap();
                 let item = &pending.items[0];
                 let chunk_path = graph_dir.join(&item.target_chunk);
                 let complete_chunk = fs::read(&chunk_path)?;
                 let line_start = complete_chunk.len() - item.raw_line.len() - 1;
-                let split_at = line_start + item.raw_line.find(character).unwrap()
+                let split_at = line_start
+                    + item.raw_line.find(character).unwrap()
                     + partial_bytes;
                 let torn_chunk = &complete_chunk[..split_at];
                 assert!(std::str::from_utf8(torn_chunk).is_err());
@@ -1383,28 +1425,43 @@ mod tests {
                 let mut corrupt_complete_chunk = torn_chunk.to_vec();
                 corrupt_complete_chunk.push(b'\n');
                 fs::write(&chunk_path, &corrupt_complete_chunk)?;
-                let err = recover_pending_ledger_journal(root, None, false).unwrap_err();
-                assert!(format!("{err:#}").contains("Invalid UTF-8 in complete .ctbnodes lines"));
+                let err = recover_pending_ledger_journal(root, None, false)
+                    .unwrap_err();
+                assert!(
+                    format!("{err:#}")
+                        .contains("Invalid UTF-8 in complete .ctbnodes lines")
+                );
                 assert_eq!(fs::read(&chunk_path)?, corrupt_complete_chunk);
 
                 fs::write(&chunk_path, torn_chunk)?;
                 assert!(recover_pending_ledger_journal(root, None, false)?);
                 assert_eq!(fs::read(&chunk_path)?, complete_chunk);
                 let nodes = load_ledger_nodes_from_dir(&graph_dir)?;
-                assert_eq!(&nodes[..baseline_nodes.len()], baseline_nodes.as_slice());
+                assert_eq!(
+                    &nodes[..baseline_nodes.len()],
+                    baseline_nodes.as_slice()
+                );
                 assert_eq!(nodes.len(), baseline_nodes.len() + 2);
                 assert!(nodes.last().unwrap().comment.contains(character));
-                let parsed = crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
+                let parsed =
+                    crate::ctbnbdl::inspect_ledger_journal(&journal_path)?;
                 assert!(parsed.open_pending.is_none());
                 assert!(parsed.torn_trailing_fragment.is_none());
                 verify_repo_committed_node_provenance(root)?;
-                assert_eq!(process_inbox_nodes(root, None, false)?.appended_count, 0);
+                assert_eq!(
+                    process_inbox_nodes(root, None, false)?.appended_count,
+                    0
+                );
 
                 let mut corrupt_journal = fs::read(&journal_path)?;
                 corrupt_journal.extend_from_slice(&[0xc3, b'\n']);
                 fs::write(&journal_path, &corrupt_journal)?;
-                let err = recover_pending_ledger_journal(root, None, false).unwrap_err();
-                assert!(format!("{err:#}").contains("Invalid UTF-8 in complete journal line"));
+                let err = recover_pending_ledger_journal(root, None, false)
+                    .unwrap_err();
+                assert!(
+                    format!("{err:#}")
+                        .contains("Invalid UTF-8 in complete journal line")
+                );
                 assert_eq!(fs::read(&journal_path)?, corrupt_journal);
             }
         }
@@ -1551,7 +1608,10 @@ mod tests {
         // 5. Also test torn `BATCH_COMMITTED` recovery on a subsequent manual node
         let next_manual_id = final_nodes.last().unwrap().id + 1;
         let manual_incoming = "# @provenance: manual\n# @rationale: Manual test node\n# @comment: \"manual\"\nu6d u6e\n";
-        fs::write(inbox_dir.join("004_manual.ctbnode-incoming"), manual_incoming)?;
+        fs::write(
+            inbox_dir.join("004_manual.ctbnode-incoming"),
+            manual_incoming,
+        )?;
         let err = process_inbox_nodes_with_fault(
             root,
             None,
@@ -1574,8 +1634,8 @@ mod tests {
         );
 
         // 6. Tampering with an allocated `.ctbnode-incoming` file in `nodes/allocated/` is caught by `verify_repo_committed_node_provenance`!
-        let manual_alloc_path =
-            alloc_dir.join(format!("{next_manual_id}_004_manual.ctbnode-incoming"));
+        let manual_alloc_path = alloc_dir
+            .join(format!("{next_manual_id}_004_manual.ctbnode-incoming"));
         let orig_bytes = fs::read(&manual_alloc_path)?;
         fs::write(&manual_alloc_path, b"# tampered\n")?;
         assert!(verify_repo_committed_node_provenance(root).is_err());
@@ -1638,8 +1698,13 @@ mod tests {
             sample_dc_defn(900, "Original name", "Original description");
         let scripts = BTreeSet::from([".Semantic".to_string()]);
 
-        let (mut nodes, _) =
-            update_ledger_in_memory(Vec::new(), &[defn.clone()], &[], &scripts, None)?;
+        let (mut nodes, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
 
         // Append a manual direct statement node (`586 c900 571` is already CSV; add `588 c900 571` as Manual)
         let manual_stmt_id =
@@ -1794,7 +1859,10 @@ mod tests {
                         assert!(planned.is_ok(), "{body}: {planned:?}");
                     } else {
                         let err = planned.unwrap_err();
-                        assert!(format!("{err:#}").contains("cross-ownership violation"));
+                        assert!(
+                            format!("{err:#}")
+                                .contains("cross-ownership violation")
+                        );
                     }
                 }
             }
@@ -1862,7 +1930,8 @@ mod tests {
         assert!(format!("{err:#}").contains("Simulated fault injection"));
 
         // Verify the chunk file has 99 complete `\n`-terminated lines + 1 unterminated trailing fragment
-        let chunk_path = graph_dir.join(format_chunk_filename(SYSTEM_REGION_START));
+        let chunk_path =
+            graph_dir.join(format_chunk_filename(SYSTEM_REGION_START));
         let raw_chunk = fs::read(&chunk_path)?;
         assert_ne!(raw_chunk.last().copied(), Some(b'\n'));
         let newline_count = raw_chunk.iter().filter(|&&b| b == b'\n').count();
@@ -1886,8 +1955,13 @@ mod tests {
     fn test_in_graph_provenance_for_each_and_manual_protection() -> Result<()> {
         let mut defn = sample_dc_defn(900, "Test Dc", "Desc");
         let scripts = BTreeSet::from([".Semantic".to_string()]);
-        let (mut nodes, _) =
-            update_ledger_in_memory(Vec::new(), &[defn.clone()], &[], &scripts, None)?;
+        let (mut nodes, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
 
         let idx1 = crate::seed_graph::SeedGraphIndex::from_nodes(nodes.clone());
         assert!(idx1.has_in_graph_provenance());

@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Multipart filename extension peeling, format candidate chain derivation,
 //! and format chain specification formatting.
 
@@ -473,7 +472,8 @@ impl ProbableFormatChain {
     pub fn to_format_spec_string(&self) -> String {
         let mut rev_layers = self.layers.clone();
         rev_layers.reverse();
-        let names: Vec<String> = rev_layers.iter().map(|fmt| format!("{fmt:?}")).collect();
+        let names: Vec<String> =
+            rev_layers.iter().map(|fmt| format!("{fmt:?}")).collect();
         names.join(" > ")
     }
 }
@@ -498,7 +498,8 @@ impl FormatChain {
     pub fn to_format_spec_string(&self) -> String {
         let mut rev_layers = self.layers.clone();
         rev_layers.reverse();
-        let names: Vec<String> = rev_layers.iter().map(|fmt| format!("{fmt:?}")).collect();
+        let names: Vec<String> =
+            rev_layers.iter().map(|fmt| format!("{fmt:?}")).collect();
         names.join(" > ")
     }
 }
@@ -582,7 +583,8 @@ pub fn guess_format_chains_bounded(
             } else {
                 None
             };
-            let sum_score: u64 = current_scores.iter().map(|&s| u64::from(s)).sum();
+            let sum_score: u64 =
+                current_scores.iter().map(|&s| u64::from(s)).sum();
             let len_u64 = match u64::try_from(current_scores.len()) {
                 Ok(len) if len > 0 => len,
                 _ => 1,
@@ -647,7 +649,6 @@ pub fn guess_format_chains(
     guess_format_chains_bounded(filename, platform, DEFAULT_MAX_CHAIN_LAYERS)
 }
 
-
 /// Boosts, by one point, each chain in an exact-score tie group whose
 /// branching format at any layer is transitively implied by all other
 /// siblings that match on every other layer. When an ambiguous extension
@@ -677,7 +678,10 @@ fn boost_common_implied_ancestors(chains: &mut [ProbableFormatChain]) {
 
             let mut siblings_at_k = Vec::new();
             for (other_idx, other) in chains.iter().enumerate() {
-                if other_idx == idx || other.score != chain.score || other.layers.len() != n {
+                if other_idx == idx
+                    || other.score != chain.score
+                    || other.layers.len() != n
+                {
                     continue;
                 }
                 let matches_others = (0..n).all(|j| {
@@ -755,7 +759,8 @@ mod tests {
 
     #[ctb_test]
     fn test_ambiguous_peeling() {
-        let chains = guess_format_chains("archive.as.gz", Some(FormatId::MacOs));
+        let chains =
+            guess_format_chains("archive.as.gz", Some(FormatId::MacOs));
         assert!(!chains.is_empty());
         assert_eq!(chains[0].outer, FormatId::Gzip);
         assert_eq!(chains[0].inner, Some(FormatId::AppleSingle));
@@ -873,7 +878,10 @@ mod tests {
         assert_eq!(top.layers.len(), 3);
         assert_eq!(top.outer, FormatId::Brotli);
         assert_eq!(top.inner, Some(FormatId::Tar));
-        assert_eq!(top.layers, vec![FormatId::Brotli, FormatId::Gzip, FormatId::Tar]);
+        assert_eq!(
+            top.layers,
+            vec![FormatId::Brotli, FormatId::Gzip, FormatId::Tar]
+        );
         assert_eq!(top.stem, "archive");
         assert_eq!(top.to_format_spec_string(), "Tar > Gzip > Brotli");
     }
@@ -881,7 +889,8 @@ mod tests {
     #[ctb_test]
     fn test_bounded_peeling_depth() {
         // Peeling bounded to 2 layers on a 3-extension filename
-        let chains_2 = guess_format_chains_bounded("archive.tar.gz.br", None, 2);
+        let chains_2 =
+            guess_format_chains_bounded("archive.tar.gz.br", None, 2);
         assert!(!chains_2.is_empty());
         let top_2 = &chains_2[0];
         assert_eq!(top_2.layers.len(), 2);
@@ -890,7 +899,8 @@ mod tests {
         assert_eq!(top_2.stem, "archive.tar");
 
         // Peeling bounded to 1 layer
-        let chains_1 = guess_format_chains_bounded("archive.tar.gz.br", None, 1);
+        let chains_1 =
+            guess_format_chains_bounded("archive.tar.gz.br", None, 1);
         assert!(!chains_1.is_empty());
         let top_1 = &chains_1[0];
         assert_eq!(top_1.layers.len(), 1);
@@ -899,7 +909,8 @@ mod tests {
         assert_eq!(top_1.stem, "archive.tar.gz");
 
         // Peeling bounded to 0 layers returns nothing
-        let chains_0 = guess_format_chains_bounded("archive.tar.gz.br", None, 0);
+        let chains_0 =
+            guess_format_chains_bounded("archive.tar.gz.br", None, 0);
         assert!(chains_0.is_empty());
     }
 

@@ -17,7 +17,6 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 //! Syntax arena, byte spans, binary payload references, and frame stubs.
 
 #[expect(
@@ -27,7 +26,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::{Range, BinaryChecksum, DiagnosticAction, Read, Seek, Cow, SeekFrom, Digest, DcProjectionPolicy, DcCharExt, SyntaxRuleResolver, DcExpressionEvaluator, DcForgivingDefault, DcMixedDecode, DcMstring, DcString, default_syntax_resolver, dc_char_dctf_len, SyntaxDiagnostic, DcRole, DcDocumentNavigator, SharedValueContext, DcProjectionContext, DCMM_MAGIC, DcMstr, DcStr};
+use super::{
+    BinaryChecksum, Cow, DCMM_MAGIC, DcCharExt, DcDocumentNavigator,
+    DcExpressionEvaluator, DcForgivingDefault, DcMixedDecode, DcMstr,
+    DcMstring, DcProjectionContext, DcProjectionPolicy, DcRole, DcStr,
+    DcString, DiagnosticAction, Digest, Range, Read, Seek, SeekFrom,
+    SharedValueContext, SyntaxDiagnostic, SyntaxRuleResolver, dc_char_dctf_len,
+    default_syntax_resolver,
+};
 
 /// Byte span in a source buffer or on-disk file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -130,10 +136,17 @@ impl<'a> BinaryPayloadRef<'a> {
         mut reader: Option<&mut R>,
     ) -> Result<Cow<'a, [u8]>> {
         match self {
-            Self::Source { .. } => bail!("External binary data requires its encoding source"),
+            Self::Source { .. } => {
+                bail!("External binary data requires its encoding source")
+            }
             Self::Borrowed(slice) => Ok(Cow::Borrowed(slice)),
             Self::Inline(bytes) => Ok(Cow::Owned(bytes.clone())),
-            Self::FileSpan { file_offset, len, checksum, checksum_action } => {
+            Self::FileSpan {
+                file_offset,
+                len,
+                checksum,
+                checksum_action,
+            } => {
                 let rdr = reader.context(
                     "Cannot materialize on-disk FileSpan without a seekable reader",
                 )?;
@@ -148,7 +161,9 @@ impl<'a> BinaryPayloadRef<'a> {
                     rdr.read_exact(&mut buf)
                         .context("Failed to read BinaryPayloadRef::FileSpan")?;
                     if let Some(checksum) = checksum {
-                        if !checksum.matches_reader(&mut buf.as_slice(), *len)? {
+                        if !checksum
+                            .matches_reader(&mut buf.as_slice(), *len)?
+                        {
                             DcProjectionPolicy::strict().handle(
                                 *checksum_action,
                                 "Encapsulation checksum mismatch",
@@ -157,8 +172,9 @@ impl<'a> BinaryPayloadRef<'a> {
                     }
                     Ok(Cow::Owned(buf))
                 })();
-                rdr.seek(SeekFrom::Start(saved_pos))
-                    .context("Failed to restore binary payload reader position")?;
+                rdr.seek(SeekFrom::Start(saved_pos)).context(
+                    "Failed to restore binary payload reader position",
+                )?;
                 result
             }
         }
@@ -200,29 +216,18 @@ pub enum DcSyntaxKind<'a> {
         unclosed: bool,
     },
     /// Prefix-tagged construct (`:~ <arg1> <arg2> ...`).
-    Tagged {
-        tag: DcChar,
-        args: Vec<NodeId>,
-    },
+    Tagged { tag: DcChar, args: Vec<NodeId> },
     /// Assignment statement (`[identifier] 269 [value]`).
-    Assignment {
-        ident: DcMstring,
-        value: NodeId,
-    },
+    Assignment { ident: DcMstring, value: NodeId },
     /// Framed literal (`260 [262:] <payload> 261`) with `255` unescaped.
     Literal {
         type_header: Vec<DcChar>,
         decoded: DcMstring,
     },
     /// Framed identifier (`270 <payload> 271`) with `255` unescaped.
-    Identifier {
-        name: DcMstring,
-    },
+    Identifier { name: DcMstring },
     /// Framed number (`6 [format:number] [^7]+ 7`).
-    Number {
-        format: DcChar,
-        digits: Vec<DcChar>,
-    },
+    Number { format: DcChar, digits: Vec<DcChar> },
     /// Binary encapsulation (`203 [type]? [number]? [checksum]? ... 204`).
     Binary {
         data_type: Option<DcString>,
@@ -263,7 +268,9 @@ impl DcSyntaxNode<'_> {
     /// Recognizes alternative-representation wrappers and equivalent tokens.
     #[must_use]
     pub fn is_representation_set(&self) -> bool {
-        self.semantic_token().is_some_and(|token| default_syntax_resolver().is_representation_set(token))
+        self.semantic_token().is_some_and(|token| {
+            default_syntax_resolver().is_representation_set(token)
+        })
     }
 
     /// Recognizes wrapper markers, list headers, and representation separators.
@@ -271,7 +278,8 @@ impl DcSyntaxNode<'_> {
     pub fn is_representation_scaffolding(&self) -> bool {
         self.semantic_token().is_some_and(|token| {
             let resolver = default_syntax_resolver();
-            resolver.is_representation_set(token) || resolver.is_representation_header_or_separator(token)
+            resolver.is_representation_set(token)
+                || resolver.is_representation_header_or_separator(token)
         })
     }
 
@@ -281,7 +289,8 @@ impl DcSyntaxNode<'_> {
     pub fn is_escaped_atom(&self) -> bool {
         match self.kind {
             DcSyntaxKind::Atom(ch) => {
-                self.escaped || self.span.len() >= dc_char_dctf_len(ch).saturating_add(4)
+                self.escaped
+                    || self.span.len() >= dc_char_dctf_len(ch).saturating_add(4)
             }
             _ => false,
         }
@@ -325,7 +334,11 @@ impl<'a> DcSyntaxArena<'a> {
     }
 
     /// Allocates a node in the arena and returns its [`NodeId`].
-    pub fn alloc(&mut self, span: DcByteSpan, kind: DcSyntaxKind<'a>) -> NodeId {
+    pub fn alloc(
+        &mut self,
+        span: DcByteSpan,
+        kind: DcSyntaxKind<'a>,
+    ) -> NodeId {
         let id = NodeId(self.nodes.len());
         self.nodes.push(DcSyntaxNode {
             span,
@@ -336,7 +349,11 @@ impl<'a> DcSyntaxArena<'a> {
     }
 
     /// Allocates an escaped atom node in the arena and returns its [`NodeId`].
-    pub fn alloc_escaped_atom(&mut self, span: DcByteSpan, ch: DcChar) -> NodeId {
+    pub fn alloc_escaped_atom(
+        &mut self,
+        span: DcByteSpan,
+        ch: DcChar,
+    ) -> NodeId {
         let id = NodeId(self.nodes.len());
         self.nodes.push(DcSyntaxNode {
             span,
@@ -389,7 +406,10 @@ impl<'a> DcSyntaxArena<'a> {
     /// Splits a sequence of child [`NodeId`]s on [`DC_LIST_ELEMENT_SEPARATOR`] (`Dc 312`).
     #[must_use]
     pub fn split_operands(&self, nodes: &[NodeId]) -> Vec<Vec<NodeId>> {
-        self.split_operands_with_resolver(nodes, default_syntax_resolver().as_ref())
+        self.split_operands_with_resolver(
+            nodes,
+            default_syntax_resolver().as_ref(),
+        )
     }
 
     /// Splits a sequence of child [`NodeId`]s on [`DC_LIST_ELEMENT_SEPARATOR`] using the provided resolver.
@@ -456,12 +476,14 @@ impl<'a> DcSyntaxArena<'a> {
         };
         ensure!(!*unclosed, "Unclosed key-value map container ({opener})");
         let is_pairs = opener.fills_role_with(DcRole::BeginKvMap, resolver);
-        let is_legacy = opener.fills_role_with(DcRole::BeginLegacyKvMap, resolver);
+        let is_legacy =
+            opener.fills_role_with(DcRole::BeginLegacyKvMap, resolver);
         ensure!(
             is_pairs || is_legacy,
             "Expected map container (Dc 559 or Dc 313), found opener {opener}"
         );
-        let header = children.get(..2).context("Missing map type declarations")?;
+        let header =
+            children.get(..2).context("Missing map type declarations")?;
         if require_object_headers {
             ensure!(
                 header.iter().all(|&child| {
@@ -490,7 +512,8 @@ impl<'a> DcSyntaxArena<'a> {
         let mut entries = Vec::new();
         if is_legacy {
             if !body.is_empty() {
-                let operands = self.split_operands_with_resolver(body, resolver);
+                let operands =
+                    self.split_operands_with_resolver(body, resolver);
                 for pair in operands.chunks(2) {
                     let [key, value] = pair else {
                         bail!("Unpaired legacy map operand");
@@ -504,25 +527,35 @@ impl<'a> DcSyntaxArena<'a> {
             }
         } else {
             for &pair_id in body {
-                let pair_node = self.get(pair_id).context("Pair NodeId must exist in arena")?;
-                let (pair_opener, pair_children, pair_unclosed) = match &pair_node.kind {
-                    DcSyntaxKind::Container {
-                        opener,
-                        children,
-                        unclosed,
-                        ..
-                    } => (*opener, children, *unclosed),
-                    other => bail!("Expected explicitly framed map entry (Dc 514), found {other:?}"),
-                };
+                let pair_node = self
+                    .get(pair_id)
+                    .context("Pair NodeId must exist in arena")?;
+                let (pair_opener, pair_children, pair_unclosed) =
+                    match &pair_node.kind {
+                        DcSyntaxKind::Container {
+                            opener,
+                            children,
+                            unclosed,
+                            ..
+                        } => (*opener, children, *unclosed),
+                        other => bail!(
+                            "Expected explicitly framed map entry (Dc 514), found {other:?}"
+                        ),
+                    };
                 ensure!(
-                    pair_opener.fills_role_with(DcRole::BeginKvPair, resolver) && !pair_unclosed,
+                    pair_opener.fills_role_with(DcRole::BeginKvPair, resolver)
+                        && !pair_unclosed,
                     "Expected explicitly framed map entry (Dc 514..515)"
                 );
-                let operands = self.split_operands_with_resolver(pair_children, resolver);
+                let operands =
+                    self.split_operands_with_resolver(pair_children, resolver);
                 let [key, value] = operands.as_slice() else {
                     bail!("Expected two pair operands");
                 };
-                ensure!(!key.is_empty() && !value.is_empty(), "Empty pair operand");
+                ensure!(
+                    !key.is_empty() && !value.is_empty(),
+                    "Empty pair operand"
+                );
                 entries.push((key.clone(), value.clone()));
             }
         }
@@ -535,7 +568,10 @@ impl<'a> DcSyntaxArena<'a> {
         &self,
         id: NodeId,
     ) -> Result<(DcChar, Vec<(NodeId, NodeId)>)> {
-        self.extract_kv_map_node_pairs_with_resolver(id, default_syntax_resolver().as_ref())
+        self.extract_kv_map_node_pairs_with_resolver(
+            id,
+            default_syntax_resolver().as_ref(),
+        )
     }
 
     /// Extracts single-node `(key_id, value_id)` pairs from a map container
@@ -545,8 +581,10 @@ impl<'a> DcSyntaxArena<'a> {
         id: NodeId,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<(DcChar, Vec<(NodeId, NodeId)>)> {
-        let (opener, _, operand_entries) =
-            self.extract_kv_map_operand_entries_with_resolver(id, false, resolver)?;
+        let (opener, _, operand_entries) = self
+            .extract_kv_map_operand_entries_with_resolver(
+                id, false, resolver,
+            )?;
         let mut pairs = Vec::with_capacity(operand_entries.len());
         for (key_nodes, val_nodes) in operand_entries {
             let [k_id] = key_nodes.as_slice() else {
@@ -593,9 +631,7 @@ pub enum DcFrameHeaderInfo {
         digest_valid: bool,
     },
     /// Format representation (`511 [format] ... 512`).
-    FormatRepresentation {
-        format: DcChar,
-    },
+    FormatRepresentation { format: DcChar },
     /// Spliced framed literal construct (`260..261`).
     SplicedLiteral {
         type_header: Vec<DcChar>,
@@ -604,10 +640,7 @@ pub enum DcFrameHeaderInfo {
     /// Spliced framed identifier construct (`270..271`).
     SplicedIdentifier(DcMstring),
     /// Spliced number construct (`6..7`).
-    SplicedNumber {
-        format: DcChar,
-        digits: Vec<DcChar>,
-    },
+    SplicedNumber { format: DcChar, digits: Vec<DcChar> },
     /// Character whose syntactic role at this level was escaped by `Dc 255`.
     Escaped,
 }
@@ -674,7 +707,8 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<T> {
-        let root_id = self.expand_frame_with_resolver(stub, arena, policy, resolver)?;
+        let root_id =
+            self.expand_frame_with_resolver(stub, arena, policy, resolver)?;
         let (result, projection_diagnostics) = {
             let mut ctx = DcProjectionContext::with_all_resolvers(
                 arena,
@@ -719,7 +753,9 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<T> {
         let mut arena = DcSyntaxArena::new();
-        self.decode_frame_with_arena_and_resolver(stub, &mut arena, context, policy, resolver)
+        self.decode_frame_with_arena_and_resolver(
+            stub, &mut arena, context, policy, resolver,
+        )
     }
 
     /// Expands a [`DcFrameStub`] into a full CST inside the reusable [`DcSyntaxArena`].
@@ -750,7 +786,8 @@ impl<'a> DcDocumentNavigator<'a> {
         let saved_span = self.active_span;
         self.active_span = stub.outer_span;
         self.cursor = stub.outer_span.start;
-        let res = self.parse_node_into_arena_with_resolver(arena, policy, resolver);
+        let res =
+            self.parse_node_into_arena_with_resolver(arena, policy, resolver);
         self.active_span = saved_span;
         let _ = self.seek_to_offset(saved_cursor.min(saved_span.end));
         res
@@ -779,8 +816,12 @@ impl<'a> DcDocumentNavigator<'a> {
     ) -> Result<()> {
         let mut raw_roots = Vec::new();
         let res = (|| -> Result<()> {
-            while let Some(stub) = self.next_sibling_stub_with_resolver(policy, resolver)? {
-                let id = self.build_arena_node_from_stub_with_resolver(&stub, arena, policy, resolver)?;
+            while let Some(stub) =
+                self.next_sibling_stub_with_resolver(policy, resolver)?
+            {
+                let id = self.build_arena_node_from_stub_with_resolver(
+                    &stub, arena, policy, resolver,
+                )?;
                 raw_roots.push(id);
                 for diagnostic in self.diagnostics.drain(..) {
                     arena.push_diagnostic(diagnostic);
@@ -792,7 +833,9 @@ impl<'a> DcDocumentNavigator<'a> {
             arena.push_diagnostic(diagnostic);
         }
         res?;
-        let normalized_roots = Self::normalize_field_nodes_with_resolver(raw_roots, arena, resolver);
+        let normalized_roots = Self::normalize_field_nodes_with_resolver(
+            raw_roots, arena, resolver,
+        );
         for id in normalized_roots {
             arena.push_root(id);
         }
@@ -822,10 +865,14 @@ impl<'a> DcDocumentNavigator<'a> {
     ) -> Result<NodeId> {
         let start = self.cursor;
         let res = (|| -> Result<NodeId> {
-            let Some(stub) = self.next_sibling_stub_with_resolver(policy, resolver)? else {
+            let Some(stub) =
+                self.next_sibling_stub_with_resolver(policy, resolver)?
+            else {
                 bail!("Unexpected end of stream at offset {start}");
             };
-            self.build_arena_node_from_stub_with_resolver(&stub, arena, policy, resolver)
+            self.build_arena_node_from_stub_with_resolver(
+                &stub, arena, policy, resolver,
+            )
         })();
         for diagnostic in self.diagnostics.drain(..) {
             arena.push_diagnostic(diagnostic);
@@ -837,7 +884,10 @@ impl<'a> DcDocumentNavigator<'a> {
         Self::is_separator_with(ch, default_syntax_resolver().as_ref())
     }
 
-    pub(super) fn is_separator_with(ch: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
+    pub(super) fn is_separator_with(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
         ch.fills_role_with(DcRole::ListElementSeparator, resolver)
             || ch.fills_role_with(DcRole::TypeAny, resolver)
             || ch.fills_role_with(DcRole::Escape, resolver)
@@ -845,10 +895,16 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     pub(super) fn is_primitive_value_atom(ch: DcChar) -> bool {
-        Self::is_primitive_value_atom_with(ch, default_syntax_resolver().as_ref())
+        Self::is_primitive_value_atom_with(
+            ch,
+            default_syntax_resolver().as_ref(),
+        )
     }
 
-    pub(super) fn is_primitive_value_atom_with(ch: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
+    pub(super) fn is_primitive_value_atom_with(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
         ch.fills_role_with(DcRole::PrimitiveValueAtom, resolver)
             || ch.fills_role_with(DcRole::Positive, resolver)
             || ch.fills_role_with(DcRole::Negative, resolver)
@@ -858,15 +914,25 @@ impl<'a> DcDocumentNavigator<'a> {
         Self::is_value_atom_with(ch, default_syntax_resolver().as_ref())
     }
 
-    pub(super) fn is_value_atom_with(ch: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
-        Self::is_primitive_value_atom_with(ch, resolver) || ch.fills_role_with(DcRole::DomainValueAtom, resolver)
+    pub(super) fn is_value_atom_with(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        Self::is_primitive_value_atom_with(ch, resolver)
+            || ch.fills_role_with(DcRole::DomainValueAtom, resolver)
     }
 
     pub(super) fn is_transparent_wrapper_tag(ch: DcChar) -> bool {
-        Self::is_transparent_wrapper_tag_with(ch, default_syntax_resolver().as_ref())
+        Self::is_transparent_wrapper_tag_with(
+            ch,
+            default_syntax_resolver().as_ref(),
+        )
     }
 
-    pub(super) fn is_transparent_wrapper_tag_with(ch: DcChar, resolver: &dyn SyntaxRuleResolver) -> bool {
+    pub(super) fn is_transparent_wrapper_tag_with(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
         ch.fills_role_with(DcRole::OptionalPresent, resolver)
             || resolver.is_representation_set(ch.to_u128())
     }
@@ -875,7 +941,10 @@ impl<'a> DcDocumentNavigator<'a> {
         Self::is_pairable_kind_with(kind, default_syntax_resolver().as_ref())
     }
 
-    pub(super) fn is_pairable_kind_with(kind: &DcSyntaxKind<'_>, resolver: &dyn SyntaxRuleResolver) -> bool {
+    pub(super) fn is_pairable_kind_with(
+        kind: &DcSyntaxKind<'_>,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
         match kind {
             DcSyntaxKind::Number { .. }
             | DcSyntaxKind::Binary { .. }
@@ -883,8 +952,12 @@ impl<'a> DcDocumentNavigator<'a> {
             | DcSyntaxKind::Identifier { .. }
             | DcSyntaxKind::Assignment { .. }
             | DcSyntaxKind::Container { .. } => true,
-            DcSyntaxKind::Atom(ch) => Self::is_primitive_value_atom_with(*ch, resolver),
-            DcSyntaxKind::Tagged { tag, .. } => Self::is_transparent_wrapper_tag_with(*tag, resolver),
+            DcSyntaxKind::Atom(ch) => {
+                Self::is_primitive_value_atom_with(*ch, resolver)
+            }
+            DcSyntaxKind::Tagged { tag, .. } => {
+                Self::is_transparent_wrapper_tag_with(*tag, resolver)
+            }
             DcSyntaxKind::Malformed { .. } => false,
         }
     }
@@ -907,10 +980,15 @@ impl<'a> DcDocumentNavigator<'a> {
             if let DcSyntaxKind::Atom(ch) = node.kind
                 && !node.is_escaped_atom()
             {
-                if !Self::is_separator_with(ch, resolver) && !Self::is_value_atom_with(ch, resolver) {
+                if !Self::is_separator_with(ch, resolver)
+                    && !Self::is_value_atom_with(ch, resolver)
+                {
                     if let Some(&top_id) = stack.last() {
                         if let Some(top_node) = arena.get(top_id)
-                            && (Self::is_pairable_kind_with(&top_node.kind, resolver) || top_node.is_escaped_atom())
+                            && (Self::is_pairable_kind_with(
+                                &top_node.kind,
+                                resolver,
+                            ) || top_node.is_escaped_atom())
                         {
                             let start = node.span.start;
                             let end = top_node.span.end;
@@ -963,7 +1041,12 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<NodeId> {
-        Self::parse_arena_with_resolver(bytes, arena, policy, default_syntax_resolver().as_ref())
+        Self::parse_arena_with_resolver(
+            bytes,
+            arena,
+            policy,
+            default_syntax_resolver().as_ref(),
+        )
     }
 
     /// Parses all document root nodes from `bytes` into `arena` using `policy` and `resolver`.
@@ -989,7 +1072,12 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
-        Self::parse_document_arena_with_resolver(bytes, arena, policy, default_syntax_resolver().as_ref())
+        Self::parse_document_arena_with_resolver(
+            bytes,
+            arena,
+            policy,
+            default_syntax_resolver().as_ref(),
+        )
     }
 
     pub(super) fn build_arena_node_from_stub_with_resolver(
@@ -1064,7 +1152,10 @@ impl<'a> DcDocumentNavigator<'a> {
                         arena.alloc_escaped_atom(stub.outer_span, stub.head_dc),
                     ));
                 }
-                DcFrameHeaderInfo::SplicedLiteral { type_header, decoded } => {
+                DcFrameHeaderInfo::SplicedLiteral {
+                    type_header,
+                    decoded,
+                } => {
                     return Ok(StubStep::Leaf(arena.alloc(
                         stub.outer_span,
                         DcSyntaxKind::Literal {
@@ -1074,24 +1165,39 @@ impl<'a> DcDocumentNavigator<'a> {
                     )));
                 }
                 DcFrameHeaderInfo::SplicedIdentifier(name) => {
-                    return Ok(StubStep::Leaf(
-                        arena.alloc(stub.outer_span, DcSyntaxKind::Identifier { name: name.clone() }),
-                    ));
+                    return Ok(StubStep::Leaf(arena.alloc(
+                        stub.outer_span,
+                        DcSyntaxKind::Identifier { name: name.clone() },
+                    )));
                 }
                 DcFrameHeaderInfo::SplicedNumber { format, digits } => {
-                    return Ok(StubStep::Leaf(
-                        arena.alloc(stub.outer_span, DcSyntaxKind::Number { format: *format, digits: digits.clone() }),
-                    ));
+                    return Ok(StubStep::Leaf(arena.alloc(
+                        stub.outer_span,
+                        DcSyntaxKind::Number {
+                            format: *format,
+                            digits: digits.clone(),
+                        },
+                    )));
                 }
                 _ => {}
             }
             let head = stub.head_dc;
-            if head.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
-                let node = nav.parse_binary_arena_node(stub.outer_span, policy, resolver)?;
+            if head.fills_role_with(DcRole::StartEncapsulationBinary, resolver)
+            {
+                let node = nav.parse_binary_arena_node(
+                    stub.outer_span,
+                    policy,
+                    resolver,
+                )?;
                 return Ok(StubStep::Leaf(arena.alloc(stub.outer_span, node)));
             }
             if head.fills_role_with(DcRole::BeginLiteral, resolver) {
-                let (type_header, decoded) = nav.decode_literal_span_with_resolver(stub.outer_span, policy, resolver)?;
+                let (type_header, decoded) = nav
+                    .decode_literal_span_with_resolver(
+                        stub.outer_span,
+                        policy,
+                        resolver,
+                    )?;
                 return Ok(StubStep::Leaf(arena.alloc(
                     stub.outer_span,
                     DcSyntaxKind::Literal {
@@ -1101,27 +1207,43 @@ impl<'a> DcDocumentNavigator<'a> {
                 )));
             }
             if head.fills_role_with(DcRole::BeginIdentifier, resolver) {
-                let name = nav.decode_identifier_span_with_resolver(stub.outer_span, policy, resolver)?;
-                return Ok(StubStep::Leaf(
-                    arena.alloc(stub.outer_span, DcSyntaxKind::Identifier { name }),
-                ));
+                let name = nav.decode_identifier_span_with_resolver(
+                    stub.outer_span,
+                    policy,
+                    resolver,
+                )?;
+                return Ok(StubStep::Leaf(arena.alloc(
+                    stub.outer_span,
+                    DcSyntaxKind::Identifier { name },
+                )));
             }
             if head.fills_role_with(DcRole::BeginNumber, resolver) {
-                let (format, digits) = nav.decode_number_span_with_resolver(stub.outer_span, resolver)?;
-                return Ok(StubStep::Leaf(
-                    arena.alloc(stub.outer_span, DcSyntaxKind::Number { format, digits }),
-                ));
+                let (format, digits) = nav.decode_number_span_with_resolver(
+                    stub.outer_span,
+                    resolver,
+                )?;
+                return Ok(StubStep::Leaf(arena.alloc(
+                    stub.outer_span,
+                    DcSyntaxKind::Number { format, digits },
+                )));
             }
             if resolver.resolve_infix_rule(head.to_u128()).is_some() {
                 if let Some(inner) = stub.inner_span {
-                    if let Some(step) = check_depth_exceeded_leaf(nav, stub, current_depth, arena)? {
+                    if let Some(step) = check_depth_exceeded_leaf(
+                        nav,
+                        stub,
+                        current_depth,
+                        arena,
+                    )? {
                         return Ok(step);
                     }
                     let ident_span = DcByteSpan::new(
                         stub.outer_span.start,
                         inner.start.saturating_sub(nav.char_encoded_len(head)),
                     );
-                    let ident = nav.decode_identifier_span_with_resolver(ident_span, policy, resolver)?;
+                    let ident = nav.decode_identifier_span_with_resolver(
+                        ident_span, policy, resolver,
+                    )?;
                     nav.enter_frame(stub)?;
                     return Ok(StubStep::Push(ArenaBuildFrame::Assignment {
                         outer_span: stub.outer_span,
@@ -1132,8 +1254,15 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             if let Some(closer) = stub.closer_dc {
                 let unclosed = stub.is_unclosed();
-                if stub.inner_span.is_some() && !resolver.is_opaque_container(head.to_u128()) {
-                    if let Some(step) = check_depth_exceeded_leaf(nav, stub, current_depth, arena)? {
+                if stub.inner_span.is_some()
+                    && !resolver.is_opaque_container(head.to_u128())
+                {
+                    if let Some(step) = check_depth_exceeded_leaf(
+                        nav,
+                        stub,
+                        current_depth,
+                        arena,
+                    )? {
                         return Ok(step);
                     }
                     nav.enter_frame(stub)?;
@@ -1158,7 +1287,9 @@ impl<'a> DcDocumentNavigator<'a> {
                 )));
             }
             if stub.inner_span.is_some() {
-                if let Some(step) = check_depth_exceeded_leaf(nav, stub, current_depth, arena)? {
+                if let Some(step) =
+                    check_depth_exceeded_leaf(nav, stub, current_depth, arena)?
+                {
                     return Ok(step);
                 }
                 nav.enter_frame(stub)?;
@@ -1210,9 +1341,15 @@ impl<'a> DcDocumentNavigator<'a> {
                     );
                     if let Some(parent) = work_stack.last_mut() {
                         match parent {
-                            ArenaBuildFrame::Assignment { value, .. } => *value = Some(node_id),
-                            ArenaBuildFrame::Container { children, .. } => children.push(node_id),
-                            ArenaBuildFrame::Tagged { args, .. } => args.push(node_id),
+                            ArenaBuildFrame::Assignment { value, .. } => {
+                                *value = Some(node_id)
+                            }
+                            ArenaBuildFrame::Container { children, .. } => {
+                                children.push(node_id)
+                            }
+                            ArenaBuildFrame::Tagged { args, .. } => {
+                                args.push(node_id)
+                            }
                         }
                         continue;
                     }
@@ -1220,18 +1357,33 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
 
                 let start = self.cursor;
-                if let Some(child_stub) = self.next_sibling_stub_with_resolver(policy, resolver)? {
-                    match classify_stub(self, &child_stub, current_depth, arena)? {
+                if let Some(child_stub) =
+                    self.next_sibling_stub_with_resolver(policy, resolver)?
+                {
+                    match classify_stub(
+                        self,
+                        &child_stub,
+                        current_depth,
+                        arena,
+                    )? {
                         StubStep::Leaf(child_id) => {
                             if let Some(top) = work_stack.last_mut() {
                                 match top {
-                                    ArenaBuildFrame::Assignment { value, .. } => {
+                                    ArenaBuildFrame::Assignment {
+                                        value,
+                                        ..
+                                    } => {
                                         *value = Some(child_id);
                                     }
-                                    ArenaBuildFrame::Container { children, .. } => {
+                                    ArenaBuildFrame::Container {
+                                        children,
+                                        ..
+                                    } => {
                                         children.push(child_id);
                                     }
-                                    ArenaBuildFrame::Tagged { args, .. } => {
+                                    ArenaBuildFrame::Tagged {
+                                        args, ..
+                                    } => {
                                         args.push(child_id);
                                     }
                                 }
@@ -1257,12 +1409,16 @@ impl<'a> DcDocumentNavigator<'a> {
                             unclosed,
                             children,
                         } => {
-                            let is_format_or_temporal =
-                                opener.fills_role_with(DcRole::BeginFormatRepresentation, resolver);
+                            let is_format_or_temporal = opener.fills_role_with(
+                                DcRole::BeginFormatRepresentation,
+                                resolver,
+                            );
                             let normalized_children = if is_format_or_temporal {
                                 children
                             } else {
-                                Self::normalize_field_nodes_with_resolver(children, arena, resolver)
+                                Self::normalize_field_nodes_with_resolver(
+                                    children, arena, resolver,
+                                )
                             };
                             arena.alloc(
                                 outer_span,
@@ -1281,23 +1437,36 @@ impl<'a> DcDocumentNavigator<'a> {
                             tag,
                             args,
                         } => {
-                            let normalized_args = Self::normalize_field_nodes_with_resolver(args, arena, resolver);
-                            let unwrap_param = |id: NodeId, arena: &DcSyntaxArena<'a>| -> NodeId {
-                                if let Some(DcSyntaxKind::Container {
-                                    opener, children, ..
-                                }) = arena.get(id).map(|n| &n.kind)
-                                    && opener.fills_role_with(DcRole::BeginParameter, resolver)
-                                    && let [single] = children.as_slice()
-                                {
-                                    *single
-                                } else {
-                                    id
-                                }
-                            };
+                            let normalized_args =
+                                Self::normalize_field_nodes_with_resolver(
+                                    args, arena, resolver,
+                                );
+                            let unwrap_param =
+                                |id: NodeId,
+                                 arena: &DcSyntaxArena<'a>|
+                                 -> NodeId {
+                                    if let Some(DcSyntaxKind::Container {
+                                        opener,
+                                        children,
+                                        ..
+                                    }) = arena.get(id).map(|n| &n.kind)
+                                        && opener.fills_role_with(
+                                            DcRole::BeginParameter,
+                                            resolver,
+                                        )
+                                        && let [single] = children.as_slice()
+                                    {
+                                        *single
+                                    } else {
+                                        id
+                                    }
+                                };
                             if resolver.is_assignment_construct(tag.to_u128())
-                                && let [raw_ident_id, raw_val_id] = normalized_args.as_slice()
+                                && let [raw_ident_id, raw_val_id] =
+                                    normalized_args.as_slice()
                             {
-                                let ident_id = unwrap_param(*raw_ident_id, arena);
+                                let ident_id =
+                                    unwrap_param(*raw_ident_id, arena);
                                 let val_id = unwrap_param(*raw_val_id, arena);
                                 if let Some(DcSyntaxKind::Identifier { name }) =
                                     arena.get(ident_id).map(|n| &n.kind)
@@ -1320,16 +1489,28 @@ impl<'a> DcDocumentNavigator<'a> {
                                     )
                                 }
                             } else {
-                                arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args: normalized_args })
+                                arena.alloc(
+                                    outer_span,
+                                    DcSyntaxKind::Tagged {
+                                        tag,
+                                        args: normalized_args,
+                                    },
+                                )
                             }
                         }
                         ArenaBuildFrame::Assignment { .. } => unreachable!(),
                     };
                     if let Some(parent) = work_stack.last_mut() {
                         match parent {
-                            ArenaBuildFrame::Assignment { value, .. } => *value = Some(node_id),
-                            ArenaBuildFrame::Container { children, .. } => children.push(node_id),
-                            ArenaBuildFrame::Tagged { args, .. } => args.push(node_id),
+                            ArenaBuildFrame::Assignment { value, .. } => {
+                                *value = Some(node_id)
+                            }
+                            ArenaBuildFrame::Container { children, .. } => {
+                                children.push(node_id)
+                            }
+                            ArenaBuildFrame::Tagged { args, .. } => {
+                                args.push(node_id)
+                            }
                         }
                     } else {
                         return Ok(node_id);

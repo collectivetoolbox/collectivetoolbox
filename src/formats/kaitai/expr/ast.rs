@@ -44,7 +44,9 @@ use crate::utilities::*;
 use serde::{Deserialize, Serialize};
 
 /// Type path and array designation in expressions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize,
+)]
 pub struct TypeId {
     /// Whether the type path is absolute (prefixed with `::`).
     pub absolute: bool,
@@ -258,7 +260,6 @@ pub struct TypeWithArguments {
     /// Arguments provided to type.
     pub arguments: Vec<Expr>,
 }
-
 
 /* License information for parts derived from Kaitai Struct:
 

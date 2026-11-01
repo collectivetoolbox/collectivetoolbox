@@ -297,10 +297,7 @@ pub fn export_pan_procedures(
     };
 
     if target_dir.exists() {
-        bail!(
-            "Target directory already exists: {}",
-            target_dir.display()
-        );
+        bail!("Target directory already exists: {}", target_dir.display());
     }
 
     fs::create_dir_all(&target_dir).with_context(|| {
@@ -326,10 +323,8 @@ pub fn export_pan_procedures(
             String::new()
         };
 
-        let clean_stem = ctb_io::file::clean_file_name(
-            &macro_info.name,
-            Some(&target_dir),
-        );
+        let clean_stem =
+            ctb_io::file::clean_file_name(&macro_info.name, Some(&target_dir));
         let base_name = clean_stem.to_string_lossy();
         let base_name = if base_name.is_empty() {
             "unnamed"
@@ -376,10 +371,7 @@ pub fn export_pan_procedures(
         seen_names.insert(filename.clone());
         let file_path = target_dir.join(&filename);
         fs::write(&file_path, code.as_bytes()).with_context(|| {
-            format!(
-                "Failed to write procedure file: {}",
-                file_path.display()
-            )
+            format!("Failed to write procedure file: {}", file_path.display())
         })?;
         exported_count = exported_count.saturating_add(1);
     }
@@ -1362,8 +1354,8 @@ mod tests {
             let name_bytes = name.as_bytes();
             let name_len = u8::try_from(name_bytes.len())
                 .context("Macro name too long")?;
-            let code_len = u16::try_from(code.len())
-                .context("Macro code too long")?;
+            let code_len =
+                u16::try_from(code.len()).context("Macro code too long")?;
             let macro_rec_size = usize::from(name_len)
                 .saturating_add(usize::from(code_len))
                 .saturating_add(8);
@@ -1378,8 +1370,8 @@ mod tests {
         }
 
         let section_size = payload.len().saturating_add(12);
-        let sec_size_u32 = u32::try_from(section_size)
-            .context("Section size overflow")?;
+        let sec_size_u32 =
+            u32::try_from(section_size).context("Section size overflow")?;
         pan_bytes.extend_from_slice(&sec_size_u32.to_le_bytes());
         pan_bytes.push(0x83);
         pan_bytes.push(6);
@@ -1448,9 +1440,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_export_pan_procedures_errors_when_target_dir_exists()
     -> anyhow::Result<()> {
-        let pan_bytes = build_sample_pan_with_macros(&[
-            (".Initialize", b"global x"),
-        ])?;
+        let pan_bytes =
+            build_sample_pan_with_macros(&[(".Initialize", b"global x")])?;
 
         let temp = tempfile::tempdir()?;
         let out_dir = temp.path().join("already_exists");

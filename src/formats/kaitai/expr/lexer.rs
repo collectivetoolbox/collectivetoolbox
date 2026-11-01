@@ -310,23 +310,36 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
             }
             b'.' => {
                 // Check if this is a leading dot float, e.g. .5, but not .attr
-                if bytes.get(idx.saturating_add(1)).is_some_and(u8::is_ascii_digit) {
+                if bytes
+                    .get(idx.saturating_add(1))
+                    .is_some_and(u8::is_ascii_digit)
+                {
                     let start = idx;
                     idx = idx.saturating_add(1);
-                    while bytes.get(idx).is_some_and(|&c| c.is_ascii_digit() || c == b'_') {
+                    while bytes
+                        .get(idx)
+                        .is_some_and(|&c| c.is_ascii_digit() || c == b'_')
+                    {
                         idx = idx.saturating_add(1);
                     }
                     if bytes.get(idx).is_some_and(|&c| c == b'e' || c == b'E') {
                         idx = idx.saturating_add(1);
-                        if bytes.get(idx).is_some_and(|&c| c == b'+' || c == b'-') {
+                        if bytes
+                            .get(idx)
+                            .is_some_and(|&c| c == b'+' || c == b'-')
+                        {
                             idx = idx.saturating_add(1);
                         }
                         while bytes.get(idx).is_some_and(u8::is_ascii_digit) {
                             idx = idx.saturating_add(1);
                         }
                     }
-                    let num_str = src.get(start..idx).context("Invalid slice")?.replace('_', "");
-                    let float_val: f64 = num_str.parse().context("Invalid float literal")?;
+                    let num_str = src
+                        .get(start..idx)
+                        .context("Invalid slice")?
+                        .replace('_', "");
+                    let float_val: f64 =
+                        num_str.parse().context("Invalid float literal")?;
                     tokens.push(Token {
                         kind: TokenKind::Float(float_val),
                         pos: start,
@@ -446,7 +459,8 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
             let mut lit = String::new();
 
             while idx < len && bytes.get(idx).copied() != Some(quote) {
-                let cur = *bytes.get(idx).context("Byte offset out of bounds")?;
+                let cur =
+                    *bytes.get(idx).context("Byte offset out of bounds")?;
                 if cur == b'{' {
                     if bytes.get(idx.saturating_add(1)).copied() == Some(b'{') {
                         lit.push('{');
@@ -454,13 +468,17 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                         continue;
                     }
                     if !lit.is_empty() {
-                        parts.push(FStringPart::Literal(std::mem::take(&mut lit)));
+                        parts.push(FStringPart::Literal(std::mem::take(
+                            &mut lit,
+                        )));
                     }
                     idx = idx.saturating_add(1); // skip '{'
                     let expr_start = idx;
                     let mut brace_depth = 1_usize;
                     while idx < len && brace_depth > 0 {
-                        let eb = *bytes.get(idx).context("Byte offset out of bounds")?;
+                        let eb = *bytes
+                            .get(idx)
+                            .context("Byte offset out of bounds")?;
                         if eb == b'{' {
                             brace_depth = brace_depth.saturating_add(1);
                             idx = idx.saturating_add(1);
@@ -473,7 +491,9 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                         } else if eb == b'\'' || eb == b'"' {
                             let inner_q = eb;
                             idx = idx.saturating_add(1);
-                            while idx < len && bytes.get(idx).copied() != Some(inner_q) {
+                            while idx < len
+                                && bytes.get(idx).copied() != Some(inner_q)
+                            {
                                 if bytes.get(idx).copied() == Some(b'\\') {
                                     idx = idx.saturating_add(2);
                                 } else {
@@ -487,8 +507,12 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                             idx = idx.saturating_add(1);
                         }
                     }
-                    ensure!(brace_depth == 0, "Unclosed '}}' in f-string expression");
-                    let expr_str = src.get(expr_start..idx).context("Invalid slice")?;
+                    ensure!(
+                        brace_depth == 0,
+                        "Unclosed '}}' in f-string expression"
+                    );
+                    let expr_str =
+                        src.get(expr_start..idx).context("Invalid slice")?;
                     idx = idx.saturating_add(1); // skip '}'
                     parts.push(FStringPart::Expr(expr_str.trim().to_string()));
                     continue;
@@ -503,8 +527,12 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                 }
                 if cur == b'\\' {
                     idx = idx.saturating_add(1);
-                    ensure!(idx < len, "Unterminated escape sequence in f-string");
-                    let esc = *bytes.get(idx).context("Byte offset out of bounds")?;
+                    ensure!(
+                        idx < len,
+                        "Unterminated escape sequence in f-string"
+                    );
+                    let esc =
+                        *bytes.get(idx).context("Byte offset out of bounds")?;
                     match esc {
                         b'n' => lit.push('\n'),
                         b'r' => lit.push('\r'),
@@ -523,35 +551,55 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                             while count < 3
                                 && bytes
                                     .get(idx.saturating_add(count))
-                                    .is_some_and(|&c| (b'0'..=b'7').contains(&c))
+                                    .is_some_and(|&c| {
+                                        (b'0'..=b'7').contains(&c)
+                                    })
                             {
                                 count = count.saturating_add(1);
                             }
                             let oct_str = src
-                                .get(octal_start..octal_start.saturating_add(count))
+                                .get(
+                                    octal_start
+                                        ..octal_start.saturating_add(count),
+                                )
                                 .context("Invalid slice")?;
                             let code = u32::from_str_radix(oct_str, 8)
                                 .context("Invalid octal escape")?;
-                            let ch = char::from_u32(code)
-                                .context("Invalid unicode codepoint from octal")?;
+                            let ch = char::from_u32(code).context(
+                                "Invalid unicode codepoint from octal",
+                            )?;
                             lit.push(ch);
                             idx = idx.saturating_add(count.saturating_sub(1));
                         }
                         b'u' => {
                             idx = idx.saturating_add(1);
-                            ensure!(idx.saturating_add(4) <= len, "Incomplete unicode escape in f-string");
-                            let hex_str = src.get(idx..idx.saturating_add(4)).context("Invalid slice")?;
-                            let code = u32::from_str_radix(hex_str, 16).context("Invalid unicode hex escape")?;
-                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            ensure!(
+                                idx.saturating_add(4) <= len,
+                                "Incomplete unicode escape in f-string"
+                            );
+                            let hex_str = src
+                                .get(idx..idx.saturating_add(4))
+                                .context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16)
+                                .context("Invalid unicode hex escape")?;
+                            let ch = char::from_u32(code)
+                                .context("Invalid unicode codepoint")?;
                             lit.push(ch);
                             idx = idx.saturating_add(3);
                         }
                         b'x' => {
                             idx = idx.saturating_add(1);
-                            ensure!(idx.saturating_add(2) <= len, "Incomplete hex escape in f-string");
-                            let hex_str = src.get(idx..idx.saturating_add(2)).context("Invalid slice")?;
-                            let code = u32::from_str_radix(hex_str, 16).context("Invalid hex escape")?;
-                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            ensure!(
+                                idx.saturating_add(2) <= len,
+                                "Incomplete hex escape in f-string"
+                            );
+                            let hex_str = src
+                                .get(idx..idx.saturating_add(2))
+                                .context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16)
+                                .context("Invalid hex escape")?;
+                            let ch = char::from_u32(code)
+                                .context("Invalid unicode codepoint")?;
                             lit.push(ch);
                             idx = idx.saturating_add(1);
                         }
@@ -561,7 +609,8 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                     continue;
                 }
 
-                let rem = src.get(idx..).context("Byte offset out of bounds")?;
+                let rem =
+                    src.get(idx..).context("Byte offset out of bounds")?;
                 let ch = rem.chars().next().context("Expected char")?;
                 lit.push(ch);
                 idx = idx.saturating_add(ch.len_utf8());
@@ -591,8 +640,12 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
             while idx < len && bytes.get(idx).copied() != Some(quote) {
                 if bytes.get(idx).copied() == Some(b'\\') {
                     idx = idx.saturating_add(1);
-                    ensure!(idx < len, "Unterminated escape sequence in string literal");
-                    let esc = *bytes.get(idx).context("Byte offset out of bounds")?;
+                    ensure!(
+                        idx < len,
+                        "Unterminated escape sequence in string literal"
+                    );
+                    let esc =
+                        *bytes.get(idx).context("Byte offset out of bounds")?;
                     match esc {
                         b'n' => val.push('\n'),
                         b'r' => val.push('\r'),
@@ -611,42 +664,63 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                             while count < 3
                                 && bytes
                                     .get(idx.saturating_add(count))
-                                    .is_some_and(|&c| (b'0'..=b'7').contains(&c))
+                                    .is_some_and(|&c| {
+                                        (b'0'..=b'7').contains(&c)
+                                    })
                             {
                                 count = count.saturating_add(1);
                             }
                             let oct_str = src
-                                .get(octal_start..octal_start.saturating_add(count))
+                                .get(
+                                    octal_start
+                                        ..octal_start.saturating_add(count),
+                                )
                                 .context("Invalid slice")?;
                             let code = u32::from_str_radix(oct_str, 8)
                                 .context("Invalid octal escape")?;
-                            let ch = char::from_u32(code)
-                                .context("Invalid unicode codepoint from octal")?;
+                            let ch = char::from_u32(code).context(
+                                "Invalid unicode codepoint from octal",
+                            )?;
                             val.push(ch);
                             idx = idx.saturating_add(count.saturating_sub(1));
                         }
                         b'u' => {
                             idx = idx.saturating_add(1);
-                            ensure!(idx.saturating_add(4) <= len, "Incomplete unicode escape in string literal");
-                            let hex_str = src.get(idx..idx.saturating_add(4)).context("Invalid slice")?;
-                            let code = u32::from_str_radix(hex_str, 16).context("Invalid unicode hex escape")?;
-                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            ensure!(
+                                idx.saturating_add(4) <= len,
+                                "Incomplete unicode escape in string literal"
+                            );
+                            let hex_str = src
+                                .get(idx..idx.saturating_add(4))
+                                .context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16)
+                                .context("Invalid unicode hex escape")?;
+                            let ch = char::from_u32(code)
+                                .context("Invalid unicode codepoint")?;
                             val.push(ch);
                             idx = idx.saturating_add(3); // loop step will add 1 more
                         }
                         b'x' => {
                             idx = idx.saturating_add(1);
-                            ensure!(idx.saturating_add(2) <= len, "Incomplete hex escape in string literal");
-                            let hex_str = src.get(idx..idx.saturating_add(2)).context("Invalid slice")?;
-                            let code = u32::from_str_radix(hex_str, 16).context("Invalid hex escape")?;
-                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            ensure!(
+                                idx.saturating_add(2) <= len,
+                                "Incomplete hex escape in string literal"
+                            );
+                            let hex_str = src
+                                .get(idx..idx.saturating_add(2))
+                                .context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16)
+                                .context("Invalid hex escape")?;
+                            let ch = char::from_u32(code)
+                                .context("Invalid unicode codepoint")?;
                             val.push(ch);
                             idx = idx.saturating_add(1);
                         }
                         other => val.push(char::from(other)),
                     }
                 } else {
-                    let rem = src.get(idx..).context("Byte offset out of bounds")?;
+                    let rem =
+                        src.get(idx..).context("Byte offset out of bounds")?;
                     let ch = rem.chars().next().context("Expected char")?;
                     val.push(ch);
                     idx = idx.saturating_add(ch.len_utf8());
@@ -654,7 +728,10 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                 }
                 idx = idx.saturating_add(1);
             }
-            ensure!(idx < len && bytes.get(idx).copied() == Some(quote), "Unterminated string literal");
+            ensure!(
+                idx < len && bytes.get(idx).copied() == Some(quote),
+                "Unterminated string literal"
+            );
             idx = idx.saturating_add(1);
             tokens.push(Token {
                 kind: TokenKind::Str(val),
@@ -672,12 +749,18 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                     if p == b'x' || p == b'X' {
                         idx = idx.saturating_add(2);
                         let num_start = idx;
-                        while bytes.get(idx).is_some_and(|&c| c.is_ascii_hexdigit() || c == b'_') {
+                        while bytes.get(idx).is_some_and(|&c| {
+                            c.is_ascii_hexdigit() || c == b'_'
+                        }) {
                             idx = idx.saturating_add(1);
                         }
                         ensure!(idx > num_start, "Empty hex literal");
-                        let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
-                        let num = i128::from_str_radix(&clean, 16).context("Invalid hex integer literal")?;
+                        let clean = src
+                            .get(num_start..idx)
+                            .context("Invalid slice")?
+                            .replace('_', "");
+                        let num = i128::from_str_radix(&clean, 16)
+                            .context("Invalid hex integer literal")?;
                         tokens.push(Token {
                             kind: TokenKind::Int(num),
                             pos: start,
@@ -686,12 +769,18 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                     } else if p == b'o' || p == b'O' {
                         idx = idx.saturating_add(2);
                         let num_start = idx;
-                        while bytes.get(idx).is_some_and(|&c| (b'0'..=b'7').contains(&c) || c == b'_') {
+                        while bytes.get(idx).is_some_and(|&c| {
+                            (b'0'..=b'7').contains(&c) || c == b'_'
+                        }) {
                             idx = idx.saturating_add(1);
                         }
                         ensure!(idx > num_start, "Empty octal literal");
-                        let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
-                        let num = i128::from_str_radix(&clean, 8).context("Invalid octal integer literal")?;
+                        let clean = src
+                            .get(num_start..idx)
+                            .context("Invalid slice")?
+                            .replace('_', "");
+                        let num = i128::from_str_radix(&clean, 8)
+                            .context("Invalid octal integer literal")?;
                         tokens.push(Token {
                             kind: TokenKind::Int(num),
                             pos: start,
@@ -700,12 +789,18 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                     } else if p == b'b' || p == b'B' {
                         idx = idx.saturating_add(2);
                         let num_start = idx;
-                        while bytes.get(idx).is_some_and(|&c| c == b'0' || c == b'1' || c == b'_') {
+                        while bytes.get(idx).is_some_and(|&c| {
+                            c == b'0' || c == b'1' || c == b'_'
+                        }) {
                             idx = idx.saturating_add(1);
                         }
                         ensure!(idx > num_start, "Empty binary literal");
-                        let clean = src.get(num_start..idx).context("Invalid slice")?.replace('_', "");
-                        let num = i128::from_str_radix(&clean, 2).context("Invalid binary integer literal")?;
+                        let clean = src
+                            .get(num_start..idx)
+                            .context("Invalid slice")?
+                            .replace('_', "");
+                        let num = i128::from_str_radix(&clean, 2)
+                            .context("Invalid binary integer literal")?;
                         tokens.push(Token {
                             kind: TokenKind::Int(num),
                             pos: start,
@@ -717,18 +812,26 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
 
             // Decimal integer or float
             let mut is_float = false;
-            while bytes.get(idx).is_some_and(|&c| c.is_ascii_digit() || c == b'_') {
+            while bytes
+                .get(idx)
+                .is_some_and(|&c| c.is_ascii_digit() || c == b'_')
+            {
                 idx = idx.saturating_add(1);
             }
 
             // Check for fractional part
             if bytes.get(idx) == Some(&b'.') {
                 let next_idx = idx.saturating_add(1);
-                let is_ident_start = bytes.get(next_idx).is_some_and(|&c| c.is_ascii_alphabetic() || c == b'_');
+                let is_ident_start = bytes
+                    .get(next_idx)
+                    .is_some_and(|&c| c.is_ascii_alphabetic() || c == b'_');
                 if !is_ident_start {
                     is_float = true;
                     idx = next_idx;
-                    while bytes.get(idx).is_some_and(|&c| c.is_ascii_digit() || c == b'_') {
+                    while bytes
+                        .get(idx)
+                        .is_some_and(|&c| c.is_ascii_digit() || c == b'_')
+                    {
                         idx = idx.saturating_add(1);
                     }
                 }
@@ -746,18 +849,23 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                 }
             }
 
-            let mut num_str = src.get(start..idx).context("Invalid slice")?.replace('_', "");
+            let mut num_str = src
+                .get(start..idx)
+                .context("Invalid slice")?
+                .replace('_', "");
             if is_float {
                 if num_str.ends_with('.') {
                     num_str.push('0');
                 }
-                let f_val: f64 = num_str.parse().context("Invalid float literal")?;
+                let f_val: f64 =
+                    num_str.parse().context("Invalid float literal")?;
                 tokens.push(Token {
                     kind: TokenKind::Float(f_val),
                     pos: start,
                 });
             } else {
-                let i_val: i128 = num_str.parse().context("Invalid integer literal")?;
+                let i_val: i128 =
+                    num_str.parse().context("Invalid integer literal")?;
                 tokens.push(Token {
                     kind: TokenKind::Int(i_val),
                     pos: start,
@@ -769,7 +877,10 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
         // Identifiers and keywords
         if b.is_ascii_alphabetic() || b == b'_' {
             let start = idx;
-            while bytes.get(idx).is_some_and(|&c| c.is_ascii_alphanumeric() || c == b'_') {
+            while bytes
+                .get(idx)
+                .is_some_and(|&c| c.is_ascii_alphanumeric() || c == b'_')
+            {
                 idx = idx.saturating_add(1);
             }
             let text = src.get(start..idx).context("Invalid slice")?;
@@ -789,7 +900,11 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
             continue;
         }
 
-        bail!("Unexpected character in expression at byte offset {}: '{}'", idx, char::from(b));
+        bail!(
+            "Unexpected character in expression at byte offset {}: '{}'",
+            idx,
+            char::from(b)
+        );
     }
 
     tokens.push(Token {

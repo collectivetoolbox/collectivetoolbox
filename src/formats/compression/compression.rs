@@ -19,6 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Single-stream compression algorithms (Brotli, Gzip, Deflate, Zlib, SCO Compress -H, etc.).
 
+use ctb_formats_compression_bzip as bzip;
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
 use ctb_formats_utilities::format_info::FormatInfoOptionExt;
@@ -28,18 +29,17 @@ use ctb_formats_utilities::format_info::FormatInfoOptionExt;
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
-use ctb_formats_compression_bzip as bzip;
 
 use std::io::{Read, Write};
 
 pub use ctb_formats_compression_compact as compact;
 pub use ctb_formats_compression_compress as compress;
-pub use ctb_formats_compression_pack as pack;
-pub use ctb_formats_compression_sco_compress as sco_compress;
 pub use ctb_formats_compression_freeze as freeze;
-pub use ctb_formats_compression_rzip as rzip;
-pub use ctb_formats_compression_szip as szip;
 pub use ctb_formats_compression_libraries as libraries;
+pub use ctb_formats_compression_pack as pack;
+pub use ctb_formats_compression_rzip as rzip;
+pub use ctb_formats_compression_sco_compress as sco_compress;
+pub use ctb_formats_compression_szip as szip;
 
 /// Returns a fixture asset byte vector if present.
 pub fn get_compression_data(key: &str) -> Option<Vec<u8>> {
@@ -70,7 +70,8 @@ pub static COMPRESSION_AFTER_HELP: std::sync::LazyLock<String> =
 /// Extension trait adding compression-specific utilities to [`FormatId`].
 pub trait CompressionFormatExt {
     /// Retrieves format metadata from the shared registry.
-    fn format_info(&self) -> Option<&'static ctb_formats_utilities::FormatInfo>;
+    fn format_info(&self)
+    -> Option<&'static ctb_formats_utilities::FormatInfo>;
 
     /// Returns the standard default file extension associated with the format.
     fn extension(&self) -> &'static str;
@@ -86,7 +87,9 @@ pub trait CompressionFormatExt {
 }
 
 impl CompressionFormatExt for FormatId {
-    fn format_info(&self) -> Option<&'static ctb_formats_utilities::FormatInfo> {
+    fn format_info(
+        &self,
+    ) -> Option<&'static ctb_formats_utilities::FormatInfo> {
         ctb_formats_utilities::get_format_info_by_id(*self)
     }
 
@@ -121,7 +124,9 @@ impl CompressionFormatExt for FormatId {
 }
 
 impl CompressionFormatExt for SupportedCompressionFormat {
-    fn format_info(&self) -> Option<&'static ctb_formats_utilities::FormatInfo> {
+    fn format_info(
+        &self,
+    ) -> Option<&'static ctb_formats_utilities::FormatInfo> {
         self.to_format_id().format_info()
     }
 
@@ -139,7 +144,9 @@ impl CompressionFormatExt for SupportedCompressionFormat {
 }
 
 impl CompressionFormatExt for SupportedDecompressionFormat {
-    fn format_info(&self) -> Option<&'static ctb_formats_utilities::FormatInfo> {
+    fn format_info(
+        &self,
+    ) -> Option<&'static ctb_formats_utilities::FormatInfo> {
         self.to_format_id().format_info()
     }
 
@@ -184,7 +191,9 @@ pub fn parse_compression_format(s: &str) -> Result<SupportedCompressionFormat> {
 }
 
 /// Parses a decompression format from a format name or extension.
-pub fn parse_decompression_format(s: &str) -> Result<SupportedDecompressionFormat> {
+pub fn parse_decompression_format(
+    s: &str,
+) -> Result<SupportedDecompressionFormat> {
     let trimmed = s.trim();
     if trimmed.contains('/') || trimmed.contains('\\') {
         bail!("Unknown decompression format: '{s}'");
@@ -217,7 +226,9 @@ pub fn compress_stream_direct(
     format: SupportedCompressionFormat,
 ) -> Result<u64> {
     match format {
-        SupportedCompressionFormat::Bzip => bzip::compress_stream(reader, writer),
+        SupportedCompressionFormat::Bzip => {
+            bzip::compress_stream(reader, writer)
+        }
         SupportedCompressionFormat::ScoCompress => {
             sco_compress::compress_stream(reader, writer)
         }
@@ -227,7 +238,9 @@ pub fn compress_stream_direct(
         | SupportedCompressionFormat::CompressLzw16 => {
             compress::compress_lzw_stream(reader, writer, format.to_format_id())
         }
-        SupportedCompressionFormat::Pack => pack::compress_pack_stream(reader, writer),
+        SupportedCompressionFormat::Pack => {
+            pack::compress_pack_stream(reader, writer)
+        }
         SupportedCompressionFormat::OldPack => {
             pack::compress_old_pack_stream(reader, writer)
         }
@@ -240,8 +253,11 @@ pub fn compress_stream_direct(
         SupportedCompressionFormat::Freeze1 => {
             freeze::compress_freeze1_stream(reader, writer)
         }
-        SupportedCompressionFormat::Rzip => rzip::compress_stream(reader, writer),
-        SupportedCompressionFormat::Szip | SupportedCompressionFormat::Szip111 => {
+        SupportedCompressionFormat::Rzip => {
+            rzip::compress_stream(reader, writer)
+        }
+        SupportedCompressionFormat::Szip
+        | SupportedCompressionFormat::Szip111 => {
             szip::compress_stream(reader, writer)
         }
         SupportedCompressionFormat::Brotli
@@ -284,7 +300,8 @@ pub fn compress_stream_with_verify(
         format,
     )?;
 
-    let decomp_format = format.to_format_id().to_supported_decompression_format()?;
+    let decomp_format =
+        format.to_format_id().to_supported_decompression_format()?;
     let mut decompressed_buf = Vec::new();
     decompress_stream(
         &mut compressed_buf.as_slice(),
@@ -323,7 +340,9 @@ pub fn decompress_stream(
     format: SupportedDecompressionFormat,
 ) -> Result<u64> {
     match format {
-        SupportedDecompressionFormat::Bzip => bzip::decompress_stream(reader, writer),
+        SupportedDecompressionFormat::Bzip => {
+            bzip::decompress_stream(reader, writer)
+        }
         SupportedDecompressionFormat::ScoCompress => {
             sco_compress::decompress_stream(reader, writer)
         }
@@ -331,9 +350,15 @@ pub fn decompress_stream(
         | SupportedDecompressionFormat::CompressLzw2
         | SupportedDecompressionFormat::CompressLzw1
         | SupportedDecompressionFormat::CompressLzw16 => {
-            compress::decompress_lzw_stream(reader, writer, format.to_format_id())
+            compress::decompress_lzw_stream(
+                reader,
+                writer,
+                format.to_format_id(),
+            )
         }
-        SupportedDecompressionFormat::Pack => pack::decompress_pack_stream(reader, writer),
+        SupportedDecompressionFormat::Pack => {
+            pack::decompress_pack_stream(reader, writer)
+        }
         SupportedDecompressionFormat::OldPack => {
             pack::decompress_old_pack_stream(reader, writer)
         }
@@ -346,8 +371,11 @@ pub fn decompress_stream(
         SupportedDecompressionFormat::Freeze1 => {
             freeze::decompress_freeze1_stream(reader, writer)
         }
-        SupportedDecompressionFormat::Rzip => rzip::decompress_stream(reader, writer),
-        SupportedDecompressionFormat::Szip | SupportedDecompressionFormat::Szip111 => {
+        SupportedDecompressionFormat::Rzip => {
+            rzip::decompress_stream(reader, writer)
+        }
+        SupportedDecompressionFormat::Szip
+        | SupportedDecompressionFormat::Szip111 => {
             szip::decompress_stream(reader, writer)
         }
         SupportedDecompressionFormat::Brotli
@@ -381,12 +409,18 @@ pub fn compress_with_verify(
 
 /// Compresses in-memory byte slice using the specified compression format.
 /// Uses the format's default verification setting (verify for in-repo formats, no-verify for crates).
-pub fn compress(data: &[u8], format: SupportedCompressionFormat) -> Result<Vec<u8>> {
+pub fn compress(
+    data: &[u8],
+    format: SupportedCompressionFormat,
+) -> Result<Vec<u8>> {
     compress_with_verify(data, format, format.default_verify())
 }
 
 /// Decompresses in-memory byte slice using the specified compression format.
-pub fn decompress(data: &[u8], format: SupportedDecompressionFormat) -> Result<Vec<u8>> {
+pub fn decompress(
+    data: &[u8],
+    format: SupportedDecompressionFormat,
+) -> Result<Vec<u8>> {
     let mut input = data;
     let mut output = Vec::new();
     decompress_stream(&mut input, &mut output, format)?;
@@ -496,7 +530,8 @@ mod tests {
             // Test with verify = false
             let compressed_unverified =
                 compress_with_verify(data, comp_fmt, false).unwrap();
-            let decompressed = decompress(&compressed_unverified, decomp_fmt).unwrap();
+            let decompressed =
+                decompress(&compressed_unverified, decomp_fmt).unwrap();
             assert_eq!(
                 decompressed, data,
                 "Failed roundtrip with verify=false for format {fmt:?}"
@@ -505,7 +540,8 @@ mod tests {
             // Test with verify = true
             let compressed_verified =
                 compress_with_verify(data, comp_fmt, true).unwrap();
-            let decompressed = decompress(&compressed_verified, decomp_fmt).unwrap();
+            let decompressed =
+                decompress(&compressed_verified, decomp_fmt).unwrap();
             assert_eq!(
                 decompressed, data,
                 "Failed roundtrip with verify=true for format {fmt:?}"
@@ -548,7 +584,9 @@ mod tests {
             FormatId::Bzip
         );
         assert_eq!(
-            parse_compression_format("compress2").unwrap().to_format_id(),
+            parse_compression_format("compress2")
+                .unwrap()
+                .to_format_id(),
             FormatId::CompressLzw2
         );
         assert_eq!(
@@ -680,30 +718,18 @@ mod tests {
     }
     fn run_format_test_suite(format: FormatId) {
         let fixtures: &[&str] = match format {
-            FormatId::Brotli => {
-                &["fixtures/example2 with lemurs.pan.br"]
-            }
-            FormatId::Gzip => {
-                &["fixtures/example2 with lemurs.pan.gz"]
-            }
-            FormatId::Deflate => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.deflate",
-                    "fixtures/example2 with lemurs.pan.external.deflate",
-                ]
-            }
-            FormatId::Zlib => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.zz",
-                    "fixtures/example2 with lemurs.pan.external.zz",
-                ]
-            }
-            FormatId::Bzip2 => {
-                &["fixtures/example2 with lemurs.pan.bz2"]
-            }
-            FormatId::Bzip => {
-                &["fixtures/example2 with lemurs.pan.bz"]
-            }
+            FormatId::Brotli => &["fixtures/example2 with lemurs.pan.br"],
+            FormatId::Gzip => &["fixtures/example2 with lemurs.pan.gz"],
+            FormatId::Deflate => &[
+                "fixtures/example2 with lemurs.pan.ctblib.deflate",
+                "fixtures/example2 with lemurs.pan.external.deflate",
+            ],
+            FormatId::Zlib => &[
+                "fixtures/example2 with lemurs.pan.ctblib.zz",
+                "fixtures/example2 with lemurs.pan.external.zz",
+            ],
+            FormatId::Bzip2 => &["fixtures/example2 with lemurs.pan.bz2"],
+            FormatId::Bzip => &["fixtures/example2 with lemurs.pan.bz"],
             FormatId::ScoCompress => {
                 &["fixtures/example2 with lemurs.pan.synthetic.sco"]
             }
@@ -722,61 +748,39 @@ mod tests {
                 &["fixtures/example2 with lemurs.pan.1.6.Z"]
             }
             FormatId::Pack => &["fixtures/example2 with lemurs.pan.pack.z"],
-            FormatId::OldPack => {
-                &["fixtures/example2 with lemurs.pan.old.z"]
-            }
-            FormatId::Compact => {
-                &["fixtures/example2 with lemurs.pan.C"]
-            }
-            FormatId::Freeze2 => {
-                &["fixtures/example2 with lemurs.pan.2.0.F"]
-            }
+            FormatId::OldPack => &["fixtures/example2 with lemurs.pan.old.z"],
+            FormatId::Compact => &["fixtures/example2 with lemurs.pan.C"],
+            FormatId::Freeze2 => &["fixtures/example2 with lemurs.pan.2.0.F"],
             FormatId::Freeze1 => {
                 &["fixtures/example2 with lemurs.pan.synthetic.1.0.F"]
             }
-            FormatId::Rzip => {
-                &["fixtures/example2 with lemurs.pan.rz"]
-            }
-            FormatId::Szip => {
-                &["fixtures/example2 with lemurs.pan.sz"]
-            }
-            FormatId::Lz4 => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.lz4",
-                    "fixtures/example2 with lemurs.pan.external.lz4",
-                ]
-            }
-            FormatId::Lzma => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.lzma",
-                    "fixtures/example2 with lemurs.pan.external.lzma",
-                ]
-            }
-            FormatId::Lzma2 => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.lzma2",
-                    "fixtures/example2 with lemurs.pan.external.lzma2",
-                ]
-            }
-            FormatId::Lzip => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.lz",
-                    "fixtures/example2 with lemurs.pan.external.lz",
-                ]
-            }
+            FormatId::Rzip => &["fixtures/example2 with lemurs.pan.rz"],
+            FormatId::Szip => &["fixtures/example2 with lemurs.pan.sz"],
+            FormatId::Lz4 => &[
+                "fixtures/example2 with lemurs.pan.ctblib.lz4",
+                "fixtures/example2 with lemurs.pan.external.lz4",
+            ],
+            FormatId::Lzma => &[
+                "fixtures/example2 with lemurs.pan.ctblib.lzma",
+                "fixtures/example2 with lemurs.pan.external.lzma",
+            ],
+            FormatId::Lzma2 => &[
+                "fixtures/example2 with lemurs.pan.ctblib.lzma2",
+                "fixtures/example2 with lemurs.pan.external.lzma2",
+            ],
+            FormatId::Lzip => &[
+                "fixtures/example2 with lemurs.pan.ctblib.lz",
+                "fixtures/example2 with lemurs.pan.external.lz",
+            ],
             FormatId::Xz => &["fixtures/example2 with lemurs.pan.xz"],
-            FormatId::Zstd => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.zst",
-                    "fixtures/example2 with lemurs.pan.external.zst",
-                ]
-            }
-            FormatId::Lzo => {
-                &[
-                    "fixtures/example2 with lemurs.pan.ctblib.lzo",
-                    "fixtures/example2 with lemurs.pan.external.lzo",
-                ]
-            }
+            FormatId::Zstd => &[
+                "fixtures/example2 with lemurs.pan.ctblib.zst",
+                "fixtures/example2 with lemurs.pan.external.zst",
+            ],
+            FormatId::Lzo => &[
+                "fixtures/example2 with lemurs.pan.ctblib.lzo",
+                "fixtures/example2 with lemurs.pan.external.lzo",
+            ],
             _ => &[],
         };
 
@@ -867,8 +871,8 @@ mod tests {
         for &fixture_path in fixtures {
             let comp_data = get_compression_data(fixture_path)
                 .unwrap_or_else(|| panic!("Fixture missing: {fixture_path}"));
-            let decompressed =
-                decompress(&comp_data, decomp_fmt).unwrap_or_else(|e| {
+            let decompressed = decompress(&comp_data, decomp_fmt)
+                .unwrap_or_else(|e| {
                     panic!("Decompress failed for {fixture_path}: {e:?}")
                 });
             assert_eq!(

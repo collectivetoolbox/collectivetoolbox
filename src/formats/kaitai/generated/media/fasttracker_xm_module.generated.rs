@@ -65,7 +65,11 @@ impl KStruct for FasttrackerXmModule {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -77,26 +81,48 @@ impl KStruct for FasttrackerXmModule {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, FasttrackerXmModule_Preheader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, FasttrackerXmModule_Preheader>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.preheader.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_header = _io.read_bytes(usize::try_from((*self_rc.preheader().header_size()).saturating_sub(4_u32))?)?;
+        let _raw_header = _io.read_bytes(usize::try_from(
+            (*self_rc.preheader().header_size()).saturating_sub(4_u32),
+        )?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
-        let t = Self::read_into::<BytesReader, FasttrackerXmModule_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, FasttrackerXmModule_Header>(
+            &_io_header,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.patterns.borrow_mut() = Vec::new();
         let l_patterns = usize::from(*self_rc.header().num_patterns());
         for _i in 0_usize..l_patterns {
-            let t = Self::read_into::<_, FasttrackerXmModule_Pattern>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, FasttrackerXmModule_Pattern>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.patterns.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.instruments.borrow_mut() = Vec::new();
         let l_instruments = usize::from(*self_rc.header().num_instruments());
         for _i in 0_usize..l_instruments {
-            let t = Self::read_into::<_, FasttrackerXmModule_Instrument>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, FasttrackerXmModule_Instrument>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.instruments.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -104,8 +130,7 @@ impl KStruct for FasttrackerXmModule {
         Ok(())
     }
 }
-impl FasttrackerXmModule {
-}
+impl FasttrackerXmModule {}
 impl FasttrackerXmModule {
     pub fn preheader(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Preheader>> {
         self.preheader.borrow()
@@ -122,7 +147,9 @@ impl FasttrackerXmModule {
     }
 }
 impl FasttrackerXmModule {
-    pub fn instruments(&self) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument>>> {
+    pub fn instruments(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument>>> {
         self.instruments.borrow()
     }
 }
@@ -165,22 +192,34 @@ impl TryFrom<&&FasttrackerXmModule_Flags> for OptRc<FasttrackerXmModule_Flags> {
     }
 }
 impl DowncastOptRc<FasttrackerXmModule_Flags> for FasttrackerXmModule_Flags {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<FasttrackerXmModule_Flags> for &FasttrackerXmModule_Flags {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Flags> for OptRc<FasttrackerXmModule_Flags> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Flags>
+    for OptRc<FasttrackerXmModule_Flags>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Flags> for &OptRc<FasttrackerXmModule_Flags> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Flags>
+    for &OptRc<FasttrackerXmModule_Flags>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -188,7 +227,11 @@ impl KStruct for FasttrackerXmModule_Flags {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -208,8 +251,7 @@ impl KStruct for FasttrackerXmModule_Flags {
         Ok(())
     }
 }
-impl FasttrackerXmModule_Flags {
-}
+impl FasttrackerXmModule_Flags {}
 impl FasttrackerXmModule_Flags {
     pub fn reserved(&self) -> Ref<'_, u64> {
         self.reserved.borrow()
@@ -252,35 +294,51 @@ pub struct FasttrackerXmModule_Header {
     pattern_order_table: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&FasttrackerXmModule_Header> for OptRc<FasttrackerXmModule_Header> {
+impl TryFrom<&FasttrackerXmModule_Header>
+    for OptRc<FasttrackerXmModule_Header>
+{
     type Error = KError;
     fn try_from(v: &FasttrackerXmModule_Header) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Header> for OptRc<FasttrackerXmModule_Header> {
+impl TryFrom<&&FasttrackerXmModule_Header>
+    for OptRc<FasttrackerXmModule_Header>
+{
     type Error = KError;
     fn try_from(v: &&FasttrackerXmModule_Header) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<FasttrackerXmModule_Header> for FasttrackerXmModule_Header {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<FasttrackerXmModule_Header> for &FasttrackerXmModule_Header {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Header> for OptRc<FasttrackerXmModule_Header> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Header>
+    for OptRc<FasttrackerXmModule_Header>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Header> for &OptRc<FasttrackerXmModule_Header> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Header>
+    for &OptRc<FasttrackerXmModule_Header>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
         Ok((*self).clone())
     }
 }
@@ -288,7 +346,11 @@ impl KStruct for FasttrackerXmModule_Header {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -310,7 +372,12 @@ impl KStruct for FasttrackerXmModule_Header {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_instruments.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, FasttrackerXmModule_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, FasttrackerXmModule_Flags>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.default_tempo.borrow_mut() = _io.read_u2le()?;
@@ -320,15 +387,17 @@ impl KStruct for FasttrackerXmModule_Header {
         *self_rc.pattern_order_table.borrow_mut() = Vec::new();
         let l_pattern_order_table = 256_usize;
         for _i in 0_usize..l_pattern_order_table {
-            self_rc.pattern_order_table.borrow_mut().push(_io.read_u1()?);
+            self_rc
+                .pattern_order_table
+                .borrow_mut()
+                .push(_io.read_u1()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl FasttrackerXmModule_Header {
-}
+impl FasttrackerXmModule_Header {}
 
 /**
  * Song length (in pattern order table)
@@ -424,40 +493,65 @@ pub struct FasttrackerXmModule_Instrument {
     pub(crate) _self_shared: SharedType<Self>,
     header_size: RefCell<u32>,
     header: RefCell<OptRc<FasttrackerXmModule_Instrument_Header>>,
-    samples_headers: RefCell<Vec<OptRc<FasttrackerXmModule_Instrument_SampleHeader>>>,
+    samples_headers:
+        RefCell<Vec<OptRc<FasttrackerXmModule_Instrument_SampleHeader>>>,
     samples: RefCell<Vec<OptRc<FasttrackerXmModule_Instrument_SamplesData>>>,
     _io: RefCell<BytesReader>,
     header_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&FasttrackerXmModule_Instrument> for OptRc<FasttrackerXmModule_Instrument> {
+impl TryFrom<&FasttrackerXmModule_Instrument>
+    for OptRc<FasttrackerXmModule_Instrument>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Instrument) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Instrument,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Instrument> for OptRc<FasttrackerXmModule_Instrument> {
+impl TryFrom<&&FasttrackerXmModule_Instrument>
+    for OptRc<FasttrackerXmModule_Instrument>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Instrument) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Instrument,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument> for FasttrackerXmModule_Instrument {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument>
+    for FasttrackerXmModule_Instrument
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument> for &FasttrackerXmModule_Instrument {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument>
+    for &FasttrackerXmModule_Instrument
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument> for OptRc<FasttrackerXmModule_Instrument> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument>
+    for OptRc<FasttrackerXmModule_Instrument>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument> for &OptRc<FasttrackerXmModule_Instrument> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument>
+    for &OptRc<FasttrackerXmModule_Instrument>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
         Ok((*self).clone())
     }
 }
@@ -465,7 +559,11 @@ impl KStruct for FasttrackerXmModule_Instrument {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -479,24 +577,59 @@ impl KStruct for FasttrackerXmModule_Instrument {
         let _io = io;
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_header = _io.read_bytes(usize::try_from((*self_rc.header_size()).saturating_sub(4_u32))?)?;
+        let _raw_header = _io.read_bytes(usize::try_from(
+            (*self_rc.header_size()).saturating_sub(4_u32),
+        )?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
-        let t = Self::read_into::<BytesReader, FasttrackerXmModule_Instrument_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            FasttrackerXmModule_Instrument_Header,
+        >(
+            &_io_header,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.samples_headers.borrow_mut() = Vec::new();
         let l_samples_headers = usize::from(*self_rc.header().num_samples());
         for _i in 0_usize..l_samples_headers {
-            let t = Self::read_into::<_, FasttrackerXmModule_Instrument_SampleHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<
+                _,
+                FasttrackerXmModule_Instrument_SampleHeader,
+            >(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.samples_headers.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.samples.borrow_mut() = Vec::new();
         let l_samples = usize::from(*self_rc.header().num_samples());
         for _i in 0_usize..l_samples {
-            let f = |t : &mut FasttrackerXmModule_Instrument_SamplesData| Ok(t.set_params((self_rc.samples_headers().get(_i).ok_or(KError::CastError)?).clone()));
-            let t = Self::read_into_with_init::<_, FasttrackerXmModule_Instrument_SamplesData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+            let f = |t: &mut FasttrackerXmModule_Instrument_SamplesData| {
+                Ok(t.set_params(
+                    (self_rc
+                        .samples_headers()
+                        .get(_i)
+                        .ok_or(KError::CastError)?)
+                    .clone(),
+                ))
+            };
+            let t = Self::read_into_with_init::<
+                _,
+                FasttrackerXmModule_Instrument_SamplesData,
+            >(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+                &f,
+            )?
+            .into();
             self_rc.samples.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -504,8 +637,7 @@ impl KStruct for FasttrackerXmModule_Instrument {
         Ok(())
     }
 }
-impl FasttrackerXmModule_Instrument {
-}
+impl FasttrackerXmModule_Instrument {}
 
 /**
  * Instrument size << header that is >>
@@ -517,17 +649,23 @@ impl FasttrackerXmModule_Instrument {
     }
 }
 impl FasttrackerXmModule_Instrument {
-    pub fn header(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_Header>> {
+    pub fn header(
+        &self,
+    ) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_Header>> {
         self.header.borrow()
     }
 }
 impl FasttrackerXmModule_Instrument {
-    pub fn samples_headers(&self) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument_SampleHeader>>> {
+    pub fn samples_headers(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument_SampleHeader>>> {
         self.samples_headers.borrow()
     }
 }
 impl FasttrackerXmModule_Instrument {
-    pub fn samples(&self) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument_SamplesData>>> {
+    pub fn samples(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument_SamplesData>>> {
         self.samples.borrow()
     }
 }
@@ -555,8 +693,12 @@ pub struct FasttrackerXmModule_Instrument_ExtraHeader {
     pub(crate) _self_shared: SharedType<Self>,
     len_sample_header: RefCell<u32>,
     idx_sample_per_note: RefCell<Vec<u8>>,
-    volume_points: RefCell<Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>>,
-    panning_points: RefCell<Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>>,
+    volume_points: RefCell<
+        Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>,
+    >,
+    panning_points: RefCell<
+        Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>,
+    >,
     num_volume_points: RefCell<u8>,
     num_panning_points: RefCell<u8>,
     volume_sustain_point: RefCell<u8>,
@@ -575,35 +717,59 @@ pub struct FasttrackerXmModule_Instrument_ExtraHeader {
     reserved: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&FasttrackerXmModule_Instrument_ExtraHeader> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
+impl TryFrom<&FasttrackerXmModule_Instrument_ExtraHeader>
+    for OptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Instrument_ExtraHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Instrument_ExtraHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Instrument_ExtraHeader> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
+impl TryFrom<&&FasttrackerXmModule_Instrument_ExtraHeader>
+    for OptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Instrument_ExtraHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Instrument_ExtraHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for FasttrackerXmModule_Instrument_ExtraHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+    for FasttrackerXmModule_Instrument_ExtraHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for &FasttrackerXmModule_Instrument_ExtraHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+    for &FasttrackerXmModule_Instrument_ExtraHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+    for OptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for &OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+    for &OptRc<FasttrackerXmModule_Instrument_ExtraHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -611,7 +777,11 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -628,20 +798,39 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
         *self_rc.idx_sample_per_note.borrow_mut() = Vec::new();
         let l_idx_sample_per_note = 96_usize;
         for _i in 0_usize..l_idx_sample_per_note {
-            self_rc.idx_sample_per_note.borrow_mut().push(_io.read_u1()?);
+            self_rc
+                .idx_sample_per_note
+                .borrow_mut()
+                .push(_io.read_u1()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_points.borrow_mut() = Vec::new();
         let l_volume_points = 12_usize;
         for _i in 0_usize..l_volume_points {
-            let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<
+                _,
+                FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint,
+            >(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.volume_points.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning_points.borrow_mut() = Vec::new();
         let l_panning_points = 12_usize;
         for _i in 0_usize..l_panning_points {
-            let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<
+                _,
+                FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint,
+            >(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.panning_points.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -661,9 +850,11 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning_loop_end_point.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.volume_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.volume_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.panning_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.panning_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vibrato_type.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -681,8 +872,7 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
         Ok(())
     }
 }
-impl FasttrackerXmModule_Instrument_ExtraHeader {
-}
+impl FasttrackerXmModule_Instrument_ExtraHeader {}
 impl FasttrackerXmModule_Instrument_ExtraHeader {
     pub fn len_sample_header(&self) -> Ref<'_, u32> {
         self.len_sample_header.borrow()
@@ -704,7 +894,12 @@ impl FasttrackerXmModule_Instrument_ExtraHeader {
  * Points for volume envelope. Only `num_volume_points` will be actually used.
  */
 impl FasttrackerXmModule_Instrument_ExtraHeader {
-    pub fn volume_points(&self) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>> {
+    pub fn volume_points(
+        &self,
+    ) -> Ref<
+        '_,
+        Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>,
+    > {
         self.volume_points.borrow()
     }
 }
@@ -713,7 +908,12 @@ impl FasttrackerXmModule_Instrument_ExtraHeader {
  * Points for panning envelope. Only `num_panning_points` will be actually used.
  */
 impl FasttrackerXmModule_Instrument_ExtraHeader {
-    pub fn panning_points(&self) -> Ref<'_, Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>> {
+    pub fn panning_points(
+        &self,
+    ) -> Ref<
+        '_,
+        Vec<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>>,
+    > {
         self.panning_points.borrow()
     }
 }
@@ -758,12 +958,16 @@ impl FasttrackerXmModule_Instrument_ExtraHeader {
     }
 }
 impl FasttrackerXmModule_Instrument_ExtraHeader {
-    pub fn volume_type(&self) -> Ref<'_, FasttrackerXmModule_Instrument_ExtraHeader_Type> {
+    pub fn volume_type(
+        &self,
+    ) -> Ref<'_, FasttrackerXmModule_Instrument_ExtraHeader_Type> {
         self.volume_type.borrow()
     }
 }
 impl FasttrackerXmModule_Instrument_ExtraHeader {
-    pub fn panning_type(&self) -> Ref<'_, FasttrackerXmModule_Instrument_ExtraHeader_Type> {
+    pub fn panning_type(
+        &self,
+    ) -> Ref<'_, FasttrackerXmModule_Instrument_ExtraHeader_Type> {
         self.panning_type.borrow()
     }
 }
@@ -818,12 +1022,16 @@ pub enum FasttrackerXmModule_Instrument_ExtraHeader_Type {
 
 impl TryFrom<i64> for FasttrackerXmModule_Instrument_ExtraHeader_Type {
     type Error = KError;
-    fn try_from(flag: i64) -> KResult<FasttrackerXmModule_Instrument_ExtraHeader_Type> {
+    fn try_from(
+        flag: i64,
+    ) -> KResult<FasttrackerXmModule_Instrument_ExtraHeader_Type> {
         match flag {
             0 => Ok(FasttrackerXmModule_Instrument_ExtraHeader_Type::On),
             1 => Ok(FasttrackerXmModule_Instrument_ExtraHeader_Type::Sustain),
             2 => Ok(FasttrackerXmModule_Instrument_ExtraHeader_Type::Loop),
-            _ => Ok(FasttrackerXmModule_Instrument_ExtraHeader_Type::Unknown(flag)),
+            _ => Ok(FasttrackerXmModule_Instrument_ExtraHeader_Type::Unknown(
+                flag,
+            )),
         }
     }
 }
@@ -834,15 +1042,16 @@ impl From<&FasttrackerXmModule_Instrument_ExtraHeader_Type> for i64 {
             FasttrackerXmModule_Instrument_ExtraHeader_Type::On => 0,
             FasttrackerXmModule_Instrument_ExtraHeader_Type::Sustain => 1,
             FasttrackerXmModule_Instrument_ExtraHeader_Type::Loop => 2,
-            FasttrackerXmModule_Instrument_ExtraHeader_Type::Unknown(v) => v
+            FasttrackerXmModule_Instrument_ExtraHeader_Type::Unknown(v) => v,
         }
     }
 }
 
 impl Default for FasttrackerXmModule_Instrument_ExtraHeader_Type {
-    fn default() -> Self { FasttrackerXmModule_Instrument_ExtraHeader_Type::Unknown(0) }
+    fn default() -> Self {
+        FasttrackerXmModule_Instrument_ExtraHeader_Type::Unknown(0)
+    }
 }
-
 
 /**
  * Envelope frame-counters work in range 0..FFFFh (0..65535 dec).
@@ -862,35 +1071,71 @@ pub struct FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
     y: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
+impl TryFrom<&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+    for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
+impl TryFrom<&&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+    for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+    for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>,
+        KError,
+    > {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for &FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+    for &FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>,
+        KError,
+    > {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+    for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>,
+        KError,
+    > {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for &OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+    for &OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>,
+        KError,
+    > {
         Ok((*self).clone())
     }
 }
@@ -898,7 +1143,11 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument_ExtraHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -918,8 +1167,7 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
         Ok(())
     }
 }
-impl FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
-}
+impl FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {}
 
 /**
  * Frame number of the point
@@ -962,35 +1210,59 @@ pub struct FasttrackerXmModule_Instrument_Header {
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&FasttrackerXmModule_Instrument_Header> for OptRc<FasttrackerXmModule_Instrument_Header> {
+impl TryFrom<&FasttrackerXmModule_Instrument_Header>
+    for OptRc<FasttrackerXmModule_Instrument_Header>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Instrument_Header) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Instrument_Header,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Instrument_Header> for OptRc<FasttrackerXmModule_Instrument_Header> {
+impl TryFrom<&&FasttrackerXmModule_Instrument_Header>
+    for OptRc<FasttrackerXmModule_Instrument_Header>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Instrument_Header) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Instrument_Header,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for FasttrackerXmModule_Instrument_Header {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header>
+    for FasttrackerXmModule_Instrument_Header
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for &FasttrackerXmModule_Instrument_Header {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header>
+    for &FasttrackerXmModule_Instrument_Header
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for OptRc<FasttrackerXmModule_Instrument_Header> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header>
+    for OptRc<FasttrackerXmModule_Instrument_Header>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for &OptRc<FasttrackerXmModule_Instrument_Header> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header>
+    for &OptRc<FasttrackerXmModule_Instrument_Header>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
         Ok((*self).clone())
     }
 }
@@ -998,7 +1270,11 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1010,7 +1286,15 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(22_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(22_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "utf-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1018,7 +1302,15 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.num_samples())) > (to_i128(0))) {
-            let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<
+                _,
+                FasttrackerXmModule_Instrument_ExtraHeader,
+            >(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             *self_rc.extra_header.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1026,8 +1318,7 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
         Ok(())
     }
 }
-impl FasttrackerXmModule_Instrument_Header {
-}
+impl FasttrackerXmModule_Instrument_Header {}
 impl FasttrackerXmModule_Instrument_Header {
     pub fn name(&self) -> Ref<'_, String> {
         self.name.borrow()
@@ -1048,7 +1339,9 @@ impl FasttrackerXmModule_Instrument_Header {
     }
 }
 impl FasttrackerXmModule_Instrument_Header {
-    pub fn extra_header(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_ExtraHeader>> {
+    pub fn extra_header(
+        &self,
+    ) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_ExtraHeader>> {
         self.extra_header.borrow()
     }
 }
@@ -1079,7 +1372,8 @@ pub struct FasttrackerXmModule_Instrument_SampleHeader {
     sample_loop_length: RefCell<u32>,
     volume: RefCell<u8>,
     fine_tune: RefCell<i8>,
-    r#type: RefCell<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>>,
+    r#type:
+        RefCell<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>>,
     panning: RefCell<u8>,
     relative_note_number: RefCell<i8>,
     reserved: RefCell<u8>,
@@ -1087,35 +1381,63 @@ pub struct FasttrackerXmModule_Instrument_SampleHeader {
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&FasttrackerXmModule_Instrument_SampleHeader> for OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
+impl TryFrom<&FasttrackerXmModule_Instrument_SampleHeader>
+    for OptRc<FasttrackerXmModule_Instrument_SampleHeader>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Instrument_SampleHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Instrument_SampleHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Instrument_SampleHeader> for OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
+impl TryFrom<&&FasttrackerXmModule_Instrument_SampleHeader>
+    for OptRc<FasttrackerXmModule_Instrument_SampleHeader>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Instrument_SampleHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Instrument_SampleHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for FasttrackerXmModule_Instrument_SampleHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader>
+    for FasttrackerXmModule_Instrument_SampleHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError>
+    {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for &FasttrackerXmModule_Instrument_SampleHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader>
+    for &FasttrackerXmModule_Instrument_SampleHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError>
+    {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader>
+    for OptRc<FasttrackerXmModule_Instrument_SampleHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError>
+    {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for &OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader>
+    for &OptRc<FasttrackerXmModule_Instrument_SampleHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError>
+    {
         Ok((*self).clone())
     }
 }
@@ -1123,7 +1445,11 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1145,7 +1471,15 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fine_tune.borrow_mut() = _io.read_s1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, FasttrackerXmModule_Instrument_SampleHeader_LoopType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            _,
+            FasttrackerXmModule_Instrument_SampleHeader_LoopType,
+        >(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.r#type.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning.borrow_mut() = _io.read_u1()?;
@@ -1154,14 +1488,21 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(22_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(22_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "utf-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl FasttrackerXmModule_Instrument_SampleHeader {
-}
+impl FasttrackerXmModule_Instrument_SampleHeader {}
 impl FasttrackerXmModule_Instrument_SampleHeader {
     pub fn sample_length(&self) -> Ref<'_, u32> {
         self.sample_length.borrow()
@@ -1192,7 +1533,10 @@ impl FasttrackerXmModule_Instrument_SampleHeader {
     }
 }
 impl FasttrackerXmModule_Instrument_SampleHeader {
-    pub fn r#type(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>> {
+    pub fn r#type(
+        &self,
+    ) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>>
+    {
         self.r#type.borrow()
     }
 }
@@ -1245,38 +1589,75 @@ pub struct FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     reserved0: RefCell<u64>,
     is_sample_data_16_bit: RefCell<bool>,
     reserved1: RefCell<u64>,
-    loop_type: RefCell<FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType>,
+    loop_type:
+        RefCell<FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&FasttrackerXmModule_Instrument_SampleHeader_LoopType> for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
+impl TryFrom<&FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+    for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Instrument_SampleHeader_LoopType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Instrument_SampleHeader_LoopType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Instrument_SampleHeader_LoopType> for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
+impl TryFrom<&&FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+    for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Instrument_SampleHeader_LoopType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Instrument_SampleHeader_LoopType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+    for FasttrackerXmModule_Instrument_SampleHeader_LoopType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>,
+        KError,
+    > {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for &FasttrackerXmModule_Instrument_SampleHeader_LoopType {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+    for &FasttrackerXmModule_Instrument_SampleHeader_LoopType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>,
+        KError,
+    > {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+    for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>,
+        KError,
+    > {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for &OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+    for &OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<
+        OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>,
+        KError,
+    > {
         Ok((*self).clone())
     }
 }
@@ -1284,7 +1665,11 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument_SampleHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1298,18 +1683,20 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
         let _io = io;
         *self_rc.reserved0.borrow_mut() = _io.read_bits_int_be(3)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.is_sample_data_16_bit.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.is_sample_data_16_bit.borrow_mut() =
+            _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(2)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.loop_type.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
+        *self_rc.loop_type.borrow_mut() =
+            i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes())
+                .try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl FasttrackerXmModule_Instrument_SampleHeader_LoopType {
-}
+impl FasttrackerXmModule_Instrument_SampleHeader_LoopType {}
 impl FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     pub fn reserved0(&self) -> Ref<'_, u64> {
         self.reserved0.borrow()
@@ -1326,7 +1713,10 @@ impl FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     }
 }
 impl FasttrackerXmModule_Instrument_SampleHeader_LoopType {
-    pub fn loop_type(&self) -> Ref<'_, FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType> {
+    pub fn loop_type(
+        &self,
+    ) -> Ref<'_, FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType>
+    {
         self.loop_type.borrow()
     }
 }
@@ -1349,9 +1739,14 @@ pub enum FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType {
     Unknown(i64),
 }
 
-impl TryFrom<i64> for FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType {
+impl TryFrom<i64>
+    for FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType
+{
     type Error = KError;
-    fn try_from(flag: i64) -> KResult<FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType> {
+    fn try_from(
+        flag: i64,
+    ) -> KResult<FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType>
+    {
         match flag {
             0 => Ok(FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType::None),
             1 => Ok(FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType::Forward),
@@ -1361,8 +1756,12 @@ impl TryFrom<i64> for FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopT
     }
 }
 
-impl From<&FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType> for i64 {
-    fn from(v: &FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType) -> Self {
+impl From<&FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType>
+    for i64
+{
+    fn from(
+        v: &FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType,
+    ) -> Self {
         match *v {
             FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType::None => 0,
             FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType::Forward => 1,
@@ -1373,9 +1772,12 @@ impl From<&FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType> for i6
 }
 
 impl Default for FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType {
-    fn default() -> Self { FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType::Unknown(0) }
+    fn default() -> Self {
+        FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType::Unknown(
+            0,
+        )
+    }
 }
-
 
 /**
  * The saved data uses simple delta-encoding to achieve better compression ratios (when compressed with pkzip, etc.)
@@ -1397,35 +1799,59 @@ pub struct FasttrackerXmModule_Instrument_SamplesData {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&FasttrackerXmModule_Instrument_SamplesData> for OptRc<FasttrackerXmModule_Instrument_SamplesData> {
+impl TryFrom<&FasttrackerXmModule_Instrument_SamplesData>
+    for OptRc<FasttrackerXmModule_Instrument_SamplesData>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Instrument_SamplesData) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Instrument_SamplesData,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Instrument_SamplesData> for OptRc<FasttrackerXmModule_Instrument_SamplesData> {
+impl TryFrom<&&FasttrackerXmModule_Instrument_SamplesData>
+    for OptRc<FasttrackerXmModule_Instrument_SamplesData>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Instrument_SamplesData) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Instrument_SamplesData,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for FasttrackerXmModule_Instrument_SamplesData {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData>
+    for FasttrackerXmModule_Instrument_SamplesData
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for &FasttrackerXmModule_Instrument_SamplesData {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData>
+    for &FasttrackerXmModule_Instrument_SamplesData
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for OptRc<FasttrackerXmModule_Instrument_SamplesData> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData>
+    for OptRc<FasttrackerXmModule_Instrument_SamplesData>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for &OptRc<FasttrackerXmModule_Instrument_SamplesData> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData>
+    for &OptRc<FasttrackerXmModule_Instrument_SamplesData>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1433,7 +1859,11 @@ impl KStruct for FasttrackerXmModule_Instrument_SamplesData {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1445,24 +1875,36 @@ impl KStruct for FasttrackerXmModule_Instrument_SamplesData {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.header().sample_length()).saturating_mul(u32::try_from(if *self_rc.header().r#type().is_sample_data_16_bit() { 2_i32 } else { 1_i32 })?))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(
+            (*self_rc.header().sample_length()).saturating_mul(u32::try_from(
+                if *self_rc.header().r#type().is_sample_data_16_bit() {
+                    2_i32
+                } else {
+                    1_i32
+                },
+            )?),
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl FasttrackerXmModule_Instrument_SamplesData {
-    pub fn header(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_SampleHeader>> {
+    pub fn header(
+        &self,
+    ) -> Ref<'_, OptRc<FasttrackerXmModule_Instrument_SampleHeader>> {
         self.header.borrow()
     }
 }
 impl FasttrackerXmModule_Instrument_SamplesData {
-    pub fn set_params(&mut self, header: OptRc<FasttrackerXmModule_Instrument_SampleHeader>) {
+    pub fn set_params(
+        &mut self,
+        header: OptRc<FasttrackerXmModule_Instrument_SampleHeader>,
+    ) {
         *self.header.borrow_mut() = header;
     }
 }
-impl FasttrackerXmModule_Instrument_SamplesData {
-}
+impl FasttrackerXmModule_Instrument_SamplesData {}
 impl FasttrackerXmModule_Instrument_SamplesData {
     pub fn data(&self) -> Ref<'_, Vec<u8>> {
         self.data.borrow()
@@ -1495,35 +1937,55 @@ pub struct FasttrackerXmModule_Pattern {
     _io: RefCell<BytesReader>,
     packed_data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&FasttrackerXmModule_Pattern> for OptRc<FasttrackerXmModule_Pattern> {
+impl TryFrom<&FasttrackerXmModule_Pattern>
+    for OptRc<FasttrackerXmModule_Pattern>
+{
     type Error = KError;
     fn try_from(v: &FasttrackerXmModule_Pattern) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Pattern> for OptRc<FasttrackerXmModule_Pattern> {
+impl TryFrom<&&FasttrackerXmModule_Pattern>
+    for OptRc<FasttrackerXmModule_Pattern>
+{
     type Error = KError;
     fn try_from(v: &&FasttrackerXmModule_Pattern) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern> for FasttrackerXmModule_Pattern {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern>
+    for FasttrackerXmModule_Pattern
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern> for &FasttrackerXmModule_Pattern {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern>
+    for &FasttrackerXmModule_Pattern
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern> for OptRc<FasttrackerXmModule_Pattern> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern>
+    for OptRc<FasttrackerXmModule_Pattern>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern> for &OptRc<FasttrackerXmModule_Pattern> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern>
+    for &OptRc<FasttrackerXmModule_Pattern>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1531,7 +1993,11 @@ impl KStruct for FasttrackerXmModule_Pattern {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1543,17 +2009,23 @@ impl KStruct for FasttrackerXmModule_Pattern {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, FasttrackerXmModule_Pattern_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, FasttrackerXmModule_Pattern_Header>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.packed_data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.header().main().len_packed_pattern()))?;
+        *self_rc.packed_data.borrow_mut() = _io.read_bytes(usize::from(
+            *self_rc.header().main().len_packed_pattern(),
+        ))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl FasttrackerXmModule_Pattern {
-}
+impl FasttrackerXmModule_Pattern {}
 impl FasttrackerXmModule_Pattern {
     pub fn header(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Pattern_Header>> {
         self.header.borrow()
@@ -1591,35 +2063,59 @@ pub struct FasttrackerXmModule_Pattern_Header {
     _io: RefCell<BytesReader>,
     main_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&FasttrackerXmModule_Pattern_Header> for OptRc<FasttrackerXmModule_Pattern_Header> {
+impl TryFrom<&FasttrackerXmModule_Pattern_Header>
+    for OptRc<FasttrackerXmModule_Pattern_Header>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Pattern_Header) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Pattern_Header,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Pattern_Header> for OptRc<FasttrackerXmModule_Pattern_Header> {
+impl TryFrom<&&FasttrackerXmModule_Pattern_Header>
+    for OptRc<FasttrackerXmModule_Pattern_Header>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Pattern_Header) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Pattern_Header,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for FasttrackerXmModule_Pattern_Header {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header>
+    for FasttrackerXmModule_Pattern_Header
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for &FasttrackerXmModule_Pattern_Header {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header>
+    for &FasttrackerXmModule_Pattern_Header
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for OptRc<FasttrackerXmModule_Pattern_Header> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header>
+    for OptRc<FasttrackerXmModule_Pattern_Header>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for &OptRc<FasttrackerXmModule_Pattern_Header> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header>
+    for &OptRc<FasttrackerXmModule_Pattern_Header>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1627,7 +2123,11 @@ impl KStruct for FasttrackerXmModule_Pattern_Header {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Pattern;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1641,18 +2141,27 @@ impl KStruct for FasttrackerXmModule_Pattern_Header {
         let _io = io;
         *self_rc.header_length.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_main = _io.read_bytes(usize::try_from((*self_rc.header_length()).saturating_sub(4_u32))?)?;
+        let _raw_main = _io.read_bytes(usize::try_from(
+            (*self_rc.header_length()).saturating_sub(4_u32),
+        )?)?;
         *self_rc.main_raw.borrow_mut() = _raw_main.clone();
         let _io_main = BytesReader::from(_raw_main);
-        let t = Self::read_into::<BytesReader, FasttrackerXmModule_Pattern_Header_HeaderMain>(&_io_main, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            FasttrackerXmModule_Pattern_Header_HeaderMain,
+        >(
+            &_io_main,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.main.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl FasttrackerXmModule_Pattern_Header {
-}
+impl FasttrackerXmModule_Pattern_Header {}
 
 /**
  * Pattern header length
@@ -1663,7 +2172,9 @@ impl FasttrackerXmModule_Pattern_Header {
     }
 }
 impl FasttrackerXmModule_Pattern_Header {
-    pub fn main(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>> {
+    pub fn main(
+        &self,
+    ) -> Ref<'_, OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>> {
         self.main.borrow()
     }
 }
@@ -1690,7 +2201,9 @@ pub struct FasttrackerXmModule_Pattern_Header_HeaderMain {
     pub(crate) _parent: SharedType<FasttrackerXmModule_Pattern_Header>,
     pub(crate) _self_shared: SharedType<Self>,
     packing_type: RefCell<u8>,
-    num_rows_raw: RefCell<Option<FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>>,
+    num_rows_raw: RefCell<
+        Option<FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>,
+    >,
     len_packed_pattern: RefCell<u16>,
     _io: RefCell<BytesReader>,
     f_num_rows: Cell<bool>,
@@ -1711,85 +2224,163 @@ impl From<u16> for FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw {
         Self::U2(v)
     }
 }
-impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for i64 {
+impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>
+    for i64
+{
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
-    fn try_from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Result<Self, Self::Error> {
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
+    fn try_from(
+        e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw,
+    ) -> Result<Self, Self::Error> {
         match e {
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => Ok(i64::try_from(*v)?),
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => Ok(i64::try_from(*v)?),
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => {
+                Ok(i64::try_from(*v)?)
+            }
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => {
+                Ok(i64::try_from(*v)?)
+            }
         }
     }
 }
-impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for u16 {
+impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>
+    for u16
+{
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
-    fn try_from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Result<Self, Self::Error> {
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
+    fn try_from(
+        e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw,
+    ) -> Result<Self, Self::Error> {
         match e {
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => Ok(u16::try_from(*v)?),
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => Ok(u16::try_from(*v)?),
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => {
+                Ok(u16::try_from(*v)?)
+            }
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => {
+                Ok(u16::try_from(*v)?)
+            }
         }
     }
 }
-impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for u64 {
+impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>
+    for u64
+{
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
-    fn try_from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Result<Self, Self::Error> {
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
+    fn try_from(
+        e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw,
+    ) -> Result<Self, Self::Error> {
         match e {
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => Ok(u64::try_from(*v)?),
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => Ok(u64::try_from(*v)?),
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => {
+                Ok(u64::try_from(*v)?)
+            }
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => {
+                Ok(u64::try_from(*v)?)
+            }
         }
     }
 }
 impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for u8 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
-    fn try_from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Result<Self, Self::Error> {
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
+    fn try_from(
+        e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw,
+    ) -> Result<Self, Self::Error> {
         match e {
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => Ok(u8::try_from(*v)?),
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => Ok(u8::try_from(*v)?),
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => {
+                Ok(u8::try_from(*v)?)
+            }
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => {
+                Ok(u8::try_from(*v)?)
+            }
         }
     }
 }
-impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for usize {
+impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>
+    for usize
+{
     type Error = KError;
-    fn try_from(e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw) -> Result<Self, Self::Error> {
+    fn try_from(
+        e: &FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw,
+    ) -> Result<Self, Self::Error> {
         match e {
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => Ok(usize::from(*v)),
-            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => Ok(usize::from(*v)),
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U1(v) => {
+                Ok(usize::from(*v))
+            }
+            FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw::U2(v) => {
+                Ok(usize::from(*v))
+            }
         }
     }
 }
 
-impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain> for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
+impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain>
+    for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Pattern_Header_HeaderMain) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Pattern_Header_HeaderMain,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Pattern_Header_HeaderMain> for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
+impl TryFrom<&&FasttrackerXmModule_Pattern_Header_HeaderMain>
+    for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Pattern_Header_HeaderMain) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Pattern_Header_HeaderMain,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for FasttrackerXmModule_Pattern_Header_HeaderMain {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+    for FasttrackerXmModule_Pattern_Header_HeaderMain
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError>
+    {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for &FasttrackerXmModule_Pattern_Header_HeaderMain {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+    for &FasttrackerXmModule_Pattern_Header_HeaderMain
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError>
+    {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+    for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError>
+    {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for &OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+    for &OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError>
+    {
         Ok((*self).clone())
     }
 }
@@ -1797,7 +2388,11 @@ impl KStruct for FasttrackerXmModule_Pattern_Header_HeaderMain {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Pattern_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1811,12 +2406,24 @@ impl KStruct for FasttrackerXmModule_Pattern_Header_HeaderMain {
         let _io = io;
         *self_rc.packing_type.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.preheader().version_number().value()? {
+        match *self_rc
+            ._root
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingRoot)?
+            .preheader()
+            .version_number()
+            .value()?
+        {
             258 => {
-                *self_rc.num_rows_raw.borrow_mut() = Some(_io.read_u1()?.into());
+                *self_rc.num_rows_raw.borrow_mut() =
+                    Some(_io.read_u1()?.into());
             }
             _ => {
-                *self_rc.num_rows_raw.borrow_mut() = Some(_io.read_u2le()?.into());
+                *self_rc.num_rows_raw.borrow_mut() =
+                    Some(_io.read_u2le()?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1827,16 +2434,37 @@ impl KStruct for FasttrackerXmModule_Pattern_Header_HeaderMain {
     }
 }
 impl FasttrackerXmModule_Pattern_Header_HeaderMain {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn num_rows(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn num_rows(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_num_rows.get() {
             return Ok(self.num_rows.borrow());
         }
         self.f_num_rows.set(true);
-        *self.num_rows.borrow_mut() = ((i32::from(self.num_rows_raw())).saturating_add(if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.preheader().version_number().value()? == 258 { 1_i32 } else { 0_i32 })).try_into()?;
+        *self.num_rows.borrow_mut() = ((i32::from(self.num_rows_raw()))
+            .saturating_add(
+                if *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .preheader()
+                    .version_number()
+                    .value()?
+                    == 258
+                {
+                    1_i32
+                } else {
+                    0_i32
+                },
+            ))
+        .try_into()?;
         Ok(self.num_rows.borrow())
     }
 }
@@ -1856,9 +2484,16 @@ impl FasttrackerXmModule_Pattern_Header_HeaderMain {
 impl FasttrackerXmModule_Pattern_Header_HeaderMain {
     pub fn num_rows_raw(&self) -> u8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.num_rows_raw.borrow().as_ref().and_then(|v| u8::try_from(v).ok()).unwrap_or(0)
+        self.num_rows_raw
+            .borrow()
+            .as_ref()
+            .and_then(|v| u8::try_from(v).ok())
+            .unwrap_or(0)
     }
-    pub fn num_rows_raw_enum(&self) -> Ref<'_, Option<FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>> {
+    pub fn num_rows_raw_enum(
+        &self,
+    ) -> Ref<'_, Option<FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>>
+    {
         self.num_rows_raw.borrow()
     }
 }
@@ -1898,35 +2533,59 @@ pub struct FasttrackerXmModule_Preheader {
     module_name_raw: RefCell<Vec<u8>>,
     tracker_name_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&FasttrackerXmModule_Preheader> for OptRc<FasttrackerXmModule_Preheader> {
+impl TryFrom<&FasttrackerXmModule_Preheader>
+    for OptRc<FasttrackerXmModule_Preheader>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Preheader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Preheader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Preheader> for OptRc<FasttrackerXmModule_Preheader> {
+impl TryFrom<&&FasttrackerXmModule_Preheader>
+    for OptRc<FasttrackerXmModule_Preheader>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Preheader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Preheader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader> for FasttrackerXmModule_Preheader {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader>
+    for FasttrackerXmModule_Preheader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader> for &FasttrackerXmModule_Preheader {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader>
+    for &FasttrackerXmModule_Preheader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader> for OptRc<FasttrackerXmModule_Preheader> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader>
+    for OptRc<FasttrackerXmModule_Preheader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader> for &OptRc<FasttrackerXmModule_Preheader> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader>
+    for &OptRc<FasttrackerXmModule_Preheader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1934,7 +2593,11 @@ impl KStruct for FasttrackerXmModule_Preheader {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1947,20 +2610,53 @@ impl KStruct for FasttrackerXmModule_Preheader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.signature0.borrow_mut() = _io.read_bytes(17_usize)?;
-        if !(*self_rc.signature0() == vec![0x45u8, 0x78u8, 0x74u8, 0x65u8, 0x6eu8, 0x64u8, 0x65u8, 0x64u8, 0x20u8, 0x4du8, 0x6fu8, 0x64u8, 0x75u8, 0x6cu8, 0x65u8, 0x3au8, 0x20u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/preheader/seq/0".to_string() }));
+        if !(*self_rc.signature0()
+            == vec![
+                0x45u8, 0x78u8, 0x74u8, 0x65u8, 0x6eu8, 0x64u8, 0x65u8, 0x64u8,
+                0x20u8, 0x4du8, 0x6fu8, 0x64u8, 0x75u8, 0x6cu8, 0x65u8, 0x3au8,
+                0x20u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/preheader/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.module_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc.module_name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(20_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "utf-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signature1.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.signature1() == vec![0x1au8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/preheader/seq/2".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/preheader/seq/2".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.tracker_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc.tracker_name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(20_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "utf-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, FasttrackerXmModule_Preheader_Version>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, FasttrackerXmModule_Preheader_Version>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.version_number.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
@@ -1969,8 +2665,7 @@ impl KStruct for FasttrackerXmModule_Preheader {
         Ok(())
     }
 }
-impl FasttrackerXmModule_Preheader {
-}
+impl FasttrackerXmModule_Preheader {}
 impl FasttrackerXmModule_Preheader {
     pub fn signature0(&self) -> Ref<'_, Vec<u8>> {
         self.signature0.borrow()
@@ -2004,7 +2699,9 @@ impl FasttrackerXmModule_Preheader {
  * Format versions below [0x01, 0x04] have a LOT of differences. Check this field!
  */
 impl FasttrackerXmModule_Preheader {
-    pub fn version_number(&self) -> Ref<'_, OptRc<FasttrackerXmModule_Preheader_Version>> {
+    pub fn version_number(
+        &self,
+    ) -> Ref<'_, OptRc<FasttrackerXmModule_Preheader_Version>> {
         self.version_number.borrow()
     }
 }
@@ -2050,35 +2747,59 @@ pub struct FasttrackerXmModule_Preheader_Version {
     f_value: Cell<bool>,
     value: RefCell<i32>,
 }
-impl TryFrom<&FasttrackerXmModule_Preheader_Version> for OptRc<FasttrackerXmModule_Preheader_Version> {
+impl TryFrom<&FasttrackerXmModule_Preheader_Version>
+    for OptRc<FasttrackerXmModule_Preheader_Version>
+{
     type Error = KError;
-    fn try_from(v: &FasttrackerXmModule_Preheader_Version) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &FasttrackerXmModule_Preheader_Version,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&FasttrackerXmModule_Preheader_Version> for OptRc<FasttrackerXmModule_Preheader_Version> {
+impl TryFrom<&&FasttrackerXmModule_Preheader_Version>
+    for OptRc<FasttrackerXmModule_Preheader_Version>
+{
     type Error = KError;
-    fn try_from(v: &&FasttrackerXmModule_Preheader_Version) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&FasttrackerXmModule_Preheader_Version,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for FasttrackerXmModule_Preheader_Version {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version>
+    for FasttrackerXmModule_Preheader_Version
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for &FasttrackerXmModule_Preheader_Version {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version>
+    for &FasttrackerXmModule_Preheader_Version
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for OptRc<FasttrackerXmModule_Preheader_Version> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version>
+    for OptRc<FasttrackerXmModule_Preheader_Version>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for &OptRc<FasttrackerXmModule_Preheader_Version> {
-    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version>
+    for &OptRc<FasttrackerXmModule_Preheader_Version>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2086,7 +2807,11 @@ impl KStruct for FasttrackerXmModule_Preheader_Version {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Preheader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2107,16 +2832,21 @@ impl KStruct for FasttrackerXmModule_Preheader_Version {
     }
 }
 impl FasttrackerXmModule_Preheader_Version {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn value(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn value(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((((i32::from(*self.major())).wrapping_shl(8_u32)) | (i32::from(*self.minor())))).try_into()?;
+        *self.value.borrow_mut() = (((i32::from(*self.major()))
+            .wrapping_shl(8_u32))
+            | (i32::from(*self.minor())))
+        .try_into()?;
         Ok(self.value.borrow())
     }
 }

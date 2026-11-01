@@ -274,7 +274,9 @@ pub fn decode_dc64_to_bytes(
         if let Some(ch) = short_dc_to_base64_char(dc) {
             b64_str.push(ch);
         } else {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             bail!("This document is not stored using the specified format.");
         }
     }
@@ -362,13 +364,17 @@ const fn encode_short_dc_in_version(
         16 => Some((DceSheet::Core, 0x01)),
         17 => Some((DceSheet::Core, 0xFF)),
         18..=49 => {
-            let [low, _, _, _] =
-                short_dc.saturating_sub(18).saturating_add(0x20).to_le_bytes();
+            let [low, _, _, _] = short_dc
+                .saturating_sub(18)
+                .saturating_add(0x20)
+                .to_le_bytes();
             Some((DceSheet::Core, low))
         }
         50..=111 => {
-            let [low, _, _, _] =
-                short_dc.saturating_sub(50).saturating_add(0x41).to_le_bytes();
+            let [low, _, _, _] = short_dc
+                .saturating_sub(50)
+                .saturating_add(0x41)
+                .to_le_bytes();
             Some((DceSheet::Core, low))
         }
         112 => Some((DceSheet::DceVersionSelectors, 0x01)),
@@ -386,8 +392,10 @@ const fn encode_short_dc_in_version(
             Some((DceSheet::VariantSelectors, low))
         }
         127..=190 => {
-            let [low, _, _, _] =
-                short_dc.saturating_sub(127).saturating_add(0x82).to_le_bytes();
+            let [low, _, _, _] = short_dc
+                .saturating_sub(127)
+                .saturating_add(0x82)
+                .to_le_bytes();
             Some((DceSheet::Core, low))
         }
         191 => Some((DceSheet::Core, 0xC3)),
@@ -602,16 +610,24 @@ pub fn decode_dce_preserving_controls(
                 0x08 if ver >= DceVersion::V3_01a => out.push(120),
                 0x09 if ver >= DceVersion::V3_01a => out.push(121),
                 0x20..=0x3F => {
-                    out.push(u32::from(byte).saturating_sub(0x20).saturating_add(18));
+                    out.push(
+                        u32::from(byte).saturating_sub(0x20).saturating_add(18),
+                    );
                 }
                 0x40 => out.push(1),
                 0x41..=0x7E => {
-                    out.push(u32::from(byte).saturating_sub(0x41).saturating_add(50));
+                    out.push(
+                        u32::from(byte).saturating_sub(0x41).saturating_add(50),
+                    );
                 }
                 0x80 => out.push(114),
                 0x81 => out.push(115),
                 0x82..=0xC1 if ver >= DceVersion::V3_01a => {
-                    out.push(u32::from(byte).saturating_sub(0x82).saturating_add(127));
+                    out.push(
+                        u32::from(byte)
+                            .saturating_sub(0x82)
+                            .saturating_add(127),
+                    );
                 }
                 0xC2 if ver >= DceVersion::V3_01a => out.push(195),
                 0xC3 if ver >= DceVersion::V3_01a => out.push(191),
@@ -960,7 +976,8 @@ fn encode_short_dcs_into_stream(
             _ => {}
         }
 
-        if let Some((sheet_needed, byte)) = encode_short_dc_in_version(dc, ver) {
+        if let Some((sheet_needed, byte)) = encode_short_dc_in_version(dc, ver)
+        {
             if sheet_needed != *state {
                 if *state != DceSheet::Core {
                     raw_out.push(0xFD);
@@ -1017,7 +1034,9 @@ pub(crate) fn dce_convert_internal(
     output_format: &str,
     log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    if input_format == output_format && !matches!(input_format, "dc" | "dc_id_list") {
+    if input_format == output_format
+        && !matches!(input_format, "dc" | "dc_id_list")
+    {
         return Ok(data.to_vec());
     }
 
@@ -1074,15 +1093,20 @@ pub(crate) fn dce_convert_internal(
         | "dce_3_0a_raw" | "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex"
         | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
         | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
-        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw"
-        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a"
-        | "3_02a_raw" | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex"
-        | "dce_3_02a_hex" | "hex_3_02a_raw" | "3_02a_raw_hex"
-        | "dce_3_02a_raw_hex" => {
+        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw" | "3_01a_raw_hex"
+        | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
+        | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
+        | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
             let dcs = decode_dce_content_short_dcs(data, input_format, log)?;
             join_short_dcs(&dcs)
         }
-        "cdce" => convert_cdce_to_dc_str(data, false, false, target_supports_b64, log)?,
+        "cdce" => convert_cdce_to_dc_str(
+            data,
+            false,
+            false,
+            target_supports_b64,
+            log,
+        )?,
         "legacy_cdce" | "cdce_legacy" => {
             convert_cdce_to_dc_str(data, true, false, false, log)?
         }
@@ -1095,17 +1119,17 @@ pub(crate) fn dce_convert_internal(
         }
         "utf8" => convert_utf8_to_dc_str(data, target_supports_b64, log)?,
         "utf32" => {
-            let utf8_bytes =
-                ctb_formats_encoding::unicode::utf32be_to_utf8(data).map_err(
-                    |_| {
-                        log.error(
-                            "This document is not stored using the specified format.",
-                        );
-                        anyhow!(
-                            "This document is not stored using the specified format."
-                        )
-                    },
-                )?;
+            let utf8_bytes = ctb_formats_encoding::unicode::utf32be_to_utf8(
+                data,
+            )
+            .map_err(|_| {
+                log.error(
+                    "This document is not stored using the specified format.",
+                );
+                anyhow!(
+                    "This document is not stored using the specified format."
+                )
+            })?;
             if utf8_bytes.is_empty() {
                 log.error(
                     "This document is not stored using the specified format.",
@@ -1197,11 +1221,10 @@ pub(crate) fn dce_convert_internal(
         | "dce_3_0a_raw" | "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex"
         | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
         | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
-        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw"
-        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a"
-        | "3_02a_raw" | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex"
-        | "dce_3_02a_hex" | "hex_3_02a_raw" | "3_02a_raw_hex"
-        | "dce_3_02a_raw_hex" => {
+        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw" | "3_01a_raw_hex"
+        | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
+        | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
+        | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
             let dcs = parse_dc_csv_list(&dc_cleaned, log)?;
             encode_dce_preserving_controls(&dcs, output_format, log)
         }
@@ -1335,13 +1358,12 @@ fn convert_cdce_to_dc_str(
     let mut unmapped_utf8_buf = String::new();
     let mut i = 0_usize;
 
-    let flush_unmapped =
-        |buf: &mut String, out: &mut Vec<u32>| {
-            if !buf.is_empty() {
-                out.extend(encode_utf8_to_dc64_encapsulated(buf.as_bytes()));
-                buf.clear();
-            }
-        };
+    let flush_unmapped = |buf: &mut String, out: &mut Vec<u32>| {
+        if !buf.is_empty() {
+            out.extend(encode_utf8_to_dc64_encapsulated(buf.as_bytes()));
+            buf.clear();
+        }
+    };
 
     while i < codepoints.len() {
         let cp = *codepoints
@@ -1361,11 +1383,12 @@ fn convert_cdce_to_dc_str(
                     "CDCE decoding error: invalid escape sequence at codepoint index {i}"
                 ));
                 let joined = join_short_dcs(&out_dcs);
-                let prefixed = if !joined.starts_with("114") && !joined.is_empty() {
-                    format!("114,{joined}")
-                } else {
-                    joined
-                };
+                let prefixed =
+                    if !joined.starts_with("114") && !joined.is_empty() {
+                        format!("114,{joined}")
+                    } else {
+                        joined
+                    };
                 return Ok(format!("{prefixed}… CDCE decoding error!"));
             }
             log.warn(&format!(
@@ -1378,8 +1401,7 @@ fn convert_cdce_to_dc_str(
             flush_unmapped(&mut unmapped_utf8_buf, &mut out_dcs);
             out_dcs.push(short_dc);
             i = i.saturating_add(1);
-        } else if encapsulate_unmapped_utf8
-            && let Some(ch) = char::from_u32(cp)
+        } else if encapsulate_unmapped_utf8 && let Some(ch) = char::from_u32(cp)
         {
             unmapped_utf8_buf.push(ch);
             i = i.saturating_add(1);
@@ -1462,8 +1484,7 @@ fn convert_utf8_to_dc_str(
                 unmapped_utf8_buf.clear();
             }
             out_dcs.push(short_dc);
-        } else if encapsulate_unmapped_utf8
-            && let Some(ch) = char::from_u32(cp)
+        } else if encapsulate_unmapped_utf8 && let Some(ch) = char::from_u32(cp)
         {
             unmapped_utf8_buf.push(ch);
         } else {
@@ -1485,10 +1506,7 @@ fn convert_utf8_to_dc_str(
     Ok(join_short_dcs(&out_dcs))
 }
 
-fn convert_dc_str_to_utf8(
-    data: &str,
-    log: &mut FormatLog,
-) -> Result<Vec<u8>> {
+fn convert_dc_str_to_utf8(data: &str, log: &mut FormatLog) -> Result<Vec<u8>> {
     let dcs = parse_dc_csv_list(data, log)?;
     let mut out = Vec::new();
     let mut i = 0_usize;
@@ -1625,12 +1643,16 @@ fn decode_utf8_dc64_csv_to_bytes(
         {
             core
         } else {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             bail!("This document is not stored using the specified format.");
         }
     } else {
         if trimmed.starts_with("191,") && trimmed.ends_with(",192") {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             bail!("This document is not stored using the specified format.");
         }
         trimmed
@@ -1648,11 +1670,15 @@ fn decode_utf8_dc64_csv_to_bytes(
             continue;
         }
         let Ok(val) = token.parse::<u32>() else {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             bail!("This document is not stored using the specified format.");
         };
         if !is_base64_payload_short_dc(val) {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             bail!("This document is not stored using the specified format.");
         }
         dcs.push(val);
@@ -1677,7 +1703,9 @@ fn decode_utf8_dc64_bin_to_bytes(
             || raw_bytes.first() != Some(&0xC3)
             || raw_bytes.last() != Some(&0xC4)
         {
-            log.error("This document is not stored using the specified format.");
+            log.error(
+                "This document is not stored using the specified format.",
+            );
             bail!("This document is not stored using the specified format.");
         }
         raw_bytes
@@ -1691,7 +1719,9 @@ fn decode_utf8_dc64_bin_to_bytes(
     for &byte in payload {
         match byte {
             0x82..=0xC1 => {
-                dcs.push(u32::from(byte).saturating_sub(0x82).saturating_add(127));
+                dcs.push(
+                    u32::from(byte).saturating_sub(0x82).saturating_add(127),
+                );
             }
             0xC2 => dcs.push(195),
             _ => {
@@ -1760,10 +1790,7 @@ fn parse_dc_csv_list(data: &str, log: &mut FormatLog) -> Result<Vec<u32>> {
 }
 
 fn join_short_dcs(dcs: &[u32]) -> String {
-    dcs.iter()
-        .map(u32::to_string)
-        .collect::<Vec<_>>()
-        .join(",")
+    dcs.iter().map(u32::to_string).collect::<Vec<_>>().join(",")
 }
 
 fn decode_hex_payload(data: &[u8], log: &mut FormatLog) -> Result<Vec<u8>> {
@@ -1778,302 +1805,309 @@ fn decode_hex_payload(data: &[u8], log: &mut FormatLog) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
-
-#[crate::ctb_test]
-fn test_new_converter_3_0a_all_short_dcs_0_to_115() {
-    for dc in 0..=crate::MAX_DCE_3_0A_SHORT_DC {
-        if (2..=12).contains(&dc) {
-            // Short Dcs 2..=12 had no byte mappings in DCE 3.0a (added in 3.01a);
-            // exporting to 3.0a must log an export warning in FormatLog and omit them.
-            let mut enc_log = crate::FormatLog::default();
-            let encoded = crate::converter::encode_dce_preserving_controls(
-                &[18, dc, 19],
-                "3_0a",
-                &mut enc_log,
-            )
-            .unwrap();
-            assert!(
-                !enc_log.has_errors() && enc_log.has_warnings(),
-                "3_0a encoding of unmapped short Dc {dc} should log a warning: {enc_log:?}"
-            );
-            let mut dec_log = crate::FormatLog::default();
-            let decoded = crate::converter::decode_dce_preserving_controls(
-                &encoded,
-                "3_0a",
-                &mut dec_log,
-            )
-            .unwrap();
-            assert!(!decoded.contains(&dc));
-            assert!(decoded.contains(&18) && decoded.contains(&19));
-            continue;
-        }
-
-        for fmt in ["3_0a", "3_0a_raw", "hex_3_0a", "hex_3_0a_raw"] {
-            let mut enc_log = crate::FormatLog::default();
-            let encoded = crate::converter::encode_dce_preserving_controls(
-                &[dc],
-                fmt,
-                &mut enc_log,
-            )
-            .unwrap();
-            assert!(
-                !enc_log.has_errors() && !enc_log.has_warnings(),
-                "3_0a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
-            );
-
-            let mut dec_log = crate::FormatLog::default();
-            let decoded = crate::converter::decode_dce_preserving_controls(
-                &encoded,
-                fmt,
-                &mut dec_log,
-            )
-            .unwrap();
-            assert!(
-                !dec_log.has_errors() && !dec_log.has_warnings(),
-                "3_0a ({fmt}) decoding of short Dc {dc} had warnings/errors: {dec_log:?}"
-            );
-            assert!(
-                decoded.contains(&dc),
-                "3_0a ({fmt}) decoded sequence {decoded:?} did not contain short Dc {dc}"
-            );
-
-            // Re-encoding the decoded sequence must be byte-for-byte idempotent
-            let mut reenc_log = crate::FormatLog::default();
-            let reencoded = crate::converter::encode_dce_preserving_controls(
-                &decoded,
-                fmt,
-                &mut reenc_log,
-            )
-            .unwrap();
-            assert_eq!(
-                reencoded, encoded,
-                "3_0a ({fmt}) re-encode mismatch for short Dc {dc}"
-            );
-        }
-
-        // Also verify dc -> 3_0a -> dc roundtrip via converter::dce_convert_with_log
-        let dc_input = format!("114,{dc},115");
-        let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
-            dc_input.as_bytes(),
-            "dc",
-            "3_0a",
-        )
-        .unwrap();
-        assert!(
-            !log_out.has_errors() && !log_out.has_warnings(),
-            "dce_convert dc -> 3_0a failed for Dc {dc}: {log_out:?}"
-        );
-        let (dc_back, log_in) =
-            crate::converter::dce_convert_with_log(&dce_bytes, "3_0a", "dc")
+    #[crate::ctb_test]
+    fn test_new_converter_3_0a_all_short_dcs_0_to_115() {
+        for dc in 0..=crate::MAX_DCE_3_0A_SHORT_DC {
+            if (2..=12).contains(&dc) {
+                // Short Dcs 2..=12 had no byte mappings in DCE 3.0a (added in 3.01a);
+                // exporting to 3.0a must log an export warning in FormatLog and omit them.
+                let mut enc_log = crate::FormatLog::default();
+                let encoded = crate::converter::encode_dce_preserving_controls(
+                    &[18, dc, 19],
+                    "3_0a",
+                    &mut enc_log,
+                )
                 .unwrap();
-        assert!(
-            !log_in.has_errors() && !log_in.has_warnings(),
-            "dce_convert 3_0a -> dc failed for Dc {dc}: {log_in:?}"
-        );
-        assert_eq!(
-            String::from_utf8(dc_back).unwrap(),
-            dc_input,
-            "dc -> 3_0a -> dc mismatch for short Dc {dc}"
-        );
-    }
-}
+                assert!(
+                    !enc_log.has_errors() && enc_log.has_warnings(),
+                    "3_0a encoding of unmapped short Dc {dc} should log a warning: {enc_log:?}"
+                );
+                let mut dec_log = crate::FormatLog::default();
+                let decoded = crate::converter::decode_dce_preserving_controls(
+                    &encoded,
+                    "3_0a",
+                    &mut dec_log,
+                )
+                .unwrap();
+                assert!(!decoded.contains(&dc));
+                assert!(decoded.contains(&18) && decoded.contains(&19));
+                continue;
+            }
 
-#[crate::ctb_test]
-fn test_new_converter_3_01a_all_short_dcs_0_to_199_and_base64() {
-    for dc in 0..=crate::MAX_DCE_3_01A_SHORT_DC {
-        for fmt in ["3_01a", "3_01a_raw", "hex_3_01a", "hex_3_01a_raw"] {
-            let mut enc_log = crate::FormatLog::default();
-            let encoded = crate::converter::encode_dce_preserving_controls(
-                &[dc],
-                fmt,
-                &mut enc_log,
+            for fmt in ["3_0a", "3_0a_raw", "hex_3_0a", "hex_3_0a_raw"] {
+                let mut enc_log = crate::FormatLog::default();
+                let encoded = crate::converter::encode_dce_preserving_controls(
+                    &[dc],
+                    fmt,
+                    &mut enc_log,
+                )
+                .unwrap();
+                assert!(
+                    !enc_log.has_errors() && !enc_log.has_warnings(),
+                    "3_0a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
+                );
+
+                let mut dec_log = crate::FormatLog::default();
+                let decoded = crate::converter::decode_dce_preserving_controls(
+                    &encoded,
+                    fmt,
+                    &mut dec_log,
+                )
+                .unwrap();
+                assert!(
+                    !dec_log.has_errors() && !dec_log.has_warnings(),
+                    "3_0a ({fmt}) decoding of short Dc {dc} had warnings/errors: {dec_log:?}"
+                );
+                assert!(
+                    decoded.contains(&dc),
+                    "3_0a ({fmt}) decoded sequence {decoded:?} did not contain short Dc {dc}"
+                );
+
+                // Re-encoding the decoded sequence must be byte-for-byte idempotent
+                let mut reenc_log = crate::FormatLog::default();
+                let reencoded =
+                    crate::converter::encode_dce_preserving_controls(
+                        &decoded,
+                        fmt,
+                        &mut reenc_log,
+                    )
+                    .unwrap();
+                assert_eq!(
+                    reencoded, encoded,
+                    "3_0a ({fmt}) re-encode mismatch for short Dc {dc}"
+                );
+            }
+
+            // Also verify dc -> 3_0a -> dc roundtrip via converter::dce_convert_with_log
+            let dc_input = format!("114,{dc},115");
+            let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
+                dc_input.as_bytes(),
+                "dc",
+                "3_0a",
             )
             .unwrap();
             assert!(
-                !enc_log.has_errors() && !enc_log.has_warnings(),
-                "3_01a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
+                !log_out.has_errors() && !log_out.has_warnings(),
+                "dce_convert dc -> 3_0a failed for Dc {dc}: {log_out:?}"
             );
-
-            let mut dec_log = crate::FormatLog::default();
-            let decoded = crate::converter::decode_dce_preserving_controls(
-                &encoded,
-                fmt,
-                &mut dec_log,
+            let (dc_back, log_in) = crate::converter::dce_convert_with_log(
+                &dce_bytes, "3_0a", "dc",
             )
             .unwrap();
             assert!(
-                !dec_log.has_errors() && !dec_log.has_warnings(),
-                "3_01a ({fmt}) decoding of short Dc {dc} had warnings/errors: {dec_log:?}"
+                !log_in.has_errors() && !log_in.has_warnings(),
+                "dce_convert 3_0a -> dc failed for Dc {dc}: {log_in:?}"
             );
-            assert!(
-                decoded.contains(&dc),
-                "3_01a ({fmt}) decoded sequence {decoded:?} did not contain short Dc {dc}"
-            );
-
-            let mut reenc_log = crate::FormatLog::default();
-            let reencoded = crate::converter::encode_dce_preserving_controls(
-                &decoded,
-                fmt,
-                &mut reenc_log,
-            )
-            .unwrap();
             assert_eq!(
-                reencoded, encoded,
-                "3_01a ({fmt}) re-encode mismatch for short Dc {dc}"
+                String::from_utf8(dc_back).unwrap(),
+                dc_input,
+                "dc -> 3_0a -> dc mismatch for short Dc {dc}"
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_new_converter_3_01a_all_short_dcs_0_to_199_and_base64() {
+        for dc in 0..=crate::MAX_DCE_3_01A_SHORT_DC {
+            for fmt in ["3_01a", "3_01a_raw", "hex_3_01a", "hex_3_01a_raw"] {
+                let mut enc_log = crate::FormatLog::default();
+                let encoded = crate::converter::encode_dce_preserving_controls(
+                    &[dc],
+                    fmt,
+                    &mut enc_log,
+                )
+                .unwrap();
+                assert!(
+                    !enc_log.has_errors() && !enc_log.has_warnings(),
+                    "3_01a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
+                );
+
+                let mut dec_log = crate::FormatLog::default();
+                let decoded = crate::converter::decode_dce_preserving_controls(
+                    &encoded,
+                    fmt,
+                    &mut dec_log,
+                )
+                .unwrap();
+                assert!(
+                    !dec_log.has_errors() && !dec_log.has_warnings(),
+                    "3_01a ({fmt}) decoding of short Dc {dc} had warnings/errors: {dec_log:?}"
+                );
+                assert!(
+                    decoded.contains(&dc),
+                    "3_01a ({fmt}) decoded sequence {decoded:?} did not contain short Dc {dc}"
+                );
+
+                let mut reenc_log = crate::FormatLog::default();
+                let reencoded =
+                    crate::converter::encode_dce_preserving_controls(
+                        &decoded,
+                        fmt,
+                        &mut reenc_log,
+                    )
+                    .unwrap();
+                assert_eq!(
+                    reencoded, encoded,
+                    "3_01a ({fmt}) re-encode mismatch for short Dc {dc}"
+                );
+            }
+
+            let dc_input = format!("114,{dc},115");
+            let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
+                dc_input.as_bytes(),
+                "dc",
+                "3_01a",
+            )
+            .unwrap();
+            assert!(
+                !log_out.has_errors() && !log_out.has_warnings(),
+                "dce_convert dc -> 3_01a failed for Dc {dc}: {log_out:?}"
+            );
+            let (dc_back, log_in) = crate::converter::dce_convert_with_log(
+                &dce_bytes, "3_01a", "dc",
+            )
+            .unwrap();
+            assert!(
+                !log_in.has_errors() && !log_in.has_warnings(),
+                "dce_convert 3_01a -> dc failed for Dc {dc}: {log_in:?}"
+            );
+            assert_eq!(
+                String::from_utf8(dc_back).unwrap(),
+                dc_input,
+                "dc -> 3_01a -> dc mismatch for short Dc {dc}"
             );
         }
 
-        let dc_input = format!("114,{dc},115");
-        let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
-            dc_input.as_bytes(),
-            "dc",
+        // Verify Base64 'I' (Dc 135) and 'i' (Dc 161) are distinct and roundtrip properly
+        assert_eq!(crate::converter::base64_char_to_short_dc(b'I'), Some(135));
+        assert_eq!(crate::converter::base64_char_to_short_dc(b'i'), Some(161));
+        assert_eq!(crate::converter::short_dc_to_base64_char(135), Some('I'));
+        assert_eq!(crate::converter::short_dc_to_base64_char(161), Some('i'));
+
+        // Payload whose Base64 encoding ("SGkh") contains 'i' (Dc 161) and ("I1 test") -> "STEgdGVzdA==" contains 'I'
+        let utf8_with_b64_i_and_cap_i =
+            "Hi! — 🌄 Testing Base64 'i' and 'I' encapsulation";
+        for b64_fmt in [
+            "utf8_dc64",
+            "utf8_dc64_enc",
+            "utf8_dc64_bin",
+            "utf8_dc64_bin_hex",
+            "utf8_dc64_bin_enc",
+            "utf8_dc64_bin_enc_hex",
             "3_01a",
-        )
-        .unwrap();
-        assert!(
-            !log_out.has_errors() && !log_out.has_warnings(),
-            "dce_convert dc -> 3_01a failed for Dc {dc}: {log_out:?}"
-        );
-        let (dc_back, log_in) =
-            crate::converter::dce_convert_with_log(&dce_bytes, "3_01a", "dc")
-                .unwrap();
-        assert!(
-            !log_in.has_errors() && !log_in.has_warnings(),
-            "dce_convert 3_01a -> dc failed for Dc {dc}: {log_in:?}"
-        );
-        assert_eq!(
-            String::from_utf8(dc_back).unwrap(),
-            dc_input,
-            "dc -> 3_01a -> dc mismatch for short Dc {dc}"
-        );
-    }
-
-    // Verify Base64 'I' (Dc 135) and 'i' (Dc 161) are distinct and roundtrip properly
-    assert_eq!(crate::converter::base64_char_to_short_dc(b'I'), Some(135));
-    assert_eq!(crate::converter::base64_char_to_short_dc(b'i'), Some(161));
-    assert_eq!(crate::converter::short_dc_to_base64_char(135), Some('I'));
-    assert_eq!(crate::converter::short_dc_to_base64_char(161), Some('i'));
-
-    // Payload whose Base64 encoding ("SGkh") contains 'i' (Dc 161) and ("I1 test") -> "STEgdGVzdA==" contains 'I'
-    let utf8_with_b64_i_and_cap_i =
-        "Hi! — 🌄 Testing Base64 'i' and 'I' encapsulation";
-    for b64_fmt in [
-        "utf8_dc64",
-        "utf8_dc64_enc",
-        "utf8_dc64_bin",
-        "utf8_dc64_bin_hex",
-        "utf8_dc64_bin_enc",
-        "utf8_dc64_bin_enc_hex",
-        "3_01a",
-        "3_02a",
-        "dce",
-    ] {
-        let (encoded, enc_log) = crate::converter::dce_convert_with_log(
-            utf8_with_b64_i_and_cap_i.as_bytes(),
-            "utf8",
-            b64_fmt,
-        )
-        .unwrap();
-        assert!(!enc_log.has_errors() && !enc_log.has_warnings());
-        let (decoded, dec_log) = crate::converter::dce_convert_with_log(
-            &encoded,
-            b64_fmt,
-            "utf8",
-        )
-        .unwrap();
-        assert!(!dec_log.has_errors() && !dec_log.has_warnings());
-        assert_eq!(
-            String::from_utf8(decoded).unwrap(),
-            utf8_with_b64_i_and_cap_i,
-            "UTF-8 roundtrip through {b64_fmt} failed"
-        );
-    }
-}
-
-#[crate::ctb_test]
-fn test_new_converter_3_02a_all_short_dcs_0_to_202() {
-    for dc in 0..=crate::MAX_DCE_3_02A_SHORT_DC {
-        for fmt in [
             "3_02a",
-            "3_02a_raw",
-            "hex_3_02a",
-            "hex_3_02a_raw",
             "dce",
-            "hex_dce",
         ] {
-            let mut enc_log = crate::FormatLog::default();
-            let encoded = crate::converter::encode_dce_preserving_controls(
-                &[dc],
-                fmt,
-                &mut enc_log,
+            let (encoded, enc_log) = crate::converter::dce_convert_with_log(
+                utf8_with_b64_i_and_cap_i.as_bytes(),
+                "utf8",
+                b64_fmt,
             )
             .unwrap();
-            assert!(
-                !enc_log.has_errors() && !enc_log.has_warnings(),
-                "3_02a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
-            );
-
-            let mut dec_log = crate::FormatLog::default();
-            let decoded = crate::converter::decode_dce_preserving_controls(
-                &encoded,
-                fmt,
-                &mut dec_log,
+            assert!(!enc_log.has_errors() && !enc_log.has_warnings());
+            let (decoded, dec_log) = crate::converter::dce_convert_with_log(
+                &encoded, b64_fmt, "utf8",
             )
             .unwrap();
-            assert!(
-                !dec_log.has_errors() && !dec_log.has_warnings(),
-                "3_02a ({fmt}) decoding of short Dc {dc} had warnings/errors: {dec_log:?}"
-            );
-            assert!(
-                decoded.contains(&dc),
-                "3_02a ({fmt}) decoded sequence {decoded:?} did not contain short Dc {dc}"
-            );
-
-            let mut reenc_log = crate::FormatLog::default();
-            let reencoded = crate::converter::encode_dce_preserving_controls(
-                &decoded,
-                fmt,
-                &mut reenc_log,
-            )
-            .unwrap();
+            assert!(!dec_log.has_errors() && !dec_log.has_warnings());
             assert_eq!(
-                reencoded, encoded,
-                "3_02a ({fmt}) re-encode mismatch for short Dc {dc}"
+                String::from_utf8(decoded).unwrap(),
+                utf8_with_b64_i_and_cap_i,
+                "UTF-8 roundtrip through {b64_fmt} failed"
             );
         }
-
-        let dc_input = format!("114,{dc},115");
-        let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
-            dc_input.as_bytes(),
-            "dc",
-            "3_02a",
-        )
-        .unwrap();
-        assert!(
-            !log_out.has_errors() && !log_out.has_warnings(),
-            "dce_convert dc -> 3_02a failed for Dc {dc}: {log_out:?}"
-        );
-        assert_eq!(
-            crate::converter::get_dce_version(&dce_bytes),
-            "3_02a"
-        );
-        let (dc_back, log_in) =
-            crate::converter::dce_convert_with_log(&dce_bytes, "dce", "dc")
-                .unwrap();
-        assert!(
-            !log_in.has_errors() && !log_in.has_warnings(),
-            "dce_convert dce (3_02a) -> dc failed for Dc {dc}: {log_in:?}"
-        );
-        assert_eq!(
-            String::from_utf8(dc_back).unwrap(),
-            dc_input,
-            "dc -> 3_02a -> dc mismatch for short Dc {dc}"
-        );
     }
-}
 
+    #[crate::ctb_test]
+    fn test_new_converter_3_02a_all_short_dcs_0_to_202() {
+        for dc in 0..=crate::MAX_DCE_3_02A_SHORT_DC {
+            for fmt in [
+                "3_02a",
+                "3_02a_raw",
+                "hex_3_02a",
+                "hex_3_02a_raw",
+                "dce",
+                "hex_dce",
+            ] {
+                let mut enc_log = crate::FormatLog::default();
+                let encoded = crate::converter::encode_dce_preserving_controls(
+                    &[dc],
+                    fmt,
+                    &mut enc_log,
+                )
+                .unwrap();
+                assert!(
+                    !enc_log.has_errors() && !enc_log.has_warnings(),
+                    "3_02a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
+                );
+
+                let mut dec_log = crate::FormatLog::default();
+                let decoded = crate::converter::decode_dce_preserving_controls(
+                    &encoded,
+                    fmt,
+                    &mut dec_log,
+                )
+                .unwrap();
+                assert!(
+                    !dec_log.has_errors() && !dec_log.has_warnings(),
+                    "3_02a ({fmt}) decoding of short Dc {dc} had warnings/errors: {dec_log:?}"
+                );
+                assert!(
+                    decoded.contains(&dc),
+                    "3_02a ({fmt}) decoded sequence {decoded:?} did not contain short Dc {dc}"
+                );
+
+                let mut reenc_log = crate::FormatLog::default();
+                let reencoded =
+                    crate::converter::encode_dce_preserving_controls(
+                        &decoded,
+                        fmt,
+                        &mut reenc_log,
+                    )
+                    .unwrap();
+                assert_eq!(
+                    reencoded, encoded,
+                    "3_02a ({fmt}) re-encode mismatch for short Dc {dc}"
+                );
+            }
+
+            let dc_input = format!("114,{dc},115");
+            let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
+                dc_input.as_bytes(),
+                "dc",
+                "3_02a",
+            )
+            .unwrap();
+            assert!(
+                !log_out.has_errors() && !log_out.has_warnings(),
+                "dce_convert dc -> 3_02a failed for Dc {dc}: {log_out:?}"
+            );
+            assert_eq!(crate::converter::get_dce_version(&dce_bytes), "3_02a");
+            let (dc_back, log_in) =
+                crate::converter::dce_convert_with_log(&dce_bytes, "dce", "dc")
+                    .unwrap();
+            assert!(
+                !log_in.has_errors() && !log_in.has_warnings(),
+                "dce_convert dce (3_02a) -> dc failed for Dc {dc}: {log_in:?}"
+            );
+            assert_eq!(
+                String::from_utf8(dc_back).unwrap(),
+                dc_input,
+                "dc -> 3_02a -> dc mismatch for short Dc {dc}"
+            );
+        }
+    }
 }

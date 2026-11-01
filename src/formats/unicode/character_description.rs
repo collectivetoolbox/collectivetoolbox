@@ -152,8 +152,14 @@ impl DescriptionOptions {
 /// Returns true if a code point is a control character according to UCD data
 /// or C0/C1 ranges.
 #[must_use]
-pub(crate) fn is_control_codepoint(tables: &UnicodeDataTables, cp: u32) -> bool {
-    tables.char_data.get(&cp).is_some_and(|info| info.is_control)
+pub(crate) fn is_control_codepoint(
+    tables: &UnicodeDataTables,
+    cp: u32,
+) -> bool {
+    tables
+        .char_data
+        .get(&cp)
+        .is_some_and(|info| info.is_control)
         || (0x0000..=0x001F).contains(&cp)
         || (0x007F..=0x009F).contains(&cp)
 }
@@ -187,7 +193,8 @@ pub(crate) fn get_unicode_character_name(
         }
         .or_else(|| alias_entry.and_then(|entry| entry.control.as_deref()));
 
-        let prefix = if matches!(cp, 0x0009..=0x000D | 0x001C..=0x001F | 0x0085) {
+        let prefix = if matches!(cp, 0x0009..=0x000D | 0x001C..=0x001F | 0x0085)
+        {
             "<control, Unicode-semantic-defined>"
         } else {
             "<control>"

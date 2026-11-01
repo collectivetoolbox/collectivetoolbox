@@ -188,7 +188,9 @@ impl Terminfo {
                 || s.starts_with("vt241")
                 || s.starts_with("vt382")
         };
-        if is_sixel_name(&self.name) || self.aliases.iter().any(|a| is_sixel_name(a)) {
+        if is_sixel_name(&self.name)
+            || self.aliases.iter().any(|a| is_sixel_name(a))
+        {
             return Some(true);
         }
         None
@@ -432,7 +434,8 @@ fn split_capabilities(body: &str) -> Vec<String> {
 
 fn parse_number(s: &str) -> Option<i32> {
     let s = s.trim();
-    if let Some(hex_str) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+    if let Some(hex_str) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X"))
+    {
         i32::from_str_radix(hex_str, 16).ok()
     } else {
         s.parse::<i32>().ok()
@@ -642,7 +645,10 @@ mod tests {
         assert_eq!(info.max_colors(), 256);
         assert!(info.has_mouse(), "ms-terminal must support mouse");
         assert!(info.can_cursor_address(), "ms-terminal must have cup");
-        assert!(info.is_vt100_compatible(), "ms-terminal is vt100 compatible");
+        assert!(
+            info.is_vt100_compatible(),
+            "ms-terminal is vt100 compatible"
+        );
     }
 
     #[crate::ctb_test]
@@ -724,8 +730,9 @@ mod tests {
             "ansi",
         ];
         for term in compatible_terms {
-            let info = Terminfo::from_name(term)
-                .unwrap_or_else(|| panic!("terminal {term} must exist in terminfo"));
+            let info = Terminfo::from_name(term).unwrap_or_else(|| {
+                panic!("terminal {term} must exist in terminfo")
+            });
             assert!(
                 info.is_vt100_compatible(),
                 "terminal {term} must be recognized as VT100 compatible"
@@ -734,8 +741,9 @@ mod tests {
 
         let non_compatible_terms = ["dumb", "xterm-vt52"];
         for term in non_compatible_terms {
-            let info = Terminfo::from_name(term)
-                .unwrap_or_else(|| panic!("terminal {term} must exist in terminfo"));
+            let info = Terminfo::from_name(term).unwrap_or_else(|| {
+                panic!("terminal {term} must exist in terminfo")
+            });
             assert!(
                 !info.is_vt100_compatible(),
                 "terminal {term} must not be VT100 compatible"

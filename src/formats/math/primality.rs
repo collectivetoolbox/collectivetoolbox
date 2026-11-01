@@ -38,14 +38,13 @@ use malachite::base::num::factorization::traits::IsPrime as MalachiteIsPrime;
 
 /// First 25 small prime numbers used for rapid trial division pre-filtering.
 pub const SMALL_PRIMES: &[u32] = &[
-    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67,
-    71, 73, 79, 83, 89, 97,
+    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
+    73, 79, 83, 89, 97,
 ];
 
 /// Deterministic prime testing bases for Miller-Rabin testing up to $2^{64}$.
-pub const MILLER_RABIN_BASES: &[u32] = &[
-    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37,
-];
+pub const MILLER_RABIN_BASES: &[u32] =
+    &[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
 
 /// Checks if a 64-bit integer is prime using Malachite's BPSW algorithm.
 #[must_use]

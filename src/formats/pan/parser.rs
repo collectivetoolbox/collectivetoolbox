@@ -665,7 +665,9 @@ pub(crate) enum PanDataObfuscation {
 /// `key_start + step * i`.
 /// In databases with large records , bytes 0, 4, and 5 decode to `0x00` via
 /// `key_start - step * i`.
-fn detect_data_obfuscation_params(payload: &[u8]) -> Option<PanDataObfuscation> {
+fn detect_data_obfuscation_params(
+    payload: &[u8],
+) -> Option<PanDataObfuscation> {
     if payload.len() < 10 {
         return None;
     }
@@ -5256,56 +5258,51 @@ mod tests {
         // Step 0x0e, subtractive
         ensure!(
             detect_data_obfuscation_params(&vec![
-            0x50, 0x46, 0xa0, 0x2b, 0x18, 0x0a, 0x03, 0xef, 0x66, 0x7d,
-        ])
-                == Some(PanDataObfuscation::Sub {
-                    key_start: 0x50,
-                    step: 0x0e,
-                })
+                0x50, 0x46, 0xa0, 0x2b, 0x18, 0x0a, 0x03, 0xef, 0x66, 0x7d,
+            ]) == Some(PanDataObfuscation::Sub {
+                key_start: 0x50,
+                step: 0x0e,
+            })
         );
 
         // Step 0x64, additive
         ensure!(
             detect_data_obfuscation_params(&vec![
-            0x42, 0xa6, 0x0a, 0x6e, 0xd2, 0x36, 0x8e, 0xfe, 0x62, 0xc7,
-        ])
-                == Some(PanDataObfuscation::Add {
-                    key_start: 0x42,
-                    step: 0x64,
-                })
+                0x42, 0xa6, 0x0a, 0x6e, 0xd2, 0x36, 0x8e, 0xfe, 0x62, 0xc7,
+            ]) == Some(PanDataObfuscation::Add {
+                key_start: 0x42,
+                step: 0x64,
+            })
         );
 
         // Step 0x26, additive
         ensure!(
             detect_data_obfuscation_params(&vec![
-            0x52, 0x78, 0x9e, 0xc4, 0xea, 0x10, 0x29, 0x5c, 0x82, 0xa8,
-        ])
-                == Some(PanDataObfuscation::Add {
-                    key_start: 0x52,
-                    step: 0x26,
-                })
+                0x52, 0x78, 0x9e, 0xc4, 0xea, 0x10, 0x29, 0x5c, 0x82, 0xa8,
+            ]) == Some(PanDataObfuscation::Add {
+                key_start: 0x52,
+                step: 0x26,
+            })
         );
 
         // Step 0x12, additive
         ensure!(
             detect_data_obfuscation_params(&vec![
-            0x5e, 0x70, 0x82, 0x94, 0xa6, 0xb8, 0xc0, 0xdc, 0xee, 0x00,
-        ])
-                == Some(PanDataObfuscation::Add {
-                    key_start: 0x5e,
-                    step: 0x12,
-                })
+                0x5e, 0x70, 0x82, 0x94, 0xa6, 0xb8, 0xc0, 0xdc, 0xee, 0x00,
+            ]) == Some(PanDataObfuscation::Add {
+                key_start: 0x5e,
+                step: 0x12,
+            })
         );
 
         // Step 0x0e, additive
         ensure!(
             detect_data_obfuscation_params(&vec![
-            0x40, 0x4e, 0x5c, 0x6a, 0x78, 0x86, 0x92, 0xa2, 0xb0, 0xbe,
-        ])
-                == Some(PanDataObfuscation::Add {
-                    key_start: 0x40,
-                    step: 0x0e,
-                })
+                0x40, 0x4e, 0x5c, 0x6a, 0x78, 0x86, 0x92, 0xa2, 0xb0, 0xbe,
+            ]) == Some(PanDataObfuscation::Add {
+                key_start: 0x40,
+                step: 0x0e,
+            })
         );
 
         Ok(())

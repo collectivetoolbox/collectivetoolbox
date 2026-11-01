@@ -26,8 +26,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-
-
 // See additional licensing details at end of file.
 
 //! Filename sanitization, character replacement, and length limiting utilities.
@@ -103,7 +101,8 @@ pub const fn is_windows_disallowed_filename_code_unit(unit: u16) -> bool {
 /// `\ : * ? " < > | /`).
 #[must_use]
 pub fn is_windows_disallowed_filename_char(c: char) -> bool {
-    u16::try_from(u32::from(c)).is_ok_and(is_windows_disallowed_filename_code_unit)
+    u16::try_from(u32::from(c))
+        .is_ok_and(is_windows_disallowed_filename_code_unit)
 }
 
 /// Returns true if the character is disallowed at the end of a Windows
@@ -116,7 +115,9 @@ fn is_windows_disallowed_trailing(c: char) -> bool {
 /// path separator that should be replaced with an underscore in UI filename
 /// sanitization (`clean_file_name_windows`).
 fn is_windows_illegal_char(c: char) -> bool {
-    (c != '/' && !c.is_ascii_control() && is_windows_disallowed_filename_char(c))
+    (c != '/'
+        && !c.is_ascii_control()
+        && is_windows_disallowed_filename_char(c))
         || c == '%'
 }
 
@@ -126,8 +127,8 @@ fn is_windows_illegal_char(c: char) -> bool {
     reason = "DOS filename validation helper for future compatibility"
 )]
 fn is_dos_illegal_char(c: char) -> bool {
-    is_windows_illegal_char(c) ||
-    matches!(c, '+' | ',' | ';' | '=' |'[' | ']' | '!' | '@' )
+    is_windows_illegal_char(c)
+        || matches!(c, '+' | ',' | ';' | '=' | '[' | ']' | '!' | '@')
 }
 
 /// Returns true if the character is an ASCII/Unicode control character or line/
@@ -263,17 +264,14 @@ fn calculate_max_len(enclosing_dir: Option<&Path>) -> usize {
         let dir_len = dir.as_os_str().len();
         let total_dir_overhead = dir_len.saturating_add(1);
         if SAFE_PATH_MAX > total_dir_overhead {
-            let available =
-                SAFE_PATH_MAX.saturating_sub(total_dir_overhead);
+            let available = SAFE_PATH_MAX.saturating_sub(total_dir_overhead);
             available.min(MAX_FILENAME_BYTES)
         } else {
-            let available =
-                POSIX_PATH_MAX.saturating_sub(total_dir_overhead);
+            let available = POSIX_PATH_MAX.saturating_sub(total_dir_overhead);
             available.min(MAX_FILENAME_BYTES)
         }
     } else {
-        let total_overhead =
-            TYPICAL_ENCLOSING_DIR_LEN.saturating_add(1);
+        let total_overhead = TYPICAL_ENCLOSING_DIR_LEN.saturating_add(1);
         let available = SAFE_PATH_MAX.saturating_sub(total_overhead);
         available.min(MAX_FILENAME_BYTES)
     };
@@ -426,7 +424,8 @@ pub fn adapt_component_with_max_bytes(
     let max_bytes = max_bytes.clamp(1, MAX_FILENAME_BYTES);
     let raw_bytes = component.as_encoded_bytes();
     if !force_windows_rules {
-        let is_dot = raw_bytes.is_empty() || raw_bytes == b"." || raw_bytes == b"..";
+        let is_dot =
+            raw_bytes.is_empty() || raw_bytes == b"." || raw_bytes == b"..";
         let has_nul = raw_bytes.contains(&0);
         let has_slash = raw_bytes.contains(&b'/');
         let too_long = raw_bytes.len() > max_bytes;
@@ -436,7 +435,9 @@ pub fn adapt_component_with_max_bytes(
 
         let mut reasons = Vec::new();
         if is_dot {
-            reasons.push("replaced empty/dot component with 'unnamed'".to_string());
+            reasons.push(
+                "replaced empty/dot component with 'unnamed'".to_string(),
+            );
         }
         if has_nul {
             reasons.push("removed NUL bytes".to_string());
@@ -499,10 +500,7 @@ pub fn adapt_component_with_max_bytes(
         if cleaned.len() > max_bytes {
             cleaned = truncate_to_byte_limit(&cleaned, max_bytes).to_string();
         }
-        return (
-            std::ffi::OsString::from(cleaned),
-            Some(reasons.join(", ")),
-        );
+        return (std::ffi::OsString::from(cleaned), Some(reasons.join(", ")));
     }
 
     // Windows / restricted-filesystem sanitization rules
@@ -538,10 +536,11 @@ pub fn adapt_component_with_max_bytes(
     if raw_str.contains('/') {
         reasons.push("replaced '/' with '⌿'".to_string());
     }
-    if raw_str
-        .chars()
-        .any(|c| c != '/' && !c.is_ascii_control() && is_windows_disallowed_filename_char(c))
-    {
+    if raw_str.chars().any(|c| {
+        c != '/'
+            && !c.is_ascii_control()
+            && is_windows_disallowed_filename_char(c)
+    }) {
         reasons.push("replaced Windows-reserved characters".to_string());
     }
 
@@ -584,7 +583,8 @@ pub fn adapt_component_with_max_bytes(
             max_bytes
         ));
         result = truncate_filename(&result, max_bytes);
-        let trimmed_post = result.trim_end_matches(is_windows_disallowed_trailing);
+        let trimmed_post =
+            result.trim_end_matches(is_windows_disallowed_trailing);
         result = if trimmed_post.is_empty() {
             "unnamed".to_string()
         } else {
@@ -605,10 +605,7 @@ pub fn adapt_component_with_max_bytes(
         if reasons.is_empty() {
             reasons.push("adapted component for Windows".to_string());
         }
-        (
-            std::ffi::OsString::from(result),
-            Some(reasons.join(", ")),
-        )
+        (std::ffi::OsString::from(result), Some(reasons.join(", ")))
     }
 }
 
@@ -640,7 +637,10 @@ pub fn clean_stream_name_for_companion(
         reasons.push("replaced path separators with '⌿'".to_string());
     }
     if raw_str.chars().any(|c| {
-        c != '/' && c != '\\' && !c.is_ascii_control() && is_windows_disallowed_filename_char(c)
+        c != '/'
+            && c != '\\'
+            && !c.is_ascii_control()
+            && is_windows_disallowed_filename_char(c)
     }) {
         reasons.push("replaced reserved stream characters".to_string());
     }
@@ -665,7 +665,8 @@ pub fn clean_stream_name_for_companion(
     if trimmed.len() != cleaned.len() {
         reasons.push("trimmed trailing dots/spaces".to_string());
     }
-    let mut result = if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+    let mut result = if trimmed.is_empty() || trimmed == "." || trimmed == ".."
+    {
         "unnamed".to_string()
     } else {
         trimmed.to_string()
@@ -684,8 +685,12 @@ pub fn clean_stream_name_for_companion(
             max_bytes
         ));
         result = truncate_filename(&result, max_bytes);
-        let trimmed_post = result.trim_end_matches(is_windows_disallowed_trailing);
-        result = if trimmed_post.is_empty() || trimmed_post == "." || trimmed_post == ".." {
+        let trimmed_post =
+            result.trim_end_matches(is_windows_disallowed_trailing);
+        result = if trimmed_post.is_empty()
+            || trimmed_post == "."
+            || trimmed_post == ".."
+        {
             "unnamed".to_string()
         } else {
             sanitize_windows_reserved_name(trimmed_post)
@@ -703,7 +708,8 @@ pub fn clean_stream_name_for_companion(
         (result, None)
     } else {
         if reasons.is_empty() {
-            reasons.push("normalized stream name for companion file".to_string());
+            reasons
+                .push("normalized stream name for companion file".to_string());
         }
         (result, Some(reasons.join(", ")))
     }
@@ -783,8 +789,10 @@ pub fn adapt_relative_path_for_materialization(
     for comp in relative_path.components() {
         match comp {
             std::path::Component::Normal(name) => {
-                let (new_name, reason) =
-                    adapt_component_for_materialization(name, force_windows_rules);
+                let (new_name, reason) = adapt_component_for_materialization(
+                    name,
+                    force_windows_rules,
+                );
                 if let Some(reason_str) = reason {
                     any_changed = true;
                     component_reasons.push(format!(
@@ -832,10 +840,7 @@ mod tests {
     fn test_clean_file_name_replaces_slash_and_drops_null() {
         let input = "Procedure/With/Slashes\0And\0Nulls";
         let cleaned = clean_file_name(input, None);
-        assert_eq!(
-            cleaned.to_string_lossy(),
-            "Procedure⌿With⌿SlashesAndNulls"
-        );
+        assert_eq!(cleaned.to_string_lossy(), "Procedure⌿With⌿SlashesAndNulls");
     }
 
     #[crate::ctb_test]
@@ -887,10 +892,7 @@ mod tests {
     fn test_clean_file_name_unix_retains_posix_characters() {
         let input = r#"foo:bar*baz?1<2>3|4"5%6\7"#;
         let cleaned = clean_file_name_unix(input, None);
-        assert_eq!(
-            cleaned.to_string_lossy(),
-            r#"foo:bar*baz?1<2>3|4"5%6\7"#
-        );
+        assert_eq!(cleaned.to_string_lossy(), r#"foo:bar*baz?1<2>3|4"5%6\7"#);
         assert_eq!(
             clean_file_name_unix("report...", None).to_string_lossy(),
             "report..."
@@ -899,10 +901,7 @@ mod tests {
             clean_file_name_unix("test   ", None).to_string_lossy(),
             "test   "
         );
-        assert_eq!(
-            clean_file_name_unix("CON", None).to_string_lossy(),
-            "CON"
-        );
+        assert_eq!(clean_file_name_unix("CON", None).to_string_lossy(), "CON");
         assert_eq!(
             clean_file_name_unix(".", None).to_string_lossy(),
             "unnamed"
@@ -922,10 +921,7 @@ mod tests {
     fn test_clean_file_name_windows_illegal_characters() {
         let input = r#"foo:bar*baz?1<2>3|4"5%6\7"#;
         let cleaned = clean_file_name_windows(input, None);
-        assert_eq!(
-            cleaned.to_string_lossy(),
-            "foo_bar_baz_1_2_3_4_5_6_7"
-        );
+        assert_eq!(cleaned.to_string_lossy(), "foo_bar_baz_1_2_3_4_5_6_7");
     }
 
     #[crate::ctb_test]
@@ -1050,30 +1046,37 @@ mod tests {
         // Destination-specific policy: valid Windows names with '%', leading spaces,
         // and multiple interior spaces must be preserved verbatim under Windows rules.
         let valid_win = std::ffi::OsStr::new("  100%  native  file.txt");
-        let (adapted_win, reason_win) = adapt_component_for_materialization(valid_win, true);
+        let (adapted_win, reason_win) =
+            adapt_component_for_materialization(valid_win, true);
         assert_eq!(adapted_win, valid_win);
         assert!(reason_win.is_none());
 
         // Disallowed Windows characters, trailing dots/spaces, and DOS reserved names
         // are still adapted when force_windows_rules is true.
         let invalid_win = std::ffi::OsStr::new("file:name?.txt. ");
-        let (adapted_inv, reason_inv) = adapt_component_for_materialization(invalid_win, true);
+        let (adapted_inv, reason_inv) =
+            adapt_component_for_materialization(invalid_win, true);
         assert_eq!(adapted_inv, std::ffi::OsStr::new("file_name_.txt"));
         assert!(reason_inv.is_some());
 
         // Under POSIX rules (force_windows_rules = false), Windows-disallowed characters
         // are preserved verbatim.
-        let (adapted_posix, reason_posix) = adapt_component_for_materialization(invalid_win, false);
+        let (adapted_posix, reason_posix) =
+            adapt_component_for_materialization(invalid_win, false);
         assert_eq!(adapted_posix, invalid_win);
         assert!(reason_posix.is_none());
 
         #[cfg(unix)]
         {
             use std::os::unix::ffi::OsStrExt;
-            let raw_with_nul = std::ffi::OsStr::from_bytes(b"prefix_\xFF\x80\0suffix");
+            let raw_with_nul =
+                std::ffi::OsStr::from_bytes(b"prefix_\xFF\x80\0suffix");
             let (adapted_raw, reason_raw) =
                 adapt_component_for_materialization(raw_with_nul, false);
-            assert_eq!(adapted_raw.as_encoded_bytes(), b"prefix_\xFF\x80suffix");
+            assert_eq!(
+                adapted_raw.as_encoded_bytes(),
+                b"prefix_\xFF\x80suffix"
+            );
             assert!(reason_raw.is_some());
         }
     }

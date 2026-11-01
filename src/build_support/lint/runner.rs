@@ -61,10 +61,15 @@ impl AstAnalysisResults {
     fn merge(&mut self, other: Self) {
         self.header_violations.extend(other.header_violations);
         self.tempdir_violations.extend(other.tempdir_violations);
-        self.boilerplate_violations.extend(other.boilerplate_violations);
-        self.format_log_violations.extend(other.format_log_violations);
-        self.unwrap_or_total = self.unwrap_or_total.saturating_add(other.unwrap_or_total);
-        self.unwrap_or_verified = self.unwrap_or_verified.saturating_add(other.unwrap_or_verified);
+        self.boilerplate_violations
+            .extend(other.boilerplate_violations);
+        self.format_log_violations
+            .extend(other.format_log_violations);
+        self.unwrap_or_total =
+            self.unwrap_or_total.saturating_add(other.unwrap_or_total);
+        self.unwrap_or_verified = self
+            .unwrap_or_verified
+            .saturating_add(other.unwrap_or_verified);
         self.unwrap_or_unverified.extend(other.unwrap_or_unverified);
         self.unwrap_or_warnings.extend(other.unwrap_or_warnings);
         self.io_errors.extend(other.io_errors);
@@ -73,15 +78,20 @@ impl AstAnalysisResults {
 }
 
 /// Runs all Rust-based linters in a unified, high-performance execution.
-pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> {
+pub fn run_all(
+    workspace_root: &Path,
+    offline: bool,
+    quick: bool,
+) -> Result<()> {
     // 1. Spawn cargo metadata check concurrently in a background thread
     let ws_root = workspace_root.to_path_buf();
-    let metadata_thread = thread::spawn(move || -> Result<cargo_metadata::Metadata> {
-        cargo_metadata::MetadataCommand::new()
-            .manifest_path(ws_root.join("Cargo.toml"))
-            .exec()
-            .context("failed to load cargo metadata")
-    });
+    let metadata_thread =
+        thread::spawn(move || -> Result<cargo_metadata::Metadata> {
+            cargo_metadata::MetadataCommand::new()
+                .manifest_path(ws_root.join("Cargo.toml"))
+                .exec()
+                .context("failed to load cargo metadata")
+        });
 
     // 2. Discover files:
     // Header linter files (with standard header exclusions such as generated directories):
@@ -128,7 +138,11 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             }
             Err(e) => {
                 if let Ok(mut lock) = parallel_io_errors.lock() {
-                    lock.push(format!("failed to check Scheme file {}: {:#}", f.display(), e));
+                    lock.push(format!(
+                        "failed to check Scheme file {}: {:#}",
+                        f.display(),
+                        e
+                    ));
                 }
             }
         }
@@ -146,7 +160,11 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             }
             Err(e) => {
                 if let Ok(mut lock) = parallel_io_errors.lock() {
-                    lock.push(format!("failed to check Dockerfile {}: {:#}", f.display(), e));
+                    lock.push(format!(
+                        "failed to check Dockerfile {}: {:#}",
+                        f.display(),
+                        e
+                    ));
                 }
             }
         }
@@ -154,7 +172,12 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
 
     python_files.par_iter().for_each(|f| {
         let mut v = Vec::new();
-        match headers::lint_python_file(f, workspace_root, &allowed_licenses, &mut v) {
+        match headers::lint_python_file(
+            f,
+            workspace_root,
+            &allowed_licenses,
+            &mut v,
+        ) {
             Ok(()) => {
                 if !v.is_empty() {
                     if let Ok(mut lock) = non_rs_violations.lock() {
@@ -164,7 +187,11 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             }
             Err(e) => {
                 if let Ok(mut lock) = parallel_io_errors.lock() {
-                    lock.push(format!("failed to check Python file {}: {:#}", f.display(), e));
+                    lock.push(format!(
+                        "failed to check Python file {}: {:#}",
+                        f.display(),
+                        e
+                    ));
                 }
             }
         }
@@ -172,7 +199,12 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
 
     shell_files.par_iter().for_each(|f| {
         let mut v = Vec::new();
-        match headers::lint_shell_file(f, workspace_root, &allowed_licenses, &mut v) {
+        match headers::lint_shell_file(
+            f,
+            workspace_root,
+            &allowed_licenses,
+            &mut v,
+        ) {
             Ok(()) => {
                 if !v.is_empty() {
                     if let Ok(mut lock) = non_rs_violations.lock() {
@@ -182,7 +214,11 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             }
             Err(e) => {
                 if let Ok(mut lock) = parallel_io_errors.lock() {
-                    lock.push(format!("failed to check Shell script {}: {:#}", f.display(), e));
+                    lock.push(format!(
+                        "failed to check Shell script {}: {:#}",
+                        f.display(),
+                        e
+                    ));
                 }
             }
         }
@@ -195,15 +231,27 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             let content = match fs::read_to_string(file_path) {
                 Ok(c) => c,
                 Err(e) => {
-                    acc.io_errors.push(format!("failed to read {}: {:#}", file_path.display(), e));
+                    acc.io_errors.push(format!(
+                        "failed to read {}: {:#}",
+                        file_path.display(),
+                        e
+                    ));
                     return acc;
                 }
             };
 
             // License and header check on raw file text if file is header-eligible
             if header_rs_set.contains(file_path.as_path()) {
-                if let Err(e) = headers::lint_file(file_path, &allowed_licenses, &mut acc.header_violations) {
-                    acc.io_errors.push(format!("failed to check headers in {}: {:#}", file_path.display(), e));
+                if let Err(e) = headers::lint_file(
+                    file_path,
+                    &allowed_licenses,
+                    &mut acc.header_violations,
+                ) {
+                    acc.io_errors.push(format!(
+                        "failed to check headers in {}: {:#}",
+                        file_path.display(),
+                        e
+                    ));
                 }
             }
 
@@ -214,8 +262,10 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
                 .to_string();
 
             let is_in_src = rel_path.starts_with("src/");
-            let has_tests_marker = content.contains("tests") || content.contains("cfg(test)");
-            let check_unwrap = is_in_src && !unwrap_or::should_skip_path(&rel_path);
+            let has_tests_marker =
+                content.contains("tests") || content.contains("cfg(test)");
+            let check_unwrap =
+                is_in_src && !unwrap_or::should_skip_path(&rel_path);
 
             // Parse AST only once per file if any AST-based check requires it
             let syntax = match syn::parse_file(&content) {
@@ -227,19 +277,25 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             };
 
             // AST check 1: Tempdir write violations
-            let tempdir_v = helper::check_file_ast(file_path, &content, &syntax);
+            let tempdir_v =
+                helper::check_file_ast(file_path, &content, &syntax);
             acc.tempdir_violations.extend(tempdir_v);
 
             // AST check 2: Test boilerplate violations
             if is_in_src && has_tests_marker {
-                let boilerplate_v = test_boilerplate::check_file_ast(file_path, &syntax);
+                let boilerplate_v =
+                    test_boilerplate::check_file_ast(file_path, &syntax);
                 acc.boilerplate_violations.extend(boilerplate_v);
             }
 
             // AST check 3: unwrap_or domain fallbacks
             if check_unwrap {
                 let lines: Vec<&str> = content.lines().collect();
-                unwrap_or::check_fallback_warnings(&rel_path, &lines, &mut acc.unwrap_or_warnings);
+                unwrap_or::check_fallback_warnings(
+                    &rel_path,
+                    &lines,
+                    &mut acc.unwrap_or_warnings,
+                );
 
                 let mut visitor = unwrap_or::FallbackVisitor::new(&lines);
                 syn::visit::Visit::visit_file(&mut visitor, &syntax);
@@ -248,7 +304,8 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
                     acc.unwrap_or_total = acc.unwrap_or_total.saturating_add(1);
 
                     if unwrap_or::is_occurrence_verified(&occurrence, &lines) {
-                        acc.unwrap_or_verified = acc.unwrap_or_verified.saturating_add(1);
+                        acc.unwrap_or_verified =
+                            acc.unwrap_or_verified.saturating_add(1);
                     } else {
                         acc.unwrap_or_unverified.push((
                             rel_path.clone(),
@@ -261,7 +318,8 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
 
             // AST check 4: FormatLog discard violations
             if is_in_src && !format_log::should_skip_path(&rel_path) {
-                let format_log_v = format_log::check_file_ast(&rel_path, &syntax);
+                let format_log_v =
+                    format_log::check_file_ast(&rel_path, &syntax);
                 acc.format_log_violations.extend(format_log_v);
             }
 
@@ -280,13 +338,15 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
     }
 
     // 6. Check workspace crates declaration
-    let ws_crates_violations = workspace_crates::check_workspace_crates(workspace_root)?;
+    let ws_crates_violations =
+        workspace_crates::check_workspace_crates(workspace_root)?;
 
     // 7. Join metadata thread and check patches
     let metadata = metadata_thread
         .join()
         .map_err(|_| anyhow::anyhow!("metadata thread panicked"))??;
-    let patch_violations = patches::check_with_metadata(workspace_root, &metadata)?;
+    let patch_violations =
+        patches::check_with_metadata(workspace_root, &metadata)?;
 
     // 8. Output results section by section and evaluate failures
     let mut any_failure = false;
@@ -295,8 +355,14 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
     println!("=== Checking unwrap_or domain fallbacks ===");
     println!("=== CTB unwrap_or Domain Fallback Linter ===");
     println!("Scope: All non-test source files in src/");
-    println!("Total Fallback Occurrences: {}", ast_results.unwrap_or_total);
-    println!("Verified (Documented Domain Fallbacks): {}", ast_results.unwrap_or_verified);
+    println!(
+        "Total Fallback Occurrences: {}",
+        ast_results.unwrap_or_total
+    );
+    println!(
+        "Verified (Documented Domain Fallbacks): {}",
+        ast_results.unwrap_or_verified
+    );
     println!(
         "Unverified (Lacking Domain Rationale Comment): {}",
         ast_results.unwrap_or_unverified.len()
@@ -311,7 +377,9 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
 
     if !ast_results.unwrap_or_unverified.is_empty() {
         any_failure = true;
-        println!("\nUnverified Fallbacks Requiring Refactoring or Rationale Comments:");
+        println!(
+            "\nUnverified Fallbacks Requiring Refactoring or Rationale Comments:"
+        );
         for (file, line_num, code) in &ast_results.unwrap_or_unverified {
             println!("  {file}:{line_num}: {}", code.trim());
         }
@@ -375,9 +443,12 @@ If you don't understand why that diff is missing the point of this lint, re-read
         println!("tempdir lint passed");
     } else {
         any_failure = true;
-        eprintln!("tempdir lint failed: found write operations in tests without creating a tempdir first.");
+        eprintln!(
+            "tempdir lint failed: found write operations in tests without creating a tempdir first."
+        );
         for v in &ast_results.tempdir_violations {
-            let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
+            let relative =
+                v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
             eprintln!(
                 "  {}:{}: function `{}` called `{}` without tempdir",
                 relative.display(),
@@ -415,7 +486,8 @@ If you don't understand why that diff is missing the point of this lint, re-read
             total_header_files
         );
         for v in &ast_results.header_violations {
-            let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
+            let relative =
+                v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
             eprintln!("  {}:{}: {}", relative.display(), v.line, v.message);
         }
     }
@@ -437,7 +509,8 @@ If you don't understand why that diff is missing the point of this lint, re-read
     } else {
         any_failure = true;
         for v in &ast_results.boilerplate_violations {
-            let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
+            let relative =
+                v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
             eprintln!("{}:{}: {}", relative.display(), v.line, v.message);
         }
         eprintln!(

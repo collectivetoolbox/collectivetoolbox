@@ -32,8 +32,7 @@ SOFTWARE.
 extern crate kaitai;
 use kaitai::CustomDecoder;
 
-pub struct CustomFxNoArgs {
-}
+pub struct CustomFxNoArgs {}
 
 impl Default for CustomFxNoArgs {
     fn default() -> Self {

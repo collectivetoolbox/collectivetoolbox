@@ -277,7 +277,9 @@ pub fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
 
         for offset in 1..=3 {
             if start_idx >= offset {
-                if let Some(line_above) = lines.get(start_idx.saturating_sub(offset)) {
+                if let Some(line_above) =
+                    lines.get(start_idx.saturating_sub(offset))
+                {
                     let trimmed = line_above.trim();
                     if has_domain_comment(trimmed) {
                         return true;
@@ -434,7 +436,10 @@ pub fn run(workspace_root: &Path) -> Result<()> {
     println!("=== CTB unwrap_or Domain Fallback Linter ===");
     println!("Scope: All non-test source files in src/");
     println!("Total Fallback Occurrences: {}", report.total);
-    println!("Verified (Documented Domain Fallbacks): {}", report.verified);
+    println!(
+        "Verified (Documented Domain Fallbacks): {}",
+        report.verified
+    );
     println!(
         "Unverified (Lacking Domain Rationale Comment): {}",
         report.unverified.len()

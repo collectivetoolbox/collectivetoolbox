@@ -31,7 +31,8 @@ pub const REQUIRED_LINTS: [&str; 7] = [
 ];
 
 /// Standard reason string for test boilerplate allow attributes.
-pub const TEST_BOILERPLATE_REASON: &str = "Standard repository test boilerplate";
+pub const TEST_BOILERPLATE_REASON: &str =
+    "Standard repository test boilerplate";
 
 /// Format a list of lint strings into indented lines for an allow attribute.
 pub fn format_lint_list(lints: &[&str], indent: &str) -> String {
@@ -46,7 +47,11 @@ pub fn format_lint_list(lints: &[&str], indent: &str) -> String {
 
 /// Generates a formatted allow attribute (`#[allow(...)]` or `#![allow(...)]`)
 /// containing standard required test lints and any extra lints.
-pub fn get_test_header(inner: bool, extra_before: &[&str], extra_after: &[&str]) -> String {
+pub fn get_test_header(
+    inner: bool,
+    extra_before: &[&str],
+    extra_after: &[&str],
+) -> String {
     let bang = if inner { "!" } else { "" };
     let mut s = format!("#{bang}[allow(\n");
     s.push_str(&format_lint_list(extra_before, "    "));
@@ -76,7 +81,6 @@ pub(crate) use ctb_utilities::*;"#;
 
 pub const STANDARD_REPOSITORY_MODULE_BOILERPLATE: &str = r#"#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;"#;
-
 
 #[cfg(test)]
 #[allow(

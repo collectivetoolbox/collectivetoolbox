@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Detection of small specialized formats including IP address strings,
 //! checksums, UUIDs, mathematical expressions/relations, and base numerals.
 
@@ -454,7 +453,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::mime_derivation::FORMAT_CATALOG;
-use crate::types::{ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint};
+use crate::types::{
+    ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
+};
 use ctb_utilities::FormatId;
 
 /// Evaluates small textual sources to produce candidate classifications for
@@ -492,7 +493,11 @@ pub fn detect_small_format_candidates(
         let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
         let dc_id = mapping.map(|m| m.dc_id);
         let mime = mapping.and_then(|m| m.mime_types.first().cloned());
-        let mut score = if fmt == FormatId::UuidHex32 { 80u32 } else { 90u32 };
+        let mut score = if fmt == FormatId::UuidHex32 {
+            80u32
+        } else {
+            90u32
+        };
         let mut evidence = vec![DetectionEvidence::CtbRule {
             description: uuid_det.description.clone(),
             score,
@@ -610,7 +615,8 @@ pub fn detect_small_format_candidates(
 
     // 4. MIME type string detection (via ctb-formats-mime)
     if let Some(mime_det) = ctb_formats_mime::parse_mime_type(trimmed) {
-        if let Some(mapping) = FORMAT_CATALOG.lookup_mime(&mime_det.media_type) {
+        if let Some(mapping) = FORMAT_CATALOG.lookup_mime(&mime_det.media_type)
+        {
             let fmt = mapping.format_id;
             let mut score = 90u32;
             let mut evidence = vec![DetectionEvidence::CtbRule {
@@ -645,8 +651,12 @@ pub fn detect_small_format_candidates(
     }
 
     // 5. Apple OS / Creator Type detection (via ctb-formats-apple-types)
-    if let Some(type_code_det) = ctb_formats_apple_types::detect_apple_type_code(trimmed) {
-        if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&type_code_det.code) {
+    if let Some(type_code_det) =
+        ctb_formats_apple_types::detect_apple_type_code(trimmed)
+    {
+        if let Some(mapping) =
+            FORMAT_CATALOG.lookup_apple_type_code(&type_code_det.code)
+        {
             let fmt = mapping.format_id;
             let mut score = 85u32;
             let mut evidence = vec![DetectionEvidence::CtbRule {
@@ -688,7 +698,8 @@ pub fn detect_small_format_candidates(
         || trimmed.starts_with("0o")
         || trimmed.starts_with("0O");
     if is_prefixed_numeral || trimmed.bytes().all(|b| b.is_ascii_digit()) {
-        if let Some(num_det) = ctb_formats_math::detect_numeric_format(trimmed) {
+        if let Some(num_det) = ctb_formats_math::detect_numeric_format(trimmed)
+        {
             let fmt = num_det.format_id;
             let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
             let dc_id = mapping.map(|m| m.dc_id);
@@ -936,26 +947,26 @@ pub fn detect_custom_text_format_candidate(
                         }
                     } else if part.starts_with('L')
                         && part.len() > 1
-                        && part
-                            .get(1..)
-                            .is_some_and(|s| s.chars().all(|c| c.is_ascii_digit()))
+                        && part.get(1..).is_some_and(|s| {
+                            s.chars().all(|c| c.is_ascii_digit())
+                        })
                     {
                         has_dctext_token = true;
                     } else if (part.starts_with('l')
                         && part.len() > 1
-                        && part
-                            .get(1..)
-                            .is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
+                        && part.get(1..).is_some_and(|s| {
+                            s.chars().all(|c| c.is_ascii_digit())
+                        }))
                         || ((part.starts_with('u') || part.starts_with('U'))
                             && part.len() > 1
-                            && part
-                                .get(1..)
-                                .is_some_and(|s| s.chars().all(|c| c.is_ascii_hexdigit())))
+                            && part.get(1..).is_some_and(|s| {
+                                s.chars().all(|c| c.is_ascii_hexdigit())
+                            }))
                         || ((part.starts_with('f') || part.starts_with('F'))
                             && part.len() > 1
-                            && part
-                                .get(1..)
-                                .is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
+                            && part.get(1..).is_some_and(|s| {
+                                s.chars().all(|c| c.is_ascii_digit())
+                            }))
                     {
                         has_dctext_token = true;
                         has_dcts_prefix_token = true;
@@ -998,7 +1009,10 @@ pub fn detect_custom_text_format_candidate(
                     .and_then(|m| m.mime_types.first().cloned())
                     .or_else(|| Some("text/plain".to_string()));
                 // Reason for fallback: unmapped format identifier falls back to standard DcText document label
-                let description = mapping.map_or_else(|| "DcText document".to_string(), |m| format!("{} document", m.label));
+                let description = mapping.map_or_else(
+                    || "DcText document".to_string(),
+                    |m| format!("{} document", m.label),
+                );
                 let mut score = 85u32;
                 let mut evidence = vec![DetectionEvidence::CtbRule {
                     description: format!("{} @token@ document", fmt.ident()),
@@ -1079,7 +1093,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_detect_small_format_checksum() {
-        let sha256 = b"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let sha256 =
+            b"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let cands = detect_small_format_candidates(sha256, None, None);
         assert!(!cands.is_empty());
         assert_eq!(cands[0].format_id, Some(FormatId::Sha256));
@@ -1090,13 +1105,16 @@ mod tests {
         let eq = detect_small_format_candidates(b"2x = 6", None, None);
         assert_eq!(eq[0].format_id, Some(FormatId::Equation));
 
-        let ineq = detect_small_format_candidates(b"x^2 + y^2 <= 1", None, None);
+        let ineq =
+            detect_small_format_candidates(b"x^2 + y^2 <= 1", None, None);
         assert_eq!(ineq[0].format_id, Some(FormatId::Inequality));
 
-        let approx = detect_small_format_candidates(b"1 oz ~= 28 g", None, None);
+        let approx =
+            detect_small_format_candidates(b"1 oz ~= 28 g", None, None);
         assert_eq!(approx[0].format_id, Some(FormatId::Approximation));
 
-        let arith = detect_small_format_candidates(b"(23 mod 2) + 6", None, None);
+        let arith =
+            detect_small_format_candidates(b"(23 mod 2) + 6", None, None);
         assert_eq!(arith[0].format_id, Some(FormatId::ArithmeticExpression));
 
         let symb = detect_small_format_candidates(b"1 + 2x", None, None);
@@ -1108,7 +1126,8 @@ mod tests {
         let int_cand = detect_small_format_candidates(b"12345", None, None);
         assert_eq!(int_cand[0].format_id, Some(FormatId::Integer));
 
-        let hex_cand = detect_small_format_candidates(b"0xDEADBEEF", None, None);
+        let hex_cand =
+            detect_small_format_candidates(b"0xDEADBEEF", None, None);
         assert_eq!(hex_cand[0].format_id, Some(FormatId::HexadecimalNumeral));
     }
 
@@ -1117,7 +1136,11 @@ mod tests {
         let scheme_cand = detect_small_format_candidates(b"http", None, None);
         assert_eq!(scheme_cand[0].format_id, Some(FormatId::UriProtocol));
 
-        let uri_cand = detect_small_format_candidates(b"https://collectivetoolbox.com", None, None);
+        let uri_cand = detect_small_format_candidates(
+            b"https://collectivetoolbox.com",
+            None,
+            None,
+        );
         assert_eq!(uri_cand[0].format_id, Some(FormatId::Uri));
 
         let magnet_cand = detect_small_format_candidates(
@@ -1130,10 +1153,12 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_detect_small_format_uti_and_mime_and_creator() {
-        let uti_cand = detect_small_format_candidates(b"com.apple.alias-file", None, None);
+        let uti_cand =
+            detect_small_format_candidates(b"com.apple.alias-file", None, None);
         assert_eq!(uti_cand[0].format_id, Some(FormatId::MacAlias));
 
-        let mime_cand = detect_small_format_candidates(b"application/json", None, None);
+        let mime_cand =
+            detect_small_format_candidates(b"application/json", None, None);
         assert_eq!(mime_cand[0].format_id, Some(FormatId::Json));
 
         let creator_cand = detect_small_format_candidates(b"alis", None, None);
@@ -1143,26 +1168,34 @@ mod tests {
     #[crate::ctb_test]
     fn test_detect_custom_text_format_dctext() {
         let input = b"Hello @65@ world";
-        let cand = detect_custom_text_format_candidate(input, None).expect("detect dctext");
+        let cand = detect_custom_text_format_candidate(input, None)
+            .expect("detect dctext");
         assert_eq!(cand.format_id, Some(FormatId::DcText));
 
         let dcts_input = b"Hello @u0041@ world";
-        let dcts_cand = detect_custom_text_format_candidate(dcts_input, None).expect("detect dcts");
+        let dcts_cand = detect_custom_text_format_candidate(dcts_input, None)
+            .expect("detect dcts");
         assert_eq!(dcts_cand.format_id, Some(FormatId::Dcts));
 
         let cdce_hint = DetectionHint {
             filename: Some("datetime_string.legacy_cdce".to_string()),
             ..Default::default()
         };
-        let cdce_cand = detect_custom_text_format_candidate(b"@9@@2@1@3@@10@2012", Some(&cdce_hint))
-            .expect("detect legacy_cdce");
+        let cdce_cand = detect_custom_text_format_candidate(
+            b"@9@@2@1@3@@10@2012",
+            Some(&cdce_hint),
+        )
+        .expect("detect legacy_cdce");
         assert_eq!(cdce_cand.format_id, Some(FormatId::CdceLegacy));
 
         let compat_hint = DetectionHint {
             compat: true,
             ..Default::default()
         };
-        assert!(detect_custom_text_format_candidate(input, Some(&compat_hint)).is_none());
+        assert!(
+            detect_custom_text_format_candidate(input, Some(&compat_hint))
+                .is_none()
+        );
     }
 }
 /*

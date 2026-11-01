@@ -100,7 +100,11 @@ impl KStruct for ValidFailAnyofInt {
     type Root = ValidFailAnyofInt;
     type Parent = ValidFailAnyofInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,16 +126,26 @@ impl KStruct for ValidFailAnyofInt {
         let expected_6: u8 = (12).try_into()?;
         let expected_7: u8 = (47).try_into()?;
         let _item: u8 = (*self_rc.foo()).try_into()?;
-        if !(_item == expected_0 || _item == expected_1 || _item == expected_2 || _item == expected_3 || _item == expected_4 || _item == expected_5 || _item == expected_6 || _item == expected_7) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
+        if !(_item == expected_0
+            || _item == expected_1
+            || _item == expected_2
+            || _item == expected_3
+            || _item == expected_4
+            || _item == expected_5
+            || _item == expected_6
+            || _item == expected_7)
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotAnyOf,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailAnyofInt {
-}
+impl ValidFailAnyofInt {}
 impl ValidFailAnyofInt {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()

@@ -136,7 +136,9 @@ pub fn parse_aliases_or_base_column(
             file_path,
             Some(line_no),
             Some(col_name),
-            format!("Cell has leading whitespace in {col_name} column: '{raw}'"),
+            format!(
+                "Cell has leading whitespace in {col_name} column: '{raw}'"
+            ),
             Some("Remove leading spaces from the cell"),
         );
     }
@@ -145,7 +147,9 @@ pub fn parse_aliases_or_base_column(
             file_path,
             Some(line_no),
             Some(col_name),
-            format!("Cell has trailing whitespace in {col_name} column: '{raw}'"),
+            format!(
+                "Cell has trailing whitespace in {col_name} column: '{raw}'"
+            ),
             Some("Remove trailing spaces from the cell"),
         );
     }
@@ -185,10 +189,15 @@ pub fn parse_aliases_or_base_column(
             ',' if paren_depth == 0 && bracket_depth == 0 => {
                 // Check space before comma
                 if i > 0 {
-                    if let Some(&(_, prev_ch)) = chars.get(i.saturating_sub(1)) {
+                    if let Some(&(_, prev_ch)) = chars.get(i.saturating_sub(1))
+                    {
                         if prev_ch.is_whitespace() {
-                            let snippet_start = raw.floor_char_boundary(byte_idx.saturating_sub(10));
-                            let snippet_end = raw.ceil_char_boundary(byte_idx.saturating_add(1).min(raw.len()));
+                            let snippet_start = raw.floor_char_boundary(
+                                byte_idx.saturating_sub(10),
+                            );
+                            let snippet_end = raw.ceil_char_boundary(
+                                byte_idx.saturating_add(1).min(raw.len()),
+                            );
                             #[expect(
                                 clippy::expect_used,
                                 reason = "floor_char_boundary and ceil_char_boundary guarantee valid UTF-8 char boundaries with snippet_start <= snippet_end <= raw.len()"
@@ -237,7 +246,9 @@ pub fn parse_aliases_or_base_column(
                             Some("Remove redundant comma"),
                         );
                     } else if next_ch != ' ' {
-                        let snippet_end = raw.ceil_char_boundary(byte_idx.saturating_add(15).min(raw.len()));
+                        let snippet_end = raw.ceil_char_boundary(
+                            byte_idx.saturating_add(15).min(raw.len()),
+                        );
                         #[expect(
                             clippy::expect_used,
                             reason = "byte_idx is from char_indices() and ceil_char_boundary guarantees valid UTF-8 char boundary >= byte_idx"
@@ -254,9 +265,13 @@ pub fn parse_aliases_or_base_column(
                         );
                     } else {
                         let next_next_i = next_i.saturating_add(1);
-                        if let Some(&(_, after_space_ch)) = chars.get(next_next_i) {
+                        if let Some(&(_, after_space_ch)) =
+                            chars.get(next_next_i)
+                        {
                             if after_space_ch.is_whitespace() {
-                                let snippet_end = raw.ceil_char_boundary(byte_idx.saturating_add(15).min(raw.len()));
+                                let snippet_end = raw.ceil_char_boundary(
+                                    byte_idx.saturating_add(15).min(raw.len()),
+                                );
                                 #[expect(
                                     clippy::expect_used,
                                     reason = "byte_idx is from char_indices() and ceil_char_boundary guarantees valid UTF-8 char boundary >= byte_idx"
@@ -371,7 +386,9 @@ fn process_column_item(
                         Some("Specify a format shorthand inside @implies(...) (e.g. '@implies(f271)')"),
                     );
                 } else {
-                    validate_shorthand_expr(val, file_path, line_no, report, col_name, "@implies");
+                    validate_shorthand_expr(
+                        val, file_path, line_no, report, col_name, "@implies",
+                    );
                     parsed.implies.push(val.to_string());
                 }
             } else {
@@ -395,7 +412,14 @@ fn process_column_item(
                         Some("Specify a format shorthand inside @based_on(...) (e.g. '@based_on(f580)')"),
                     );
                 } else {
-                    validate_shorthand_expr(val, file_path, line_no, report, col_name, "@based_on");
+                    validate_shorthand_expr(
+                        val,
+                        file_path,
+                        line_no,
+                        report,
+                        col_name,
+                        "@based_on",
+                    );
                     parsed.based_on.push(val.to_string());
                 }
             } else {
@@ -448,7 +472,9 @@ fn process_column_item(
             }
         } else if let Some(inner) = item_trimmed.strip_prefix("@annotation(") {
             if let Some(stripped) = inner.strip_suffix(')') {
-                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                if let Some(unescaped) =
+                    unescape_quoted_directive_payload(stripped)
+                {
                     parsed.annotations.push(unescaped);
                 } else {
                     report.add_error(
@@ -481,7 +507,9 @@ fn process_column_item(
                 if let Some(inner) = item_trimmed.strip_prefix(prefix) {
                     matched = true;
                     if let Some(stripped) = inner.strip_suffix(')') {
-                        if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                        if let Some(unescaped) =
+                            unescape_quoted_directive_payload(stripped)
+                        {
                             parsed.formal_aliases.push(ParsedFormalAlias {
                                 kind: kind.to_string(),
                                 alias: unescaped,
@@ -516,12 +544,17 @@ fn process_column_item(
                     Some("Supported formal alias directives are: @formalAliasCorrection, @formalAliasControl, @formalAliasAlternate, @formalAliasFigment, @formalAliasAbbreviation"),
                 );
             }
-        } else if item_trimmed.starts_with("@chain(") || item_trimmed.starts_with("@(") {
+        } else if item_trimmed.starts_with("@chain(")
+            || item_trimmed.starts_with("@(")
+        {
             parsed.format_spec_raw = Some(item_trimmed.to_string());
         } else if let Some(inner) = item_trimmed.strip_prefix("@ident(") {
             if let Some(stripped) = inner.strip_suffix(')') {
-                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
-                    if let Err(e) = crate::validate_rust_identifier(&unescaped) {
+                if let Some(unescaped) =
+                    unescape_quoted_directive_payload(stripped)
+                {
+                    if let Err(e) = crate::validate_rust_identifier(&unescaped)
+                    {
                         report.add_error(
                             file_path,
                             Some(line_no),
@@ -551,7 +584,9 @@ fn process_column_item(
             }
         } else if let Some(inner) = item_trimmed.strip_prefix("@nick(") {
             if let Some(stripped) = inner.strip_suffix(')') {
-                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                if let Some(unescaped) =
+                    unescape_quoted_directive_payload(stripped)
+                {
                     if unescaped.trim().is_empty() {
                         report.add_error(
                             file_path,
@@ -583,7 +618,9 @@ fn process_column_item(
             }
         } else if let Some(inner) = item_trimmed.strip_prefix("@magic_name(") {
             if let Some(stripped) = inner.strip_suffix(')') {
-                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                if let Some(unescaped) =
+                    unescape_quoted_directive_payload(stripped)
+                {
                     if unescaped.trim().is_empty() {
                         report.add_error(
                             file_path,
@@ -664,7 +701,9 @@ fn process_column_item(
             }
         } else if let Some(inner) = item_trimmed.strip_prefix("@title(") {
             if let Some(stripped) = inner.strip_suffix(')') {
-                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                if let Some(unescaped) =
+                    unescape_quoted_directive_payload(stripped)
+                {
                     if unescaped.trim().is_empty() {
                         report.add_error(
                             file_path,
@@ -702,9 +741,12 @@ fn process_column_item(
                     Some("Ensure '@title(...)' closes with a parenthesis"),
                 );
             }
-        } else if let Some(inner) = item_trimmed.strip_prefix("@default_line_ending(") {
+        } else if let Some(inner) =
+            item_trimmed.strip_prefix("@default_line_ending(")
+        {
             if let Some(stripped) = inner.strip_suffix(')') {
-                let val = stripped.trim().trim_matches('"').to_ascii_lowercase();
+                let val =
+                    stripped.trim().trim_matches('"').to_ascii_lowercase();
                 if val.is_empty() {
                     report.add_error(
                         file_path,
@@ -713,7 +755,10 @@ fn process_column_item(
                         format!("Empty '@default_line_ending()' in '{item_trimmed}'"),
                         Some("Specify a line ending name (e.g. 'crlf', 'cr', 'lf') inside '@default_line_ending(...)'"),
                     );
-                } else if !matches!(val.as_str(), "lf" | "cr" | "crlf" | "lfcr" | "rs" | "nl") {
+                } else if !matches!(
+                    val.as_str(),
+                    "lf" | "cr" | "crlf" | "lfcr" | "rs" | "nl"
+                ) {
                     report.add_error(
                         file_path,
                         Some(line_no),
@@ -735,7 +780,9 @@ fn process_column_item(
             }
         } else if let Some(inner) = item_trimmed.strip_prefix("@vary_as(") {
             if let Some(stripped) = inner.strip_suffix(')') {
-                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                if let Some(unescaped) =
+                    unescape_quoted_directive_payload(stripped)
+                {
                     if unescaped.trim().is_empty() {
                         report.add_error(
                             file_path,
@@ -797,7 +844,9 @@ fn process_column_item(
                             );
                             continue;
                         }
-                        match ctb_storage_minimal::shorthand::DcShorthand::parse(token_trimmed) {
+                        match ctb_storage_minimal::shorthand::DcShorthand::parse(
+                            token_trimmed,
+                        ) {
                             Ok(shorthand) => {
                                 parsed.varies.push(shorthand);
                             }
@@ -825,7 +874,9 @@ fn process_column_item(
         } else if let Some(inner) = item_trimmed.strip_prefix("@closes(") {
             if let Some(stripped) = inner.strip_suffix(')') {
                 let trimmed = stripped.trim();
-                match ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed) {
+                match ctb_storage_minimal::shorthand::DcShorthand::parse(
+                    trimmed,
+                ) {
                     Ok(target) => {
                         parsed.closes = Some(target);
                     }
@@ -855,7 +906,9 @@ fn process_column_item(
                 let body_trimmed = body.trim();
                 if body_trimmed.is_empty() {
                     parsed.role_def = true;
-                } else if let Some(role_name) = unescape_quoted_directive_payload(body_trimmed) {
+                } else if let Some(role_name) =
+                    unescape_quoted_directive_payload(body_trimmed)
+                {
                     if matches!(
                         role_name.as_str(),
                         "Base64Digit"
@@ -1058,7 +1111,9 @@ fn process_column_item(
                     file_path,
                     Some(line_no),
                     Some(col_name),
-                    format!("Multiple consecutive spaces in alias: '{item_trimmed}'"),
+                    format!(
+                        "Multiple consecutive spaces in alias: '{item_trimmed}'"
+                    ),
                     Some("Use single spaces between words in aliases"),
                 );
             }
@@ -1078,7 +1133,10 @@ fn validate_shorthand_expr(
     directive_name: &str,
 ) {
     let trimmed = expr.trim();
-    if directive_name == "@implies" && trimmed.starts_with('[') && trimmed.ends_with(']') {
+    if directive_name == "@implies"
+        && trimmed.starts_with('[')
+        && trimmed.ends_with(']')
+    {
         if let Err(e) = crate::syntax::parse_dc_syntax(&format!(":{trimmed}")) {
             report.add_error(
                 file_path,
@@ -1135,10 +1193,17 @@ mod tests {
             &mut report,
             true,
         );
-        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Report errors: {}",
+            report.format_report()
+        );
         assert_eq!(parsed.based_on, vec!["f580"]);
         assert_eq!(parsed.implies, vec!["f398"]);
-        assert_eq!(parsed.format_spec_raw.as_deref(), Some("@chain(f161 > f35)"));
+        assert_eq!(
+            parsed.format_spec_raw.as_deref(),
+            Some("@chain(f161 > f35)")
+        );
     }
 
     #[crate::ctb_test]
@@ -1153,7 +1218,9 @@ mod tests {
         );
         assert!(report.has_errors());
         let err = report.format_report();
-        assert!(err.contains("Directive '@base(...)' is deprecated and ambiguous"));
+        assert!(
+            err.contains("Directive '@base(...)' is deprecated and ambiguous")
+        );
     }
 
     #[crate::ctb_test]
@@ -1168,7 +1235,11 @@ mod tests {
         );
         assert!(report.has_errors());
         let err = report.format_report();
-        assert!(err.contains("Bare base format 'Tar' is disallowed in format tables"));
+        assert!(
+            err.contains(
+                "Bare base format 'Tar' is disallowed in format tables"
+            )
+        );
     }
 
     #[crate::ctb_test]
@@ -1181,7 +1252,11 @@ mod tests {
             &mut report,
             false,
         );
-        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Report errors: {}",
+            report.format_report()
+        );
         assert_eq!(parsed.aliases, vec!["dot", "point"]);
         assert_eq!(parsed.cross_references, vec![">32"]);
         assert_eq!(parsed.decompositions, vec!["<approx>u2e"]);
@@ -1197,7 +1272,11 @@ mod tests {
             &mut report,
             false,
         );
-        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Report errors: {}",
+            report.format_report()
+        );
         assert_eq!(
             parsed.formal_aliases,
             vec![
@@ -1246,7 +1325,11 @@ mod tests {
             true,
         );
         assert!(err_report.has_errors());
-        assert!(err_report.format_report().contains("Invalid Rust identifier"));
+        assert!(
+            err_report
+                .format_report()
+                .contains("Invalid Rust identifier")
+        );
     }
 
     #[crate::ctb_test]
@@ -1273,7 +1356,11 @@ mod tests {
             true,
         );
         assert!(err_report.has_errors());
-        assert!(err_report.format_report().contains("Invalid format shorthand 'macos' in '@os(...)'"));
+        assert!(
+            err_report
+                .format_report()
+                .contains("Invalid format shorthand 'macos' in '@os(...)'")
+        );
     }
 
     #[crate::ctb_test]
@@ -1325,7 +1412,11 @@ mod tests {
             &mut report,
             true,
         );
-        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Report errors: {}",
+            report.format_report()
+        );
         assert_eq!(parsed.vary_as.as_deref(), Some("radix"));
         assert_eq!(
             parsed.varies,
@@ -1346,7 +1437,11 @@ mod tests {
             &mut report,
             true,
         );
-        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Report errors: {}",
+            report.format_report()
+        );
         assert_eq!(
             parsed.magic_names,
             vec!["SCO compress -H (LZH) data", "compacted data"]
@@ -1374,7 +1469,11 @@ mod tests {
             &mut report,
             false,
         );
-        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Report errors: {}",
+            report.format_report()
+        );
         assert!(parsed.role_def);
         assert_eq!(parsed.rust_ident.as_deref(), Some("TypeString"));
         assert_eq!(parsed.composite_roles, vec!["TypeToken"]);
@@ -1388,7 +1487,11 @@ mod tests {
             false,
         );
         assert!(err_report.has_errors());
-        assert!(err_report.format_report().contains("Malformed '@roleDef()'"));
+        assert!(
+            err_report
+                .format_report()
+                .contains("Malformed '@roleDef()'")
+        );
         assert!(parsed_err.role_def);
 
         let mut unknown_report = ValidationReport::new();
@@ -1400,6 +1503,10 @@ mod tests {
             false,
         );
         assert!(unknown_report.has_errors());
-        assert!(unknown_report.format_report().contains("Unknown composite role 'UnknownRole'"));
+        assert!(
+            unknown_report
+                .format_report()
+                .contains("Unknown composite role 'UnknownRole'")
+        );
     }
 }

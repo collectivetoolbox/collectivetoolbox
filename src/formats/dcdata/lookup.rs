@@ -43,9 +43,9 @@ static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
         clippy::expect_used,
         reason = "Bundled runtime seed graph Dc definitions are validated at build time"
     )]
-    index
-        .reconstruct_dc_defns()
-        .expect("Bundled runtime seed graph Dc definitions must reconstruct cleanly")
+    index.reconstruct_dc_defns().expect(
+        "Bundled runtime seed graph Dc definitions must reconstruct cleanly",
+    )
 });
 
 static ALL_FORMAT_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
@@ -199,7 +199,8 @@ mod tests {
         assert_eq!(dc0.name, "Null (short Dc)");
         assert_eq!(dc0.category, "controls");
 
-        let dc0_long = get_dc_defn(crate::dc::short_to_long_dc(0)).expect("Dc 0 long ID exists");
+        let dc0_long = get_dc_defn(crate::dc::short_to_long_dc(0))
+            .expect("Dc 0 long ID exists");
         assert_eq!(dc0_long.name, "Null (short Dc)");
 
         let dc6 = get_short_dc_defn(6).expect("Dc 6 exists");
@@ -266,10 +267,18 @@ mod tests {
         assert_eq!(from_graph.len(), from_csv.len());
         for (g, c) in from_graph.iter().zip(from_csv.iter()) {
             assert_eq!(g.dc_id, c.dc_id);
-            assert_eq!(g.short_id, c.short_id, "short_id mismatch on {}", c.dc_id);
+            assert_eq!(
+                g.short_id, c.short_id,
+                "short_id mismatch on {}",
+                c.dc_id
+            );
             assert_eq!(g.ident, c.ident, "ident mismatch on {}", c.dc_id);
             assert_eq!(g.name, c.name, "name mismatch on {}", c.dc_id);
-            assert_eq!(g.category, c.category, "category mismatch on {}", c.dc_id);
+            assert_eq!(
+                g.category, c.category,
+                "category mismatch on {}",
+                c.dc_id
+            );
             assert_eq!(
                 g.combining_class, c.combining_class,
                 "combining_class mismatch on {}",
@@ -329,37 +338,56 @@ mod tests {
         from_csv.sort_by_key(|d| d.dc_id);
 
         assert_eq!(from_graph.len(), from_csv.len());
-        let split_set = |opt: &Option<String>| -> std::collections::BTreeSet<String> {
-            opt.as_deref()
-                .map(|s| {
-                    s.split(',')
-                        .map(str::trim)
-                        .filter(|x| !x.is_empty())
-                        .map(str::to_string)
-                        .collect()
-                })
-                .unwrap_or_default()
-        };
+        let split_set =
+            |opt: &Option<String>| -> std::collections::BTreeSet<String> {
+                opt.as_deref()
+                    .map(|s| {
+                        s.split(',')
+                            .map(str::trim)
+                            .filter(|x| !x.is_empty())
+                            .map(str::to_string)
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            };
         let first_item = |opt: &Option<String>| -> Option<String> {
             opt.as_deref()
-                .and_then(|s| s.split(',').map(str::trim).find(|x| !x.is_empty()))
+                .and_then(|s| {
+                    s.split(',').map(str::trim).find(|x| !x.is_empty())
+                })
                 .map(str::to_string)
         };
 
         for (g, c) in from_graph.iter().zip(from_csv.iter()) {
             assert_eq!(g.dc_id, c.dc_id);
-            assert_eq!(g.short_id, c.short_id, "short_id mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                g.short_id, c.short_id,
+                "short_id mismatch on f{:?}",
+                c.short_id
+            );
             assert_eq!(g.ident, c.ident, "ident mismatch on f{:?}", c.short_id);
             assert_eq!(g.name, c.name, "name mismatch on f{:?}", c.short_id);
             assert_eq!(g.title, c.title, "title mismatch on f{:?}", c.short_id);
-            assert_eq!(g.category, c.category, "category mismatch on f{:?}", c.short_id);
-            assert_eq!(g.script, c.script, "script mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                g.category, c.category,
+                "category mismatch on f{:?}",
+                c.short_id
+            );
+            assert_eq!(
+                g.script, c.script,
+                "script mismatch on f{:?}",
+                c.short_id
+            );
             assert_eq!(
                 g.is_deprecated, c.is_deprecated,
                 "is_deprecated mismatch on f{:?}",
                 c.short_id
             );
-            assert_eq!(g.closes, c.closes, "closes mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                g.closes, c.closes,
+                "closes mismatch on f{:?}",
+                c.short_id
+            );
             assert_eq!(
                 g.description, c.description,
                 "description mismatch on f{:?}",
@@ -373,8 +401,16 @@ mod tests {
             );
             let gf = g.format.as_ref().expect("graph format details");
             let cf = c.format.as_ref().expect("csv format details");
-            assert_eq!(gf.format_spec, cf.format_spec, "format_spec mismatch on f{:?}", c.short_id);
-            assert_eq!(gf.chain, cf.chain, "chain mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                gf.format_spec, cf.format_spec,
+                "format_spec mismatch on f{:?}",
+                c.short_id
+            );
+            assert_eq!(
+                gf.chain, cf.chain,
+                "chain mismatch on f{:?}",
+                c.short_id
+            );
             assert_eq!(
                 first_item(&gf.extensions),
                 first_item(&cf.extensions),
@@ -411,7 +447,11 @@ mod tests {
                 "uti set mismatch on f{:?}",
                 c.short_id
             );
-            assert_eq!(gf.apple_type, cf.apple_type, "apple_type mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                gf.apple_type, cf.apple_type,
+                "apple_type mismatch on f{:?}",
+                c.short_id
+            );
             assert_eq!(
                 first_item(&gf.nicknames),
                 first_item(&cf.nicknames),
@@ -434,7 +474,11 @@ mod tests {
                 "export_support mismatch on f{:?}",
                 c.short_id
             );
-            assert_eq!(gf.tests, cf.tests, "tests mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                gf.tests, cf.tests,
+                "tests mismatch on f{:?}",
+                c.short_id
+            );
             assert_eq!(
                 gf.variant_types, cf.variant_types,
                 "variant_types mismatch on f{:?}",
@@ -445,8 +489,16 @@ mod tests {
                 "default_line_ending mismatch on f{:?}",
                 c.short_id
             );
-            assert_eq!(gf.vary_as, cf.vary_as, "vary_as mismatch on f{:?}", c.short_id);
-            assert_eq!(gf.varies, cf.varies, "varies mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                gf.vary_as, cf.vary_as,
+                "vary_as mismatch on f{:?}",
+                c.short_id
+            );
+            assert_eq!(
+                gf.varies, cf.varies,
+                "varies mismatch on f{:?}",
+                c.short_id
+            );
         }
     }
 }

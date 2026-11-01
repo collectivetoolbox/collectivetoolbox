@@ -30,12 +30,14 @@ use ctb_formats_checksum::{Sha256Stream, xxhash};
 use ctb_formats_dcstring::{
     DcMixedDecode, DcMixedEncode, DcMstring, SharedJson, SharedValueContext,
 };
+use ctb_io::file::Natural;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
+use ctb_io::file::identity::{
+    FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os,
+};
 use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
-use ctb_io::file::Natural;
 use ctb_io_environment::EnvDescription;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -49,17 +51,21 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(crate) mod capture;
 pub mod legacy;
-pub(crate) mod scanner;
 mod reader;
+pub(crate) mod scanner;
 pub(crate) mod stream;
 
-pub use reader::{JournalReader, JournalPayload};
+pub use reader::{JournalPayload, JournalReader};
 pub use scanner::ReadMode;
-pub use stream::{ARCHIVE_MAGIC, ARCHIVE_MAGIC_V1, ARCHIVE_MAGIC_V2, JournalMagic, JournalWriter};
+pub use stream::{
+    ARCHIVE_MAGIC, ARCHIVE_MAGIC_V1, ARCHIVE_MAGIC_V2, JournalMagic,
+    JournalWriter,
+};
 
 pub use legacy::{
-    convert_legacy_journal_bytes, convert_legacy_journal_bytes_with_policy,
-    convert_legacy_journal, convert_legacy_journal_with_policy,
+    convert_legacy_journal, convert_legacy_journal_bytes,
+    convert_legacy_journal_bytes_with_policy,
+    convert_legacy_journal_with_policy,
 };
 
 pub(crate) use legacy::{
@@ -74,7 +80,9 @@ pub const JOURNAL_MAGIC_V5: &[u8; 8] = b"CTBCSCJ\x05";
 pub const JOURNAL_MAGIC: &[u8; 8] = JOURNAL_MAGIC_V5;
 pub const SESSION_ENVIRONMENT_BINDING: &str = "csc.session.environment";
 
-pub(crate) fn session_context(session: &JournalSessionRecord) -> Result<SharedValueContext> {
+pub(crate) fn session_context(
+    session: &JournalSessionRecord,
+) -> Result<SharedValueContext> {
     let mut context = SharedValueContext::default();
     if let Some(environment) = &session.environment {
         context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(environment))?;
@@ -89,7 +97,9 @@ pub const PLATFORM_WINDOWS: u8 = 3;
 pub const PLATFORM_OTHER: u8 = 4;
 
 /// Stage in the copy pipeline where an operation or file access error occurred.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
 pub enum JournalErrorStage {
     /// Directory listing or entry enumeration failed.
     Traversal,
@@ -147,13 +157,19 @@ pub struct JournalErrorRecord {
 impl JournalErrorRecord {
     /// Captures an operational failure without discarding its native cause.
     #[must_use]
-    pub fn from_error(path: &Path, stage: JournalErrorStage, error: &anyhow::Error) -> Self {
+    pub fn from_error(
+        path: &Path,
+        stage: JournalErrorStage,
+        error: &anyhow::Error,
+    ) -> Self {
         Self {
             path: path.to_path_buf(),
             raw_path: path.as_os_str().as_encoded_bytes().to_vec(),
             stage,
             error_message: format!("{error:#}"),
-            os_error: error.downcast_ref::<std::io::Error>().and_then(std::io::Error::raw_os_error),
+            os_error: error
+                .downcast_ref::<std::io::Error>()
+                .and_then(std::io::Error::raw_os_error),
             timestamp_sec: sec_from_system_time(SystemTime::now()),
         }
     }
@@ -258,7 +274,10 @@ impl JournalErrorRecordPayload {
         let stage_code = u64::from(record.stage.to_code());
         let os_code = match record.os_error {
             Some(error_code) => {
-                anyhow::ensure!(error_code != 0, "Zero OS error code cannot be distinguished from an absent error in this journal format");
+                anyhow::ensure!(
+                    error_code != 0,
+                    "Zero OS error code cannot be distinguished from an absent error in this journal format"
+                );
                 u64::from(u32::from_le_bytes(error_code.to_le_bytes()))
             }
             None => 0_u64,
@@ -280,10 +299,16 @@ impl JournalErrorRecordPayload {
         &self,
         policy: &ctb_formats_dcstring::DcProjectionPolicy,
     ) -> Result<JournalErrorRecord> {
-        let stage_code = if let Ok(code) = u8::try_from(self.packed_status >> 32) { code } else {
-            anyhow::ensure!(!policy.is_strict(), "Invalid stage code in error record");
-            0
-        };
+        let stage_code =
+            if let Ok(code) = u8::try_from(self.packed_status >> 32) {
+                code
+            } else {
+                anyhow::ensure!(
+                    !policy.is_strict(),
+                    "Invalid stage code in error record"
+                );
+                0
+            };
         let os_code = u32::try_from(self.packed_status & 0xFFFF_FFFF)?;
         Ok(JournalErrorRecord {
             path: self.path.clone(),
@@ -502,7 +527,9 @@ impl JournalSnapshot {
     pub fn materialized_path_for(&self, source_rel: &Path) -> Option<PathBuf> {
         let raw_bytes = source_rel.as_os_str().as_encoded_bytes();
         for entity in self.committed_entities.values() {
-            if entity.metadata.source_relative_path().as_deref() == Some(source_rel) {
+            if entity.metadata.source_relative_path().as_deref()
+                == Some(source_rel)
+            {
                 return entity
                     .metadata
                     .materialized_relative_path()
@@ -522,7 +549,12 @@ impl JournalSnapshot {
 
 pub(crate) fn entity_requires_metadata_retention(entity: &FileEntity) -> bool {
     entity.metadata.native.is_some()
-        || entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
+        || entity
+            .metadata
+            .timestamps
+            .as_ref()
+            .and_then(|ts| ts.birthtime_sec)
+            .is_some()
         || entity.metadata.platform_raw_flags.is_some()
         || !entity.streams.is_empty()
         || !entity.metadata.warnings.is_empty()
@@ -576,10 +608,16 @@ impl StateJournal {
 
         let env = ctb_io_environment::capture_quick_arc();
         let session = JournalSessionRecord {
-            sources: sources.to_vec(), destination: destination.to_path_buf(),
-            origin_platform: u32::from(current_platform()), environment: Some(Arc::clone(&env)),
+            sources: sources.to_vec(),
+            destination: destination.to_path_buf(),
+            origin_platform: u32::from(current_platform()),
+            environment: Some(Arc::clone(&env)),
         };
-        let mut writer = stream::JournalWriter::new(BufWriter::new(file), &session, stream::JournalMagic::JournalV5)?;
+        let mut writer = stream::JournalWriter::new(
+            BufWriter::new(file),
+            &session,
+            stream::JournalMagic::JournalV5,
+        )?;
         Self::sync_output(writer.output_mut())?;
 
         let jw = Self {
@@ -628,7 +666,6 @@ impl StateJournal {
         Self::create_at_path(&journal_path, &desc_path, sources, destination)
     }
 
-
     /// Reopens a journal, preserving all committed bytes and completion markers.
     /// Previously completed journals explicitly begin a new writable session.
     /// Legacy journals (prior to `CSCJRNL5` / `DcMixed2`) are rejected with an error.
@@ -640,10 +677,16 @@ impl StateJournal {
         let mut header = [0_u8; 8 + ctb_formats_dcstring::DCMM_HEADER_LEN];
         {
             let mut f = File::open(journal_path).with_context(|| {
-                format!("Failed to open state journal: {}", journal_path.display())
+                format!(
+                    "Failed to open state journal: {}",
+                    journal_path.display()
+                )
             })?;
             f.read_exact(&mut header).with_context(|| {
-                format!("State journal header is too short to resume: {}", journal_path.display())
+                format!(
+                    "State journal header is too short to resume: {}",
+                    journal_path.display()
+                )
             })?;
         }
         ensure!(
@@ -658,7 +701,10 @@ impl StateJournal {
             .write(true)
             .open(journal_path)
             .with_context(|| {
-                format!("Failed to reopen state journal: {}", journal_path.display())
+                format!(
+                    "Failed to reopen state journal: {}",
+                    journal_path.display()
+                )
             })?;
         let mut total_bytes = 0_u64;
         let mut total_files = 0_u64;
@@ -669,15 +715,22 @@ impl StateJournal {
             }
         }
 
-        file.set_len(snapshot.valid_length).context("Failed to discard uncommitted journal tail")?;
+        file.set_len(snapshot.valid_length)
+            .context("Failed to discard uncommitted journal tail")?;
         file.sync_all()?;
         std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0))?;
         let session = JournalSessionRecord {
-            sources: snapshot.sources.clone(), destination: snapshot.destination.clone(),
-            origin_platform: u32::from(snapshot.origin_platform), environment: snapshot.environment.clone(),
+            sources: snapshot.sources.clone(),
+            destination: snapshot.destination.clone(),
+            origin_platform: u32::from(snapshot.origin_platform),
+            environment: snapshot.environment.clone(),
         };
-        let writer = stream::JournalWriter::resume_output(BufWriter::new(file), &session,
-            snapshot.last_batch_id, false)?;
+        let writer = stream::JournalWriter::resume_output(
+            BufWriter::new(file),
+            &session,
+            snapshot.last_batch_id,
+            false,
+        )?;
         Ok(Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -747,12 +800,13 @@ impl StateJournal {
         source_path: &Path,
         disposition: MoveSourceDisposition,
     ) -> Result<()> {
-        let record = self.move_sources.get_mut(source_path).with_context(|| {
-            format!(
-                "Missing move source inventory record for {}",
-                source_path.display()
-            )
-        })?;
+        let record =
+            self.move_sources.get_mut(source_path).with_context(|| {
+                format!(
+                    "Missing move source inventory record for {}",
+                    source_path.display()
+                )
+            })?;
         record.disposition = disposition;
         self.persist_descriptor("InProgress".to_owned())
     }
@@ -779,7 +833,9 @@ impl StateJournal {
         }
         if let Some(ref expected_key) = record.source_identity {
             for entity in self.committed_entities.values() {
-                if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
+                if let FileOrigin::Filesystem { key, .. } =
+                    &entity.identity.origin
+                {
                     if key == expected_key && entity.is_dir() == record.is_dir {
                         return Some(entity);
                     }
@@ -790,7 +846,11 @@ impl StateJournal {
     }
 
     /// Records an applied destination directory identity receipt for crash recovery.
-    pub fn record_applied_directory(&mut self, relative: PathBuf, identity: InodeKey) {
+    pub fn record_applied_directory(
+        &mut self,
+        relative: PathBuf,
+        identity: InodeKey,
+    ) {
         self.applied_directories.insert(relative, identity);
     }
 
@@ -836,12 +896,15 @@ impl StateJournal {
             return Ok(());
         }
 
-        self.writer.write_batch(&self.uncommitted_entities, Self::sync_output)?;
+        self.writer
+            .write_batch(&self.uncommitted_entities, Self::sync_output)?;
         self.current_batch_id = self.writer.sequence();
         for entity in &self.uncommitted_entities {
             if let FileEntityKind::Regular { size, .. } = entity.kind {
-                self.total_committed_files = self.total_committed_files.saturating_add(1);
-                self.total_committed_bytes = self.total_committed_bytes.saturating_add(size);
+                self.total_committed_files =
+                    self.total_committed_files.saturating_add(1);
+                self.total_committed_bytes =
+                    self.total_committed_bytes.saturating_add(size);
             }
             let path_key = match entity.identity.path_bytes() {
                 Some(bytes) => bytes.to_vec(),
@@ -866,11 +929,17 @@ impl StateJournal {
         self.commit_batch()?;
         self.writer.complete(Self::sync_output)?;
         if self.errors.is_empty() && !self.warnings.is_empty() {
-            self.persist_descriptor(format!("Completed with {} warning(s)", self.warnings.len()))?;
+            self.persist_descriptor(format!(
+                "Completed with {} warning(s)",
+                self.warnings.len()
+            ))?;
         } else if self.errors.is_empty() {
             self.persist_descriptor("Completed".to_owned())?;
         } else {
-            self.persist_descriptor(format!("Completed with {} error(s)", self.errors.len()))?;
+            self.persist_descriptor(format!(
+                "Completed with {} error(s)",
+                self.errors.len()
+            ))?;
         }
         Ok(())
     }
@@ -898,7 +967,8 @@ impl StateJournal {
             message: message.to_string(),
             timestamp_sec: now_sec,
         };
-        self.writer.record_warning_durable(&record, Self::sync_output)?;
+        self.writer
+            .record_warning_durable(&record, Self::sync_output)?;
         self.warnings.push(record);
         self.persist_descriptor("InProgress".to_owned())?;
         Ok(())
@@ -914,8 +984,10 @@ impl StateJournal {
     }
 
     fn ensure_ready(&self) -> Result<()> {
-        ensure!(self.pending_descriptor_status.is_none(),
-            "Journal metadata repair pending; call retry_descriptor before writing");
+        ensure!(
+            self.pending_descriptor_status.is_none(),
+            "Journal metadata repair pending; call retry_descriptor before writing"
+        );
         self.writer.ensure_ready()
     }
 
@@ -934,7 +1006,9 @@ impl StateJournal {
     /// Failure retains the pending status and blocks further journal writes.
     /// Success does not reopen a completed writer or permit duplicate completion.
     pub fn retry_descriptor(&mut self) -> Result<()> {
-        let status = self.pending_descriptor_status.as_deref()
+        let status = self
+            .pending_descriptor_status
+            .as_deref()
             .context("No journal descriptor repair is pending")?;
         self.update_desc_file(status)
             .context("Journal operation is durable but descriptor update failed; retry_descriptor is required")?;
@@ -1046,7 +1120,9 @@ impl StateJournal {
     #[must_use]
     pub fn materialized_path_for(&self, source_rel: &Path) -> Option<PathBuf> {
         for entity in self.uncommitted_entities.iter().rev() {
-            if entity.metadata.source_relative_path().as_deref() == Some(source_rel) {
+            if entity.metadata.source_relative_path().as_deref()
+                == Some(source_rel)
+            {
                 return entity
                     .metadata
                     .materialized_relative_path()
@@ -1120,12 +1196,17 @@ pub fn read_journal_snapshot_with_policy(
     })?;
 
     let mut magic = [0_u8; 8];
-    file.read_exact(&mut magic).context("Incomplete journal magic")?;
+    file.read_exact(&mut magic)
+        .context("Incomplete journal magic")?;
 
     let desc_path = journal_path.with_extension("cscdesc");
-    let (noatime_used, applied_directories, move_sources) = if desc_path.exists() {
+    let (noatime_used, applied_directories, move_sources) = if desc_path
+        .exists()
+    {
         if let Ok(desc_content) = std::fs::read_to_string(&desc_path) {
-            let noatime = desc_content.lines().any(|l| l.trim() == "NoatimeUsed: true");
+            let noatime = desc_content
+                .lines()
+                .any(|l| l.trim() == "NoatimeUsed: true");
             let mut dirs = HashMap::new();
             let mut move_srcs = HashMap::new();
             let mut in_applied = false;
@@ -1144,7 +1225,10 @@ pub fn read_journal_snapshot_with_policy(
                 }
                 if in_applied {
                     if let Some(entry) = trimmed.strip_prefix("- ") {
-                        if let Ok(receipt) = serde_json::from_str::<AppliedDirectoryReceipt>(entry) {
+                        if let Ok(receipt) = serde_json::from_str::<
+                            AppliedDirectoryReceipt,
+                        >(entry)
+                        {
                             dirs.insert(receipt.relative, receipt.identity);
                         }
                     } else if !trimmed.is_empty() && !line.starts_with("  ") {
@@ -1152,8 +1236,11 @@ pub fn read_journal_snapshot_with_policy(
                     }
                 } else if in_move_sources {
                     if let Some(entry) = trimmed.strip_prefix("- ") {
-                        if let Ok(record) = serde_json::from_str::<MoveSourceRecord>(entry) {
-                            move_srcs.insert(record.source_path.clone(), record);
+                        if let Ok(record) =
+                            serde_json::from_str::<MoveSourceRecord>(entry)
+                        {
+                            move_srcs
+                                .insert(record.source_path.clone(), record);
                         }
                     } else if !trimmed.is_empty() && !line.starts_with("  ") {
                         in_move_sources = false;
@@ -1175,7 +1262,12 @@ pub fn read_journal_snapshot_with_policy(
             || m == ARCHIVE_MAGIC_V2
             || m == ARCHIVE_MAGIC_V1 =>
         {
-            read_v4_journal_snapshot(&mut file, &journal_path, noatime_used, policy)?
+            read_v4_journal_snapshot(
+                &mut file,
+                &journal_path,
+                noatime_used,
+                policy,
+            )?
         }
         _ => {
             anyhow::bail!(
@@ -1189,7 +1281,10 @@ pub fn read_journal_snapshot_with_policy(
     Ok(snapshot)
 }
 
-fn warn_unexpected_stream_bodies(entity: &FileEntity, warnings: &mut Vec<JournalWarningRecord>) {
+fn warn_unexpected_stream_bodies(
+    entity: &FileEntity,
+    warnings: &mut Vec<JournalWarningRecord>,
+) {
     let mut pending = vec![entity];
     while let Some(current) = pending.pop() {
         for stream in &current.streams {
@@ -1219,7 +1314,10 @@ fn warn_unexpected_stream_bodies(entity: &FileEntity, warnings: &mut Vec<Journal
 pub fn convert_cscjournal_to_dcmstring(
     bytes: &[u8],
 ) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
-    convert_cscjournal_to_dcmstring_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
+    convert_cscjournal_to_dcmstring_with_policy(
+        bytes,
+        &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+    )
 }
 
 /// Converts journal bytes, using `policy` when projecting legacy Dc identities.
@@ -1227,7 +1325,11 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
     bytes: &[u8],
     policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
-    convert_cscjournal_to_dcmstring_with_options(bytes, policy, !policy.is_strict())
+    convert_cscjournal_to_dcmstring_with_options(
+        bytes,
+        policy,
+        !policy.is_strict(),
+    )
 }
 
 /// Converts journal bytes using `policy` for legacy Dc identity projection and
@@ -1243,7 +1345,9 @@ pub fn convert_cscjournal_to_dcmstring_with_options(
             anyhow::bail!("CscJournal data is too short (< 8 bytes)");
         }
         let (doc, mut log) =
-            ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(bytes, &opts)?;
+            ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(
+                bytes, &opts,
+            )?;
         log.warn("CscJournal data is too short (< 8 bytes); decoded in permissive mode");
         return Ok((doc, log));
     }
@@ -1253,7 +1357,8 @@ pub fn convert_cscjournal_to_dcmstring_with_options(
 
     let is_v4_or_newer = magic == JOURNAL_MAGIC_V5
         || magic == JOURNAL_MAGIC_V4
-        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4))
+        || (magic.starts_with(b"CTBCSCJ")
+            && magic.get(7).is_some_and(|&v| v >= 4))
         || magic == ARCHIVE_MAGIC_V2
         || magic == ARCHIVE_MAGIC_V1;
 
@@ -1263,28 +1368,36 @@ pub fn convert_cscjournal_to_dcmstring_with_options(
             .context("Slice bounds invalid for journal payload")?
     } else {
         let is_legacy = magic == JOURNAL_MAGIC_V1
-            || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v < 4));
+            || (magic.starts_with(b"CTBCSCJ")
+                && magic.get(7).is_some_and(|&v| v < 4));
         if !is_legacy {
             if !best_effort {
-                anyhow::bail!("Invalid or unrecognized cscjournal magic bytes: {magic:?}");
+                anyhow::bail!(
+                    "Invalid or unrecognized cscjournal magic bytes: {magic:?}"
+                );
             }
             let (doc, mut log) =
-                ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(bytes, &opts)?;
+                ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(
+                    bytes, &opts,
+                )?;
             log.warn(&format!(
                 "Unrecognized cscjournal magic bytes {magic:?}; decoded in permissive mode"
             ));
             return Ok((doc, log));
         }
-        let converted_bytes = legacy::convert_legacy_journal_bytes_with_policy(bytes, policy)?;
+        let converted_bytes =
+            legacy::convert_legacy_journal_bytes_with_policy(bytes, policy)?;
         return ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(
-            converted_bytes
-                .get(8..)
-                .context("Slice bounds invalid for converted journal payload")?,
+            converted_bytes.get(8..).context(
+                "Slice bounds invalid for converted journal payload",
+            )?,
             &opts,
         );
     };
 
-    ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(dcmm_bytes, &opts)
+    ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(
+        dcmm_bytes, &opts,
+    )
 }
 
 /// Converts in-memory cscarchive bytes (v1 or v2) to a `DcMstring` document.
@@ -1295,16 +1408,24 @@ pub fn convert_cscarchive_to_dcmstring_with_policy(
     let best_effort = !policy.is_strict();
     let opts = ctb_formats_dcstring::DcmmStreamOptions { best_effort };
     if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V2) {
-        return ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(payload, &opts);
+        return ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(
+            payload, &opts,
+        );
     }
     if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V1) {
-        return ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(payload, &opts);
+        return ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(
+            payload, &opts,
+        );
     }
     if !best_effort {
-        anyhow::bail!("Input bytes do not start with valid CTBCSCA\\x01 or CTBCSCA\\x02 magic header");
+        anyhow::bail!(
+            "Input bytes do not start with valid CTBCSCA\\x01 or CTBCSCA\\x02 magic header"
+        );
     }
     let (doc, mut log) =
-        ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(bytes, &opts)?;
+        ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring_with_options(
+            bytes, &opts,
+        )?;
     log.warn("Missing or invalid CTBCSCA magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }
@@ -1317,15 +1438,21 @@ pub fn convert_cscarchive1_to_dcmstring_with_policy(
     let best_effort = !policy.is_strict();
     let opts = ctb_formats_dcstring::DcmmStreamOptions { best_effort };
     if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V1) {
-        return ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(payload, &opts);
+        return ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(
+            payload, &opts,
+        );
     }
     if !best_effort {
-        anyhow::bail!("Input bytes do not start with valid CTBCSCA\\x01 magic header");
+        anyhow::bail!(
+            "Input bytes do not start with valid CTBCSCA\\x01 magic header"
+        );
     }
     // Reason for fallback: in permissive mode, if the input has a v2 archive magic header instead of v1, strip it; otherwise decode the raw bytes as payload.
     let payload = bytes.strip_prefix(ARCHIVE_MAGIC_V2).unwrap_or(bytes);
     let (doc, mut log) =
-        ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(payload, &opts)?;
+        ctb_formats_dcstring::dc_mixed::dcmm1_to_dcmstring_with_options(
+            payload, &opts,
+        )?;
     log.warn("Missing or mismatched CTBCSCA\\x01 magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }
@@ -1338,15 +1465,21 @@ pub fn convert_cscarchive2_to_dcmstring_with_policy(
     let best_effort = !policy.is_strict();
     let opts = ctb_formats_dcstring::DcmmStreamOptions { best_effort };
     if let Some(payload) = bytes.strip_prefix(ARCHIVE_MAGIC_V2) {
-        return ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(payload, &opts);
+        return ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(
+            payload, &opts,
+        );
     }
     if !best_effort {
-        anyhow::bail!("Input bytes do not start with valid CTBCSCA\\x02 magic header");
+        anyhow::bail!(
+            "Input bytes do not start with valid CTBCSCA\\x02 magic header"
+        );
     }
     // Reason for fallback: in permissive mode, if the input has a v1 archive magic header instead of v2, strip it; otherwise decode the raw bytes as payload.
     let payload = bytes.strip_prefix(ARCHIVE_MAGIC_V1).unwrap_or(bytes);
     let (doc, mut log) =
-        ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(payload, &opts)?;
+        ctb_formats_dcstring::dc_mixed::dcmm2_to_dcmstring_with_options(
+            payload, &opts,
+        )?;
     log.warn("Missing or mismatched CTBCSCA\\x02 magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }
@@ -1355,7 +1488,8 @@ pub fn convert_cscarchive2_to_dcmstring_with_policy(
 pub fn dcmstring_to_cscjournal(
     doc: &DcMstring,
 ) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
-    let mut out = Vec::with_capacity(JOURNAL_MAGIC_V5.len().saturating_add(doc.len()));
+    let mut out =
+        Vec::with_capacity(JOURNAL_MAGIC_V5.len().saturating_add(doc.len()));
     out.extend_from_slice(JOURNAL_MAGIC_V5);
     out.extend_from_slice(doc.as_bytes());
     Ok((out, ctb_formats_utilities::FormatLog::default()))
@@ -1373,7 +1507,8 @@ pub fn dcmstring_to_cscarchive1(
     doc: &DcMstring,
 ) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
     let (dcmm1, log) = ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(doc)?;
-    let mut out = Vec::with_capacity(ARCHIVE_MAGIC_V1.len().saturating_add(dcmm1.len()));
+    let mut out =
+        Vec::with_capacity(ARCHIVE_MAGIC_V1.len().saturating_add(dcmm1.len()));
     out.extend_from_slice(ARCHIVE_MAGIC_V1);
     out.extend_from_slice(&dcmm1);
     Ok((out, log))
@@ -1383,7 +1518,8 @@ pub fn dcmstring_to_cscarchive1(
 pub fn dcmstring_to_cscarchive2(
     doc: &DcMstring,
 ) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
-    let mut out = Vec::with_capacity(ARCHIVE_MAGIC_V2.len().saturating_add(doc.len()));
+    let mut out =
+        Vec::with_capacity(ARCHIVE_MAGIC_V2.len().saturating_add(doc.len()));
     out.extend_from_slice(ARCHIVE_MAGIC_V2);
     out.extend_from_slice(doc.as_bytes());
     Ok((out, ctb_formats_utilities::FormatLog::default()))
@@ -1392,7 +1528,10 @@ pub fn dcmstring_to_cscarchive2(
 /// Converts in-memory cscjournal bytes to current `DcMixed` journal bytes (`CSCJRNL5`),
 /// or returns version 4+ journal bytes unmodified.
 pub fn convert_cscjournal_to_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
-    convert_cscjournal_to_bytes_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
+    convert_cscjournal_to_bytes_with_policy(
+        bytes,
+        &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+    )
 }
 
 /// Converts journal bytes, using `policy` when projecting legacy Dc identities.
@@ -1400,23 +1539,30 @@ pub fn convert_cscjournal_to_bytes_with_policy(
     bytes: &[u8],
     policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<Vec<u8>> {
-    anyhow::ensure!(bytes.len() >= 8, "CscJournal data is too short (< 8 bytes)");
+    anyhow::ensure!(
+        bytes.len() >= 8,
+        "CscJournal data is too short (< 8 bytes)"
+    );
     let magic = bytes
         .get(..8)
         .context("Slice bounds invalid for journal magic")?;
     if magic == JOURNAL_MAGIC_V5
         || magic == JOURNAL_MAGIC_V4
-        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4))
+        || (magic.starts_with(b"CTBCSCJ")
+            && magic.get(7).is_some_and(|&v| v >= 4))
         || magic == ARCHIVE_MAGIC_V2
         || magic == ARCHIVE_MAGIC_V1
     {
         Ok(bytes.to_vec())
     } else if magic == JOURNAL_MAGIC_V1
-        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v < 4))
+        || (magic.starts_with(b"CTBCSCJ")
+            && magic.get(7).is_some_and(|&v| v < 4))
     {
         legacy::convert_legacy_journal_bytes_with_policy(bytes, policy)
     } else {
-        anyhow::bail!("Invalid or unrecognized cscjournal magic bytes: {magic:?}");
+        anyhow::bail!(
+            "Invalid or unrecognized cscjournal magic bytes: {magic:?}"
+        );
     }
 }
 
@@ -1428,20 +1574,29 @@ pub fn read_v4_journal_snapshot(
     noatime_used: bool,
     policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<JournalSnapshot> {
-    let mut nav_file = file
-        .try_clone()
-        .with_context(|| format!("Failed to clone file handle for {}", journal_path.display()))?;
+    let mut nav_file = file.try_clone().with_context(|| {
+        format!("Failed to clone file handle for {}", journal_path.display())
+    })?;
     nav_file.seek(SeekFrom::Start(0))?;
     let mut magic = [0_u8; 8];
     nav_file.read_exact(&mut magic)?;
     let is_archive = &magic == ARCHIVE_MAGIC_V2 || &magic == ARCHIVE_MAGIC_V1;
 
-    let scanned = JournalReader::read(nav_file, scanner::ReadMode::Recover, policy)
-        .with_context(|| format!("Invalid DcMixed journal in {}", journal_path.display()))?;
-    let origin_platform = if let Ok(platform) = u8::try_from(scanned.session.origin_platform) { platform } else {
-        anyhow::ensure!(!policy.is_strict(), "Invalid origin platform code in session header");
-        current_platform()
-    };
+    let scanned =
+        JournalReader::read(nav_file, scanner::ReadMode::Recover, policy)
+            .with_context(|| {
+                format!("Invalid DcMixed journal in {}", journal_path.display())
+            })?;
+    let origin_platform =
+        if let Ok(platform) = u8::try_from(scanned.session.origin_platform) {
+            platform
+        } else {
+            anyhow::ensure!(
+                !policy.is_strict(),
+                "Invalid origin platform code in session header"
+            );
+            current_platform()
+        };
     let mut committed_entities = HashMap::new();
     let mut warnings = scanned.warnings;
     for member in scanned.members {
@@ -1492,9 +1647,16 @@ pub fn read_v4_journal_snapshot(
     })
 }
 
-fn attach_legacy_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescription>) {
+fn attach_legacy_session_environment(
+    entity: &mut FileEntity,
+    env: &Arc<EnvDescription>,
+) {
     if entity.metadata.environment.is_none()
-        || entity.metadata.environment.as_ref().is_some_and(|existing| existing == env)
+        || entity
+            .metadata
+            .environment
+            .as_ref()
+            .is_some_and(|existing| existing == env)
     {
         entity.metadata.environment = Some(Arc::clone(env));
     }
@@ -1507,7 +1669,9 @@ fn attach_legacy_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescr
 pub(crate) fn find_cscjournal(state_dir: &Path) -> PathBuf {
     for entry in std::fs::read_dir(state_dir).expect("read state dir") {
         let entry = entry.expect("entry");
-        if entry.path().extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+        if entry.path().extension().and_then(|e| e.to_str())
+            == Some("cscjournal")
+        {
             return entry.path();
         }
     }
@@ -1527,52 +1691,73 @@ pub(crate) fn find_cscjournal(state_dir: &Path) -> PathBuf {
 )]
 mod tests {
     use super::*;
-    use crate::args::{default_test_args};
+    use crate::args::default_test_args;
     use crate::cli::run_csc;
     use crate::journal::find_cscjournal;
-    use crate::journal::legacy::{read_bytes, read_u32, write_bytes, write_u32};
+    use crate::journal::legacy::{
+        read_bytes, read_u32, write_bytes, write_u32,
+    };
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn journal_failed_commit_preserves_counters_queue_and_refuses_retry() -> Result<()> {
+    fn journal_failed_commit_preserves_counters_queue_and_refuses_retry()
+    -> Result<()> {
         for fault in ["encoding", "write", "flush", "sync"] {
             let temporary = tempdir()?;
             let journal = temporary.path().join("copy.cscjournal");
             let description = temporary.path().join("copy.cscdesc");
-            let mut writer = StateJournal::create_at_path(&journal, &description, &[], temporary.path())?;
+            let mut writer = StateJournal::create_at_path(
+                &journal,
+                &description,
+                &[],
+                temporary.path(),
+            )?;
             let entity = FileEntity::from_vec(b"payload".to_vec());
             writer.record_entity(&entity);
             writer.commit_batch()?;
             writer.record_entity(&entity);
             let mut second = entity.clone();
             if fault == "encoding" {
-                second.metadata.read_time = Some(UNIX_EPOCH.checked_sub(std::time::Duration::from_secs(1)).context("Test time underflow")?);
+                second.metadata.read_time = Some(
+                    UNIX_EPOCH
+                        .checked_sub(std::time::Duration::from_secs(1))
+                        .context("Test time underflow")?,
+                );
             }
             writer.record_entity(&second);
             let mut _sync_pipe_reader = None;
             match fault {
                 "write" => {
                     let output = File::open(&journal)?;
-                    writer.writer = writer.writer.map_output(|_| BufWriter::with_capacity(0, output));
+                    writer.writer = writer
+                        .writer
+                        .map_output(|_| BufWriter::with_capacity(0, output));
                 }
                 "flush" => {
                     let output = File::open(&journal)?;
-                    writer.writer = writer.writer.map_output(|_| BufWriter::new(output));
+                    writer.writer =
+                        writer.writer.map_output(|_| BufWriter::new(output));
                 }
                 "sync" => {
                     let (reader_pipe, writer_pipe) = std::io::pipe()?;
                     _sync_pipe_reader = Some(reader_pipe);
-                    let output = File::from(std::os::fd::OwnedFd::from(writer_pipe));
-                    writer.writer = writer.writer.map_output(|_| BufWriter::new(output));
+                    let output =
+                        File::from(std::os::fd::OwnedFd::from(writer_pipe));
+                    writer.writer =
+                        writer.writer.map_output(|_| BufWriter::new(output));
                 }
                 _ => {}
             }
             let description_before = fs::read(&description)?;
             ensure!(writer.commit_batch().is_err(), "Accepted {fault} failure");
-            ensure!(writer.current_batch_id == 1 && writer.total_committed_files == 1 && writer.total_committed_bytes == 7);
+            ensure!(
+                writer.current_batch_id == 1
+                    && writer.total_committed_files == 1
+                    && writer.total_committed_bytes == 7
+            );
             ensure!(writer.uncommitted_entities == vec![entity, second]);
             ensure!(writer.writer.is_failed());
             let bytes_after_failure = fs::read(&journal)?;
@@ -1580,25 +1765,43 @@ mod tests {
             ensure!(writer.mark_completed().is_err());
             ensure!(writer.record_warning("late", "must fail").is_err());
             ensure!(writer.mark_failed("failed commit").is_err());
-            ensure!(writer.current_batch_id == 1 && writer.total_committed_files == 1 && writer.total_committed_bytes == 7);
+            ensure!(
+                writer.current_batch_id == 1
+                    && writer.total_committed_files == 1
+                    && writer.total_committed_bytes == 7
+            );
             ensure!(writer.uncommitted_entities.len() == 2);
-            ensure!(fs::read(&journal)? == bytes_after_failure && fs::read(&description)? == description_before);
+            ensure!(
+                fs::read(&journal)? == bytes_after_failure
+                    && fs::read(&description)? == description_before
+            );
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn journal_descriptor_failure_requires_metadata_only_repair() -> Result<()> {
-        for operation in ["batch", "completion", "warning", "error", "failure"] {
+    fn journal_descriptor_failure_requires_metadata_only_repair() -> Result<()>
+    {
+        for operation in ["batch", "completion", "warning", "error", "failure"]
+        {
             let temporary = tempdir()?;
             let journal = temporary.path().join("copy.cscjournal");
             let description = temporary.path().join("copy.cscdesc");
-            let mut writer = StateJournal::create_at_path(&journal, &description, &[], Path::new(""))?;
+            let mut writer = StateJournal::create_at_path(
+                &journal,
+                &description,
+                &[],
+                Path::new(""),
+            )?;
             let mut entity = FileEntity::from_vec(b"payload".to_vec());
             entity.identity.relative_path = Some("payload".into());
             writer.record_entity(&entity);
             writer.commit_batch()?;
-            let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("injected"));
+            let error = JournalErrorRecord::from_error(
+                temporary.path(),
+                JournalErrorStage::PayloadRead,
+                &anyhow::anyhow!("injected"),
+            );
             if operation == "completion" {
                 writer.record_error(&error)?;
             }
@@ -1615,15 +1818,31 @@ mod tests {
                 "error" => writer.record_error(&error),
                 _ => writer.mark_failed("injected"),
             };
-            ensure!(format!("{:#}", result.expect_err("Descriptor failure must propagate")).contains("operation is durable"));
-            let status = writer.pending_descriptor_status().context("Missing pending descriptor")?.to_owned();
-            ensure!(status == match operation {
-                "completion" => "Completed with 1 error(s)",
-                "failure" => "Failed: injected",
-                _ => "InProgress",
-            });
+            ensure!(
+                format!(
+                    "{:#}",
+                    result.expect_err("Descriptor failure must propagate")
+                )
+                .contains("operation is durable")
+            );
+            let status = writer
+                .pending_descriptor_status()
+                .context("Missing pending descriptor")?
+                .to_owned();
+            ensure!(
+                status
+                    == match operation {
+                        "completion" => "Completed with 1 error(s)",
+                        "failure" => "Failed: injected",
+                        _ => "InProgress",
+                    }
+            );
             let bytes = fs::read(&journal)?;
-            let counters = (writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes);
+            let counters = (
+                writer.current_batch_id,
+                writer.total_committed_files,
+                writer.total_committed_bytes,
+            );
             ensure!(writer.uncommitted_entities.is_empty());
             ensure!(!writer.writer.is_failed());
             ensure!(writer.retry_descriptor().is_err());
@@ -1632,18 +1851,35 @@ mod tests {
             ensure!(writer.record_warning("blocked", "blocked").is_err());
             ensure!(writer.record_error(&error).is_err());
             ensure!(writer.mark_failed("blocked").is_err());
-            ensure!(writer.pending_descriptor_status() == Some(status.as_str()));
+            ensure!(
+                writer.pending_descriptor_status() == Some(status.as_str())
+            );
             ensure!(fs::read(&journal)? == bytes);
             fs::remove_dir(&description)?;
             writer.retry_descriptor()?;
             ensure!(writer.pending_descriptor_status().is_none());
             ensure!(fs::read(&journal)? == bytes);
-            ensure!((writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes) == counters);
+            ensure!(
+                (
+                    writer.current_batch_id,
+                    writer.total_committed_files,
+                    writer.total_committed_bytes
+                ) == counters
+            );
             let descriptor = fs::read_to_string(&description)?;
             ensure!(descriptor.contains(&format!("Status: {status}\n")));
-            ensure!(descriptor.contains(&format!("FilesCommitted: {}\nBytesCommitted: {}\n", counters.1, counters.2)));
-            ensure!(descriptor.contains(&format!("ErrorsCount: {}\n", writer.errors().len())));
-            ensure!(descriptor.contains(&format!("WarningsCount: {}\n", writer.warnings().len())));
+            ensure!(descriptor.contains(&format!(
+                "FilesCommitted: {}\nBytesCommitted: {}\n",
+                counters.1, counters.2
+            )));
+            ensure!(descriptor.contains(&format!(
+                "ErrorsCount: {}\n",
+                writer.errors().len()
+            )));
+            ensure!(descriptor.contains(&format!(
+                "WarningsCount: {}\n",
+                writer.warnings().len()
+            )));
             ensure!(writer.retry_descriptor().is_err());
             if operation == "completion" {
                 ensure!(writer.mark_completed().is_err());
@@ -1653,73 +1889,124 @@ mod tests {
                 writer.mark_completed()?;
             }
             let snapshot = read_journal_snapshot(&journal)?;
-            ensure!(snapshot.is_completed && snapshot.last_batch_id == counters.0);
+            ensure!(
+                snapshot.is_completed && snapshot.last_batch_id == counters.0
+            );
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn journal_resume_preserves_completed_diagnostics_and_prefix() -> Result<()> {
+    fn journal_resume_preserves_completed_diagnostics_and_prefix() -> Result<()>
+    {
         let temporary = tempdir()?;
         let journal = temporary.path().join("copy.cscjournal");
         let description = temporary.path().join("copy.cscdesc");
-        let mut writer = StateJournal::create_at_path(&journal, &description, &[], Path::new(""))?;
+        let mut writer = StateJournal::create_at_path(
+            &journal,
+            &description,
+            &[],
+            Path::new(""),
+        )?;
         let mut entity = FileEntity::from_vec(b"original".to_vec());
         entity.identity.relative_path = Some("original".into());
         writer.record_entity(&entity);
         writer.mark_completed()?;
         drop(writer);
-        let warning = JournalWarningRecord { code: "historical".into(), message: "warning".into(), timestamp_sec: 1 };
-        let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("historical"));
+        let warning = JournalWarningRecord {
+            code: "historical".into(),
+            message: "warning".into(),
+            timestamp_sec: 1,
+        };
+        let error = JournalErrorRecord::from_error(
+            temporary.path(),
+            JournalErrorStage::PayloadRead,
+            &anyhow::anyhow!("historical"),
+        );
         let mut output = OpenOptions::new().append(true).open(&journal)?;
         let mut diagnostics = DcMstring::new();
-        JournalWarningRecordPayload::from_record(&warning).encode_dc_mixed(&mut diagnostics)?;
-        JournalErrorRecordPayload::from_record(&error)?.encode_dc_mixed(&mut diagnostics)?;
+        JournalWarningRecordPayload::from_record(&warning)
+            .encode_dc_mixed(&mut diagnostics)?;
+        JournalErrorRecordPayload::from_record(&error)?
+            .encode_dc_mixed(&mut diagnostics)?;
         output.write_all(diagnostics.payload_bytes())?;
         output.sync_all()?;
         drop(output);
         let prefix = fs::read(&journal)?;
         let snapshot = read_journal_snapshot(&journal)?;
-        ensure!(snapshot.is_completed && snapshot.valid_length == u64::try_from(prefix.len())?);
-        let mut resumed = StateJournal::open_for_resume(&journal, &description, &snapshot)?;
+        ensure!(
+            snapshot.is_completed
+                && snapshot.valid_length == u64::try_from(prefix.len())?
+        );
+        let mut resumed =
+            StateJournal::open_for_resume(&journal, &description, &snapshot)?;
         ensure!(fs::read(&journal)? == prefix);
         entity.identity.relative_path = Some("resumed".into());
         resumed.record_entity(&entity);
         resumed.commit_batch()?;
         let snapshot = read_journal_snapshot(&journal)?;
         ensure!(!snapshot.is_completed && snapshot.last_batch_id == 2);
-        ensure!(snapshot.is_committed(b"original") && snapshot.is_committed(b"resumed"));
-        ensure!(snapshot.warnings.len() == 1 && snapshot.warnings.first() == Some(&warning));
-        ensure!(snapshot.errors.len() == 1 && snapshot.errors.first() == Some(&error));
+        ensure!(
+            snapshot.is_committed(b"original")
+                && snapshot.is_committed(b"resumed")
+        );
+        ensure!(
+            snapshot.warnings.len() == 1
+                && snapshot.warnings.first() == Some(&warning)
+        );
+        ensure!(
+            snapshot.errors.len() == 1
+                && snapshot.errors.first() == Some(&error)
+        );
         resumed.mark_completed()?;
         ensure!(fs::read(&journal)?.starts_with(&prefix));
         let snapshot = read_journal_snapshot(&journal)?;
-        ensure!(snapshot.is_completed && snapshot.errors.len() == 1 && snapshot.warnings.len() == 1);
+        ensure!(
+            snapshot.is_completed
+                && snapshot.errors.len() == 1
+                && snapshot.warnings.len() == 1
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn journal_completion_refuses_reuse_and_explicit_resume_reopens() -> Result<()> {
+    fn journal_completion_refuses_reuse_and_explicit_resume_reopens()
+    -> Result<()> {
         let temporary = tempdir()?;
         let journal = temporary.path().join("copy.cscjournal");
         let description = temporary.path().join("copy.cscdesc");
-        let mut writer = StateJournal::create_at_path(&journal, &description, &[], temporary.path())?;
+        let mut writer = StateJournal::create_at_path(
+            &journal,
+            &description,
+            &[],
+            temporary.path(),
+        )?;
         writer.mark_completed()?;
         let completed = fs::read(&journal)?;
         ensure!(writer.mark_completed().is_err());
         ensure!(writer.record_warning("late", "must fail").is_err());
-        let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("late"));
+        let error = JournalErrorRecord::from_error(
+            temporary.path(),
+            JournalErrorStage::PayloadRead,
+            &anyhow::anyhow!("late"),
+        );
         ensure!(writer.record_error(&error).is_err());
         let mut entity = FileEntity::from_vec(b"resumed".to_vec());
         entity.identity.relative_path = Some("resumed".into());
         writer.record_entity(&entity);
-        ensure!(writer.commit_batch().is_err() && writer.mark_completed().is_err());
-        ensure!(writer.uncommitted_entities.len() == 1 && writer.current_batch_id == 0);
+        ensure!(
+            writer.commit_batch().is_err() && writer.mark_completed().is_err()
+        );
+        ensure!(
+            writer.uncommitted_entities.len() == 1
+                && writer.current_batch_id == 0
+        );
         ensure!(fs::read(&journal)? == completed);
         drop(writer);
         let snapshot = read_journal_snapshot(&journal)?;
         ensure!(snapshot.is_completed);
-        let mut resumed = StateJournal::open_for_resume(&journal, &description, &snapshot)?;
+        let mut resumed =
+            StateJournal::open_for_resume(&journal, &description, &snapshot)?;
         ensure!(fs::read(&journal)? == completed);
         ensure!(read_journal_snapshot(&journal)?.is_completed);
         resumed.record_entity(&entity);
@@ -1728,27 +2015,48 @@ mod tests {
         resumed.mark_completed()?;
         ensure!(fs::read(&journal)?.starts_with(&completed));
         let snapshot = read_journal_snapshot(&journal)?;
-        ensure!(snapshot.is_completed && snapshot.last_batch_id == 1 && snapshot.is_committed(b"resumed"));
+        ensure!(
+            snapshot.is_completed
+                && snapshot.last_batch_id == 1
+                && snapshot.is_committed(b"resumed")
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn diagnostic_mark_failed_propagates_pending_encoding_failure() -> Result<()> {
+    fn diagnostic_mark_failed_propagates_pending_encoding_failure() -> Result<()>
+    {
         let temporary = tempdir()?;
         let source = temporary.path().join("source");
         let journal = temporary.path().join("copy.cscjournal");
         let description = temporary.path().join("copy.cscdesc");
         fs::write(&source, b"payload")?;
         let mut entity = FileEntity::from_filesystem(&source, None)?;
-        entity.metadata.timestamps.as_mut().context("Missing captured timestamps")?.mtime_nsec = 1_000_000_000;
-        let mut writer = StateJournal::create_at_path(&journal, &description,
-            std::slice::from_ref(&source), temporary.path())?;
+        entity
+            .metadata
+            .timestamps
+            .as_mut()
+            .context("Missing captured timestamps")?
+            .mtime_nsec = 1_000_000_000;
+        let mut writer = StateJournal::create_at_path(
+            &journal,
+            &description,
+            std::slice::from_ref(&source),
+            temporary.path(),
+        )?;
         let before = fs::read(&description)?;
         writer.record_entity(&entity);
-        let error = writer.mark_failed("Injected operation failure").expect_err("Invalid pending record must fail");
-        ensure!(format!("{error:#}").contains("Invalid file timestamp nanoseconds"));
+        let error = writer
+            .mark_failed("Injected operation failure")
+            .expect_err("Invalid pending record must fail");
+        ensure!(
+            format!("{error:#}").contains("Invalid file timestamp nanoseconds")
+        );
         ensure!(writer.uncommitted_entities.len() == 1);
-        ensure!(fs::read(&description)? == before, "Failed commit rewrote the descriptor as persisted status");
+        ensure!(
+            fs::read(&description)? == before,
+            "Failed commit rewrote the descriptor as persisted status"
+        );
         Ok(())
     }
 
@@ -1763,7 +2071,9 @@ mod tests {
             JournalErrorStage::Materialize,
             JournalErrorStage::PostCheck,
         ] {
-            for os_error in [None, Some(13), Some(-1), Some(i32::MIN), Some(i32::MAX)] {
+            for os_error in
+                [None, Some(13), Some(-1), Some(i32::MIN), Some(i32::MAX)]
+            {
                 for timestamp_sec in [-1, 0, 1] {
                     let record = JournalErrorRecord {
                         path: PathBuf::from("source"),
@@ -1773,10 +2083,13 @@ mod tests {
                         os_error,
                         timestamp_sec,
                     };
-                    let payload = JournalErrorRecordPayload::from_record(&record)?;
+                    let payload =
+                        JournalErrorRecordPayload::from_record(&record)?;
                     assert_eq!(payload.to_record(&policy)?, record);
                     let os_code = match os_error {
-                        Some(code) => u64::from(u32::from_le_bytes(code.to_le_bytes())),
+                        Some(code) => {
+                            u64::from(u32::from_le_bytes(code.to_le_bytes()))
+                        }
                         None => 0,
                     };
                     let expected = JournalErrorRecordPayload::new(
@@ -1789,7 +2102,10 @@ mod tests {
                     payload.encode_dc_mixed(&mut actual_bytes)?;
                     let mut expected_bytes = DcMstring::new();
                     expected.encode_dc_mixed(&mut expected_bytes)?;
-                    assert_eq!(actual_bytes.as_bytes(), expected_bytes.as_bytes());
+                    assert_eq!(
+                        actual_bytes.as_bytes(),
+                        expected_bytes.as_bytes()
+                    );
                 }
             }
         }
@@ -1811,10 +2127,16 @@ mod tests {
         let forgiving = ctb_formats_dcstring::DcProjectionPolicy::forgiving();
         for stage_code in [6_u64, 255, 256, u64::from(u32::MAX)] {
             let payload = JournalErrorRecordPayload::new(
-                PathBuf::from("source"), stage_code << 32, String::new(), 0,
+                PathBuf::from("source"),
+                stage_code << 32,
+                String::new(),
+                0,
             );
             assert_eq!(payload.to_record(&strict).is_err(), stage_code > 255);
-            assert_eq!(payload.to_record(&forgiving)?.stage, JournalErrorStage::Traversal);
+            assert_eq!(
+                payload.to_record(&forgiving)?.stage,
+                JournalErrorStage::Traversal
+            );
         }
         Ok(())
     }
@@ -1835,18 +2157,27 @@ mod tests {
             message: "unsplit warning".to_owned(),
             timestamp: UNIX_EPOCH,
         };
-        assert_eq!(payload.to_record(), JournalWarningRecord {
-            code: String::new(),
-            message: payload.message.clone(),
-            timestamp_sec: 0,
-        });
+        assert_eq!(
+            payload.to_record(),
+            JournalWarningRecord {
+                code: String::new(),
+                message: payload.message.clone(),
+                timestamp_sec: 0,
+            }
+        );
     }
 
     #[crate::ctb_test]
     fn diagnostic_timestamp_conversion() -> Result<()> {
         for (timestamp, timestamp_sec) in [
-            (UNIX_EPOCH.checked_sub(std::time::Duration::from_millis(1)), -1),
-            (UNIX_EPOCH.checked_add(std::time::Duration::from_millis(999)), 0),
+            (
+                UNIX_EPOCH.checked_sub(std::time::Duration::from_millis(1)),
+                -1,
+            ),
+            (
+                UNIX_EPOCH.checked_add(std::time::Duration::from_millis(999)),
+                0,
+            ),
         ] {
             let timestamp = timestamp.context("Test timestamp out of range")?;
             let error = JournalErrorRecordPayload {
@@ -1855,7 +2186,14 @@ mod tests {
                 error_message: String::new(),
                 timestamp,
             };
-            assert_eq!(error.to_record(&ctb_formats_dcstring::DcProjectionPolicy::strict())?.timestamp_sec, timestamp_sec);
+            assert_eq!(
+                error
+                    .to_record(
+                        &ctb_formats_dcstring::DcProjectionPolicy::strict()
+                    )?
+                    .timestamp_sec,
+                timestamp_sec
+            );
             let warning = JournalWarningRecordPayload {
                 message: "code: message".to_owned(),
                 timestamp,
@@ -1880,12 +2218,19 @@ mod tests {
             timestamp_sec: 0,
         };
         let payload = JournalErrorRecordPayload::from_record(&record)?;
-        assert_eq!(payload.to_record(&ctb_formats_dcstring::DcProjectionPolicy::strict())?, record);
+        assert_eq!(
+            payload.to_record(
+                &ctb_formats_dcstring::DcProjectionPolicy::strict()
+            )?,
+            record
+        );
         let temp = tempdir()?;
         let journal_path = temp.path().join("raw-path.cscjournal");
         let mut writer = StateJournal::create_at_path(
-            &journal_path, &journal_path.with_extension("cscdesc"),
-            &[temp.path().join("source")], &temp.path().join("destination"),
+            &journal_path,
+            &journal_path.with_extension("cscdesc"),
+            &[temp.path().join("source")],
+            &temp.path().join("destination"),
         )?;
         writer.record_error(&record)?;
         assert_eq!(read_journal_snapshot(&journal_path)?.errors, vec![record]);
@@ -1914,8 +2259,10 @@ mod tests {
         };
         let mut document = DcMstring::new();
         session.encode_dc_mixed(&mut document)?;
-        JournalErrorRecordPayload::from_record(&record)?.encode_dc_mixed(&mut document)?;
-        let (dcmm1_bytes, _) = ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(&document)?;
+        JournalErrorRecordPayload::from_record(&record)?
+            .encode_dc_mixed(&mut document)?;
+        let (dcmm1_bytes, _) =
+            ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(&document)?;
         for (magic, payload) in [
             (JOURNAL_MAGIC_V5, document.as_bytes()),
             (JOURNAL_MAGIC_V4, dcmm1_bytes.as_slice()),
@@ -1937,10 +2284,14 @@ mod tests {
         let temp = tempdir()?;
         let journal_path = temp.path().join("signed-errors.cscjournal");
         let mut writer = StateJournal::create_at_path(
-            &journal_path, &journal_path.with_extension("cscdesc"),
-            &[temp.path().join("source")], &temp.path().join("destination"),
+            &journal_path,
+            &journal_path.with_extension("cscdesc"),
+            &[temp.path().join("source")],
+            &temp.path().join("destination"),
         )?;
-        for os_error in [None, Some(13), Some(-1), Some(i32::MIN), Some(i32::MAX)] {
+        for os_error in
+            [None, Some(13), Some(-1), Some(i32::MIN), Some(i32::MAX)]
+        {
             let record = JournalErrorRecord {
                 path: PathBuf::from("source"),
                 raw_path: b"source".to_vec(),
@@ -1953,7 +2304,11 @@ mod tests {
             let snapshot = read_journal_snapshot(&journal_path)?;
             assert_eq!(snapshot.errors.last(), Some(&record));
         }
-        let mut zero_record = writer.errors().last().context("Missing recorded errors")?.clone();
+        let mut zero_record = writer
+            .errors()
+            .last()
+            .context("Missing recorded errors")?
+            .clone();
         zero_record.os_error = Some(0);
         assert!(writer.record_error(&zero_record).is_err());
         assert_eq!(read_journal_snapshot(&journal_path)?.errors.len(), 5);
@@ -1971,8 +2326,9 @@ mod tests {
         bytes.push(TAG_SESSION_ENV);
         write_bytes(&mut bytes, br#"{"os":"linux","future_flag":true}"#)?;
         fs::write(&journal_path, bytes)?;
-        let error = read_journal_snapshot(&journal_path)
-            .expect_err("unknown environment fields must not be silently discarded");
+        let error = read_journal_snapshot(&journal_path).expect_err(
+            "unknown environment fields must not be silently discarded",
+        );
         assert!(format!("{error:#}").contains("unknown field"));
         Ok(())
     }
@@ -1986,26 +2342,62 @@ mod tests {
         entity.identity.relative_path = Some(PathBuf::from("entry"));
         let mut encoded = Vec::new();
         write_entity_payload(&mut encoded, &entity, &context)?;
-        let positive = read_entity_payload(&encoded, current_platform(), &context, &DcProjectionPolicy::strict())?;
+        let positive = read_entity_payload(
+            &encoded,
+            current_platform(),
+            &context,
+            &DcProjectionPolicy::strict(),
+        )?;
         assert_eq!(positive.identity, entity.identity);
 
-        let marker = encoded.windows(8).position(|window| window == b"CTBMETA3")
+        let marker = encoded
+            .windows(8)
+            .position(|window| window == b"CTBMETA3")
             .context("Missing preservation record marker")?;
-        let record_start = marker.checked_add(8).context("Preservation record offset overflow")?;
-        let mut cursor = encoded.get(record_start..).context("Invalid preservation record offset")?;
-        let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
+        let record_start = marker
+            .checked_add(8)
+            .context("Preservation record offset overflow")?;
+        let mut cursor = encoded
+            .get(record_start..)
+            .context("Invalid preservation record offset")?;
+        let mut record: PreservationRecord =
+            serde_json::from_slice(&read_bytes(&mut cursor)?)?;
         let mut missing_nlink = DcMstring::new();
         missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(319));
         entity.identity.origin.encode_dc_mixed(&mut missing_nlink)?;
         missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(337));
-        entity.identity.relative_path.as_ref().context("Missing test path")?.encode_dc_mixed(&mut missing_nlink)?;
+        entity
+            .identity
+            .relative_path
+            .as_ref()
+            .context("Missing test path")?
+            .encode_dc_mixed(&mut missing_nlink)?;
         missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(320));
         record.identity_dc = Some(missing_nlink.as_bytes().to_vec());
-        let mut malformed = encoded.get(..record_start).context("Invalid preservation prefix")?.to_vec();
+        let mut malformed = encoded
+            .get(..record_start)
+            .context("Invalid preservation prefix")?
+            .to_vec();
         write_bytes(&mut malformed, &serde_json::to_vec(&record)?)?;
-        assert!(read_entity_payload(&malformed, current_platform(), &context, &DcProjectionPolicy::strict()).is_err());
-        let salvaged = read_entity_payload(&malformed, current_platform(), &context, &DcProjectionPolicy::forgiving())?;
-        assert_eq!(salvaged.identity.relative_path, entity.identity.relative_path);
+        assert!(
+            read_entity_payload(
+                &malformed,
+                current_platform(),
+                &context,
+                &DcProjectionPolicy::strict()
+            )
+            .is_err()
+        );
+        let salvaged = read_entity_payload(
+            &malformed,
+            current_platform(),
+            &context,
+            &DcProjectionPolicy::forgiving(),
+        )?;
+        assert_eq!(
+            salvaged.identity.relative_path,
+            entity.identity.relative_path
+        );
         assert_eq!(salvaged.identity.nlink, 0);
 
         let mut journal = JOURNAL_MAGIC_V1.to_vec();
@@ -2022,17 +2414,42 @@ mod tests {
         journal.push(TAG_JOB_COMPLETED);
         assert!(convert_cscjournal_to_bytes(&journal).is_err());
         assert!(convert_cscjournal_to_dcmstring(&journal).is_err());
-        assert!(convert_cscjournal_to_bytes_with_policy(&journal, &DcProjectionPolicy::strict()).is_err());
-        assert!(convert_cscjournal_to_dcmstring_with_policy(&journal, &DcProjectionPolicy::strict()).is_err());
-        let converted = convert_cscjournal_to_bytes_with_policy(&journal, &DcProjectionPolicy::forgiving())?;
+        assert!(
+            convert_cscjournal_to_bytes_with_policy(
+                &journal,
+                &DcProjectionPolicy::strict()
+            )
+            .is_err()
+        );
+        assert!(
+            convert_cscjournal_to_dcmstring_with_policy(
+                &journal,
+                &DcProjectionPolicy::strict()
+            )
+            .is_err()
+        );
+        let converted = convert_cscjournal_to_bytes_with_policy(
+            &journal,
+            &DcProjectionPolicy::forgiving(),
+        )?;
         let temp = tempdir()?;
         let path = temp.path().join("salvaged.cscjournal");
         fs::write(&path, converted)?;
         let snapshot = read_journal_snapshot(&path)?;
         assert!(snapshot.is_completed);
         assert_eq!(snapshot.last_batch_id, 1);
-        assert_eq!(snapshot.committed_entities.get(b"entry".as_slice()).context("Missing salvaged entity")?.identity, salvaged.identity);
-        let (document, log) = convert_cscjournal_to_dcmstring_with_policy(&journal, &DcProjectionPolicy::forgiving())?;
+        assert_eq!(
+            snapshot
+                .committed_entities
+                .get(b"entry".as_slice())
+                .context("Missing salvaged entity")?
+                .identity,
+            salvaged.identity
+        );
+        let (document, log) = convert_cscjournal_to_dcmstring_with_policy(
+            &journal,
+            &DcProjectionPolicy::forgiving(),
+        )?;
         assert!(document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
         assert!(!log.has_errors());
         Ok(())
@@ -2045,56 +2462,120 @@ mod tests {
         entity.identity.relative_path = Some(PathBuf::from("entry"));
         let mut encoded = Vec::new();
         write_entity_payload(&mut encoded, &entity, &context)?;
-        let marker = encoded.windows(8).position(|window| window == b"CTBMETA3")
+        let marker = encoded
+            .windows(8)
+            .position(|window| window == b"CTBMETA3")
             .context("Missing preservation record marker")?;
-        let record_start = marker.checked_add(8).context("Preservation record offset overflow")?;
-        let mut cursor = encoded.get(record_start..).context("Invalid preservation record offset")?;
-        let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
+        let record_start = marker
+            .checked_add(8)
+            .context("Preservation record offset overflow")?;
+        let mut cursor = encoded
+            .get(record_start..)
+            .context("Invalid preservation record offset")?;
+        let mut record: PreservationRecord =
+            serde_json::from_slice(&read_bytes(&mut cursor)?)?;
         record.identity_dc = None;
-        let prefix = encoded.get(..marker).context("Invalid preservation record prefix")?;
-        let oldest = read_entity_payload(prefix, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
-        assert!(oldest.metadata.warnings.iter().any(|warning| warning.contains("Legacy journal lacks semantic identity")));
+        let prefix = encoded
+            .get(..marker)
+            .context("Invalid preservation record prefix")?;
+        let oldest = read_entity_payload(
+            prefix,
+            current_platform(),
+            &context,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        )?;
+        assert!(oldest.metadata.warnings.iter().any(|warning| {
+            warning.contains("Legacy journal lacks semantic identity")
+        }));
         let mut legacy = prefix.to_vec();
         legacy.extend_from_slice(b"CTBMETA2");
         write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
-        let decoded = read_entity_payload(&legacy, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
-        assert!(decoded.metadata.warnings.iter().any(|warning| warning.contains("Legacy journal lacks semantic identity")));
+        let decoded = read_entity_payload(
+            &legacy,
+            current_platform(),
+            &context,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        )?;
+        assert!(decoded.metadata.warnings.iter().any(|warning| {
+            warning.contains("Legacy journal lacks semantic identity")
+        }));
         let mut invalid = prefix.to_vec();
         invalid.extend_from_slice(b"CTBMETA3");
         write_bytes(&mut invalid, &serde_json::to_vec(&record)?)?;
-        assert!(read_entity_payload(&invalid, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict()).is_err());
+        assert!(
+            read_entity_payload(
+                &invalid,
+                current_platform(),
+                &context,
+                &ctb_formats_dcstring::DcProjectionPolicy::strict()
+            )
+            .is_err()
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_legacy_raw_flags_normalized_only_at_journal_boundary() -> Result<()> {
+    fn test_legacy_raw_flags_normalized_only_at_journal_boundary() -> Result<()>
+    {
         let context = SharedValueContext::default();
         let entity = FileEntity::from_vec(b"payload".to_vec());
         let mut encoded = Vec::new();
         write_entity_payload(&mut encoded, &entity, &context)?;
-        let marker = encoded.windows(8).position(|window| window == b"CTBMETA3")
+        let marker = encoded
+            .windows(8)
+            .position(|window| window == b"CTBMETA3")
             .context("Missing preservation record marker")?;
-        let record_start = marker.checked_add(8).context("Preservation record offset overflow")?;
-        let mut cursor = encoded.get(record_start..).context("Invalid preservation record offset")?;
-        let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
+        let record_start = marker
+            .checked_add(8)
+            .context("Preservation record offset overflow")?;
+        let mut cursor = encoded
+            .get(record_start..)
+            .context("Invalid preservation record offset")?;
+        let mut record: PreservationRecord =
+            serde_json::from_slice(&read_bytes(&mut cursor)?)?;
         let flags = serde_json::json!({
             "source_os": "linux", "raw_value": u64::MAX, "has_unparsed_flags": true
         });
         record.metadata["platform_raw_flags"] = flags.clone();
-        assert!(serde_json::from_value::<ctb_io::file::PlatformRawFlags>(flags).is_err());
+        assert!(
+            serde_json::from_value::<ctb_io::file::PlatformRawFlags>(flags)
+                .is_err()
+        );
         for magic in [b"CTBMETA1", b"CTBMETA2", b"CTBMETA3"] {
-            let mut legacy = encoded.get(..marker).context("Invalid record prefix")?.to_vec();
+            let mut legacy = encoded
+                .get(..marker)
+                .context("Invalid record prefix")?
+                .to_vec();
             legacy.extend_from_slice(magic);
             write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
-            let decoded = read_entity_payload(&legacy, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
-            assert_eq!(decoded.metadata.platform_raw_flags,
-                Some(ctb_io::file::PlatformRawFlags::from_raw(u64::MAX)));
+            let decoded = read_entity_payload(
+                &legacy,
+                current_platform(),
+                &context,
+                &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            )?;
+            assert_eq!(
+                decoded.metadata.platform_raw_flags,
+                Some(ctb_io::file::PlatformRawFlags::from_raw(u64::MAX))
+            );
         }
-        record.metadata["platform_raw_flags"] = serde_json::json!({"raw_value": -1});
-        let mut legacy = encoded.get(..marker).context("Invalid record prefix")?.to_vec();
+        record.metadata["platform_raw_flags"] =
+            serde_json::json!({"raw_value": -1});
+        let mut legacy = encoded
+            .get(..marker)
+            .context("Invalid record prefix")?
+            .to_vec();
         legacy.extend_from_slice(b"CTBMETA3");
         write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
-        assert!(read_entity_payload(&legacy, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict()).is_err());
+        assert!(
+            read_entity_payload(
+                &legacy,
+                current_platform(),
+                &context,
+                &ctb_formats_dcstring::DcProjectionPolicy::strict()
+            )
+            .is_err()
+        );
         Ok(())
     }
 
@@ -2111,7 +2592,12 @@ mod tests {
             };
             let mut encoded = Vec::new();
             write_entity_payload(&mut encoded, &entity, &context)?;
-            let decoded = read_entity_payload(&encoded, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
+            let decoded = read_entity_payload(
+                &encoded,
+                current_platform(),
+                &context,
+                &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            )?;
             assert_eq!(decoded.identity, entity.identity);
         }
         Ok(())
@@ -2127,12 +2613,24 @@ mod tests {
         let mut cursor = encoded.as_slice();
         assert_eq!(read_bytes(&mut cursor)?, b"name");
         let filename_length = usize::try_from(read_u32(&mut cursor)?)?;
-        let filename_offset = encoded.len().checked_sub(cursor.len()).context("Invalid journal filename offset")?;
-        for byte in encoded.iter_mut().skip(filename_offset).take(filename_length) {
+        let filename_offset = encoded
+            .len()
+            .checked_sub(cursor.len())
+            .context("Invalid journal filename offset")?;
+        for byte in encoded
+            .iter_mut()
+            .skip(filename_offset)
+            .take(filename_length)
+        {
             *byte = b'x';
         }
-        let error = read_entity_payload(&encoded, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())
-            .expect_err("Conflicting identity fields must not be discarded");
+        let error = read_entity_payload(
+            &encoded,
+            current_platform(),
+            &context,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        )
+        .expect_err("Conflicting identity fields must not be discarded");
         assert!(format!("{error:#}").contains("filename disagrees"));
         Ok(())
     }
@@ -2141,8 +2639,16 @@ mod tests {
     fn test_journal_shared_environment_provenance() -> Result<()> {
         let temp = tempdir()?;
         let journal_path = temp.path().join("sharing.cscjournal");
-        let mut writer = StateJournal::create_at_path(&journal_path, &temp.path().join("sharing.cscdesc"), &[], temp.path())?;
-        let environment = writer.environment.clone().context("Missing writer environment")?;
+        let mut writer = StateJournal::create_at_path(
+            &journal_path,
+            &temp.path().join("sharing.cscdesc"),
+            &[],
+            temp.path(),
+        )?;
+        let environment = writer
+            .environment
+            .clone()
+            .context("Missing writer environment")?;
         let distinct = Arc::new(EnvDescription {
             os: "original-foreign-environment".to_owned(),
             ..EnvDescription::default()
@@ -2152,8 +2658,20 @@ mod tests {
         entity.metadata.environment = Some(Arc::clone(&environment));
         let mut child = FileEntity::from_vec(b"child".to_vec());
         child.metadata.environment = Some(Arc::clone(&distinct));
-        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(child), data: None, payload: None });
-        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(FileEntity::from_vec(b"unknown".to_vec())), data: None, payload: None });
+        entity.streams.push(AttachedStream {
+            name: None,
+            kind: StreamKind::MacOsResourceFork,
+            entity: Box::new(child),
+            data: None,
+            payload: None,
+        });
+        entity.streams.push(AttachedStream {
+            name: None,
+            kind: StreamKind::MacOsResourceFork,
+            entity: Box::new(FileEntity::from_vec(b"unknown".to_vec())),
+            data: None,
+            payload: None,
+        });
         writer.record_entity(&entity);
         let mut unknown = FileEntity::from_vec(b"unknown".to_vec());
         unknown.identity.relative_path = Some(PathBuf::from("unknown"));
@@ -2164,21 +2682,62 @@ mod tests {
         writer.record_entity(&equal);
         writer.commit_batch()?;
         let snapshot = read_journal_snapshot(&journal_path)?;
-        let stored = snapshot.environment.as_ref().context("Missing persisted environment")?;
-        let parent = snapshot.committed_entities.get(b"parent".as_slice()).context("Missing parent")?;
-        assert!(parent.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, stored)));
-        assert_eq!(parent.streams[0].entity.metadata.environment.as_ref(), Some(&distinct));
+        let stored = snapshot
+            .environment
+            .as_ref()
+            .context("Missing persisted environment")?;
+        let parent = snapshot
+            .committed_entities
+            .get(b"parent".as_slice())
+            .context("Missing parent")?;
+        assert!(
+            parent
+                .metadata
+                .environment
+                .as_ref()
+                .is_some_and(|value| Arc::ptr_eq(value, stored))
+        );
+        assert_eq!(
+            parent.streams[0].entity.metadata.environment.as_ref(),
+            Some(&distinct)
+        );
         assert!(parent.streams[1].entity.metadata.environment.is_none());
-        assert!(snapshot.committed_entities.get(b"unknown".as_slice()).context("Missing unknown")?.metadata.environment.is_none());
-        assert!(snapshot.committed_entities.get(b"equal".as_slice()).context("Missing equal")?.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, stored)));
+        assert!(
+            snapshot
+                .committed_entities
+                .get(b"unknown".as_slice())
+                .context("Missing unknown")?
+                .metadata
+                .environment
+                .is_none()
+        );
+        assert!(
+            snapshot
+                .committed_entities
+                .get(b"equal".as_slice())
+                .context("Missing equal")?
+                .metadata
+                .environment
+                .as_ref()
+                .is_some_and(|value| Arc::ptr_eq(value, stored))
+        );
         let mut payload = Vec::new();
         write_entity_payload(&mut payload, &entity, writer.writer.context())?;
-        assert!(read_entity_payload(&payload, current_platform(), &SharedValueContext::default(), &ctb_formats_dcstring::DcProjectionPolicy::strict()).is_err());
+        assert!(
+            read_entity_payload(
+                &payload,
+                current_platform(),
+                &SharedValueContext::default(),
+                &ctb_formats_dcstring::DcProjectionPolicy::strict()
+            )
+            .is_err()
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_journal_legacy_resume_refused_and_v5_unknown_environment_preserved() -> Result<()> {
+    fn test_journal_legacy_resume_refused_and_v5_unknown_environment_preserved()
+    -> Result<()> {
         let temp = tempdir()?;
 
         // 1. Legacy v1 journal must be refused by open_for_resume without modifying disk bytes
@@ -2191,10 +2750,19 @@ mod tests {
         fs::write(&v1_path, &v1_bytes)?;
         let v1_snapshot = read_journal_snapshot(&v1_path)?;
         assert!(
-            StateJournal::open_for_resume(&v1_path, &temp.path().join("legacy_v1.cscdesc"), &v1_snapshot).is_err(),
+            StateJournal::open_for_resume(
+                &v1_path,
+                &temp.path().join("legacy_v1.cscdesc"),
+                &v1_snapshot
+            )
+            .is_err(),
             "Resuming a legacy v1 journal must fail with an error"
         );
-        assert_eq!(fs::read(&v1_path)?, v1_bytes, "Refused v1 journal must remain unmodified");
+        assert_eq!(
+            fs::read(&v1_path)?,
+            v1_bytes,
+            "Refused v1 journal must remain unmodified"
+        );
 
         // 2. Legacy v4 (DcMixed1) journal must be refused by open_for_resume without modifying disk bytes
         let session = JournalSessionRecord {
@@ -2203,20 +2771,40 @@ mod tests {
             origin_platform: u32::from(current_platform()),
             environment: None,
         };
-        let v5_bytes = stream::JournalWriter::new(Vec::new(), &session, stream::JournalMagic::JournalV5)?.finish()?;
-        let v5_mstr = DcMstring::from_slice(v5_bytes.get(8..).context("Missing v5 payload")?)?;
-        let (dcmm1_payload, _) = ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(&v5_mstr)?;
+        let v5_bytes = stream::JournalWriter::new(
+            Vec::new(),
+            &session,
+            stream::JournalMagic::JournalV5,
+        )?
+        .finish()?;
+        let v5_mstr = DcMstring::from_slice(
+            v5_bytes.get(8..).context("Missing v5 payload")?,
+        )?;
+        let (dcmm1_payload, _) =
+            ctb_formats_dcstring::dc_mixed::dcmstring_to_dcmm1(&v5_mstr)?;
         let mut v4_bytes = JOURNAL_MAGIC_V4.to_vec();
         v4_bytes.extend_from_slice(&dcmm1_payload);
         let v4_path = temp.path().join("legacy_v4.cscjournal");
         fs::write(&v4_path, &v4_bytes)?;
         let v4_snapshot = read_journal_snapshot(&v4_path)?;
         assert!(
-            StateJournal::open_for_resume(&v4_path, &temp.path().join("legacy_v4.cscdesc"), &v4_snapshot).is_err(),
+            StateJournal::open_for_resume(
+                &v4_path,
+                &temp.path().join("legacy_v4.cscdesc"),
+                &v4_snapshot
+            )
+            .is_err(),
             "Resuming a legacy v4 (DcMixed1) journal must fail with an error"
         );
-        assert_eq!(fs::read(&v4_path)?, v4_bytes, "Refused v4 journal must remain unmodified");
-        assert!(read_journal_snapshot(&v4_path)?.is_completed, "Refused v4 journal must remain readable");
+        assert_eq!(
+            fs::read(&v4_path)?,
+            v4_bytes,
+            "Refused v4 journal must remain unmodified"
+        );
+        assert!(
+            read_journal_snapshot(&v4_path)?.is_completed,
+            "Refused v4 journal must remain readable"
+        );
 
         // Mismatched outer magic and inner DcMixed UUID must be rejected
         let mut mismatched_v4 = JOURNAL_MAGIC_V4.to_vec();
@@ -2229,7 +2817,11 @@ mod tests {
         let v5_path = temp.path().join("modern_v5.cscjournal");
         fs::write(&v5_path, v5_bytes)?;
         let snapshot = read_journal_snapshot(&v5_path)?;
-        let mut writer = StateJournal::open_for_resume(&v5_path, &temp.path().join("modern_v5.cscdesc"), &snapshot)?;
+        let mut writer = StateJournal::open_for_resume(
+            &v5_path,
+            &temp.path().join("modern_v5.cscdesc"),
+            &snapshot,
+        )?;
         assert!(writer.environment.is_none());
         let mut entity = FileEntity::from_vec(b"unknown".to_vec());
         entity.identity.relative_path = Some(PathBuf::from("unknown"));
@@ -2237,7 +2829,15 @@ mod tests {
         writer.commit_batch()?;
         let snapshot = read_journal_snapshot(&v5_path)?;
         assert!(snapshot.environment.is_none());
-        assert!(snapshot.committed_entities.get(b"unknown".as_slice()).context("Missing resumed entity")?.metadata.environment.is_none());
+        assert!(
+            snapshot
+                .committed_entities
+                .get(b"unknown".as_slice())
+                .context("Missing resumed entity")?
+                .metadata
+                .environment
+                .is_none()
+        );
         Ok(())
     }
 
@@ -2255,7 +2855,9 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&dest).expect("create dest");
 
-        let mut writer = StateJournal::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+        let mut writer =
+            StateJournal::create_new(temp.path(), &[src.clone()], &dest)
+                .expect("create journal");
 
         let read_time_expected = std::time::SystemTime::UNIX_EPOCH
             .checked_add(std::time::Duration::from_secs(1_700_000_000))
@@ -2337,7 +2939,10 @@ mod tests {
                 errors: Vec::new(),
             },
             kind: FileEntityKind::Hardlink {
-                target_relative_path: LinkPath::from_bytes(b"hello.txt", cfg!(windows)),
+                target_relative_path: LinkPath::from_bytes(
+                    b"hello.txt",
+                    cfg!(windows),
+                ),
             },
             streams: Vec::new(),
         };
@@ -2350,17 +2955,37 @@ mod tests {
                 987_654_321
             });
         }
-        file_entity.metadata.native = Some(ctb_io::file::metadata::NativeMetadata {
-            source_os: ctb_io::file::OsFamily::Darwin,
-            values: std::collections::BTreeMap::from([
-                ("opaque".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Bytes(vec![0, 255, 128])),
-                ("unsigned".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Unsigned(u64::MAX)),
-                ("signed".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Signed(i64::MIN)),
-            ]),
-        });
-        file_entity.metadata.platform_raw_flags = Some(ctb_io::file::PlatformRawFlags::from_raw(u64::MAX));
+        file_entity.metadata.native =
+            Some(ctb_io::file::metadata::NativeMetadata {
+                source_os: ctb_io::file::OsFamily::Darwin,
+                values: std::collections::BTreeMap::from([
+                    (
+                        "opaque".to_owned(),
+                        ctb_io::file::metadata::NativeMetadataValue::Bytes(
+                            vec![0, 255, 128],
+                        ),
+                    ),
+                    (
+                        "unsigned".to_owned(),
+                        ctb_io::file::metadata::NativeMetadataValue::Unsigned(
+                            u64::MAX,
+                        ),
+                    ),
+                    (
+                        "signed".to_owned(),
+                        ctb_io::file::metadata::NativeMetadataValue::Signed(
+                            i64::MIN,
+                        ),
+                    ),
+                ]),
+            });
+        file_entity.metadata.platform_raw_flags =
+            Some(ctb_io::file::PlatformRawFlags::from_raw(u64::MAX));
         if let FileEntityKind::Regular { extents, .. } = &mut file_entity.kind {
-            extents.push(ctb_io::file::Extent::Data { offset: 0, length: 42 });
+            extents.push(ctb_io::file::Extent::Data {
+                offset: 0,
+                length: 42,
+            });
         }
         let mut stream_entity = file_entity.clone();
         stream_entity.streams.clear();
@@ -2372,19 +2997,34 @@ mod tests {
             payload: None,
         });
         let mut wide_stream = file_entity.streams[0].clone();
-        wide_stream.name = Some(ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]));
+        wide_stream.name =
+            Some(ctb_io::file::StreamName::from_windows_utf16(&[
+                0x003a, 0xd800, 0x0061,
+            ]));
         file_entity.streams.push(wide_stream);
         for name in [
             ctb_io::file::StreamName::from_bytes(b"user.binary\xff"),
-            ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]),
+            ctb_io::file::StreamName::from_windows_utf16(&[
+                0x003a, 0xd800, 0x0061,
+            ]),
         ] {
-            file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
-                Some(name), ctb_io::file::StreamKind::NtfsAlternateDataStream, vec![0, 255, 128],
-            ).unwrap());
+            file_entity.streams.push(
+                ctb_io::file::AttachedStream::from_data(
+                    Some(name),
+                    ctb_io::file::StreamKind::NtfsAlternateDataStream,
+                    vec![0, 255, 128],
+                )
+                .unwrap(),
+            );
         }
-        file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
-            None, ctb_io::file::StreamKind::MacOsResourceFork, vec![1, 2, 3, 4],
-        ).unwrap());
+        file_entity.streams.push(
+            ctb_io::file::AttachedStream::from_data(
+                None,
+                ctb_io::file::StreamKind::MacOsResourceFork,
+                vec![1, 2, 3, 4],
+            )
+            .unwrap(),
+        );
         file_entity.metadata.environment = writer.environment.clone();
         for stream in &mut file_entity.streams {
             stream.entity.metadata.environment = writer.environment.clone();
@@ -2393,12 +3033,16 @@ mod tests {
         writer.record_entity(&link_entity);
         writer.commit_batch().expect("commit batch");
 
-        let snap = read_journal_snapshot(writer.journal_path()).expect("read snapshot");
+        let snap = read_journal_snapshot(writer.journal_path())
+            .expect("read snapshot");
         assert_eq!(snap.committed_entities.len(), 2);
         assert!(snap.is_committed(b"hello.txt"));
         assert!(snap.is_committed(b"link.txt"));
 
-        let read_file = snap.committed_entities.get(b"hello.txt".as_slice()).expect("get hello.txt");
+        let read_file = snap
+            .committed_entities
+            .get(b"hello.txt".as_slice())
+            .expect("get hello.txt");
         let mut expected_file = file_entity.clone();
         expected_file.strip_stream_bodies();
         assert_eq!(read_file, &expected_file);
@@ -2414,8 +3058,14 @@ mod tests {
             panic!("Expected regular file kind");
         }
 
-        let read_link = snap.committed_entities.get(b"link.txt".as_slice()).expect("get link.txt");
-        if let FileEntityKind::Hardlink { target_relative_path } = &read_link.kind {
+        let read_link = snap
+            .committed_entities
+            .get(b"link.txt".as_slice())
+            .expect("get link.txt");
+        if let FileEntityKind::Hardlink {
+            target_relative_path,
+        } = &read_link.kind
+        {
             assert_eq!(target_relative_path, b"hello.txt");
         } else {
             panic!("Expected hardlink kind");
@@ -2428,20 +3078,32 @@ mod tests {
                 .open(writer.journal_path())
                 .expect("open for append");
             // TAG_ENTITY (2) + len (10) + checksum (0) + 10 junk bytes
-            file.write_all(&[2, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).expect("write junk");
+            file.write_all(&[2, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+                .expect("write junk");
             file.write_all(b"badpayload").expect("write junk payload");
         }
 
-        let malformed_journal = fs::read(writer.journal_path()).expect("read malformed journal");
+        let malformed_journal =
+            fs::read(writer.journal_path()).expect("read malformed journal");
         for policy in [
             ctb_formats_dcstring::DcProjectionPolicy::strict(),
             ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
         ] {
-            let error = read_journal_snapshot_with_policy(writer.journal_path(), &policy)
-                .expect_err("Malformed closed records must not be silently discarded");
-            assert!(format!("{error:#}").contains("Unsupported journal record"));
+            let error = read_journal_snapshot_with_policy(
+                writer.journal_path(),
+                &policy,
+            )
+            .expect_err(
+                "Malformed closed records must not be silently discarded",
+            );
+            assert!(
+                format!("{error:#}").contains("Unsupported journal record")
+            );
         }
-        assert_eq!(fs::read(writer.journal_path()).expect("reread journal"), malformed_journal);
+        assert_eq!(
+            fs::read(writer.journal_path()).expect("reread journal"),
+            malformed_journal
+        );
     }
 
     #[crate::ctb_test]
@@ -2457,7 +3119,9 @@ mod tests {
         std::fs::create_dir_all(&src).expect("create src");
         std::fs::create_dir_all(&dest).expect("create dest");
 
-        let mut writer = StateJournal::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+        let mut writer =
+            StateJournal::create_new(temp.path(), &[src.clone()], &dest)
+                .expect("create journal");
 
         let pre_epoch_time = std::time::SystemTime::UNIX_EPOCH
             .checked_sub(std::time::Duration::from_secs(10))
@@ -2522,9 +3186,20 @@ mod tests {
         std::os::unix::fs::symlink("missing-target", &source).unwrap();
         fs::write(&destination, b"old destination").unwrap();
         let _ = std::fs::read_link(&source);
-        let original = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
-        assert!(original.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some());
-        let mut args = default_test_args(vec![source.clone(), destination.clone()], state.clone());
+        let original =
+            ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        assert!(
+            original
+                .metadata
+                .timestamps
+                .as_ref()
+                .and_then(|ts| ts.birthtime_sec)
+                .is_some()
+        );
+        let mut args = default_test_args(
+            vec![source.clone(), destination.clone()],
+            state.clone(),
+        );
         args.best_effort_metadata = false;
         assert!(run_csc(args).is_err());
         assert_eq!(fs::read(&destination).unwrap(), b"old destination");
@@ -2535,10 +3210,17 @@ mod tests {
         let recorded = snapshot.committed_entities.values().next().unwrap();
         let mut expected_native = original.metadata.native.clone();
         let mut actual_native = recorded.metadata.native.clone();
-        if let (Some(exp), Some(act)) = (&mut expected_native, &mut actual_native) {
+        if let (Some(exp), Some(act)) =
+            (&mut expected_native, &mut actual_native)
+        {
             // Separate captures can cross a second boundary; readlink and
             // timestamp cleanup affect both components of atime/ctime.
-            for name in ["statx.atime.sec", "statx.atime.nsec", "statx.ctime.sec", "statx.ctime.nsec"] {
+            for name in [
+                "statx.atime.sec",
+                "statx.atime.nsec",
+                "statx.ctime.sec",
+                "statx.ctime.nsec",
+            ] {
                 exp.values.remove(name);
                 act.values.remove(name);
             }
@@ -2559,10 +3241,22 @@ mod tests {
             ts.ctime_nsec = 0;
         }
         assert_eq!(actual_ts, expected_ts);
-        assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
+        assert_eq!(
+            recorded.metadata.platform_raw_flags,
+            original.metadata.platform_raw_flags
+        );
         assert_eq!(recorded.streams, original.streams);
-        assert!(recorded.metadata.errors.iter().any(|error| error.starts_with("Materialization failed:")));
-        assert!(snapshot.errors.iter().any(|error| matches!(error.stage, JournalErrorStage::Materialize)));
+        assert!(
+            recorded
+                .metadata
+                .errors
+                .iter()
+                .any(|error| error.starts_with("Materialization failed:"))
+        );
+        assert!(snapshot.errors.iter().any(|error| matches!(
+            error.stage,
+            JournalErrorStage::Materialize
+        )));
     }
 
     #[cfg(unix)]
@@ -2649,9 +3343,13 @@ mod tests {
             &desc_path,
             &[src.clone()],
             &dest,
-        ).expect("create_at_path");
+        )
+        .expect("create_at_path");
 
-        assert!(writer.environment.is_some(), "StateJournal should initialize environment");
+        assert!(
+            writer.environment.is_some(),
+            "StateJournal should initialize environment"
+        );
 
         let rel_path = PathBuf::from("file_a.txt");
         let entity = FileEntity {
@@ -2701,15 +3399,27 @@ mod tests {
         writer.mark_completed().expect("mark_completed");
 
         // 2. Read snapshot and verify the explicit environment reference is shared.
-        let snapshot = read_journal_snapshot(&journal_path).expect("read snapshot");
-        assert!(snapshot.environment.is_some(), "Snapshot should have decoded environment");
+        let snapshot =
+            read_journal_snapshot(&journal_path).expect("read snapshot");
+        assert!(
+            snapshot.environment.is_some(),
+            "Snapshot should have decoded environment"
+        );
         let snap_env = snapshot.environment.as_ref().unwrap();
 
-        let committed = snapshot.committed_entities.get(b"file_a.txt".as_slice())
+        let committed = snapshot
+            .committed_entities
+            .get(b"file_a.txt".as_slice())
             .expect("committed entity");
-        assert!(committed.metadata.environment.is_some(), "Entity should inherit deduplicated environment");
         assert!(
-            Arc::ptr_eq(snap_env, committed.metadata.environment.as_ref().unwrap()),
+            committed.metadata.environment.is_some(),
+            "Entity should inherit deduplicated environment"
+        );
+        assert!(
+            Arc::ptr_eq(
+                snap_env,
+                committed.metadata.environment.as_ref().unwrap()
+            ),
             "Arc pointer should be shared (deduplicated)"
         );
 
@@ -2723,10 +3433,15 @@ mod tests {
         legacy_bytes.extend_from_slice(&0_u32.to_le_bytes()); // src_count = 0
         legacy_bytes.extend_from_slice(&0_u32.to_le_bytes()); // dest_len = 0
         legacy_bytes.push(4); // TAG_JOB_COMPLETED
-        fs::write(&legacy_journal_path, legacy_bytes).expect("write legacy journal");
+        fs::write(&legacy_journal_path, legacy_bytes)
+            .expect("write legacy journal");
 
-        let legacy_snapshot = read_journal_snapshot(&legacy_journal_path).expect("read legacy snapshot");
-        assert!(legacy_snapshot.environment.is_none(), "Legacy journal should yield None environment");
+        let legacy_snapshot = read_journal_snapshot(&legacy_journal_path)
+            .expect("read legacy snapshot");
+        assert!(
+            legacy_snapshot.environment.is_none(),
+            "Legacy journal should yield None environment"
+        );
 
         // 4. Test SQLite database schema initialization, migration, and sources environment column
         let db_path = temp.path().join("env_test.cscindex.sqlite");
@@ -2737,11 +3452,17 @@ mod tests {
             .expect("open db");
         let conn = db.connect().expect("connect db");
 
-        crate::index_engine::init_database_schema(&conn).await.expect("init database schema");
+        crate::index_engine::init_database_schema(&conn)
+            .await
+            .expect("init database schema");
 
         // Verify environment column exists in sources table
-        let mut pragma_stmt = conn.prepare("PRAGMA table_info(sources)").await.expect("prepare pragma");
-        let mut pragma_rows = pragma_stmt.query(()).await.expect("query pragma");
+        let mut pragma_stmt = conn
+            .prepare("PRAGMA table_info(sources)")
+            .await
+            .expect("prepare pragma");
+        let mut pragma_rows =
+            pragma_stmt.query(()).await.expect("query pragma");
         let mut has_env_col = false;
         while let Some(row) = pragma_rows.next().await.expect("row") {
             if let Ok(Value::Text(col)) = row.get_value(1) {
@@ -2755,33 +3476,47 @@ mod tests {
 
         // Ingest snapshot into database
         let progress = ctb_utilities::Progress::new(false);
-        let env_json = snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
+        let env_json =
+            snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
         let src_id = crate::index_engine::get_or_create_source(
             &conn,
             "test_source",
             &journal_path,
             env_json.as_deref(),
-        ).await.expect("get_or_create_source");
+        )
+        .await
+        .expect("get_or_create_source");
 
         let ingested = crate::index_engine::ingest_journal_snapshot(
-            &conn,
-            src_id,
-            &snapshot,
-            100,
-            &progress,
-            None,
-        ).await.expect("ingest");
+            &conn, src_id, &snapshot, 100, &progress, None,
+        )
+        .await
+        .expect("ingest");
         assert_eq!(ingested, 1);
 
         // Verify the environment JSON in sources row
-        let mut select_stmt = conn.prepare("SELECT environment FROM sources WHERE id = ?").await.expect("prepare");
-        let mut select_rows = select_stmt.query(vec![Value::Integer(src_id)]).await.expect("query");
-        let row = select_rows.next().await.expect("next").expect("row present");
+        let mut select_stmt = conn
+            .prepare("SELECT environment FROM sources WHERE id = ?")
+            .await
+            .expect("prepare");
+        let mut select_rows = select_stmt
+            .query(vec![Value::Integer(src_id)])
+            .await
+            .expect("query");
+        let row = select_rows
+            .next()
+            .await
+            .expect("next")
+            .expect("row present");
         let stored_env = row.get_value(0).expect("get value");
         if let Value::Text(json_str) = stored_env {
-            assert!(json_str.contains("\"os\":"), "Stored JSON should contain os");
-            let decoded = ctb_io_environment::EnvDescription::from_json(&json_str)
-                .expect("valid environment JSON");
+            assert!(
+                json_str.contains("\"os\":"),
+                "Stored JSON should contain os"
+            );
+            let decoded =
+                ctb_io_environment::EnvDescription::from_json(&json_str)
+                    .expect("valid environment JSON");
             assert_eq!(decoded.os, snap_env.os);
             assert_eq!(decoded.is_linux(), snap_env.is_linux());
             assert_eq!(decoded.is_windows(), snap_env.is_windows());
@@ -2801,7 +3536,8 @@ mod tests {
         let scope = ctb_io_environment::EnvironmentScope::enter_fresh();
 
         // 1. FileEntity::from_filesystem automatically populates environment metadata
-        let mut entity1 = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+        let mut entity1 =
+            ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
         assert!(entity1.metadata.environment.is_some());
         assert!(entity1.environment().is_some());
 
@@ -2810,25 +3546,33 @@ mod tests {
             Some(ctb_io::file::StreamName::from_bytes(b"stream1")),
             ctb_io::file::StreamKind::NtfsAlternateDataStream,
             vec![1, 2, 3],
-        ).unwrap();
+        )
+        .unwrap();
         assert!(stream.entity.metadata.environment.is_some());
         entity1.streams.push(stream);
 
         // 3. Calls within the same operation scope share the exact same Arc (pointer equality)
-        let entity2 = ctb_io::file::FileEntity::from_filesystem(&file2, None).unwrap();
+        let entity2 =
+            ctb_io::file::FileEntity::from_filesystem(&file2, None).unwrap();
         let env1 = entity1.metadata.environment.as_ref().unwrap();
         let env2 = entity2.metadata.environment.as_ref().unwrap();
         assert!(std::sync::Arc::ptr_eq(env1, env2));
 
         // 4. FileEntity::set_environment propagates to all attached streams
-        let custom_env = std::sync::Arc::new(ctb_io_environment::capture_quick());
+        let custom_env =
+            std::sync::Arc::new(ctb_io_environment::capture_quick());
         entity1.set_environment(std::sync::Arc::clone(&custom_env));
         assert!(std::sync::Arc::ptr_eq(
             entity1.metadata.environment.as_ref().unwrap(),
             &custom_env
         ));
         assert!(std::sync::Arc::ptr_eq(
-            entity1.streams[0].entity.metadata.environment.as_ref().unwrap(),
+            entity1.streams[0]
+                .entity
+                .metadata
+                .environment
+                .as_ref()
+                .unwrap(),
             &custom_env
         ));
         drop(scope);
@@ -2836,14 +3580,18 @@ mod tests {
         // 5. Simulate two separate operations within a single process (e.g. successive csc runs):
         // Each operation enters its own GlobalEnvironmentScope, getting a distinct Arc snapshot.
         let arc_op1 = {
-            let _scope1 = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
-            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+            let _scope1 =
+                ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
+            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None)
+                .unwrap();
             e.metadata.environment.unwrap()
         };
 
         let arc_op2 = {
-            let _scope2 = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
-            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+            let _scope2 =
+                ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
+            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None)
+                .unwrap();
             e.metadata.environment.unwrap()
         };
 
@@ -2859,20 +3607,31 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_full_provenance_csc_and_related_commands() {
-        use crate::args::{default_test_args, default_verify_args, default_fsindex_args, MvArgs};
+        use crate::args::{
+            MvArgs, default_fsindex_args, default_test_args,
+            default_verify_args,
+        };
         use crate::cli::run_csc;
-        use crate::verifier::run_csc_verify;
         use crate::index_engine::run_fsindex;
+        use crate::journal::{find_cscjournal, read_journal_snapshot};
         use crate::move_engine::run_mv;
-        use crate::journal::{read_journal_snapshot, find_cscjournal};
+        use crate::verifier::run_csc_verify;
         use turso::Builder;
 
-        let download_attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let download_attempts =
+            Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let attempted = Arc::clone(&download_attempts);
-        let _offline = ctb_utilities::https::crlite::set_test_download_override(move |_| {
-            attempted.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            anyhow::bail!("Provenance test is deterministically offline")
-        }).unwrap();
+        let _offline =
+            ctb_utilities::https::crlite::set_test_download_override(
+                move |_| {
+                    attempted
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    anyhow::bail!(
+                        "Provenance test is deterministically offline"
+                    )
+                },
+            )
+            .unwrap();
         let temp = tempdir().unwrap();
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
@@ -2881,7 +3640,8 @@ mod tests {
         fs::create_dir_all(&dest).unwrap();
         fs::create_dir_all(&state).unwrap();
 
-        fs::write(src.join("test.txt"), b"full provenance test content").unwrap();
+        fs::write(src.join("test.txt"), b"full provenance test content")
+            .unwrap();
 
         // 1. Run csc with full_provenance: true
         let mut csc_args = default_test_args(
@@ -2893,8 +3653,12 @@ mod tests {
         run_csc(csc_args).expect("run csc with full provenance");
 
         let journal_path = find_cscjournal(&state);
-        let snapshot = read_journal_snapshot(&journal_path).expect("read journal snapshot");
-        assert!(snapshot.environment.is_some(), "Journal snapshot must have environment");
+        let snapshot = read_journal_snapshot(&journal_path)
+            .expect("read journal snapshot");
+        assert!(
+            snapshot.environment.is_some(),
+            "Journal snapshot must have environment"
+        );
         let env = snapshot.environment.as_ref().unwrap();
         assert!(!env.ctb_version.is_empty());
 
@@ -2906,7 +3670,8 @@ mod tests {
         // 2. Run csc-verify with full_provenance: true
         let mut verify_args = default_verify_args(journal_path.clone(), None);
         verify_args.full_provenance = true;
-        let v_res = run_csc_verify(&verify_args).expect("run csc-verify with full provenance");
+        let v_res = run_csc_verify(&verify_args)
+            .expect("run csc-verify with full provenance");
         match v_res {
             ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -2916,20 +3681,30 @@ mod tests {
 
         // 3. Run fsindex with full_provenance: true
         let db_path = temp.path().join("provenance.cscindex.sqlite");
-        let mut fsindex_args = default_fsindex_args(vec![dest.clone()], Some(db_path.clone()));
+        let mut fsindex_args =
+            default_fsindex_args(vec![dest.clone()], Some(db_path.clone()));
         fsindex_args.full_provenance = true;
-        run_fsindex(fsindex_args).await.expect("run fsindex with full provenance");
+        run_fsindex(fsindex_args)
+            .await
+            .expect("run fsindex with full provenance");
 
-        let db = Builder::new_local(db_path.to_str().unwrap()).build().await.expect("open db");
+        let db = Builder::new_local(db_path.to_str().unwrap())
+            .build()
+            .await
+            .expect("open db");
         let conn = db.connect().expect("connect db");
-        let mut select_stmt = conn.prepare("SELECT environment FROM sources").await.expect("prepare");
+        let mut select_stmt = conn
+            .prepare("SELECT environment FROM sources")
+            .await
+            .expect("prepare");
         let mut rows = select_stmt.query(()).await.expect("query");
         let row = rows.next().await.expect("next").expect("row exists");
         let env_val = row.get_value(0).expect("get_value");
         match env_val {
             turso::Value::Text(json_str) => {
-                let parsed = ctb_io_environment::EnvDescription::from_json(&json_str)
-                    .expect("parse environment JSON");
+                let parsed =
+                    ctb_io_environment::EnvDescription::from_json(&json_str)
+                        .expect("parse environment JSON");
                 assert_eq!(parsed.ctb_version, env.ctb_version);
             }
             _ => panic!("Expected Value::Text for sources.environment"),
@@ -2958,8 +3733,10 @@ mod tests {
         };
         run_mv(mv_args).expect("run mv with full provenance");
         assert!(mv_dest.join("mv_test.txt").exists());
-        assert!(download_attempts.load(std::sync::atomic::Ordering::Relaxed) > 0,
-            "Full provenance must exercise network discovery through the offline transport");
+        assert!(
+            download_attempts.load(std::sync::atomic::Ordering::Relaxed) > 0,
+            "Full provenance must exercise network discovery through the offline transport"
+        );
     }
 
     /// Verifies authentic multi-revision journal test fixtures:
@@ -2969,16 +3746,27 @@ mod tests {
     /// - Revision 4 (DcMixed): Commit `HEAD` / `main` (CTBCSCJ\x04 with DcMM)
     #[crate::ctb_test]
     fn test_all_journal_revision_fixtures() -> Result<()> {
-        let fixtures_dir = ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "fixtures/journals");
+        let fixtures_dir = ctb_utilities::manifest_fixture_path(
+            env!("CARGO_MANIFEST_DIR"),
+            "fixtures/journals",
+        );
 
-        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1-20261011.cscjournal"))
-            .context("Failed to read revision 1 fixture")?;
-        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2-20261011.cscjournal"))
-            .context("Failed to read revision 2 fixture")?;
+        let s1 = read_journal_snapshot(
+            &fixtures_dir.join("v1_ctbmeta1-20261011.cscjournal"),
+        )
+        .context("Failed to read revision 1 fixture")?;
+        let s2 = read_journal_snapshot(
+            &fixtures_dir.join("v2_ctbmeta2-20261011.cscjournal"),
+        )
+        .context("Failed to read revision 2 fixture")?;
         let v3_fixture = fixtures_dir.join("v3_ctbmeta3-20261011.cscjournal");
-        let strict_error = read_journal_snapshot(&v3_fixture)
-            .expect_err("Historical untyped path literals must be rejected strictly");
-        assert!(format!("{strict_error:#}").contains("missing Dc 262..263 type header"));
+        let strict_error = read_journal_snapshot(&v3_fixture).expect_err(
+            "Historical untyped path literals must be rejected strictly",
+        );
+        assert!(
+            format!("{strict_error:#}")
+                .contains("missing Dc 262..263 type header")
+        );
         let s3 = read_journal_snapshot_with_policy(
             &v3_fixture,
             &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
@@ -3001,17 +3789,30 @@ mod tests {
             ("v4_dcmixed", &s4),
         ] {
             assert!(snap.is_completed, "{rev_name} must be completed");
-            assert!(!snap.committed_entities.is_empty(), "{rev_name} must have entities");
             assert!(
-                snap.committed_entities.contains_key(b"src/fixture_info.txt".as_slice())
-                    || snap.committed_entities.contains_key(b"src\\fixture_info.txt".as_slice())
-                    || snap.committed_entities.contains_key(b"src/main.rs".as_slice())
-                    || snap.committed_entities.contains_key(b"src\\main.rs".as_slice()),
+                !snap.committed_entities.is_empty(),
+                "{rev_name} must have entities"
+            );
+            assert!(
+                snap.committed_entities
+                    .contains_key(b"src/fixture_info.txt".as_slice())
+                    || snap
+                        .committed_entities
+                        .contains_key(b"src\\fixture_info.txt".as_slice())
+                    || snap
+                        .committed_entities
+                        .contains_key(b"src/main.rs".as_slice())
+                    || snap
+                        .committed_entities
+                        .contains_key(b"src\\main.rs".as_slice()),
                 "{rev_name} must contain payload files"
             );
         }
 
-        assert!(s4.environment.is_some(), "v4_dcmixed must record environment");
+        assert!(
+            s4.environment.is_some(),
+            "v4_dcmixed must record environment"
+        );
 
         Ok(())
     }
@@ -3022,7 +3823,9 @@ mod tests {
         let path = temp.path().join("retired.cscjournal");
         for type_byte in [1, 4] {
             let mut payload = DcMstring::new().into_bytes();
-            payload.extend_from_slice(&ctb_formats_dcstring::dc_mixed::DC_203_BYTES);
+            payload.extend_from_slice(
+                &ctb_formats_dcstring::dc_mixed::DC_203_BYTES,
+            );
             payload.push(type_byte);
             let expected_offset = payload.len().saturating_sub(1);
             payload.extend_from_slice(&0u128.to_be_bytes());
@@ -3056,7 +3859,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_journal_conversion_all_revisions_to_bytes_and_dcmstring() -> Result<()> {
+    fn test_journal_conversion_all_revisions_to_bytes_and_dcmstring()
+    -> Result<()> {
         let fixtures_dir = ctb_utilities::manifest_fixture_path(
             env!("CARGO_MANIFEST_DIR"),
             "fixtures/journals",
@@ -3066,22 +3870,43 @@ mod tests {
 
         // Test converting legacy revisions 1..=3 to current bytes and validating snapshot parity
         for (rev_name, filename, policy) in [
-            ("v1_ctbmeta1", "v1_ctbmeta1-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
-            ("v2_ctbmeta2", "v2_ctbmeta2-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
-            ("v3_ctbmeta3", "v3_ctbmeta3-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::forgiving()),
+            (
+                "v1_ctbmeta1",
+                "v1_ctbmeta1-20261011.cscjournal",
+                ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            ),
+            (
+                "v2_ctbmeta2",
+                "v2_ctbmeta2-20261011.cscjournal",
+                ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            ),
+            (
+                "v3_ctbmeta3",
+                "v3_ctbmeta3-20261011.cscjournal",
+                ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+            ),
         ] {
             let legacy_path = fixtures_dir.join(filename);
             let legacy_bytes = fs::read(&legacy_path)?;
-            let orig_snap = read_journal_snapshot_with_policy(&legacy_path, &policy)
-                .with_context(|| format!("Failed to read {rev_name} fixture before conversion"))?;
+            let orig_snap = read_journal_snapshot_with_policy(
+                &legacy_path,
+                &policy,
+            )
+            .with_context(|| {
+                format!("Failed to read {rev_name} fixture before conversion")
+            })?;
 
-            let converted_bytes = convert_cscjournal_to_bytes_with_policy(&legacy_bytes, &policy)?;
+            let converted_bytes = convert_cscjournal_to_bytes_with_policy(
+                &legacy_bytes,
+                &policy,
+            )?;
             assert!(
                 converted_bytes.starts_with(JOURNAL_MAGIC),
                 "{rev_name} converted bytes must start with JOURNAL_MAGIC"
             );
 
-            let converted_path = temp.path().join(format!("{rev_name}_converted.cscjournal"));
+            let converted_path =
+                temp.path().join(format!("{rev_name}_converted.cscjournal"));
             fs::write(&converted_path, &converted_bytes)?;
 
             let converted_snap = read_journal_snapshot(&converted_path)?;
@@ -3112,18 +3937,34 @@ mod tests {
 
         // Test converting all 4 revisions directly to DcMstring
         for (filename, policy) in [
-            ("v1_ctbmeta1-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
-            ("v2_ctbmeta2-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
-            ("v3_ctbmeta3-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::forgiving()),
-            ("v4_dcmixed-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::forgiving()),
+            (
+                "v1_ctbmeta1-20261011.cscjournal",
+                ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            ),
+            (
+                "v2_ctbmeta2-20261011.cscjournal",
+                ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            ),
+            (
+                "v3_ctbmeta3-20261011.cscjournal",
+                ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+            ),
+            (
+                "v4_dcmixed-20261011.cscjournal",
+                ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+            ),
         ] {
             let bytes = fs::read(fixtures_dir.join(filename))?;
-            let (doc, log) = convert_cscjournal_to_dcmstring_with_policy(&bytes, &policy)?;
+            let (doc, log) =
+                convert_cscjournal_to_dcmstring_with_policy(&bytes, &policy)?;
             assert!(
                 doc.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
                 "{filename}: DcMstring document must have payload beyond 21-byte header"
             );
-            assert!(!log.has_errors(), "{filename}: conversion should not log errors");
+            assert!(
+                !log.has_errors(),
+                "{filename}: conversion should not log errors"
+            );
         }
 
         Ok(())
@@ -3147,7 +3988,8 @@ mod tests {
         let mut entity = FileEntity::from_vec(b"primary content".to_vec());
         entity.identity.relative_path = Some("source.bin".into());
 
-        let stream_payload = b"large stream payload that should not be in journal".to_vec();
+        let stream_payload =
+            b"large stream payload that should not be in journal".to_vec();
         let expected_size = u64::try_from(stream_payload.len())?;
         let expected_hash = ctb_formats_checksum::sha256(&stream_payload);
 
@@ -3164,20 +4006,34 @@ mod tests {
         // Verify on-disk .cscjournal does not contain the stream body bytes
         let journal_bytes = fs::read(&journal_path)?;
         assert!(
-            !journal_bytes.windows(stream_payload.len()).any(|w| w == stream_payload.as_slice()),
+            !journal_bytes
+                .windows(stream_payload.len())
+                .any(|w| w == stream_payload.as_slice()),
             "Copy mode .cscjournal must not contain stream payload bodies"
         );
 
         // Verify reading snapshot restores metadata and digests but stream.data is None
         let snapshot = read_journal_snapshot(&journal_path)?;
-        let recorded = snapshot.committed_entities.values().next().context("Missing committed entity")?;
+        let recorded = snapshot
+            .committed_entities
+            .values()
+            .next()
+            .context("Missing committed entity")?;
         assert_eq!(recorded.streams.len(), 1);
-        assert_eq!(recorded.streams[0].name, Some(StreamName::from_str("user.test_stream")));
+        assert_eq!(
+            recorded.streams[0].name,
+            Some(StreamName::from_str("user.test_stream"))
+        );
         assert_eq!(recorded.streams[0].kind, StreamKind::ExtendedAttribute);
-        assert_eq!(recorded.streams[0].data, None, "Stream data must be stripped in journal snapshot");
+        assert_eq!(
+            recorded.streams[0].data, None,
+            "Stream data must be stripped in journal snapshot"
+        );
 
         // Metadata and checksums are preserved on stream.entity
-        if let FileEntityKind::Regular { size, sha256, .. } = &recorded.streams[0].entity.kind {
+        if let FileEntityKind::Regular { size, sha256, .. } =
+            &recorded.streams[0].entity.kind
+        {
             assert_eq!(*size, expected_size);
             assert_eq!(*sha256, expected_hash);
         } else {
@@ -3226,7 +4082,11 @@ mod tests {
         assert_eq!(snapshot.applied_directories.get(&rel2), Some(&id2));
 
         // Reopening journal for resume retains applied_directories
-        let resumed = StateJournal::open_for_resume(&journal_path, &desc_path, &snapshot)?;
+        let resumed = StateJournal::open_for_resume(
+            &journal_path,
+            &desc_path,
+            &snapshot,
+        )?;
         assert_eq!(resumed.applied_directories().len(), 2);
         assert_eq!(resumed.applied_directories().get(&rel1), Some(&id1));
         assert_eq!(resumed.applied_directories().get(&rel2), Some(&id2));
@@ -3269,7 +4129,9 @@ mod tests {
 
         // Snapshot reading restores exact 128-bit identity
         let snapshot = read_journal_snapshot(&journal_path)?;
-        let restored_identity = snapshot.applied_directories.get(&rel)
+        let restored_identity = snapshot
+            .applied_directories
+            .get(&rel)
             .context("Missing restored directory receipt")?;
         assert_eq!(restored_identity, &id_128);
         assert_eq!(restored_identity.as_u128(), Some(file_id_128));
@@ -3308,17 +4170,30 @@ mod tests {
         entity.streams.push(stream);
 
         // Bypass copy-mode stripping to exercise both primary and stream bodies.
-        let mut payload = ctb_io::file::MemoryPayloadSource::new(b"hello".to_vec())?;
+        let mut payload =
+            ctb_io::file::MemoryPayloadSource::new(b"hello".to_vec())?;
         journal.writer.write_entity(&entity, Some(&mut payload))?;
         StateJournal::sync_output(journal.writer.output_mut())?;
 
         // Reading snapshot must emit and record a warning for the unexpected stream body
         let snapshot = read_journal_snapshot(&journal_path)?;
         assert!(
-            snapshot.warnings.iter().any(|w| w.code == "unexpected-journal-stream-body"),
+            snapshot
+                .warnings
+                .iter()
+                .any(|w| w.code == "unexpected-journal-stream-body"),
             "Expected unexpected-journal-stream-body warning in copy journal snapshot"
         );
-        assert_eq!(snapshot.warnings.iter().filter(|warning| warning.code == "unexpected-journal-stream-body").count(), 2);
+        assert_eq!(
+            snapshot
+                .warnings
+                .iter()
+                .filter(
+                    |warning| warning.code == "unexpected-journal-stream-body"
+                )
+                .count(),
+            2
+        );
         assert_eq!(snapshot.warnings.iter().filter(|warning| warning.code == "unexpected-journal-file-body").count(), 1);
         let direct = read_v4_journal_snapshot(
             &mut File::open(&journal_path)?,

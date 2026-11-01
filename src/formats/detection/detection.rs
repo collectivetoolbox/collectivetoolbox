@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Combined multi-signal format detection, hierarchical pattern matching,
 //! and multipart extension chain parsing.
 //!
@@ -602,37 +601,40 @@ pub(crate) use ctb_utilities::*;
 pub use crate as detection;
 pub use ctb_formats_dcstring::DcString;
 pub use ctb_formats_utilities::encoding;
-pub use ctb_formats_utilities::extension_rule::{CaseSensitivity, ExtensionRule};
-pub use ctb_utilities::format_id;
-pub use ctb_utilities::FormatId;
-pub use ctb_io_file::{
-    DiskPayloadSource, Extent, File, FileEntity, FileEntityKind, FileEntityType,
-    FileOrigin, InodeKey, MemoryPayloadSource, PayloadSource, ReaderPayloadSource,
+pub use ctb_formats_utilities::extension_rule::{
+    CaseSensitivity, ExtensionRule,
 };
+pub use ctb_io_file::{
+    DiskPayloadSource, Extent, File, FileEntity, FileEntityKind,
+    FileEntityType, FileOrigin, InodeKey, MemoryPayloadSource, PayloadSource,
+    ReaderPayloadSource,
+};
+pub use ctb_utilities::FormatId;
+pub use ctb_utilities::format_id;
 pub type OsPath = std::path::PathBuf;
 
 pub mod chain;
+pub mod cli;
 pub mod conflict;
+pub mod container;
+pub mod decompression;
+pub mod der;
+pub mod droid;
 pub mod extension;
+pub mod extra_rules;
+pub mod file_upstream_suite;
 pub mod magic;
 pub mod magic_data;
 pub mod magic_parser;
 pub mod mime_derivation;
 pub mod platform;
-pub mod resource_fork;
-pub mod container;
-pub mod droid;
 pub mod polyfile;
+pub mod readelf;
+pub mod resource_fork;
 pub mod source;
 pub mod special;
 pub mod text;
-pub mod extra_rules;
 pub mod types;
-pub mod file_upstream_suite;
-pub mod cli;
-pub mod der;
-pub mod decompression;
-pub mod readelf;
 
 pub use platform::{current_platform_os, format_matches_platform, is_os_match};
 pub use source::{DetectionSource, EmptySource};
@@ -641,16 +643,18 @@ pub use types::*;
 use self::conflict::resolve_candidate_conflicts;
 use self::container::detect_container_candidates;
 use self::decompression::probe_decompression_candidates;
-use self::droid::{evaluate_dual_anchored_signatures, evaluate_pronom_signatures};
+use self::droid::{
+    evaluate_dual_anchored_signatures, evaluate_pronom_signatures,
+};
 use self::extension::resolve_extension_candidates;
+use self::extra_rules::{
+    detect_custom_text_format_candidate, detect_small_format_candidates,
+};
 use self::magic::{evaluate_rule, evaluate_rule_with_mode};
 use self::magic_data::{COMPILED_CTB_MAGIC_RULES, COMPILED_FILE_MAGIC_RULES};
 use self::mime_derivation::FORMAT_CATALOG;
 use self::polyfile::detect_polyglots;
 use self::readelf::inspect_elf_details;
-use self::extra_rules::{
-    detect_custom_text_format_candidate, detect_small_format_candidates,
-};
 use self::special::detect_special_entity;
 use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate_and_encoding};
 
@@ -672,7 +676,10 @@ struct TextEncodingEvidence {
 /// encoding corroborates an implied encoding format when they are identical or
 /// when the detected encoding format implies the required encoding format
 /// according to the format database's `@implies(...)` relationships.
-fn encoding_entailment_compatible(detected: FormatId, implied: FormatId) -> bool {
+fn encoding_entailment_compatible(
+    detected: FormatId,
+    implied: FormatId,
+) -> bool {
     detected == implied || detected.implies().contains(&implied)
 }
 
@@ -692,7 +699,8 @@ pub fn guess_format_report(
 
     if let Some(h) = hint {
         if let Some(code) = h.apple_type_code {
-            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&code) {
+            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&code)
+            {
                 candidates.push(DetectionCandidate {
                     format_id: mapping.format_id,
                     dc_id: Some(mapping.dc_id),
@@ -700,7 +708,10 @@ pub fn guess_format_report(
                     description: mapping.label.clone(),
                     confidence: ConfidenceTier::Strong,
                     score: 90,
-                    evidence: vec![DetectionEvidence::AppleTypeCode { code, score: 90 }],
+                    evidence: vec![DetectionEvidence::AppleTypeCode {
+                        code,
+                        score: 90,
+                    }],
                     chain_layers: None,
                 });
             }
@@ -713,7 +724,10 @@ pub fn guess_format_report(
     let hint_ext = hint.and_then(|h| {
         h.extension.as_deref().or_else(|| {
             h.filename.as_deref().and_then(|f| {
-                f.rsplit(['/', '\\']).next()?.rsplit_once('.').map(|(_, ext)| ext)
+                f.rsplit(['/', '\\'])
+                    .next()?
+                    .rsplit_once('.')
+                    .map(|(_, ext)| ext)
             })
         })
     });
@@ -721,26 +735,29 @@ pub fn guess_format_report(
     let platform = hint.and_then(|h| h.platform);
     let expected_cat = hint.and_then(|h| h.expected_category);
 
-
     // 1.5. Evaluate DROID PRONOM and dual-anchored BOF / EOF signatures (droid.rs)
     if let Ok(pronom_cands) = evaluate_pronom_signatures(source, hint) {
         for cand in pronom_cands {
             let mut merged = false;
             for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
+                let matches_fmt = cand.format_id.is_some()
+                    && existing.format_id == cand.format_id;
                 let matches_desc = !cand.description.is_empty()
-                    && (existing.description.eq_ignore_ascii_case(&cand.description)
+                    && (existing
+                        .description
+                        .eq_ignore_ascii_case(&cand.description)
                         || existing
                             .description
                             .to_ascii_lowercase()
                             .contains(&cand.description.to_ascii_lowercase())
-                        || cand
-                            .description
-                            .to_ascii_lowercase()
-                            .contains(&existing.description.to_ascii_lowercase()));
-                let matches_mime = cand.mime.is_some() && existing.mime == cand.mime;
+                        || cand.description.to_ascii_lowercase().contains(
+                            &existing.description.to_ascii_lowercase(),
+                        ));
+                let matches_mime =
+                    cand.mime.is_some() && existing.mime == cand.mime;
                 if matches_fmt || matches_desc || matches_mime {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
+                    if existing.format_id.is_none() && cand.format_id.is_some()
+                    {
                         existing.format_id = cand.format_id;
                     }
                     if cand.score > existing.score {
@@ -766,20 +783,24 @@ pub fn guess_format_report(
         for cand in dual_cands {
             let mut merged = false;
             for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
+                let matches_fmt = cand.format_id.is_some()
+                    && existing.format_id == cand.format_id;
                 let matches_desc = !cand.description.is_empty()
-                    && (existing.description.eq_ignore_ascii_case(&cand.description)
+                    && (existing
+                        .description
+                        .eq_ignore_ascii_case(&cand.description)
                         || existing
                             .description
                             .to_ascii_lowercase()
                             .contains(&cand.description.to_ascii_lowercase())
-                        || cand
-                            .description
-                            .to_ascii_lowercase()
-                            .contains(&existing.description.to_ascii_lowercase()));
-                let matches_mime = cand.mime.is_some() && existing.mime == cand.mime;
+                        || cand.description.to_ascii_lowercase().contains(
+                            &existing.description.to_ascii_lowercase(),
+                        ));
+                let matches_mime =
+                    cand.mime.is_some() && existing.mime == cand.mime;
                 if matches_fmt || matches_desc || matches_mime {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
+                    if existing.format_id.is_none() && cand.format_id.is_some()
+                    {
                         existing.format_id = cand.format_id;
                     }
                     if cand.score > existing.score {
@@ -805,7 +826,8 @@ pub fn guess_format_report(
     let mut elf_details = None;
     let mut bof4 = [0u8; 4];
     if source.read_at(0, &mut bof4).is_ok() && bof4 == *b"\x7fELF" {
-        elf_details = inspect_elf_details(source, hint.and_then(|h| h.file_mode));
+        elf_details =
+            inspect_elf_details(source, hint.and_then(|h| h.file_mode));
     }
     let eval_mode = if let Some(ref elf) = elf_details {
         if elf.is_executable { 0o755 } else { 0o644 }
@@ -820,15 +842,20 @@ pub fn guess_format_report(
         (&*COMPILED_FILE_MAGIC_RULES, false),
     ] {
         for rule in rule_set {
-            if let Some(mut match_res) = evaluate_rule_with_mode(rule, source, eval_mode) {
+            if let Some(mut match_res) =
+                evaluate_rule_with_mode(rule, source, eval_mode)
+            {
                 if let Some(ref elf) = elf_details {
                     if match_res.description.starts_with("ELF ") {
                         match_res.description.push_str(&elf.suffix);
-                        match_res.match_end = match_res.match_end.max(elf.bytes_evaluated);
+                        match_res.match_end =
+                            match_res.match_end.max(elf.bytes_evaluated);
                     }
                 }
                 bytes_evaluated = bytes_evaluated.max(match_res.match_end);
-                if match_res.description.trim().is_empty() && match_res.mime.is_none() {
+                if match_res.description.trim().is_empty()
+                    && match_res.mime.is_none()
+                {
                     continue;
                 }
                 let mut score = if is_ctb {
@@ -850,10 +877,11 @@ pub fn guess_format_report(
                 }
 
                 // Map MIME or description to format catalog
-                let is_generic_mime = match_res.mime.as_deref().is_some_and(|m| {
-                    m.eq_ignore_ascii_case("application/octet-stream")
-                        || m.eq_ignore_ascii_case("application/x-empty")
-                });
+                let is_generic_mime =
+                    match_res.mime.as_deref().is_some_and(|m| {
+                        m.eq_ignore_ascii_case("application/octet-stream")
+                            || m.eq_ignore_ascii_case("application/x-empty")
+                    });
 
                 let is_elf_match = match_res.description.starts_with("ELF ");
                 let mapping = FORMAT_CATALOG
@@ -866,12 +894,16 @@ pub fn guess_format_report(
                             .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
                     })
                     .or_else(|| {
-                        FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
+                        FORMAT_CATALOG
+                            .lookup_description_or_ident(&match_res.description)
                     })
                     .or_else(|| {
                         match_res.ext.as_deref().and_then(|ext| {
-                            ext.split(['/', ','])
-                                .find_map(|e| FORMAT_CATALOG.lookup_extension(e.trim()).first())
+                            ext.split(['/', ',']).find_map(|e| {
+                                FORMAT_CATALOG
+                                    .lookup_extension(e.trim())
+                                    .first()
+                            })
                         })
                     });
 
@@ -889,10 +921,15 @@ pub fn guess_format_report(
                         None
                     }
                 });
-                let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
+                let mime = match_res.mime.or_else(|| {
+                    mapping.and_then(|m| m.mime_types.first().cloned())
+                });
                 // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
                 let description = if match_res.description.is_empty() {
-                    mapping.map_or_else(|| "Unknown Format".to_string(), |m| m.label.clone())
+                    mapping.map_or_else(
+                        || "Unknown Format".to_string(),
+                        |m| m.label.clone(),
+                    )
                 } else {
                     match_res.description
                 };
@@ -901,13 +938,18 @@ pub fn guess_format_report(
                 if let Some(ext) = hint_ext {
                     let ext_normalized = ext.to_ascii_lowercase();
                     // Reason for fallback: rule without extension declaration evaluates to false for concordance
-                    let rule_ext_match = match_res.ext.as_deref().is_some_and(|e| {
-                        e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
-                    });
+                    let rule_ext_match =
+                        match_res.ext.as_deref().is_some_and(|e| {
+                            e.split(['/', ',']).any(|p| {
+                                p.trim().eq_ignore_ascii_case(&ext_normalized)
+                            })
+                        });
 
                     // Reason for fallback: unmapped format evaluates to false for extension concordance
                     let mapping_ext_match = mapping.is_some_and(|m| {
-                        m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
+                        m.extensions
+                            .iter()
+                            .any(|e| e.eq_ignore_ascii_case(&ext_normalized))
                     });
 
                     if rule_ext_match || mapping_ext_match {
@@ -939,7 +981,10 @@ pub fn guess_format_report(
                 if let (Some(exp_cat), Some(fid)) = (expected_cat, format_id) {
                     if fid.category() == exp_cat {
                         score = score.saturating_add(20);
-                        evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
+                        evidence.push(DetectionEvidence::CategoryMatch {
+                            category: exp_cat,
+                            score: 20,
+                        });
                     }
                 }
 
@@ -965,14 +1010,16 @@ pub fn guess_format_report(
                                 .and_then(|m| m.format_id)
                                 == format_id);
                     let matches_desc = !description.is_empty()
-                        && (existing.description.eq_ignore_ascii_case(&description)
+                        && (existing
+                            .description
+                            .eq_ignore_ascii_case(&description)
                             || existing
                                 .description
                                 .to_ascii_lowercase()
                                 .contains(&description.to_ascii_lowercase())
-                            || description
-                                .to_ascii_lowercase()
-                                .contains(&existing.description.to_ascii_lowercase()));
+                            || description.to_ascii_lowercase().contains(
+                                &existing.description.to_ascii_lowercase(),
+                            ));
                     let matches_mime = mime.is_some() && existing.mime == mime;
                     if matches_fmt || matches_desc || matches_mime {
                         if existing.format_id.is_none() && format_id.is_some() {
@@ -991,7 +1038,9 @@ pub fn guess_format_report(
                             if mime.is_some() {
                                 existing.mime = mime.clone();
                             }
-                        } else if score == existing.score && description.len() > existing.description.len() {
+                        } else if score == existing.score
+                            && description.len() > existing.description.len()
+                        {
                             existing.description = description.clone();
                         }
                         existing.evidence.extend(evidence.clone());
@@ -1021,11 +1070,15 @@ pub fn guess_format_report(
         for cand in container_cands {
             let mut merged = false;
             for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
+                let matches_fmt = cand.format_id.is_some()
+                    && existing.format_id == cand.format_id;
                 let matches_desc = !cand.description.is_empty()
-                    && existing.description.eq_ignore_ascii_case(&cand.description);
+                    && existing
+                        .description
+                        .eq_ignore_ascii_case(&cand.description);
                 if matches_fmt || matches_desc {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
+                    if existing.format_id.is_none() && cand.format_id.is_some()
+                    {
                         existing.format_id = cand.format_id;
                     }
                     if cand.score > existing.score {
@@ -1055,7 +1108,9 @@ pub fn guess_format_report(
         |inner_src, inner_h| guess_format_report(inner_src, inner_h),
     ) {
         // Reason for fallback: default to false if hint is not provided
-        if hint.is_some_and(|h| h.compat && (h.uncompress || h.uncompress_noreport)) {
+        if hint.is_some_and(|h| {
+            h.compat && (h.uncompress || h.uncompress_noreport)
+        }) {
             if !decomp_cands.is_empty() {
                 candidates = decomp_cands;
             }
@@ -1093,7 +1148,9 @@ pub fn guess_format_report(
                 for ev in &text_cand.evidence {
                     let ev_score = match ev {
                         DetectionEvidence::Encoding { score, .. }
-                        | DetectionEvidence::TextProperties { score, .. } => *score,
+                        | DetectionEvidence::TextProperties { score, .. } => {
+                            *score
+                        }
                         _ => continue,
                     };
                     items_score = items_score.saturating_add(ev_score);
@@ -1107,18 +1164,24 @@ pub fn guess_format_report(
             }
 
             // Reason for fallback: default to 4096 byte inspection limit if arithmetic conversion overflows
-            let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
+            let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096))
+                .unwrap_or(4096);
             bytes_evaluated = bytes_evaluated.max(inspect_size);
 
             let mut merged = false;
             for existing in &mut candidates {
-                let matches_fmt = text_cand.format_id.is_some() && existing.format_id == text_cand.format_id;
+                let matches_fmt = text_cand.format_id.is_some()
+                    && existing.format_id == text_cand.format_id;
                 let matches_desc = (!existing.description.is_empty()
                     && !text_cand.description.is_empty()
                     && (existing.description.contains(&text_cand.description)
-                        || text_cand.description.contains(&existing.description)))
-                    || (existing.description.contains("Python") && text_cand.description.contains("Python"))
-                    || (existing.description.contains("script") && text_cand.description.contains("script"));
+                        || text_cand
+                            .description
+                            .contains(&existing.description)))
+                    || (existing.description.contains("Python")
+                        && text_cand.description.contains("Python"))
+                    || (existing.description.contains("script")
+                        && text_cand.description.contains("script"));
 
                 if matches_fmt || matches_desc {
                     if text_cand.score > existing.score {
@@ -1129,7 +1192,9 @@ pub fn guess_format_report(
                     if existing.mime.is_none() && text_cand.mime.is_some() {
                         existing.mime = text_cand.mime.clone();
                     }
-                    if existing.format_id.is_none() && text_cand.format_id.is_some() {
+                    if existing.format_id.is_none()
+                        && text_cand.format_id.is_some()
+                    {
                         existing.format_id = text_cand.format_id;
                     }
                     existing.evidence.extend(text_cand.evidence.clone());
@@ -1149,11 +1214,17 @@ pub fn guess_format_report(
         if let Ok(n) = source.read_at(0, &mut sample_buf) {
             if n > 0 {
                 sample_buf.truncate(n);
-                let small_cands = detect_small_format_candidates(&sample_buf, source.total_len(), hint);
+                let small_cands = detect_small_format_candidates(
+                    &sample_buf,
+                    source.total_len(),
+                    hint,
+                );
                 for sc in small_cands {
                     candidates.push(sc);
                 }
-                if let Some(custom_cand) = detect_custom_text_format_candidate(&sample_buf, hint) {
+                if let Some(custom_cand) =
+                    detect_custom_text_format_candidate(&sample_buf, hint)
+                {
                     candidates.push(custom_cand);
                 }
             }
@@ -1165,8 +1236,13 @@ pub fn guess_format_report(
         let ext_candidates = resolve_extension_candidates(ext, platform);
         for (fmt, ext_score) in ext_candidates {
             // Check if already found via magic
-            if let Some(existing) = candidates.iter_mut().find(|c| c.format_id == Some(fmt)) {
-                let has_ext = existing.evidence.iter().any(|e| matches!(e, DetectionEvidence::Extension { .. }));
+            if let Some(existing) =
+                candidates.iter_mut().find(|c| c.format_id == Some(fmt))
+            {
+                let has_ext = existing
+                    .evidence
+                    .iter()
+                    .any(|e| matches!(e, DetectionEvidence::Extension { .. }));
                 if !has_ext {
                     existing.score = existing.score.saturating_add(25);
                     existing.evidence.push(DetectionEvidence::Extension {
@@ -1186,7 +1262,8 @@ pub fn guess_format_report(
             let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
             let dc_id = mapping.map(|m| m.dc_id);
             // Reason for fallback: unmapped format identifier uses raw identifier name for candidate description
-            let description = mapping.map_or_else(|| fmt.ident().to_string(), |m| m.label.clone());
+            let description = mapping
+                .map_or_else(|| fmt.ident().to_string(), |m| m.label.clone());
             let mime = mapping.and_then(|m| m.mime_types.first().cloned());
 
             let mut final_score = ext_score;
@@ -1200,7 +1277,10 @@ pub fn guess_format_report(
             if let Some(exp_cat) = expected_cat {
                 if fmt.category() == exp_cat {
                     final_score = final_score.saturating_add(20);
-                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
+                    evidence.push(DetectionEvidence::CategoryMatch {
+                        category: exp_cat,
+                        score: 20,
+                    });
                 }
             }
 
@@ -1210,10 +1290,14 @@ pub fn guess_format_report(
             // the bare generic encoding candidate (the mechanism is general:
             // any format implying an encoding format is corroborated).
             if let Some(te) = &text_encoding_evidence {
-                let implies_compatible_encoding = fmt.implies().iter().any(|implied| {
-                    implied.category() == FormatCategory::Encoding
-                        && encoding_entailment_compatible(te.detected, *implied)
-                });
+                let implies_compatible_encoding =
+                    fmt.implies().iter().any(|implied| {
+                        implied.category() == FormatCategory::Encoding
+                            && encoding_entailment_compatible(
+                                te.detected,
+                                *implied,
+                            )
+                    });
                 if implies_compatible_encoding {
                     final_score = final_score.saturating_add(te.score);
                     evidence.extend(te.items.clone());
@@ -1317,18 +1401,18 @@ pub fn detect_format_id(
     filename_or_ext: Option<&str>,
     expected_category: Option<FormatCategory>,
 ) -> Option<FormatId> {
-    let hint = filename_or_ext.map(|name| {
-        let mut h = DetectionHint {
-            filename: Some(name.to_string()),
-            ..Default::default()
-        };
-        if let Some(cat) = expected_category {
-            h = h.with_category(cat);
-        }
-        h
-    }).or_else(|| {
-        expected_category.map(DetectionHint::for_category)
-    });
+    let hint = filename_or_ext
+        .map(|name| {
+            let mut h = DetectionHint {
+                filename: Some(name.to_string()),
+                ..Default::default()
+            };
+            if let Some(cat) = expected_category {
+                h = h.with_category(cat);
+            }
+            h
+        })
+        .or_else(|| expected_category.map(DetectionHint::for_category));
 
     let candidates = if let Some(bytes) = data {
         let mut slice = bytes;
@@ -1365,15 +1449,15 @@ pub fn detect_format_id_in_categories(
     filename_or_ext: Option<&str>,
     categories: &[FormatCategory],
 ) -> Option<FormatId> {
-    let hint = filename_or_ext.map(|name| {
-        let h = DetectionHint {
-            filename: Some(name.to_string()),
-            ..Default::default()
-        };
-        h.with_categories(categories)
-    }).or_else(|| {
-        Some(DetectionHint::for_categories(categories))
-    });
+    let hint = filename_or_ext
+        .map(|name| {
+            let h = DetectionHint {
+                filename: Some(name.to_string()),
+                ..Default::default()
+            };
+            h.with_categories(categories)
+        })
+        .or_else(|| Some(DetectionHint::for_categories(categories)));
 
     let candidates = if let Some(bytes) = data {
         let mut slice = bytes;
@@ -1448,17 +1532,16 @@ pub fn detect_file_report_with_hint(
 
     // Infer platform prior from archive origin (strongest), Apple metadata,
     // or recorded environment.
-    let origin_archive_os = if let FileOrigin::Archive {
-        archive_format,
-        ..
-    } = &file.identity.origin
-    {
-        FORMAT_CATALOG
-            .lookup_format_id(*archive_format)
-            .and_then(|m| m.os_associations.first().copied())
-    } else {
-        None
-    };
+    let origin_archive_os =
+        if let FileOrigin::Archive { archive_format, .. } =
+            &file.identity.origin
+        {
+            FORMAT_CATALOG
+                .lookup_format_id(*archive_format)
+                .and_then(|m| m.os_associations.first().copied())
+        } else {
+            None
+        };
 
     let env_platform = if file.metadata.apple.is_some() {
         Some(FormatId::MacOs)
@@ -1519,14 +1602,17 @@ pub fn detect_file_report_with_hint(
                                 description: mapping.label.clone(),
                                 confidence: ConfidenceTier::HighestConfidence,
                                 score: 95,
-                                evidence: vec![DetectionEvidence::AttachedStream {
-                                    stream_kind_name: "MacOsResourceFork".to_string(),
-                                    detail: format!(
-                                        "Resource fork type code '{}'",
-                                        String::from_utf8_lossy(&code)
-                                    ),
-                                    score: 95,
-                                }],
+                                evidence: vec![
+                                    DetectionEvidence::AttachedStream {
+                                        stream_kind_name: "MacOsResourceFork"
+                                            .to_string(),
+                                        detail: format!(
+                                            "Resource fork type code '{}'",
+                                            String::from_utf8_lossy(&code)
+                                        ),
+                                        score: 95,
+                                    },
+                                ],
                                 chain_layers: None,
                             });
                         }
@@ -1542,11 +1628,14 @@ pub fn detect_file_report_with_hint(
                             format_id: None,
                             dc_id: None,
                             mime: None,
-                            description: "Windows Internet Zone Transfer Identifier".to_string(),
+                            description:
+                                "Windows Internet Zone Transfer Identifier"
+                                    .to_string(),
                             confidence: ConfidenceTier::Moderate,
                             score: 40,
                             evidence: vec![DetectionEvidence::AttachedStream {
-                                stream_kind_name: "NtfsAlternateDataStream".to_string(),
+                                stream_kind_name: "NtfsAlternateDataStream"
+                                    .to_string(),
                                 detail: "Zone.Identifier".to_string(),
                                 score: 40,
                             }],
@@ -1558,11 +1647,16 @@ pub fn detect_file_report_with_hint(
             ctb_io_file::StreamKind::ExtendedAttribute => {
                 if let Some(ref name) = stream.name {
                     let name_lossy = name.to_string_lossy();
-                    if name_lossy == "user.mime_type" || name_lossy == "xdg.mime.type" {
+                    if name_lossy == "user.mime_type"
+                        || name_lossy == "xdg.mime.type"
+                    {
                         if let Some(ref data) = stream.data {
                             if let Ok(mime_str) = std::str::from_utf8(data) {
-                                let clean_mime = mime_str.trim().trim_matches('\0');
-                                if let Some(mapping) = FORMAT_CATALOG.lookup_mime(clean_mime) {
+                                let clean_mime =
+                                    mime_str.trim().trim_matches('\0');
+                                if let Some(mapping) =
+                                    FORMAT_CATALOG.lookup_mime(clean_mime)
+                                {
                                     stream_candidates.push(DetectionCandidate {
                                         format_id: mapping.format_id,
                                         dc_id: Some(mapping.dc_id),
@@ -1675,9 +1769,10 @@ pub fn detect_file_format(
 ) -> Option<FormatId> {
     let report = detect_file_report(file, payload).ok()?;
     if let Some(cat) = expected_category {
-        report.candidates.into_iter().find_map(|c| {
-            c.format_id.filter(|fid| fid.category() == cat)
-        })
+        report
+            .candidates
+            .into_iter()
+            .find_map(|c| c.format_id.filter(|fid| fid.category() == cat))
     } else {
         report.candidates.into_iter().find_map(|c| c.format_id)
     }
@@ -1701,7 +1796,9 @@ pub fn detect_file_format(
 /// # Ok(())
 /// # }
 /// ```
-pub fn guess_and_report_path(path: impl AsRef<std::path::Path>) -> Result<DetectionReport> {
+pub fn guess_and_report_path(
+    path: impl AsRef<std::path::Path>,
+) -> Result<DetectionReport> {
     guess_and_report_path_with_hint(path, None)
 }
 
@@ -1746,7 +1843,12 @@ pub fn guess_path(path: impl AsRef<std::path::Path>) -> Result<FormatId> {
         .candidates
         .into_iter()
         .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for path '{}'", p.display()))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No matching file format detected for path '{}'",
+                p.display()
+            )
+        })
 }
 
 /// Guesses format candidates and generates a detection report from a String.
@@ -1764,7 +1866,9 @@ pub fn guess_path(path: impl AsRef<std::path::Path>) -> Result<FormatId> {
 /// # Ok(())
 /// # }
 /// ```
-pub fn guess_and_report_string(content: impl Into<String>) -> Result<DetectionReport> {
+pub fn guess_and_report_string(
+    content: impl Into<String>,
+) -> Result<DetectionReport> {
     let s = content.into();
     let bytes = s.into_bytes();
     let file = File::from_vec(bytes.clone());
@@ -1792,7 +1896,9 @@ pub fn guess_string(content: impl Into<String>) -> Result<FormatId> {
         .candidates
         .into_iter()
         .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for string"))
+        .ok_or_else(|| {
+            anyhow::anyhow!("No matching file format detected for string")
+        })
 }
 
 /// Guesses format candidates and generates a detection report from a
@@ -1846,7 +1952,9 @@ pub fn guess_dcs(
         .candidates
         .into_iter()
         .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for DcString"))
+        .ok_or_else(|| {
+            anyhow::anyhow!("No matching file format detected for DcString")
+        })
 }
 
 /// Guesses format candidates and generates a detection report from raw bytes.
@@ -1898,7 +2006,9 @@ pub fn guess_vec(bytes: Vec<u8>) -> Result<FormatId> {
         .candidates
         .into_iter()
         .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for byte vector"))
+        .ok_or_else(|| {
+            anyhow::anyhow!("No matching file format detected for byte vector")
+        })
 }
 
 /// Guesses format candidates and generates a detection report directly from an
@@ -1922,7 +2032,8 @@ pub fn guess_vec(bytes: Vec<u8>) -> Result<FormatId> {
 /// # }
 /// ```
 pub fn guess_and_report_file(file: &File) -> Result<DetectionReport> {
-    if let FileOrigin::Filesystem { canonical_path, .. } = &file.identity.origin {
+    if let FileOrigin::Filesystem { canonical_path, .. } = &file.identity.origin
+    {
         if file.kind.entity_type() == FileEntityType::Regular {
             let mut source = DiskPayloadSource::open(canonical_path)?;
             detect_file_report(file, &mut source)
@@ -1961,7 +2072,9 @@ pub fn guess_file(file: &File) -> Result<FormatId> {
         .candidates
         .into_iter()
         .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for FileEntity"))
+        .ok_or_else(|| {
+            anyhow::anyhow!("No matching file format detected for FileEntity")
+        })
 }
 
 #[cfg(test)]
@@ -2006,7 +2119,10 @@ mod tests {
 
     #[ctb_test]
     fn test_detect_brotli() {
-        let brotli_data = [143, 5, 128, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 10, 3];
+        let brotli_data = [
+            143, 5, 128, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100,
+            10, 3,
+        ];
         let _slice: &[u8] = &brotli_data;
         let _hint = DetectionHint {
             filename: Some("/tmp/system_in.br".to_string()),
@@ -2026,10 +2142,14 @@ mod tests {
         // Insufficient data
         let empty_data: [u8; 0] = [];
         let mut empty_slice: &[u8] = &empty_data;
-        let report_insufficient = guess_format_report(&mut empty_slice, None).unwrap();
+        let report_insufficient =
+            guess_format_report(&mut empty_slice, None).unwrap();
         assert!(matches!(
             report_insufficient.outcome,
-            DetectionOutcome::InsufficientData { available_bytes: 0, required_bytes: 4 }
+            DetectionOutcome::InsufficientData {
+                available_bytes: 0,
+                required_bytes: 4
+            }
         ));
 
         // True negative (random non-matching bytes with no hint)
@@ -2046,8 +2166,14 @@ mod tests {
         let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
         let mut gz_slice: &[u8] = &gzip_data;
         let report_matched = guess_format_report(&mut gz_slice, None).unwrap();
-        assert!(matches!(report_matched.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report_matched.candidates[0].format_id, Some(FormatId::Gzip));
+        assert!(matches!(
+            report_matched.outcome,
+            DetectionOutcome::Matched(_)
+        ));
+        assert_eq!(
+            report_matched.candidates[0].format_id,
+            Some(FormatId::Gzip)
+        );
     }
 
     #[ctb_test]
@@ -2073,7 +2199,8 @@ mod tests {
             ..Default::default()
         };
 
-        let report = guess_format_report(&mut empty_slice, Some(&hint)).unwrap();
+        let report =
+            guess_format_report(&mut empty_slice, Some(&hint)).unwrap();
         assert!(report.stream_signals_used);
         assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
         assert_eq!(report.candidates[0].format_id, Some(FormatId::Ascii));
@@ -2088,8 +2215,16 @@ mod tests {
         assert!(!report.candidates.is_empty());
         let top = &report.candidates[0];
         assert_eq!(top.format_id, Some(FormatId::Ascii));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::Encoding { .. })));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::TextProperties { .. })));
+        assert!(
+            top.evidence
+                .iter()
+                .any(|e| matches!(e, DetectionEvidence::Encoding { .. }))
+        );
+        assert!(
+            top.evidence
+                .iter()
+                .any(|e| matches!(e, DetectionEvidence::TextProperties { .. }))
+        );
     }
 
     #[ctb_test]
@@ -2105,7 +2240,8 @@ mod tests {
 
     #[ctb_test]
     fn test_detect_python_shebang() {
-        let py_data = b"#!/usr/bin/env python3\nimport os\nprint(os.getpid())\n";
+        let py_data =
+            b"#!/usr/bin/env python3\nimport os\nprint(os.getpid())\n";
         let mut slice: &[u8] = py_data;
         let report = guess_format_report(&mut slice, None).unwrap();
         assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
@@ -2141,7 +2277,8 @@ mod tests {
     fn test_detect_convenience_dcs() {
         let dcs = ctb_formats_dcstring::DcString::from_dcutf(
             b"<!DOCTYPE html>\n<html><body>test</body></html>".to_vec(),
-        ).unwrap();
+        )
+        .unwrap();
         let report = guess_and_report_dcs(&dcs).unwrap();
         assert_eq!(report.file_origin, Some(FileOrigin::Synthetic));
         assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
@@ -2169,7 +2306,10 @@ mod tests {
         std::fs::write(&gz_path, gz_header).unwrap();
 
         let report = guess_and_report_path(&gz_path).unwrap();
-        assert!(matches!(report.file_origin, Some(FileOrigin::Filesystem { .. })));
+        assert!(matches!(
+            report.file_origin,
+            Some(FileOrigin::Filesystem { .. })
+        ));
         assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
 
         let fmt = guess_path(&gz_path).unwrap();
@@ -2185,7 +2325,10 @@ mod tests {
 
         let file = File::from_filesystem(&gz_path, None).unwrap();
         let report = guess_and_report_file(&file).unwrap();
-        assert!(matches!(report.file_origin, Some(FileOrigin::Filesystem { .. })));
+        assert!(matches!(
+            report.file_origin,
+            Some(FileOrigin::Filesystem { .. })
+        ));
         assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
 
         let fmt = guess_file(&file).unwrap();
@@ -2193,8 +2336,10 @@ mod tests {
 
         // Also test synthetic file
         let syn_file = File::from_vec(gz_header.to_vec());
-        let mut syn_source = MemoryPayloadSource::new(gz_header.to_vec()).unwrap();
-        let syn_report = detect_file_report(&syn_file, &mut syn_source).unwrap();
+        let mut syn_source =
+            MemoryPayloadSource::new(gz_header.to_vec()).unwrap();
+        let syn_report =
+            detect_file_report(&syn_file, &mut syn_source).unwrap();
         assert_eq!(syn_report.file_origin, Some(FileOrigin::Synthetic));
         assert_eq!(syn_report.candidates[0].format_id, Some(FormatId::Gzip));
     }
@@ -2237,7 +2382,9 @@ mod tests {
     fn csc_journal_v4_bytes() -> Vec<u8> {
         let mut data = Vec::new();
         data.extend_from_slice(b"CTBCSCJ\x04");
-        data.extend_from_slice(b"\x00\x01\x02\x03 synthetic journal payload for detection");
+        data.extend_from_slice(
+            b"\x00\x01\x02\x03 synthetic journal payload for detection",
+        );
         data
     }
 
@@ -2245,9 +2392,15 @@ mod tests {
     fn test_csc_archive_magic_is_distinct_from_journal() {
         for filename in ["backup.cscarchive", "backup.cscjournal", "backup"] {
             let mut data: &[u8] = b"CTBCSCA\x01 synthetic archive payload";
-            let hint = DetectionHint { filename: Some(filename.to_owned()), ..Default::default() };
+            let hint = DetectionHint {
+                filename: Some(filename.to_owned()),
+                ..Default::default()
+            };
             let report = guess_format_report(&mut data, Some(&hint)).unwrap();
-            assert_eq!(report.candidates[0].format_id, Some(FormatId::CscArchive1));
+            assert_eq!(
+                report.candidates[0].format_id,
+                Some(FormatId::CscArchive1)
+            );
         }
     }
 
@@ -2271,7 +2424,9 @@ mod tests {
     fn test_csc_journal_v1_magic_resolves_generic() {
         let mut data = Vec::new();
         data.extend_from_slice(b"CTBCSCJ\x01");
-        data.extend_from_slice(b"\x00\x01\x02\x03 synthetic journal payload for detection");
+        data.extend_from_slice(
+            b"\x00\x01\x02\x03 synthetic journal payload for detection",
+        );
         let mut slice: &[u8] = &data;
         let hint = DetectionHint {
             filename: Some("journal.cscjournal".to_string()),
@@ -2286,25 +2441,31 @@ mod tests {
         // .cscdesc implies UTF-8 (f0); when content lacks a magic header but is
         // valid ASCII text, the implied-encoding compatibility from the database
         // strengthens the tentative extension candidate without confirming its structure.
-        let data =
-            b"Status: Completed\nFilesCommitted: 0\n".to_vec();
+        let data = b"Status: Completed\nFilesCommitted: 0\n".to_vec();
         let mut slice: &[u8] = &data;
         let hint = DetectionHint {
             filename: Some("x.cscdesc".to_string()),
             ..Default::default()
         };
         let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
-        let candidate = report.candidates.iter()
-            .find(|candidate| candidate.format_id == Some(FormatId::CscDesc)).unwrap();
+        let candidate = report
+            .candidates
+            .iter()
+            .find(|candidate| candidate.format_id == Some(FormatId::CscDesc))
+            .unwrap();
         assert_eq!(candidate.confidence, ConfidenceTier::Moderate);
-        assert!(candidate.evidence.iter().any(|e| matches!(
-            e,
-            DetectionEvidence::Encoding { .. }
-        )));
-        assert!(candidate.evidence.iter().any(|e| matches!(
-            e,
-            DetectionEvidence::TextProperties { .. }
-        )));
+        assert!(
+            candidate
+                .evidence
+                .iter()
+                .any(|e| matches!(e, DetectionEvidence::Encoding { .. }))
+        );
+        assert!(
+            candidate
+                .evidence
+                .iter()
+                .any(|e| matches!(e, DetectionEvidence::TextProperties { .. }))
+        );
 
         // Confirmed encoding evidence ranks ahead of an unverified format hint.
         let ascii_rank = report
@@ -2316,21 +2477,30 @@ mod tests {
 
     #[ctb_test]
     fn test_csc_desc_unrelated_text_is_not_structural_evidence() {
-        let mut slice: &[u8] = b"The shopping list contains apples and bread.\n";
+        let mut slice: &[u8] =
+            b"The shopping list contains apples and bread.\n";
         let hint = DetectionHint {
             filename: Some("x.cscdesc".to_string()),
             ..Default::default()
         };
         let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
-        let candidate = report.candidates.iter()
+        let candidate = report
+            .candidates
+            .iter()
             .find(|candidate| candidate.format_id == Some(FormatId::CscDesc))
             .unwrap();
-        assert!(candidate.confidence <= ConfidenceTier::Moderate, "{candidate:?}");
+        assert!(
+            candidate.confidence <= ConfidenceTier::Moderate,
+            "{candidate:?}"
+        );
         assert!(!candidate.evidence.iter().any(|evidence| matches!(
             evidence,
-            DetectionEvidence::FileMagic { .. } | DetectionEvidence::CtbMagic { .. }
+            DetectionEvidence::FileMagic { .. }
+                | DetectionEvidence::CtbMagic { .. }
         )));
-        let ascii = report.candidates.iter()
+        let ascii = report
+            .candidates
+            .iter()
             .find(|candidate| candidate.format_id == Some(FormatId::Ascii))
             .unwrap();
         assert!(candidate.score > ascii.score);
@@ -2355,19 +2525,23 @@ mod tests {
             filename: Some("x.cscdesc".to_string()),
             ..Default::default()
         };
-        let report_hinted = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let report_hinted =
+            guess_format_report(&mut slice, Some(&hint)).unwrap();
         let top_hinted = &report_hinted.candidates[0];
         assert_eq!(top_hinted.format_id, Some(FormatId::CscDesc));
         assert_eq!(top_hinted.confidence, ConfidenceTier::HighestConfidence);
-        assert!(top_hinted.evidence.iter().any(|e| matches!(
-            e,
-            DetectionEvidence::Extension { .. }
-        )));
+        assert!(
+            top_hinted
+                .evidence
+                .iter()
+                .any(|e| matches!(e, DetectionEvidence::Extension { .. }))
+        );
         assert_eq!(top_hinted.score, 185);
     }
 
     #[ctb_test]
-    fn test_extension_candidate_without_encoding_implication_not_corroborated() {
+    fn test_extension_candidate_without_encoding_implication_not_corroborated()
+    {
         // CscJournal does not imply any encoding format, so its extension-only
         // candidate must not gain encoding evidence even though the content
         // is plain text.
@@ -2384,20 +2558,27 @@ mod tests {
             .iter()
             .find(|c| c.format_id == Some(FormatId::CscJournal))
             .unwrap();
-        assert!(!csc_journal.evidence.iter().any(|e| matches!(
-            e,
-            DetectionEvidence::Encoding { .. }
-        )));
-        assert!(!csc_journal.evidence.iter().any(|e| matches!(
-            e,
-            DetectionEvidence::TextProperties { .. }
-        )));
+        assert!(
+            !csc_journal
+                .evidence
+                .iter()
+                .any(|e| matches!(e, DetectionEvidence::Encoding { .. }))
+        );
+        assert!(
+            !csc_journal
+                .evidence
+                .iter()
+                .any(|e| matches!(e, DetectionEvidence::TextProperties { .. }))
+        );
     }
 
     #[ctb_test]
     fn test_gzipped_csc_journal_v4_chain_identifies_version() {
-        let compressed =
-            ctb_formats_compression::compress(&csc_journal_v4_bytes(), crate::SupportedCompressionFormat::Gzip).unwrap();
+        let compressed = ctb_formats_compression::compress(
+            &csc_journal_v4_bytes(),
+            crate::SupportedCompressionFormat::Gzip,
+        )
+        .unwrap();
         let mut slice: &[u8] = &compressed;
         let hint = DetectionHint {
             filename: Some("journal.cscjournal.gz".to_string()),
@@ -2415,8 +2596,11 @@ mod tests {
 
     #[ctb_test]
     fn test_compat_uncompress_identifies_csc_journal_v4() {
-        let compressed =
-            ctb_formats_compression::compress(&csc_journal_v4_bytes(), crate::SupportedCompressionFormat::Gzip).unwrap();
+        let compressed = ctb_formats_compression::compress(
+            &csc_journal_v4_bytes(),
+            crate::SupportedCompressionFormat::Gzip,
+        )
+        .unwrap();
         let mut slice: &[u8] = &compressed;
         let hint = DetectionHint {
             filename: Some("journal.cscjournal.gz".to_string()),

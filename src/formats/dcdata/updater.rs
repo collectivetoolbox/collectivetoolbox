@@ -408,7 +408,8 @@ pub(crate) fn load_dc_category_csvs_with_assigned_ids(
 pub fn assign_and_update_dc_categories(
     repo_root: &Path,
 ) -> Result<TableUpdateStats> {
-    let categories_dir = repo_root.join("src/formats/dcdata/data-src/categories");
+    let categories_dir =
+        repo_root.join("src/formats/dcdata/data-src/categories");
     let (processed, stats) = process_dc_category_files(&categories_dir)?;
     for file in processed {
         if file.modified {
@@ -618,7 +619,9 @@ pub fn check_category_csvs_need_no_id_updates(repo_root: &Path) -> Result<()> {
     ensure!(
         dc_stats.files_modified == 0,
         "Dc category CSVs have {} unassigned or inconsistent IDs across {} file(s); assign IDs before running manifest-enforced or dry-run reconciliation",
-        dc_stats.new_ids_assigned.saturating_add(dc_stats.dc_ids_recalculated),
+        dc_stats
+            .new_ids_assigned
+            .saturating_add(dc_stats.dc_ids_recalculated),
         dc_stats.files_modified
     );
     let formats_dir = categories_dir.join("formats");
@@ -626,7 +629,9 @@ pub fn check_category_csvs_need_no_id_updates(repo_root: &Path) -> Result<()> {
     ensure!(
         fmt_stats.files_modified == 0,
         "Format category CSVs have {} unassigned or inconsistent IDs across {} file(s); assign IDs before running manifest-enforced or dry-run reconciliation",
-        fmt_stats.new_ids_assigned.saturating_add(fmt_stats.dc_ids_recalculated),
+        fmt_stats
+            .new_ids_assigned
+            .saturating_add(fmt_stats.dc_ids_recalculated),
         fmt_stats.files_modified
     );
     Ok(())
@@ -637,11 +642,14 @@ pub fn check_category_csvs_need_no_id_updates(repo_root: &Path) -> Result<()> {
 /// sorted strictly ascending by Dc ID.
 pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     let mut stats = MergedGenerationStats::default();
-    let canonical_header: Vec<String> =
-        UNIFIED_SCHEMA_HEADER.iter().map(std::string::ToString::to_string).collect();
+    let canonical_header: Vec<String> = UNIFIED_SCHEMA_HEADER
+        .iter()
+        .map(std::string::ToString::to_string)
+        .collect();
 
     // 1. Generate formats.generated.csv
-    let formats_dir = repo_root.join("src/formats/dcdata/data-src/categories/formats");
+    let formats_dir =
+        repo_root.join("src/formats/dcdata/data-src/categories/formats");
     let mut all_format_rows = Vec::new();
     if formats_dir.is_dir() {
         for entry in fs::read_dir(&formats_dir)? {
@@ -665,8 +673,8 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                             };
                             let label = get(3);
                             let ident = get(2);
-                            let is_deprecated =
-                                label.starts_with('!') || ident.starts_with('!');
+                            let is_deprecated = label.starts_with('!')
+                                || ident.starts_with('!');
                             let clean_label =
                                 label.trim_start_matches('!').trim();
                             let name_cell = if is_deprecated {
@@ -675,15 +683,17 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 clean_label.to_string()
                             };
 
-                            let short_cell =
-                                if let Ok(s_id) = parse_format_shorthand(&get(1)) {
-                                    format!("f{s_id}")
-                                } else if let Ok(dc_id) = get(0).parse::<u128>() {
-                                    let s_id = dc_id.saturating_sub(FORMAT_REGION_START);
-                                    format!("f{s_id}")
-                                } else {
-                                    get(1)
-                                };
+                            let short_cell = if let Ok(s_id) =
+                                parse_format_shorthand(&get(1))
+                            {
+                                format!("f{s_id}")
+                            } else if let Ok(dc_id) = get(0).parse::<u128>() {
+                                let s_id =
+                                    dc_id.saturating_sub(FORMAT_REGION_START);
+                                format!("f{s_id}")
+                            } else {
+                                get(1)
+                            };
 
                             let format_category = get(4);
                             let script_cell = if format_category.is_empty() {
@@ -692,16 +702,27 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 format!(".Formats:{format_category}")
                             };
 
-                            let clean_ident = ident.trim_start_matches('!').trim();
+                            let clean_ident =
+                                ident.trim_start_matches('!').trim();
                             let mut alias_parts = Vec::new();
                             if !clean_ident.is_empty() {
-                                alias_parts.push(format!("@ident(\"{}\")", escape_directive_string(clean_ident)));
+                                alias_parts.push(format!(
+                                    "@ident(\"{}\")",
+                                    escape_directive_string(clean_ident)
+                                ));
                             }
                             let raw_nicknames = get(10);
                             if !raw_nicknames.is_empty() {
-                                for nick in crate::shared::split_comma_separated_items(&raw_nicknames) {
+                                for nick in
+                                    crate::shared::split_comma_separated_items(
+                                        &raw_nicknames,
+                                    )
+                                {
                                     if !nick.is_empty() {
-                                        alias_parts.push(format!("@nick(\"{}\")", escape_directive_string(&nick)));
+                                        alias_parts.push(format!(
+                                            "@nick(\"{}\")",
+                                            escape_directive_string(&nick)
+                                        ));
                                     }
                                 }
                             }
@@ -712,25 +733,25 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                             let aliases_cell = alias_parts.join(", ");
 
                             let unified_row = vec![
-                                get(0),                 // Dc
-                                short_cell,             // Short
-                                name_cell,              // Name (!=deprecated)
-                                "0".to_string(),        // ◌
-                                "BN".to_string(),       // ⇆
-                                String::new(),          // Aa
-                                "!Cx".to_string(),      // Type
-                                script_cell,            // Script
-                                aliases_cell,           // Aliases / Base / Chain / Syntax / @ident / @nick
-                                get(15),                // Description / Comments
-                                get(6),                 // Extensions
-                                get(7),                 // MIME
-                                get(8),                 // Apple UTI
-                                get(9),                 // Apple Type code
-                                get(11),                // Import support
-                                get(12),                // Export support
-                                get(13),                // Tests
-                                get(14),                // Variant Types
-                                get(16),                // References
+                                get(0),            // Dc
+                                short_cell,        // Short
+                                name_cell,         // Name (!=deprecated)
+                                "0".to_string(),   // ◌
+                                "BN".to_string(),  // ⇆
+                                String::new(),     // Aa
+                                "!Cx".to_string(), // Type
+                                script_cell,       // Script
+                                aliases_cell, // Aliases / Base / Chain / Syntax / @ident / @nick
+                                get(15),      // Description / Comments
+                                get(6),       // Extensions
+                                get(7),       // MIME
+                                get(8),       // Apple UTI
+                                get(9),       // Apple Type code
+                                get(11),      // Import support
+                                get(12),      // Export support
+                                get(13),      // Tests
+                                get(14),      // Variant Types
+                                get(16),      // References
                             ];
                             all_format_rows.push(unified_row);
                         }
@@ -781,7 +802,8 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                     for mut row in rows {
                         if !is_empty_row(&row) {
                             if let Some(dc_cell) = row.first_mut() {
-                                if let Ok(cp) = parse_unicode_shorthand(dc_cell) {
+                                if let Ok(cp) = parse_unicode_shorthand(dc_cell)
+                                {
                                     *dc_cell = cp.to_string();
                                     if let Some(short_cell) = row.get_mut(1) {
                                         short_cell.clear();
@@ -793,25 +815,25 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 row.get(idx).cloned().unwrap_or_default()
                             };
                             let unified_row = vec![
-                                get(0),         // Dc
-                                get(1),         // Short
-                                get(2),         // Name (!=deprecated)
-                                get(3),         // ◌
-                                get(4),         // ⇆
-                                get(5),         // Aa
-                                get(6),         // Type
-                                get(7),         // Script
-                                get(8),         // Aliases...
-                                get(9),         // Description
-                                String::new(),  // Extensions
-                                String::new(),  // MIME
-                                String::new(),  // Apple UTI
-                                String::new(),  // Apple Type code
-                                String::new(),  // Import support
-                                String::new(),  // Export support
-                                String::new(),  // Tests
-                                String::new(),  // Variant Types
-                                String::new(),  // References
+                                get(0),        // Dc
+                                get(1),        // Short
+                                get(2),        // Name (!=deprecated)
+                                get(3),        // ◌
+                                get(4),        // ⇆
+                                get(5),        // Aa
+                                get(6),        // Type
+                                get(7),        // Script
+                                get(8),        // Aliases...
+                                get(9),        // Description
+                                String::new(), // Extensions
+                                String::new(), // MIME
+                                String::new(), // Apple UTI
+                                String::new(), // Apple Type code
+                                String::new(), // Import support
+                                String::new(), // Export support
+                                String::new(), // Tests
+                                String::new(), // Variant Types
+                                String::new(), // References
                             ];
                             all_dc_rows.push(unified_row);
                         }
@@ -841,8 +863,11 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     }
 
     // 3. Load unicode clarifications to supplement (without replacing) real Unicode data
-    let mut unicode_clarifications: HashMap<u32, (String, String)> = HashMap::new();
-    let clar_path = repo_root.join("src/formats/dcdata/data-src/categories/unicode-clarifications.csv");
+    let mut unicode_clarifications: HashMap<u32, (String, String)> =
+        HashMap::new();
+    let clar_path = repo_root.join(
+        "src/formats/dcdata/data-src/categories/unicode-clarifications.csv",
+    );
     if clar_path.is_file() {
         if let Ok((_, rows)) = read_csv_file(&clar_path) {
             for row in rows {
@@ -868,27 +893,31 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         } else {
             rec.name
         };
-        let (merged_aliases, merged_desc) = if let Some((clar_aliases, clar_desc)) =
-            unicode_clarifications.get(&rec.cp)
-        {
-            let a = if rec.aliases.is_empty() {
-                format_canonical_aliases_cell(clar_aliases)
-            } else if !clar_aliases.is_empty() {
-                format_canonical_aliases_cell(&format!("{}, {}", rec.aliases, clar_aliases))
+        let (merged_aliases, merged_desc) =
+            if let Some((clar_aliases, clar_desc)) =
+                unicode_clarifications.get(&rec.cp)
+            {
+                let a = if rec.aliases.is_empty() {
+                    format_canonical_aliases_cell(clar_aliases)
+                } else if !clar_aliases.is_empty() {
+                    format_canonical_aliases_cell(&format!(
+                        "{}, {}",
+                        rec.aliases, clar_aliases
+                    ))
+                } else {
+                    rec.aliases
+                };
+                let d = if rec.description.is_empty() {
+                    clar_desc.clone()
+                } else if !clar_desc.is_empty() {
+                    format!("{}; {}", rec.description, clar_desc)
+                } else {
+                    rec.description
+                };
+                (a, d)
             } else {
-                rec.aliases
+                (rec.aliases, rec.description)
             };
-            let d = if rec.description.is_empty() {
-                clar_desc.clone()
-            } else if !clar_desc.is_empty() {
-                format!("{}; {}", rec.description, clar_desc)
-            } else {
-                rec.description
-            };
-            (a, d)
-        } else {
-            (rec.aliases, rec.description)
-        };
 
         all_unicode_rows.push(vec![
             rec.cp.to_string(),               // Dc
@@ -950,7 +979,8 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     stats.total_records_merged = combined_rows.len();
 
     // 5. Clean up old .generated.json files if present
-    let old_dc_json = repo_root.join("src/formats/dcdata/data-src/DcList.generated.json");
+    let old_dc_json =
+        repo_root.join("src/formats/dcdata/data-src/DcList.generated.json");
     if old_dc_json.exists() {
         let _ = fs::remove_file(&old_dc_json);
     }
@@ -982,10 +1012,20 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
         return String::new();
     }
     let mut report = crate::report::ValidationReport::new();
-    let parsed = crate::column_spec::parse_aliases_or_base_column(raw, "", 0, &mut report, false);
+    let parsed = crate::column_spec::parse_aliases_or_base_column(
+        raw,
+        "",
+        0,
+        &mut report,
+        false,
+    );
     let mut parts = Vec::new();
     for fa in parsed.formal_aliases {
-        parts.push(format!("@formalAlias{}(\"{}\")", fa.kind, escape_directive_string(&fa.alias)));
+        parts.push(format!(
+            "@formalAlias{}(\"{}\")",
+            fa.kind,
+            escape_directive_string(&fa.alias)
+        ));
     }
     if let Some(ident) = parsed.rust_ident {
         parts.push(format!("@ident(\"{}\")", escape_directive_string(&ident)));
@@ -1019,7 +1059,8 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
         parts.push(d);
     }
     for an in parsed.annotations {
-        parts.push(format!("@annotation(\"{}\")", escape_directive_string(&an)));
+        parts
+            .push(format!("@annotation(\"{}\")", escape_directive_string(&an)));
     }
     if let Some(syn) = parsed.syntax_raw {
         parts.push(syn);
@@ -1037,7 +1078,8 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
         parts.push(format!("@os({os})"));
     }
     for mn in parsed.magic_names {
-        parts.push(format!("@magic_name(\"{}\")", escape_directive_string(&mn)));
+        parts
+            .push(format!("@magic_name(\"{}\")", escape_directive_string(&mn)));
     }
     parts.join(", ")
 }
@@ -1079,9 +1121,7 @@ pub(crate) fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
     Ok(true)
 }
 
-pub use ctb_build_support::dc_codegen::{
-    generate_dc_code, generate_dc_file,
-};
+pub use ctb_build_support::dc_codegen::{generate_dc_code, generate_dc_file};
 pub use ctb_build_support::format_id_codegen::{
     generate_format_id_code, generate_format_id_file,
 };
@@ -1121,8 +1161,9 @@ mod tests {
     fn test_no_hole_backfilling_invariant() {
         // Create simulated category files with IDs [0, 10, 20] and one "AUTO" entry
         let temp_dir = tempfile::tempdir().unwrap();
-        let cat_dir =
-            temp_dir.path().join("src/formats/dcdata/data-src/categories");
+        let cat_dir = temp_dir
+            .path()
+            .join("src/formats/dcdata/data-src/categories");
         fs::create_dir_all(&cat_dir).unwrap();
 
         let header = vec![

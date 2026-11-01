@@ -28,18 +28,24 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! 3. Total elimination of `DcMixedReader`.
 //! 4. $O(1)$ arena reuse and stress testing across multi-record streams.
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 use ctb_utilities::*;
 
 use ctb_formats_checksum::sha256;
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_ERROR_RECORD, DC_BEGIN_OPERATION_SESSION,
-    DC_BEGIN_WARNING_RECORD, DC_END_CHECKSUMMED_SECTION, DC_OPERATION_COMPLETED,
-    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_SOURCE_PATH,
+    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_ERROR_RECORD,
+    DC_BEGIN_OPERATION_SESSION, DC_BEGIN_WARNING_RECORD,
+    DC_END_CHECKSUMMED_SECTION, DC_OPERATION_COMPLETED, DC_SECTION_DIGEST,
+    DC_SEQUENCE_IDENTIFIER, DC_SOURCE_PATH,
 };
 use ctb_formats_dcstring::{
     DcChar, DcDocumentNavigator, DcFrameStub, DcMixedDecode, DcMixedEncode,
-    DcMstr, DcMstring, DcProjectionPolicy, DcSyntaxArena, validate_dc_mixed_strict,
+    DcMstr, DcMstring, DcProjectionPolicy, DcSyntaxArena,
+    validate_dc_mixed_strict,
 };
 use ctb_io::file::apple_single_double::{
     ExtendedFinderInfo, FinderFlags, FinderInfo, FinderLabel,
@@ -50,11 +56,13 @@ use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
 use ctb_io::file::streams::StreamName;
 use ctb_io_csc::journal::{
-    JOURNAL_MAGIC_V4, JournalErrorRecord, JournalErrorRecordPayload, JournalErrorStage,
-    JournalSessionRecord, JournalSnapshot, JournalWarningRecord,
-    JournalWarningRecordPayload, JournalWarningRecordStringPayload, StateJournal,
-    convert_cscjournal_to_dcmstring, convert_cscjournal_to_bytes,
-    read_journal_snapshot, read_journal_snapshot_with_policy, read_v4_journal_snapshot,
+    JOURNAL_MAGIC_V4, JournalErrorRecord, JournalErrorRecordPayload,
+    JournalErrorStage, JournalSessionRecord, JournalSnapshot,
+    JournalWarningRecord, JournalWarningRecordPayload,
+    JournalWarningRecordStringPayload, StateJournal,
+    convert_cscjournal_to_bytes, convert_cscjournal_to_dcmstring,
+    read_journal_snapshot, read_journal_snapshot_with_policy,
+    read_v4_journal_snapshot,
 };
 use ctb_io_environment::EnvDescription;
 use std::fs::{self, File, OpenOptions};
@@ -64,7 +72,10 @@ use std::sync::Arc;
 use tempfile::tempdir;
 
 fn fixtures_path() -> PathBuf {
-    ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "fixtures/journals")
+    ctb_utilities::manifest_fixture_path(
+        env!("CARGO_MANIFEST_DIR"),
+        "fixtures/journals",
+    )
 }
 
 // ============================================================================
@@ -74,13 +85,17 @@ fn fixtures_path() -> PathBuf {
 /// Empirically verify that authentic dev-era v4 fixtures are strictly rejected
 /// under `strict()` policy and cleanly recovered under `forgiving()` policy.
 #[crate::ctb_test]
-fn test_challenge_authentic_v4_strict_rejection_and_forgiving_salvage() -> Result<()> {
+fn test_challenge_authentic_v4_strict_rejection_and_forgiving_salvage()
+-> Result<()> {
     let fixture_path = fixtures_path().join("v4_dcmixed-20261011.cscjournal");
     ensure!(fixture_path.exists(), "v4_dcmixed fixture file must exist");
 
     let initial_bytes = fs::read(&fixture_path)?;
     let initial_len = initial_bytes.len();
-    ensure!(initial_len > 8, "Fixture file must contain magic and payload");
+    ensure!(
+        initial_len > 8,
+        "Fixture file must contain magic and payload"
+    );
 
     // Check magic bytes
     let magic = &initial_bytes[0..8];
@@ -131,8 +146,12 @@ fn test_challenge_authentic_v4_strict_rejection_and_forgiving_salvage() -> Resul
         "Forgiving snapshot must recover committed entities"
     );
     ensure!(
-        forgiving_snap.committed_entities.contains_key(b"src/fixture_info.txt".as_slice())
-            || forgiving_snap.committed_entities.contains_key(b"src\\fixture_info.txt".as_slice()),
+        forgiving_snap
+            .committed_entities
+            .contains_key(b"src/fixture_info.txt".as_slice())
+            || forgiving_snap
+                .committed_entities
+                .contains_key(b"src\\fixture_info.txt".as_slice()),
         "Forgiving snapshot must contain src/fixture_info.txt"
     );
     ensure!(
@@ -208,22 +227,34 @@ fn test_challenge_all_four_journal_revisions() -> Result<()> {
     let fixtures = fixtures_path();
 
     // Revision 1
-    let s1 = read_journal_snapshot(&fixtures.join("v1_ctbmeta1-20261011.cscjournal"))?;
+    let s1 = read_journal_snapshot(
+        &fixtures.join("v1_ctbmeta1-20261011.cscjournal"),
+    )?;
     ensure!(s1.is_completed, "v1 journal must be completed");
     ensure!(!s1.committed_entities.is_empty(), "v1 must have entities");
 
     // Revision 2
-    let s2 = read_journal_snapshot(&fixtures.join("v2_ctbmeta2-20261011.cscjournal"))?;
+    let s2 = read_journal_snapshot(
+        &fixtures.join("v2_ctbmeta2-20261011.cscjournal"),
+    )?;
     ensure!(s2.is_completed, "v2 journal must be completed");
     ensure!(!s2.committed_entities.is_empty(), "v2 must have entities");
 
     // Revision 3 uses historical untyped path literals
     let v3_fixture = fixtures.join("v3_ctbmeta3-20261011.cscjournal");
-    let strict_error = read_journal_snapshot(&v3_fixture)
-        .expect_err("Historical untyped path literals must be rejected strictly");
-    ensure!(format!("{strict_error:#}").contains("missing Dc 262..263 type header"));
-    let s3 = read_journal_snapshot_with_policy(&v3_fixture, &DcProjectionPolicy::forgiving())
-        .context("Failed to recover revision 3 fixture with explicit forgiving policy")?;
+    let strict_error = read_journal_snapshot(&v3_fixture).expect_err(
+        "Historical untyped path literals must be rejected strictly",
+    );
+    ensure!(
+        format!("{strict_error:#}").contains("missing Dc 262..263 type header")
+    );
+    let s3 = read_journal_snapshot_with_policy(
+        &v3_fixture,
+        &DcProjectionPolicy::forgiving(),
+    )
+    .context(
+        "Failed to recover revision 3 fixture with explicit forgiving policy",
+    )?;
     ensure!(s3.is_completed, "v3 journal must be completed");
     ensure!(!s3.committed_entities.is_empty(), "v3 must have entities");
 
@@ -238,14 +269,29 @@ fn test_challenge_all_four_journal_revisions() -> Result<()> {
 
     // Conversion of all revisions to v4 DcMstring
     for (rev_file, policy) in [
-        ("v1_ctbmeta1-20261011.cscjournal", DcProjectionPolicy::strict()),
-        ("v2_ctbmeta2-20261011.cscjournal", DcProjectionPolicy::strict()),
-        ("v3_ctbmeta3-20261011.cscjournal", DcProjectionPolicy::forgiving()),
-        ("v4_dcmixed-20261011.cscjournal", DcProjectionPolicy::forgiving()),
+        (
+            "v1_ctbmeta1-20261011.cscjournal",
+            DcProjectionPolicy::strict(),
+        ),
+        (
+            "v2_ctbmeta2-20261011.cscjournal",
+            DcProjectionPolicy::strict(),
+        ),
+        (
+            "v3_ctbmeta3-20261011.cscjournal",
+            DcProjectionPolicy::forgiving(),
+        ),
+        (
+            "v4_dcmixed-20261011.cscjournal",
+            DcProjectionPolicy::forgiving(),
+        ),
     ] {
         let path = fixtures.join(rev_file);
         let bytes = fs::read(&path)?;
-        let (doc, log) = ctb_io_csc::journal::convert_cscjournal_to_dcmstring_with_policy(&bytes, &policy)?;
+        let (doc, log) =
+            ctb_io_csc::journal::convert_cscjournal_to_dcmstring_with_policy(
+                &bytes, &policy,
+            )?;
         ensure!(
             doc.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
             "{rev_file} must convert to non-empty DcMstring"
@@ -348,7 +394,10 @@ fn test_challenge_o1_arena_reuse_multi_batch_stream() -> Result<()> {
             batch_count = batch_count.saturating_add(1);
         }
     }
-    ensure!(batch_count == 50, "Must read exactly 50 batches with arena reuse");
+    ensure!(
+        batch_count == 50,
+        "Must read exactly 50 batches with arena reuse"
+    );
 
     Ok(())
 }
@@ -376,7 +425,9 @@ fn test_challenge_zero_code_occurrences_of_dcmixedreader() -> Result<()> {
                 let path = entry.path();
                 if path.is_dir() {
                     collect_rs(&path, list)?;
-                } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                } else if path.extension().and_then(|e| e.to_str())
+                    == Some("rs")
+                {
                     list.push(path);
                 }
             }
@@ -398,8 +449,16 @@ fn test_challenge_zero_code_occurrences_of_dcmixedreader() -> Result<()> {
             if line.contains(&target_name) {
                 let trimmed = line.trim();
                 // Ignore comment lines mentioning DcMixedReader in tests/docs
-                if !trimmed.starts_with("//") && !trimmed.starts_with("/*") && !trimmed.starts_with('*') {
-                    offending_lines.push(format!("{}:{}: {}", file.display(), line_idx.saturating_add(1), trimmed));
+                if !trimmed.starts_with("//")
+                    && !trimmed.starts_with("/*")
+                    && !trimmed.starts_with('*')
+                {
+                    offending_lines.push(format!(
+                        "{}:{}: {}",
+                        file.display(),
+                        line_idx.saturating_add(1),
+                        trimmed
+                    ));
                 }
             }
         }
@@ -413,7 +472,6 @@ fn test_challenge_zero_code_occurrences_of_dcmixedreader() -> Result<()> {
 
     Ok(())
 }
-
 
 fn decode_single_frame<T: DcMixedDecode>(
     mstr: &DcMstr,
@@ -472,14 +530,15 @@ fn test_challenge_journal_session_record_varied_roundtrip() -> Result<()> {
             .with_context(|| format!("Case {idx}: encode_dc_mixed failed"))?;
 
         // Verify that encoded segment passes strict syntax validation
-        validate_dc_mixed_strict(&mstring)
-            .with_context(|| format!("Case {idx}: validate_dc_mixed_strict failed"))?;
+        validate_dc_mixed_strict(&mstring).with_context(|| {
+            format!("Case {idx}: validate_dc_mixed_strict failed")
+        })?;
 
         // Decode via navigator and arena
-        let decoded: JournalSessionRecord = decode_single_frame(
-            &mstring,
-            &strict_policy,
-        ).with_context(|| format!("Case {idx}: decode_single_frame failed"))?;
+        let decoded: JournalSessionRecord =
+            decode_single_frame(&mstring, &strict_policy).with_context(
+                || format!("Case {idx}: decode_single_frame failed"),
+            )?;
 
         ensure!(
             decoded.sources == original.sources,
@@ -509,7 +568,8 @@ fn test_challenge_journal_session_record_varied_roundtrip() -> Result<()> {
 }
 
 #[crate::ctb_test]
-fn test_challenge_journal_error_record_payload_varied_roundtrip() -> Result<()> {
+fn test_challenge_journal_error_record_payload_varied_roundtrip() -> Result<()>
+{
     let test_cases = vec![
         // Empty message, zero timestamp, zero packed status
         JournalErrorRecordPayload::new(
@@ -558,10 +618,9 @@ fn test_challenge_journal_error_record_payload_varied_roundtrip() -> Result<()> 
         validate_dc_mixed_strict(&mstring)
             .with_context(|| format!("Case {idx}: strict validation failed"))?;
 
-        let decoded: JournalErrorRecordPayload = decode_single_frame(
-            &mstring,
-            &strict_policy,
-        ).with_context(|| format!("Case {idx}: decode failed"))?;
+        let decoded: JournalErrorRecordPayload =
+            decode_single_frame(&mstring, &strict_policy)
+                .with_context(|| format!("Case {idx}: decode failed"))?;
 
         ensure!(
             decoded == original,
@@ -573,12 +632,21 @@ fn test_challenge_journal_error_record_payload_varied_roundtrip() -> Result<()> 
 }
 
 #[crate::ctb_test]
-fn test_challenge_journal_warning_record_payload_varied_roundtrip() -> Result<()> {
+fn test_challenge_journal_warning_record_payload_varied_roundtrip() -> Result<()>
+{
     let test_cases = vec![
         JournalWarningRecordPayload::new("WARN001", "Caveat detected", 0),
         JournalWarningRecordPayload::new("", "", 1_700_000_000),
-        JournalWarningRecordPayload::new("CODE:SUBCODE", "Message with : multiple : colons : ⚠️", -500),
-        JournalWarningRecordPayload::new("LONG", &"W".repeat(1000), 2_000_000_000),
+        JournalWarningRecordPayload::new(
+            "CODE:SUBCODE",
+            "Message with : multiple : colons : ⚠️",
+            -500,
+        ),
+        JournalWarningRecordPayload::new(
+            "LONG",
+            &"W".repeat(1000),
+            2_000_000_000,
+        ),
     ];
 
     let strict_policy = DcProjectionPolicy::strict();
@@ -592,10 +660,9 @@ fn test_challenge_journal_warning_record_payload_varied_roundtrip() -> Result<()
         validate_dc_mixed_strict(&mstring)
             .with_context(|| format!("Case {idx}: strict validation failed"))?;
 
-        let decoded: JournalWarningRecordPayload = decode_single_frame(
-            &mstring,
-            &strict_policy,
-        ).with_context(|| format!("Case {idx}: decode failed"))?;
+        let decoded: JournalWarningRecordPayload =
+            decode_single_frame(&mstring, &strict_policy)
+                .with_context(|| format!("Case {idx}: decode failed"))?;
 
         ensure!(
             decoded == original,
@@ -609,21 +676,26 @@ fn test_challenge_journal_warning_record_payload_varied_roundtrip() -> Result<()
     };
     let mut mstring = DcMstring::new();
     string_payload.encode_dc_mixed(&mut mstring)?;
-    let decoded_string: JournalWarningRecordStringPayload = decode_single_frame(
-        &mstring,
-        &strict_policy,
-    )?;
-    ensure!(decoded_string == string_payload, "String warning payload mismatch");
+    let decoded_string: JournalWarningRecordStringPayload =
+        decode_single_frame(&mstring, &strict_policy)?;
+    ensure!(
+        decoded_string == string_payload,
+        "String warning payload mismatch"
+    );
 
     Ok(())
 }
 
-fn try_decode_slice<T: DcMixedDecode>(bytes: &[u8], policy: &DcProjectionPolicy) {
+fn try_decode_slice<T: DcMixedDecode>(
+    bytes: &[u8],
+    policy: &DcProjectionPolicy,
+) {
     if let Ok(mstr) = DcMstr::from_bytes(bytes) {
         let mut nav = DcDocumentNavigator::from_mstr(mstr);
         let mut arena = DcSyntaxArena::new();
         if let Ok(Some(stub)) = nav.next_sibling_stub(policy) {
-            let _ = nav.decode_frame_with_arena::<T>(&stub, &mut arena, None, policy);
+            let _ = nav
+                .decode_frame_with_arena::<T>(&stub, &mut arena, None, policy);
         }
     }
 }
@@ -642,7 +714,8 @@ fn test_challenge_truncated_malformed_records_no_panic() -> Result<()> {
         "Something failed".to_owned(),
         1_700_000_000,
     );
-    let warning = JournalWarningRecordPayload::new("W1", "Warning msg", 1_700_000_000);
+    let warning =
+        JournalWarningRecordPayload::new("W1", "Warning msg", 1_700_000_000);
 
     let mut session_bytes = DcMstring::new();
     session.encode_dc_mixed(&mut session_bytes)?;
@@ -670,8 +743,12 @@ fn test_challenge_truncated_malformed_records_no_panic() -> Result<()> {
             for policy in &policies {
                 // Must never panic
                 try_decode_slice::<JournalSessionRecord>(truncated, policy);
-                try_decode_slice::<JournalErrorRecordPayload>(truncated, policy);
-                try_decode_slice::<JournalWarningRecordPayload>(truncated, policy);
+                try_decode_slice::<JournalErrorRecordPayload>(
+                    truncated, policy,
+                );
+                try_decode_slice::<JournalWarningRecordPayload>(
+                    truncated, policy,
+                );
             }
         }
     }
@@ -684,8 +761,12 @@ fn test_challenge_truncated_malformed_records_no_panic() -> Result<()> {
             corrupted[i] = orig ^ 0xFF; // flip bits
             for policy in &policies {
                 try_decode_slice::<JournalSessionRecord>(&corrupted, policy);
-                try_decode_slice::<JournalErrorRecordPayload>(&corrupted, policy);
-                try_decode_slice::<JournalWarningRecordPayload>(&corrupted, policy);
+                try_decode_slice::<JournalErrorRecordPayload>(
+                    &corrupted, policy,
+                );
+                try_decode_slice::<JournalWarningRecordPayload>(
+                    &corrupted, policy,
+                );
             }
             corrupted[i] = orig;
         }
@@ -789,12 +870,21 @@ fn test_challenge_read_v4_journal_snapshot_adversarial_inputs() -> Result<()> {
         fs::write(&path, magic_prefix)?;
 
         let mut file = File::open(&path)?;
-        let strict_res = read_v4_journal_snapshot(&mut file, &path, false, &strict_policy);
+        let strict_res =
+            read_v4_journal_snapshot(&mut file, &path, false, &strict_policy);
         ensure!(strict_res.is_err(), "Truncated magic must return Err");
 
         let mut file = File::open(&path)?;
-        let forgiving_res = read_v4_journal_snapshot(&mut file, &path, false, &forgiving_policy);
-        ensure!(forgiving_res.is_err(), "Truncated magic must return Err even under forgiving");
+        let forgiving_res = read_v4_journal_snapshot(
+            &mut file,
+            &path,
+            false,
+            &forgiving_policy,
+        );
+        ensure!(
+            forgiving_res.is_err(),
+            "Truncated magic must return Err even under forgiving"
+        );
     }
 
     // 2. Exactly 8 bytes magic (no session header)
@@ -802,7 +892,8 @@ fn test_challenge_read_v4_journal_snapshot_adversarial_inputs() -> Result<()> {
         let path = temp.path().join("magic_only.cscjournal");
         fs::write(&path, JOURNAL_MAGIC_V4)?;
         let mut file = File::open(&path)?;
-        let res = read_v4_journal_snapshot(&mut file, &path, false, &strict_policy);
+        let res =
+            read_v4_journal_snapshot(&mut file, &path, false, &strict_policy);
         ensure!(res.is_err(), "Magic only without session header must fail");
     }
 
@@ -819,18 +910,33 @@ fn test_challenge_read_v4_journal_snapshot_adversarial_inputs() -> Result<()> {
         let session_bytes = session_mst.payload_bytes();
 
         for cut in 1..session_bytes.len() {
-            let path = temp.path().join(format!("trunc_session_{cut}.cscjournal"));
+            let path =
+                temp.path().join(format!("trunc_session_{cut}.cscjournal"));
             let mut file_data = JOURNAL_MAGIC_V4.to_vec();
-            file_data.extend_from_slice(session_bytes.get(..cut).unwrap_or(&[]));
+            file_data
+                .extend_from_slice(session_bytes.get(..cut).unwrap_or(&[]));
             fs::write(&path, file_data)?;
 
             let mut file = File::open(&path)?;
-            let strict_res = read_v4_journal_snapshot(&mut file, &path, false, &strict_policy);
+            let strict_res = read_v4_journal_snapshot(
+                &mut file,
+                &path,
+                false,
+                &strict_policy,
+            );
             ensure!(strict_res.is_err(), "Truncated session must return Err");
 
             let mut file = File::open(&path)?;
-            let forgiving_res = read_v4_journal_snapshot(&mut file, &path, false, &forgiving_policy);
-            ensure!(forgiving_res.is_err(), "Truncated session must return Err under forgiving");
+            let forgiving_res = read_v4_journal_snapshot(
+                &mut file,
+                &path,
+                false,
+                &forgiving_policy,
+            );
+            ensure!(
+                forgiving_res.is_err(),
+                "Truncated session must return Err under forgiving"
+            );
         }
     }
 
@@ -887,29 +993,44 @@ fn test_challenge_read_v4_journal_snapshot_adversarial_inputs() -> Result<()> {
 
         let snapshot = read_journal_snapshot(&journal_path)?;
         ensure!(snapshot.last_batch_id == 1, "Control must commit batch 1");
-        ensure!(snapshot.is_committed(b"valid.txt"), "Control must preserve batch 1 entity");
+        ensure!(
+            snapshot.is_committed(b"valid.txt"),
+            "Control must preserve batch 1 entity"
+        );
 
         // Append random garbage bytes
         {
-            let mut file = OpenOptions::new().append(true).open(&journal_path)?;
+            let mut file =
+                OpenOptions::new().append(true).open(&journal_path)?;
             file.write_all(&[0xDE, 0xAD, 0xBE, 0xEF, 0xFF, 0x00, 0x12, 0x34])?;
         }
 
         let malformed_journal = fs::read(&journal_path)?;
         for policy in [&strict_policy, &forgiving_policy] {
             let mut file = File::open(&journal_path)?;
-            let error = read_v4_journal_snapshot(&mut file, &journal_path, false, policy)
-                .expect_err("Unknown records must not authorize rollback");
-            ensure!(format!("{error:#}").contains("Unsupported journal record"));
+            let error = read_v4_journal_snapshot(
+                &mut file,
+                &journal_path,
+                false,
+                policy,
+            )
+            .expect_err("Unknown records must not authorize rollback");
+            ensure!(
+                format!("{error:#}").contains("Unsupported journal record")
+            );
         }
-        ensure!(fs::read(&journal_path)? == malformed_journal, "Rejected replay must preserve journal bytes");
+        ensure!(
+            fs::read(&journal_path)? == malformed_journal,
+            "Rejected replay must preserve journal bytes"
+        );
     }
 
     Ok(())
 }
 
 #[crate::ctb_test]
-fn test_challenge_interleaved_journal_records_lossless_roundtrip() -> Result<()> {
+fn test_challenge_interleaved_journal_records_lossless_roundtrip() -> Result<()>
+{
     let temp = tempdir()?;
     let journal_path = temp.path().join("interleaved.cscjournal");
     let desc_path = temp.path().join("interleaved.cscdesc");
@@ -985,7 +1106,10 @@ fn test_challenge_interleaved_journal_records_lossless_roundtrip() -> Result<()>
     writer.commit_batch()?;
 
     // 4. Record warning and error between Batch 1 and Batch 2
-    writer.record_warning("W_MID", "Mid-stream warning: symlink target unverified")?;
+    writer.record_warning(
+        "W_MID",
+        "Mid-stream warning: symlink target unverified",
+    )?;
     let error2 = JournalErrorRecord {
         path: PathBuf::from("skipped/negative_os.txt"),
         raw_path: b"skipped/negative_os.txt".to_vec(),
@@ -1038,26 +1162,59 @@ fn test_challenge_interleaved_journal_records_lossless_roundtrip() -> Result<()>
     // 7. Verify read_journal_snapshot under strict policy
     let snapshot = read_journal_snapshot(&journal_path)?;
     ensure!(snapshot.is_completed, "Snapshot must be completed");
-    ensure!(snapshot.last_batch_id == 2, "Snapshot last_batch_id must be 2");
-    ensure!(snapshot.committed_entities.len() == 2, "Must have 2 committed entities");
-    ensure!(snapshot.is_committed(b"file1.txt"), "file1.txt must be committed");
-    ensure!(snapshot.is_committed(b"file2.txt"), "file2.txt must be committed");
+    ensure!(
+        snapshot.last_batch_id == 2,
+        "Snapshot last_batch_id must be 2"
+    );
+    ensure!(
+        snapshot.committed_entities.len() == 2,
+        "Must have 2 committed entities"
+    );
+    ensure!(
+        snapshot.is_committed(b"file1.txt"),
+        "file1.txt must be committed"
+    );
+    ensure!(
+        snapshot.is_committed(b"file2.txt"),
+        "file2.txt must be committed"
+    );
 
     // Verify errors
     ensure!(snapshot.errors.len() == 2, "Must have 2 error records");
-    ensure!(snapshot.errors[0] == error1, "Error 1 mismatch: {:?} vs {:?}", snapshot.errors[0], error1);
-    ensure!(snapshot.errors[1] == error2, "Error 2 mismatch: {:?} vs {:?}", snapshot.errors[1], error2);
+    ensure!(
+        snapshot.errors[0] == error1,
+        "Error 1 mismatch: {:?} vs {:?}",
+        snapshot.errors[0],
+        error1
+    );
+    ensure!(
+        snapshot.errors[1] == error2,
+        "Error 2 mismatch: {:?} vs {:?}",
+        snapshot.errors[1],
+        error2
+    );
 
     // Verify warnings
-    ensure!(snapshot.warnings.len() == 3, "Must have 3 warning records, got {}", snapshot.warnings.len());
-    ensure!(snapshot.warnings[0].code == "W_INIT", "Warning 0 code mismatch");
-    ensure!(snapshot.warnings[1].code == "W_MID", "Warning 1 code mismatch");
-    ensure!(snapshot.warnings[2].code == "W_DONE", "Warning 2 code mismatch");
+    ensure!(
+        snapshot.warnings.len() == 3,
+        "Must have 3 warning records, got {}",
+        snapshot.warnings.len()
+    );
+    ensure!(
+        snapshot.warnings[0].code == "W_INIT",
+        "Warning 0 code mismatch"
+    );
+    ensure!(
+        snapshot.warnings[1].code == "W_MID",
+        "Warning 1 code mismatch"
+    );
+    ensure!(
+        snapshot.warnings[2].code == "W_DONE",
+        "Warning 2 code mismatch"
+    );
 
     Ok(())
 }
-
-
 
 #[crate::ctb_test]
 fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
@@ -1153,16 +1310,27 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
                 None,
                 &strict_policy,
             )?;
-            ensure!(session.destination == dest, "Session destination mismatch");
+            ensure!(
+                session.destination == dest,
+                "Session destination mismatch"
+            );
             max_nodes_observed = max_nodes_observed.max(arena.nodes().len());
             frame_count = frame_count.saturating_add(1);
-        } else if stub.head_dc == DC_BEGIN_CHECKSUMMED_SECTION && !stub.is_unclosed() {
+        } else if stub.head_dc == DC_BEGIN_CHECKSUMMED_SECTION
+            && !stub.is_unclosed()
+        {
             nav.enter_frame(&stub)?;
             let _seq = nav.next_sibling_stub(&scan_policy)?;
             while let Some(entity_stub) = nav.next_sibling_stub(&scan_policy)? {
                 arena.clear();
-                ensure!(arena.nodes().is_empty(), "arena.clear() must reset node vector");
-                ensure!(arena.roots().is_empty(), "arena.clear() must reset root vector");
+                ensure!(
+                    arena.nodes().is_empty(),
+                    "arena.clear() must reset node vector"
+                );
+                ensure!(
+                    arena.roots().is_empty(),
+                    "arena.clear() must reset root vector"
+                );
 
                 let entity: FileEntity = nav.decode_frame_with_arena(
                     &entity_stub,
@@ -1206,8 +1374,6 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
     Ok(())
 }
 
-
-
 #[crate::ctb_test]
 fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
     let temp = tempdir()?;
@@ -1230,7 +1396,9 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: Some(PathBuf::from(format!("safe_{batch_id}.txt"))),
+                relative_path: Some(PathBuf::from(format!(
+                    "safe_{batch_id}.txt"
+                ))),
                 enclosing_path: Some(src.clone()),
                 nlink: 1,
                 hardlink_group: None,
@@ -1275,11 +1443,17 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
         streams: Vec::new(),
     };
     bad_entity.encode_dc_mixed(&mut batch3_mst)?;
-    let valid_hash = sha256(batch3_mst.payload_bytes().get(body_start..).context("Batch body")?);
+    let valid_hash = sha256(
+        batch3_mst
+            .payload_bytes()
+            .get(body_start..)
+            .context("Batch body")?,
+    );
     batch3_mst.push_char(DC_END_CHECKSUMMED_SECTION);
     batch3_mst.push_char(DC_SECTION_DIGEST);
     // Real SHA-256 digest over inner body
-    batch3_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &valid_hash)?;
+    batch3_mst
+        .push_checksum(ctb_utilities::format_id::DC_SHA256, &valid_hash)?;
 
     let batch3_slice = batch3_mst.payload_bytes();
     let control_path = temp.path().join("complete_batch.cscjournal");
@@ -1287,7 +1461,9 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
     control_bytes.extend_from_slice(batch3_slice);
     fs::write(&control_path, control_bytes)?;
     let control = read_journal_snapshot(&control_path)?;
-    ensure!(control.last_batch_id == 3 && control.committed_entities.len() == 3);
+    ensure!(
+        control.last_batch_id == 3 && control.committed_entities.len() == 3
+    );
     ensure!(control.is_committed(b"uncommitted_crash_file.txt"));
 
     // Test 1: Cut off batch 3 at boundary and varied byte offsets
@@ -1298,11 +1474,17 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
     for &cut in &cutoffs {
         let test_path = temp.path().join(format!("cut_{cut}.cscjournal"));
         let mut test_bytes = base_bytes.clone();
-        test_bytes.extend_from_slice(batch3_slice.get(..cut).context("Crash cutoff exceeds batch")?);
+        test_bytes.extend_from_slice(
+            batch3_slice
+                .get(..cut)
+                .context("Crash cutoff exceeds batch")?,
+        );
         fs::write(&test_path, test_bytes)?;
 
-        let snapshot = read_journal_snapshot(&test_path)
-            .with_context(|| format!("Cutoff at {cut} failed to recover gracefully"))?;
+        let snapshot =
+            read_journal_snapshot(&test_path).with_context(|| {
+                format!("Cutoff at {cut} failed to recover gracefully")
+            })?;
 
         ensure!(
             snapshot.last_batch_id == 2,
@@ -1338,25 +1520,38 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
         tampered_mst.push_char(DC_END_CHECKSUMMED_SECTION);
         tampered_mst.push_char(DC_SECTION_DIGEST);
         let bogus_digest = [0xEE_u8; 32];
-        tampered_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &bogus_digest)?;
+        tampered_mst.push_checksum(
+            ctb_utilities::format_id::DC_SHA256,
+            &bogus_digest,
+        )?;
 
         let mut test_bytes = base_bytes.clone();
         test_bytes.extend_from_slice(tampered_mst.payload_bytes());
         fs::write(&tampered_path, test_bytes)?;
 
-        ensure!(read_journal_snapshot(&tampered_path).is_err(),
-            "Strict recovery must not discard a closed corrupt batch as an incomplete write");
+        ensure!(
+            read_journal_snapshot(&tampered_path).is_err(),
+            "Strict recovery must not discard a closed corrupt batch as an incomplete write"
+        );
         let salvaged = ctb_io_csc::journal::read_journal_snapshot_with_policy(
-            &tampered_path, &DcProjectionPolicy::forgiving_quiet())?;
-        ensure!(salvaged.last_batch_id == 3 && salvaged.committed_entities.len() == 3);
-        ensure!(salvaged.warnings.iter().any(|warning| warning.code == "journal-digest-mismatch"),
-            "Explicit salvage must retain the integrity failure");
+            &tampered_path,
+            &DcProjectionPolicy::forgiving_quiet(),
+        )?;
+        ensure!(
+            salvaged.last_batch_id == 3
+                && salvaged.committed_entities.len() == 3
+        );
+        ensure!(
+            salvaged
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "journal-digest-mismatch"),
+            "Explicit salvage must retain the integrity failure"
+        );
     }
 
     Ok(())
 }
-
-
 
 #[crate::ctb_test]
 fn test_challenge_m5_domain_structs_strict_vs_forgiving() -> Result<()> {
@@ -1392,7 +1587,9 @@ fn test_challenge_m5_domain_structs_strict_vs_forgiving() -> Result<()> {
 
     // 3. Conflicting 561 equivalent representations: segments != binary
     let mut conflict = DcMstring::new();
-    conflict.push_char(ctb_formats_dcstring::dc::DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS); // 561
+    conflict.push_char(
+        ctb_formats_dcstring::dc::DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+    ); // 561
     conflict.push_char(ctb_formats_dcstring::dc::DC_BEGIN_LIST); // 310
     conflict.push_char(DcChar::from_short(275)); // 275
     ctb_formats_dcstring::dc_mixed_serde::encode_filepath_segments(
@@ -1412,9 +1609,15 @@ fn test_challenge_m5_domain_structs_strict_vs_forgiving() -> Result<()> {
     let mut lp_mst = DcMstring::new();
     canonical_lp.encode_dc_mixed(&mut lp_mst)?;
     let decoded_lp_strict: LinkPath = lp_mst.decode(&strict)?;
-    ensure!(decoded_lp_strict == canonical_lp, "Strict LinkPath roundtrip mismatch");
+    ensure!(
+        decoded_lp_strict == canonical_lp,
+        "Strict LinkPath roundtrip mismatch"
+    );
     let decoded_lp_forgiving: LinkPath = lp_mst.decode(&forgiving)?;
-    ensure!(decoded_lp_forgiving == canonical_lp, "Forgiving LinkPath roundtrip mismatch");
+    ensure!(
+        decoded_lp_forgiving == canonical_lp,
+        "Forgiving LinkPath roundtrip mismatch"
+    );
 
     // ------------------------------------------------------------------------
     // B. FileTimestamps
@@ -1461,7 +1664,10 @@ fn test_challenge_m5_domain_structs_strict_vs_forgiving() -> Result<()> {
     let mut sn_mst = DcMstring::new();
     sn_utf16.encode_dc_mixed(&mut sn_mst)?;
     let decoded_sn: StreamName = sn_mst.decode(&strict)?;
-    ensure!(decoded_sn == sn_utf16, "StreamName UTF-16 roundtrip mismatch");
+    ensure!(
+        decoded_sn == sn_utf16,
+        "StreamName UTF-16 roundtrip mismatch"
+    );
 
     // 2. Arbitrary non-UTF8 bytes
     let raw_bytes = b"user.extended\xFF\xFE\x00\x01";

@@ -54,13 +54,11 @@ pub(crate) fn update_theme(gui_state: &mut GuiState, ctx: &Context) {
     let use_dark = match theme_preference {
         ThemePreference::Light => false,
         ThemePreference::Dark => true,
-        ThemePreference::Auto => {
-            match gui_state.system_theme() {
-                Some(dark_light::Mode::Dark) => true,
-                Some(dark_light::Mode::Light) => false,
-                Some(dark_light::Mode::Unspecified) | None => false,
-            }
-        }
+        ThemePreference::Auto => match gui_state.system_theme() {
+            Some(dark_light::Mode::Dark) => true,
+            Some(dark_light::Mode::Light) => false,
+            Some(dark_light::Mode::Unspecified) | None => false,
+        },
     };
 
     if use_dark {

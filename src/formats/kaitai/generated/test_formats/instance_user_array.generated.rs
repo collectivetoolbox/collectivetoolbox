@@ -105,7 +105,11 @@ impl KStruct for InstanceUserArray {
     type Root = InstanceUserArray;
     type Parent = InstanceUserArray;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,9 +132,13 @@ impl KStruct for InstanceUserArray {
     }
 }
 impl InstanceUserArray {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn user_entries(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Vec<OptRc<InstanceUserArray_Entry>>>> {
         let _io = self._io.borrow();
         if self.f_user_entries.get() {
@@ -144,10 +152,24 @@ impl InstanceUserArray {
             *self.user_entries.borrow_mut() = Vec::new();
             let l_user_entries = usize::try_from(*self.qty_entries())?;
             for _i in 0_usize..l_user_entries {
-                self.user_entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entry_size())?)?.into());
+                self.user_entries_raw.borrow_mut().push(
+                    _io.read_bytes(usize::try_from(*self.entry_size())?)?
+                        .into(),
+                );
                 let user_entries_raw = self.user_entries_raw.borrow();
-                let _io_user_entries_raw = BytesReader::from(user_entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
-                let t = Self::read_into::<BytesReader, InstanceUserArray_Entry>(&_io_user_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let _io_user_entries_raw = BytesReader::from(
+                    user_entries_raw
+                        .last()
+                        .ok_or(KError::EmptyIterator)?
+                        .clone(),
+                );
+                let t =
+                    Self::read_into::<BytesReader, InstanceUserArray_Entry>(
+                        &_io_user_entries_raw,
+                        Some(self._root.clone()),
+                        Some(self._self_shared.clone()),
+                    )?
+                    .into();
                 self.user_entries.borrow_mut().push(t);
             }
             _io.seek(_pos)?;
@@ -223,7 +245,9 @@ impl DowncastOptRc<InstanceUserArray_Entry> for OptRc<InstanceUserArray_Entry> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<InstanceUserArray_Entry> for &OptRc<InstanceUserArray_Entry> {
+impl DowncastOptRc<InstanceUserArray_Entry>
+    for &OptRc<InstanceUserArray_Entry>
+{
     fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray_Entry>, KError> {
         Ok((*self).clone())
     }
@@ -232,7 +256,11 @@ impl KStruct for InstanceUserArray_Entry {
     type Root = InstanceUserArray;
     type Parent = InstanceUserArray;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -252,8 +280,7 @@ impl KStruct for InstanceUserArray_Entry {
         Ok(())
     }
 }
-impl InstanceUserArray_Entry {
-}
+impl InstanceUserArray_Entry {}
 impl InstanceUserArray_Entry {
     pub fn word1(&self) -> Ref<'_, u16> {
         self.word1.borrow()

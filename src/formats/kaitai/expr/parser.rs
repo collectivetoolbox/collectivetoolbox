@@ -44,7 +44,7 @@ use crate::utilities::*;
 use super::ast::{
     BoolOp, CmpOp, Expr, Operator, TypeId, TypeWithArguments, UnaryOp,
 };
-use super::lexer::{tokenize, Token, TokenKind};
+use super::lexer::{Token, TokenKind, tokenize};
 
 /// Parses a Kaitai Struct expression string into an `Expr` AST.
 ///
@@ -121,7 +121,10 @@ impl Parser {
 
     fn peek(&self) -> &Token {
         // Reason for fallback: index past end yields trailing token or EOF fallback
-        self.tokens.get(self.idx).or_else(|| self.tokens.last()).unwrap_or(&EOF_TOKEN)
+        self.tokens
+            .get(self.idx)
+            .or_else(|| self.tokens.last())
+            .unwrap_or(&EOF_TOKEN)
     }
 
     fn peek_kind(&self) -> &TokenKind {
@@ -139,7 +142,10 @@ impl Parser {
             tok
         } else {
             // Reason for fallback: index past end yields trailing token or EOF fallback
-            self.tokens.last().cloned().unwrap_or_else(|| EOF_TOKEN.clone())
+            self.tokens
+                .last()
+                .cloned()
+                .unwrap_or_else(|| EOF_TOKEN.clone())
         }
     }
 
@@ -457,7 +463,10 @@ impl Parser {
                             attr: attr_name,
                         };
                     } else {
-                        bail!("Expected identifier or 'as' after '.', got {:?}", self.peek_kind());
+                        bail!(
+                            "Expected identifier or 'as' after '.', got {:?}",
+                            self.peek_kind()
+                        );
                     }
                 }
                 _ => break,
@@ -558,7 +567,8 @@ impl Parser {
                         expr_parts.insert(0, Expr::Str(String::new()));
                     }
                     let mut iter = expr_parts.into_iter();
-                    let mut acc = iter.next().context("Non-empty expr_parts")?;
+                    let mut acc =
+                        iter.next().context("Non-empty expr_parts")?;
                     for next_expr in iter {
                         acc = Expr::BinOp {
                             left: Box::new(acc),
@@ -638,7 +648,8 @@ impl Parser {
                     }
                     if parts.len() >= 2 {
                         let label = parts.pop().context("Missing label")?;
-                        let enum_name = parts.pop().context("Missing enum name")?;
+                        let enum_name =
+                            parts.pop().context("Missing enum name")?;
                         Ok(Expr::EnumByLabel {
                             enum_name,
                             label,
@@ -672,7 +683,10 @@ impl Parser {
             names.push(name.clone());
             self.bump();
         } else {
-            bail!("Expected identifier in type name, got {:?}", self.peek_kind());
+            bail!(
+                "Expected identifier in type name, got {:?}",
+                self.peek_kind()
+            );
         }
 
         while self.peek_kind() == &TokenKind::ColonColon {

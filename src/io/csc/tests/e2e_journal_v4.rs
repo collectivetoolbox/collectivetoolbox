@@ -25,18 +25,23 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   strict v4 roundtrips, forgiving salvage of v4 dev-era fixtures)
 //! - Tier 5: Adversarial Hardening (trailing unclosed batch crash rollback, tampered batch digest isolation)
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
 use ctb_formats_checksum::sha256;
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_OPERATION_SESSION, DC_END_CHECKSUMMED_SECTION,
-    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_SOURCE_PATH,
+    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_OPERATION_SESSION,
+    DC_END_CHECKSUMMED_SECTION, DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
+    DC_SOURCE_PATH,
 };
 use ctb_formats_dcstring::{
-    DcChar, DcDocumentNavigator, DcFrameHeaderInfo, DcMixedEncode, DcMstr, DcMstring,
-    DcProjectionPolicy, validate_dc_mixed_strict,
+    DcChar, DcDocumentNavigator, DcFrameHeaderInfo, DcMixedEncode, DcMstr,
+    DcMstring, DcProjectionPolicy, validate_dc_mixed_strict,
 };
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin};
@@ -53,7 +58,10 @@ use tempfile::tempdir;
 
 /// Returns the absolute path to the authentic fixtures directory.
 fn fixtures_path() -> PathBuf {
-    ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "fixtures/journals")
+    ctb_utilities::manifest_fixture_path(
+        env!("CARGO_MANIFEST_DIR"),
+        "fixtures/journals",
+    )
 }
 
 // ============================================================================
@@ -74,13 +82,15 @@ fn test_tier4_v4_fixture_strict_rejection_vs_forgiving_salvage() -> Result<()> {
     let fixture_file = fixtures_path().join("v4_dcmixed-20261011.cscjournal");
     ensure!(fixture_file.exists(), "v4_dcmixed fixture file must exist");
 
-    let initial_bytes = fs::read(&fixture_file).context("Read initial fixture bytes")?;
+    let initial_bytes =
+        fs::read(&fixture_file).context("Read initial fixture bytes")?;
     let initial_len = initial_bytes.len();
 
     // 1. Strict document validation must reject the dev-era syntax discrepancies
     let payload_bytes = initial_bytes.get(8..).context("Payload bytes")?;
-    let (payload_mstring, _) = ctb_formats_dcstring::dcmm_to_dcmstring(payload_bytes)
-        .context("Parse as DcMixed1")?;
+    let (payload_mstring, _) =
+        ctb_formats_dcstring::dcmm_to_dcmstring(payload_bytes)
+            .context("Parse as DcMixed1")?;
     let payload_mstr = payload_mstring.as_mstr();
     let strict_validation = validate_dc_mixed_strict(payload_mstr);
     ensure!(
@@ -91,14 +101,17 @@ fn test_tier4_v4_fixture_strict_rejection_vs_forgiving_salvage() -> Result<()> {
     // 2. Strict journal reading rejects the fixture or rolls back the unverified dev-era batch
     let strict_snapshot = read_journal_snapshot(&fixture_file);
     ensure!(
-        strict_snapshot.is_err() || strict_snapshot.is_ok_and(|s| s.committed_entities.is_empty()),
+        strict_snapshot.is_err()
+            || strict_snapshot.is_ok_and(|s| s.committed_entities.is_empty()),
         "Authentic v4 fixture under strict mode must reject or roll back unverified entities"
     );
 
     // 3. Forgiving salvage converts the authentic v4 journal into a populated DcMstring
     let (dcmstring_doc, conversion_log) =
         ctb_io_csc::journal::convert_cscjournal_to_dcmstring(&initial_bytes)
-            .context("v4_dcmixed-20261011.cscjournal must be converted to DcMstring")?;
+            .context(
+                "v4_dcmixed-20261011.cscjournal must be converted to DcMstring",
+            )?;
     ensure!(
         dcmstring_doc.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
         "Converted DcMstring document must contain salvaged payload"
@@ -109,7 +122,8 @@ fn test_tier4_v4_fixture_strict_rejection_vs_forgiving_salvage() -> Result<()> {
     );
 
     // 4. Asset Integrity Invariant: fixture bytes must remain unmodified
-    let current_bytes = fs::read(&fixture_file).context("Read current fixture bytes")?;
+    let current_bytes =
+        fs::read(&fixture_file).context("Read current fixture bytes")?;
     ensure!(
         current_bytes.len() == initial_len && current_bytes == initial_bytes,
         "Authentic v4_dcmixed-20261011.cscjournal fixture must remain strictly unmodified"
@@ -129,9 +143,13 @@ fn test_tier4_v4_fixture_strict_rejection_vs_forgiving_salvage() -> Result<()> {
 #[crate::ctb_test]
 fn test_tier4_dcmm_fixture_strict_vs_forgiving() -> Result<()> {
     let fixture_file = fixtures_path().join("v4_dcmixed_only-20261010.dcmm");
-    ensure!(fixture_file.exists(), "v4_dcmixed_only.dcmm fixture file must exist");
+    ensure!(
+        fixture_file.exists(),
+        "v4_dcmixed_only.dcmm fixture file must exist"
+    );
 
-    let initial_bytes = fs::read(&fixture_file).context("Read initial dcmm bytes")?;
+    let initial_bytes =
+        fs::read(&fixture_file).context("Read initial dcmm bytes")?;
     let initial_len = initial_bytes.len();
 
     let (mstring, _) = ctb_formats_dcstring::dcmm_to_dcmstring(&initial_bytes)
@@ -163,7 +181,8 @@ fn test_tier4_dcmm_fixture_strict_vs_forgiving() -> Result<()> {
     );
 
     // 3. Asset Integrity Invariant: fixture bytes must remain unmodified
-    let current_bytes = fs::read(&fixture_file).context("Read current dcmm bytes")?;
+    let current_bytes =
+        fs::read(&fixture_file).context("Read current dcmm bytes")?;
     ensure!(
         current_bytes.len() == initial_len && current_bytes == initial_bytes,
         "Authentic v4_dcmixed_only.dcmm fixture must remain strictly unmodified"
@@ -271,7 +290,10 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
             errors: Vec::new(),
         },
         kind: FileEntityKind::Hardlink {
-            target_relative_path: LinkPath::from_bytes(b"docs/report.txt", false),
+            target_relative_path: LinkPath::from_bytes(
+                b"docs/report.txt",
+                false,
+            ),
         },
         streams: Vec::new(),
     };
@@ -286,7 +308,10 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
         .context("Strict read of newly generated v4 journal must succeed")?;
 
     ensure!(snapshot.is_completed, "Snapshot must be marked completed");
-    ensure!(snapshot.last_batch_id == 1, "Snapshot last_batch_id must be 1");
+    ensure!(
+        snapshot.last_batch_id == 1,
+        "Snapshot last_batch_id must be 1"
+    );
     ensure!(
         snapshot.committed_entities.len() == 2,
         "Snapshot must contain 2 committed entities"
@@ -327,9 +352,8 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
         file_bytes.starts_with(ctb_io_csc::journal::JOURNAL_MAGIC),
         "Journal must start with JOURNAL_MAGIC"
     );
-    let payload_bytes = file_bytes
-        .get(8..)
-        .context("Payload after 8-byte magic")?;
+    let payload_bytes =
+        file_bytes.get(8..).context("Payload after 8-byte magic")?;
     let payload_mstr = DcMstr::from_bytes(payload_bytes)
         .context("Payload must be valid DcMstr")?;
     validate_dc_mixed_strict(payload_mstr)
@@ -409,7 +433,11 @@ fn test_tier4_multi_record_journal_streaming_monotonic_batches() -> Result<()> {
             ensure!(snapshot.is_completed);
             ensure!(writer.mark_completed().is_err());
             drop(writer);
-            writer = StateJournal::open_for_resume(&journal_path, &desc_path, &snapshot)?;
+            writer = StateJournal::open_for_resume(
+                &journal_path,
+                &desc_path,
+                &snapshot,
+            )?;
         }
     }
 
@@ -446,7 +474,8 @@ fn test_tier4_multi_record_journal_streaming_monotonic_batches() -> Result<()> {
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()> {
+fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()>
+{
     use ctb_formats_dcdata::dc::{
         DC_BEGIN_ERROR_RECORD, DC_BEGIN_WARNING_RECORD, DC_END_ERROR_RECORD,
         DC_END_WARNING_RECORD, DC_ESCAPE, DC_OPERATION_COMPLETED,
@@ -467,8 +496,14 @@ fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()
     for (name, tokens) in [
         ("unknown", vec![DcChar::from_short(517)]),
         ("error", vec![DC_BEGIN_ERROR_RECORD, DC_END_ERROR_RECORD]),
-        ("warning", vec![DC_BEGIN_WARNING_RECORD, DC_END_WARNING_RECORD]),
-        ("escaped_completion", vec![DC_ESCAPE, DC_OPERATION_COMPLETED]),
+        (
+            "warning",
+            vec![DC_BEGIN_WARNING_RECORD, DC_END_WARNING_RECORD],
+        ),
+        (
+            "escaped_completion",
+            vec![DC_ESCAPE, DC_OPERATION_COMPLETED],
+        ),
     ] {
         let test_path = temp.path().join(format!("{name}.cscjournal"));
         let mut fragment = DcMstring::new();
@@ -479,10 +514,17 @@ fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()
         let mut bytes = original.clone();
         bytes.extend_from_slice(fragment.payload_bytes());
         fs::write(&test_path, &bytes)?;
-        ensure!(read_journal_snapshot(&test_path).is_err(), "Strict replay accepted {name}");
+        ensure!(
+            read_journal_snapshot(&test_path).is_err(),
+            "Strict replay accepted {name}"
+        );
         if name == "unknown" || name == "escaped_completion" {
             ensure!(
-                read_journal_snapshot_with_policy(&test_path, &DcProjectionPolicy::forgiving()).is_err(),
+                read_journal_snapshot_with_policy(
+                    &test_path,
+                    &DcProjectionPolicy::forgiving()
+                )
+                .is_err(),
                 "Forgiving replay silently discarded {name}"
             );
         }
@@ -500,10 +542,16 @@ fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()
         let result = read_journal_snapshot(&test_path);
         if incomplete {
             let snapshot = result?;
-            ensure!(!snapshot.is_completed, "A partial trailing record must not be presented as completed");
+            ensure!(
+                !snapshot.is_completed,
+                "A partial trailing record must not be presented as completed"
+            );
             ensure!(snapshot.valid_length == u64::try_from(original.len())?);
         } else {
-            ensure!(result.is_err(), "Malformed token must not be mistaken for EOF");
+            ensure!(
+                result.is_err(),
+                "Malformed token must not be mistaken for EOF"
+            );
         }
     }
     Ok(())
@@ -577,26 +625,36 @@ fn test_tier4_unclosed_trailing_batch_crash_rollback() -> Result<()> {
     // Simulate a crash during batch 2 write:
     // Append an unclosed DC_BEGIN_CHECKSUMMED_SECTION (Dc 543) without closer
     {
-        let mut file = fs::OpenOptions::new()
-            .append(true)
-            .open(&journal_path)?;
+        let mut file =
+            fs::OpenOptions::new().append(true).open(&journal_path)?;
 
         let mut unclosed_mstr = DcMstring::new();
         unclosed_mstr.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
         let body_start = unclosed_mstr.payload_bytes().len();
         unclosed_mstr.push_char(DC_SEQUENCE_IDENTIFIER);
         2u64.encode_dc_mixed(&mut unclosed_mstr)?;
-        let valid_digest = sha256(unclosed_mstr.payload_bytes().get(body_start..).context("Batch body")?);
+        let valid_digest = sha256(
+            unclosed_mstr
+                .payload_bytes()
+                .get(body_start..)
+                .context("Batch body")?,
+        );
         let mut complete = unclosed_mstr.clone();
         complete.push_char(DC_END_CHECKSUMMED_SECTION);
         complete.push_char(DC_SECTION_DIGEST);
-        complete.push_checksum(ctb_utilities::format_id::DC_SHA256, &valid_digest)?;
+        complete.push_checksum(
+            ctb_utilities::format_id::DC_SHA256,
+            &valid_digest,
+        )?;
         let control_path = temp.path().join("complete_crash_batch.cscjournal");
         let mut control_bytes = fs::read(&journal_path)?;
         control_bytes.extend_from_slice(complete.payload_bytes());
         fs::write(&control_path, control_bytes)?;
         let control = read_journal_snapshot(&control_path)?;
-        ensure!(control.last_batch_id == 2 && control.is_committed(b"valid_file.txt"));
+        ensure!(
+            control.last_batch_id == 2
+                && control.is_committed(b"valid_file.txt")
+        );
         // Cut off mid-stream without DC_END_CHECKSUMMED_SECTION or digest
 
         file.write_all(unclosed_mstr.payload_bytes())?;
@@ -689,9 +747,8 @@ fn test_tier4_tampered_batch_digest_rejection_and_isolation() -> Result<()> {
 
     // Append batch 2 with an intentionally bogus SHA-256 digest
     {
-        let mut file = fs::OpenOptions::new()
-            .append(true)
-            .open(&journal_path)?;
+        let mut file =
+            fs::OpenOptions::new().append(true).open(&journal_path)?;
 
         let mut tampered_mst = DcMstring::new();
         tampered_mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
@@ -732,39 +789,71 @@ fn test_tier4_tampered_batch_digest_rejection_and_isolation() -> Result<()> {
             streams: Vec::new(),
         };
         fake_entity.encode_dc_mixed(&mut tampered_mst)?;
-        let valid_digest = sha256(tampered_mst.payload_bytes().get(body_start..).context("Batch body")?);
+        let valid_digest = sha256(
+            tampered_mst
+                .payload_bytes()
+                .get(body_start..)
+                .context("Batch body")?,
+        );
         tampered_mst.push_char(DC_END_CHECKSUMMED_SECTION);
 
         // Append SectionDigest (545) with invalid digest
         tampered_mst.push_char(DC_SECTION_DIGEST);
         let mut valid_mst = tampered_mst.clone();
-        valid_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &valid_digest)?;
+        valid_mst.push_checksum(
+            ctb_utilities::format_id::DC_SHA256,
+            &valid_digest,
+        )?;
         let control_path = temp.path().join("untampered_batch.cscjournal");
         let mut control_bytes = fs::read(&journal_path)?;
         control_bytes.extend_from_slice(valid_mst.payload_bytes());
         fs::write(&control_path, control_bytes)?;
         let control = read_journal_snapshot(&control_path)?;
-        ensure!(control.last_batch_id == 2 && control.committed_entities.len() == 2);
+        ensure!(
+            control.last_batch_id == 2 && control.committed_entities.len() == 2
+        );
         ensure!(control.is_committed(b"tampered_file.txt"));
         let bogus_digest = [0xFF_u8; 32];
-        tampered_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &bogus_digest)?;
+        tampered_mst.push_checksum(
+            ctb_utilities::format_id::DC_SHA256,
+            &bogus_digest,
+        )?;
 
         file.write_all(tampered_mst.payload_bytes())?;
     }
 
     // A closed corrupt batch is not an incomplete write and requires explicit salvage.
-    ensure!(read_journal_snapshot(&journal_path).is_err(), "Strict replay accepted a closed corrupt batch");
+    ensure!(
+        read_journal_snapshot(&journal_path).is_err(),
+        "Strict replay accepted a closed corrupt batch"
+    );
 
-    let salvaged = read_journal_snapshot_with_policy(&journal_path, &DcProjectionPolicy::forgiving())?;
-    ensure!(salvaged.last_batch_id == 2 && salvaged.is_committed(b"tampered_file.txt"));
+    let salvaged = read_journal_snapshot_with_policy(
+        &journal_path,
+        &DcProjectionPolicy::forgiving(),
+    )?;
+    ensure!(
+        salvaged.last_batch_id == 2
+            && salvaged.is_committed(b"tampered_file.txt")
+    );
     ensure!(salvaged.is_committed(b"safe_record.txt"));
-    ensure!(salvaged.warnings.iter().any(|warning| warning.code == "journal-digest-mismatch"));
+    ensure!(
+        salvaged
+            .warnings
+            .iter()
+            .any(|warning| warning.code == "journal-digest-mismatch")
+    );
 
     let mut suffix = DcMstring::new();
     suffix.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
-    fs::OpenOptions::new().append(true).open(&journal_path)?.write_all(suffix.payload_bytes())?;
-    ensure!(read_journal_snapshot(&journal_path).is_err(), "Interior digest mismatch must not authorize suffix truncation");
+    fs::OpenOptions::new()
+        .append(true)
+        .open(&journal_path)?
+        .write_all(suffix.payload_bytes())?;
+    ensure!(
+        read_journal_snapshot(&journal_path).is_err(),
+        "Interior digest mismatch must not authorize suffix truncation"
+    );
 
     Ok(())
 }
-

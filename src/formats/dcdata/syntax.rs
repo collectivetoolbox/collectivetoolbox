@@ -40,13 +40,14 @@ pub mod validator;
 
 mod data_constraint;
 
+pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use ast::{
     ActionArg, CharTarget, DcSyntaxRule, FramingShape,
-    MAX_LEGACY_FRAMING_SHORT_DC_ID, Quantifier, SyntaxAction,
-    SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
-    classify_rule_framing_shape, normalize_syntax_pattern,
+    MAX_LEGACY_FRAMING_SHORT_DC_ID, Quantifier, SyntaxAction, SyntaxDiagnostic,
+    SyntaxElement, SyntaxPattern, SyntaxTerm, classify_rule_framing_shape,
+    normalize_syntax_pattern,
 };
-pub use ast::SyntaxPattern as DcSyntaxExpr;
+pub use data_constraint::parse_data_constraint;
 pub use parser::{
     format_extension_regex_pattern, is_extension_regex, parse_dc_syntax,
     parse_extension_regex, parse_target_token,
@@ -60,7 +61,6 @@ pub use validator::{
     FormatValidationInfo, FormatValidationRegistry,
     build_format_validation_registry, validate_dc_syntax,
 };
-pub use data_constraint::parse_data_constraint;
 
 impl DatasetRuleResolver {
     /// Loads the authoritative resolver state from the bundled runtime seed graph
@@ -86,7 +86,8 @@ impl DatasetRuleResolver {
     pub fn load_from_embedded_dataset() -> Result<Self> {
         let named_types_csv = crate::get_dc_data_file("README-named-types.csv")
             .context("Missing README-named-types.csv fixture")?;
-        let named_resolver = Self::load_from_dataset(&[], &[], Some(&named_types_csv))?;
+        let named_resolver =
+            Self::load_from_dataset(&[], &[], Some(&named_types_csv))?;
         let named_types = named_resolver.named_types.keys().cloned().collect();
         let mut fmt_report = crate::report::ValidationReport::new();
         let formats_dir = crate::get_formats_categories_dir_path();
@@ -95,12 +96,18 @@ impl DatasetRuleResolver {
             None,
             &mut fmt_report,
         );
-        fmt_report.ensure_valid()
+        fmt_report
+            .ensure_valid()
             .context("Invalid format dataset for syntax resolution")?;
-        let format_ids = format_defns.iter().filter_map(|defn| defn.short_id).collect();
-        let format_syntax_ids = format_defns.iter()
+        let format_ids = format_defns
+            .iter()
+            .filter_map(|defn| defn.short_id)
+            .collect();
+        let format_syntax_ids = format_defns
+            .iter()
             .filter(|defn| defn.syntax.is_some())
-            .filter_map(|defn| defn.short_id).collect();
+            .filter_map(|defn| defn.short_id)
+            .collect();
         let format_registry = build_format_validation_registry(&format_defns);
         let categories_dir = crate::get_dc_categories_dir_path();
         let mut dc_defns = crate::validation::validate_all_dc_files_from_disk(
@@ -113,7 +120,8 @@ impl DatasetRuleResolver {
             Some(&format_registry),
             &mut fmt_report,
         );
-        fmt_report.ensure_valid()
+        fmt_report
+            .ensure_valid()
             .context("Invalid Dc dataset for syntax resolution")?;
         dc_defns.sort_by_key(|defn| defn.dc_id);
         Self::load_from_dataset(

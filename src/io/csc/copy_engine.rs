@@ -27,8 +27,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
+use crate::journal::capture::{
+    CapturedPayload, CapturedSource, CommittedHardlinks, hash_primary,
+    open_payload,
+};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, StateJournal};
-use crate::journal::capture::{CapturedSource, CapturedPayload, CommittedHardlinks, hash_primary, open_payload};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::link_path::LinkPath;
@@ -37,15 +40,17 @@ use ctb_io::file::materializer::{
 };
 use ctb_io::file::path_policy::{PathTraversalPolicy, SymlinkValidationPolicy};
 use ctb_io::file::payload::{Extent, PayloadSource};
-use ctb_io::file::{query_block_device_size, verify_directory_filenames_exact};
 use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
-use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity_ext};
+use ctb_io::file::verifier::{
+    try_drop_system_caches, verify_materialized_entity_ext,
+};
+use ctb_io::file::{query_block_device_size, verify_directory_filenames_exact};
 use std::io::{Read, Seek, SeekFrom};
-use std::time::Instant;
 #[cfg(unix)]
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Summary stats from a copy run.
@@ -95,20 +100,25 @@ fn handle_item_error(
 ) -> Result<Option<PathBuf>> {
     let err_record = JournalErrorRecord::from_error(src_path, stage, &err);
     let error_message = &err_record.error_message;
-    journal.record_error(&err_record)
-        .with_context(|| format!("Failed to journal copy failure: {error_message}"))?;
+    journal.record_error(&err_record).with_context(|| {
+        format!("Failed to journal copy failure: {error_message}")
+    })?;
     if args.continue_on_error {
         warn_fmt!("Failed to copy {}: {}", src_path.display(), error_message);
         stats.files_failed = stats.files_failed.saturating_add(1);
         Ok(None)
     } else {
-        journal.mark_failed(error_message)
-            .with_context(|| format!("Failed to mark failed copy: {error_message}"))?;
+        journal.mark_failed(error_message).with_context(|| {
+            format!("Failed to mark failed copy: {error_message}")
+        })?;
         Err(err)
     }
 }
 
-fn record_entity_warnings(entity: &FileEntity, journal: &mut StateJournal) -> Result<()> {
+fn record_entity_warnings(
+    entity: &FileEntity,
+    journal: &mut StateJournal,
+) -> Result<()> {
     crate::journal::capture::visit_warnings(entity, &mut |entity, warning| {
         journal.record_warning("FileReadWarning", warning)?;
         warn_fmt!("{}: {}", entity.identity.display_path(), warning);
@@ -117,7 +127,11 @@ fn record_entity_warnings(entity: &FileEntity, journal: &mut StateJournal) -> Re
 }
 
 /// Runs the complete copy pipeline across all tasks using descriptor-safe, multi-pass copying.
-fn validate_filesystem_known(path: &Path, fs_type: Option<&str>, args: &CscArgs) -> Result<()> {
+fn validate_filesystem_known(
+    path: &Path,
+    fs_type: Option<&str>,
+    args: &CscArgs,
+) -> Result<()> {
     if !args.best_effort_metadata && !args.allow_unknown_fs {
         if let Some(fs) = fs_type {
             if fs == "unknown" {
@@ -173,7 +187,8 @@ pub fn execute_copy_pipeline(
     let copy_task = progress.start_task("Copying", None);
 
     let strict_lossless = args.strict || !args.best_effort_metadata;
-    let (apple_write_mode, apple_single_write_extension) = args.resolve_apple_write_mode()?;
+    let (apple_write_mode, apple_single_write_extension) =
+        args.resolve_apple_write_mode()?;
     let apple_read_options = args.resolve_apple_read_options();
     let options = MaterializeOptions {
         dry_run: args.dry_run,
@@ -203,20 +218,38 @@ pub fn execute_copy_pipeline(
                 .yield_root(true)
                 .one_file_system(args.one_file_system)
                 .apple_read_options(apple_read_options);
-            for entry in ctb_io::file::traverse_dir(&task.source_root, traversal_options)? {
+            for entry in ctb_io::file::traverse_dir(
+                &task.source_root,
+                traversal_options,
+            )? {
                 let entry = entry?;
-                ensure!(entry.errors.is_empty(), "Source traversal errors: {}", entry.errors.join("; "));
+                ensure!(
+                    entry.errors.is_empty(),
+                    "Source traversal errors: {}",
+                    entry.errors.join("; ")
+                );
                 if !entry.is_dir {
                     continue;
                 }
                 let destination = task.target_root.join(&entry.relative_path);
                 match std::fs::symlink_metadata(&destination) {
                     Ok(_) => {
-                        let is_resumed_and_authorized = if let Some(snap) = journal.snapshot() {
-                            if let Ok(rel) = compute_journal_relative_path(journal.destination(), &destination) {
-                                if let Some(expected_id) = snap.applied_directories.get(&rel) {
-                                    ctb_io::file::identity::query_file_identity(&destination)
-                                        .is_ok_and(|actual_id| actual_id == *expected_id)
+                        let is_resumed_and_authorized = if let Some(snap) =
+                            journal.snapshot()
+                        {
+                            if let Ok(rel) = compute_journal_relative_path(
+                                journal.destination(),
+                                &destination,
+                            ) {
+                                if let Some(expected_id) =
+                                    snap.applied_directories.get(&rel)
+                                {
+                                    ctb_io::file::identity::query_file_identity(
+                                        &destination,
+                                    )
+                                    .is_ok_and(|actual_id| {
+                                        actual_id == *expected_id
+                                    })
                                 } else {
                                     false
                                 }
@@ -227,10 +260,14 @@ pub fn execute_copy_pipeline(
                             false
                         };
                         if !is_resumed_and_authorized {
-                            anyhow::bail!("Restoring directory metadata requires --overwrite for existing destination {}; resume does not grant permission", destination.display());
+                            anyhow::bail!(
+                                "Restoring directory metadata requires --overwrite for existing destination {}; resume does not grant permission",
+                                destination.display()
+                            );
                         }
                     }
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                    Err(error)
+                        if error.kind() == std::io::ErrorKind::NotFound => {}
                     Err(error) => return Err(error.into()),
                 }
             }
@@ -247,7 +284,10 @@ pub fn execute_copy_pipeline(
         let src_meta = match std::fs::symlink_metadata(src_root) {
             Ok(m) => m,
             Err(e) => {
-                anyhow::bail!("Source path does not exist: {}: {e}", src_root.display());
+                anyhow::bail!(
+                    "Source path does not exist: {}: {e}",
+                    src_root.display()
+                );
             }
         };
 
@@ -263,25 +303,33 @@ pub fn execute_copy_pipeline(
             }
         };
         if let Ok(tgt_meta) = std::fs::symlink_metadata(&tgt_existing) {
-            let tgt_fs = ctb_io::file::query_filesystem_info(&tgt_existing, &tgt_meta);
+            let tgt_fs =
+                ctb_io::file::query_filesystem_info(&tgt_existing, &tgt_meta);
             validate_filesystem_known(tgt_root, Some(&tgt_fs.fs_type), args)?;
         }
 
         if src_meta.is_dir() {
             let dest_dir = std::sync::Arc::new(if args.dry_run {
-                SandboxableDir::open(".").context("Failed to open current directory in dry run")?
+                SandboxableDir::open(".")
+                    .context("Failed to open current directory in dry run")?
             } else {
                 SandboxableDir::create_or_open(journal.destination())?
             });
 
             if let Some(snap) = journal.snapshot() {
-                let mut applied_dirs: Vec<_> = snap.applied_directories.iter().collect();
+                let mut applied_dirs: Vec<_> =
+                    snap.applied_directories.iter().collect();
                 applied_dirs.sort_by(|a, b| a.0.cmp(b.0));
                 for (rel_dir, expected_identity) in applied_dirs {
-                    dest_dir.restore_applied_directory_ownership(rel_dir, expected_identity)?;
+                    dest_dir.restore_applied_directory_ownership(
+                        rel_dir,
+                        expected_identity,
+                    )?;
                 }
             }
-            if let Ok(root_id) = dest_dir.query_owned_directory_identity(Path::new("")) {
+            if let Ok(root_id) =
+                dest_dir.query_owned_directory_identity(Path::new(""))
+            {
                 journal.record_applied_directory(PathBuf::new(), root_id);
             }
 
@@ -290,18 +338,33 @@ pub fn execute_copy_pipeline(
                 .one_file_system(args.one_file_system)
                 .error_policy(ctb_io::file::OnTraversalError::Capture)
                 .apple_read_options(apple_read_options);
-            let mut directories = ctb_io::file::traverse_dir(src_root, traversal_opts)?.directories()?;
+            let mut directories =
+                ctb_io::file::traverse_dir(src_root, traversal_opts)?
+                    .directories()?;
 
             while let Some(directory) = directories.next() {
                 let directory = directory?;
                 let curr_src = directory.path.clone();
                 let curr_tgt = tgt_root.join(&directory.relative_path);
                 if !directory.errors.is_empty() {
-                    let error = anyhow::anyhow!("Source traversal errors: {}", directory.errors.join("; "));
-                    let _ = handle_item_error(&curr_src, JournalErrorStage::Traversal, error, args, journal, &mut stats)?;
+                    let error = anyhow::anyhow!(
+                        "Source traversal errors: {}",
+                        directory.errors.join("; ")
+                    );
+                    let _ = handle_item_error(
+                        &curr_src,
+                        JournalErrorStage::Traversal,
+                        error,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
                     continue;
                 }
-                let CapturedSource { entity: mut dir_entity, snapshot: dir_snapshot } = match CapturedSource::capture(
+                let CapturedSource {
+                    entity: mut dir_entity,
+                    snapshot: dir_snapshot,
+                } = match CapturedSource::capture(
                     &curr_src,
                     Some(src_root),
                     &apple_read_options,
@@ -339,15 +402,26 @@ pub fn execute_copy_pipeline(
                     continue;
                 }
 
-                let orig_rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
+                let orig_rel = compute_journal_relative_path(
+                    journal.destination(),
+                    &curr_tgt,
+                )?;
                 captured_tree.retain(&dir_snapshot);
-                let (rel, dir_adapt_warnings) = if strict_lossless || orig_rel.as_os_str().is_empty() || orig_rel == Path::new(".") {
+                let (rel, dir_adapt_warnings) = if strict_lossless
+                    || orig_rel.as_os_str().is_empty()
+                    || orig_rel == Path::new(".")
+                {
                     (orig_rel.clone(), Vec::new())
                 } else {
-                    ctb_io::file::adapt_relative_path_for_materialization(&orig_rel, cfg!(windows))
+                    ctb_io::file::adapt_relative_path_for_materialization(
+                        &orig_rel,
+                        cfg!(windows),
+                    )
                 };
                 if rel != orig_rel {
-                    dir_entity.metadata.set_materialized_relative_path(&orig_rel, &rel);
+                    dir_entity
+                        .metadata
+                        .set_materialized_relative_path(&orig_rel, &rel);
                 }
                 let curr_tgt = if rel == orig_rel {
                     curr_tgt
@@ -355,16 +429,39 @@ pub fn execute_copy_pipeline(
                     dest_dir.root_path().join(&rel)
                 };
                 dir_entity.identity.relative_path = Some(rel.clone());
-                record_materialization_warnings(journal, &mut dir_entity, dir_adapt_warnings)?;
+                record_materialization_warnings(
+                    journal,
+                    &mut dir_entity,
+                    dir_adapt_warnings,
+                )?;
 
                 if !args.dry_run {
                     // Reason for fallback: absent relative path defaults to current directory "." as destination root
-                    let rel_dir = if rel.as_os_str().is_empty() { Path::new(".") } else { &rel };
-                    if let Err(e) = validate_copy_source(&dir_snapshot, &mut dir_entity, journal).and_then(|()| dest_dir.ensure_dir_all(
-                        rel_dir,
-                        options.path_policy,
-                    )).and_then(|_| dest_dir.authorize_metadata(rel_dir, options.existing_entry_policy)) {
-                        record_materialization_failure(journal, &dest_dir.root_path().join(rel_dir), &dir_entity, &e)?;
+                    let rel_dir = if rel.as_os_str().is_empty() {
+                        Path::new(".")
+                    } else {
+                        &rel
+                    };
+                    if let Err(e) = validate_copy_source(
+                        &dir_snapshot,
+                        &mut dir_entity,
+                        journal,
+                    )
+                    .and_then(|()| {
+                        dest_dir.ensure_dir_all(rel_dir, options.path_policy)
+                    })
+                    .and_then(|_| {
+                        dest_dir.authorize_metadata(
+                            rel_dir,
+                            options.existing_entry_policy,
+                        )
+                    }) {
+                        record_materialization_failure(
+                            journal,
+                            &dest_dir.root_path().join(rel_dir),
+                            &dir_entity,
+                            &e,
+                        )?;
                         let _ = handle_item_error(
                             &curr_src,
                             JournalErrorStage::Materialize,
@@ -375,7 +472,9 @@ pub fn execute_copy_pipeline(
                         )?;
                         continue;
                     }
-                    if let Ok(identity) = dest_dir.query_owned_directory_identity(rel_dir) {
+                    if let Ok(identity) =
+                        dest_dir.query_owned_directory_identity(rel_dir)
+                    {
                         journal.record_applied_directory(rel.clone(), identity);
                     }
                 }
@@ -387,25 +486,46 @@ pub fn execute_copy_pipeline(
                 }
 
                 // Reason for fallback: absent relative path defaults to current directory "." as destination root
-                let dir_rel = dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new("."));
+                let dir_rel = dir_entity
+                    .identity
+                    .relative_path
+                    .as_deref()
+                    .unwrap_or(Path::new("."));
                 let mut traversal_errors = Vec::new();
-                let entries_result = directories.read_directory(&directory, |entries| {
-                    let mut discovered = Vec::new();
-                    for item in entries {
-                        if item.errors.is_empty() {
-                            discovered.push(item);
-                        } else {
-                            let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
-                            traversal_errors.push((item.path, error));
+                let entries_result =
+                    directories.read_directory(&directory, |entries| {
+                        let mut discovered = Vec::new();
+                        for item in entries {
+                            if item.errors.is_empty() {
+                                discovered.push(item);
+                            } else {
+                                let error = anyhow::anyhow!(
+                                    "Source traversal errors: {}",
+                                    item.errors.join("; ")
+                                );
+                                traversal_errors.push((item.path, error));
+                            }
                         }
-                    }
-                    ctb_io::file::validate_and_order_directory_entries(
-                        discovered, &curr_src, &curr_tgt, tgt_root, dir_rel,
-                        &apple_read_options, apple_write_mode, apple_single_write_extension,
-                    )
-                });
+                        ctb_io::file::validate_and_order_directory_entries(
+                            discovered,
+                            &curr_src,
+                            &curr_tgt,
+                            tgt_root,
+                            dir_rel,
+                            &apple_read_options,
+                            apple_write_mode,
+                            apple_single_write_extension,
+                        )
+                    });
                 for (path, error) in traversal_errors {
-                    let _ = handle_item_error(&path, JournalErrorStage::Traversal, error, args, journal, &mut stats)?;
+                    let _ = handle_item_error(
+                        &path,
+                        JournalErrorStage::Traversal,
+                        error,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
                 }
                 let dir_entries = match entries_result {
                     Ok(entries) => entries,
@@ -430,7 +550,9 @@ pub fn execute_copy_pipeline(
                     let entry_tgt = curr_tgt.join(&entry_name);
 
                     let entry_rel = match &dir_entity.identity.relative_path {
-                        Some(p) if !p.as_os_str().is_empty() => p.join(&entry_name),
+                        Some(p) if !p.as_os_str().is_empty() => {
+                            p.join(&entry_name)
+                        }
                         _ => PathBuf::from(&entry_name),
                     };
 
@@ -438,18 +560,30 @@ pub fn execute_copy_pipeline(
                         let expected_name = if strict_lossless {
                             entry_name.clone()
                         } else {
-                            ctb_io::file::adapt_component_for_materialization(&entry_name, cfg!(windows)).0
+                            ctb_io::file::adapt_component_for_materialization(
+                                &entry_name,
+                                cfg!(windows),
+                            )
+                            .0
                         };
-                        expected_filenames.push(expected_name.as_encoded_bytes().to_vec());
+                        expected_filenames
+                            .push(expected_name.as_encoded_bytes().to_vec());
                     } else if item.is_symlink {
-                        let CapturedSource { entity: sym_entity, snapshot } = match CapturedSource::capture(
+                        let CapturedSource {
+                            entity: sym_entity,
+                            snapshot,
+                        } = match CapturedSource::capture(
                             &entry_src,
                             Some(src_root),
                             &apple_read_options,
-                            args.on_source_change == SourceChangePolicy::BestEffort,
+                            args.on_source_change
+                                == SourceChangePolicy::BestEffort,
                         ) {
                             Ok(source) => {
-                                record_entity_warnings(&source.entity, journal)?;
+                                record_entity_warnings(
+                                    &source.entity,
+                                    journal,
+                                )?;
                                 source
                             }
                             Err(e) => {
@@ -482,9 +616,14 @@ pub fn execute_copy_pipeline(
                         let expected_name = if strict_lossless {
                             entry_name.clone()
                         } else {
-                            ctb_io::file::adapt_component_for_materialization(&entry_name, cfg!(windows)).0
+                            ctb_io::file::adapt_component_for_materialization(
+                                &entry_name,
+                                cfg!(windows),
+                            )
+                            .0
                         };
-                        expected_filenames.push(expected_name.as_encoded_bytes().to_vec());
+                        expected_filenames
+                            .push(expected_name.as_encoded_bytes().to_vec());
                         let mut sym_entity = sym_entity;
                         sym_entity.identity.relative_path = Some(entry_rel);
                         deferred_symlinks.push(DeferredSymlink {
@@ -511,7 +650,8 @@ pub fn execute_copy_pipeline(
                         )?;
                         if let Some(dest) = created_path {
                             if let Some(fname) = dest.file_name() {
-                                expected_filenames.push(fname.as_encoded_bytes().to_vec());
+                                expected_filenames
+                                    .push(fname.as_encoded_bytes().to_vec());
                             }
                         }
 
@@ -522,8 +662,13 @@ pub fn execute_copy_pipeline(
                         }
 
                         if progress.is_enabled() {
-                            let detail = format!("{} bytes", stats.bytes_copied);
-                            progress.update_task(copy_task, stats.files_copied, Some(&detail));
+                            let detail =
+                                format!("{} bytes", stats.bytes_copied);
+                            progress.update_task(
+                                copy_task,
+                                stats.files_copied,
+                                Some(&detail),
+                            );
                         }
                     }
                 }
@@ -548,7 +693,8 @@ pub fn execute_copy_pipeline(
                 .context("Target path has no file name component")?;
 
             let dest_dir = std::sync::Arc::new(if args.dry_run {
-                SandboxableDir::open(".").context("Failed to open current directory in dry run")?
+                SandboxableDir::open(".")
+                    .context("Failed to open current directory in dry run")?
             } else {
                 SandboxableDir::create_or_open(parent_dest)?
             });
@@ -556,8 +702,15 @@ pub fn execute_copy_pipeline(
             let target_rel_path = Path::new(target_file_name);
 
             if src_meta.is_symlink() {
-                let CapturedSource { entity: mut sym_entity, snapshot } = match CapturedSource::capture(src_root, None,
-                    &apple_read_options, args.on_source_change == SourceChangePolicy::BestEffort) {
+                let CapturedSource {
+                    entity: mut sym_entity,
+                    snapshot,
+                } = match CapturedSource::capture(
+                    src_root,
+                    None,
+                    &apple_read_options,
+                    args.on_source_change == SourceChangePolicy::BestEffort,
+                ) {
                     Ok(source) => {
                         record_entity_warnings(&source.entity, journal)?;
                         source
@@ -589,7 +742,8 @@ pub fn execute_copy_pipeline(
                     )?;
                     continue;
                 }
-                sym_entity.identity.relative_path = Some(target_rel_path.to_path_buf());
+                sym_entity.identity.relative_path =
+                    Some(target_rel_path.to_path_buf());
                 deferred_symlinks.push(DeferredSymlink {
                     src_path: src_root.clone(),
                     dest_path: tgt_root.clone(),
@@ -613,7 +767,9 @@ pub fn execute_copy_pipeline(
                     progress,
                     copy_task,
                 )?;
-                if created.is_none() && stats.special_files_skipped > skipped_before {
+                if created.is_none()
+                    && stats.special_files_skipped > skipped_before
+                {
                     let err = anyhow::anyhow!(
                         "Refusing to copy special file '{}' without an explicit special-file policy (pass --copy-specials-as-specials or --copy-fifos-as-regular-files / --copy-block-devices-as-regular-files)",
                         src_root.display()
@@ -629,7 +785,11 @@ pub fn execute_copy_pipeline(
                 }
                 if progress.is_enabled() {
                     let detail = format!("{} bytes", stats.bytes_copied);
-                    progress.update_task(copy_task, stats.files_copied, Some(&detail));
+                    progress.update_task(
+                        copy_task,
+                        stats.files_copied,
+                        Some(&detail),
+                    );
                 }
             }
         }
@@ -641,13 +801,23 @@ pub fn execute_copy_pipeline(
     for symlink_item in deferred_symlinks {
         let dest_path = &symlink_item.dest_path;
         let mut entity = symlink_item.entity;
-        if let Err(error) = validate_copy_source(&symlink_item.snapshot, &mut entity, journal) {
-            let _ = handle_item_error(&symlink_item.src_path, JournalErrorStage::PostCheck, error, args, journal, &mut stats)?;
+        if let Err(error) =
+            validate_copy_source(&symlink_item.snapshot, &mut entity, journal)
+        {
+            let _ = handle_item_error(
+                &symlink_item.src_path,
+                JournalErrorStage::PostCheck,
+                error,
+                args,
+                journal,
+                &mut stats,
+            )?;
             continue;
         }
         let dest_dir = &symlink_item.sandbox;
         // Reason for fallback: entity at root of destination sandbox has no explicit relative path, defaulting to empty path
-        let symlink_rel = entity.identity.relative_path.clone().unwrap_or_default();
+        let symlink_rel =
+            entity.identity.relative_path.clone().unwrap_or_default();
         if is_verified_resumed_destination_entry(
             &symlink_rel,
             dest_path,
@@ -658,39 +828,54 @@ pub fn execute_copy_pipeline(
             journal,
         ) {
             record_journal_entry(journal, dest_path, &entity)?;
-            files_to_verify.push((symlink_item.src_path, dest_path.clone(), entity));
+            files_to_verify.push((
+                symlink_item.src_path,
+                dest_path.clone(),
+                entity,
+            ));
             continue;
         }
         if !args.dry_run
-            && !(options.existing_entry_policy == ctb_io::file::ExistingEntryPolicy::Refuse
+            && !(options.existing_entry_policy
+                == ctb_io::file::ExistingEntryPolicy::Refuse
                 && std::fs::symlink_metadata(dest_path).is_ok())
         {
             record_journal_entry(journal, dest_path, &entity)?;
             journal.commit_batch()?;
         }
 
-        let receipt = match materialize_entity(&entity, None, dest_dir, &options) {
-            Ok(receipt) => receipt,
-            Err(e) => {
-                record_materialization_failure(journal, dest_path, &entity, &e)?;
-                let _ = handle_item_error(
-                    &symlink_item.src_path,
-                    JournalErrorStage::Materialize,
-                    e,
-                    args,
-                    journal,
-                    &mut stats,
-                )?;
-                continue;
-            }
-        };
+        let receipt =
+            match materialize_entity(&entity, None, dest_dir, &options) {
+                Ok(receipt) => receipt,
+                Err(e) => {
+                    record_materialization_failure(
+                        journal, dest_path, &entity, &e,
+                    )?;
+                    let _ = handle_item_error(
+                        &symlink_item.src_path,
+                        JournalErrorStage::Materialize,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
+            };
         receipt.apply_stream_adaptations(&mut entity);
-        record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+        record_materialization_warnings(
+            journal,
+            &mut entity,
+            receipt.warnings,
+        )?;
         let actual_dest_path = &receipt.destination_path;
         if actual_dest_path != dest_path {
             if let (Ok(orig_rel), Ok(actual_rel)) = (
                 compute_journal_relative_path(journal.destination(), dest_path),
-                compute_journal_relative_path(journal.destination(), actual_dest_path),
+                compute_journal_relative_path(
+                    journal.destination(),
+                    actual_dest_path,
+                ),
             ) {
                 let source_rel = if orig_rel.as_os_str().is_empty() {
                     entity.identity.relative_path.clone().unwrap_or(orig_rel) // Reason for fallback: single-file copy uses filename relative to parent dir
@@ -699,12 +884,16 @@ pub fn execute_copy_pipeline(
                 };
                 let mat_rel = if actual_rel.as_os_str().is_empty() {
                     // Reason for fallback: single-file copy uses destination filename when relative path is empty, falling back to empty path if no filename
-                    actual_dest_path.file_name().map_or(actual_rel.clone(), PathBuf::from)
+                    actual_dest_path
+                        .file_name()
+                        .map_or(actual_rel.clone(), PathBuf::from)
                 } else {
                     actual_rel.clone()
                 };
                 if source_rel != mat_rel {
-                    entity.metadata.set_materialized_relative_path(&source_rel, &mat_rel);
+                    entity
+                        .metadata
+                        .set_materialized_relative_path(&source_rel, &mat_rel);
                 }
                 if !actual_rel.as_os_str().is_empty() {
                     entity.identity.relative_path = Some(actual_rel);
@@ -715,12 +904,21 @@ pub fn execute_copy_pipeline(
         if !args.dry_run {
             let dest_target = match std::fs::symlink_metadata(actual_dest_path)
                 .map_err(anyhow::Error::new)
-                .and_then(|observed| ctb_io::file::metadata::read_symlink_target(actual_dest_path, &observed))
-            {
+                .and_then(|observed| {
+                    ctb_io::file::metadata::read_symlink_target(
+                        actual_dest_path,
+                        &observed,
+                    )
+                }) {
                 Ok(t) => t,
                 Err(e) => {
                     let error = e;
-                    record_materialization_failure(journal, actual_dest_path, &entity, &error)?;
+                    record_materialization_failure(
+                        journal,
+                        actual_dest_path,
+                        &entity,
+                        &error,
+                    )?;
                     let _ = handle_item_error(
                         &symlink_item.src_path,
                         JournalErrorStage::Materialize,
@@ -733,17 +931,24 @@ pub fn execute_copy_pipeline(
                 }
             };
             if let FileEntityKind::Symlink { target } = &entity.kind {
-                let expected_target = target.to_path_buf_for_materialization(strict_lossless)?;
+                let expected_target =
+                    target.to_path_buf_for_materialization(strict_lossless)?;
                 let exact = dest_target.as_os_str().as_encoded_bytes()
                     == expected_target.as_os_str().as_encoded_bytes();
-                let adapted = !strict_lossless && dest_target.as_os_str().as_encoded_bytes()
-                    == expected_target.to_string_lossy().as_bytes();
+                let adapted = !strict_lossless
+                    && dest_target.as_os_str().as_encoded_bytes()
+                        == expected_target.to_string_lossy().as_bytes();
                 if !exact && !adapted {
                     let err = anyhow::anyhow!(
                         "Target filesystem altered or normalized symlink target for {}",
                         actual_dest_path.display()
                     );
-                    record_materialization_failure(journal, actual_dest_path, &entity, &err)?;
+                    record_materialization_failure(
+                        journal,
+                        actual_dest_path,
+                        &entity,
+                        &err,
+                    )?;
                     let _ = handle_item_error(
                         &symlink_item.src_path,
                         JournalErrorStage::Materialize,
@@ -759,7 +964,11 @@ pub fn execute_copy_pipeline(
 
         stats.symlinks_created = stats.symlinks_created.saturating_add(1);
         record_journal_entry(journal, actual_dest_path, &entity)?;
-        files_to_verify.push((symlink_item.src_path, actual_dest_path.clone(), entity));
+        files_to_verify.push((
+            symlink_item.src_path,
+            actual_dest_path.clone(),
+            entity,
+        ));
     }
 
     // =========================================================================
@@ -767,15 +976,37 @@ pub fn execute_copy_pipeline(
     // =========================================================================
     if !args.dry_run {
         while let Some(mut fixup) = deferred_dirs.pop() {
-            if let Err(error) = validate_copy_source(&fixup.snapshot, &mut fixup.dir_entity, journal) {
-                let _ = handle_item_error(&fixup.src_path, JournalErrorStage::PostCheck, error, args, journal, &mut stats)?;
+            if let Err(error) = validate_copy_source(
+                &fixup.snapshot,
+                &mut fixup.dir_entity,
+                journal,
+            ) {
+                let _ = handle_item_error(
+                    &fixup.src_path,
+                    JournalErrorStage::PostCheck,
+                    error,
+                    args,
+                    journal,
+                    &mut stats,
+                )?;
                 continue;
             }
             if fixup.dest_path.exists() {
-                let expected_refs: Vec<&[u8]> =
-                    fixup.expected_filenames.iter().map(Vec::as_slice).collect();
-                if let Err(e) = verify_directory_filenames_exact(&fixup.dest_path, &expected_refs) {
-                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
+                let expected_refs: Vec<&[u8]> = fixup
+                    .expected_filenames
+                    .iter()
+                    .map(Vec::as_slice)
+                    .collect();
+                if let Err(e) = verify_directory_filenames_exact(
+                    &fixup.dest_path,
+                    &expected_refs,
+                ) {
+                    record_materialization_failure(
+                        journal,
+                        &fixup.dest_path,
+                        &fixup.dir_entity,
+                        &e,
+                    )?;
                     let _ = handle_item_error(
                         &fixup.src_path,
                         JournalErrorStage::Materialize,
@@ -787,7 +1018,11 @@ pub fn execute_copy_pipeline(
                     continue;
                 }
 
-                let relative = fixup.dir_entity.identity.relative_path.as_deref()
+                let relative = fixup
+                    .dir_entity
+                    .identity
+                    .relative_path
+                    .as_deref()
                     .context("Missing deferred directory relative path")?;
                 let (stream_adaptations, stream_warnings) = match fixup
                     .sandbox
@@ -816,12 +1051,19 @@ pub fn execute_copy_pipeline(
                     }
                 };
                 for adapt in &stream_adaptations {
-                    if let Some(stream) = fixup.dir_entity.streams.get_mut(adapt.stream_index) {
-                        if adapt.source_stream_name != adapt.materialized_stream_name {
-                            stream.entity.metadata.set_materialized_stream_name(
-                                &adapt.source_stream_name,
-                                &adapt.materialized_stream_name,
-                            );
+                    if let Some(stream) =
+                        fixup.dir_entity.streams.get_mut(adapt.stream_index)
+                    {
+                        if adapt.source_stream_name
+                            != adapt.materialized_stream_name
+                        {
+                            stream
+                                .entity
+                                .metadata
+                                .set_materialized_stream_name(
+                                    &adapt.source_stream_name,
+                                    &adapt.materialized_stream_name,
+                                );
                         }
                         if let (Some(src_rel), Some(mat_rel)) = (
                             adapt.source_relative_path.as_deref(),
@@ -831,13 +1073,20 @@ pub fn execute_copy_pipeline(
                                 stream
                                     .entity
                                     .metadata
-                                    .set_materialized_relative_path(src_rel, mat_rel);
+                                    .set_materialized_relative_path(
+                                        src_rel, mat_rel,
+                                    );
                             }
-                            stream.entity.identity.relative_path = Some(mat_rel.to_path_buf());
+                            stream.entity.identity.relative_path =
+                                Some(mat_rel.to_path_buf());
                         }
                     }
                 }
-                record_materialization_warnings(journal, &mut fixup.dir_entity, stream_warnings)?;
+                record_materialization_warnings(
+                    journal,
+                    &mut fixup.dir_entity,
+                    stream_warnings,
+                )?;
                 let warnings = match apply_entity_metadata(
                     &fixup.dest_path,
                     None,
@@ -849,7 +1098,12 @@ pub fn execute_copy_pipeline(
                 ) {
                     Ok(warnings) => warnings,
                     Err(e) => {
-                        record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
+                        record_materialization_failure(
+                            journal,
+                            &fixup.dest_path,
+                            &fixup.dir_entity,
+                            &e,
+                        )?;
                         let _ = handle_item_error(
                             &fixup.src_path,
                             JournalErrorStage::Materialize,
@@ -861,8 +1115,16 @@ pub fn execute_copy_pipeline(
                         continue;
                     }
                 };
-                record_materialization_warnings(journal, &mut fixup.dir_entity, warnings)?;
-                record_journal_entry(journal, &fixup.dest_path, &fixup.dir_entity)?;
+                record_materialization_warnings(
+                    journal,
+                    &mut fixup.dir_entity,
+                    warnings,
+                )?;
+                record_journal_entry(
+                    journal,
+                    &fixup.dest_path,
+                    &fixup.dir_entity,
+                )?;
                 if let Err(e) = verify_materialized_entity_ext(
                     &fixup.dest_path,
                     &fixup.dir_entity,
@@ -871,7 +1133,12 @@ pub fn execute_copy_pipeline(
                     args.should_check_ctime(),
                     options.check_birthtime,
                 ) {
-                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
+                    record_materialization_failure(
+                        journal,
+                        &fixup.dest_path,
+                        &fixup.dir_entity,
+                        &e,
+                    )?;
                     let _ = handle_item_error(
                         &fixup.src_path,
                         JournalErrorStage::Materialize,
@@ -882,10 +1149,22 @@ pub fn execute_copy_pipeline(
                     )?;
                     continue;
                 }
-                files_to_verify.push((fixup.src_path, fixup.dest_path, fixup.dir_entity));
+                files_to_verify.push((
+                    fixup.src_path,
+                    fixup.dest_path,
+                    fixup.dir_entity,
+                ));
             } else {
-                let err = anyhow::anyhow!("Destination directory disappeared: {}", fixup.dest_path.display());
-                record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &err)?;
+                let err = anyhow::anyhow!(
+                    "Destination directory disappeared: {}",
+                    fixup.dest_path.display()
+                );
+                record_materialization_failure(
+                    journal,
+                    &fixup.dest_path,
+                    &fixup.dir_entity,
+                    &err,
+                )?;
                 let _ = handle_item_error(
                     &fixup.src_path,
                     JournalErrorStage::Materialize,
@@ -901,7 +1180,10 @@ pub fn execute_copy_pipeline(
     }
 
     if progress.is_enabled() && stats.files_copied > 0 {
-        let detail = format!("{} files ({} bytes)", stats.files_copied, stats.bytes_copied);
+        let detail = format!(
+            "{} files ({} bytes)",
+            stats.files_copied, stats.bytes_copied
+        );
         progress.finish_task(copy_task, Some(&detail));
     }
 
@@ -909,25 +1191,35 @@ pub fn execute_copy_pipeline(
     // PASS 4: Post-flush independent verification pass
     // =========================================================================
     if args.should_verify_after() && !args.dry_run {
-        progress.message("[Verifying] Flushing caches and verifying checksums...");
+        progress
+            .message("[Verifying] Flushing caches and verifying checksums...");
         try_drop_system_caches();
 
         let total_to_verify = u64::try_from(files_to_verify.len())?;
-        let verify_task = progress.start_task("Verifying", Some(total_to_verify));
+        let verify_task =
+            progress.start_task("Verifying", Some(total_to_verify));
 
         for (src_path, dest_path, entity) in &files_to_verify {
             if progress.is_enabled() {
                 // Reason for fallback: root or empty path without a filename defaults to empty detail string
-                let detail = src_path
-                    .file_name()
-                    .map_or_else(String::new, |f| f.to_string_lossy().into_owned());
-                progress.update_task(verify_task, stats.files_verified, Some(&detail));
+                let detail =
+                    src_path.file_name().map_or_else(String::new, |f| {
+                        f.to_string_lossy().into_owned()
+                    });
+                progress.update_task(
+                    verify_task,
+                    stats.files_verified,
+                    Some(&detail),
+                );
             }
             let check_atime = args.should_check_atime()
-                || (entity.is_regular() && entity.metadata.used_noatime() && !args.best_effort_metadata);
+                || (entity.is_regular()
+                    && entity.metadata.used_noatime()
+                    && !args.best_effort_metadata);
             #[cfg(unix)]
             // Reason for fallback: failed metadata read treats path as not being a special device file
-            let is_special_as_regular = (args.copy_block_devices_as_regular_files
+            let is_special_as_regular = (args
+                .copy_block_devices_as_regular_files
                 || args.copy_fifos_as_regular_files)
                 && std::fs::symlink_metadata(src_path).is_ok_and(|m| {
                     m.file_type().is_block_device() || m.file_type().is_fifo()
@@ -1000,10 +1292,21 @@ fn finalize_copy_pipeline(
 ) -> Result<()> {
     if let Err(error) = captured_tree.validate() {
         let path = journal.destination().to_path_buf();
-        let _ = handle_item_error(&path, JournalErrorStage::PostCheck, error, args, journal, stats)?;
+        let _ = handle_item_error(
+            &path,
+            JournalErrorStage::PostCheck,
+            error,
+            args,
+            journal,
+            stats,
+        )?;
     }
     captured_tree.visit_pending_warnings(&mut |code, warning| {
-        if !journal.warnings().iter().any(|record| record.message == warning) {
+        if !journal
+            .warnings()
+            .iter()
+            .any(|record| record.message == warning)
+        {
             journal.record_warning(code, warning)?;
             warn_fmt!("{warning}");
         }
@@ -1045,7 +1348,10 @@ fn copy_single_item(
         &apple_read_options,
         args.on_source_change == SourceChangePolicy::BestEffort,
     );
-    let CapturedSource { mut entity, snapshot } = match entity_res {
+    let CapturedSource {
+        mut entity,
+        snapshot,
+    } = match entity_res {
         Ok(source) => {
             record_entity_warnings(&source.entity, journal)?;
             source
@@ -1080,12 +1386,20 @@ fn copy_single_item(
     let mut effective_dest_rel = dest_rel_path.to_path_buf();
     if let Some(name) = dest_rel_path.file_name() {
         for (enabled, extension) in [
-            (apple_read_options.read_apple_single_as, ctb_io::file::apple_double::AppleSingleExtension::As),
-            (apple_read_options.read_apple_single_asf, ctb_io::file::apple_double::AppleSingleExtension::Asf),
+            (
+                apple_read_options.read_apple_single_as,
+                ctb_io::file::apple_double::AppleSingleExtension::As,
+            ),
+            (
+                apple_read_options.read_apple_single_asf,
+                ctb_io::file::apple_double::AppleSingleExtension::Asf,
+            ),
         ] {
             if enabled {
                 if let Some(stem) = extension.strip_from_name(name) {
-                    if entity.identity.filename_bytes() == Some(stem.as_encoded_bytes()) {
+                    if entity.identity.filename_bytes()
+                        == Some(stem.as_encoded_bytes())
+                    {
                         effective_dest_rel = dest_rel_path.with_file_name(stem);
                         break;
                     }
@@ -1096,7 +1410,9 @@ fn copy_single_item(
     // Reason for fallback: parent path defaults to current directory
     let parent_path = dest_path.parent().unwrap_or(Path::new("."));
     // Reason for fallback: file name defaults to verbatim OsStr
-    let file_name = effective_dest_rel.file_name().unwrap_or(effective_dest_rel.as_os_str());
+    let file_name = effective_dest_rel
+        .file_name()
+        .unwrap_or(effective_dest_rel.as_os_str());
     let effective_dest_path = parent_path.join(file_name);
 
     if effective_dest_rel != dest_rel_path {
@@ -1106,15 +1422,20 @@ fn copy_single_item(
     }
     entity.identity.relative_path = Some(effective_dest_rel);
 
-    if let FileEntityKind::Regular { size, sha256, .. } = &entity.kind
-    {
+    if let FileEntityKind::Regular { size, sha256, .. } = &entity.kind {
         if *sha256 == [0_u8; 32] {
             let size = *size;
             let payload = match open_payload(src_path, &snapshot) {
                 Ok(payload) => payload,
                 Err(error) => {
-                    return handle_item_error(src_path, JournalErrorStage::PayloadOpen,
-                        error.context("Failed to open source for checksumming"), args, journal, stats);
+                    return handle_item_error(
+                        src_path,
+                        JournalErrorStage::PayloadOpen,
+                        error.context("Failed to open source for checksumming"),
+                        args,
+                        journal,
+                        stats,
+                    );
                 }
             };
             let mut p_stream = ProgressStream::new(
@@ -1126,9 +1447,17 @@ fn copy_single_item(
                 size,
                 "Checksumming",
             );
-            if let Err(error) = hash_primary(&mut entity, &mut p_stream, src_path) {
-                    return handle_item_error(src_path, JournalErrorStage::PayloadRead,
-                        error.context("Failed to checksum source payload"), args, journal, stats);
+            if let Err(error) =
+                hash_primary(&mut entity, &mut p_stream, src_path)
+            {
+                return handle_item_error(
+                    src_path,
+                    JournalErrorStage::PayloadRead,
+                    error.context("Failed to checksum source payload"),
+                    args,
+                    journal,
+                    stats,
+                );
             }
             match p_stream.finish() {
                 Ok(warnings) => {
@@ -1139,17 +1468,26 @@ fn copy_single_item(
                     }
                 }
                 Err(error) => {
-                    return handle_item_error(src_path, JournalErrorStage::PayloadRead,
-                        error.context("Failed to complete source checksumming"), args, journal, stats);
+                    return handle_item_error(
+                        src_path,
+                        JournalErrorStage::PayloadRead,
+                        error.context("Failed to complete source checksumming"),
+                        args,
+                        journal,
+                        stats,
+                    );
                 }
             }
         }
     }
 
     let record_pre_materialization = match &entity.kind {
-        FileEntityKind::Fifo => args.copy_specials_as_specials && !args.copy_fifos_as_regular_files,
+        FileEntityKind::Fifo => {
+            args.copy_specials_as_specials && !args.copy_fifos_as_regular_files
+        }
         FileEntityKind::BlockDevice { .. } => {
-            args.copy_specials_as_specials && !args.copy_block_devices_as_regular_files
+            args.copy_specials_as_specials
+                && !args.copy_block_devices_as_regular_files
         }
         FileEntityKind::CharDevice { .. } => args.copy_specials_as_specials,
         FileEntityKind::Socket | FileEntityKind::Door => false,
@@ -1158,7 +1496,8 @@ fn copy_single_item(
 
     if !args.dry_run
         && record_pre_materialization
-        && !(options.existing_entry_policy == ctb_io::file::ExistingEntryPolicy::Refuse
+        && !(options.existing_entry_policy
+            == ctb_io::file::ExistingEntryPolicy::Refuse
             && std::fs::symlink_metadata(&effective_dest_path).is_ok())
     {
         record_journal_entry(journal, &effective_dest_path, &entity)?;
@@ -1169,7 +1508,16 @@ fn copy_single_item(
     if entity.identity.nlink > 1 && entity.is_regular() {
         let first_target = match hardlink_map.lookup(&entity, dest_rel_path) {
             Ok(target) => target,
-            Err(error) => return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats),
+            Err(error) => {
+                return handle_item_error(
+                    src_path,
+                    JournalErrorStage::PostCheck,
+                    error,
+                    args,
+                    journal,
+                    stats,
+                );
+            }
         };
 
         if let Some(first_target_rel) = first_target {
@@ -1180,15 +1528,31 @@ fn copy_single_item(
             let first_full_path = dest_dir.root_path().join(first_target_rel);
             let is_self = effective_dest_path == first_full_path
                 || this_full_path == first_full_path
-                || std::fs::canonicalize(&effective_dest_path).ok().as_deref()
-                    .is_some_and(|path| std::fs::canonicalize(&first_full_path).is_ok_and(|first| path == first));
+                || std::fs::canonicalize(&effective_dest_path)
+                    .ok()
+                    .as_deref()
+                    .is_some_and(|path| {
+                        std::fs::canonicalize(&first_full_path)
+                            .is_ok_and(|first| path == first)
+                    });
             if !is_self {
-                if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
-                    return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats);
+                if let Err(error) =
+                    validate_copy_source(&snapshot, &mut entity, journal)
+                {
+                    return handle_item_error(
+                        src_path,
+                        JournalErrorStage::PostCheck,
+                        error,
+                        args,
+                        journal,
+                        stats,
+                    );
                 }
                 let original_entity = entity.clone();
                 entity.kind = FileEntityKind::Hardlink {
-                    target_relative_path: LinkPath::from_relative_path(first_target_rel)?,
+                    target_relative_path: LinkPath::from_relative_path(
+                        first_target_rel,
+                    )?,
                 };
                 if is_verified_resumed_destination_entry(
                     dest_rel_path,
@@ -1199,7 +1563,11 @@ fn copy_single_item(
                     args,
                     journal,
                 ) {
-                    record_journal_entry(journal, &effective_dest_path, &entity)?;
+                    record_journal_entry(
+                        journal,
+                        &effective_dest_path,
+                        &entity,
+                    )?;
                     files_to_verify.push((
                         src_path.to_path_buf(),
                         effective_dest_path.clone(),
@@ -1207,10 +1575,17 @@ fn copy_single_item(
                     ));
                     return Ok(Some(effective_dest_path));
                 }
-                let receipt = match materialize_entity(&entity, None, dest_dir, options) {
+                let receipt = match materialize_entity(
+                    &entity, None, dest_dir, options,
+                ) {
                     Ok(receipt) => receipt,
                     Err(err) => {
-                        record_materialization_failure(journal, &effective_dest_path, &original_entity, &err)?;
+                        record_materialization_failure(
+                            journal,
+                            &effective_dest_path,
+                            &original_entity,
+                            &err,
+                        )?;
                         return handle_item_error(
                             src_path,
                             JournalErrorStage::Materialize,
@@ -1222,19 +1597,36 @@ fn copy_single_item(
                     }
                 };
                 receipt.apply_stream_adaptations(&mut entity);
-        record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+                record_materialization_warnings(
+                    journal,
+                    &mut entity,
+                    receipt.warnings,
+                )?;
                 let final_dest = receipt.destination_path;
                 if final_dest != dest_path {
-                    if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &final_dest) {
-                        if !actual_rel.as_os_str().is_empty() && actual_rel != dest_rel_path {
-                            entity.metadata.set_materialized_relative_path(dest_rel_path, &actual_rel);
+                    if let Ok(actual_rel) = compute_journal_relative_path(
+                        journal.destination(),
+                        &final_dest,
+                    ) {
+                        if !actual_rel.as_os_str().is_empty()
+                            && actual_rel != dest_rel_path
+                        {
+                            entity.metadata.set_materialized_relative_path(
+                                dest_rel_path,
+                                &actual_rel,
+                            );
                             entity.identity.relative_path = Some(actual_rel);
                         }
                     }
                 }
-                stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
+                stats.hardlinks_created =
+                    stats.hardlinks_created.saturating_add(1);
                 record_journal_entry(journal, &final_dest, &entity)?;
-                files_to_verify.push((src_path.to_path_buf(), final_dest.clone(), original_entity));
+                files_to_verify.push((
+                    src_path.to_path_buf(),
+                    final_dest.clone(),
+                    original_entity,
+                ));
                 return Ok(Some(final_dest));
             }
         }
@@ -1249,7 +1641,9 @@ fn copy_single_item(
         args,
         journal,
     ) {
-        if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
+        if let Err(error) =
+            validate_copy_source(&snapshot, &mut entity, journal)
+        {
             return handle_item_error(
                 src_path,
                 JournalErrorStage::PostCheck,
@@ -1272,7 +1666,8 @@ fn copy_single_item(
             }
         }
         if entity.is_regular() {
-            stats.files_skipped_identical = stats.files_skipped_identical.saturating_add(1);
+            stats.files_skipped_identical =
+                stats.files_skipped_identical.saturating_add(1);
         }
         if entity.identity.nlink > 1 && entity.is_regular() {
             if let Some(ref rel) = entity.identity.relative_path {
@@ -1280,7 +1675,11 @@ fn copy_single_item(
             }
         }
         record_journal_entry(journal, &effective_dest_path, &entity)?;
-        files_to_verify.push((src_path.to_path_buf(), effective_dest_path.clone(), entity));
+        files_to_verify.push((
+            src_path.to_path_buf(),
+            effective_dest_path.clone(),
+            entity,
+        ));
         return Ok(Some(effective_dest_path));
     }
 
@@ -1305,9 +1704,13 @@ fn copy_single_item(
                             extents: Vec::new(),
                         };
                     } else {
-                        let mut fifo_file = match std::fs::File::open(src_path).with_context(|| {
-                            format!("Failed to open FIFO: {}", src_path.display())
-                        }) {
+                        let mut fifo_file = match std::fs::File::open(src_path)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to open FIFO: {}",
+                                    src_path.display()
+                                )
+                            }) {
                             Ok(f) => f,
                             Err(err) => {
                                 return handle_item_error(
@@ -1322,9 +1725,15 @@ fn copy_single_item(
                         };
                         let mut data = Vec::new();
                         use std::io::Read;
-                        if let Err(err) = fifo_file.read_to_end(&mut data).with_context(|| {
-                            format!("Failed to read FIFO: {}", src_path.display())
-                        }) {
+                        if let Err(err) = fifo_file
+                            .read_to_end(&mut data)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to read FIFO: {}",
+                                    src_path.display()
+                                )
+                            })
+                        {
                             return handle_item_error(
                                 src_path,
                                 JournalErrorStage::PayloadRead,
@@ -1367,33 +1776,39 @@ fn copy_single_item(
                 }
                 #[cfg(not(unix))]
                 {
-                    stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
+                    stats.special_files_skipped =
+                        stats.special_files_skipped.saturating_add(1);
                     return Ok(None);
                 }
             } else if args.copy_block_devices_as_regular_files
                 && matches!(entity.kind, FileEntityKind::BlockDevice { .. })
             {
-                let dev_file = match std::fs::File::open(src_path).with_context(|| {
-                    format!("Failed to open block device: {}", src_path.display())
-                }) {
-                    Ok(f) => f,
-                    Err(err) => {
-                        return handle_item_error(
-                            src_path,
-                            JournalErrorStage::PayloadOpen,
-                            err,
-                            args,
-                            journal,
-                            stats,
-                        );
-                    }
-                };
-                let size = match query_block_device_size(&dev_file).with_context(|| {
-                    format!(
-                        "Failed to determine size of block device: {}",
-                        src_path.display()
-                    )
-                }) {
+                let dev_file =
+                    match std::fs::File::open(src_path).with_context(|| {
+                        format!(
+                            "Failed to open block device: {}",
+                            src_path.display()
+                        )
+                    }) {
+                        Ok(f) => f,
+                        Err(err) => {
+                            return handle_item_error(
+                                src_path,
+                                JournalErrorStage::PayloadOpen,
+                                err,
+                                args,
+                                journal,
+                                stats,
+                            );
+                        }
+                    };
+                let size = match query_block_device_size(&dev_file)
+                    .with_context(|| {
+                        format!(
+                            "Failed to determine size of block device: {}",
+                            src_path.display()
+                        )
+                    }) {
                     Ok(s) => s,
                     Err(err) => {
                         return handle_item_error(
@@ -1416,15 +1831,31 @@ fn copy_single_item(
                     }],
                 };
             } else if args.copy_specials_as_specials
-                && !matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
+                && !matches!(
+                    entity.kind,
+                    FileEntityKind::Socket | FileEntityKind::Door
+                )
             {
-                if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
-                    return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats);
+                if let Err(error) =
+                    validate_copy_source(&snapshot, &mut entity, journal)
+                {
+                    return handle_item_error(
+                        src_path,
+                        JournalErrorStage::PostCheck,
+                        error,
+                        args,
+                        journal,
+                        stats,
+                    );
                 }
-                let receipt = match materialize_entity(&entity, None, dest_dir, options) {
+                let receipt = match materialize_entity(
+                    &entity, None, dest_dir, options,
+                ) {
                     Ok(receipt) => receipt,
                     Err(err) => {
-                        record_materialization_failure(journal, dest_path, &entity, &err)?;
+                        record_materialization_failure(
+                            journal, dest_path, &entity, &err,
+                        )?;
                         return handle_item_error(
                             src_path,
                             JournalErrorStage::Materialize,
@@ -1436,22 +1867,41 @@ fn copy_single_item(
                     }
                 };
                 receipt.apply_stream_adaptations(&mut entity);
-        record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
+                record_materialization_warnings(
+                    journal,
+                    &mut entity,
+                    receipt.warnings,
+                )?;
                 let final_dest = receipt.destination_path;
                 if final_dest != dest_path {
-                    if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &final_dest) {
-                        if !actual_rel.as_os_str().is_empty() && actual_rel != dest_rel_path {
-                            entity.metadata.set_materialized_relative_path(dest_rel_path, &actual_rel);
+                    if let Ok(actual_rel) = compute_journal_relative_path(
+                        journal.destination(),
+                        &final_dest,
+                    ) {
+                        if !actual_rel.as_os_str().is_empty()
+                            && actual_rel != dest_rel_path
+                        {
+                            entity.metadata.set_materialized_relative_path(
+                                dest_rel_path,
+                                &actual_rel,
+                            );
                             entity.identity.relative_path = Some(actual_rel);
                         }
                     }
                 }
-                stats.special_files_created = stats.special_files_created.saturating_add(1);
+                stats.special_files_created =
+                    stats.special_files_created.saturating_add(1);
                 record_journal_entry(journal, &final_dest, &entity)?;
-                files_to_verify.push((src_path.to_path_buf(), final_dest.clone(), entity));
+                files_to_verify.push((
+                    src_path.to_path_buf(),
+                    final_dest.clone(),
+                    entity,
+                ));
                 return Ok(Some(final_dest));
-            } else if matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
-                && args.copy_specials_as_specials
+            } else if matches!(
+                entity.kind,
+                FileEntityKind::Socket | FileEntityKind::Door
+            ) && args.copy_specials_as_specials
             {
                 let err = anyhow::anyhow!(
                     "Unsupported special file cannot be copied as a special node: {}",
@@ -1466,7 +1916,8 @@ fn copy_single_item(
                     stats,
                 );
             } else {
-                stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
+                stats.special_files_skipped =
+                    stats.special_files_skipped.saturating_add(1);
                 return Ok(None);
             }
         }
@@ -1488,22 +1939,29 @@ fn copy_single_item(
     let (receipt, file_used_noatime) = if args.dry_run {
         (materialize_entity(&entity, None, dest_dir, options), false)
     } else if let Some(mem_bytes) = memory_payload_data.as_ref() {
-        let mut mem_payload = match ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone())
-            .and_then(|payload| CapturedPayload::new(payload, &snapshot)) {
-            Ok(p) => p,
-            Err(err) => {
-                return handle_item_error(
-                    src_path,
-                    JournalErrorStage::PayloadOpen,
-                    err,
-                    args,
-                    journal,
-                    stats,
-                );
-            }
-        };
+        let mut mem_payload =
+            match ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone())
+                .and_then(|payload| CapturedPayload::new(payload, &snapshot))
+            {
+                Ok(p) => p,
+                Err(err) => {
+                    return handle_item_error(
+                        src_path,
+                        JournalErrorStage::PayloadOpen,
+                        err,
+                        args,
+                        journal,
+                        stats,
+                    );
+                }
+            };
         (
-            materialize_entity(&entity, Some(&mut mem_payload), dest_dir, options),
+            materialize_entity(
+                &entity,
+                Some(&mut mem_payload),
+                dest_dir,
+                options,
+            ),
             false,
         )
     } else if matches!(entity.kind, FileEntityKind::Regular { .. }) {
@@ -1531,7 +1989,12 @@ fn copy_single_item(
             "Writing",
         );
         (
-            materialize_entity(&entity, Some(&mut progress_payload), dest_dir, options),
+            materialize_entity(
+                &entity,
+                Some(&mut progress_payload),
+                dest_dir,
+                options,
+            ),
             noatime,
         )
     } else {
@@ -1546,7 +2009,12 @@ fn copy_single_item(
     }) {
         Ok(r) => r,
         Err(err) => {
-            record_materialization_failure(journal, &effective_dest_path, &entity, &err)?;
+            record_materialization_failure(
+                journal,
+                &effective_dest_path,
+                &entity,
+                &err,
+            )?;
             return handle_item_error(
                 src_path,
                 JournalErrorStage::Materialize,
@@ -1566,21 +2034,36 @@ fn copy_single_item(
     }
 
     if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
-        return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats);
+        return handle_item_error(
+            src_path,
+            JournalErrorStage::PostCheck,
+            error,
+            args,
+            journal,
+            stats,
+        );
     }
 
     if receipt.skipped_identical {
-        stats.files_skipped_identical = stats.files_skipped_identical.saturating_add(1);
+        stats.files_skipped_identical =
+            stats.files_skipped_identical.saturating_add(1);
     } else {
         stats.files_copied = stats.files_copied.saturating_add(1);
     }
-    stats.bytes_copied = stats.bytes_copied.saturating_add(receipt.bytes_written);
+    stats.bytes_copied =
+        stats.bytes_copied.saturating_add(receipt.bytes_written);
 
     if receipt.destination_path != dest_path {
-        if let Ok(actual_rel) = compute_journal_relative_path(journal.destination(), &receipt.destination_path) {
+        if let Ok(actual_rel) = compute_journal_relative_path(
+            journal.destination(),
+            &receipt.destination_path,
+        ) {
             if !actual_rel.as_os_str().is_empty() {
                 if actual_rel != dest_rel_path {
-                    entity.metadata.set_materialized_relative_path(dest_rel_path, &actual_rel);
+                    entity.metadata.set_materialized_relative_path(
+                        dest_rel_path,
+                        &actual_rel,
+                    );
                 }
                 entity.identity.relative_path = Some(actual_rel);
             }
@@ -1619,7 +2102,8 @@ fn is_verified_resumed_destination_entry(
     journal: &StateJournal,
 ) -> bool {
     if args.dry_run
-        || options.existing_entry_policy != ctb_io::file::ExistingEntryPolicy::Refuse
+        || options.existing_entry_policy
+            != ctb_io::file::ExistingEntryPolicy::Refuse
         || std::fs::symlink_metadata(effective_dest_path).is_err()
     {
         return false;
@@ -1640,7 +2124,8 @@ fn is_verified_resumed_destination_entry(
     else {
         return false;
     };
-    if !committed_entity.metadata.errors.is_empty() || committed_entity.is_dir() {
+    if !committed_entity.metadata.errors.is_empty() || committed_entity.is_dir()
+    {
         return false;
     }
     if !snap.applied_directories.is_empty() {
@@ -1670,13 +2155,16 @@ fn is_verified_resumed_destination_entry(
         ) => {
             if size != committed_size
                 || *sha256 == [0_u8; 32]
-                || (*committed_sha256 != [0_u8; 32] && sha256 != committed_sha256)
+                || (*committed_sha256 != [0_u8; 32]
+                    && sha256 != committed_sha256)
             {
                 return false;
             }
         }
         (
-            FileEntityKind::Hardlink { target_relative_path },
+            FileEntityKind::Hardlink {
+                target_relative_path,
+            },
             FileEntityKind::Hardlink {
                 target_relative_path: committed_target,
             },
@@ -1714,7 +2202,10 @@ fn is_verified_resumed_destination_entry(
     .is_ok()
 }
 
-pub(crate) fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Result<PathBuf> {
+pub(crate) fn compute_journal_relative_path(
+    journal_dest: &Path,
+    dest_path: &Path,
+) -> Result<PathBuf> {
     // Reason for fallback: path not prefixed with "./" retains original path unchanged
     let norm_dest = dest_path.strip_prefix("./").unwrap_or(dest_path);
     // Reason for fallback: path not prefixed with "./" retains original path unchanged
@@ -1732,10 +2223,21 @@ pub(crate) fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Pat
         return Ok(rel.to_path_buf());
     }
 
-    let canonical_root = std::fs::canonicalize(journal_dest)
-        .with_context(|| format!("Failed to resolve journal destination {}", journal_dest.display()))?;
-    let relative = dest_path.strip_prefix(&canonical_root)
-        .with_context(|| format!("Journal entry {} is outside destination {}", dest_path.display(), canonical_root.display()))?;
+    let canonical_root =
+        std::fs::canonicalize(journal_dest).with_context(|| {
+            format!(
+                "Failed to resolve journal destination {}",
+                journal_dest.display()
+            )
+        })?;
+    let relative =
+        dest_path.strip_prefix(&canonical_root).with_context(|| {
+            format!(
+                "Journal entry {} is outside destination {}",
+                dest_path.display(),
+                canonical_root.display()
+            )
+        })?;
     Ok(relative.to_path_buf())
 }
 
@@ -1745,7 +2247,11 @@ fn validate_copy_source(
     journal: &mut StateJournal,
 ) -> Result<()> {
     snapshot.retain_changes(snapshot.validate()?)?;
-    crate::journal::capture::finalize_warnings(snapshot, entity, &mut |code, warning| journal.record_warning(code, warning))
+    crate::journal::capture::finalize_warnings(
+        snapshot,
+        entity,
+        &mut |code, warning| journal.record_warning(code, warning),
+    )
 }
 
 fn record_materialization_warnings(
@@ -1768,7 +2274,9 @@ fn record_materialization_failure(
     error: &anyhow::Error,
 ) -> Result<()> {
     let mut failed_entity = entity.clone();
-    failed_entity.metadata.push_error(format!("Materialization failed: {error:#}"));
+    failed_entity
+        .metadata
+        .push_error(format!("Materialization failed: {error:#}"));
     record_journal_entry(journal, dest_path, &failed_entity)?;
     journal.commit_batch()
 }
@@ -1786,7 +2294,10 @@ fn record_journal_entry(
             .source_relative_path()
             .or_else(|| journal_entity.identity.relative_path.clone())
         {
-            if !orig_rel.as_os_str().is_empty() && orig_rel != Path::new(".") && orig_rel != rel {
+            if !orig_rel.as_os_str().is_empty()
+                && orig_rel != Path::new(".")
+                && orig_rel != rel
+            {
                 journal_entity
                     .metadata
                     .set_materialized_relative_path(&orig_rel, &rel);
@@ -1815,7 +2326,8 @@ mod fidelity_tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_final_tree_best_effort_late_warnings_persist_before_completion() -> Result<()> {
+    fn test_final_tree_best_effort_late_warnings_persist_before_completion()
+    -> Result<()> {
         use std::os::unix::fs::PermissionsExt;
         for fail_persistence in [false, true] {
             let temporary = tempfile::tempdir()?;
@@ -1826,48 +2338,99 @@ mod fidelity_tests {
             let journal_path = temporary.path().join("copy.cscjournal");
             let descriptor_path = temporary.path().join("copy.cscdesc");
             let mut journal = StateJournal::create_at_path(
-                &journal_path, &descriptor_path, std::slice::from_ref(&source), &destination,
+                &journal_path,
+                &descriptor_path,
+                std::slice::from_ref(&source),
+                &destination,
             )?;
-            let mut args = default_test_args(vec![source.clone(), destination.clone()], temporary.path().to_path_buf());
+            let mut args = default_test_args(
+                vec![source.clone(), destination.clone()],
+                temporary.path().to_path_buf(),
+            );
             args.on_source_change = SourceChangePolicy::BestEffort;
             args.continue_on_error = true;
-            let mut captured = CapturedSource::capture(&source, Some(&source), &Default::default(),
-                args.on_source_change == SourceChangePolicy::BestEffort)?;
+            let mut captured = CapturedSource::capture(
+                &source,
+                Some(&source),
+                &Default::default(),
+                args.on_source_change == SourceChangePolicy::BestEffort,
+            )?;
             let mut tree = crate::journal::capture::CapturedTree::default();
             tree.retain(&captured.snapshot);
-            let early_warning = format!("early cleanup warning: {}", source.display());
-            captured.snapshot.retain_cleanup_warnings(vec![early_warning.clone()])?;
-            validate_copy_source(&captured.snapshot, &mut captured.entity, &mut journal)?;
+            let early_warning =
+                format!("early cleanup warning: {}", source.display());
+            captured
+                .snapshot
+                .retain_cleanup_warnings(vec![early_warning.clone()])?;
+            validate_copy_source(
+                &captured.snapshot,
+                &mut captured.entity,
+                &mut journal,
+            )?;
             record_journal_entry(&mut journal, &destination, &captured.entity)?;
             journal.commit_batch()?;
             tree.validate()?;
 
             let mode = std::fs::metadata(&source)?.permissions().mode() ^ 0o100;
-            std::fs::set_permissions(&source, std::fs::Permissions::from_mode(mode))?;
-            let late_cleanup = format!("late cleanup warning: {}", source.display());
-            captured.snapshot.retain_cleanup_warnings(vec![late_cleanup.clone()])?;
+            std::fs::set_permissions(
+                &source,
+                std::fs::Permissions::from_mode(mode),
+            )?;
+            let late_cleanup =
+                format!("late cleanup warning: {}", source.display());
+            captured
+                .snapshot
+                .retain_cleanup_warnings(vec![late_cleanup.clone()])?;
             if fail_persistence {
                 std::fs::remove_file(&descriptor_path)?;
                 std::fs::create_dir(&descriptor_path)?;
             }
             let mut stats = CopyStats::default();
-            let result = finalize_copy_pipeline(&tree, &args, &mut journal, &mut stats);
+            let result =
+                finalize_copy_pipeline(&tree, &args, &mut journal, &mut stats);
             assert_eq!(result.is_err(), fail_persistence, "{result:?}");
             let recorded = read_journal_snapshot(&journal_path)?;
             assert_eq!(recorded.is_completed, !fail_persistence);
             assert!(recorded.errors.is_empty());
-            assert_eq!(recorded.warnings.iter().filter(|record| record.message == early_warning).count(), 1);
-            let changed = recorded.warnings.iter().find(|record| record.code == "SourceModifiedDuringCopy")
+            assert_eq!(
+                recorded
+                    .warnings
+                    .iter()
+                    .filter(|record| record.message == early_warning)
+                    .count(),
+                1
+            );
+            let changed = recorded
+                .warnings
+                .iter()
+                .find(|record| record.code == "SourceModifiedDuringCopy")
                 .context("Missing late source change warning")?;
             assert!(changed.message.contains(&source.display().to_string()));
-            assert!(changed.message.contains("changed during copy; proceeding best-effort"));
+            assert!(
+                changed
+                    .message
+                    .contains("changed during copy; proceeding best-effort")
+            );
             if fail_persistence {
-                assert!(format!("{:#}", result.unwrap_err()).contains("operation is durable"));
+                assert!(
+                    format!("{:#}", result.unwrap_err())
+                        .contains("operation is durable")
+                );
                 assert!(journal.pending_descriptor_status().is_some());
             } else {
-                assert_eq!(recorded.warnings.iter().filter(|record| record.message == late_cleanup).count(), 1);
+                assert_eq!(
+                    recorded
+                        .warnings
+                        .iter()
+                        .filter(|record| record.message == late_cleanup)
+                        .count(),
+                    1
+                );
                 let descriptor = std::fs::read_to_string(&descriptor_path)?;
-                assert!(descriptor.contains("Status: Completed with 3 warning(s)\n"));
+                assert!(
+                    descriptor
+                        .contains("Status: Completed with 3 warning(s)\n")
+                );
                 assert!(!descriptor.contains("Status: Completed\n"));
                 tree.validate()?;
                 let mut repeated = Vec::new();
@@ -1876,14 +2439,18 @@ mod fidelity_tests {
                     Ok(())
                 })?;
                 assert!(repeated.is_empty());
-                assert_eq!(read_journal_snapshot(&journal_path)?.warnings, recorded.warnings);
+                assert_eq!(
+                    read_journal_snapshot(&journal_path)?.warnings,
+                    recorded.warnings
+                );
             }
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_final_tree_change_after_validated_fixup_is_journaled_before_completion() -> Result<()> {
+    fn test_final_tree_change_after_validated_fixup_is_journaled_before_completion()
+    -> Result<()> {
         for continue_on_error in [false, true] {
             let temporary = tempfile::tempdir()?;
             let source = temporary.path().join("source");
@@ -1893,26 +2460,53 @@ mod fidelity_tests {
             let journal_path = temporary.path().join("copy.cscjournal");
             let descriptor_path = temporary.path().join("copy.cscdesc");
             let mut journal = StateJournal::create_at_path(
-                &journal_path, &descriptor_path, std::slice::from_ref(&source), &destination,
+                &journal_path,
+                &descriptor_path,
+                std::slice::from_ref(&source),
+                &destination,
             )?;
-            let mut captured = CapturedSource::capture(&source, Some(&source), &Default::default(), false)?;
-            let mut captured_tree = crate::journal::capture::CapturedTree::default();
+            let mut captured = CapturedSource::capture(
+                &source,
+                Some(&source),
+                &Default::default(),
+                false,
+            )?;
+            let mut captured_tree =
+                crate::journal::capture::CapturedTree::default();
             captured_tree.retain(&captured.snapshot);
-            validate_copy_source(&captured.snapshot, &mut captured.entity, &mut journal)?;
+            validate_copy_source(
+                &captured.snapshot,
+                &mut captured.entity,
+                &mut journal,
+            )?;
             record_journal_entry(&mut journal, &destination, &captured.entity)?;
             journal.commit_batch()?;
             captured_tree.validate()?;
 
             std::fs::rename(&source, temporary.path().join("original-source"))?;
             std::fs::create_dir(&source)?;
-            let mut args = default_test_args(vec![source, destination], temporary.path().to_path_buf());
+            let mut args = default_test_args(
+                vec![source, destination],
+                temporary.path().to_path_buf(),
+            );
             args.continue_on_error = continue_on_error;
-            let mut stats = CopyStats { dirs_created: 1, ..Default::default() };
-            let result = finalize_copy_pipeline(&captured_tree, &args, &mut journal, &mut stats);
+            let mut stats = CopyStats {
+                dirs_created: 1,
+                ..Default::default()
+            };
+            let result = finalize_copy_pipeline(
+                &captured_tree,
+                &args,
+                &mut journal,
+                &mut stats,
+            );
             assert_eq!(result.is_ok(), continue_on_error, "{result:?}");
             let snapshot = read_journal_snapshot(&journal_path)?;
             assert_eq!(snapshot.errors.len(), 1);
-            assert!(matches!(snapshot.errors[0].stage, JournalErrorStage::PostCheck));
+            assert!(matches!(
+                snapshot.errors[0].stage,
+                JournalErrorStage::PostCheck
+            ));
             assert_eq!(snapshot.errors[0].path, journal.destination());
             assert_eq!(snapshot.is_completed, continue_on_error);
             assert!(!snapshot.is_completed || !snapshot.errors.is_empty());
@@ -1923,10 +2517,15 @@ mod fidelity_tests {
             assert!(descriptor.contains("ErrorsCount: 1\n"));
             assert!(!descriptor.contains("Status: Completed\n"));
             if continue_on_error {
-                assert!(descriptor.contains("Status: Completed with 1 error(s)\n"));
+                assert!(
+                    descriptor.contains("Status: Completed with 1 error(s)\n")
+                );
             } else {
                 let error = result.unwrap_err();
-                assert!(format!("{error:#}").contains(&snapshot.errors[0].error_message));
+                assert!(
+                    format!("{error:#}")
+                        .contains(&snapshot.errors[0].error_message)
+                );
                 assert!(descriptor.contains("Status: Failed: "));
             }
             assert!(journal.pending_descriptor_status().is_none());
@@ -1940,21 +2539,52 @@ mod fidelity_tests {
         let temporary = tempfile::tempdir()?;
         let path = temporary.path().join("link");
         std::os::unix::fs::symlink("target", &path)?;
-        let mut source = CapturedSource::capture(&path, None, &Default::default(), false)?;
+        let mut source =
+            CapturedSource::capture(&path, None, &Default::default(), false)?;
         let destination = temporary.path().join("destination");
         let journal_path = temporary.path().join("copy.cscjournal");
-        let mut journal = StateJournal::create_at_path(&journal_path, &temporary.path().join("copy.cscdesc"),
-            std::slice::from_ref(&path), &destination)?;
+        let mut journal = StateJournal::create_at_path(
+            &journal_path,
+            &temporary.path().join("copy.cscdesc"),
+            std::slice::from_ref(&path),
+            &destination,
+        )?;
         record_entity_warnings(&source.entity, &mut journal)?;
         let warning = "injected symlink cleanup warning".to_owned();
-        source.snapshot.retain_cleanup_warnings(vec![warning.clone()])?;
-        validate_copy_source(&source.snapshot, &mut source.entity, &mut journal)?;
-        validate_copy_source(&source.snapshot, &mut source.entity, &mut journal)?;
-        record_journal_entry(&mut journal, &destination.join("link"), &source.entity)?;
+        source
+            .snapshot
+            .retain_cleanup_warnings(vec![warning.clone()])?;
+        validate_copy_source(
+            &source.snapshot,
+            &mut source.entity,
+            &mut journal,
+        )?;
+        validate_copy_source(
+            &source.snapshot,
+            &mut source.entity,
+            &mut journal,
+        )?;
+        record_journal_entry(
+            &mut journal,
+            &destination.join("link"),
+            &source.entity,
+        )?;
         journal.commit_batch()?;
         let recorded = read_journal_snapshot(&journal_path)?;
-        ensure!(recorded.warnings.iter().filter(|record| record.message == warning).count() == 1);
-        ensure!(recorded.committed_entities.values().any(|entity| entity.metadata.warnings.contains(&warning)));
+        ensure!(
+            recorded
+                .warnings
+                .iter()
+                .filter(|record| record.message == warning)
+                .count()
+                == 1
+        );
+        ensure!(
+            recorded
+                .committed_entities
+                .values()
+                .any(|entity| entity.metadata.warnings.contains(&warning))
+        );
         ensure!(source.snapshot.cleanup_warnings()?.contains(&warning));
         Ok(())
     }
@@ -1966,41 +2596,92 @@ mod fidelity_tests {
         std::fs::write(&source, b"payload").unwrap();
         let destination = temp.path().join("destination");
         let root = SandboxableDir::create_or_open(&destination).unwrap();
-        let mut entity = FileEntity::from_filesystem(&source, Some(temp.path())).unwrap();
+        let mut entity =
+            FileEntity::from_filesystem(&source, Some(temp.path())).unwrap();
         entity.metadata.native.as_mut().unwrap().values.insert(
             "future.attribute".to_owned(),
-            ctb_io::file::metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
+            ctb_io::file::metadata::NativeMetadataValue::Bytes(vec![
+                0, 255, 128,
+            ]),
         );
         let journal_path = temp.path().join("copy.cscjournal");
         let mut journal = StateJournal::create_at_path(
-            &journal_path, &temp.path().join("copy.cscdesc"),
-            std::slice::from_ref(&source), &destination,
-        ).unwrap();
-        let mut strict_payload = ctb_io::file::MemoryPayloadSource::new(b"payload".to_vec()).unwrap();
-        assert!(materialize_entity(&entity, Some(&mut strict_payload), &root,
-            &MaterializeOptions::default()).is_err());
+            &journal_path,
+            &temp.path().join("copy.cscdesc"),
+            std::slice::from_ref(&source),
+            &destination,
+        )
+        .unwrap();
+        let mut strict_payload =
+            ctb_io::file::MemoryPayloadSource::new(b"payload".to_vec())
+                .unwrap();
+        assert!(
+            materialize_entity(
+                &entity,
+                Some(&mut strict_payload),
+                &root,
+                &MaterializeOptions::default()
+            )
+            .is_err()
+        );
         assert!(!destination.join("source").exists());
-        let mut options = MaterializeOptions { strict_lossless: false, ..Default::default() };
+        let mut options = MaterializeOptions {
+            strict_lossless: false,
+            ..Default::default()
+        };
         for expected_identical in [false, true] {
             if expected_identical {
-                options.existing_entry_policy = ctb_io::file::ExistingEntryPolicy::Replace;
+                options.existing_entry_policy =
+                    ctb_io::file::ExistingEntryPolicy::Replace;
             }
-            let mut payload = ctb_io::file::MemoryPayloadSource::new(b"payload".to_vec()).unwrap();
-            let receipt = materialize_entity(&entity, Some(&mut payload), &root, &options).unwrap();
-            assert_eq!(receipt.skipped_identical, expected_identical && cfg!(unix));
-            assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
-            record_materialization_warnings(&mut journal, &mut entity, receipt.warnings).unwrap();
-            record_journal_entry(&mut journal, &receipt.destination_path, &entity).unwrap();
+            let mut payload =
+                ctb_io::file::MemoryPayloadSource::new(b"payload".to_vec())
+                    .unwrap();
+            let receipt = materialize_entity(
+                &entity,
+                Some(&mut payload),
+                &root,
+                &options,
+            )
+            .unwrap();
+            assert_eq!(
+                receipt.skipped_identical,
+                expected_identical && cfg!(unix)
+            );
+            assert!(
+                receipt
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.contains("future.attribute"))
+            );
+            record_materialization_warnings(
+                &mut journal,
+                &mut entity,
+                receipt.warnings,
+            )
+            .unwrap();
+            record_journal_entry(
+                &mut journal,
+                &receipt.destination_path,
+                &entity,
+            )
+            .unwrap();
             journal.commit_batch().unwrap();
             let snapshot = read_journal_snapshot(&journal_path).unwrap();
-            assert!(snapshot.warnings.iter().any(|warning|
-                warning.code == "FileMaterializationWarning"
-                    && warning.message.contains("future.attribute")));
+            assert!(
+                snapshot.warnings.iter().any(|warning| warning.code
+                    == "FileMaterializationWarning"
+                    && warning.message.contains("future.attribute"))
+            );
             let recorded = snapshot.committed_entities.values().next().unwrap();
             assert_eq!(recorded.metadata.warnings, entity.metadata.warnings);
             assert_eq!(recorded.metadata.native, entity.metadata.native);
-            ctb_formats_dcstring::assert_dc_roundtrip(&recorded.metadata).unwrap();
-            assert_eq!(std::fs::read(&receipt.destination_path).unwrap(), b"payload");
+            ctb_formats_dcstring::assert_dc_roundtrip(&recorded.metadata)
+                .unwrap();
+            assert_eq!(
+                std::fs::read(&receipt.destination_path).unwrap(),
+                b"payload"
+            );
         }
     }
 
@@ -2009,17 +2690,26 @@ mod fidelity_tests {
     fn test_windows_journal_paths_preserve_native_prefixes() {
         use ctb_io::file::identity::resolve_relative_path_for_os;
         let temp = tempfile::tempdir().unwrap();
-        let sources = vec![PathBuf::from(r"C:\source"), PathBuf::from(r"\\server\share\source")];
+        let sources = vec![
+            PathBuf::from(r"C:\source"),
+            PathBuf::from(r"\\server\share\source"),
+        ];
         let destination = PathBuf::from(r"\\?\D:\destination");
         let journal_path = temp.path().join("copy.cscjournal");
         let journal = StateJournal::create_at_path(
-            &journal_path, &temp.path().join("copy.cscdesc"), &sources, &destination,
-        ).unwrap();
+            &journal_path,
+            &temp.path().join("copy.cscdesc"),
+            &sources,
+            &destination,
+        )
+        .unwrap();
         let snapshot = read_journal_snapshot(journal.journal_path()).unwrap();
         assert_eq!(snapshot.sources, sources);
         assert_eq!(snapshot.destination, destination);
         assert!(resolve_relative_path_for_os(br"C:\source", false).is_err());
-        assert!(resolve_relative_path_for_os(br"C:\source:stream", true).is_err());
+        assert!(
+            resolve_relative_path_for_os(br"C:\source:stream", true).is_err()
+        );
     }
 
     #[crate::ctb_test]
@@ -2031,46 +2721,91 @@ mod fidelity_tests {
             let journal_path = temp.path().join("copy.cscjournal");
             let desc_path = temp.path().join("copy.cscdesc");
             let mut journal = StateJournal::create_at_path(
-                &journal_path, &desc_path, std::slice::from_ref(&source), &destination,
-            ).unwrap();
-            let mut entity = FileEntity::inaccessible(&source, None, "read failure");
-            entity.metadata.push_warning("Native stream enumeration is unsupported");
+                &journal_path,
+                &desc_path,
+                std::slice::from_ref(&source),
+                &destination,
+            )
+            .unwrap();
+            let mut entity =
+                FileEntity::inaccessible(&source, None, "read failure");
+            entity
+                .metadata
+                .push_warning("Native stream enumeration is unsupported");
             entity.metadata.push_warning("Failed to query file extents: sparse layout fidelity is unknown");
-            entity.streams.push(ctb_io::file::AttachedStream::from_data(
-                Some(ctb_io::file::StreamName::from_windows_utf16(&[58, 55296, 58, 36, 68, 65, 84, 65])),
-                ctb_io::file::StreamKind::NtfsAlternateDataStream,
-                b"stream payload".to_vec(),
-            ).unwrap());
+            entity.streams.push(
+                ctb_io::file::AttachedStream::from_data(
+                    Some(ctb_io::file::StreamName::from_windows_utf16(&[
+                        58, 55296, 58, 36, 68, 65, 84, 65,
+                    ])),
+                    ctb_io::file::StreamKind::NtfsAlternateDataStream,
+                    b"stream payload".to_vec(),
+                )
+                .unwrap(),
+            );
             record_entity_warnings(&entity, &mut journal).unwrap();
             let native_error = std::io::Error::from_raw_os_error(2);
             let native_message = native_error.to_string();
             let error = anyhow::Error::new(native_error)
                 .context("Failed to write Windows alternate data stream WindowsUtf16([58, 55296])")
                 .context("copying source -> destination");
-            record_materialization_failure(&mut journal, &destination, &entity, &error).unwrap();
-            let mut args = default_test_args(vec![source.clone(), destination], temp.path().to_path_buf());
+            record_materialization_failure(
+                &mut journal,
+                &destination,
+                &entity,
+                &error,
+            )
+            .unwrap();
+            let mut args = default_test_args(
+                vec![source.clone(), destination],
+                temp.path().to_path_buf(),
+            );
             args.continue_on_error = continue_on_error;
             let mut stats = CopyStats::default();
-            let result = handle_item_error(&source, JournalErrorStage::Materialize, error, &args, &mut journal, &mut stats);
+            let result = handle_item_error(
+                &source,
+                JournalErrorStage::Materialize,
+                error,
+                &args,
+                &mut journal,
+                &mut stats,
+            );
             assert_eq!(result.is_ok(), continue_on_error);
             let snapshot = read_journal_snapshot(&journal_path).unwrap();
             assert_eq!(snapshot.errors.len(), 1);
             assert_eq!(snapshot.errors[0].os_error, Some(2));
-            assert!(snapshot.errors[0].error_message.contains("copying source -> destination"));
-            assert!(snapshot.errors[0].error_message.contains("WindowsUtf16([58, 55296])"));
+            assert!(
+                snapshot.errors[0]
+                    .error_message
+                    .contains("copying source -> destination")
+            );
+            assert!(
+                snapshot.errors[0]
+                    .error_message
+                    .contains("WindowsUtf16([58, 55296])")
+            );
             assert!(snapshot.errors[0].error_message.contains(&native_message));
             assert_eq!(snapshot.warnings.len(), entity.metadata.warnings.len());
-            for (recorded, expected) in snapshot.warnings.iter().zip(&entity.metadata.warnings) {
+            for (recorded, expected) in
+                snapshot.warnings.iter().zip(&entity.metadata.warnings)
+            {
                 assert_eq!(recorded.code, "FileReadWarning");
                 assert_eq!(&recorded.message, expected);
             }
             let recorded = snapshot.committed_entities.values().next().unwrap();
             assert_eq!(recorded.metadata.warnings, entity.metadata.warnings);
-            assert!(recorded.metadata.errors.iter().any(|message| message.contains("WindowsUtf16([58, 55296])")));
+            assert!(
+                recorded.metadata.errors.iter().any(
+                    |message| message.contains("WindowsUtf16([58, 55296])")
+                )
+            );
             assert_eq!(recorded.streams[0].name, entity.streams[0].name);
             assert_eq!(recorded.streams[0].kind, entity.streams[0].kind);
             assert_eq!(recorded.streams[0].data, None);
-            assert_eq!(recorded.streams[0].entity.kind, entity.streams[0].entity.kind);
+            assert_eq!(
+                recorded.streams[0].entity.kind,
+                entity.streams[0].entity.kind
+            );
         }
     }
 
@@ -2081,20 +2816,34 @@ mod fidelity_tests {
         let destination = temp.path().join("destination");
         let desc_path = temp.path().join("copy.cscdesc");
         let mut journal = StateJournal::create_at_path(
-            &temp.path().join("copy.cscjournal"), &desc_path,
-            std::slice::from_ref(&source), &destination,
-        ).unwrap();
+            &temp.path().join("copy.cscjournal"),
+            &desc_path,
+            std::slice::from_ref(&source),
+            &destination,
+        )
+        .unwrap();
         std::fs::remove_file(&desc_path).unwrap();
         std::fs::create_dir(&desc_path).unwrap();
-        let mut args = default_test_args(vec![source.clone(), destination], temp.path().to_path_buf());
+        let mut args = default_test_args(
+            vec![source.clone(), destination],
+            temp.path().to_path_buf(),
+        );
         args.continue_on_error = true;
         let mut stats = CopyStats::default();
         let error = handle_item_error(
-            &source, JournalErrorStage::Materialize,
+            &source,
+            JournalErrorStage::Materialize,
             anyhow::anyhow!("Native stream could not be preserved"),
-            &args, &mut journal, &mut stats,
-        ).unwrap_err();
-        assert!(error.to_string().contains("Native stream could not be preserved"));
+            &args,
+            &mut journal,
+            &mut stats,
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("Native stream could not be preserved")
+        );
         assert_eq!(stats.files_failed, 0);
     }
 }
@@ -2112,10 +2861,12 @@ mod fidelity_tests {
 )]
 mod tests {
     use super::*;
-    use crate::args::{AppleDoubleStyle, default_test_args, default_verify_args};
+    use crate::args::{
+        AppleDoubleStyle, default_test_args, default_verify_args,
+    };
     use crate::cli::run_csc;
-    use crate::verifier::run_csc_verify;
     use crate::journal::find_cscjournal;
+    use crate::verifier::run_csc_verify;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
     #[cfg(unix)]
@@ -2132,20 +2883,23 @@ mod tests {
         fs::create_dir_all(src.join("sub")).expect("create src sub");
         fs::create_dir_all(&state).expect("create state dir");
 
-        fs::write(src.join("file1.txt"), b"Hello, World!").expect("write file1");
-        fs::write(src.join("sub").join("file2.bin"), vec![42_u8; 1000]).expect("write file2");
+        fs::write(src.join("file1.txt"), b"Hello, World!")
+            .expect("write file1");
+        fs::write(src.join("sub").join("file2.bin"), vec![42_u8; 1000])
+            .expect("write file2");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
         let res = run_csc(args).expect("run csc");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Files copied:             2"));
@@ -2180,10 +2934,7 @@ mod tests {
         fs::hard_link(&f1, &f2).expect("create hardlink");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2203,8 +2954,10 @@ mod tests {
         }
         #[cfg(windows)]
         {
-            let id1 = ctb_io::file::identity::query_file_identity(&dest_f1).expect("id1");
-            let id2 = ctb_io::file::identity::query_file_identity(&dest_f2).expect("id2");
+            let id1 = ctb_io::file::identity::query_file_identity(&dest_f1)
+                .expect("id1");
+            let id2 = ctb_io::file::identity::query_file_identity(&dest_f2)
+                .expect("id2");
             assert_eq!(id1, id2);
         }
     }
@@ -2226,10 +2979,7 @@ mod tests {
         std::os::unix::fs::symlink("target.txt", &sym).expect("create symlink");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2254,17 +3004,40 @@ mod tests {
         fs::write(first.join("shared"), b"shared data").unwrap();
         fs::write(second.join("shared"), b"unrelated data").unwrap();
         fs::hard_link(first.join("shared"), second.join("linked")).unwrap();
-        run_csc(default_test_args(vec![first, second, dest.clone()], state.clone())).unwrap();
-        assert_eq!(fs::read(dest.join("second/linked")).unwrap(), b"shared data");
-        assert_eq!(fs::read(dest.join("second/shared")).unwrap(), b"unrelated data");
+        run_csc(default_test_args(
+            vec![first, second, dest.clone()],
+            state.clone(),
+        ))
+        .unwrap();
+        assert_eq!(
+            fs::read(dest.join("second/linked")).unwrap(),
+            b"shared data"
+        );
+        assert_eq!(
+            fs::read(dest.join("second/shared")).unwrap(),
+            b"unrelated data"
+        );
         #[cfg(unix)]
-        assert_eq!(fs::metadata(dest.join("first/shared")).unwrap().ino(), fs::metadata(dest.join("second/linked")).unwrap().ino());
+        assert_eq!(
+            fs::metadata(dest.join("first/shared")).unwrap().ino(),
+            fs::metadata(dest.join("second/linked")).unwrap().ino()
+        );
         #[cfg(windows)]
         assert_eq!(
-            ctb_io::file::identity::query_file_identity(&dest.join("first/shared")).unwrap(),
-            ctb_io::file::identity::query_file_identity(&dest.join("second/linked")).unwrap()
+            ctb_io::file::identity::query_file_identity(
+                &dest.join("first/shared")
+            )
+            .unwrap(),
+            ctb_io::file::identity::query_file_identity(
+                &dest.join("second/linked")
+            )
+            .unwrap()
         );
-        let result = run_csc_verify(&default_verify_args(find_cscjournal(&state), Some(dest))).unwrap();
+        let result = run_csc_verify(&default_verify_args(
+            find_cscjournal(&state),
+            Some(dest),
+        ))
+        .unwrap();
         match result {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
             _ => panic!("Expected immediate verification result"),
@@ -2273,7 +3046,8 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_relative_destination_preserves_hardlinks_and_exact_symlink_bytes() -> Result<()> {
+    fn test_relative_destination_preserves_hardlinks_and_exact_symlink_bytes()
+    -> Result<()> {
         use crate::journal::read_journal_snapshot;
         use std::os::unix::ffi::OsStrExt;
 
@@ -2289,17 +3063,29 @@ mod tests {
         let target = std::ffi::OsStr::from_bytes(b"./first//../\xff/");
         std::os::unix::fs::symlink(target, source.join("link"))?;
 
-        run_csc(default_test_args(vec![source.join(""), destination.clone()], state.clone()))?;
-        assert_eq!(fs::metadata(destination.join("first"))?.ino(),
-            fs::metadata(destination.join("second"))?.ino());
-        assert_eq!(fs::read_link(destination.join("link"))?.as_os_str().as_encoded_bytes(),
-            target.as_bytes());
+        run_csc(default_test_args(
+            vec![source.join(""), destination.clone()],
+            state.clone(),
+        ))?;
+        assert_eq!(
+            fs::metadata(destination.join("first"))?.ino(),
+            fs::metadata(destination.join("second"))?.ino()
+        );
+        assert_eq!(
+            fs::read_link(destination.join("link"))?
+                .as_os_str()
+                .as_encoded_bytes(),
+            target.as_bytes()
+        );
         let journal_path = find_cscjournal(&state);
         let snapshot = read_journal_snapshot(&journal_path)?;
         assert!(snapshot.committed_entities.values().any(|entity|
             matches!(&entity.kind, FileEntityKind::Hardlink { target_relative_path }
                 if !target_relative_path.to_bytes().starts_with(b"/"))));
-        let result = run_csc_verify(&default_verify_args(journal_path, Some(destination)))?;
+        let result = run_csc_verify(&default_verify_args(
+            journal_path,
+            Some(destination),
+        ))?;
         match result {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
             _ => panic!("Expected immediate verification result"),
@@ -2310,11 +3096,11 @@ mod tests {
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_copy_preserves_raw_apple_single_stems() -> Result<()> {
-        use std::os::unix::ffi::OsStringExt;
         use ctb_io::file::apple_double::{
-            AppleFormat, AppleSingleExtension, create_apple_archive_from_entity,
-            write_apple_single_double,
+            AppleFormat, AppleSingleExtension,
+            create_apple_archive_from_entity, write_apple_single_double,
         };
+        use std::os::unix::ffi::OsStringExt;
 
         let temp = tempfile::tempdir()?;
         let source = temp.path().join("source");
@@ -2331,20 +3117,38 @@ mod tests {
         for name in &names {
             let data = name.as_encoded_bytes().to_vec();
             let entity = FileEntity::from_vec(data.clone());
-            let archive = create_apple_archive_from_entity(&entity, AppleFormat::AppleSingle, Some(data))?;
+            let archive = create_apple_archive_from_entity(
+                &entity,
+                AppleFormat::AppleSingle,
+                Some(data),
+            )?;
             let mut encoded = name.clone();
             encoded.push(".As");
-            std::fs::write(source.join(encoded), write_apple_single_double(&archive)?)?;
+            std::fs::write(
+                source.join(encoded),
+                write_apple_single_double(&archive)?,
+            )?;
         }
-        let mut args = default_test_args(vec![source.join(""), destination.clone()], state.clone());
+        let mut args = default_test_args(
+            vec![source.join(""), destination.clone()],
+            state.clone(),
+        );
         args.read_apple_single_with_extension = vec![AppleSingleExtension::As];
         run_csc(args)?;
         let journal_path = find_cscjournal(&state);
         let snapshot = crate::journal::read_journal_snapshot(&journal_path)?;
         for name in &names {
-            ensure!(std::fs::read(destination.join(name))? == name.as_encoded_bytes());
-            ensure!(snapshot.committed_entities.values().any(|entity|
-                entity.identity.relative_path.as_deref() == Some(Path::new(name))));
+            ensure!(
+                std::fs::read(destination.join(name))?
+                    == name.as_encoded_bytes()
+            );
+            ensure!(
+                snapshot.committed_entities.values().any(|entity| entity
+                    .identity
+                    .relative_path
+                    .as_deref()
+                    == Some(Path::new(name)))
+            );
         }
         ensure!(std::fs::read_dir(destination)?.count() == names.len());
         Ok(())
@@ -2365,17 +3169,23 @@ mod tests {
         fs::write(dest.join("file.txt"), b"Same data").expect("write dest");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
-        let original_mode = fs::metadata(dest.join("file.txt")).unwrap().permissions().mode();
+        let original_mode = fs::metadata(dest.join("file.txt"))
+            .unwrap()
+            .permissions()
+            .mode();
         assert!(run_csc(args).is_err());
         assert_eq!(fs::read(dest.join("file.txt")).unwrap(), b"Same data");
-        assert_eq!(fs::metadata(dest.join("file.txt")).unwrap().permissions().mode(), original_mode);
+        assert_eq!(
+            fs::metadata(dest.join("file.txt"))
+                .unwrap()
+                .permissions()
+                .mode(),
+            original_mode
+        );
     }
 
     #[crate::ctb_test]
@@ -2387,13 +3197,11 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("first.txt"), b"First payload").expect("write first");
+        fs::write(src.join("first.txt"), b"First payload")
+            .expect("write first");
 
         let args1 = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
 
@@ -2403,7 +3211,9 @@ mod tests {
         let mut journal_file = None;
         for entry in fs::read_dir(&state).expect("read state dir") {
             let entry = entry.expect("entry");
-            if entry.path().extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+            if entry.path().extension().and_then(|e| e.to_str())
+                == Some("cscjournal")
+            {
                 journal_file = Some(entry.path());
                 break;
             }
@@ -2419,14 +3229,16 @@ mod tests {
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, .. } => {
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("already marked Completed") || out.contains("Summary"));
+                assert!(
+                    out.contains("already marked Completed")
+                        || out.contains("Summary")
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
     }
 
     #[cfg(unix)]
-
     #[crate::ctb_test]
     fn test_xattrs_and_streams_preserved() {
         let temp = tempdir().expect("create tempdir");
@@ -2439,7 +3251,8 @@ mod tests {
         let file = src.join("data.bin");
         fs::write(&file, b"Main stream payload").expect("write file");
 
-        xattr::set(&file, "user.test_attr", b"Value of attr 1").expect("set xattr 1");
+        xattr::set(&file, "user.test_attr", b"Value of attr 1")
+            .expect("set xattr 1");
         xattr::set(
             &file,
             "user.complex_stream",
@@ -2448,10 +3261,7 @@ mod tests {
         .expect("set xattr 2");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2483,7 +3293,8 @@ mod tests {
         fs::create_dir(&source).unwrap();
         fs::create_dir(&state).unwrap();
         fs::write(source.join("data"), b"original").unwrap();
-        let mut args = default_test_args(vec![source, destination.clone()], state.clone());
+        let mut args =
+            default_test_args(vec![source, destination.clone()], state.clone());
         args.no_verify_after = true;
         args.verify_after = false;
         run_csc(args).unwrap();
@@ -2497,18 +3308,27 @@ mod tests {
         run_csc(resume).unwrap();
         assert_eq!(fs::read(destination.join("data")).unwrap(), b"original");
         assert!(!destination.join("source").exists());
-        assert!(crate::journal::read_journal_snapshot(&journal_path).unwrap().is_completed);
+        assert!(
+            crate::journal::read_journal_snapshot(&journal_path)
+                .unwrap()
+                .is_completed
+        );
 
         fs::write(destination.join("data"), b"damaged!").unwrap();
         {
             use std::io::Write;
-            let mut journal = fs::OpenOptions::new().append(true).open(&journal_path).unwrap();
+            let mut journal = fs::OpenOptions::new()
+                .append(true)
+                .open(&journal_path)
+                .unwrap();
             journal.write_all(b"damaged tail").unwrap();
         }
         let malformed_journal = fs::read(&journal_path).unwrap();
         let mut resume = default_test_args(Vec::new(), state.clone());
         resume.resume = Some(journal_path.clone());
-        let error = run_csc(resume).err().expect("Malformed records must not authorize destructive resume");
+        let error = run_csc(resume)
+            .err()
+            .expect("Malformed records must not authorize destructive resume");
         assert!(format!("{error:#}").contains("Unsupported journal record"));
         assert_eq!(fs::read(destination.join("data")).unwrap(), b"damaged!");
         assert_eq!(fs::read(&journal_path).unwrap(), malformed_journal);
@@ -2529,16 +3349,19 @@ mod tests {
 
         // 1. Filename with newlines
         let nl_file = src.join("file\nwith\nnewlines.txt");
-        fs::write(&nl_file, b"Newlines in filename content").expect("write nl_file");
+        fs::write(&nl_file, b"Newlines in filename content")
+            .expect("write nl_file");
 
         // 2. Filename with unusual punctuation and spaces
         let punc_file = src.join("special !@#$%^&*()_+-=[]{}|;',.<>?~.txt");
         fs::write(&punc_file, b"Punctuation content").expect("write punc_file");
 
         // 3. Misencoded non-UTF-8 raw byte filename
-        let misencoded_name = std::ffi::OsStr::from_bytes(b"misencoded_\xFF\xFE_\x80_junk.dat");
+        let misencoded_name =
+            std::ffi::OsStr::from_bytes(b"misencoded_\xFF\xFE_\x80_junk.dat");
         let mis_file = src.join(misencoded_name);
-        fs::write(&mis_file, b"Misencoded filename payload").expect("write mis_file");
+        fs::write(&mis_file, b"Misencoded filename payload")
+            .expect("write mis_file");
 
         // 4. Stream name with binary junk
         let misencoded_stream =
@@ -2547,10 +3370,7 @@ mod tests {
             .expect("set binary stream");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2600,13 +3420,11 @@ mod tests {
         }
         fs::create_dir_all(&deep_dir).expect("create deep dir");
         let nested_file = deep_dir.join("deep_nested.txt");
-        fs::write(&nested_file, b"Nested file content").expect("write nested file");
+        fs::write(&nested_file, b"Nested file content")
+            .expect("write nested file");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2622,7 +3440,8 @@ mod tests {
             dest_deep = dest_deep.join(format!("level_{i}"));
         }
         assert_eq!(
-            fs::read(dest_deep.join("deep_nested.txt")).expect("read nested file"),
+            fs::read(dest_deep.join("deep_nested.txt"))
+                .expect("read nested file"),
             b"Nested file content"
         );
     }
@@ -2630,10 +3449,10 @@ mod tests {
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_sparse_file_preservation() {
+        use ctb_io::file::{Extent as FileExtent, get_file_extents};
         use std::io::Seek;
         use std::io::SeekFrom;
         use std::io::Write;
-        use ctb_io::file::{get_file_extents, Extent as FileExtent};
 
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_sparse");
@@ -2647,7 +3466,8 @@ mod tests {
         // Write header
         f.write_all(b"HeaderData").expect("write header");
         // Seek forward 10MB
-        f.seek(SeekFrom::Start(10 * 1024 * 1024)).expect("seek 10MB");
+        f.seek(SeekFrom::Start(10 * 1024 * 1024))
+            .expect("seek 10MB");
         // Write tail
         f.write_all(b"TailData").expect("write tail");
         f.sync_data().expect("sync sparse src");
@@ -2657,10 +3477,7 @@ mod tests {
         let expected_len = src_meta.len();
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2672,18 +3489,26 @@ mod tests {
 
         // Verify extents on dest contain a hole
         let dest_file = fs::File::open(&dest_sparse).expect("open dest sparse");
-        let extents = get_file_extents(&dest_file, expected_len).expect("get extents");
-        let has_hole = extents.iter().any(|e| matches!(e, FileExtent::Hole { .. }));
-        assert!(has_hole, "Expected destination file to preserve sparse hole");
+        let extents =
+            get_file_extents(&dest_file, expected_len).expect("get extents");
+        let has_hole =
+            extents.iter().any(|e| matches!(e, FileExtent::Hole { .. }));
+        assert!(
+            has_hole,
+            "Expected destination file to preserve sparse hole"
+        );
 
         // Verify content integrity
         let mut dest_f = dest_file;
         let mut header = [0_u8; 10];
         dest_f.seek(SeekFrom::Start(0)).expect("seek to 0");
-        std::io::Read::read_exact(&mut dest_f, &mut header).expect("read header");
+        std::io::Read::read_exact(&mut dest_f, &mut header)
+            .expect("read header");
         assert_eq!(&header, b"HeaderData");
 
-        dest_f.seek(SeekFrom::Start(10 * 1024 * 1024)).expect("seek to tail");
+        dest_f
+            .seek(SeekFrom::Start(10 * 1024 * 1024))
+            .expect("seek to tail");
         let mut tail = [0_u8; 8];
         std::io::Read::read_exact(&mut dest_f, &mut tail).expect("read tail");
         assert_eq!(&tail, b"TailData");
@@ -2692,8 +3517,8 @@ mod tests {
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_timestamps_and_metadata_preserved() {
-        use std::os::unix::fs::PermissionsExt;
         use filetime::{FileTime, set_file_times};
+        use std::os::unix::fs::PermissionsExt;
 
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_meta");
@@ -2703,7 +3528,8 @@ mod tests {
         fs::create_dir_all(&state).expect("create state");
 
         let file = src.join("custom_meta.txt");
-        fs::write(&file, b"Testing metadata and timestamps").expect("write file");
+        fs::write(&file, b"Testing metadata and timestamps")
+            .expect("write file");
 
         // Set permissions 0o640 (rw-r-----)
         fs::set_permissions(&file, fs::Permissions::from_mode(0o640))
@@ -2715,13 +3541,11 @@ mod tests {
 
         // Set specific mtime timestamp
         let custom_time = FileTime::from_unix_time(1_400_000_000, 500_000_000);
-        set_file_times(&file, custom_time, custom_time).expect("set file times");
+        set_file_times(&file, custom_time, custom_time)
+            .expect("set file times");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2754,10 +3578,7 @@ mod tests {
         mkfifo(&fifo_path, Mode::from_bits_truncate(0o660)).expect("mkfifo");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
 
@@ -2769,7 +3590,8 @@ mod tests {
         let dest_fifo = dest.join("test.fifo");
         assert!(!dest_fifo.exists(), "Default should skip FIFO");
         let skip_journal = crate::journal::find_cscjournal(&state);
-        let skip_snap = crate::journal::read_journal_snapshot(&skip_journal).expect("read skip journal");
+        let skip_snap = crate::journal::read_journal_snapshot(&skip_journal)
+            .expect("read skip journal");
         assert!(
             !skip_snap.is_committed(b"test.fifo"),
             "Skipped FIFO must not be falsely committed to the state journal"
@@ -2814,40 +3636,49 @@ mod tests {
         run_csc(args_copy).expect("run csc with copy_specials_as_specials");
 
         let dest_fifo_node = dest_copy.join("test.fifo");
-        let meta = fs::symlink_metadata(&dest_fifo_node).expect("fifo metadata");
-        assert!(meta.file_type().is_fifo(), "Expected created node to be a FIFO");
+        let meta =
+            fs::symlink_metadata(&dest_fifo_node).expect("fifo metadata");
+        assert!(
+            meta.file_type().is_fifo(),
+            "Expected created node to be a FIFO"
+        );
 
         // Verify the queued bytes in the source FIFO were not drained or corrupted
         let mut buf = [0_u8; 27];
         {
             use std::io::Read;
-            (&fifo_rw).read_exact(&mut buf).expect("read queued bytes from source fifo");
+            (&fifo_rw)
+                .read_exact(&mut buf)
+                .expect("read queued bytes from source fifo");
         }
         assert_eq!(&buf, b"preserved queued fifo bytes");
 
         // Unsupported special file (Unix domain socket) under --copy-specials-as-specials must fail cleanly
         let sock_path = src.join("unsupported.sock");
-        let _listener = std::os::unix::net::UnixListener::bind(&sock_path).expect("bind unix socket");
+        let _listener = std::os::unix::net::UnixListener::bind(&sock_path)
+            .expect("bind unix socket");
         let dest_sock = temp.path().join("dest_sock_copy");
         let state_sock = temp.path().join("state_sock_copy");
         fs::create_dir_all(&state_sock).expect("create state sock");
         let mut args_sock = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest_sock,
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest_sock],
             state_sock,
         );
         args_sock.copy_specials_as_specials = true;
         args_sock.best_effort_metadata = true;
-        let sock_err = run_csc(args_sock)
-            .err()
-            .expect("Unsupported socket must fail under --copy-specials-as-specials");
+        let sock_err = run_csc(args_sock).err().expect(
+            "Unsupported socket must fail under --copy-specials-as-specials",
+        );
         assert!(
             format!("{sock_err:#}").contains("Unsupported special file"),
             "Unexpected error: {sock_err:#}"
         );
-        assert!(fs::symlink_metadata(&sock_path).unwrap().file_type().is_socket());
+        assert!(
+            fs::symlink_metadata(&sock_path)
+                .unwrap()
+                .file_type()
+                .is_socket()
+        );
     }
 
     #[cfg(unix)]
@@ -2878,15 +3709,13 @@ mod tests {
         });
 
         let mut args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
         args.copy_fifos_as_regular_files = true;
 
-        let res = run_csc(args).expect("run csc with copy_fifos_as_regular_files");
+        let res =
+            run_csc(args).expect("run csc with copy_fifos_as_regular_files");
         writer_handle.join().expect("writer thread join");
 
         if let ToolResult::Immediate { stdout, .. } = res {
@@ -2896,7 +3725,8 @@ mod tests {
         }
 
         let dest_file = dest.join("test.fifo");
-        let meta = fs::symlink_metadata(&dest_file).expect("dest file metadata");
+        let meta =
+            fs::symlink_metadata(&dest_file).expect("dest file metadata");
         assert!(meta.is_file(), "Expected created item to be a regular file");
         let contents = fs::read(&dest_file).expect("read dest file");
         assert_eq!(contents, b"Payload from named pipe");
@@ -2927,19 +3757,18 @@ mod tests {
         });
 
         let mut args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
         args.copy_fifos_as_regular_files = true;
 
-        run_csc(args).expect("run csc with copy_fifos_as_regular_files for empty fifo");
+        run_csc(args)
+            .expect("run csc with copy_fifos_as_regular_files for empty fifo");
         writer_handle.join().expect("writer thread join");
 
         let dest_file = dest.join("empty.fifo");
-        let meta = fs::symlink_metadata(&dest_file).expect("dest file metadata");
+        let meta =
+            fs::symlink_metadata(&dest_file).expect("dest file metadata");
         assert!(meta.is_file(), "Expected created item to be a regular file");
         let contents = fs::read(&dest_file).expect("read dest file");
         assert_eq!(contents, b"");
@@ -2960,10 +3789,7 @@ mod tests {
             .expect("create dangling symlink");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
 
@@ -2985,15 +3811,13 @@ mod tests {
         fs::create_dir_all(&state).expect("create state");
 
         let f1 = src.join("orig.txt");
-        fs::write(&f1, b"Shared payload across resumed hardlinks").expect("write orig");
+        fs::write(&f1, b"Shared payload across resumed hardlinks")
+            .expect("write orig");
         let anchor = temp.path().join("anchor.tmp");
         fs::hard_link(&f1, &anchor).expect("create anchor link");
 
         let args1 = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(args1).expect("initial run");
@@ -3006,7 +3830,8 @@ mod tests {
             .open(&journal_path)
             .expect("open journal");
         let len = f.metadata().expect("meta").len();
-        f.set_len(len.saturating_sub(1)).expect("truncate completion tag");
+        f.set_len(len.saturating_sub(1))
+            .expect("truncate completion tag");
         drop(f);
         let desc_path = journal_path.with_extension("cscdesc");
         let _ = fs::remove_file(&desc_path);
@@ -3016,10 +3841,7 @@ mod tests {
         let _ = fs::remove_file(&anchor);
 
         let mut resume_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
         resume_args.resume = Some(journal_path);
@@ -3039,8 +3861,10 @@ mod tests {
         }
         #[cfg(windows)]
         {
-            let id1 = ctb_io::file::identity::query_file_identity(&dest_f1).expect("id1");
-            let id2 = ctb_io::file::identity::query_file_identity(&dest_f2).expect("id2");
+            let id1 = ctb_io::file::identity::query_file_identity(&dest_f1)
+                .expect("id1");
+            let id2 = ctb_io::file::identity::query_file_identity(&dest_f2)
+                .expect("id2");
             assert_eq!(id1, id2, "File identities must match across resume");
         }
     }
@@ -3060,10 +3884,7 @@ mod tests {
         fs::write(&file, b"Timestamp drift test").expect("write file");
 
         let args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(args).expect("run csc");
@@ -3077,17 +3898,22 @@ mod tests {
         set_file_times(
             &dest_file,
             atime,
-            FileTime::from_unix_time(mtime.unix_seconds().saturating_add(1), mtime.nanoseconds()),
+            FileTime::from_unix_time(
+                mtime.unix_seconds().saturating_add(1),
+                mtime.nanoseconds(),
+            ),
         )
         .expect("set drifted mtime");
 
-        let mut strict_vargs = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        let mut strict_vargs =
+            default_verify_args(journal_path.clone(), Some(dest.clone()));
         strict_vargs.best_effort = false;
         let res_strict = run_csc_verify(&strict_vargs).expect("verify strict");
         if let ToolResult::Immediate { stdout, .. } = res_strict {
             let out = String::from_utf8_lossy(&stdout);
             assert!(
-                out.contains("discrepancies detected") || out.contains("mismatch"),
+                out.contains("discrepancies detected")
+                    || out.contains("mismatch"),
                 "Strict mode must report timestamp mismatch: {out}"
             );
         }
@@ -3119,19 +3945,19 @@ mod tests {
         let file_path = src.join("doc.txt");
         let payload = b"Lossless smart skipping integration test payload";
         fs::write(&file_path, payload).expect("write initial file");
-        fs::set_permissions(&file_path, fs::Permissions::from_mode(0o600)).expect("chmod initial");
+        fs::set_permissions(&file_path, fs::Permissions::from_mode(0o600))
+            .expect("chmod initial");
 
         // First copy: fresh write of 1 file
         let args1 = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state1,
         );
         let res1 = run_csc(args1).expect("first copy");
         match res1 {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Files copied:             1"));
@@ -3145,23 +3971,26 @@ mod tests {
         assert_eq!(meta1.permissions().mode() & 0o7777, 0o600);
 
         // Update metadata on source file (change mode to 0o644)
-        fs::set_permissions(&file_path, fs::Permissions::from_mode(0o644)).expect("chmod updated");
+        fs::set_permissions(&file_path, fs::Permissions::from_mode(0o644))
+            .expect("chmod updated");
 
         // Second copy must explicitly authorize restoring metadata on existing entries.
         let mut args2 = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state2,
         );
         assert!(run_csc(args2.clone()).is_err());
-        assert_eq!(fs::metadata(&dest_file).unwrap().permissions().mode() & 0o7777, 0o600);
+        assert_eq!(
+            fs::metadata(&dest_file).unwrap().permissions().mode() & 0o7777,
+            0o600
+        );
         assert_eq!(fs::read(&dest_file).unwrap(), payload);
         args2.overwrite = true;
         let res2 = run_csc(args2).expect("second copy with explicit overwrite");
         match res2 {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Files copied:             1"));
@@ -3173,7 +4002,10 @@ mod tests {
         // Verify that explicitly authorized replacement restores metadata to 0o644.
         let meta2 = fs::metadata(&dest_file).expect("dest meta after update");
         assert_eq!(meta2.permissions().mode() & 0o7777, 0o644);
-        assert_eq!(fs::read(&dest_file).expect("read dest after update"), payload);
+        assert_eq!(
+            fs::read(&dest_file).expect("read dest after update"),
+            payload
+        );
     }
 
     #[crate::ctb_test]
@@ -3193,32 +4025,30 @@ mod tests {
 
         // First copy
         let args1 = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state1,
         );
         run_csc(args1).expect("first copy");
 
         // Second copy with overwrite = true
         let mut args2 = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state2,
         );
         args2.overwrite = true;
 
         let res2 = run_csc(args2).expect("always overwrite copy");
         match res2 {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Files copied:             1"));
                 let payload_len = payload.len();
-                assert!(out.contains(&format!("Bytes transferred:        {payload_len}")));
+                assert!(out.contains(&format!(
+                    "Bytes transferred:        {payload_len}"
+                )));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -3238,10 +4068,14 @@ mod tests {
         fs::set_permissions(&source, fs::Permissions::from_mode(0o644))?;
         fs::set_permissions(&destination, fs::Permissions::from_mode(0o600))?;
         fs::hard_link(&destination, &alias)?;
-        let mut args = default_test_args(vec![source, destination.clone()], state);
+        let mut args =
+            default_test_args(vec![source, destination.clone()], state);
         assert!(run_csc(args.clone()).is_err());
         assert_eq!(fs::read(&destination)?, b"original payload");
-        assert_eq!(fs::metadata(&destination)?.permissions().mode() & 0o777, 0o600);
+        assert_eq!(
+            fs::metadata(&destination)?.permissions().mode() & 0o777,
+            0o600
+        );
         args.overwrite = true;
         run_csc(args)?;
         assert_eq!(fs::read(destination)?, b"new payload");
@@ -3252,7 +4086,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_unknown_filesystem_error_and_allow_flags() {
-        use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
+        use ctb_io::file::{
+            FilesystemInfo, clear_filesystem_cache, extract_device_id,
+            set_cached_filesystem_info,
+        };
 
         let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().expect("create tempdir");
@@ -3268,18 +4105,24 @@ mod tests {
             .expect("Filesystem identity is required to exercise unknown-filesystem policy");
 
         // Simulate unknown filesystem
-        set_cached_filesystem_info(dev_id, FilesystemInfo {
-            fs_type: "unknown".to_string(),
-            resolution_nsec: 1,
-        });
+        set_cached_filesystem_info(
+            dev_id,
+            FilesystemInfo {
+                fs_type: "unknown".to_string(),
+                resolution_nsec: 1,
+            },
+        );
 
         // 1. Without best-effort-metadata and without allow-unknown-fs -> should error
-        let mut args = default_test_args(vec![src.clone(), dest.clone()], state.clone());
+        let mut args =
+            default_test_args(vec![src.clone(), dest.clone()], state.clone());
         args.best_effort_metadata = false;
         args.allow_unknown_fs = false;
         match crate::cli::run_csc(args) {
             Err(err) => {
-                assert!(err.to_string().contains("Cannot detect filesystem type"));
+                assert!(
+                    err.to_string().contains("Cannot detect filesystem type")
+                );
             }
             Ok(_) => panic!("Expected error when filesystem is unknown"),
         }
@@ -3327,10 +4170,7 @@ mod tests {
         fs::write(&f, b"hello noatime test").expect("write file");
 
         let mut args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         args.verify_after = true;
@@ -3382,7 +4222,8 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let companion_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("._hello.txt"), companion_bytes).unwrap();
 
         let mut args = default_test_args(
@@ -3401,24 +4242,40 @@ mod tests {
         }
 
         assert_eq!(fs::read(dest.join("hello.txt")).unwrap(), b"Hello Payload");
-        assert!(dest.join("._hello.txt").exists(), "Companion ._hello.txt must exist on dest");
+        assert!(
+            dest.join("._hello.txt").exists(),
+            "Companion ._hello.txt must exist on dest"
+        );
 
         // Inspect entity with apple read options enabled
         let opts = ctb_io::file::AppleReadOptions {
             read_apple_double_alongside: true,
             ..ctb_io::file::AppleReadOptions::default()
         };
-        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
-            &dest.join("hello.txt"),
-            Some(&dest),
-            &opts,
-        ).unwrap();
+        let entity =
+            ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+                &dest.join("hello.txt"),
+                Some(&dest),
+                &opts,
+            )
+            .unwrap();
 
-        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        let rsrc_stream = entity
+            .streams
+            .iter()
+            .find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
         assert!(rsrc_stream.is_some(), "Resource fork must be preserved");
-        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Resource Fork Bytes"[..]));
         assert_eq!(
-            entity.metadata.apple.as_ref().and_then(|a| a.finder_info.as_ref()).map(|f| f.file_type.as_str()),
+            rsrc_stream.unwrap().data.as_deref(),
+            Some(&b"Resource Fork Bytes"[..])
+        );
+        assert_eq!(
+            entity
+                .metadata
+                .apple
+                .as_ref()
+                .and_then(|a| a.finder_info.as_ref())
+                .map(|f| f.file_type.as_str()),
             Some("TEXT")
         );
     }
@@ -3458,7 +4315,8 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let companion_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("._zipdoc.txt"), companion_bytes).unwrap();
 
         let mut args = default_test_args(
@@ -3478,21 +4336,35 @@ mod tests {
 
         assert_eq!(fs::read(dest.join("zipdoc.txt")).unwrap(), b"Zip Payload");
         let macosx_companion = dest.join("__MACOSX").join("._zipdoc.txt");
-        assert!(macosx_companion.exists(), "__MACOSX/._zipdoc.txt must exist on dest");
+        assert!(
+            macosx_companion.exists(),
+            "__MACOSX/._zipdoc.txt must exist on dest"
+        );
 
         let opts = ctb_io::file::AppleReadOptions {
             read_apple_double_zip: true,
             ..ctb_io::file::AppleReadOptions::default()
         };
-        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
-            &dest.join("zipdoc.txt"),
-            Some(&dest),
-            &opts,
-        ).unwrap();
+        let entity =
+            ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+                &dest.join("zipdoc.txt"),
+                Some(&dest),
+                &opts,
+            )
+            .unwrap();
 
-        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
-        assert!(rsrc_stream.is_some(), "Resource fork must be preserved in zip style");
-        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Zip Resource Fork"[..]));
+        let rsrc_stream = entity
+            .streams
+            .iter()
+            .find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        assert!(
+            rsrc_stream.is_some(),
+            "Resource fork must be preserved in zip style"
+        );
+        assert_eq!(
+            rsrc_stream.unwrap().data.as_deref(),
+            Some(&b"Zip Resource Fork"[..])
+        );
     }
 
     #[crate::ctb_test]
@@ -3530,7 +4402,8 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let companion_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("._netadoc.bin"), companion_bytes).unwrap();
 
         let mut args = default_test_args(
@@ -3548,23 +4421,40 @@ mod tests {
             _ => panic!("Expected immediate result"),
         }
 
-        assert_eq!(fs::read(dest.join("netadoc.bin")).unwrap(), b"Netatalk Payload");
+        assert_eq!(
+            fs::read(dest.join("netadoc.bin")).unwrap(),
+            b"Netatalk Payload"
+        );
         let netatalk_companion = dest.join(".AppleDouble").join("netadoc.bin");
-        assert!(netatalk_companion.exists(), ".AppleDouble/netadoc.bin must exist on dest");
+        assert!(
+            netatalk_companion.exists(),
+            ".AppleDouble/netadoc.bin must exist on dest"
+        );
 
         let opts = ctb_io::file::AppleReadOptions {
             read_apple_double_netatalk: true,
             ..ctb_io::file::AppleReadOptions::default()
         };
-        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
-            &dest.join("netadoc.bin"),
-            Some(&dest),
-            &opts,
-        ).unwrap();
+        let entity =
+            ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+                &dest.join("netadoc.bin"),
+                Some(&dest),
+                &opts,
+            )
+            .unwrap();
 
-        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
-        assert!(rsrc_stream.is_some(), "Resource fork must be preserved in netatalk style");
-        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Netatalk Resource Data"[..]));
+        let rsrc_stream = entity
+            .streams
+            .iter()
+            .find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        assert!(
+            rsrc_stream.is_some(),
+            "Resource fork must be preserved in netatalk style"
+        );
+        assert_eq!(
+            rsrc_stream.unwrap().data.as_deref(),
+            Some(&b"Netatalk Resource Data"[..])
+        );
     }
 
     #[crate::ctb_test]
@@ -3602,7 +4492,8 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let companion_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("._my_file.txt"), companion_bytes).unwrap();
 
         let mut args = default_test_args(
@@ -3621,8 +4512,14 @@ mod tests {
         }
 
         // AppleSingle file MUST NOT get a .as extension appended!
-        assert!(dest.join("my_file.txt").exists(), "Destination file must be my_file.txt");
-        assert!(!dest.join("my_file.txt.as").exists(), "Destination file must NOT have .as appended");
+        assert!(
+            dest.join("my_file.txt").exists(),
+            "Destination file must be my_file.txt"
+        );
+        assert!(
+            !dest.join("my_file.txt.as").exists(),
+            "Destination file must NOT have .as appended"
+        );
 
         // Verify magic bytes on disk are AppleSingle
         let disk_bytes = fs::read(dest.join("my_file.txt")).unwrap();
@@ -3634,24 +4531,41 @@ mod tests {
             read_apple_single: true,
             ..ctb_io::file::AppleReadOptions::default()
         };
-        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
-            &dest.join("my_file.txt"),
-            Some(&dest),
-            &opts,
-        ).unwrap();
+        let entity =
+            ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+                &dest.join("my_file.txt"),
+                Some(&dest),
+                &opts,
+            )
+            .unwrap();
 
         assert!(entity.is_regular());
-        if let ctb_io::file::FileEntityKind::Regular { size, .. } = entity.kind {
+        if let ctb_io::file::FileEntityKind::Regular { size, .. } = entity.kind
+        {
             assert_eq!(size, 22); // length of b"AppleSingle Plain Data"
         } else {
             panic!("Expected regular entity");
         }
 
-        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
-        assert!(rsrc_stream.is_some(), "Resource fork must be preserved in AppleSingle");
-        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Single Resource Fork Data"[..]));
+        let rsrc_stream = entity
+            .streams
+            .iter()
+            .find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        assert!(
+            rsrc_stream.is_some(),
+            "Resource fork must be preserved in AppleSingle"
+        );
         assert_eq!(
-            entity.metadata.apple.as_ref().and_then(|a| a.finder_info.as_ref()).map(|f| f.file_type.as_str()),
+            rsrc_stream.unwrap().data.as_deref(),
+            Some(&b"Single Resource Fork Data"[..])
+        );
+        assert_eq!(
+            entity
+                .metadata
+                .apple
+                .as_ref()
+                .and_then(|a| a.finder_info.as_ref())
+                .map(|f| f.file_type.as_str()),
             Some("APPL")
         );
     }
@@ -3683,7 +4597,8 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let valid_companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let valid_companion_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("._valid.txt"), valid_companion_bytes).unwrap();
 
         // Orphaned AppleDouble companion (no sibling "orphan.txt")
@@ -3703,11 +4618,13 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let orphan_bytes = ctb_io::file::write_apple_single_double(&orphan_archive).unwrap();
+        let orphan_bytes =
+            ctb_io::file::write_apple_single_double(&orphan_archive).unwrap();
         fs::write(src.join("._orphan.txt"), orphan_bytes).unwrap();
 
         // Plain text file starting with "._" that is NOT an AppleDouble file
-        fs::write(src.join("._fake.txt"), b"plain text not appledouble").unwrap();
+        fs::write(src.join("._fake.txt"), b"plain text not appledouble")
+            .unwrap();
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
@@ -3728,11 +4645,20 @@ mod tests {
         assert!(dest.join("valid.txt").exists());
 
         // 2. Orphaned ._orphan.txt MUST NOT be omitted; it must be copied as an ordinary file
-        assert!(dest.join("._orphan.txt").exists(), "Orphaned ._orphan.txt must be preserved on dest");
+        assert!(
+            dest.join("._orphan.txt").exists(),
+            "Orphaned ._orphan.txt must be preserved on dest"
+        );
 
         // 3. Fake ._fake.txt MUST NOT be omitted; it must be copied as an ordinary file
-        assert!(dest.join("._fake.txt").exists(), "Fake ._fake.txt must be preserved on dest");
-        assert_eq!(fs::read(dest.join("._fake.txt")).unwrap(), b"plain text not appledouble");
+        assert!(
+            dest.join("._fake.txt").exists(),
+            "Fake ._fake.txt must be preserved on dest"
+        );
+        assert_eq!(
+            fs::read(dest.join("._fake.txt")).unwrap(),
+            b"plain text not appledouble"
+        );
     }
 
     #[cfg(unix)]
@@ -3742,12 +4668,19 @@ mod tests {
             concat!(env!("CARGO_MANIFEST_DIR"), "/../file"),
             "windows_ads",
         );
-        let expected_pan = fs::read(fixture_dir.join("example2 with lemurs.pan")).unwrap();
-        let expected_pan_zone =
-            fs::read(fixture_dir.join("example2 with lemurs.pan:Zone.Identifier")).unwrap();
-        let expected_bin = fs::read(fixture_dir.join("example2 with lemurs-edited.bin")).unwrap();
-        let expected_bin_zone =
-            fs::read(fixture_dir.join("example2 with lemurs-edited.bin:Zone.Identifier")).unwrap();
+        let expected_pan =
+            fs::read(fixture_dir.join("example2 with lemurs.pan")).unwrap();
+        let expected_pan_zone = fs::read(
+            fixture_dir.join("example2 with lemurs.pan:Zone.Identifier"),
+        )
+        .unwrap();
+        let expected_bin =
+            fs::read(fixture_dir.join("example2 with lemurs-edited.bin"))
+                .unwrap();
+        let expected_bin_zone = fs::read(
+            fixture_dir.join("example2 with lemurs-edited.bin:Zone.Identifier"),
+        )
+        .unwrap();
 
         let temp = tempdir().expect("tempdir");
         let src = temp.path().join("src");
@@ -3765,7 +4698,8 @@ mod tests {
             &expected_pan_zone,
         )
         .unwrap();
-        fs::write(src.join("example2 with lemurs-edited.bin"), &expected_bin).unwrap();
+        fs::write(src.join("example2 with lemurs-edited.bin"), &expected_bin)
+            .unwrap();
         fs::write(
             src.join("example2 with lemurs-edited.bin:Zone.Identifier"),
             &expected_bin_zone,
@@ -3802,7 +4736,8 @@ mod tests {
             expected_pan
         );
         assert_eq!(
-            fs::read(dest_ads.join("example2 with lemurs.pan:Zone.Identifier")).unwrap(),
+            fs::read(dest_ads.join("example2 with lemurs.pan:Zone.Identifier"))
+                .unwrap(),
             expected_pan_zone
         );
         assert_eq!(
@@ -3810,7 +4745,11 @@ mod tests {
             expected_bin
         );
         assert_eq!(
-            fs::read(dest_ads.join("example2 with lemurs-edited.bin:Zone.Identifier")).unwrap(),
+            fs::read(
+                dest_ads
+                    .join("example2 with lemurs-edited.bin:Zone.Identifier")
+            )
+            .unwrap(),
             expected_bin_zone
         );
         assert_eq!(
@@ -3819,7 +4758,8 @@ mod tests {
         );
 
         // Diff src and dest_ads: must match cleanly with 0 untracked entries
-        let mut diff_args = crate::args::default_diff_args(src.clone(), dest_ads.clone());
+        let mut diff_args =
+            crate::args::default_diff_args(src.clone(), dest_ads.clone());
         diff_args.read_windows_ads = true;
         diff_args.criteria.ignore_ctime = true;
         let diff_report = crate::diff_engine::diff_paths(&diff_args).unwrap();
@@ -3869,9 +4809,9 @@ mod tests {
             .streams
             .iter()
             .find(|s| {
-                s.name
-                    .as_ref()
-                    .is_some_and(|n| n.as_bytes().as_ref() == b"Zone.Identifier")
+                s.name.as_ref().is_some_and(|n| {
+                    n.as_bytes().as_ref() == b"Zone.Identifier"
+                })
             })
             .expect("Zone.Identifier preserved inside AppleDouble companion");
         assert_eq!(
@@ -3881,7 +4821,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_csc_directory_windows_ads_and_best_effort_stream_adaptation_journal_verify() {
+    fn test_csc_directory_windows_ads_and_best_effort_stream_adaptation_journal_verify()
+     {
         let temp = tempdir().expect("tempdir");
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
@@ -3892,7 +4833,8 @@ mod tests {
         // 1. Subdirectory with an alongside Windows ADS companion (`subdir:Zone.Identifier`)
         let subdir = src.join("subdir");
         fs::create_dir_all(&subdir).unwrap();
-        let dir_zone = b"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.com/\r\n";
+        let dir_zone =
+            b"[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://example.com/\r\n";
         fs::write(src.join("subdir:Zone.Identifier"), dir_zone).unwrap();
         fs::write(subdir.join("inside.txt"), b"inside subdir").unwrap();
 
@@ -3923,7 +4865,9 @@ mod tests {
         );
 
         let verify_args = crate::args::default_verify_args(state, Some(dest));
-        let verify_report = crate::verifier::verify_directory_against_manifest(&verify_args).unwrap();
+        let verify_report =
+            crate::verifier::verify_directory_against_manifest(&verify_args)
+                .unwrap();
         assert!(
             verify_report.is_clean(),
             "csc verify must pass for directory Windows ADS companion: {}",
@@ -3944,37 +4888,45 @@ mod tests {
         fs::create_dir_all(&state2_best).unwrap();
 
         fs::write(src2.join("doc.txt"), b"Document payload").unwrap();
-        let mut doc_entity =
-            ctb_io::file::FileEntity::from_filesystem(&src2.join("doc.txt"), Some(&src2)).unwrap();
+        let mut doc_entity = ctb_io::file::FileEntity::from_filesystem(
+            &src2.join("doc.txt"),
+            Some(&src2),
+        )
+        .unwrap();
         doc_entity.streams = vec![
             ctb_io::file::AttachedStream::from_data(
-                Some(ctb_io::file::StreamName::from_bytes(b"stream/with/slash")),
+                Some(ctb_io::file::StreamName::from_bytes(
+                    b"stream/with/slash",
+                )),
                 ctb_io::file::StreamKind::ExtendedAttribute,
                 b"slash-payload-1".to_vec(),
             )
             .unwrap(),
             ctb_io::file::AttachedStream::from_data(
-                Some(ctb_io::file::StreamName::from_bytes(b"stream\\with\\slash")),
+                Some(ctb_io::file::StreamName::from_bytes(
+                    b"stream\\with\\slash",
+                )),
                 ctb_io::file::StreamKind::ExtendedAttribute,
                 b"slash-payload-2".to_vec(),
             )
             .unwrap(),
             ctb_io::file::AttachedStream::from_data(
-                Some(ctb_io::file::StreamName::from_bytes(b"stream:with:colon")),
+                Some(ctb_io::file::StreamName::from_bytes(
+                    b"stream:with:colon",
+                )),
                 ctb_io::file::StreamKind::ExtendedAttribute,
                 b"colon-payload".to_vec(),
             )
             .unwrap(),
         ];
-        let ad_bytes = ctb_io::file::serialize_apple_double_for_entity(&doc_entity).unwrap();
+        let ad_bytes =
+            ctb_io::file::serialize_apple_double_for_entity(&doc_entity)
+                .unwrap();
         fs::write(src2.join("._doc.txt"), ad_bytes).unwrap();
 
         // Strict/default copy must fail because `stream/with/slash` is invalid as a sidecar filename
         let mut strict_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src2.display())),
-                dest2_strict,
-            ],
+            vec![PathBuf::from(format!("{}/", src2.display())), dest2_strict],
             state2_strict,
         );
         strict_args.read_apple_double_alongside = true;
@@ -3995,7 +4947,8 @@ mod tests {
         best_args.read_apple_double_alongside = true;
         best_args.force_write_windows_ads = true;
         best_args.best_effort_metadata = true;
-        let best_res = run_csc(best_args).expect("best-effort copy must succeed");
+        let best_res =
+            run_csc(best_args).expect("best-effort copy must succeed");
         match best_res {
             ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
                 assert_eq!(exit_code, 0);
@@ -4007,10 +4960,14 @@ mod tests {
         assert!(dest2_best.join("doc.txt:stream_with_colon").exists());
 
         // Verify journal recorded `materialized.stream_name` even when verify runs with best_effort = false!
-        let mut verify_best_args = crate::args::default_verify_args(state2_best, Some(dest2_best));
+        let mut verify_best_args =
+            crate::args::default_verify_args(state2_best, Some(dest2_best));
         verify_best_args.criteria.best_effort = false;
         let verify_best_report =
-            crate::verifier::verify_directory_against_manifest(&verify_best_args).unwrap();
+            crate::verifier::verify_directory_against_manifest(
+                &verify_best_args,
+            )
+            .unwrap();
         assert!(
             verify_best_report.is_clean(),
             "csc verify must pass for adapted & disambiguated streams using journal metadata: {}",
@@ -4043,14 +5000,16 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let single_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("doc.as"), single_bytes).unwrap();
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
-        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+        args.read_apple_single_with_extension =
+            vec![ctb_io::file::AppleSingleExtension::As];
         args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
 
         let res = run_csc(args).expect("run csc");
@@ -4062,9 +5021,18 @@ mod tests {
         }
 
         // Extension .as must be stripped automatically upon valid AppleSingle decode
-        assert!(dest.join("doc").exists(), "Stripped destination 'doc' must exist");
-        assert_eq!(fs::read(dest.join("doc")).unwrap(), b"Unpacked doc payload");
-        assert!(!dest.join("doc.as").exists(), "doc.as must not exist on dest");
+        assert!(
+            dest.join("doc").exists(),
+            "Stripped destination 'doc' must exist"
+        );
+        assert_eq!(
+            fs::read(dest.join("doc")).unwrap(),
+            b"Unpacked doc payload"
+        );
+        assert!(
+            !dest.join("doc.as").exists(),
+            "doc.as must not exist on dest"
+        );
     }
 
     #[crate::ctb_test]
@@ -4083,7 +5051,8 @@ mod tests {
             vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state,
         );
-        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+        args.read_apple_single_with_extension =
+            vec![ctb_io::file::AppleSingleExtension::As];
 
         let res = run_csc(args).expect("run csc");
         match res {
@@ -4094,8 +5063,14 @@ mod tests {
         }
 
         // Non-AppleSingle file must preserve its .as extension intact
-        assert!(dest.join("script.as").exists(), "script.as must remain intact");
-        assert_eq!(fs::read(dest.join("script.as")).unwrap(), b"package { class Main {} }");
+        assert!(
+            dest.join("script.as").exists(),
+            "script.as must remain intact"
+        );
+        assert_eq!(
+            fs::read(dest.join("script.as")).unwrap(),
+            b"package { class Main {} }"
+        );
         assert!(!dest.join("script").exists(), "script must not exist");
     }
 
@@ -4117,7 +5092,8 @@ mod tests {
             state,
         );
         args.force_write_apple_single = true;
-        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::As);
+        args.write_apple_single_with_extension =
+            Some(ctb_io::file::AppleSingleExtension::As);
 
         let res = run_csc(args).expect("run csc");
         match res {
@@ -4129,7 +5105,10 @@ mod tests {
 
         // Foo.as -> Foo.as.as and Foo.as.as -> Foo.as.as.as
         assert!(dest.join("Foo.as.as").exists(), "Foo.as.as must exist");
-        assert!(dest.join("Foo.as.as.as").exists(), "Foo.as.as.as must exist");
+        assert!(
+            dest.join("Foo.as.as.as").exists(),
+            "Foo.as.as.as must exist"
+        );
 
         let d1 = fs::read(dest.join("Foo.as.as")).unwrap();
         let a1 = ctb_io::file::read_apple_single_double(&d1).unwrap();
@@ -4178,9 +5157,24 @@ mod tests {
             ..ctb_io::file::AppleReadOptions::default()
         };
 
-        let e1 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo"), Some(&dest), &opts).unwrap();
-        let e2 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo.as"), Some(&dest), &opts).unwrap();
-        let e3 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo.as.as"), Some(&dest), &opts).unwrap();
+        let e1 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+            &dest.join("Foo"),
+            Some(&dest),
+            &opts,
+        )
+        .unwrap();
+        let e2 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+            &dest.join("Foo.as"),
+            Some(&dest),
+            &opts,
+        )
+        .unwrap();
+        let e3 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+            &dest.join("Foo.as.as"),
+            Some(&dest),
+            &opts,
+        )
+        .unwrap();
 
         if let ctb_io::file::FileEntityKind::Regular { size, .. } = e1.kind {
             assert_eq!(size, 14); // "content of Foo"
@@ -4221,22 +5215,30 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let single_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("foo.as"), single_bytes).unwrap();
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest],
             state,
         );
-        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+        args.read_apple_single_with_extension =
+            vec![ctb_io::file::AppleSingleExtension::As];
 
         // Must bail out because both unpack/target 'foo'
         match run_csc(args) {
             Err(err) => {
                 let err_msg = err.to_string();
-                assert!(err_msg.contains("collision") || err_msg.contains("Target collision"), "Error message must report collision: {err_msg}");
+                assert!(
+                    err_msg.contains("collision")
+                        || err_msg.contains("Target collision"),
+                    "Error message must report collision: {err_msg}"
+                );
             }
-            Ok(_) => panic!("Must error on target collision between foo and foo.as"),
+            Ok(_) => {
+                panic!("Must error on target collision between foo and foo.as")
+            }
         }
     }
 
@@ -4251,7 +5253,8 @@ mod tests {
 
         fs::write(src.join("file.txt"), b"base file").unwrap();
         // Independent file that happens to match the companion path
-        fs::write(src.join("._file.txt"), b"independent not appledouble").unwrap();
+        fs::write(src.join("._file.txt"), b"independent not appledouble")
+            .unwrap();
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest],
@@ -4262,9 +5265,15 @@ mod tests {
         match run_csc(args) {
             Err(err) => {
                 let err_msg = err.to_string();
-                assert!(err_msg.contains("collision") || err_msg.contains("Companion collision"), "Error message must report collision: {err_msg}");
+                assert!(
+                    err_msg.contains("collision")
+                        || err_msg.contains("Companion collision"),
+                    "Error message must report collision: {err_msg}"
+                );
             }
-            Ok(_) => panic!("Must error on companion collision with independent ._file.txt"),
+            Ok(_) => panic!(
+                "Must error on companion collision with independent ._file.txt"
+            ),
         }
     }
 
@@ -4279,7 +5288,11 @@ mod tests {
 
         fs::write(src.join("file.txt"), b"base file").unwrap();
         // Preexisting independent file in .AppleDouble
-        fs::write(src.join(".AppleDouble").join("file.txt"), b"independent netatalk").unwrap();
+        fs::write(
+            src.join(".AppleDouble").join("file.txt"),
+            b"independent netatalk",
+        )
+        .unwrap();
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest],
@@ -4288,7 +5301,10 @@ mod tests {
         args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
 
         let res = run_csc(args);
-        assert!(res.is_err(), "Must error on companion collision with independent .AppleDouble/file.txt");
+        assert!(
+            res.is_err(),
+            "Must error on companion collision with independent .AppleDouble/file.txt"
+        );
     }
 
     #[crate::ctb_test]
@@ -4312,9 +5328,14 @@ mod tests {
         match run_csc(args) {
             Err(err) => {
                 let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("__MACOSX"), "Error must report __MACOSX collision: {msg}");
+                assert!(
+                    msg.contains("collision") || msg.contains("__MACOSX"),
+                    "Error must report __MACOSX collision: {msg}"
+                );
             }
-            Ok(_) => panic!("Must bail on regular file __MACOSX collision with AppleDouble zip"),
+            Ok(_) => panic!(
+                "Must bail on regular file __MACOSX collision with AppleDouble zip"
+            ),
         }
     }
 
@@ -4339,9 +5360,14 @@ mod tests {
         match run_csc(args) {
             Err(err) => {
                 let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains(".AppleDouble"), "Error must report .AppleDouble collision: {msg}");
+                assert!(
+                    msg.contains("collision") || msg.contains(".AppleDouble"),
+                    "Error must report .AppleDouble collision: {msg}"
+                );
             }
-            Ok(_) => panic!("Must bail on regular file .AppleDouble collision with Netatalk"),
+            Ok(_) => panic!(
+                "Must bail on regular file .AppleDouble collision with Netatalk"
+            ),
         }
     }
 
@@ -4365,9 +5391,14 @@ mod tests {
         match run_csc(args) {
             Err(err) => {
                 let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains(".Parent"), "Error must report .Parent collision: {msg}");
+                assert!(
+                    msg.contains("collision") || msg.contains(".Parent"),
+                    "Error must report .Parent collision: {msg}"
+                );
             }
-            Ok(_) => panic!("Must bail on regular file .Parent collision with Netatalk metadata"),
+            Ok(_) => panic!(
+                "Must bail on regular file .Parent collision with Netatalk metadata"
+            ),
         }
     }
 
@@ -4400,22 +5431,30 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let single_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("foo.as.as"), single_bytes).unwrap();
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest],
             state,
         );
-        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+        args.read_apple_single_with_extension =
+            vec![ctb_io::file::AppleSingleExtension::As];
 
         // foo.as targets dest/foo.as; foo.as.as unpacks to dest/foo.as -> Collision!
         match run_csc(args) {
             Err(err) => {
                 let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("Target collision"), "Error must report collision: {msg}");
+                assert!(
+                    msg.contains("collision")
+                        || msg.contains("Target collision"),
+                    "Error must report collision: {msg}"
+                );
             }
-            Ok(_) => panic!("Must bail on target collision between foo.as and foo.as.as"),
+            Ok(_) => panic!(
+                "Must bail on target collision between foo.as and foo.as.as"
+            ),
         }
     }
 
@@ -4444,7 +5483,8 @@ mod tests {
             unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
-        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        let single_bytes =
+            ctb_io::file::write_apple_single_double(&archive).unwrap();
         fs::write(src.join("doc.as"), &single_bytes).unwrap();
         fs::write(src.join("doc.asf"), &single_bytes).unwrap();
 
@@ -4461,9 +5501,15 @@ mod tests {
         match run_csc(args) {
             Err(err) => {
                 let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("Target collision"), "Error must report collision: {msg}");
+                assert!(
+                    msg.contains("collision")
+                        || msg.contains("Target collision"),
+                    "Error must report collision: {msg}"
+                );
             }
-            Ok(_) => panic!("Must bail on target collision between doc.as and doc.asf"),
+            Ok(_) => panic!(
+                "Must bail on target collision between doc.as and doc.asf"
+            ),
         }
     }
 
@@ -4492,21 +5538,33 @@ mod tests {
         match run_csc(args) {
             Err(err) => {
                 let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("Companion collision"), "Error must report collision: {msg}");
+                assert!(
+                    msg.contains("collision")
+                        || msg.contains("Companion collision"),
+                    "Error must report collision: {msg}"
+                );
             }
-            Ok(_) => panic!("Must bail on companion collision for ._foo and ._._foo"),
+            Ok(_) => {
+                panic!("Must bail on companion collision for ._foo and ._._foo")
+            }
         }
     }
 
     #[cfg(unix)]
     fn run_permission_test_unprivileged(test_name: &str) -> bool {
-        crate::run_permission_test_unprivileged(&format!("copy_engine::tests::{test_name}")).unwrap()
+        crate::run_permission_test_unprivileged(&format!(
+            "copy_engine::tests::{test_name}"
+        ))
+        .unwrap()
     }
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_csc_continue_on_error_copies_remaining_and_records_errors_and_warnings() {
-        if run_permission_test_unprivileged("test_csc_continue_on_error_copies_remaining_and_records_errors_and_warnings") {
+    fn test_csc_continue_on_error_copies_remaining_and_records_errors_and_warnings()
+     {
+        if run_permission_test_unprivileged(
+            "test_csc_continue_on_error_copies_remaining_and_records_errors_and_warnings",
+        ) {
             return;
         }
         let temp = tempdir().expect("create tempdir");
@@ -4519,9 +5577,14 @@ mod tests {
         let readable_file = src.join("readable.txt");
         let unreadable_file = src.join("unreadable.txt");
         fs::write(&readable_file, b"readable content").expect("write readable");
-        fs::write(&unreadable_file, b"unreadable content").expect("write unreadable");
+        fs::write(&unreadable_file, b"unreadable content")
+            .expect("write unreadable");
 
-        fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o000)).expect("chmod 000");
+        fs::set_permissions(
+            &unreadable_file,
+            fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod 000");
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
@@ -4530,11 +5593,18 @@ mod tests {
         args.continue_on_error = true;
 
         let res = run_csc(args);
-        let _ = fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o644));
+        let _ = fs::set_permissions(
+            &unreadable_file,
+            fs::Permissions::from_mode(0o644),
+        );
 
         let res = res.expect("run_csc with continue_on_error must succeed");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_ne!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Errors recorded:"));
@@ -4546,28 +5616,46 @@ mod tests {
             fs::read(dest.join("readable.txt")).expect("read copied file"),
             b"readable content"
         );
-        assert!(!dest.join("unreadable.txt").exists(), "unreadable file must not be copied");
+        assert!(
+            !dest.join("unreadable.txt").exists(),
+            "unreadable file must not be copied"
+        );
 
         let journal_path = crate::journal::find_cscjournal(&state);
-        let snapshot = crate::journal::read_journal_snapshot(&journal_path).expect("read journal snapshot");
+        let snapshot = crate::journal::read_journal_snapshot(&journal_path)
+            .expect("read journal snapshot");
         assert_eq!(snapshot.errors.len(), 1);
         let err = &snapshot.errors[0];
         assert_eq!(err.stage, crate::journal::JournalErrorStage::MetadataRead);
         assert!(err.path.to_string_lossy().contains("unreadable.txt"));
 
-        assert!(!snapshot.warnings.is_empty(), "Warnings must be recorded in journal");
+        assert!(
+            !snapshot.warnings.is_empty(),
+            "Warnings must be recorded in journal"
+        );
 
         let desc_path = journal_path.with_extension("cscdesc");
         let desc_content = fs::read_to_string(&desc_path).expect("read desc");
-        assert!(desc_content.contains("ErrorsCount: 1"), "desc must report ErrorsCount: 1: {desc_content}");
-        assert!(desc_content.contains("unreadable.txt"), "desc must contain error path");
-        assert!(desc_content.contains("WarningsCount:"), "desc must report WarningsCount");
+        assert!(
+            desc_content.contains("ErrorsCount: 1"),
+            "desc must report ErrorsCount: 1: {desc_content}"
+        );
+        assert!(
+            desc_content.contains("unreadable.txt"),
+            "desc must contain error path"
+        );
+        assert!(
+            desc_content.contains("WarningsCount:"),
+            "desc must report WarningsCount"
+        );
     }
 
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_aborts_and_records_error_without_continue_on_error() {
-        if run_permission_test_unprivileged("test_csc_aborts_and_records_error_without_continue_on_error") {
+        if run_permission_test_unprivileged(
+            "test_csc_aborts_and_records_error_without_continue_on_error",
+        ) {
             return;
         }
         let temp = tempdir().expect("create tempdir");
@@ -4579,7 +5667,11 @@ mod tests {
 
         let unreadable_file = src.join("bad.txt");
         fs::write(&unreadable_file, b"cannot read").expect("write bad");
-        fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o000)).expect("chmod 000");
+        fs::set_permissions(
+            &unreadable_file,
+            fs::Permissions::from_mode(0o000),
+        )
+        .expect("chmod 000");
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
@@ -4588,19 +5680,35 @@ mod tests {
         args.continue_on_error = false;
 
         let res = run_csc(args);
-        let _ = fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o644));
+        let _ = fs::set_permissions(
+            &unreadable_file,
+            fs::Permissions::from_mode(0o644),
+        );
 
-        assert!(res.is_err(), "Must abort on unreadable file when continue_on_error is false");
+        assert!(
+            res.is_err(),
+            "Must abort on unreadable file when continue_on_error is false"
+        );
 
         let journal_path = crate::journal::find_cscjournal(&state);
-        let snapshot = crate::journal::read_journal_snapshot(&journal_path).expect("read journal snapshot");
+        let snapshot = crate::journal::read_journal_snapshot(&journal_path)
+            .expect("read journal snapshot");
         assert_eq!(snapshot.errors.len(), 1);
-        assert_eq!(snapshot.errors[0].stage, crate::journal::JournalErrorStage::MetadataRead);
+        assert_eq!(
+            snapshot.errors[0].stage,
+            crate::journal::JournalErrorStage::MetadataRead
+        );
 
         let desc_path = journal_path.with_extension("cscdesc");
         let desc_content = fs::read_to_string(&desc_path).expect("read desc");
-        assert!(desc_content.contains("Status: Failed:"), "desc must record Failed status: {desc_content}");
-        assert!(desc_content.contains("ErrorsCount: 1"), "desc must record ErrorsCount: 1");
+        assert!(
+            desc_content.contains("Status: Failed:"),
+            "desc must record Failed status: {desc_content}"
+        );
+        assert!(
+            desc_content.contains("ErrorsCount: 1"),
+            "desc must record ErrorsCount: 1"
+        );
     }
 
     #[cfg(target_os = "linux")]
@@ -4612,17 +5720,40 @@ mod tests {
             let destination = temp.path().join("destination");
             let state = temp.path().join("state");
             fs::create_dir(&state).unwrap();
-            let mut args = default_test_args(vec![source.clone(), destination.clone()], state.clone());
+            let mut args = default_test_args(
+                vec![source.clone(), destination.clone()],
+                state.clone(),
+            );
             args.continue_on_error = continue_on_error;
             args.allow_unknown_fs = true;
             let result = run_csc(args);
-            assert_eq!(result.is_ok(), continue_on_error, "Unexpected copy error: {:?}", result.as_ref().err());
-            let snapshot = crate::journal::read_journal_snapshot(&crate::journal::find_cscjournal(&state)).unwrap();
+            assert_eq!(
+                result.is_ok(),
+                continue_on_error,
+                "Unexpected copy error: {:?}",
+                result.as_ref().err()
+            );
+            let snapshot = crate::journal::read_journal_snapshot(
+                &crate::journal::find_cscjournal(&state),
+            )
+            .unwrap();
             assert_eq!(snapshot.errors.len(), 1);
-            assert_eq!(snapshot.errors[0].stage, JournalErrorStage::PayloadRead);
+            assert_eq!(
+                snapshot.errors[0].stage,
+                JournalErrorStage::PayloadRead
+            );
             assert_eq!(snapshot.errors[0].path, source);
-            assert!(snapshot.errors[0].error_message.contains("Failed to checksum source payload"));
-            assert!(snapshot.committed_entities.values().all(|entity| !entity.is_regular()));
+            assert!(
+                snapshot.errors[0]
+                    .error_message
+                    .contains("Failed to checksum source payload")
+            );
+            assert!(
+                snapshot
+                    .committed_entities
+                    .values()
+                    .all(|entity| !entity.is_regular())
+            );
             assert!(!destination.exists());
         }
     }
@@ -4637,7 +5768,8 @@ mod tests {
         fs::create_dir_all(&state).expect("create state");
 
         // Write a 256KB sample file
-        fs::write(src.join("sample.bin"), vec![0x42; 256 * 1024]).expect("write file");
+        fs::write(src.join("sample.bin"), vec![0x42; 256 * 1024])
+            .expect("write file");
 
         let mut args = default_test_args(
             vec![src.join("sample.bin"), dest.join("sample.bin")],
@@ -4647,7 +5779,11 @@ mod tests {
 
         let res = run_csc(args).expect("run csc");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { exit_code, stdout, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                exit_code,
+                stdout,
+                ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Files copied:             1"));
@@ -4658,7 +5794,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_resume_without_overwrite_using_durable_destination_receipts() -> Result<()> {
+    fn test_resume_without_overwrite_using_durable_destination_receipts()
+    -> Result<()> {
         let temp = tempdir()?;
         let src = temp.path().join("src_durable");
         let dest = temp.path().join("dest_durable");
@@ -4672,8 +5809,14 @@ mod tests {
         let uncommitted1_rel = deep_rel.join("uncommitted1.txt");
         let uncommitted2_rel = deep_rel.join("uncommitted2.txt");
         fs::write(src.join(&committed_rel), b"already committed before crash")?;
-        fs::write(src.join(&uncommitted1_rel), b"preexisting uncommitted file 1")?;
-        fs::write(src.join(&uncommitted2_rel), b"preexisting uncommitted file 2")?;
+        fs::write(
+            src.join(&uncommitted1_rel),
+            b"preexisting uncommitted file 1",
+        )?;
+        fs::write(
+            src.join(&uncommitted2_rel),
+            b"preexisting uncommitted file 2",
+        )?;
 
         // Simulate an interrupted Run 1 crash window:
         // Directories "", "a", "a/b", "a/b/c" were created on dest with AppliedDirectoryReceipts,
@@ -4691,7 +5834,8 @@ mod tests {
                 &dest,
             )?;
             let dest_dir = SandboxableDir::create_or_open(&dest)?;
-            let root_id = dest_dir.query_owned_directory_identity(Path::new(""))?;
+            let root_id =
+                dest_dir.query_owned_directory_identity(Path::new(""))?;
             journal.record_applied_directory(PathBuf::new(), root_id);
 
             let apple_opts = ctb_io::file::AppleReadOptions::default();
@@ -4706,14 +5850,23 @@ mod tests {
                 } else {
                     src.join(&rel_dir)
                 };
-                let mut dir_entity = CapturedSource::capture(&dir_src, Some(&src), &apple_opts, false)?.entity;
+                let mut dir_entity = CapturedSource::capture(
+                    &dir_src,
+                    Some(&src),
+                    &apple_opts,
+                    false,
+                )?
+                .entity;
                 dir_entity.identity.relative_path = Some(rel_dir.clone());
                 let rel_target = if rel_dir.as_os_str().is_empty() {
                     Path::new(".")
                 } else {
                     rel_dir.as_path()
                 };
-                dest_dir.ensure_dir_all(rel_target, PathTraversalPolicy::StrictSandboxed)?;
+                dest_dir.ensure_dir_all(
+                    rel_target,
+                    PathTraversalPolicy::StrictSandboxed,
+                )?;
                 let id = dest_dir.query_owned_directory_identity(rel_target)?;
                 journal.record_applied_directory(rel_dir, id);
                 journal.record_entity(&dir_entity);
@@ -4722,28 +5875,63 @@ mod tests {
             let CapturedSource {
                 entity: mut committed_entity,
                 snapshot: committed_snap,
-            } = CapturedSource::capture(&src.join(&committed_rel), Some(&src), &apple_opts, false)?;
-            committed_entity.identity.relative_path = Some(committed_rel.clone());
-            let mut payload = open_payload(&src.join(&committed_rel), &committed_snap)?;
-            hash_primary(&mut committed_entity, &mut payload, &src.join(&committed_rel))?;
+            } = CapturedSource::capture(
+                &src.join(&committed_rel),
+                Some(&src),
+                &apple_opts,
+                false,
+            )?;
+            committed_entity.identity.relative_path =
+                Some(committed_rel.clone());
+            let mut payload =
+                open_payload(&src.join(&committed_rel), &committed_snap)?;
+            hash_primary(
+                &mut committed_entity,
+                &mut payload,
+                &src.join(&committed_rel),
+            )?;
             let mat_opts = MaterializeOptions {
-                existing_entry_policy: ctb_io::file::ExistingEntryPolicy::Refuse,
+                existing_entry_policy:
+                    ctb_io::file::ExistingEntryPolicy::Refuse,
                 force_overwrite: false,
                 ..MaterializeOptions::default()
             };
-            let mut write_payload = open_payload(&src.join(&committed_rel), &committed_snap)?;
-            materialize_entity(&committed_entity, Some(&mut write_payload), &dest_dir, &mat_opts)?;
-            record_journal_entry(&mut journal, &dest.join(&committed_rel), &committed_entity)?;
+            let mut write_payload =
+                open_payload(&src.join(&committed_rel), &committed_snap)?;
+            materialize_entity(
+                &committed_entity,
+                Some(&mut write_payload),
+                &dest_dir,
+                &mat_opts,
+            )?;
+            record_journal_entry(
+                &mut journal,
+                &dest.join(&committed_rel),
+                &committed_entity,
+            )?;
             journal.commit_batch()?;
         }
 
         let snap_before = crate::journal::read_journal_snapshot(&journal_path)?;
-        assert!(!snap_before.is_completed, "Crash-window fixture must be an incomplete journal");
-        assert!(snap_before.is_committed(committed_rel.as_os_str().as_encoded_bytes()));
-        assert!(!snap_before.is_committed(uncommitted1_rel.as_os_str().as_encoded_bytes()));
-        assert!(!snap_before.is_committed(uncommitted2_rel.as_os_str().as_encoded_bytes()));
-        let committed_id_before =
-            ctb_io::file::identity::query_file_identity(&dest.join(&committed_rel))?;
+        assert!(
+            !snap_before.is_completed,
+            "Crash-window fixture must be an incomplete journal"
+        );
+        assert!(
+            snap_before
+                .is_committed(committed_rel.as_os_str().as_encoded_bytes())
+        );
+        assert!(
+            !snap_before
+                .is_committed(uncommitted1_rel.as_os_str().as_encoded_bytes())
+        );
+        assert!(
+            !snap_before
+                .is_committed(uncommitted2_rel.as_os_str().as_encoded_bytes())
+        );
+        let committed_id_before = ctb_io::file::identity::query_file_identity(
+            &dest.join(&committed_rel),
+        )?;
 
         let clean_journal_bytes = fs::read(&journal_path)?;
         let clean_desc_bytes = fs::read(&desc_path)?;
@@ -4751,7 +5939,10 @@ mod tests {
         // Sub-test 1: If a preexisting uncommitted regular file exists on the destination inside
         // the deep subtree (even with a valid AppliedDirectoryReceipt on dest/a/b/c), resume under
         // ExistingEntryPolicy::Refuse (overwrite = false) MUST refuse to overwrite or adopt it.
-        fs::write(dest.join(&uncommitted1_rel), b"preexisting on-destination uncommitted payload")?;
+        fs::write(
+            dest.join(&uncommitted1_rel),
+            b"preexisting on-destination uncommitted payload",
+        )?;
         let mut refuse_args = default_test_args(
             vec![src_with_slash.clone(), dest.clone()],
             state.clone(),
@@ -4766,7 +5957,8 @@ mod tests {
             fs::read(dest.join(&uncommitted1_rel))?,
             b"preexisting on-destination uncommitted payload"
         );
-        let snap_after_refuse = crate::journal::read_journal_snapshot(&journal_path)?;
+        let snap_after_refuse =
+            crate::journal::read_journal_snapshot(&journal_path)?;
         assert!(
             snap_after_refuse
                 .committed_entities
@@ -4804,7 +5996,9 @@ mod tests {
             b"already committed before crash"
         );
         assert_eq!(
-            ctb_io::file::identity::query_file_identity(&dest.join(&committed_rel))?,
+            ctb_io::file::identity::query_file_identity(
+                &dest.join(&committed_rel)
+            )?,
             committed_id_before,
             "Already-committed regular file must be verified in-place without replacing its inode"
         );
@@ -4816,7 +6010,8 @@ mod tests {
             fs::read(dest.join(&uncommitted2_rel))?,
             b"preexisting uncommitted file 2"
         );
-        let snap_completed = crate::journal::read_journal_snapshot(&journal_path)?;
+        let snap_completed =
+            crate::journal::read_journal_snapshot(&journal_path)?;
         assert!(snap_completed.is_completed);
 
         // Sub-test 3: Tampering test on a deep directory (dest/a/b/c replaced with a different inode)
@@ -4842,7 +6037,9 @@ mod tests {
         tamper_resume.resume = Some(tampered_journal);
         tamper_resume.overwrite = false;
 
-        let snap = crate::journal::read_journal_snapshot(&tamper_resume.resume.clone().unwrap())?;
+        let snap = crate::journal::read_journal_snapshot(
+            &tamper_resume.resume.clone().unwrap(),
+        )?;
         if let Some(expected_id) = snap.applied_directories.get(&deep_rel) {
             if *expected_id != new_id {
                 let err = run_csc(tamper_resume);
@@ -4857,7 +6054,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_journal_tracks_materialized_path_for_renamed_entities() -> Result<()> {
+    fn test_journal_tracks_materialized_path_for_renamed_entities() -> Result<()>
+    {
         let temp = tempdir()?;
         let dest = temp.path().join("dest_renamed");
         let state = temp.path().join("state_renamed");
@@ -4866,11 +6064,19 @@ mod tests {
 
         let journal_path = state.join("rename.cscjournal");
         let desc_path = state.join("rename.cscdesc");
-        let mut journal = StateJournal::create_at_path(&journal_path, &desc_path, &[], &dest)?;
+        let mut journal = StateJournal::create_at_path(
+            &journal_path,
+            &desc_path,
+            &[],
+            &dest,
+        )?;
 
-        let orig_rel = Path::new("dir").join(format!("{}.txt", "x".repeat(260)));
+        let orig_rel =
+            Path::new("dir").join(format!("{}.txt", "x".repeat(260)));
         let (adapted_rel, warnings) =
-            ctb_io::file::adapt_relative_path_for_materialization(&orig_rel, true);
+            ctb_io::file::adapt_relative_path_for_materialization(
+                &orig_rel, true,
+            );
         assert_ne!(orig_rel, adapted_rel);
         assert!(!warnings.is_empty());
 
@@ -4895,7 +6101,9 @@ mod tests {
             Some(adapted_rel.clone())
         );
         assert!(snapshot.is_committed(orig_rel.as_os_str().as_encoded_bytes()));
-        assert!(snapshot.is_committed(adapted_rel.as_os_str().as_encoded_bytes()));
+        assert!(
+            snapshot.is_committed(adapted_rel.as_os_str().as_encoded_bytes())
+        );
         assert_eq!(
             snapshot.committed_entities.len(),
             1,
@@ -4905,7 +6113,8 @@ mod tests {
             snapshot
                 .warnings
                 .iter()
-                .any(|w| w.code == "FileMaterializationWarning" && w.message.contains("Adapted destination path")),
+                .any(|w| w.code == "FileMaterializationWarning"
+                    && w.message.contains("Adapted destination path")),
             "Expected FileMaterializationWarning in journal warnings, got: {:?}",
             snapshot.warnings
         );

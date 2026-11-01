@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Candidate conflict resolution, subsumption hierarchies, and MIME
 //! specialization scoring for format detection.
 
@@ -454,7 +453,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::detection::mime_derivation::FORMAT_CATALOG;
-use crate::detection::types::{ConfidenceTier, DetectionCandidate, DetectionEvidence};
+use crate::detection::types::{
+    ConfidenceTier, DetectionCandidate, DetectionEvidence,
+};
 use crate::format_id::FormatId;
 
 /// Resolves conflicts among format candidates using priority scores and the format
@@ -465,7 +466,9 @@ use crate::format_id::FormatId;
 /// creating an artificial conflict. True non-hierarchical ambiguities are classified as
 /// `ConfidenceTier::Conflicted`.
 #[must_use]
-pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> Vec<DetectionCandidate> {
+pub fn resolve_candidate_conflicts(
+    mut candidates: Vec<DetectionCandidate>,
+) -> Vec<DetectionCandidate> {
     if candidates.len() <= 1 {
         return candidates;
     }
@@ -500,15 +503,19 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                 }
             }
 
-            let is_subclass = match (child_candidate.format_id, parent_candidate.format_id) {
-                (Some(c_fmt), Some(p_fmt)) => FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt),
-                _ => match (&child_candidate.mime, &parent_candidate.mime) {
-                    (Some(c_mime), Some(p_mime)) => {
-                        FORMAT_CATALOG.is_mime_subclass_of(c_mime, p_mime)
+            let is_subclass =
+                match (child_candidate.format_id, parent_candidate.format_id) {
+                    (Some(c_fmt), Some(p_fmt)) => {
+                        FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt)
                     }
-                    _ => false,
-                },
-            };
+                    _ => {
+                        match (&child_candidate.mime, &parent_candidate.mime) {
+                            (Some(c_mime), Some(p_mime)) => FORMAT_CATALOG
+                                .is_mime_subclass_of(c_mime, p_mime),
+                            _ => false,
+                        }
+                    }
+                };
 
             let is_container_parent = parent_candidate.format_id == Some(FormatId::Zip)
                 || parent_candidate.mime.as_deref() == Some("application/zip")
@@ -547,7 +554,8 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
 
             // If i is a subtype of j and i has equal or higher score (or within 35 points, or is a specialized format in a container)
             if (is_subclass || is_child_of_container)
-                && (child_candidate.score.saturating_add(35) >= parent_candidate.score
+                && (child_candidate.score.saturating_add(35)
+                    >= parent_candidate.score
                     || (is_container_parent && child_candidate.score >= 65))
             {
                 subsumed_indices.insert(j);
@@ -556,22 +564,27 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     }
 
     // 2. Attach subsumed ancestors as evidence to child formats
-    let parent_summaries: Vec<(usize, Option<FormatId>, Option<String>, u32)> = subsumed_indices
-        .iter()
-        .filter_map(|&sub_idx| {
-            candidates
-                .get(sub_idx)
-                .map(|p| (sub_idx, p.format_id, p.mime.clone(), p.score))
-        })
-        .collect();
+    let parent_summaries: Vec<(usize, Option<FormatId>, Option<String>, u32)> =
+        subsumed_indices
+            .iter()
+            .filter_map(|&sub_idx| {
+                candidates
+                    .get(sub_idx)
+                    .map(|p| (sub_idx, p.format_id, p.mime.clone(), p.score))
+            })
+            .collect();
 
     for (i, cand) in candidates.iter_mut().enumerate() {
         if subsumed_indices.contains(&i) {
             continue;
         }
-        for &(_sub_idx, parent_fmt, ref parent_mime, parent_score) in &parent_summaries {
+        for &(_sub_idx, parent_fmt, ref parent_mime, parent_score) in
+            &parent_summaries
+        {
             let is_subclass = match (cand.format_id, parent_fmt) {
-                (Some(c_fmt), Some(p_fmt)) => FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt),
+                (Some(c_fmt), Some(p_fmt)) => {
+                    FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt)
+                }
                 _ => match (&cand.mime, parent_mime) {
                     (Some(c_mime), Some(p_mime)) => {
                         FORMAT_CATALOG.is_mime_subclass_of(c_mime, p_mime)
@@ -606,12 +619,12 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     // and format chain directives do not conflict with document/identifier/data content formats.
     let is_encoding = |c: &DetectionCandidate| {
         // Reason for fallback: candidates without a format_id are not encoding formats
-        c.format_id
-            .is_some_and(|fid| fid.category() == ctb_utilities::FormatCategory::Encoding)
+        c.format_id.is_some_and(|fid| {
+            fid.category() == ctb_utilities::FormatCategory::Encoding
+        })
     };
-    let is_chain = |c: &DetectionCandidate| {
-        c.description.starts_with("@chain(")
-    };
+    let is_chain =
+        |c: &DetectionCandidate| c.description.starts_with("@chain(");
     let non_subsumed_content_count = candidates
         .iter()
         .enumerate()
@@ -625,7 +638,9 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     let non_subsumed_encoding_count = candidates
         .iter()
         .enumerate()
-        .filter(|(idx, c)| !subsumed_indices.contains(idx) && c.score >= 70 && is_encoding(c))
+        .filter(|(idx, c)| {
+            !subsumed_indices.contains(idx) && c.score >= 70 && is_encoding(c)
+        })
         .count();
 
     for (idx, c) in candidates.iter_mut().enumerate() {
@@ -671,7 +686,10 @@ fn boost_candidate_implied_ancestors(
 
         let mut related_siblings = Vec::new();
         for (other_idx, other) in candidates.iter().enumerate() {
-            if other_idx == idx || other.score != cand.score || other.confidence != cand.confidence {
+            if other_idx == idx
+                || other.score != cand.score
+                || other.confidence != cand.confidence
+            {
                 continue;
             }
             let Some(other_fid) = other.format_id else {
@@ -691,9 +709,9 @@ fn boost_candidate_implied_ancestors(
         }
 
         if !related_siblings.is_empty()
-            && related_siblings.iter().all(|&other_fid| {
-                other_fid.implies().contains(&cand_fid)
-            })
+            && related_siblings
+                .iter()
+                .all(|&other_fid| other_fid.implies().contains(&cand_fid))
         {
             if let Some(b) = boosts.get_mut(idx) {
                 *b = 1;

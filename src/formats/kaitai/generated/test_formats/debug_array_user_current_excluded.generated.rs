@@ -64,35 +64,59 @@ pub struct DebugArrayUserCurrentExcluded {
     array_of_cats: RefCell<Vec<OptRc<DebugArrayUserCurrentExcluded_Cat>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&DebugArrayUserCurrentExcluded> for OptRc<DebugArrayUserCurrentExcluded> {
+impl TryFrom<&DebugArrayUserCurrentExcluded>
+    for OptRc<DebugArrayUserCurrentExcluded>
+{
     type Error = KError;
-    fn try_from(v: &DebugArrayUserCurrentExcluded) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &DebugArrayUserCurrentExcluded,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DebugArrayUserCurrentExcluded> for OptRc<DebugArrayUserCurrentExcluded> {
+impl TryFrom<&&DebugArrayUserCurrentExcluded>
+    for OptRc<DebugArrayUserCurrentExcluded>
+{
     type Error = KError;
-    fn try_from(v: &&DebugArrayUserCurrentExcluded) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&DebugArrayUserCurrentExcluded,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded> for DebugArrayUserCurrentExcluded {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded>
+    for DebugArrayUserCurrentExcluded
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded> for &DebugArrayUserCurrentExcluded {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded>
+    for &DebugArrayUserCurrentExcluded
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded> for OptRc<DebugArrayUserCurrentExcluded> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded>
+    for OptRc<DebugArrayUserCurrentExcluded>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded> for &OptRc<DebugArrayUserCurrentExcluded> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded>
+    for &OptRc<DebugArrayUserCurrentExcluded>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
         Ok((*self).clone())
     }
 }
@@ -100,7 +124,11 @@ impl KStruct for DebugArrayUserCurrentExcluded {
     type Root = DebugArrayUserCurrentExcluded;
     type Parent = DebugArrayUserCurrentExcluded;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,11 +143,17 @@ impl KStruct for DebugArrayUserCurrentExcluded {
         *self_rc.array_of_cats.borrow_mut() = Vec::new();
         let l_array_of_cats = 3_usize;
         for _i in 0_usize..l_array_of_cats {
-            let t: OptRc<DebugArrayUserCurrentExcluded_Cat> = OptRc::from(DebugArrayUserCurrentExcluded_Cat::default());
-            let (root_in, parent_in) = (Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()));
+            let t: OptRc<DebugArrayUserCurrentExcluded_Cat> =
+                OptRc::from(DebugArrayUserCurrentExcluded_Cat::default());
+            let (root_in, parent_in) = (
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            );
             let root = Self::downcast(root_in, t.clone(), true);
             let parent = Self::downcast(parent_in, t.clone(), false);
-            let res = DebugArrayUserCurrentExcluded_Cat::read(&t, &*_io, root, parent);
+            let res = DebugArrayUserCurrentExcluded_Cat::read(
+                &t, &*_io, root, parent,
+            );
             self_rc.array_of_cats.borrow_mut().push(t);
             res?;
         }
@@ -128,10 +162,11 @@ impl KStruct for DebugArrayUserCurrentExcluded {
         Ok(())
     }
 }
+impl DebugArrayUserCurrentExcluded {}
 impl DebugArrayUserCurrentExcluded {
-}
-impl DebugArrayUserCurrentExcluded {
-    pub fn array_of_cats(&self) -> Ref<'_, Vec<OptRc<DebugArrayUserCurrentExcluded_Cat>>> {
+    pub fn array_of_cats(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<DebugArrayUserCurrentExcluded_Cat>>> {
         self.array_of_cats.borrow()
     }
 }
@@ -156,35 +191,59 @@ pub struct DebugArrayUserCurrentExcluded_Cat {
     _io: RefCell<BytesReader>,
     meow_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&DebugArrayUserCurrentExcluded_Cat> for OptRc<DebugArrayUserCurrentExcluded_Cat> {
+impl TryFrom<&DebugArrayUserCurrentExcluded_Cat>
+    for OptRc<DebugArrayUserCurrentExcluded_Cat>
+{
     type Error = KError;
-    fn try_from(v: &DebugArrayUserCurrentExcluded_Cat) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &DebugArrayUserCurrentExcluded_Cat,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&DebugArrayUserCurrentExcluded_Cat> for OptRc<DebugArrayUserCurrentExcluded_Cat> {
+impl TryFrom<&&DebugArrayUserCurrentExcluded_Cat>
+    for OptRc<DebugArrayUserCurrentExcluded_Cat>
+{
     type Error = KError;
-    fn try_from(v: &&DebugArrayUserCurrentExcluded_Cat) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&DebugArrayUserCurrentExcluded_Cat,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for DebugArrayUserCurrentExcluded_Cat {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat>
+    for DebugArrayUserCurrentExcluded_Cat
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for &DebugArrayUserCurrentExcluded_Cat {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat>
+    for &DebugArrayUserCurrentExcluded_Cat
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for OptRc<DebugArrayUserCurrentExcluded_Cat> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat>
+    for OptRc<DebugArrayUserCurrentExcluded_Cat>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for &OptRc<DebugArrayUserCurrentExcluded_Cat> {
-    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat>
+    for &OptRc<DebugArrayUserCurrentExcluded_Cat>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
         Ok((*self).clone())
     }
 }
@@ -192,7 +251,11 @@ impl KStruct for DebugArrayUserCurrentExcluded_Cat {
     type Root = DebugArrayUserCurrentExcluded;
     type Parent = DebugArrayUserCurrentExcluded;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -204,14 +267,25 @@ impl KStruct for DebugArrayUserCurrentExcluded_Cat {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.meow.borrow_mut() = _io.read_bytes(usize::try_from((3_usize).saturating_sub(self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.array_of_cats().len()))?)?;
+        *self_rc.meow.borrow_mut() = _io.read_bytes(usize::try_from(
+            (3_usize).saturating_sub(
+                self_rc
+                    ._parent
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingParent)?
+                    .array_of_cats()
+                    .len(),
+            ),
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DebugArrayUserCurrentExcluded_Cat {
-}
+impl DebugArrayUserCurrentExcluded_Cat {}
 impl DebugArrayUserCurrentExcluded_Cat {
     pub fn meow(&self) -> Ref<'_, Vec<u8>> {
         self.meow.borrow()

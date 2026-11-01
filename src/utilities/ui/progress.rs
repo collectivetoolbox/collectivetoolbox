@@ -26,13 +26,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::utilities::cli::{is_stderr_interactive, supports_control_characters};
+use crate::utilities::cli::{
+    is_stderr_interactive, supports_control_characters,
+};
 use crate::utilities::string::format_percentage;
 
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom, Write, stderr};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// Unique identifier for an ongoing progress task.
@@ -174,7 +176,12 @@ impl Progress {
     /// For dumb terminals or teleprinters without control character support, updates are
     /// written as fresh full lines at a lower rate (at most every 5 seconds, or on 10%
     /// progress milestones).
-    pub fn update_task(&self, task_id: TaskId, items_done: u64, detail: Option<&str>) {
+    pub fn update_task(
+        &self,
+        task_id: TaskId,
+        items_done: u64,
+        detail: Option<&str>,
+    ) {
         if !self.enabled {
             return;
         }
@@ -224,7 +231,10 @@ impl Progress {
             // every 5 seconds, or on 10% milestone increments (10%, 20%, 30%, ...)
             let milestone = pct_opt.as_ref().and_then(|pct| {
                 // Reason for fallback: invalid division or parse failure defaults to milestone 0
-                pct.whole.parse::<u32>().ok().map(|w| w.checked_div(10).unwrap_or(0))
+                pct.whole
+                    .parse::<u32>()
+                    .ok()
+                    .map(|w| w.checked_div(10).unwrap_or(0))
             });
             let is_new_milestone = match (milestone, task.last_milestone_pct) {
                 (Some(m), Some(prev)) => m > prev,
@@ -417,10 +427,12 @@ impl<R> ProgressStream<R> {
 
     fn maybe_report_progress(&mut self) {
         if self.progress.is_enabled()
-            && self.last_update.elapsed() >= std::time::Duration::from_millis(500)
+            && self.last_update.elapsed()
+                >= std::time::Duration::from_millis(500)
         {
             self.last_update = Instant::now();
-            let current_total = self.base_bytes.saturating_add(self.file_bytes_read);
+            let current_total =
+                self.base_bytes.saturating_add(self.file_bytes_read);
             let detail = if self.file_size > 0 {
                 format!(
                     "{}: {}/{} ({} total)",
@@ -430,10 +442,17 @@ impl<R> ProgressStream<R> {
                     format_bytes_decimal(current_total)
                 )
             } else {
-                format!("{}: {}", self.phase, format_bytes_decimal(current_total))
+                format!(
+                    "{}: {}",
+                    self.phase,
+                    format_bytes_decimal(current_total)
+                )
             };
-            self.progress
-                .update_task(self.task_id, self.files_done, Some(&detail));
+            self.progress.update_task(
+                self.task_id,
+                self.files_done,
+                Some(&detail),
+            );
         }
     }
 }
@@ -443,7 +462,8 @@ impl<R: Read> Read for ProgressStream<R> {
         let n = self.inner.read(buf)?;
         if n > 0 {
             if let Ok(n_u64) = u64::try_from(n) {
-                self.file_bytes_read = self.file_bytes_read.saturating_add(n_u64);
+                self.file_bytes_read =
+                    self.file_bytes_read.saturating_add(n_u64);
             }
             self.maybe_report_progress();
         }

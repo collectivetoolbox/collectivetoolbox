@@ -66,24 +66,24 @@ pub mod csv_tools;
 pub mod dc_char;
 pub mod shared_memory;
 pub mod string;
+pub mod terminfo;
 pub mod testing;
 pub mod ui;
 pub mod workspace_path_resolution;
-pub mod terminfo;
 pub use terminfo::Terminfo;
 #[path = "format_id.generated.rs"]
 pub mod format_id;
 pub use format_id::{FormatCategory, FormatId, *};
 #[path = "format_support.generated.rs"]
 pub mod format_support;
-pub use format_support::*;
 pub use dc_char::DcChar;
+pub use format_support::*;
 
 pub use crate::cli::{OutputChunk, ToolResult};
 pub use crate::math::approx_eq;
 pub use crate::string::{
-    format_bytes_decimal, format_permissions, octal_mode_to_letters, parse_bytes,
-    parse_bytes_u128,
+    format_bytes_decimal, format_permissions, octal_mode_to_letters,
+    parse_bytes, parse_bytes_u128,
 };
 pub use crate::ui::progress::{
     Progress, ProgressStream, TaskId, should_show_progress, should_use_controls,
@@ -862,7 +862,6 @@ pub fn get_all_bytes() -> Result<Vec<u8>> {
     get_utilities_data("all_bytes.bin")
         .ok_or_else(|| anyhow::anyhow!("Failed to get all_bytes"))
 }
-
 
 #[expect(
     clippy::panic,

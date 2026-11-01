@@ -32,7 +32,6 @@ SOFTWARE.
 )]
 pub(crate) use ctb_utilities::*;
 
-
 /// CLI helpers for Panorama files.
 pub mod cli;
 

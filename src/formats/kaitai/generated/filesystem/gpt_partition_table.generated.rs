@@ -58,7 +58,11 @@ impl KStruct for GptPartitionTable {
     type Root = GptPartitionTable;
     type Parent = GptPartitionTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -75,42 +79,100 @@ impl KStruct for GptPartitionTable {
     }
 }
 impl GptPartitionTable {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn backup(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<GptPartitionTable_PartitionHeader>>> {
         let _io = self._io.borrow();
         if self.f_backup.get() {
             return Ok(self.backup.borrow());
         }
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
-        io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)))?)?;
-        let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        io.seek(usize::try_from(
+            (i64::try_from(_io.size())?).saturating_sub(i64::from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .sector_size()?,
+            )),
+        )?)?;
+        let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(
+            &io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.backup.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.backup.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn primary(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<GptPartitionTable_PartitionHeader>>> {
         let _io = self._io.borrow();
         if self.f_primary.get() {
             return Ok(self.primary.borrow());
         }
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
-        io.seek(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?)?;
-        let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        io.seek(usize::try_from(
+            *self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                .sector_size()?,
+        )?)?;
+        let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(
+            &io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.primary.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.primary.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn sector_size(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn sector_size(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sector_size.get() {
             return Ok(self.sector_size.borrow());
@@ -148,35 +210,59 @@ pub struct GptPartitionTable_PartitionEntry {
     guid_raw: RefCell<Vec<u8>>,
     name_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&GptPartitionTable_PartitionEntry> for OptRc<GptPartitionTable_PartitionEntry> {
+impl TryFrom<&GptPartitionTable_PartitionEntry>
+    for OptRc<GptPartitionTable_PartitionEntry>
+{
     type Error = KError;
-    fn try_from(v: &GptPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &GptPartitionTable_PartitionEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&GptPartitionTable_PartitionEntry> for OptRc<GptPartitionTable_PartitionEntry> {
+impl TryFrom<&&GptPartitionTable_PartitionEntry>
+    for OptRc<GptPartitionTable_PartitionEntry>
+{
     type Error = KError;
-    fn try_from(v: &&GptPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&GptPartitionTable_PartitionEntry,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionEntry> for GptPartitionTable_PartitionEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionEntry>
+    for GptPartitionTable_PartitionEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionEntry> for &GptPartitionTable_PartitionEntry {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionEntry>
+    for &GptPartitionTable_PartitionEntry
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionEntry> for OptRc<GptPartitionTable_PartitionEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionEntry>
+    for OptRc<GptPartitionTable_PartitionEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionEntry> for &OptRc<GptPartitionTable_PartitionEntry> {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionEntry>
+    for &OptRc<GptPartitionTable_PartitionEntry>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -184,7 +270,11 @@ impl KStruct for GptPartitionTable_PartitionEntry {
     type Root = GptPartitionTable;
     type Parent = GptPartitionTable_PartitionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -206,14 +296,14 @@ impl KStruct for GptPartitionTable_PartitionEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(72_usize)?, "UTF-16LE")?;
+        *self_rc.name.borrow_mut() =
+            bytes_to_str(&_io.read_bytes(72_usize)?, "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl GptPartitionTable_PartitionEntry {
-}
+impl GptPartitionTable_PartitionEntry {}
 impl GptPartitionTable_PartitionEntry {
     pub fn type_guid(&self) -> Ref<'_, Vec<u8>> {
         self.type_guid.borrow()
@@ -296,35 +386,59 @@ pub struct GptPartitionTable_PartitionHeader {
     f_entries: Cell<bool>,
     entries: RefCell<Vec<OptRc<GptPartitionTable_PartitionEntry>>>,
 }
-impl TryFrom<&GptPartitionTable_PartitionHeader> for OptRc<GptPartitionTable_PartitionHeader> {
+impl TryFrom<&GptPartitionTable_PartitionHeader>
+    for OptRc<GptPartitionTable_PartitionHeader>
+{
     type Error = KError;
-    fn try_from(v: &GptPartitionTable_PartitionHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &GptPartitionTable_PartitionHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&GptPartitionTable_PartitionHeader> for OptRc<GptPartitionTable_PartitionHeader> {
+impl TryFrom<&&GptPartitionTable_PartitionHeader>
+    for OptRc<GptPartitionTable_PartitionHeader>
+{
     type Error = KError;
-    fn try_from(v: &&GptPartitionTable_PartitionHeader) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&GptPartitionTable_PartitionHeader,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionHeader> for GptPartitionTable_PartitionHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionHeader>
+    for GptPartitionTable_PartitionHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionHeader> for &GptPartitionTable_PartitionHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionHeader>
+    for &GptPartitionTable_PartitionHeader
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionHeader> for OptRc<GptPartitionTable_PartitionHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionHeader>
+    for OptRc<GptPartitionTable_PartitionHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<GptPartitionTable_PartitionHeader> for &OptRc<GptPartitionTable_PartitionHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+impl DowncastOptRc<GptPartitionTable_PartitionHeader>
+    for &OptRc<GptPartitionTable_PartitionHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -332,7 +446,11 @@ impl KStruct for GptPartitionTable_PartitionHeader {
     type Root = GptPartitionTable;
     type Parent = GptPartitionTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -345,8 +463,15 @@ impl KStruct for GptPartitionTable_PartitionHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.signature.borrow_mut() = _io.read_bytes(8_usize)?;
-        if !(*self_rc.signature() == vec![0x45u8, 0x46u8, 0x49u8, 0x20u8, 0x50u8, 0x41u8, 0x52u8, 0x54u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/0".to_string() }));
+        if !(*self_rc.signature()
+            == vec![
+                0x45u8, 0x46u8, 0x49u8, 0x20u8, 0x50u8, 0x41u8, 0x52u8, 0x54u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/partition_header/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.revision.borrow_mut() = _io.read_u4le()?;
@@ -380,26 +505,63 @@ impl KStruct for GptPartitionTable_PartitionHeader {
     }
 }
 impl GptPartitionTable_PartitionHeader {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn entries(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Vec<OptRc<GptPartitionTable_PartitionEntry>>>> {
         let _io = self._io.borrow();
         if self.f_entries.get() {
             return Ok(self.entries.borrow());
         }
         self.f_entries.set(true);
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
-        io.seek(usize::try_from((*self.entries_start()).saturating_mul(u64::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
+        io.seek(usize::try_from(
+            (*self.entries_start()).saturating_mul(u64::try_from(
+                *self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .sector_size()?,
+            )?),
+        )?)?;
         *self.entries_raw.borrow_mut() = Vec::new();
         *self.entries.borrow_mut() = Vec::new();
         let l_entries = usize::try_from(*self.entries_count())?;
         for _i in 0_usize..l_entries {
-            self.entries_raw.borrow_mut().push(io.read_bytes(usize::try_from(*self.entries_size())?)?.into());
+            self.entries_raw.borrow_mut().push(
+                io.read_bytes(usize::try_from(*self.entries_size())?)?
+                    .into(),
+            );
             let entries_raw = self.entries_raw.borrow();
-            let _io_entries_raw = BytesReader::from(entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
-            let t = Self::read_into::<BytesReader, GptPartitionTable_PartitionEntry>(&_io_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let _io_entries_raw = BytesReader::from(
+                entries_raw.last().ok_or(KError::EmptyIterator)?.clone(),
+            );
+            let t = Self::read_into::<
+                BytesReader,
+                GptPartitionTable_PartitionEntry,
+            >(
+                &_io_entries_raw,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
             self.entries.borrow_mut().push(t);
         }
         io.seek(_pos)?;

@@ -76,7 +76,10 @@ impl From<u16> for ValidSwitch_B {
 }
 impl TryFrom<&ValidSwitch_B> for i64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
         match e {
             ValidSwitch_B::U2(v) => Ok(i64::try_from(*v)?),
@@ -85,7 +88,10 @@ impl TryFrom<&ValidSwitch_B> for i64 {
 }
 impl TryFrom<&ValidSwitch_B> for u16 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
         match e {
             ValidSwitch_B::U2(v) => Ok(u16::try_from(*v)?),
@@ -94,7 +100,10 @@ impl TryFrom<&ValidSwitch_B> for u16 {
 }
 impl TryFrom<&ValidSwitch_B> for u64 {
     type Error = KError;
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic TryFrom implementation over varied enum variant types"
+    )]
     fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
         match e {
             ValidSwitch_B::U2(v) => Ok(u64::try_from(*v)?),
@@ -146,7 +155,11 @@ impl KStruct for ValidSwitch {
     type Root = ValidSwitch;
     type Parent = ValidSwitch;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -161,7 +174,10 @@ impl KStruct for ValidSwitch {
         *self_rc.a.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (80).try_into()?;
         if !(*self_rc.a() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.a() {
@@ -174,15 +190,17 @@ impl KStruct for ValidSwitch {
         }
         let expected: u16 = (17217).try_into()?;
         if !(self_rc.b() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidSwitch {
-}
+impl ValidSwitch {}
 impl ValidSwitch {
     pub fn a(&self) -> Ref<'_, u8> {
         self.a.borrow()
@@ -191,7 +209,11 @@ impl ValidSwitch {
 impl ValidSwitch {
     pub fn b(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.b.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
+        self.b
+            .borrow()
+            .as_ref()
+            .and_then(|v| u16::try_from(v).ok())
+            .unwrap_or(0)
     }
     pub fn b_enum(&self) -> Ref<'_, Option<ValidSwitch_B>> {
         self.b.borrow()

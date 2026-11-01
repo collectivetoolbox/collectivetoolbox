@@ -77,7 +77,11 @@ impl KStruct for AppleSingleDouble {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -100,7 +104,12 @@ impl KStruct for AppleSingleDouble {
         *self_rc.entries.borrow_mut() = Vec::new();
         let l_entries = usize::from(*self_rc.num_entries());
         for _i in 0_usize..l_entries {
-            let t = Self::read_into::<_, AppleSingleDouble_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, AppleSingleDouble_Entry>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.entries.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -108,8 +117,7 @@ impl KStruct for AppleSingleDouble {
         Ok(())
     }
 }
-impl AppleSingleDouble {
-}
+impl AppleSingleDouble {}
 impl AppleSingleDouble {
     pub fn magic(&self) -> Ref<'_, AppleSingleDouble_FileType> {
         self.magic.borrow()
@@ -178,15 +186,16 @@ impl From<&AppleSingleDouble_FileType> for i64 {
         match *v {
             AppleSingleDouble_FileType::AppleSingle => 333312,
             AppleSingleDouble_FileType::AppleDouble => 333319,
-            AppleSingleDouble_FileType::Unknown(v) => v
+            AppleSingleDouble_FileType::Unknown(v) => v,
         }
     }
 }
 
 impl Default for AppleSingleDouble_FileType {
-    fn default() -> Self { AppleSingleDouble_FileType::Unknown(0) }
+    fn default() -> Self {
+        AppleSingleDouble_FileType::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct AppleSingleDouble_Entry {
@@ -206,32 +215,49 @@ pub enum AppleSingleDouble_Entry_Body {
     AppleSingleDouble_FinderInfo(OptRc<AppleSingleDouble_FinderInfo>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&AppleSingleDouble_Entry_Body> for OptRc<AppleSingleDouble_FinderInfo> {
+impl TryFrom<&AppleSingleDouble_Entry_Body>
+    for OptRc<AppleSingleDouble_FinderInfo>
+{
     type Error = KError;
     fn try_from(v: &AppleSingleDouble_Entry_Body) -> Result<Self, Self::Error> {
-        if let AppleSingleDouble_Entry_Body::AppleSingleDouble_FinderInfo(x) = v {
+        if let AppleSingleDouble_Entry_Body::AppleSingleDouble_FinderInfo(x) = v
+        {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&AppleSingleDouble_Entry_Body> for OptRc<AppleSingleDouble_FinderInfo> {
+impl TryFrom<&&AppleSingleDouble_Entry_Body>
+    for OptRc<AppleSingleDouble_FinderInfo>
+{
     type Error = KError;
-    fn try_from(v: &&AppleSingleDouble_Entry_Body) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&AppleSingleDouble_Entry_Body,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<AppleSingleDouble_FinderInfo> for AppleSingleDouble_Entry_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+impl DowncastOptRc<AppleSingleDouble_FinderInfo>
+    for AppleSingleDouble_Entry_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
         OptRc::<AppleSingleDouble_FinderInfo>::try_from(self)
     }
 }
-impl DowncastOptRc<AppleSingleDouble_FinderInfo> for &AppleSingleDouble_Entry_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+impl DowncastOptRc<AppleSingleDouble_FinderInfo>
+    for &AppleSingleDouble_Entry_Body
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<AppleSingleDouble_FinderInfo>> for AppleSingleDouble_Entry_Body {
+impl From<OptRc<AppleSingleDouble_FinderInfo>>
+    for AppleSingleDouble_Entry_Body
+{
     fn from(v: OptRc<AppleSingleDouble_FinderInfo>) -> Self {
         Self::AppleSingleDouble_FinderInfo(v)
     }
@@ -247,7 +273,9 @@ impl TryFrom<&AppleSingleDouble_Entry_Body> for Vec<u8> {
 }
 impl TryFrom<&&AppleSingleDouble_Entry_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(v: &&AppleSingleDouble_Entry_Body) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&AppleSingleDouble_Entry_Body,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -283,7 +311,9 @@ impl DowncastOptRc<AppleSingleDouble_Entry> for OptRc<AppleSingleDouble_Entry> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AppleSingleDouble_Entry> for &OptRc<AppleSingleDouble_Entry> {
+impl DowncastOptRc<AppleSingleDouble_Entry>
+    for &OptRc<AppleSingleDouble_Entry>
+{
     fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Entry>, KError> {
         Ok((*self).clone())
     }
@@ -292,7 +322,11 @@ impl KStruct for AppleSingleDouble_Entry {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -304,7 +338,8 @@ impl KStruct for AppleSingleDouble_Entry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.r#type.borrow_mut() =
+            i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_body.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -315,9 +350,13 @@ impl KStruct for AppleSingleDouble_Entry {
     }
 }
 impl AppleSingleDouble_Entry {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn body(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Option<AppleSingleDouble_Entry_Body>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
@@ -328,14 +367,25 @@ impl AppleSingleDouble_Entry {
         _io.seek(usize::try_from(*self.ofs_body())?)?;
         match *self.r#type() {
             AppleSingleDouble_Entry_Types::FinderInfo => {
-                *self.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_body())?)?.into();
+                *self.body_raw.borrow_mut() =
+                    _io.read_bytes(usize::try_from(*self.len_body())?)?.into();
                 let body_raw = self.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, AppleSingleDouble_FinderInfo>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    BytesReader,
+                    AppleSingleDouble_FinderInfo,
+                >(
+                    &_t_body_raw_io,
+                    Some(self._root.clone()),
+                    Some(self._self_shared.clone()),
+                )?
+                .into();
                 *self.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self.len_body())?)?.into());
+                *self.body.borrow_mut() = Some(
+                    _io.read_bytes(usize::try_from(*self.len_body())?)?.into(),
+                );
             }
         }
         _io.seek(_pos)?;
@@ -440,15 +490,16 @@ impl From<&AppleSingleDouble_Entry_Types> for i64 {
             AppleSingleDouble_Entry_Types::AfpShortName => 13,
             AppleSingleDouble_Entry_Types::AfpFileInfo => 14,
             AppleSingleDouble_Entry_Types::AfpDirectoryId => 15,
-            AppleSingleDouble_Entry_Types::Unknown(v) => v
+            AppleSingleDouble_Entry_Types::Unknown(v) => v,
         }
     }
 }
 
 impl Default for AppleSingleDouble_Entry_Types {
-    fn default() -> Self { AppleSingleDouble_Entry_Types::Unknown(0) }
+    fn default() -> Self {
+        AppleSingleDouble_Entry_Types::Unknown(0)
+    }
 }
-
 
 /**
  * Information specific to Finder
@@ -469,35 +520,57 @@ pub struct AppleSingleDouble_FinderInfo {
     file_type_raw: RefCell<Vec<u8>>,
     file_creator_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&AppleSingleDouble_FinderInfo> for OptRc<AppleSingleDouble_FinderInfo> {
+impl TryFrom<&AppleSingleDouble_FinderInfo>
+    for OptRc<AppleSingleDouble_FinderInfo>
+{
     type Error = KError;
     fn try_from(v: &AppleSingleDouble_FinderInfo) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&AppleSingleDouble_FinderInfo> for OptRc<AppleSingleDouble_FinderInfo> {
+impl TryFrom<&&AppleSingleDouble_FinderInfo>
+    for OptRc<AppleSingleDouble_FinderInfo>
+{
     type Error = KError;
-    fn try_from(v: &&AppleSingleDouble_FinderInfo) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&AppleSingleDouble_FinderInfo,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<AppleSingleDouble_FinderInfo> for AppleSingleDouble_FinderInfo {
-    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+impl DowncastOptRc<AppleSingleDouble_FinderInfo>
+    for AppleSingleDouble_FinderInfo
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<AppleSingleDouble_FinderInfo> for &AppleSingleDouble_FinderInfo {
-    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+impl DowncastOptRc<AppleSingleDouble_FinderInfo>
+    for &AppleSingleDouble_FinderInfo
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<AppleSingleDouble_FinderInfo> for OptRc<AppleSingleDouble_FinderInfo> {
-    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+impl DowncastOptRc<AppleSingleDouble_FinderInfo>
+    for OptRc<AppleSingleDouble_FinderInfo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AppleSingleDouble_FinderInfo> for &OptRc<AppleSingleDouble_FinderInfo> {
-    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+impl DowncastOptRc<AppleSingleDouble_FinderInfo>
+    for &OptRc<AppleSingleDouble_FinderInfo>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
         Ok((*self).clone())
     }
 }
@@ -505,7 +578,11 @@ impl KStruct for AppleSingleDouble_FinderInfo {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble_Entry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -523,7 +600,12 @@ impl KStruct for AppleSingleDouble_FinderInfo {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, AppleSingleDouble_Point>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, AppleSingleDouble_Point>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.location.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.folder_id.borrow_mut() = _io.read_u2be()?;
@@ -532,8 +614,7 @@ impl KStruct for AppleSingleDouble_FinderInfo {
         Ok(())
     }
 }
-impl AppleSingleDouble_FinderInfo {
-}
+impl AppleSingleDouble_FinderInfo {}
 impl AppleSingleDouble_FinderInfo {
     pub fn file_type(&self) -> Ref<'_, Vec<u8>> {
         self.file_type.borrow()
@@ -629,7 +710,9 @@ impl DowncastOptRc<AppleSingleDouble_Point> for OptRc<AppleSingleDouble_Point> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<AppleSingleDouble_Point> for &OptRc<AppleSingleDouble_Point> {
+impl DowncastOptRc<AppleSingleDouble_Point>
+    for &OptRc<AppleSingleDouble_Point>
+{
     fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Point>, KError> {
         Ok((*self).clone())
     }
@@ -638,7 +721,11 @@ impl KStruct for AppleSingleDouble_Point {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble_FinderInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -658,8 +745,7 @@ impl KStruct for AppleSingleDouble_Point {
         Ok(())
     }
 }
-impl AppleSingleDouble_Point {
-}
+impl AppleSingleDouble_Point {}
 impl AppleSingleDouble_Point {
     pub fn x(&self) -> Ref<'_, u16> {
         self.x.borrow()

@@ -66,8 +66,8 @@ use ctb_utilities::testing::binary_path::resolve_binary_path_supporting_tests_or
 pub use ctb_workspace_ipc;
 pub mod capabilities;
 pub mod crlite;
-pub mod panic_hooks;
 pub mod environment;
+pub mod panic_hooks;
 pub mod process;
 pub mod update_status;
 

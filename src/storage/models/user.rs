@@ -27,9 +27,7 @@ use crate::utilities::*;
 use crate::graph::Graph;
 use crate::secret::Secret;
 use crate::user::auth::KekParams;
-use crate::utilities::password::{
-    Password, TEST_USER_PASS, hash, verify,
-};
+use crate::utilities::password::{Password, TEST_USER_PASS, hash, verify};
 use crate::utilities::pc_settings::ensure_pc_settings;
 use crate::utilities::resource_lock::{Lock, ResourceLock};
 use crate::{error, json, log};

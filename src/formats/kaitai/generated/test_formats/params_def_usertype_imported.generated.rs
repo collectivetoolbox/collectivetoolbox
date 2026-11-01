@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::hello_world::HelloWorld;
 use super::hello_world::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsDefUsertypeImported {
@@ -81,22 +81,34 @@ impl TryFrom<&&ParamsDefUsertypeImported> for OptRc<ParamsDefUsertypeImported> {
     }
 }
 impl DowncastOptRc<ParamsDefUsertypeImported> for ParamsDefUsertypeImported {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ParamsDefUsertypeImported> for &ParamsDefUsertypeImported {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsDefUsertypeImported> for OptRc<ParamsDefUsertypeImported> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
+impl DowncastOptRc<ParamsDefUsertypeImported>
+    for OptRc<ParamsDefUsertypeImported>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsDefUsertypeImported> for &OptRc<ParamsDefUsertypeImported> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
+impl DowncastOptRc<ParamsDefUsertypeImported>
+    for &OptRc<ParamsDefUsertypeImported>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsDefUsertypeImported>, KError> {
         Ok((*self).clone())
     }
 }
@@ -104,7 +116,11 @@ impl KStruct for ParamsDefUsertypeImported {
     type Root = ParamsDefUsertypeImported;
     type Parent = ParamsDefUsertypeImported;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,10 +147,12 @@ impl ParamsDefUsertypeImported {
     }
 }
 impl ParamsDefUsertypeImported {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn hw_one(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn hw_one(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_hw_one.get() {
             return Ok(self.hw_one.borrow());

@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! DROID and PRONOM signature evaluation and container inspection subsystem.
 //!
 //! Implements:
@@ -742,7 +741,9 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
 
         let mut offset = bof_min;
         while offset.saturating_add(pat_len) <= scan_limit {
-            if bof_sample.get(offset..offset.saturating_add(pat_len)) == Some(sig.bof_pattern) {
+            if bof_sample.get(offset..offset.saturating_add(pat_len))
+                == Some(sig.bof_pattern)
+            {
                 // Special check for WebP: offset 8..12 must be b"WEBP"
                 if sig.mime == "image/webp" {
                     if bof_sample.get(8..12) != Some(b"WEBP") {
@@ -784,7 +785,8 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
             let sample_len = eof_sample.len();
             let mut dist = eof_min;
             while dist.saturating_add(eof_pat_len) <= eof_max.min(sample_len) {
-                let start_idx = sample_len.saturating_sub(dist.saturating_add(eof_pat_len));
+                let start_idx =
+                    sample_len.saturating_sub(dist.saturating_add(eof_pat_len));
                 let end_idx = start_idx.saturating_add(eof_pat_len);
                 if eof_sample.get(start_idx..end_idx) == Some(eof_pat) {
                     matched = true;
@@ -808,10 +810,12 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
             },
             DetectionEvidence::ByteRange {
                 start: bof_off,
-                end: bof_off.saturating_add(match u64::try_from(sig.bof_pattern.len()) {
-                    Ok(l) => l,
-                    Err(_) => 0,
-                }),
+                end: bof_off.saturating_add(
+                    match u64::try_from(sig.bof_pattern.len()) {
+                        Ok(l) => l,
+                        Err(_) => 0,
+                    },
+                ),
                 label: format!("{}: BOF Anchor", sig.description),
                 score: sig.priority,
             },
@@ -827,7 +831,8 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
                     None => 0,
                 };
                 evidence.push(DetectionEvidence::ByteRange {
-                    start: total.saturating_sub(eof_dist.saturating_add(eof_len)),
+                    start: total
+                        .saturating_sub(eof_dist.saturating_add(eof_len)),
                     end: total.saturating_sub(eof_dist),
                     label: format!("{}: EOF Anchor", sig.description),
                     score: sig.priority,
@@ -1031,11 +1036,7 @@ fn decode_pronom_sequence(seq_str: &str) -> Option<Vec<u8>> {
         }
     }
 
-    if bytes.is_empty() {
-        None
-    } else {
-        Some(bytes)
-    }
+    if bytes.is_empty() { None } else { Some(bytes) }
 }
 
 /// Parses the DROID PRONOM binary signature XML file into a `PronomDatabase`.
@@ -1052,7 +1053,8 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
             break;
         };
         let pos = cursor.checked_add(start)?;
-        let Some(end_rel) = sig_xml.get(pos..)?.find("</InternalSignature>") else {
+        let Some(end_rel) = sig_xml.get(pos..)?.find("</InternalSignature>")
+        else {
             break;
         };
         let end = pos
@@ -1085,7 +1087,8 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
                 break;
             };
             let bpos = bcursor.checked_add(bstart)?;
-            let Some(bend_rel) = block.get(bpos..)?.find("</ByteSequence>") else {
+            let Some(bend_rel) = block.get(bpos..)?.find("</ByteSequence>")
+            else {
                 break;
             };
             let bend = bpos
@@ -1110,7 +1113,8 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
                     break;
                 };
                 let spos = scursor.checked_add(sstart)?;
-                let Some(send_rel) = bblock.get(spos..)?.find("</SubSequence>") else {
+                let Some(send_rel) = bblock.get(spos..)?.find("</SubSequence>")
+                else {
                     break;
                 };
                 let send = spos
@@ -1139,13 +1143,20 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
                 };
 
                 if let Some(seq_start) = sblock.find("<Sequence>") {
-                    if let Some(seq_val_start) = seq_start.checked_add("<Sequence>".len()) {
+                    if let Some(seq_val_start) =
+                        seq_start.checked_add("<Sequence>".len())
+                    {
                         if let Some(seq_val_end_rel) =
                             sblock.get(seq_val_start..)?.find("</Sequence>")
                         {
-                            let seq_val_end = seq_val_start.checked_add(seq_val_end_rel)?;
-                            if let Some(seq_hex) = sblock.get(seq_val_start..seq_val_end) {
-                                if let Some(seq_bytes) = decode_hex_bytes(seq_hex) {
+                            let seq_val_end =
+                                seq_val_start.checked_add(seq_val_end_rel)?;
+                            if let Some(seq_hex) =
+                                sblock.get(seq_val_start..seq_val_end)
+                            {
+                                if let Some(seq_bytes) =
+                                    decode_hex_bytes(seq_hex)
+                                {
                                     subsequences.push(PronomSubSequence {
                                         min_offset: min_off,
                                         max_offset: max_off,
@@ -1166,13 +1177,8 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
             }
         }
 
-        db.signatures.insert(
-            id,
-            PronomInternalSignature {
-                id,
-                byte_sequences,
-            },
-        );
+        db.signatures
+            .insert(id, PronomInternalSignature { id, byte_sequences });
     }
 
     let fmt_col_start = xml.find("<FileFormatCollection>")?;
@@ -1193,7 +1199,8 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
         let end = if is_self_closing {
             tag_close_abs.checked_add(1)?
         } else {
-            let Some(rel_end) = fmt_xml.get(pos..)?.find("</FileFormat>") else {
+            let Some(rel_end) = fmt_xml.get(pos..)?.find("</FileFormat>")
+            else {
                 break;
             };
             pos.checked_add(rel_end)?
@@ -1209,15 +1216,19 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
         let Ok(id) = id_str.parse::<u32>() else {
             continue;
         };
-        let Some(puid) = extract_attr(open_tag, "PUID").map(ToString::to_string) else {
+        let Some(puid) =
+            extract_attr(open_tag, "PUID").map(ToString::to_string)
+        else {
             continue;
         };
         let name = match extract_attr(open_tag, "Name") {
             Some(n) => n.to_string(),
             None => String::new(),
         };
-        let mime_type = extract_attr(open_tag, "MIMEType").map(ToString::to_string);
-        let version = extract_attr(open_tag, "Version").map(ToString::to_string);
+        let mime_type =
+            extract_attr(open_tag, "MIMEType").map(ToString::to_string);
+        let version =
+            extract_attr(open_tag, "Version").map(ToString::to_string);
 
         let mut signature_ids = Vec::new();
         let mut icursor = 0usize;
@@ -1231,7 +1242,9 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
             else {
                 break;
             };
-            let Some(iend_rel) = block.get(ipos..)?.find("</InternalSignatureID>") else {
+            let Some(iend_rel) =
+                block.get(ipos..)?.find("</InternalSignatureID>")
+            else {
                 break;
             };
             let iend = ipos.checked_add(iend_rel)?;
@@ -1262,17 +1275,11 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
                 break;
             };
             let eend = epos.checked_add(eend_rel)?;
-            let ext = block
-                .get(epos..eend)?
-                .trim()
-                .to_ascii_lowercase();
+            let ext = block.get(epos..eend)?.trim().to_ascii_lowercase();
             ecursor = eend.checked_add("</Extension>".len())?;
             if !ext.is_empty() {
                 extensions.push(ext.clone());
-                db.formats_by_ext
-                    .entry(ext)
-                    .or_default()
-                    .push(puid.clone());
+                db.formats_by_ext.entry(ext).or_default().push(puid.clone());
             }
         }
 
@@ -1294,7 +1301,9 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
 }
 
 /// Parses the DROID container signature XML into a `ContainerSignatureDatabase`.
-pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignatureDatabase> {
+pub fn parse_droid_container_signatures_xml(
+    xml: &str,
+) -> Option<ContainerSignatureDatabase> {
     let mut db = ContainerSignatureDatabase::default();
     let mut sig_by_id = HashMap::new();
 
@@ -1308,7 +1317,8 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
             break;
         };
         let pos = cursor.checked_add(start)?;
-        let Some(end_rel) = sig_xml.get(pos..)?.find("</ContainerSignature>") else {
+        let Some(end_rel) = sig_xml.get(pos..)?.find("</ContainerSignature>")
+        else {
             break;
         };
         let end = pos
@@ -1332,9 +1342,14 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
             _ => ContainerKind::Zip,
         };
 
-        let description = if let Some(desc_start) = block.find("<Description>") {
-            if let Some(desc_val_start) = desc_start.checked_add("<Description>".len()) {
-                if let Some(desc_rel_end) = block.get(desc_val_start..)?.find("</Description>") {
+        let description = if let Some(desc_start) = block.find("<Description>")
+        {
+            if let Some(desc_val_start) =
+                desc_start.checked_add("<Description>".len())
+            {
+                if let Some(desc_rel_end) =
+                    block.get(desc_val_start..)?.find("</Description>")
+                {
                     let desc_end = desc_val_start.checked_add(desc_rel_end)?;
                     match block.get(desc_val_start..desc_end) {
                         Some(d) => d.trim().to_string(),
@@ -1360,15 +1375,16 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
             let Some(fend_rel) = block.get(fpos..)?.find("</File>") else {
                 break;
             };
-            let fend = fpos
-                .checked_add(fend_rel)?
-                .checked_add("</File>".len())?;
+            let fend =
+                fpos.checked_add(fend_rel)?.checked_add("</File>".len())?;
             let fblock = block.get(fpos..fend)?;
             fcursor = fend;
 
             let path = if let Some(pstart) = fblock.find("<Path>") {
                 if let Some(pval_start) = pstart.checked_add("<Path>".len()) {
-                    if let Some(pend_rel) = fblock.get(pval_start..)?.find("</Path>") {
+                    if let Some(pend_rel) =
+                        fblock.get(pval_start..)?.find("</Path>")
+                    {
                         let pend = pval_start.checked_add(pend_rel)?;
                         match fblock.get(pval_start..pend) {
                             Some(p) => p.trim().to_string(),
@@ -1391,11 +1407,15 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
             let mut text_signature = None;
             let mut binary_signature = None;
             if let Some(sstart) = fblock.find("<Sequence>") {
-                if let Some(sval_start) = sstart.checked_add("<Sequence>".len()) {
-                    if let Some(send_rel) = fblock.get(sval_start..)?.find("</Sequence>") {
+                if let Some(sval_start) = sstart.checked_add("<Sequence>".len())
+                {
+                    if let Some(send_rel) =
+                        fblock.get(sval_start..)?.find("</Sequence>")
+                    {
                         let send = sval_start.checked_add(send_rel)?;
                         // Reason for fallback: empty string used when sequence tag is empty
-                        let seq_raw = fblock.get(sval_start..send).unwrap_or("").trim();
+                        let seq_raw =
+                            fblock.get(sval_start..send).unwrap_or("").trim();
                         if let Some(bytes) = decode_pronom_sequence(seq_raw) {
                             if let Ok(text) = std::str::from_utf8(&bytes) {
                                 if !text.contains('\0') {
@@ -1484,13 +1504,14 @@ pub static DROID_PRONOM_DB: LazyLock<PronomDatabase> = LazyLock::new(|| {
 });
 
 /// Authoritative DROID container signature database loaded from embedded XML.
-pub static DROID_CONTAINER_DB: LazyLock<ContainerSignatureDatabase> = LazyLock::new(|| {
-    // Reason for fallback: default empty database used if embedded asset fails to parse
-    ctb_formats_dcdata::get_droid_container_signature_xml()
-        .and_then(|bytes| std::str::from_utf8(bytes).ok())
-        .and_then(parse_droid_container_signatures_xml)
-        .unwrap_or_default()
-});
+pub static DROID_CONTAINER_DB: LazyLock<ContainerSignatureDatabase> =
+    LazyLock::new(|| {
+        // Reason for fallback: default empty database used if embedded asset fails to parse
+        ctb_formats_dcdata::get_droid_container_signature_xml()
+            .and_then(|bytes| std::str::from_utf8(bytes).ok())
+            .and_then(parse_droid_container_signatures_xml)
+            .unwrap_or_default()
+    });
 
 /// Evaluates PRONOM signatures from DROID database on source.
 pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
@@ -1504,7 +1525,10 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
     let hint_ext = hint.and_then(|h| {
         h.extension.as_deref().or_else(|| {
             h.filename.as_deref().and_then(|f| {
-                f.rsplit(['/', '\\']).next()?.rsplit_once('.').map(|(_, ext)| ext)
+                f.rsplit(['/', '\\'])
+                    .next()?
+                    .rsplit_once('.')
+                    .map(|(_, ext)| ext)
             })
         })
     });
@@ -1534,14 +1558,20 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                     }
                     let mut bof_ok = true;
                     for sub in &bs.subsequences {
-                        let min_off = if let Ok(m) = usize::try_from(sub.min_offset) { m } else {
-                            bof_ok = false;
-                            break;
-                        };
-                        let max_off = if let Ok(m) = usize::try_from(sub.max_offset) { m } else {
-                            bof_ok = false;
-                            break;
-                        };
+                        let min_off =
+                            if let Ok(m) = usize::try_from(sub.min_offset) {
+                                m
+                            } else {
+                                bof_ok = false;
+                                break;
+                            };
+                        let max_off =
+                            if let Ok(m) = usize::try_from(sub.max_offset) {
+                                m
+                            } else {
+                                bof_ok = false;
+                                break;
+                            };
                         let pat = &sub.sequence;
                         if pat.len() < 2 {
                             bof_ok = false;
@@ -1562,7 +1592,8 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                         let mut found = false;
                         let mut off = min_off;
                         while off.saturating_add(pat.len()) <= limit {
-                            if bof_sample.get(off..off.saturating_add(pat.len()))
+                            if bof_sample
+                                .get(off..off.saturating_add(pat.len()))
                                 == Some(pat.as_slice())
                             {
                                 found = true;
@@ -1593,14 +1624,20 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                     let mut eof_ok = true;
                     let sample_len = eof_sample.len();
                     for sub in &bs.subsequences {
-                        let min_off = if let Ok(m) = usize::try_from(sub.min_offset) { m } else {
-                            eof_ok = false;
-                            break;
-                        };
-                        let max_off = if let Ok(m) = usize::try_from(sub.max_offset) { m } else {
-                            eof_ok = false;
-                            break;
-                        };
+                        let min_off =
+                            if let Ok(m) = usize::try_from(sub.min_offset) {
+                                m
+                            } else {
+                                eof_ok = false;
+                                break;
+                            };
+                        let max_off =
+                            if let Ok(m) = usize::try_from(sub.max_offset) {
+                                m
+                            } else {
+                                eof_ok = false;
+                                break;
+                            };
                         let pat = &sub.sequence;
                         if pat.len() < 2 {
                             eof_ok = false;
@@ -1610,10 +1647,12 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                         let mut found = false;
                         let mut dist = min_off;
                         while dist.saturating_add(pat.len()) <= limit {
-                            let start_idx =
-                                sample_len.saturating_sub(dist.saturating_add(pat.len()));
+                            let start_idx = sample_len
+                                .saturating_sub(dist.saturating_add(pat.len()));
                             let end_idx = start_idx.saturating_add(pat.len());
-                            if eof_sample.get(start_idx..end_idx) == Some(pat.as_slice()) {
+                            if eof_sample.get(start_idx..end_idx)
+                                == Some(pat.as_slice())
+                            {
                                 found = true;
                                 if first_eof_off.is_none() {
                                     first_eof_off = u64::try_from(dist).ok();
@@ -1659,7 +1698,11 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                         }
 
                         if let Some(ext) = hint_ext {
-                            if fmt.extensions.iter().any(|e| e.eq_ignore_ascii_case(ext)) {
+                            if fmt
+                                .extensions
+                                .iter()
+                                .any(|e| e.eq_ignore_ascii_case(ext))
+                            {
                                 score = score.saturating_add(5).min(100);
                                 evidence.push(DetectionEvidence::Extension {
                                     ext: ext.to_string(),
@@ -1671,11 +1714,16 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
 
                         let is_elf_puid = puid == "fmt/689"
                             || puid == "fmt/690"
-                            || fmt.name.eq_ignore_ascii_case("Executable and Linkable Format");
+                            || fmt.name.eq_ignore_ascii_case(
+                                "Executable and Linkable Format",
+                            );
                         let mapping = fmt
                             .mime_type
                             .as_deref()
-                            .and_then(|m| crate::mime_derivation::FORMAT_CATALOG.lookup_mime(m))
+                            .and_then(|m| {
+                                crate::mime_derivation::FORMAT_CATALOG
+                                    .lookup_mime(m)
+                            })
                             .or_else(|| {
                                 crate::mime_derivation::FORMAT_CATALOG
                                     .lookup_description_or_ident(&fmt.name)
@@ -1820,8 +1868,12 @@ pub fn parse_zip_central_directory<S: DetectionSource + ?Sized>(
 
     let mut entries = Vec::with_capacity(max_entries);
     let mut cd_pos: usize = 0;
-    while cd_pos.saturating_add(46) <= cd_sample.len() && entries.len() < max_entries {
-        if cd_sample.get(cd_pos..cd_pos.saturating_add(4)) != Some(&ZIP_CENTRAL_HEADER_MAGIC) {
+    while cd_pos.saturating_add(46) <= cd_sample.len()
+        && entries.len() < max_entries
+    {
+        if cd_sample.get(cd_pos..cd_pos.saturating_add(4))
+            != Some(&ZIP_CENTRAL_HEADER_MAGIC)
+        {
             break;
         }
 
@@ -1938,7 +1990,9 @@ pub fn scan_zip_local_headers<S: DetectionSource + ?Sized>(
                     local_header_offset: local_off,
                 });
             }
-            pos = name_end.saturating_add(usize::from(elen)).max(pos.saturating_add(1));
+            pos = name_end
+                .saturating_add(usize::from(elen))
+                .max(pos.saturating_add(1));
         } else {
             pos = pos.saturating_add(1);
         }
@@ -1993,7 +2047,8 @@ pub fn read_zip_entry_payload<S: DetectionSource + ?Sized>(
         comp_buf.truncate(read_n);
 
         use std::io::Read;
-        let mut decoder = flate2::read::DeflateDecoder::new(comp_buf.as_slice());
+        let mut decoder =
+            flate2::read::DeflateDecoder::new(comp_buf.as_slice());
         let mut decomp_buf = vec![0u8; max_bytes];
         let mut total_read = 0usize;
         while total_read < max_bytes {
@@ -2054,7 +2109,11 @@ pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
             };
 
             if let Some(ref text_sig) = file_rule.text_signature {
-                let payload = if let Some(p) = read_zip_entry_payload(source, entry, 65536)? { p } else {
+                let payload = if let Some(p) =
+                    read_zip_entry_payload(source, entry, 65536)?
+                {
+                    p
+                } else {
                     all_files_matched = false;
                     break;
                 };
@@ -2066,11 +2125,18 @@ pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
             }
 
             if let Some(ref bin_sig) = file_rule.binary_signature {
-                let payload = if let Some(p) = read_zip_entry_payload(source, entry, 65536)? { p } else {
+                let payload = if let Some(p) =
+                    read_zip_entry_payload(source, entry, 65536)?
+                {
+                    p
+                } else {
                     all_files_matched = false;
                     break;
                 };
-                if !payload.windows(bin_sig.len()).any(|w| w == bin_sig.as_slice()) {
+                if !payload
+                    .windows(bin_sig.len())
+                    .any(|w| w == bin_sig.as_slice())
+                {
                     all_files_matched = false;
                     break;
                 }
@@ -2097,7 +2163,10 @@ pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
                                 break;
                             }
                             if ext == "apk" {
-                                mime = Some("application/vnd.android.package-archive".to_string());
+                                mime = Some(
+                                    "application/vnd.android.package-archive"
+                                        .to_string(),
+                                );
                                 break;
                             }
                         }
@@ -2177,7 +2246,10 @@ pub fn evaluate_droid_ole2_container<S: DetectionSource + ?Sized>(
 
             if let Some(ref text_sig) = file_rule.text_signature {
                 has_sequence = true;
-                if !sample.windows(text_sig.len()).any(|w| w == text_sig.as_bytes()) {
+                if !sample
+                    .windows(text_sig.len())
+                    .any(|w| w == text_sig.as_bytes())
+                {
                     all_streams_matched = false;
                     break;
                 }
@@ -2185,7 +2257,10 @@ pub fn evaluate_droid_ole2_container<S: DetectionSource + ?Sized>(
 
             if let Some(ref bin_sig) = file_rule.binary_signature {
                 has_sequence = true;
-                if !sample.windows(bin_sig.len()).any(|w| w == bin_sig.as_slice()) {
+                if !sample
+                    .windows(bin_sig.len())
+                    .any(|w| w == bin_sig.as_slice())
+                {
                     all_streams_matched = false;
                     break;
                 }
@@ -2200,7 +2275,8 @@ pub fn evaluate_droid_ole2_container<S: DetectionSource + ?Sized>(
 
     candidate_matches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
 
-    let Some((_has_seq, _files_len, score, sig)) = candidate_matches.first() else {
+    let Some((_has_seq, _files_len, score, sig)) = candidate_matches.first()
+    else {
         return Ok(None);
     };
 
@@ -2218,10 +2294,11 @@ pub fn evaluate_droid_ole2_container<S: DetectionSource + ?Sized>(
                         mime = Some("application/x-hwp".to_string());
                         break;
                     }
-                    if let Some(m) = crate::detection::mime_derivation::FORMAT_CATALOG
-                        .lookup_extension(ext)
-                        .iter()
-                        .find_map(|m| m.mime_types.first().cloned())
+                    if let Some(m) =
+                        crate::detection::mime_derivation::FORMAT_CATALOG
+                            .lookup_extension(ext)
+                            .iter()
+                            .find_map(|m| m.mime_types.first().cloned())
                     {
                         mime = Some(m);
                         break;
@@ -2271,13 +2348,18 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
     }
 
     // 0. Check DROID declarative container signatures
-    if let Ok(Some(cand)) = evaluate_droid_zip_container(source, entries, &DROID_CONTAINER_DB) {
+    if let Ok(Some(cand)) =
+        evaluate_droid_zip_container(source, entries, &DROID_CONTAINER_DB)
+    {
         return Ok(Some(cand));
     }
 
     // 1. Check for `mimetype` entry (ODF, EPUB, KRA, ORA)
-    if let Some(mimetype_entry) = entries.iter().find(|e| e.name == "mimetype") {
-        if let Ok(Some(bytes)) = read_uncompressed_entry(source, mimetype_entry, 128) {
+    if let Some(mimetype_entry) = entries.iter().find(|e| e.name == "mimetype")
+    {
+        if let Ok(Some(bytes)) =
+            read_uncompressed_entry(source, mimetype_entry, 128)
+        {
             let mime_str = String::from_utf8_lossy(&bytes).trim().to_string();
 
             // OpenDocument Formats (ODF)
@@ -2290,12 +2372,15 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 98,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified ODF Text mimetype in ZIP container".to_string(),
+                        detail: "Verified ODF Text mimetype in ZIP container"
+                            .to_string(),
                         score: 98,
                     }],
                     chain_layers: None,
                 }));
-            } else if mime_str == "application/vnd.oasis.opendocument.spreadsheet" {
+            } else if mime_str
+                == "application/vnd.oasis.opendocument.spreadsheet"
+            {
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -2304,12 +2389,16 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 98,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified ODF Spreadsheet mimetype in ZIP container".to_string(),
+                        detail:
+                            "Verified ODF Spreadsheet mimetype in ZIP container"
+                                .to_string(),
                         score: 98,
                     }],
                     chain_layers: None,
                 }));
-            } else if mime_str == "application/vnd.oasis.opendocument.presentation" {
+            } else if mime_str
+                == "application/vnd.oasis.opendocument.presentation"
+            {
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -2323,7 +2412,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     }],
                     chain_layers: None,
                 }));
-            } else if mime_str == "application/vnd.oasis.opendocument.graphics" {
+            } else if mime_str == "application/vnd.oasis.opendocument.graphics"
+            {
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -2332,7 +2422,9 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 98,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified ODF Drawing mimetype in ZIP container".to_string(),
+                        detail:
+                            "Verified ODF Drawing mimetype in ZIP container"
+                                .to_string(),
                         score: 98,
                     }],
                     chain_layers: None,
@@ -2346,7 +2438,9 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 98,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified ODF Formula mimetype in ZIP container".to_string(),
+                        detail:
+                            "Verified ODF Formula mimetype in ZIP container"
+                                .to_string(),
                         score: 98,
                     }],
                     chain_layers: None,
@@ -2360,7 +2454,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 98,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified EPUB mimetype in ZIP container".to_string(),
+                        detail: "Verified EPUB mimetype in ZIP container"
+                            .to_string(),
                         score: 98,
                     }],
                     chain_layers: None,
@@ -2374,7 +2469,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 95,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified Krita mimetype in ZIP container".to_string(),
+                        detail: "Verified Krita mimetype in ZIP container"
+                            .to_string(),
                         score: 95,
                     }],
                     chain_layers: None,
@@ -2388,7 +2484,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 95,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified OpenRaster mimetype in ZIP container".to_string(),
+                        detail: "Verified OpenRaster mimetype in ZIP container"
+                            .to_string(),
                         score: 95,
                     }],
                     chain_layers: None,
@@ -2398,11 +2495,14 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     format_id: None,
                     dc_id: None,
                     mime: Some("application/x-hwpx".to_string()),
-                    description: "Hancom HWP (Hangul Word Processor) file, HWPX".to_string(),
+                    description:
+                        "Hancom HWP (Hangul Word Processor) file, HWPX"
+                            .to_string(),
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 98,
                     evidence: vec![DetectionEvidence::ContainerStructure {
-                        detail: "Verified HWPX mimetype in ZIP container".to_string(),
+                        detail: "Verified HWPX mimetype in ZIP container"
+                            .to_string(),
                         score: 98,
                     }],
                     chain_layers: None,
@@ -2412,13 +2512,16 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
     }
 
     // 2. Check for Office Open XML (OOXML)
-    let has_content_types = entries.iter().any(|e| e.name == "[Content_Types].xml");
+    let has_content_types =
+        entries.iter().any(|e| e.name == "[Content_Types].xml");
     let has_rels = entries.iter().any(|e| e.name.starts_with("_rels/"));
 
     if has_content_types || has_rels {
         if entries.iter().any(|e| e.name.starts_with("word/")) {
-            let is_macro = entries.iter().any(|e| e.name == "word/vbaProject.bin");
-            let is_template = entries.iter().any(|e| e.name.starts_with("word/glossary/"));
+            let is_macro =
+                entries.iter().any(|e| e.name == "word/vbaProject.bin");
+            let is_template =
+                entries.iter().any(|e| e.name.starts_with("word/glossary/"));
             let (mime, desc) = if is_macro {
                 (
                     "application/vnd.ms-word.document.macroEnabled.12",
@@ -2443,7 +2546,9 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: format!("Identified OOXML Word structure with word/ entry: {desc}"),
+                    detail: format!(
+                        "Identified OOXML Word structure with word/ entry: {desc}"
+                    ),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -2451,7 +2556,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
         }
 
         if entries.iter().any(|e| e.name.starts_with("xl/")) {
-            let is_macro = entries.iter().any(|e| e.name == "xl/vbaProject.bin");
+            let is_macro =
+                entries.iter().any(|e| e.name == "xl/vbaProject.bin");
             let is_bin = entries.iter().any(|e| e.name == "xl/workbook.bin");
             let (mime, desc) = if is_bin {
                 (
@@ -2477,7 +2583,9 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: format!("Identified OOXML Excel structure with xl/ entry: {desc}"),
+                    detail: format!(
+                        "Identified OOXML Excel structure with xl/ entry: {desc}"
+                    ),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -2485,7 +2593,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
         }
 
         if entries.iter().any(|e| e.name.starts_with("ppt/")) {
-            let is_macro = entries.iter().any(|e| e.name == "ppt/vbaProject.bin");
+            let is_macro =
+                entries.iter().any(|e| e.name == "ppt/vbaProject.bin");
             let (mime, desc) = if is_macro {
                 (
                     "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
@@ -2505,7 +2614,9 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 95,
                 evidence: vec![DetectionEvidence::ContainerStructure {
-                    detail: format!("Identified OOXML PowerPoint structure: {desc}"),
+                    detail: format!(
+                        "Identified OOXML PowerPoint structure: {desc}"
+                    ),
                     score: 95,
                 }],
                 chain_layers: None,
@@ -2523,11 +2634,13 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             format_id: None,
             dc_id: None,
             mime: Some("application/x-hwpx".to_string()),
-            description: "Hancom HWP (Hangul Word Processor) file, HWPX".to_string(),
+            description: "Hancom HWP (Hangul Word Processor) file, HWPX"
+                .to_string(),
             confidence: ConfidenceTier::HighestConfidence,
             score: 95,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: "Identified HWPX structure with Contents/ entry".to_string(),
+                detail: "Identified HWPX structure with Contents/ entry"
+                    .to_string(),
                 score: 95,
             }],
             chain_layers: None,
@@ -2556,13 +2669,18 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             confidence: ConfidenceTier::HighestConfidence,
             score: 95,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: format!("Identified Android structure with AndroidManifest.xml: {desc}"),
+                detail: format!(
+                    "Identified Android structure with AndroidManifest.xml: {desc}"
+                ),
                 score: 95,
             }],
             chain_layers: None,
         }));
     }
-    if entries.iter().any(|e| e.name == "BundleConfig.pb" || e.name == "base/manifest/AndroidManifest.xml") {
+    if entries.iter().any(|e| {
+        e.name == "BundleConfig.pb"
+            || e.name == "base/manifest/AndroidManifest.xml"
+    }) {
         return Ok(Some(DetectionCandidate {
             format_id: None,
             dc_id: None,
@@ -2571,7 +2689,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             confidence: ConfidenceTier::HighestConfidence,
             score: 95,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: "Identified Android App Bundle with BundleConfig.pb".to_string(),
+                detail: "Identified Android App Bundle with BundleConfig.pb"
+                    .to_string(),
                 score: 95,
             }],
             chain_layers: None,
@@ -2579,13 +2698,23 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
     }
 
     // 5. Check for Java Archives (JAR / WAR / EAR)
-    if entries.iter().any(|e| e.name.starts_with("META-INF/MANIFEST.MF")) {
+    if entries
+        .iter()
+        .any(|e| e.name.starts_with("META-INF/MANIFEST.MF"))
+    {
         let is_war = entries.iter().any(|e| e.name.starts_with("WEB-INF/"));
-        let is_ear = entries.iter().any(|e| e.name == "META-INF/application.xml");
+        let is_ear =
+            entries.iter().any(|e| e.name == "META-INF/application.xml");
         let (mime, desc) = if is_war {
-            ("application/x-web-archive", "Java Web Application Archive (WAR)")
+            (
+                "application/x-web-archive",
+                "Java Web Application Archive (WAR)",
+            )
         } else if is_ear {
-            ("application/x-enterprise-archive", "Java Enterprise Application Archive (EAR)")
+            (
+                "application/x-enterprise-archive",
+                "Java Enterprise Application Archive (EAR)",
+            )
         } else {
             ("application/java-archive", "Java archive data (JAR)")
         };
@@ -2597,7 +2726,9 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             confidence: ConfidenceTier::Strong,
             score: 90,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: format!("Identified Java archive with META-INF: {desc}"),
+                detail: format!(
+                    "Identified Java archive with META-INF: {desc}"
+                ),
                 score: 90,
             }],
             chain_layers: None,
@@ -2605,7 +2736,10 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
     }
 
     // 6. Check for Apple iWork (Pages / Keynote / Numbers)
-    if entries.iter().any(|e| e.name == "Index/Document.iwa" || e.name == "Document.iwab") {
+    if entries
+        .iter()
+        .any(|e| e.name == "Index/Document.iwa" || e.name == "Document.iwab")
+    {
         return Ok(Some(DetectionCandidate {
             format_id: None,
             dc_id: None,
@@ -2614,7 +2748,9 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             confidence: ConfidenceTier::HighestConfidence,
             score: 92,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: "Identified Apple iWork container with Index/Document.iwa".to_string(),
+                detail:
+                    "Identified Apple iWork container with Index/Document.iwa"
+                        .to_string(),
                 score: 92,
             }],
             chain_layers: None,
@@ -2622,10 +2758,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
     }
 
     // 7. Check for Comic Book Archive (CBZ)
-    let non_dir_entries: Vec<&ZipEntrySummary> = entries
-        .iter()
-        .filter(|e| !e.name.ends_with('/'))
-        .collect();
+    let non_dir_entries: Vec<&ZipEntrySummary> =
+        entries.iter().filter(|e| !e.name.ends_with('/')).collect();
     if !non_dir_entries.is_empty()
         && non_dir_entries.iter().all(|e| {
             let lower = e.name.to_ascii_lowercase();
@@ -2655,7 +2789,10 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
     }
 
     // 8. Check for Keyhole Markup Language Zipped (KMZ)
-    if entries.iter().any(|e| e.name == "doc.kml" || e.name.ends_with(".kml")) {
+    if entries
+        .iter()
+        .any(|e| e.name == "doc.kml" || e.name.ends_with(".kml"))
+    {
         return Ok(Some(DetectionCandidate {
             format_id: None,
             dc_id: None,
@@ -2664,7 +2801,8 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             confidence: ConfidenceTier::HighestConfidence,
             score: 95,
             evidence: vec![DetectionEvidence::ContainerStructure {
-                detail: "Identified Google Earth KMZ with .kml entry".to_string(),
+                detail: "Identified Google Earth KMZ with .kml entry"
+                    .to_string(),
                 score: 95,
             }],
             chain_layers: None,
@@ -2680,7 +2818,10 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
         confidence: ConfidenceTier::Strong,
         score: 85,
         evidence: vec![DetectionEvidence::ContainerStructure {
-            detail: format!("Identified ZIP archive containing {} entries", entries.len()),
+            detail: format!(
+                "Identified ZIP archive containing {} entries",
+                entries.len()
+            ),
             score: 85,
         }],
         chain_layers: None,
@@ -2733,7 +2874,11 @@ mod tests {
 
         let mut source: &[u8] = &pdf_data;
         let cands = evaluate_dual_anchored_signatures(&mut source).unwrap();
-        assert!(cands.iter().any(|c| c.mime.as_deref() == Some("application/pdf")));
+        assert!(
+            cands
+                .iter()
+                .any(|c| c.mime.as_deref() == Some("application/pdf"))
+        );
     }
 
     #[crate::ctb_test]
@@ -2757,7 +2902,11 @@ mod tests {
 
         let mut source: &[u8] = &jpeg_data;
         let cands = evaluate_dual_anchored_signatures(&mut source).unwrap();
-        assert!(cands.iter().any(|c| c.mime.as_deref() == Some("image/jpeg")));
+        assert!(
+            cands
+                .iter()
+                .any(|c| c.mime.as_deref() == Some("image/jpeg"))
+        );
     }
 
     #[crate::ctb_test]
@@ -2819,8 +2968,13 @@ mod tests {
         zip.extend_from_slice(&0u16.to_le_bytes()); // comment len
 
         let mut source: &[u8] = &zip;
-        let cand = inspect_zip_container_comprehensive(&mut source).unwrap().unwrap();
-        assert_eq!(cand.mime.as_deref(), Some("application/vnd.oasis.opendocument.text"));
+        let cand = inspect_zip_container_comprehensive(&mut source)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            cand.mime.as_deref(),
+            Some("application/vnd.oasis.opendocument.text")
+        );
         assert_eq!(cand.description, "OpenDocument Text (ODT)");
         assert_eq!(cand.confidence, ConfidenceTier::HighestConfidence);
     }
@@ -2844,10 +2998,14 @@ mod tests {
             },
         ];
         let mut empty: &[u8] = &[];
-        let cand = classify_zip_container(&mut empty, &entries).unwrap().unwrap();
+        let cand = classify_zip_container(&mut empty, &entries)
+            .unwrap()
+            .unwrap();
         assert_eq!(
             cand.mime.as_deref(),
-            Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            Some(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
         );
         assert_eq!(cand.description, "Microsoft Word 2007+");
         assert_eq!(cand.confidence, ConfidenceTier::HighestConfidence);
@@ -2855,15 +3013,21 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_zip_container_xlsx() {
-        let test_dir = crate::detection::file_upstream_suite::locate_upstream_tests_dir().unwrap();
+        let test_dir =
+            crate::detection::file_upstream_suite::locate_upstream_tests_dir()
+                .unwrap();
         let path = test_dir.join("issue359xlsx.testfile");
         let data = std::fs::read(path).unwrap();
         let mut source: &[u8] = &data;
-        let cand = inspect_zip_container_comprehensive(&mut source).unwrap().unwrap();
+        let cand = inspect_zip_container_comprehensive(&mut source)
+            .unwrap()
+            .unwrap();
         assert!(cand.description.contains("Microsoft Excel"));
         assert_eq!(
             cand.mime.as_deref(),
-            Some("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            Some(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
         );
     }
 
@@ -2886,7 +3050,9 @@ mod tests {
             },
         ];
         let mut empty: &[u8] = &[];
-        let cand = classify_zip_container(&mut empty, &entries).unwrap().unwrap();
+        let cand = classify_zip_container(&mut empty, &entries)
+            .unwrap()
+            .unwrap();
         assert_eq!(
             cand.mime.as_deref(),
             Some("application/vnd.android.package-archive")
@@ -2913,18 +3079,19 @@ mod tests {
             },
         ];
         let mut empty: &[u8] = &[];
-        let cand = classify_zip_container(&mut empty, &entries).unwrap().unwrap();
-        assert_eq!(
-            cand.mime.as_deref(),
-            Some("application/vnd.comicbook+zip")
-        );
+        let cand = classify_zip_container(&mut empty, &entries)
+            .unwrap()
+            .unwrap();
+        assert_eq!(cand.mime.as_deref(), Some("application/vnd.comicbook+zip"));
         assert_eq!(cand.description, "Comic Book Archive (CBZ)");
     }
 
     #[crate::ctb_test]
     fn test_dual_anchored_gif89a_trailer() {
         let mut gif_data = Vec::new();
-        gif_data.extend_from_slice(b"GIF89a\x0A\x00\x0A\x00\x80\x00\x00\x00\x00\x00\xFF\xFF\xFF");
+        gif_data.extend_from_slice(
+            b"GIF89a\x0A\x00\x0A\x00\x80\x00\x00\x00\x00\x00\xFF\xFF\xFF",
+        );
         gif_data.resize(50, 0);
         gif_data.push(b';'); // Trailer byte ';'
 
@@ -2958,9 +3125,11 @@ mod tests {
         .expect("missing droid/signatures/sample.pdf fixture");
         let mut source: &[u8] = &pdf_bytes;
         let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
-        assert!(cands
-            .iter()
-            .any(|c| c.mime.as_deref() == Some("application/pdf")));
+        assert!(
+            cands
+                .iter()
+                .any(|c| c.mime.as_deref() == Some("application/pdf"))
+        );
         assert!(cands.iter().any(|c| c.evidence.iter().any(
             |e| matches!(e, DetectionEvidence::Pronom { puid, .. } if puid == "fmt/18")
         )));
@@ -2975,9 +3144,11 @@ mod tests {
         .expect("missing droid/signatures/DROID.jpeg fixture");
         let mut source: &[u8] = &jpeg_bytes;
         let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
-        assert!(cands
-            .iter()
-            .any(|c| c.mime.as_deref() == Some("image/jpeg")));
+        assert!(
+            cands
+                .iter()
+                .any(|c| c.mime.as_deref() == Some("image/jpeg"))
+        );
     }
 
     #[crate::ctb_test]

@@ -125,7 +125,11 @@ impl KStruct for ExprBytesCmp {
     type Root = ExprBytesCmp;
     type Parent = ExprBytesCmp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -146,10 +150,12 @@ impl KStruct for ExprBytesCmp {
     }
 }
 impl ExprBytesCmp {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn ack(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn ack(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_ack.get() {
             return Ok(self.ack.borrow());
@@ -158,10 +164,12 @@ impl ExprBytesCmp {
         *self.ack.borrow_mut() = vec![0x41u8, 0x43u8, 0x4bu8];
         Ok(self.ack.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn ack2(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn ack2(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_ack2.get() {
             return Ok(self.ack2.borrow());
@@ -170,10 +178,12 @@ impl ExprBytesCmp {
         *self.ack2.borrow_mut() = vec![0x41u8, 0x43u8, 0x4bu8, 0x32u8];
         Ok(self.ack2.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn hi_val(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn hi_val(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_hi_val.get() {
             return Ok(self.hi_val.borrow());
@@ -182,10 +192,12 @@ impl ExprBytesCmp {
         *self.hi_val.borrow_mut() = vec![0x90u8, 0x43u8];
         Ok(self.hi_val.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_eq(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_eq(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_eq.get() {
             return Ok(self.is_eq.borrow());
@@ -194,10 +206,12 @@ impl ExprBytesCmp {
         *self.is_eq.borrow_mut() = (*self.two() == *self.ack()?).try_into()?;
         Ok(self.is_eq.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_ge(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_ge(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_ge.get() {
             return Ok(self.is_ge.borrow());
@@ -206,10 +220,12 @@ impl ExprBytesCmp {
         *self.is_ge.borrow_mut() = (*self.two() >= *self.ack2()?).try_into()?;
         Ok(self.is_ge.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_gt(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_gt(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_gt.get() {
             return Ok(self.is_gt.borrow());
@@ -218,22 +234,27 @@ impl ExprBytesCmp {
         *self.is_gt.borrow_mut() = (*self.two() > *self.ack2()?).try_into()?;
         Ok(self.is_gt.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_gt2(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_gt2(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_gt2.get() {
             return Ok(self.is_gt2.borrow());
         }
         self.f_is_gt2.set(true);
-        *self.is_gt2.borrow_mut() = (*self.hi_val()? > *self.two()).try_into()?;
+        *self.is_gt2.borrow_mut() =
+            (*self.hi_val()? > *self.two()).try_into()?;
         Ok(self.is_gt2.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_le(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_le(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_le.get() {
             return Ok(self.is_le.borrow());
@@ -242,10 +263,12 @@ impl ExprBytesCmp {
         *self.is_le.borrow_mut() = (*self.two() <= *self.ack2()?).try_into()?;
         Ok(self.is_le.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_lt(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_lt(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_lt.get() {
             return Ok(self.is_lt.borrow());
@@ -254,10 +277,12 @@ impl ExprBytesCmp {
         *self.is_lt.borrow_mut() = (*self.two() < *self.ack2()?).try_into()?;
         Ok(self.is_lt.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_lt2(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_lt2(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_lt2.get() {
             return Ok(self.is_lt2.borrow());
@@ -266,10 +291,12 @@ impl ExprBytesCmp {
         *self.is_lt2.borrow_mut() = (*self.one() < *self.two()).try_into()?;
         Ok(self.is_lt2.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_ne(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_ne(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_ne.get() {
             return Ok(self.is_ne.borrow());

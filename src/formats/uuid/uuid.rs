@@ -176,7 +176,8 @@ pub fn detect_uuid_format(s: &str) -> Option<UuidDetection> {
         return Some(UuidDetection {
             format_id: FormatId::UuidCanonical,
             uuid,
-            description: "UUID (canonical 8-4-4-4-12 hyphenated hex)".to_string(),
+            description: "UUID (canonical 8-4-4-4-12 hyphenated hex)"
+                .to_string(),
         });
     }
 

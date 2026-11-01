@@ -25,7 +25,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! 3. Full lossless roundtrip across AppleDouble binary archives, `FileEntity`,
 //!    and `DcMstring` representation.
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 pub use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
@@ -93,7 +97,9 @@ fn test_mac_file_lossless_roundtrip_with_xattrs_and_fxinfo() -> Result<()> {
     let strict = DcProjectionPolicy::strict();
 
     // 1. Construct FileEntity with FInfo, FXInfo, resource fork, and 3 xattrs beyond offset 70
-    let mut entity = make_base_file_entity(b"Mac executable or document data payload".to_vec())?;
+    let mut entity = make_base_file_entity(
+        b"Mac executable or document data payload".to_vec(),
+    )?;
 
     let mut flags = FinderFlags::default();
     flags.has_custom_icon = true;
@@ -130,21 +136,25 @@ fn test_mac_file_lossless_roundtrip_with_xattrs_and_fxinfo() -> Result<()> {
         unrecognized_entries: Vec::new(),
     });
 
-    let rsrc_payload = b"Resource fork contents: 'CODE' (1), 'DLOG' (128), 'STR#' (1000)".to_vec();
+    let rsrc_payload =
+        b"Resource fork contents: 'CODE' (1), 'DLOG' (128), 'STR#' (1000)"
+            .to_vec();
     entity.streams.push(AttachedStream::from_data(
         Some(StreamName::from_str("com.apple.ResourceFork")),
         StreamKind::MacOsResourceFork,
         rsrc_payload.clone(),
     )?);
 
-    let xattr_quarantine = b"0081;65e01234;Safari;d7a8b9c0-1234-5678-9abc-def012345678".to_vec();
+    let xattr_quarantine =
+        b"0081;65e01234;Safari;d7a8b9c0-1234-5678-9abc-def012345678".to_vec();
     entity.streams.push(AttachedStream::from_data(
         Some(StreamName::from_str("com.apple.quarantine")),
         StreamKind::ExtendedAttribute,
         xattr_quarantine.clone(),
     )?);
 
-    let xattr_wherefrom = b"https://example.com/downloads/ClassicApp.sit".to_vec();
+    let xattr_wherefrom =
+        b"https://example.com/downloads/ClassicApp.sit".to_vec();
     entity.streams.push(AttachedStream::from_data(
         Some(StreamName::from_str("com.apple.metadata:kMDItemWhereFroms")),
         StreamKind::ExtendedAttribute,
@@ -160,7 +170,10 @@ fn test_mac_file_lossless_roundtrip_with_xattrs_and_fxinfo() -> Result<()> {
 
     // 2. Encode to AppleDouble bytes
     let apple_double_bytes = serialize_apple_double_for_entity(&entity)?;
-    ensure!(apple_double_bytes.len() > 100, "AppleDouble payload unexpectedly small");
+    ensure!(
+        apple_double_bytes.len() > 100,
+        "AppleDouble payload unexpectedly small"
+    );
 
     // Verify ATTR magic exists beyond offset 32 of FinderInfo
     let attr_magic = 0x4154_5452_u32.to_be_bytes();
@@ -175,17 +188,31 @@ fn test_mac_file_lossless_roundtrip_with_xattrs_and_fxinfo() -> Result<()> {
     ensure!(parsed_archive.resource_fork.as_deref() == Some(&rsrc_payload[..]));
     ensure!(parsed_archive.extended_attributes.len() == 3);
 
-    let parsed_finfo = parsed_archive.finder_info.as_ref().context("Missing parsed finder_info")?;
+    let parsed_finfo = parsed_archive
+        .finder_info
+        .as_ref()
+        .context("Missing parsed finder_info")?;
     ensure!(parsed_finfo.file_type == "APPL");
     ensure!(parsed_finfo.file_creator == "CTBX");
-    ensure!(parsed_finfo.window_bounds.is_none(), "File record must not have window_bounds");
-    let parsed_ext = parsed_finfo.extended.as_ref().context("Missing parsed extended info")?;
+    ensure!(
+        parsed_finfo.window_bounds.is_none(),
+        "File record must not have window_bounds"
+    );
+    let parsed_ext = parsed_finfo
+        .extended
+        .as_ref()
+        .context("Missing parsed extended info")?;
     ensure!(parsed_ext.icon_id == -16455);
-    ensure!(parsed_ext.scroll_position.is_none(), "File record must not have scroll_position");
+    ensure!(
+        parsed_ext.scroll_position.is_none(),
+        "File record must not have scroll_position"
+    );
     ensure!(parsed_ext.xflags.custom_badge);
 
     // 4. Reconstruct FileEntity from archive
-    let mut roundtrip_entity = make_base_file_entity(b"Mac executable or document data payload".to_vec())?;
+    let mut roundtrip_entity = make_base_file_entity(
+        b"Mac executable or document data payload".to_vec(),
+    )?;
     // Strip original streams and metadata before joining
     roundtrip_entity.streams.clear();
     roundtrip_entity.metadata.apple = None;
@@ -194,7 +221,10 @@ fn test_mac_file_lossless_roundtrip_with_xattrs_and_fxinfo() -> Result<()> {
     roundtrip_entity.streams = attached_streams;
     roundtrip_entity.metadata.apple = parsed_archive.to_apple_metadata();
 
-    ensure!(roundtrip_entity.streams.len() == 4, "Expected 1 resource fork + 3 xattrs");
+    ensure!(
+        roundtrip_entity.streams.len() == 4,
+        "Expected 1 resource fork + 3 xattrs"
+    );
     ensure!(roundtrip_entity.metadata.apple.is_some());
 
     // 5. AppleDouble binary byte-for-byte identity roundtrip
@@ -213,18 +243,26 @@ fn test_mac_file_lossless_roundtrip_with_xattrs_and_fxinfo() -> Result<()> {
         decoded_entity.streams.len() == entity.streams.len(),
         "Dc streams count mismatch"
     );
-    for (orig, dec) in entity.streams.iter().zip(decoded_entity.streams.iter()) {
+    for (orig, dec) in entity.streams.iter().zip(decoded_entity.streams.iter())
+    {
         ensure!(orig.name == dec.name, "Stream name mismatch");
         ensure!(orig.kind == dec.kind, "Stream kind mismatch");
         ensure!(orig.data == dec.data, "Stream data mismatch");
     }
 
-    let dec_apple = decoded_entity.metadata.apple.context("Missing decoded AppleMetadata")?;
-    let dec_finfo = dec_apple.finder_info.context("Missing decoded FinderInfo")?;
+    let dec_apple = decoded_entity
+        .metadata
+        .apple
+        .context("Missing decoded AppleMetadata")?;
+    let dec_finfo = dec_apple
+        .finder_info
+        .context("Missing decoded FinderInfo")?;
     ensure!(dec_finfo.file_type == "APPL");
     ensure!(dec_finfo.file_creator == "CTBX");
     ensure!(dec_finfo.window_bounds.is_none());
-    let dec_ext = dec_finfo.extended.context("Missing decoded ExtendedFinderInfo")?;
+    let dec_ext = dec_finfo
+        .extended
+        .context("Missing decoded ExtendedFinderInfo")?;
     ensure!(dec_ext.icon_id == -16455);
     ensure!(dec_ext.scroll_position.is_none());
 
@@ -232,7 +270,8 @@ fn test_mac_file_lossless_roundtrip_with_xattrs_and_fxinfo() -> Result<()> {
 }
 
 #[crate::ctb_test]
-fn test_mac_folder_lossless_roundtrip_with_window_bounds_and_scroll() -> Result<()> {
+fn test_mac_folder_lossless_roundtrip_with_window_bounds_and_scroll()
+-> Result<()> {
     let strict = DcProjectionPolicy::strict();
 
     // 1. Folder with window_bounds and scroll_position = (150, 300)
@@ -274,12 +313,18 @@ fn test_mac_folder_lossless_roundtrip_with_window_bounds_and_scroll() -> Result<
     let dir_bytes = serialize_apple_double_for_entity(&dir_entity)?;
     let parsed_archive = read_apple_single_double(&dir_bytes)?;
 
-    let parsed_finfo = parsed_archive.finder_info.as_ref().context("Missing parsed folder finder_info")?;
+    let parsed_finfo = parsed_archive
+        .finder_info
+        .as_ref()
+        .context("Missing parsed folder finder_info")?;
     ensure!(
         parsed_finfo.window_bounds == Some([100, 150, 600, 950]),
         "Folder window_bounds mismatch"
     );
-    let parsed_ext = parsed_finfo.extended.as_ref().context("Missing parsed folder extended info")?;
+    let parsed_ext = parsed_finfo
+        .extended
+        .as_ref()
+        .context("Missing parsed folder extended info")?;
     ensure!(
         parsed_ext.scroll_position == Some((150, 300)),
         "Folder scroll_position (150, 300) mismatch"
@@ -291,7 +336,8 @@ fn test_mac_folder_lossless_roundtrip_with_window_bounds_and_scroll() -> Result<
     roundtrip_dir.streams = parsed_archive.to_attached_streams()?;
     roundtrip_dir.metadata.apple = parsed_archive.to_apple_metadata();
 
-    let reencoded_dir_bytes = serialize_apple_double_for_entity(&roundtrip_dir)?;
+    let reencoded_dir_bytes =
+        serialize_apple_double_for_entity(&roundtrip_dir)?;
     ensure!(
         reencoded_dir_bytes == dir_bytes,
         "Folder AppleDouble bytes must be byte-for-byte identical"
@@ -302,14 +348,19 @@ fn test_mac_folder_lossless_roundtrip_with_window_bounds_and_scroll() -> Result<
     dir_entity.encode_dc_mixed(&mut mst)?;
     let decoded_dir: FileEntity = mst.decode(&strict)?;
 
-    ensure!(decoded_dir.is_dir(), "Decoded entity must remain a directory");
+    ensure!(
+        decoded_dir.is_dir(),
+        "Decoded entity must remain a directory"
+    );
     let dec_finfo = decoded_dir
         .metadata
         .apple
         .and_then(|a| a.finder_info)
         .context("Missing decoded folder finder info")?;
     ensure!(dec_finfo.window_bounds == Some([100, 150, 600, 950]));
-    let dec_ext = dec_finfo.extended.context("Missing decoded folder extended info")?;
+    let dec_ext = dec_finfo
+        .extended
+        .context("Missing decoded folder extended info")?;
     ensure!(dec_ext.scroll_position == Some((150, 300)));
     ensure!(dec_ext.icon_id == 0);
 
@@ -349,8 +400,14 @@ fn test_mac_folder_zero_scroll_position_preservation() -> Result<()> {
 
     let dir_bytes = serialize_apple_double_for_entity(&dir_entity)?;
     let parsed_archive = read_apple_single_double(&dir_bytes)?;
-    let parsed_finfo = parsed_archive.finder_info.as_ref().context("Missing parsed finder_info")?;
-    let parsed_ext = parsed_finfo.extended.as_ref().context("Missing parsed extended info")?;
+    let parsed_finfo = parsed_archive
+        .finder_info
+        .as_ref()
+        .context("Missing parsed finder_info")?;
+    let parsed_ext = parsed_finfo
+        .extended
+        .as_ref()
+        .context("Missing parsed extended info")?;
     ensure!(
         parsed_ext.scroll_position == Some((0, 0)),
         "Folder scroll_position (0, 0) must be preserved and not dropped to None"

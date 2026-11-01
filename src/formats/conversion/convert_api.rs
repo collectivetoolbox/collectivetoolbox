@@ -58,7 +58,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub use crate::convert_bytes::{
     DcConversionOptions, DcConversionResult, DcExportOptions, DcExportResult,
     FormatSpec, convert_bytes_to_dcmstring, convert_cscjournal_to_dcmstring,
-    convert_dcmstring_to_bytes, convert_dcmstring_to_file, convert_file_to_dcmstring,
+    convert_dcmstring_to_bytes, convert_dcmstring_to_file,
+    convert_file_to_dcmstring,
 };
 pub use crate::convert_stream::{
     StreamConversionReceipt, StreamExportReceipt, stream_dcmfile_to_writer,
@@ -66,10 +67,10 @@ pub use crate::convert_stream::{
     stream_reader_to_dcmwriter,
 };
 
+use ctb_utilities::FormatId;
 use ctb_utilities::format_support::{
     SupportedDcInputFormat, SupportedDcOutputFormat,
 };
-use ctb_utilities::FormatId;
 
 /// Returns the ordered list of all supported input formats for conversion to `DcMstring`.
 #[must_use]

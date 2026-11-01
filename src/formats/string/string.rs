@@ -147,15 +147,23 @@ mod tests {
     fn test_escape_bytes_human_readable_ascii_and_unicode() {
         assert_eq!(escape_bytes_human_readable(b"hello world"), "hello world");
         assert_eq!(
-            escape_bytes_human_readable("🦀 /path/to/ünicøde/日本語/file.txt".as_bytes()),
+            escape_bytes_human_readable(
+                "🦀 /path/to/ünicøde/日本語/file.txt".as_bytes()
+            ),
             "🦀 /path/to/ünicøde/日本語/file.txt"
         );
     }
 
     #[crate::ctb_test]
     fn test_escape_bytes_human_readable_controls_and_escapes() {
-        assert_eq!(escape_bytes_human_readable(b"line1\nline2\r\ttab\\slash"), "line1\\nline2\\r\\ttab\\\\slash");
-        assert_eq!(escape_bytes_human_readable(b"\x00null\x1funit"), "\\x00null\\x1funit");
+        assert_eq!(
+            escape_bytes_human_readable(b"line1\nline2\r\ttab\\slash"),
+            "line1\\nline2\\r\\ttab\\\\slash"
+        );
+        assert_eq!(
+            escape_bytes_human_readable(b"\x00null\x1funit"),
+            "\\x00null\\x1funit"
+        );
     }
 
     #[crate::ctb_test]

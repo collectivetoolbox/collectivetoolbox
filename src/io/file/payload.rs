@@ -26,9 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_formats_checksum::Sha256Stream;
 #[cfg(unix)]
 use nix::unistd::{Whence, lseek};
-use ctb_formats_checksum::Sha256Stream;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 #[cfg(unix)]
@@ -36,7 +36,16 @@ use std::os::fd::AsFd;
 use std::path::{Path, PathBuf};
 
 /// A contiguous extent within a file, either holding data or representing a hole.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 pub enum Extent {
     /// A region containing written data.
     #[dc(short = 374)]
@@ -92,7 +101,10 @@ use std::os::unix::fs::MetadataExt;
 /// Discovers the extent map (data and holes) of a file using `SEEK_DATA` / `SEEK_HOLE`.
 /// Returns an error if discovery is unsupported, fails, or returns invalid offsets.
 #[cfg(unix)]
-pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>> {
+pub fn get_file_extents<Fd: AsFd>(
+    fd: &Fd,
+    file_size: u64,
+) -> Result<Vec<Extent>> {
     discover_unix_extents(file_size, |offset, whence| lseek(fd, offset, whence))
 }
 
@@ -133,8 +145,10 @@ fn discover_unix_extents(
             }
         };
 
-        anyhow::ensure!(next_data >= current_offset && next_data < size_i64,
-            "SEEK_DATA returned invalid offset {next_data} from {current_offset} for size {size_i64}");
+        anyhow::ensure!(
+            next_data >= current_offset && next_data < size_i64,
+            "SEEK_DATA returned invalid offset {next_data} from {current_offset} for size {size_i64}"
+        );
 
         if next_data > current_offset {
             // Hole between current_offset and next_data
@@ -155,8 +169,10 @@ fn discover_unix_extents(
                 return Err(std::io::Error::from(e)).with_context(|| format!("SEEK_HOLE failed at offset {next_data}; sparse layout could not be determined"));
             }
         };
-        anyhow::ensure!(next_hole > next_data && next_hole <= size_i64,
-            "SEEK_HOLE returned invalid offset {next_hole} from {next_data} for size {size_i64}");
+        anyhow::ensure!(
+            next_hole > next_data && next_hole <= size_i64,
+            "SEEK_HOLE returned invalid offset {next_hole} from {next_data} for size {size_i64}"
+        );
         let end_of_data = next_hole;
 
         let data_len = end_of_data.saturating_sub(next_data);
@@ -177,44 +193,64 @@ fn discover_unix_extents(
 
 /// Discovers native Windows allocated ranges without reading payload bytes.
 #[cfg(windows)]
-#[expect(unsafe_code, reason = "DeviceIoControl receives live file handles and aligned initialized range buffers")]
+#[expect(
+    unsafe_code,
+    reason = "DeviceIoControl receives live file handles and aligned initialized range buffers"
+)]
 pub fn get_file_extents(fd: &File, file_size: u64) -> Result<Vec<Extent>> {
     use std::os::windows::fs::MetadataExt;
     use std::os::windows::io::AsRawHandle;
     use windows_sys::Win32::Foundation::ERROR_MORE_DATA;
     use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE;
     use windows_sys::Win32::System::IO::DeviceIoControl;
-    use windows_sys::Win32::System::Ioctl::{FILE_ALLOCATED_RANGE_BUFFER, FSCTL_QUERY_ALLOCATED_RANGES};
+    use windows_sys::Win32::System::Ioctl::{
+        FILE_ALLOCATED_RANGE_BUFFER, FSCTL_QUERY_ALLOCATED_RANGES,
+    };
 
     if file_size == 0 {
         return Ok(Vec::new());
     }
     if fd.metadata()?.file_attributes() & FILE_ATTRIBUTE_SPARSE_FILE == 0 {
-        return Ok(vec![Extent::Data { offset: 0, length: file_size }]);
+        return Ok(vec![Extent::Data {
+            offset: 0,
+            length: file_size,
+        }]);
     }
     let mut extents = Vec::new();
     let mut cursor = 0_u64;
     while cursor < file_size {
         let query = FILE_ALLOCATED_RANGE_BUFFER {
             FileOffset: i64::try_from(cursor)?,
-            Length: i64::try_from(file_size.checked_sub(cursor).context("Invalid range cursor")?)?,
+            Length: i64::try_from(
+                file_size
+                    .checked_sub(cursor)
+                    .context("Invalid range cursor")?,
+            )?,
         };
-        let mut ranges = [FILE_ALLOCATED_RANGE_BUFFER { FileOffset: 0, Length: 0 }; 128];
+        let mut ranges = [FILE_ALLOCATED_RANGE_BUFFER {
+            FileOffset: 0,
+            Length: 0,
+        }; 128];
         let mut returned = 0_u32;
         // SAFETY: fd owns the live handle; query, ranges, and returned are
         // aligned live buffers of the supplied sizes until the call returns.
         let success = unsafe {
             DeviceIoControl(
-                fd.as_raw_handle(), FSCTL_QUERY_ALLOCATED_RANGES,
-                (&raw const query).cast(), u32::try_from(std::mem::size_of_val(&query))?,
-                ranges.as_mut_ptr().cast(), u32::try_from(std::mem::size_of_val(&ranges))?,
-                &raw mut returned, std::ptr::null_mut(),
+                fd.as_raw_handle(),
+                FSCTL_QUERY_ALLOCATED_RANGES,
+                (&raw const query).cast(),
+                u32::try_from(std::mem::size_of_val(&query))?,
+                ranges.as_mut_ptr().cast(),
+                u32::try_from(std::mem::size_of_val(&ranges))?,
+                &raw mut returned,
+                std::ptr::null_mut(),
             )
         };
         let more_data = if success == 0 {
             let error = std::io::Error::last_os_error();
             if error.raw_os_error() != Some(i32::try_from(ERROR_MORE_DATA)?) {
-                return Err(error).context("Windows allocated-range query failed");
+                return Err(error)
+                    .context("Windows allocated-range query failed");
             }
             true
         } else {
@@ -222,30 +258,59 @@ pub fn get_file_extents(fd: &File, file_size: u64) -> Result<Vec<Extent>> {
         };
         let returned = usize::try_from(returned)?;
         let range_size = std::mem::size_of::<FILE_ALLOCATED_RANGE_BUFFER>();
-        anyhow::ensure!(returned <= std::mem::size_of_val(&ranges)
-            && returned.checked_rem(range_size) == Some(0), "Invalid allocated-range buffer length");
-        let count = returned.checked_div(range_size).context("Invalid allocated-range size")?;
+        anyhow::ensure!(
+            returned <= std::mem::size_of_val(&ranges)
+                && returned.checked_rem(range_size) == Some(0),
+            "Invalid allocated-range buffer length"
+        );
+        let count = returned
+            .checked_div(range_size)
+            .context("Invalid allocated-range size")?;
         let previous_cursor = cursor;
         for range in ranges.iter().take(count) {
-            let start = u64::try_from(range.FileOffset).context("Negative allocated-range offset")?;
-            let length = u64::try_from(range.Length).context("Negative allocated-range length")?;
+            let start = u64::try_from(range.FileOffset)
+                .context("Negative allocated-range offset")?;
+            let length = u64::try_from(range.Length)
+                .context("Negative allocated-range length")?;
             anyhow::ensure!(length > 0, "Empty allocated range");
-            let end = start.checked_add(length).context("Allocated-range overflow")?.min(file_size);
-            anyhow::ensure!(end > cursor && start < file_size, "Allocated ranges do not advance");
+            let end = start
+                .checked_add(length)
+                .context("Allocated-range overflow")?
+                .min(file_size);
+            anyhow::ensure!(
+                end > cursor && start < file_size,
+                "Allocated ranges do not advance"
+            );
             if start > cursor {
-                extents.push(Extent::Hole { offset: cursor, length: start.checked_sub(cursor).context("Invalid hole")? });
+                extents.push(Extent::Hole {
+                    offset: cursor,
+                    length: start
+                        .checked_sub(cursor)
+                        .context("Invalid hole")?,
+                });
             }
             let start = start.max(cursor);
-            extents.push(Extent::Data { offset: start, length: end.checked_sub(start).context("Invalid data range")? });
+            extents.push(Extent::Data {
+                offset: start,
+                length: end.checked_sub(start).context("Invalid data range")?,
+            });
             cursor = end;
         }
         if !more_data {
             if cursor < file_size {
-                extents.push(Extent::Hole { offset: cursor, length: file_size.checked_sub(cursor).context("Invalid trailing hole")? });
+                extents.push(Extent::Hole {
+                    offset: cursor,
+                    length: file_size
+                        .checked_sub(cursor)
+                        .context("Invalid trailing hole")?,
+                });
             }
             break;
         }
-        anyhow::ensure!(cursor > previous_cursor, "Allocated-range pagination did not advance");
+        anyhow::ensure!(
+            cursor > previous_cursor,
+            "Allocated-range pagination did not advance"
+        );
     }
     Ok(extents)
 }
@@ -340,31 +405,52 @@ struct SourceState {
     children: Option<Vec<std::ffi::OsString>>,
 }
 
-fn directory_inventory(path: &Path, metadata: &std::fs::Metadata) -> Result<Option<Vec<std::ffi::OsString>>> {
-    if !metadata.is_dir() { return Ok(None); }
-    let mut names = crate::traversal::read_dir_raw(path)?.map(|entry| entry.map(|entry| entry.file_name()))
+fn directory_inventory(
+    path: &Path,
+    metadata: &std::fs::Metadata,
+) -> Result<Option<Vec<std::ffi::OsString>>> {
+    if !metadata.is_dir() {
+        return Ok(None);
+    }
+    let mut names = crate::traversal::read_dir_raw(path)?
+        .map(|entry| entry.map(|entry| entry.file_name()))
         .collect::<std::io::Result<Vec<_>>>()?;
     names.sort();
     Ok(Some(names))
 }
 
-fn physical_change_time(path: &Path, metadata: &std::fs::Metadata) -> Result<Option<(i64, u32)>> {
+fn physical_change_time(
+    path: &Path,
+    metadata: &std::fs::Metadata,
+) -> Result<Option<(i64, u32)>> {
     #[cfg(unix)]
     {
         let _ = path;
-        Ok(Some((metadata.ctime(), u32::try_from(metadata.ctime_nsec())?)))
+        Ok(Some((
+            metadata.ctime(),
+            u32::try_from(metadata.ctime_nsec())?,
+        )))
     }
     #[cfg(windows)]
     {
         let native = crate::metadata::capture_native_metadata(path, metadata)?;
-        let Some(crate::metadata::NativeMetadataValue::Signed(ticks)) = native.values.get("change_time") else {
-            anyhow::bail!("Source capture omitted native change time: {}", path.display());
+        let Some(crate::metadata::NativeMetadataValue::Signed(ticks)) =
+            native.values.get("change_time")
+        else {
+            anyhow::bail!(
+                "Source capture omitted native change time: {}",
+                path.display()
+            );
         };
-        let time = crate::metadata::windows::filetime_from_windows_ticks(*ticks)?;
+        let time =
+            crate::metadata::windows::filetime_from_windows_ticks(*ticks)?;
         Ok(Some((time.unix_seconds(), time.nanoseconds())))
     }
     #[cfg(not(any(unix, windows)))]
-    { let _ = (path, metadata); Ok(None) }
+    {
+        let _ = (path, metadata);
+        Ok(None)
+    }
 }
 
 impl SourceSnapshot {
@@ -377,8 +463,13 @@ impl SourceSnapshot {
         let change_time = physical_change_time(path, &metadata)?;
         let children = directory_inventory(path, &metadata)?;
         Ok(Self {
-            path: path.to_path_buf(), identity,
-            state: std::sync::Arc::new(std::sync::Mutex::new(SourceState { metadata, change_time, children })),
+            path: path.to_path_buf(),
+            identity,
+            state: std::sync::Arc::new(std::sync::Mutex::new(SourceState {
+                metadata,
+                change_time,
+                children,
+            })),
             best_effort,
             change_warnings: std::sync::Arc::default(),
             cleanup_warnings: std::sync::Arc::default(),
@@ -389,8 +480,14 @@ impl SourceSnapshot {
 
     /// Validates the current namespace entry against the captured physical state.
     pub fn validate(&self) -> Result<Vec<String>> {
-        let warnings = self.validate_metadata(&std::fs::symlink_metadata(&self.path)?)?;
-        for dependency in self.dependencies.lock().map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?.iter() {
+        let warnings =
+            self.validate_metadata(&std::fs::symlink_metadata(&self.path)?)?;
+        for dependency in self
+            .dependencies
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?
+            .iter()
+        {
             dependency.retain_changes(dependency.validate()?)?;
         }
         Ok(warnings)
@@ -399,50 +496,87 @@ impl SourceSnapshot {
     /// Registers physical input before reading a logically merged companion.
     pub fn capture_dependency(&self, path: &Path) -> Result<SourceSnapshot> {
         let dependency = Self::capture(path, false)?;
-        self.dependencies.lock().map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?.push(dependency.clone());
+        self.dependencies
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?
+            .push(dependency.clone());
         Ok(dependency)
     }
 
     /// Retains the decoded primary fork without changing physical source state.
     pub fn set_interpreted_payload(&self, bytes: Vec<u8>) -> Result<()> {
-        *self.interpreted_payload.lock().map_err(|_| anyhow::anyhow!("Source payload lock poisoned"))? = Some(bytes);
+        *self
+            .interpreted_payload
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source payload lock poisoned"))? =
+            Some(bytes);
         Ok(())
     }
 
     /// Returns the primary fork selected during the original container read.
     pub fn interpreted_payload(&self) -> Result<Option<Vec<u8>>> {
-        Ok(self.interpreted_payload.lock().map_err(|_| anyhow::anyhow!("Source payload lock poisoned"))?.clone())
+        Ok(self
+            .interpreted_payload
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source payload lock poisoned"))?
+            .clone())
     }
 
     /// Retains policy-permitted changes separately from fidelity failures.
     pub fn retain_changes(&self, warnings: Vec<String>) -> Result<()> {
-        let mut retained = self.change_warnings.lock().map_err(|_| anyhow::anyhow!("Source warning lock poisoned"))?;
+        let mut retained = self
+            .change_warnings
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source warning lock poisoned"))?;
         for warning in warnings {
-            if !retained.contains(&warning) { retained.push(warning); }
+            if !retained.contains(&warning) {
+                retained.push(warning);
+            }
         }
         Ok(())
     }
 
     /// Returns policy-permitted source changes for the operation's journal.
     pub fn change_warnings(&self) -> Result<Vec<String>> {
-        Ok(self.change_warnings.lock().map_err(|_| anyhow::anyhow!("Source warning lock poisoned"))?.clone())
+        Ok(self
+            .change_warnings
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source warning lock poisoned"))?
+            .clone())
     }
 
     /// Retains diagnostics before a cleanup-adjusted baseline is reused.
     pub fn retain_cleanup_warnings(&self, warnings: Vec<String>) -> Result<()> {
-        let mut retained = self.cleanup_warnings.lock().map_err(|_| anyhow::anyhow!("Source cleanup warning lock poisoned"))?;
+        let mut retained = self.cleanup_warnings.lock().map_err(|_| {
+            anyhow::anyhow!("Source cleanup warning lock poisoned")
+        })?;
         for warning in warnings {
-            if !retained.contains(&warning) { retained.push(warning); }
+            if !retained.contains(&warning) {
+                retained.push(warning);
+            }
         }
         Ok(())
     }
 
     /// Returns retained diagnostics for this capture's timestamp cleanup.
     pub fn cleanup_warnings(&self) -> Result<Vec<String>> {
-        let mut warnings = self.cleanup_warnings.lock().map_err(|_| anyhow::anyhow!("Source cleanup warning lock poisoned"))?.clone();
-        for dependency in self.dependencies.lock().map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?.iter() {
+        let mut warnings = self
+            .cleanup_warnings
+            .lock()
+            .map_err(|_| {
+                anyhow::anyhow!("Source cleanup warning lock poisoned")
+            })?
+            .clone();
+        for dependency in self
+            .dependencies
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?
+            .iter()
+        {
             for warning in dependency.cleanup_warnings()? {
-                if !warnings.contains(&warning) { warnings.push(warning); }
+                if !warnings.contains(&warning) {
+                    warnings.push(warning);
+                }
             }
         }
         Ok(warnings)
@@ -450,7 +584,10 @@ impl SourceSnapshot {
 
     /// Completes symlink inspection without accepting unrelated source changes.
     #[cfg(unix)]
-    pub fn restore_symlink_access_time(&self, observed: &std::fs::Metadata) -> Result<()> {
+    pub fn restore_symlink_access_time(
+        &self,
+        observed: &std::fs::Metadata,
+    ) -> Result<()> {
         let before = std::fs::symlink_metadata(&self.path)?;
         self.retain_changes(self.validate_metadata(&before)?)?;
         crate::metadata::restore_symlink_access_time(&self.path, observed)?;
@@ -458,35 +595,76 @@ impl SourceSnapshot {
         self.restored(&before, after)
     }
 
-    fn validate_metadata(&self, current: &std::fs::Metadata) -> Result<Vec<String>> {
-        let original = self.state.lock().map_err(|_| anyhow::anyhow!("Source snapshot lock poisoned"))?;
-        anyhow::ensure!(crate::identity::extract_file_identity(&self.path, current)? == self.identity
-            && original.metadata.file_type() == current.file_type(),
-            "Source identity or type changed: {}", self.path.display());
-        anyhow::ensure!(directory_inventory(&self.path, current)? == original.children,
-            "Source directory inventory changed since capture: {}", self.path.display());
-        let changed = current.len() != original.metadata.len() || current.modified()? != original.metadata.modified()?
+    fn validate_metadata(
+        &self,
+        current: &std::fs::Metadata,
+    ) -> Result<Vec<String>> {
+        let original = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source snapshot lock poisoned"))?;
+        anyhow::ensure!(
+            crate::identity::extract_file_identity(&self.path, current)?
+                == self.identity
+                && original.metadata.file_type() == current.file_type(),
+            "Source identity or type changed: {}",
+            self.path.display()
+        );
+        anyhow::ensure!(
+            directory_inventory(&self.path, current)? == original.children,
+            "Source directory inventory changed since capture: {}",
+            self.path.display()
+        );
+        let changed = current.len() != original.metadata.len()
+            || current.modified()? != original.metadata.modified()?
             || current.permissions() != original.metadata.permissions()
-            || physical_change_time(&self.path, current)? != original.change_time;
+            || physical_change_time(&self.path, current)?
+                != original.change_time;
         if changed {
-            anyhow::ensure!(self.best_effort, "Source metadata changed since capture: {}", self.path.display());
-            return Ok(vec![format!("Source file {} changed during copy; proceeding best-effort.", self.path.display())]);
+            anyhow::ensure!(
+                self.best_effort,
+                "Source metadata changed since capture: {}",
+                self.path.display()
+            );
+            return Ok(vec![format!(
+                "Source file {} changed during copy; proceeding best-effort.",
+                self.path.display()
+            )]);
         }
         Ok(Vec::new())
     }
 
-    fn restored(&self, before: &std::fs::Metadata, after: std::fs::Metadata) -> Result<()> {
-        anyhow::ensure!(crate::identity::extract_file_identity(&self.path, before)? == crate::identity::extract_file_identity(&self.path, &after)?
-            && before.file_type() == after.file_type() && before.len() == after.len()
-            && before.modified()? == after.modified()? && before.permissions() == after.permissions(),
-            "Source changed during timestamp cleanup: {}", self.path.display());
-        let mut original = self.state.lock().map_err(|_| anyhow::anyhow!("Source snapshot lock poisoned"))?;
+    fn restored(
+        &self,
+        before: &std::fs::Metadata,
+        after: std::fs::Metadata,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            crate::identity::extract_file_identity(&self.path, before)?
+                == crate::identity::extract_file_identity(&self.path, &after)?
+                && before.file_type() == after.file_type()
+                && before.len() == after.len()
+                && before.modified()? == after.modified()?
+                && before.permissions() == after.permissions(),
+            "Source changed during timestamp cleanup: {}",
+            self.path.display()
+        );
+        let mut original = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Source snapshot lock poisoned"))?;
         #[cfg(unix)]
         if original.change_time == physical_change_time(&self.path, before)? {
             let change_time = physical_change_time(&self.path, &after)?;
             if original.change_time != change_time {
-                let warning = format!("Restoring source access time changed source change time on {}; Unix cannot restore change time", self.path.display());
-                let mut retained = self.cleanup_warnings.lock().map_err(|_| anyhow::anyhow!("Source cleanup warning lock poisoned"))?;
+                let warning = format!(
+                    "Restoring source access time changed source change time on {}; Unix cannot restore change time",
+                    self.path.display()
+                );
+                let mut retained =
+                    self.cleanup_warnings.lock().map_err(|_| {
+                        anyhow::anyhow!("Source cleanup warning lock poisoned")
+                    })?;
                 if !retained.contains(&warning) {
                     warn_fmt!("{warning}");
                     retained.push(warning);
@@ -495,7 +673,9 @@ impl SourceSnapshot {
             }
         }
         #[cfg(not(unix))]
-        { let _ = (&mut original, before, after); }
+        {
+            let _ = (&mut original, before, after);
+        }
         Ok(())
     }
 }
@@ -524,7 +704,10 @@ impl Drop for DiskPayloadSource {
                         warn_fmt!("{warning}");
                     }
                 }
-                Err(error) => warn_fmt!("Payload cleanup failed for {}: {error:#}", self.path.display()),
+                Err(error) => warn_fmt!(
+                    "Payload cleanup failed for {}: {error:#}",
+                    self.path.display()
+                ),
             }
         }
     }
@@ -541,21 +724,28 @@ impl DiskPayloadSource {
             let mut opts = File::options();
             opts.read(true);
             opts.custom_flags(nix::libc::O_NOATIME | nix::libc::O_NOFOLLOW);
-            if let Ok(f) = opts.open(path) { (f, true) } else {
+            if let Ok(f) = opts.open(path) {
+                (f, true)
+            } else {
                 opts.custom_flags(nix::libc::O_NOFOLLOW);
-                let f = opts.open(path)
-                    .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
+                let f = opts.open(path).with_context(|| {
+                    format!("Failed to open payload file: {}", path.display())
+                })?;
                 (f, false)
             }
         };
         #[cfg(all(unix, not(target_os = "linux")))]
         let mut file = {
             use std::os::unix::fs::OpenOptionsExt;
-            File::options().read(true).custom_flags(nix::libc::O_NOFOLLOW).open(path)?
+            File::options()
+                .read(true)
+                .custom_flags(nix::libc::O_NOFOLLOW)
+                .open(path)?
         };
         #[cfg(not(unix))]
-        let mut file = File::open(path)
-            .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
+        let mut file = File::open(path).with_context(|| {
+            format!("Failed to open payload file: {}", path.display())
+        })?;
         let meta = file.metadata()?;
         #[cfg(unix)]
         let is_block_device = {
@@ -606,10 +796,16 @@ impl DiskPayloadSource {
         let orig_times = if opened_with_noatime {
             None
         } else {
-            Some((FileTime::from_last_access_time(&meta), FileTime::from_last_modification_time(&meta)))
+            Some((
+                FileTime::from_last_access_time(&meta),
+                FileTime::from_last_modification_time(&meta),
+            ))
         };
         #[cfg(all(unix, not(target_os = "linux")))]
-        let orig_times = Some((FileTime::from_last_access_time(&meta), FileTime::from_last_modification_time(&meta)));
+        let orig_times = Some((
+            FileTime::from_last_access_time(&meta),
+            FileTime::from_last_modification_time(&meta),
+        ));
 
         #[cfg(not(target_os = "linux"))]
         let opened_with_noatime = false;
@@ -656,7 +852,9 @@ impl Seek for DiskPayloadSource {
 
 impl PayloadSource for DiskPayloadSource {
     fn bind_snapshot(&mut self, snapshot: &SourceSnapshot) -> Result<()> {
-        snapshot.retain_changes(snapshot.validate_metadata(&self.file.metadata()?)?)?;
+        snapshot.retain_changes(
+            snapshot.validate_metadata(&self.file.metadata()?)?,
+        )?;
         snapshot.retain_changes(snapshot.validate()?)?;
         self.snapshot = Some(snapshot.clone());
         Ok(())
@@ -680,18 +878,28 @@ impl PayloadSource for DiskPayloadSource {
             snapshot.retain_changes(snapshot.validate_metadata(&current)?)?;
             snapshot.retain_changes(snapshot.validate()?)?;
         } else {
-        anyhow::ensure!(current.len() == self.original_metadata.len()
-            && current.modified()? == self.original_metadata.modified()?,
-            "Payload source {} changed while reading; refusing timestamp restoration", self.path.display());
+            anyhow::ensure!(
+                current.len() == self.original_metadata.len()
+                    && current.modified()?
+                        == self.original_metadata.modified()?,
+                "Payload source {} changed while reading; refusing timestamp restoration",
+                self.path.display()
+            );
         }
         #[cfg(unix)]
         if let Some((atime, _mtime)) = self.orig_times {
             if FileTime::from_last_access_time(&current) != atime {
-            if let Err(error) = filetime::set_file_handle_times(&self.file, Some(atime), None) {
+                if let Err(error) = filetime::set_file_handle_times(
+                    &self.file,
+                    Some(atime),
+                    None,
+                ) {
                     self.warnings.push(format!("Failed to restore payload source timestamps for {}: {error}; reading may have changed source metadata", self.path.display()));
                 } else {
                     let restored = self.file.metadata()?;
-                    if restored.ctime() != current.ctime() || restored.ctime_nsec() != current.ctime_nsec() {
+                    if restored.ctime() != current.ctime()
+                        || restored.ctime_nsec() != current.ctime_nsec()
+                    {
                         self.warnings.push(format!("Restoring payload source access time changed the source change time for {}; Unix cannot restore change time", self.path.display()));
                     }
                     if let Some(snapshot) = &self.snapshot {
@@ -754,7 +962,8 @@ impl PayloadSource for MemoryPayloadSource {
         reason = "Infallible conversion: usize buffer length fits in u64 on supported 32-bit and 64-bit architectures"
     )]
     fn total_size(&self) -> u64 {
-        u64::try_from(self.cursor.get_ref().len()).expect("buffer len fits in u64")
+        u64::try_from(self.cursor.get_ref().len())
+            .expect("buffer len fits in u64")
     }
 
     fn extents(&self) -> &[Extent] {
@@ -849,7 +1058,9 @@ impl<R: Read + Send> Read for ReaderPayloadSource<R> {
                 return Ok(0);
             };
             let n = buf.len().min(available.len());
-            if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            if let (Some(dst), Some(src)) =
+                (buf.get_mut(..n), available.get(..n))
+            {
                 dst.copy_from_slice(src);
                 self.read_pos = self.read_pos.saturating_add(n);
                 Ok(n)
@@ -866,8 +1077,9 @@ impl<R: Read + Send> Seek for ReaderPayloadSource<R> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         match pos {
             SeekFrom::Start(offset) => {
-                let usize_offset = usize::try_from(offset)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                let usize_offset = usize::try_from(offset).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+                })?;
                 if usize_offset <= self.buffer.len() {
                     self.read_pos = usize_offset;
                     Ok(offset)
@@ -886,10 +1098,14 @@ impl<R: Read + Send> Seek for ReaderPayloadSource<R> {
                 }
             }
             SeekFrom::Current(diff) => {
-                let current = i64::try_from(self.read_pos)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                let current = i64::try_from(self.read_pos).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+                })?;
                 let target = current.checked_add(diff).ok_or_else(|| {
-                    std::io::Error::new(std::io::ErrorKind::InvalidInput, "Seek overflow")
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Seek overflow",
+                    )
                 })?;
                 if target < 0 {
                     return Err(std::io::Error::new(
@@ -897,8 +1113,9 @@ impl<R: Read + Send> Seek for ReaderPayloadSource<R> {
                         "Cannot seek before start of stream",
                     ));
                 }
-                let u_target = u64::try_from(target)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                let u_target = u64::try_from(target).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+                })?;
                 self.seek(SeekFrom::Start(u_target))
             }
             SeekFrom::End(_) => Err(std::io::Error::new(
@@ -1014,9 +1231,7 @@ pub fn hash_payload_stream<R: Read + Seek>(
         if n == 0 {
             break;
         }
-        let slice = buf
-            .get(..n)
-            .context("Buffer slice index out of bounds")?;
+        let slice = buf.get(..n).context("Buffer slice index out of bounds")?;
         hasher.update(slice);
     }
     Ok(hasher.finalize())
@@ -1063,31 +1278,47 @@ mod tests {
         let path = directory.path().join("source");
         std::fs::write(&path, b"original").unwrap();
         let mut source = DiskPayloadSource::open(&path).unwrap();
-        let changed = filetime::FileTime::from_unix_time(1_234_567, 123_456_700);
+        let changed =
+            filetime::FileTime::from_unix_time(1_234_567, 123_456_700);
         filetime::set_file_mtime(&path, changed).unwrap();
         assert!(source.finish().is_err());
         drop(source);
-        assert_eq!(filetime::FileTime::from_last_modification_time(&std::fs::metadata(&path).unwrap()), changed);
+        assert_eq!(
+            filetime::FileTime::from_last_modification_time(
+                &std::fs::metadata(&path).unwrap()
+            ),
+            changed
+        );
     }
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn capture_snapshot_cleanup_is_idempotent_without_waiving_external_changes() -> Result<()> {
+    fn capture_snapshot_cleanup_is_idempotent_without_waiving_external_changes()
+    -> Result<()> {
         let directory = tempfile::tempdir()?;
         let path = directory.path().join("source");
         std::fs::write(&path, b"original")?;
         let snapshot = SourceSnapshot::capture(&path, false)?;
         let mut source = DiskPayloadSource::open(&path)?;
         source.bind_snapshot(&snapshot)?;
-        let original_atime = FileTime::from_last_access_time(&source.original_metadata);
-        source.orig_times = Some((FileTime::from_unix_time(1_234_567, 123), original_atime));
+        let original_atime =
+            FileTime::from_last_access_time(&source.original_metadata);
+        source.orig_times =
+            Some((FileTime::from_unix_time(1_234_567, 123), original_atime));
         let before = source.file.metadata()?;
         let warnings = source.finish()?;
         let after = source.file.metadata()?;
-        assert_eq!(warnings.is_empty(), before.ctime() == after.ctime() && before.ctime_nsec() == after.ctime_nsec());
+        assert_eq!(
+            warnings.is_empty(),
+            before.ctime() == after.ctime()
+                && before.ctime_nsec() == after.ctime_nsec()
+        );
         assert_eq!(source.finish()?, warnings);
         assert!(snapshot.validate()?.is_empty());
-        filetime::set_file_mtime(&path, FileTime::from_unix_time(1_111_111, 456))?;
+        filetime::set_file_mtime(
+            &path,
+            FileTime::from_unix_time(1_111_111, 456),
+        )?;
         assert!(source.finish().is_err());
         assert!(snapshot.validate().is_err());
         Ok(())
@@ -1095,26 +1326,41 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn capture_symlink_cleanup_retains_warning_and_own_baseline() -> Result<()> {
+    fn capture_symlink_cleanup_retains_warning_and_own_baseline() -> Result<()>
+    {
         let directory = tempfile::tempdir()?;
         let path = directory.path().join("link");
         std::os::unix::fs::symlink("target", &path)?;
         let observed = std::fs::symlink_metadata(&path)?;
         let old = FileTime::from_unix_time(1_234_567, 123);
-        filetime::set_symlink_file_times(&path, old, FileTime::from_last_modification_time(&observed))?;
+        filetime::set_symlink_file_times(
+            &path,
+            old,
+            FileTime::from_last_modification_time(&observed),
+        )?;
         let snapshot = SourceSnapshot::capture(&path, false)?;
         let before = std::fs::symlink_metadata(&path)?;
         snapshot.restore_symlink_access_time(&observed)?;
         let after = std::fs::symlink_metadata(&path)?;
-        assert_eq!(snapshot.cleanup_warnings()?.is_empty(), physical_change_time(&path, &before)? == physical_change_time(&path, &after)?);
-        snapshot.retain_cleanup_warnings(vec!["injected symlink cleanup diagnostic".to_owned()])?;
+        assert_eq!(
+            snapshot.cleanup_warnings()?.is_empty(),
+            physical_change_time(&path, &before)?
+                == physical_change_time(&path, &after)?
+        );
+        snapshot.retain_cleanup_warnings(vec![
+            "injected symlink cleanup diagnostic".to_owned(),
+        ])?;
         let warnings = snapshot.cleanup_warnings()?;
         assert!(!warnings.is_empty());
         assert!(snapshot.validate()?.is_empty());
         snapshot.restore_symlink_access_time(&observed)?;
         assert_eq!(snapshot.cleanup_warnings()?, warnings);
         assert!(snapshot.validate()?.is_empty());
-        filetime::set_symlink_file_times(&path, old, FileTime::from_unix_time(1_234_568, 456))?;
+        filetime::set_symlink_file_times(
+            &path,
+            old,
+            FileTime::from_unix_time(1_234_568, 456),
+        )?;
         assert!(snapshot.validate().is_err());
         Ok(())
     }
@@ -1126,8 +1372,12 @@ mod tests {
         let path = directory.path().join("source");
         std::fs::write(&path, b"original")?;
         let snapshot = SourceSnapshot::capture(&path, false)?;
-        let mut baseline = snapshot.state.lock().map_err(|_| anyhow::anyhow!("Test lock poisoned"))?;
-        let (seconds, nanos) = baseline.change_time.context("Missing Unix change time")?;
+        let mut baseline = snapshot
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Test lock poisoned"))?;
+        let (seconds, nanos) =
+            baseline.change_time.context("Missing Unix change time")?;
         let different_nanos = if nanos == 0 { 1 } else { 0 };
         baseline.change_time = Some((seconds, different_nanos));
         drop(baseline);
@@ -1143,8 +1393,10 @@ mod tests {
         let moved = directory.path().join("moved");
         std::fs::write(&path, b"original").unwrap();
         let mut source = DiskPayloadSource::open(&path).unwrap();
-        let original_atime = FileTime::from_last_access_time(&source.original_metadata);
-        let original_mtime = FileTime::from_last_modification_time(&source.original_metadata);
+        let original_atime =
+            FileTime::from_last_access_time(&source.original_metadata);
+        let original_mtime =
+            FileTime::from_last_modification_time(&source.original_metadata);
         source.orig_times = Some((original_atime, original_mtime));
         std::fs::rename(&path, &moved).unwrap();
         std::fs::write(&path, b"replacement").unwrap();
@@ -1152,8 +1404,18 @@ mod tests {
         filetime::set_file_atime(&moved, changed).unwrap();
         filetime::set_file_mtime(&path, changed).unwrap();
         source.finish().unwrap();
-        assert_eq!(FileTime::from_last_access_time(&std::fs::metadata(&moved).unwrap()), original_atime);
-        assert_eq!(FileTime::from_last_modification_time(&std::fs::metadata(&path).unwrap()), changed);
+        assert_eq!(
+            FileTime::from_last_access_time(
+                &std::fs::metadata(&moved).unwrap()
+            ),
+            original_atime
+        );
+        assert_eq!(
+            FileTime::from_last_modification_time(
+                &std::fs::metadata(&path).unwrap()
+            ),
+            changed
+        );
         source.finish().unwrap();
     }
 
@@ -1176,12 +1438,22 @@ mod tests {
             vec![Ok(0), Ok(9)],
         ] {
             let mut responses = responses.into_iter();
-            let result = discover_unix_extents(8, |_, _| responses.next().unwrap());
-            assert!(result.is_err(), "Uncertain extent map accepted: {result:?}");
+            let result =
+                discover_unix_extents(8, |_, _| responses.next().unwrap());
+            assert!(
+                result.is_err(),
+                "Uncertain extent map accepted: {result:?}"
+            );
         }
-        let error = discover_unix_extents(8, |_, _| Err(Errno::EIO)).unwrap_err();
-        assert_eq!(error.downcast_ref::<std::io::Error>().unwrap().raw_os_error(),
-            std::io::Error::from(Errno::EIO).raw_os_error());
+        let error =
+            discover_unix_extents(8, |_, _| Err(Errno::EIO)).unwrap_err();
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .unwrap()
+                .raw_os_error(),
+            std::io::Error::from(Errno::EIO).raw_os_error()
+        );
     }
 
     #[cfg(unix)]
@@ -1189,22 +1461,54 @@ mod tests {
     fn test_unix_extent_discovery_preserves_complete_maps() {
         use nix::errno::Errno;
 
-        assert!(discover_unix_extents(0, |_, _| panic!("Empty file must not seek"))
-            .unwrap().is_empty());
-        assert_eq!(discover_unix_extents(8, |_, _| Err(Errno::ENXIO)).unwrap(),
-            vec![Extent::Hole { offset: 0, length: 8 }]);
+        assert!(
+            discover_unix_extents(0, |_, _| panic!("Empty file must not seek"))
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            discover_unix_extents(8, |_, _| Err(Errno::ENXIO)).unwrap(),
+            vec![Extent::Hole {
+                offset: 0,
+                length: 8
+            }]
+        );
         let mut responses = vec![Ok(2), Ok(4), Ok(6), Ok(8)].into_iter();
-        assert_eq!(discover_unix_extents(8, |_, _| responses.next().unwrap()).unwrap(), vec![
-            Extent::Hole { offset: 0, length: 2 },
-            Extent::Data { offset: 2, length: 2 },
-            Extent::Hole { offset: 4, length: 2 },
-            Extent::Data { offset: 6, length: 2 },
-        ]);
+        assert_eq!(
+            discover_unix_extents(8, |_, _| responses.next().unwrap()).unwrap(),
+            vec![
+                Extent::Hole {
+                    offset: 0,
+                    length: 2
+                },
+                Extent::Data {
+                    offset: 2,
+                    length: 2
+                },
+                Extent::Hole {
+                    offset: 4,
+                    length: 2
+                },
+                Extent::Data {
+                    offset: 6,
+                    length: 2
+                },
+            ]
+        );
         let mut responses = vec![Ok(0), Ok(4), Err(Errno::ENXIO)].into_iter();
-        assert_eq!(discover_unix_extents(8, |_, _| responses.next().unwrap()).unwrap(), vec![
-            Extent::Data { offset: 0, length: 4 },
-            Extent::Hole { offset: 4, length: 4 },
-        ]);
+        assert_eq!(
+            discover_unix_extents(8, |_, _| responses.next().unwrap()).unwrap(),
+            vec![
+                Extent::Data {
+                    offset: 0,
+                    length: 4
+                },
+                Extent::Hole {
+                    offset: 4,
+                    length: 4
+                },
+            ]
+        );
     }
 
     #[crate::ctb_test]
@@ -1245,5 +1549,3 @@ mod tests {
         assert_eq!(&out, b"4567");
     }
 }
-
-

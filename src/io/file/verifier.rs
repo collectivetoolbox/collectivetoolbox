@@ -34,14 +34,14 @@ use crate::sys_flags::{query_file_flags, raw_flags_match};
 use filetime::FileTime;
 #[cfg(unix)]
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
-#[cfg(unix)]
-use std::os::unix::fs::{FileTypeExt, MetadataExt};
-#[cfg(windows)]
-use std::os::windows::fs::MetadataExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+#[cfg(unix)]
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
+#[cfg(windows)]
+use std::os::windows::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 /// Nature of a stream or extended attribute discrepancy.
@@ -206,13 +206,22 @@ impl std::fmt::Display for DiffKind {
                 )
             }
             Self::ModeMismatch { expected, actual } => {
-                write!(f, "Permissions mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "Permissions mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::UidMismatch { expected, actual } => {
-                write!(f, "Owner UID mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "Owner UID mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::GidMismatch { expected, actual } => {
-                write!(f, "Owner GID mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "Owner GID mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::MtimeMismatch {
                 expected_sec,
@@ -259,9 +268,14 @@ impl std::fmt::Display for DiffKind {
                 )
             }
             Self::FlagsMismatch { expected, actual } => {
-                write!(f, "Flags mismatch: expected {expected:?}, got {actual:?}")
+                write!(
+                    f,
+                    "Flags mismatch: expected {expected:?}, got {actual:?}"
+                )
             }
-            Self::NativeMetadataMismatch { details } => write!(f, "Native metadata mismatch: {details}"),
+            Self::NativeMetadataMismatch { details } => {
+                write!(f, "Native metadata mismatch: {details}")
+            }
             Self::StreamMismatch {
                 stream_name,
                 details,
@@ -373,7 +387,10 @@ impl Default for EntityAuditOptions {
 }
 
 /// Converts a 32-byte digest array into a lowercase hex string.
-#[expect(clippy::let_underscore_must_use, reason = "Writing into in-memory String cannot fail")]
+#[expect(
+    clippy::let_underscore_must_use,
+    reason = "Writing into in-memory String cannot fail"
+)]
 pub fn hex_encode(bytes: &[u8; 32]) -> String {
     use std::fmt::Write;
     let mut s = String::with_capacity(64);
@@ -399,7 +416,8 @@ fn describe_file_type(meta: &std::fs::Metadata) -> String {
 pub fn evict_fd_cache(file: &File) {
     #[cfg(unix)]
     {
-        let _ = posix_fadvise(file, 0, 0, PosixFadviseAdvice::POSIX_FADV_DONTNEED);
+        let _ =
+            posix_fadvise(file, 0, 0, PosixFadviseAdvice::POSIX_FADV_DONTNEED);
     }
     #[cfg(not(unix))]
     {
@@ -450,17 +468,27 @@ pub fn has_cache_flush_privileges() -> bool {
 /// Audits a materialized filesystem entry at `path` against an `expected` `FileEntity` definition,
 /// returning both detected discrepancies and a count of differences that were ignored due to
 /// best-effort tolerance or ignore options.
-#[expect(clippy::too_many_lines, reason = "Comprehensive audit of all entity attributes, hashes, streams, and extents")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Comprehensive audit of all entity attributes, hashes, streams, and extents"
+)]
 pub fn audit_entity_detailed(
     path: &Path,
     expected: &FileEntity,
     options: &EntityAuditOptions,
 ) -> Result<(Vec<DiffKind>, IgnoredDifferences)> {
     #[cfg(not(any(unix, windows)))]
-    anyhow::ensure!(options.ignore_owner && options.ignore_perms && options.ignore_flags
-        && options.ignore_atime && options.ignore_mtime && options.ignore_ctime
-        && !options.check_birthtime && !options.check_sparse,
-        "Native metadata and sparse auditing is not implemented on this platform");
+    anyhow::ensure!(
+        options.ignore_owner
+            && options.ignore_perms
+            && options.ignore_flags
+            && options.ignore_atime
+            && options.ignore_mtime
+            && options.ignore_ctime
+            && !options.check_birthtime
+            && !options.check_sparse,
+        "Native metadata and sparse auditing is not implemented on this platform"
+    );
     let mut diffs = Vec::new();
     let mut ignored = IgnoredDifferences::default();
 
@@ -480,16 +508,23 @@ pub fn audit_entity_detailed(
     #[cfg(unix)]
     let special_matches = match &expected.kind {
         FileEntityKind::Fifo => dest_meta.file_type().is_fifo(),
-        FileEntityKind::CharDevice { rdev } => dest_meta.file_type().is_char_device() && dest_meta.rdev() == *rdev,
-        FileEntityKind::BlockDevice { rdev } => dest_meta.file_type().is_block_device() && dest_meta.rdev() == *rdev,
+        FileEntityKind::CharDevice { rdev } => {
+            dest_meta.file_type().is_char_device() && dest_meta.rdev() == *rdev
+        }
+        FileEntityKind::BlockDevice { rdev } => {
+            dest_meta.file_type().is_block_device() && dest_meta.rdev() == *rdev
+        }
         FileEntityKind::Socket => dest_meta.file_type().is_socket(),
         FileEntityKind::Door => dest_meta.mode() & 0xF000 == 0xD000,
         _ => true,
     };
     #[cfg(not(unix))]
-    let special_matches = expected.is_regular() || expected.is_dir() || expected.is_symlink();
-    anyhow::ensure!(!matches!(expected.kind, FileEntityKind::Hardlink { .. }),
-        "Hardlink auditing requires the manifest root to resolve the target");
+    let special_matches =
+        expected.is_regular() || expected.is_dir() || expected.is_symlink();
+    anyhow::ensure!(
+        !matches!(expected.kind, FileEntityKind::Hardlink { .. }),
+        "Hardlink auditing requires the manifest root to resolve the target"
+    );
     let type_matches = if expected.is_symlink() {
         dest_meta.is_symlink()
     } else if expected.is_dir() {
@@ -519,7 +554,8 @@ pub fn audit_entity_detailed(
     {
         anyhow::ensure!(
             options.ignore_owner
-                || (expected.metadata.uid.is_none() && expected.metadata.gid.is_none()),
+                || (expected.metadata.uid.is_none()
+                    && expected.metadata.gid.is_none()),
             "Windows cannot audit POSIX ownership"
         );
         anyhow::ensure!(
@@ -550,14 +586,16 @@ pub fn audit_entity_detailed(
     // 3. Ownership
     #[cfg(unix)]
     {
-        if let (Some(exp_uid), Some(exp_gid)) = (expected.metadata.uid, expected.metadata.gid) {
+        if let (Some(exp_uid), Some(exp_gid)) =
+            (expected.metadata.uid, expected.metadata.gid)
+        {
             let uid_diff = dest_meta.uid() != exp_uid;
             let gid_diff = dest_meta.gid() != exp_gid;
             if uid_diff || gid_diff {
                 let is_root = nix::unistd::getuid().is_root();
 
-                let ignore_owner = options.ignore_owner
-                    || (options.best_effort && !is_root);
+                let ignore_owner =
+                    options.ignore_owner || (options.best_effort && !is_root);
                 if ignore_owner {
                     ignored.ownership = ignored.ownership.saturating_add(1);
                 } else {
@@ -615,7 +653,8 @@ pub fn audit_entity_detailed(
     let actual_ctime_nsec = actual_ctime.nanoseconds();
     #[cfg(any(unix, windows))]
     if let Some(ref exp_ts) = expected.metadata.timestamps {
-        let dest_res = crate::filesystem::query_filesystem_resolution(path, &dest_meta);
+        let dest_res =
+            crate::filesystem::query_filesystem_resolution(path, &dest_meta);
         // Reason for fallback: unspecified timestamp resolution defaults to 0 nanosecond tolerance
         let tolerance_nsec = dest_res.max(exp_ts.resolution_nsec.unwrap_or(0));
 
@@ -696,19 +735,27 @@ pub fn audit_entity_detailed(
             }
         }
 
-        if let Some(expected_sec) = exp_ts.birthtime_sec.filter(|_| options.check_birthtime) {
+        if let Some(expected_sec) =
+            exp_ts.birthtime_sec.filter(|_| options.check_birthtime)
+        {
             let actual = crate::metadata::capture_birthtime(&dest_meta)?;
             let actual_sec = actual.map(|time| time.unix_seconds());
             let actual_nsec = actual.map(|time| time.nanoseconds());
-            if actual_sec != Some(expected_sec) || actual_nsec != exp_ts.birthtime_nsec {
+            if actual_sec != Some(expected_sec)
+                || actual_nsec != exp_ts.birthtime_nsec
+            {
                 if options.best_effort {
                     ignored.timestamps = ignored.timestamps.saturating_add(1);
-                    warn_fmt!("Birth time differs on {}; original retained in source metadata", path.display());
+                    warn_fmt!(
+                        "Birth time differs on {}; original retained in source metadata",
+                        path.display()
+                    );
                 } else {
                     diffs.push(DiffKind::BirthtimeMismatch {
                         expected_sec: Some(expected_sec),
                         expected_nsec: exp_ts.birthtime_nsec,
-                        actual_sec, actual_nsec,
+                        actual_sec,
+                        actual_nsec,
                     });
                 }
             }
@@ -716,13 +763,23 @@ pub fn audit_entity_detailed(
     }
 
     if expected.metadata.native.is_some() {
-        let differences = crate::metadata::native_metadata_differences(path, &expected.metadata, options.ignore_flags, !options.best_effort)?;
+        let differences = crate::metadata::native_metadata_differences(
+            path,
+            &expected.metadata,
+            options.ignore_flags,
+            !options.best_effort,
+        )?;
         if !differences.is_empty() {
             if options.best_effort {
-                warn_fmt!("Native metadata differs on {}: {differences:?}", path.display());
+                warn_fmt!(
+                    "Native metadata differs on {}: {differences:?}",
+                    path.display()
+                );
                 ignored.flags = ignored.flags.saturating_add(1);
             } else {
-                diffs.push(DiffKind::NativeMetadataMismatch { details: differences.join("; ") });
+                diffs.push(DiffKind::NativeMetadataMismatch {
+                    details: differences.join("; "),
+                });
             }
         }
     }
@@ -732,7 +789,8 @@ pub fn audit_entity_detailed(
         && (expected.metadata.flags.is_some()
             || expected.metadata.platform_raw_flags.is_some())
     {
-        let (actual_flags, actual_raw) = query_file_flags(path, expected.is_symlink())?;
+        let (actual_flags, actual_raw) =
+            query_file_flags(path, expected.is_symlink())?;
         if let Some(expected_raw) = &expected.metadata.platform_raw_flags {
             // Reason for fallback: absent environment metadata defaults to compile-target OS family
             let source_os = expected
@@ -741,11 +799,13 @@ pub fn audit_entity_detailed(
                 .as_ref()
                 .map_or(OsFamily::CURRENT, |env| env.os_family());
             let matches_raw = source_os == OsFamily::CURRENT
-                && actual_raw
-                    .as_ref()
-                    .is_some_and(|actual| raw_flags_match(expected_raw, actual, source_os));
+                && actual_raw.as_ref().is_some_and(|actual| {
+                    raw_flags_match(expected_raw, actual, source_os)
+                });
             if !matches_raw {
-                let details = format!("Raw flags expected {expected_raw:?}, got {actual_raw:?}");
+                let details = format!(
+                    "Raw flags expected {expected_raw:?}, got {actual_raw:?}"
+                );
                 if options.best_effort {
                     warn_fmt!("{}: {details}", path.display());
                     ignored.flags = ignored.flags.saturating_add(1);
@@ -756,21 +816,22 @@ pub fn audit_entity_detailed(
         }
         // Reason for fallback: absent flags metadata defaults to empty slice for verification comparison
         let exp_flags = expected.metadata.flags.as_deref().unwrap_or(&[]);
-        let mut exp_names: Vec<String> = exp_flags
-            .iter()
-            .map(|f| f.name().to_string())
-            .collect();
+        let mut exp_names: Vec<String> =
+            exp_flags.iter().map(|f| f.name().to_string()).collect();
         let mut act_names: Vec<String> = actual_flags
             .iter()
-            .filter(|f| exp_flags.contains(f) || f.settability(OsFamily::CURRENT).is_settable())
+            .filter(|f| {
+                exp_flags.contains(f)
+                    || f.settability(OsFamily::CURRENT).is_settable()
+            })
             .map(|f| f.name().to_string())
             .collect();
         exp_names.sort();
         act_names.sort();
         if exp_names != act_names {
             #[cfg(any(target_os = "freebsd", target_os = "dragonfly"))]
-            let is_default_bsd_uarch = exp_names.is_empty()
-                && act_names.as_slice() == ["uarch"];
+            let is_default_bsd_uarch =
+                exp_names.is_empty() && act_names.as_slice() == ["uarch"];
             #[cfg(not(any(target_os = "freebsd", target_os = "dragonfly")))]
             let is_default_bsd_uarch = false;
 
@@ -801,18 +862,28 @@ pub fn audit_entity_detailed(
                 read_apple_single_asf: true,
                 read_windows_ads_alongside: true,
             };
-            let base_dir = expected.identity.relative_path.as_deref().and_then(|rel| {
-                let count = rel
-                    .components()
-                    .filter(|c| matches!(c, std::path::Component::Normal(_)))
-                    .count();
-                let mut cur = path;
-                for _ in 0..count {
-                    cur = cur.parent()?;
-                }
-                Some(cur)
-            });
-            if crate::apple_double::join_apple_double_or_single(&mut check_entity, path, base_dir, &all_apple_opts).is_ok() {
+            let base_dir =
+                expected.identity.relative_path.as_deref().and_then(|rel| {
+                    let count = rel
+                        .components()
+                        .filter(|c| {
+                            matches!(c, std::path::Component::Normal(_))
+                        })
+                        .count();
+                    let mut cur = path;
+                    for _ in 0..count {
+                        cur = cur.parent()?;
+                    }
+                    Some(cur)
+                });
+            if crate::apple_double::join_apple_double_or_single(
+                &mut check_entity,
+                path,
+                base_dir,
+                &all_apple_opts,
+            )
+            .is_ok()
+            {
                 on_disk_streams = check_entity.streams;
             }
         }
@@ -828,7 +899,8 @@ pub fn audit_entity_detailed(
                     crate::streams::StreamKind::MacOsResourceFork => {
                         crate::streams::StreamName::from_str(
                             crate::streams::RESOURCE_FORK_XATTR_NAME,
-                        ).canonicalize_native()?
+                        )
+                        .canonicalize_native()?
                     }
                     _ => continue,
                 },
@@ -849,18 +921,26 @@ pub fn audit_entity_detailed(
                 FileEntityKind::Regular { sha256, .. } => *sha256,
                 _ => [0_u8; 32],
             };
-            let recorded_mat_name = if let Some(mat_bytes) = s.entity.metadata.materialized_stream_name() {
-                Some(crate::streams::StreamName::from_bytes(mat_bytes).canonicalize_native()?)
+            let recorded_mat_name = if let Some(mat_bytes) =
+                s.entity.metadata.materialized_stream_name()
+            {
+                Some(
+                    crate::streams::StreamName::from_bytes(mat_bytes)
+                        .canonicalize_native()?,
+                )
             } else {
                 None
             };
             let mut native_name = match &s.name {
-                Some(name) => name.canonicalize_native_for_materialization(!options.best_effort)?,
+                Some(name) => name.canonicalize_native_for_materialization(
+                    !options.best_effort,
+                )?,
                 None => match s.kind {
                     crate::streams::StreamKind::MacOsResourceFork => {
                         crate::streams::StreamName::from_str(
                             crate::streams::RESOURCE_FORK_XATTR_NAME,
-                        ).canonicalize_native()?
+                        )
+                        .canonicalize_native()?
                     }
                     _ => {
                         if let Some(ref mat) = recorded_mat_name {
@@ -871,7 +951,9 @@ pub fn audit_entity_detailed(
                             }
                         } else if options.best_effort {
                             let (cleaned, _) = crate::clean_name::clean_stream_name_for_companion(b"", max_suffix_bytes);
-                            let cand = crate::streams::StreamName::from_str(&cleaned).canonicalize_native()?;
+                            let cand =
+                                crate::streams::StreamName::from_str(&cleaned)
+                                    .canonicalize_native()?;
                             if disk_map.contains_key(&cand) {
                                 cand
                             } else {
@@ -892,10 +974,14 @@ pub fn audit_entity_detailed(
             }
             if options.best_effort && !disk_map.contains_key(&native_name) {
                 let raw_name = native_name.to_os_string()?;
-                let adapted = crate::streams::StreamName::from_str(&raw_name.to_string_lossy())
-                    .canonicalize_native()?;
+                let adapted = crate::streams::StreamName::from_str(
+                    &raw_name.to_string_lossy(),
+                )
+                .canonicalize_native()?;
                 if adapted != native_name && disk_map.contains_key(&adapted) {
-                    warn!("Auditing replacement-encoded stream name (best-effort)");
+                    warn!(
+                        "Auditing replacement-encoded stream name (best-effort)"
+                    );
                     native_name = adapted;
                 } else {
                     let raw_bytes: Vec<u8> = match &s.name {
@@ -903,23 +989,32 @@ pub fn audit_entity_detailed(
                         None => Vec::new(),
                     };
                     // Reason for fallback: stream name without leading ':' is already unprefixed
-                    let trimmed = raw_bytes.strip_prefix(b":").unwrap_or(&raw_bytes);
-                    let (cleaned_str, _) = crate::clean_name::clean_stream_name_for_companion(
-                        trimmed,
-                        max_suffix_bytes,
-                    );
-                    let mut cand = crate::streams::StreamName::from_str(&cleaned_str)
-                        .canonicalize_native()?;
-                    if expected_map.contains_key(&cand) || !disk_map.contains_key(&cand) {
-                        for collision_idx in 1_usize..=expected.streams.len().saturating_add(1) {
-                            let disambig = crate::clean_name::disambiguate_cleaned_name(
-                                &cleaned_str,
-                                trimmed,
-                                collision_idx,
-                                max_suffix_bytes,
-                            );
-                            let disambig_cand = crate::streams::StreamName::from_str(&disambig)
-                                .canonicalize_native()?;
+                    let trimmed =
+                        raw_bytes.strip_prefix(b":").unwrap_or(&raw_bytes);
+                    let (cleaned_str, _) =
+                        crate::clean_name::clean_stream_name_for_companion(
+                            trimmed,
+                            max_suffix_bytes,
+                        );
+                    let mut cand =
+                        crate::streams::StreamName::from_str(&cleaned_str)
+                            .canonicalize_native()?;
+                    if expected_map.contains_key(&cand)
+                        || !disk_map.contains_key(&cand)
+                    {
+                        for collision_idx in
+                            1_usize..=expected.streams.len().saturating_add(1)
+                        {
+                            let disambig =
+                                crate::clean_name::disambiguate_cleaned_name(
+                                    &cleaned_str,
+                                    trimmed,
+                                    collision_idx,
+                                    max_suffix_bytes,
+                                );
+                            let disambig_cand =
+                                crate::streams::StreamName::from_str(&disambig)
+                                    .canonicalize_native()?;
                             if !expected_map.contains_key(&disambig_cand)
                                 && disk_map.contains_key(&disambig_cand)
                             {
@@ -929,7 +1024,9 @@ pub fn audit_entity_detailed(
                         }
                     }
                     if disk_map.contains_key(&cand) {
-                        warn!("Auditing cleaned companion stream name (best-effort)");
+                        warn!(
+                            "Auditing cleaned companion stream name (best-effort)"
+                        );
                         native_name = cand;
                     }
                 }
@@ -974,12 +1071,15 @@ pub fn audit_entity_detailed(
         target: ref expected_target,
     } = expected.kind
     {
-        let actual_target = crate::metadata::read_symlink_target(path, &dest_meta)?;
+        let actual_target =
+            crate::metadata::read_symlink_target(path, &dest_meta)?;
         let actual_bytes = actual_target.as_os_str().as_encoded_bytes();
-        let expected_path = expected_target.to_path_buf_for_materialization(!options.best_effort)?;
+        let expected_path = expected_target
+            .to_path_buf_for_materialization(!options.best_effort)?;
         let expected_bytes = expected_path.as_os_str().as_encoded_bytes();
         let adapted = expected_path.to_string_lossy();
-        let accepts_replacement = options.best_effort && actual_bytes == adapted.as_bytes();
+        let accepts_replacement =
+            options.best_effort && actual_bytes == adapted.as_bytes();
         if accepts_replacement && actual_bytes != expected_bytes {
             warn!("Auditing replacement-encoded symlink target (best-effort)");
         }
@@ -1003,12 +1103,15 @@ pub fn audit_entity_detailed(
             anyhow::ensure!(
                 opened_meta.len() == dest_meta.len()
                     && opened_meta.modified()? == dest_meta.modified()?,
-                "File changed before payload verification: {}", path.display()
+                "File changed before payload verification: {}",
+                path.display()
             );
             #[cfg(unix)]
             anyhow::ensure!(
-                opened_meta.dev() == dest_meta.dev() && opened_meta.ino() == dest_meta.ino(),
-                "File replaced before payload verification: {}", path.display()
+                opened_meta.dev() == dest_meta.dev()
+                    && opened_meta.ino() == dest_meta.ino(),
+                "File replaced before payload verification: {}",
+                path.display()
             );
             let apple_single_archive = if dest_meta.len() == expected_size {
                 None
@@ -1020,8 +1123,16 @@ pub fn audit_entity_detailed(
                         m == crate::apple_double::APPLESINGLE_MAGIC_BE
                             || m == crate::apple_double::APPLESINGLE_MAGIC_LE
                     }
-                    Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => false,
-                    Err(error) => return Err(error).context("Failed to read audit payload magic"),
+                    Err(error)
+                        if error.kind()
+                            == std::io::ErrorKind::UnexpectedEof =>
+                    {
+                        false
+                    }
+                    Err(error) => {
+                        return Err(error)
+                            .context("Failed to read audit payload magic");
+                    }
                 };
                 file.seek(SeekFrom::Start(0))?;
                 if is_single {
@@ -1074,8 +1185,10 @@ pub fn audit_entity_detailed(
 
                 if options.check_sparse {
                     let actual_extents = get_file_extents(file, actual_size)?;
-                    let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
-                    let expected_has_holes = extents.iter().any(Extent::is_hole);
+                    let actual_has_holes =
+                        actual_extents.iter().any(Extent::is_hole);
+                    let expected_has_holes =
+                        extents.iter().any(Extent::is_hole);
                     #[cfg(windows)]
                     let actual_sparse_attr = dest_meta.file_attributes()
                         & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
@@ -1095,39 +1208,59 @@ pub fn audit_entity_detailed(
                     let mut missing_holes = Vec::new();
                     for extent in extents {
                         if let Extent::Hole { offset, length } = extent {
-                            let is_covered = actual_extents.iter().any(|actual| match actual {
-                                Extent::Hole { offset: a_off, length: a_len } => {
-                                    *a_off <= *offset && a_off.saturating_add(*a_len) >= offset.saturating_add(*length)
-                                }
-                                Extent::Data { .. } => false,
-                            });
+                            let is_covered = actual_extents.iter().any(
+                                |actual| match actual {
+                                    Extent::Hole {
+                                        offset: a_off,
+                                        length: a_len,
+                                    } => {
+                                        *a_off <= *offset
+                                            && a_off.saturating_add(*a_len)
+                                                >= offset
+                                                    .saturating_add(*length)
+                                    }
+                                    Extent::Data { .. } => false,
+                                },
+                            );
                             if !is_covered {
                                 missing_holes.push((*offset, *length));
                             }
                         }
                     }
 
-                    let sparse_mismatch = expected_sparse != actual_sparse || !missing_holes.is_empty();
+                    let sparse_mismatch = expected_sparse != actual_sparse
+                        || !missing_holes.is_empty();
                     if sparse_mismatch {
                         let mut tolerate = false;
                         if options.best_effort {
-                            let fs_info = crate::filesystem::query_filesystem_info(path, &dest_meta);
-                            let fs_supports_sparse = fs_info.supports_sparse() == Some(true);
+                            let fs_info =
+                                crate::filesystem::query_filesystem_info(
+                                    path, &dest_meta,
+                                );
+                            let fs_supports_sparse =
+                                fs_info.supports_sparse() == Some(true);
 
                             let sub_allocation_unit_only = {
                                 #[cfg(windows)]
                                 {
                                     !missing_holes.is_empty()
-                                        && missing_holes.iter().all(|(_, len)| *len < 65_536)
+                                        && missing_holes
+                                            .iter()
+                                            .all(|(_, len)| *len < 65_536)
                                 }
                                 #[cfg(not(windows))]
                                 {
                                     #[cfg(unix)]
                                     {
                                         use std::os::unix::fs::MetadataExt;
-                                        let min_granularity = dest_meta.blksize().max(4096);
+                                        let min_granularity =
+                                            dest_meta.blksize().max(4096);
                                         !missing_holes.is_empty()
-                                            && missing_holes.iter().all(|(_, len)| *len < min_granularity)
+                                            && missing_holes.iter().all(
+                                                |(_, len)| {
+                                                    *len < min_granularity
+                                                },
+                                            )
                                     }
                                     #[cfg(not(unix))]
                                     {
@@ -1142,7 +1275,8 @@ pub fn audit_entity_detailed(
                         }
 
                         if tolerate {
-                            ignored.sparseness = ignored.sparseness.saturating_add(1);
+                            ignored.sparseness =
+                                ignored.sparseness.saturating_add(1);
                         } else {
                             diffs.push(DiffKind::SparseHoleMismatch {
                                 expected_has_holes: expected_sparse,
@@ -1171,7 +1305,6 @@ pub fn audit_entity_detailed(
                         actual_hex: hex_encode(&actual_sha256),
                     });
                 }
-
             }
             Ok(())
         })?;
@@ -1204,7 +1337,11 @@ fn audit_file_contents<T>(
     #[cfg(target_os = "linux")]
     let mut file = {
         use std::os::unix::fs::OpenOptionsExt;
-        match File::options().read(true).custom_flags(nix::libc::O_NOATIME).open(path) {
+        match File::options()
+            .read(true)
+            .custom_flags(nix::libc::O_NOATIME)
+            .open(path)
+        {
             Ok(file) => file,
             Err(_) => File::open(path)?,
         }
@@ -1214,7 +1351,11 @@ fn audit_file_contents<T>(
         use std::os::windows::fs::OpenOptionsExt;
         use windows_sys::Win32::Foundation::GENERIC_READ;
         use windows_sys::Win32::Storage::FileSystem::FILE_WRITE_ATTRIBUTES;
-        match File::options().read(true).access_mode(GENERIC_READ | FILE_WRITE_ATTRIBUTES).open(path) {
+        match File::options()
+            .read(true)
+            .access_mode(GENERIC_READ | FILE_WRITE_ATTRIBUTES)
+            .open(path)
+        {
             Ok(file) => file,
             Err(_) => File::open(path)?,
         }
@@ -1229,18 +1370,24 @@ fn audit_file_contents<T>(
     match (result, completion) {
         (Ok(value), Ok(())) => Ok(value),
         (Err(error), Ok(())) => Err(error),
-        (Ok(_), Err(error)) => Err(error)
-            .with_context(|| format!("Failed to complete audit read on {}", path.display())),
+        (Ok(_), Err(error)) => Err(error).with_context(|| {
+            format!("Failed to complete audit read on {}", path.display())
+        }),
         (Err(error), Err(cleanup)) => Err(error).context(format!(
-            "Audit read cleanup also failed on {}: {cleanup:#}", path.display()
+            "Audit read cleanup also failed on {}: {cleanup:#}",
+            path.display()
         )),
     }
 }
 
-fn complete_audit_read(file: &File, original: &std::fs::Metadata) -> Result<()> {
+fn complete_audit_read(
+    file: &File,
+    original: &std::fs::Metadata,
+) -> Result<()> {
     let current = file.metadata()?;
     anyhow::ensure!(
-        current.len() == original.len() && current.modified()? == original.modified()?,
+        current.len() == original.len()
+            && current.modified()? == original.modified()?,
         "File changed during payload verification; refusing timestamp restoration"
     );
     let atime = FileTime::from_last_access_time(original);
@@ -1261,7 +1408,14 @@ pub fn verify_materialized_entity(
     entity: &FileEntity,
     strict_lossless: bool,
 ) -> Result<()> {
-    verify_materialized_entity_ext(dest_path, entity, strict_lossless, false, cfg!(windows), cfg!(windows))
+    verify_materialized_entity_ext(
+        dest_path,
+        entity,
+        strict_lossless,
+        false,
+        cfg!(windows),
+        cfg!(windows),
+    )
 }
 
 /// Verifies a materialized entity with opt-in control over access time (atime) and change time (ctime) checking.
@@ -1350,7 +1504,7 @@ mod tests {
     use std::fs;
     use std::fs::File;
     #[cfg(unix)]
-    use std::os::unix::fs::{PermissionsExt};
+    use std::os::unix::fs::PermissionsExt;
 
     #[cfg(unix)]
     #[crate::ctb_test]
@@ -1361,8 +1515,14 @@ mod tests {
         let entity = FileEntity::from_filesystem(&path, None).unwrap();
         let observed = FileTime::from_unix_time(1_000_000_000, 0);
         filetime::set_symlink_file_times(&path, observed, observed).unwrap();
-        let differences = audit_entity(&path, &entity, &EntityAuditOptions::default()).unwrap();
-        assert!(differences.iter().any(|diff| matches!(diff, DiffKind::MtimeMismatch { .. })));
+        let differences =
+            audit_entity(&path, &entity, &EntityAuditOptions::default())
+                .unwrap();
+        assert!(
+            differences
+                .iter()
+                .any(|diff| matches!(diff, DiffKind::MtimeMismatch { .. }))
+        );
         let after = fs::symlink_metadata(&path).unwrap();
         assert_eq!(FileTime::from_last_modification_time(&after), observed);
         assert_eq!(FileTime::from_last_access_time(&after), observed);
@@ -1377,17 +1537,37 @@ mod tests {
         let original = fs::symlink_metadata(&path).unwrap();
         let changed = FileTime::from_unix_time(1_000_000_000, 0);
         filetime::set_symlink_file_times(&path, changed, changed).unwrap();
-        assert!(crate::metadata::restore_symlink_access_time(&path, &original).is_err());
-        assert_eq!(FileTime::from_last_modification_time(&fs::symlink_metadata(&path).unwrap()), changed);
+        assert!(
+            crate::metadata::restore_symlink_access_time(&path, &original)
+                .is_err()
+        );
+        assert_eq!(
+            FileTime::from_last_modification_time(
+                &fs::symlink_metadata(&path).unwrap()
+            ),
+            changed
+        );
         let changed_metadata = fs::symlink_metadata(&path).unwrap();
         let replacement = temp.path().join("replacement");
         std::os::unix::fs::symlink("replacement-target", &replacement).unwrap();
         fs::rename(&replacement, &path).unwrap();
         let replacement_metadata = fs::symlink_metadata(&path).unwrap();
-        assert!(crate::metadata::restore_symlink_access_time(&path, &changed_metadata).is_err());
+        assert!(
+            crate::metadata::restore_symlink_access_time(
+                &path,
+                &changed_metadata
+            )
+            .is_err()
+        );
         let after = fs::symlink_metadata(&path).unwrap();
-        assert_eq!(FileTime::from_last_access_time(&after), FileTime::from_last_access_time(&replacement_metadata));
-        assert_eq!(FileTime::from_last_modification_time(&after), FileTime::from_last_modification_time(&replacement_metadata));
+        assert_eq!(
+            FileTime::from_last_access_time(&after),
+            FileTime::from_last_access_time(&replacement_metadata)
+        );
+        assert_eq!(
+            FileTime::from_last_modification_time(&after),
+            FileTime::from_last_modification_time(&replacement_metadata)
+        );
     }
 
     #[cfg(unix)]
@@ -1398,7 +1578,8 @@ mod tests {
         std::os::unix::fs::symlink("target", &path).unwrap();
         let observed = fs::symlink_metadata(&path).unwrap();
         fs::remove_file(&path).unwrap();
-        let error = crate::metadata::read_symlink_target(&path, &observed).unwrap_err();
+        let error =
+            crate::metadata::read_symlink_target(&path, &observed).unwrap_err();
         let message = format!("{error:#}");
         assert!(message.contains("Failed to read symlink target"));
         assert!(message.contains("Symlink read cleanup also failed"));
@@ -1414,8 +1595,15 @@ mod tests {
         let changed = FileTime::from_unix_time(1_000_000_000, 0);
         filetime::set_file_handle_times(&file, None, Some(changed)).unwrap();
         let error = complete_audit_read(&file, &original).unwrap_err();
-        assert!(error.to_string().contains("changed during payload verification"));
-        assert_eq!(FileTime::from_last_modification_time(&file.metadata().unwrap()), changed);
+        assert!(
+            error
+                .to_string()
+                .contains("changed during payload verification")
+        );
+        assert_eq!(
+            FileTime::from_last_modification_time(&file.metadata().unwrap()),
+            changed
+        );
     }
 
     #[crate::ctb_test]
@@ -1428,18 +1616,28 @@ mod tests {
         fs::rename(&path, temp.path().join("moved")).unwrap();
         fs::write(&path, b"replacement").unwrap();
         let replacement_time = FileTime::from_unix_time(1_100_000_000, 0);
-        filetime::set_file_times(&path, replacement_time, replacement_time).unwrap();
+        filetime::set_file_times(&path, replacement_time, replacement_time)
+            .unwrap();
         filetime::set_file_handle_times(
-            &file, Some(FileTime::from_unix_time(1_000_000_000, 0)), None,
-        ).unwrap();
+            &file,
+            Some(FileTime::from_unix_time(1_000_000_000, 0)),
+            None,
+        )
+        .unwrap();
         complete_audit_read(&file, &original).unwrap();
         assert_eq!(
             FileTime::from_last_access_time(&file.metadata().unwrap()),
             FileTime::from_last_access_time(&original)
         );
         let replacement = fs::metadata(&path).unwrap();
-        assert_eq!(FileTime::from_last_access_time(&replacement), replacement_time);
-        assert_eq!(FileTime::from_last_modification_time(&replacement), replacement_time);
+        assert_eq!(
+            FileTime::from_last_access_time(&replacement),
+            replacement_time
+        );
+        assert_eq!(
+            FileTime::from_last_modification_time(&replacement),
+            replacement_time
+        );
     }
 
     #[crate::ctb_test]
@@ -1449,9 +1647,13 @@ mod tests {
         fs::write(&path, b"payload").unwrap();
         let original = fs::metadata(&path).unwrap();
         let error = audit_file_contents(&path, |_, _| -> Result<()> {
-            filetime::set_file_atime(&path, FileTime::from_unix_time(1_000_000_000, 0))?;
+            filetime::set_file_atime(
+                &path,
+                FileTime::from_unix_time(1_000_000_000, 0),
+            )?;
             anyhow::bail!("injected read failure")
-        }).unwrap_err();
+        })
+        .unwrap_err();
         assert_eq!(error.to_string(), "injected read failure");
         assert_eq!(
             FileTime::from_last_access_time(&fs::metadata(&path).unwrap()),
@@ -1468,12 +1670,16 @@ mod tests {
         let error = audit_file_contents(&path, |_, _| -> Result<()> {
             filetime::set_file_mtime(&path, changed)?;
             anyhow::bail!("injected read failure")
-        }).unwrap_err();
+        })
+        .unwrap_err();
         let diagnostic = format!("{error:#}");
         assert!(diagnostic.contains("injected read failure"));
         assert!(diagnostic.contains("changed during payload verification"));
         assert_eq!(
-            FileTime::from_last_modification_time(&fs::metadata(&path).unwrap()), changed
+            FileTime::from_last_modification_time(
+                &fs::metadata(&path).unwrap()
+            ),
+            changed
         );
     }
 
@@ -1487,30 +1693,64 @@ mod tests {
             (epoch, 0, 0),
             (epoch.saturating_add(12_345_678), 1, 234_567_800),
         ] {
-            let time = crate::metadata::windows::filetime_from_windows_ticks(ticks).unwrap();
-            assert_eq!((time.unix_seconds(), time.nanoseconds()), (seconds, nanos));
+            let time =
+                crate::metadata::windows::filetime_from_windows_ticks(ticks)
+                    .unwrap();
+            assert_eq!(
+                (time.unix_seconds(), time.nanoseconds()),
+                (seconds, nanos)
+            );
         }
-        assert!(crate::metadata::windows::filetime_from_windows_ticks(-1).is_err());
+        assert!(
+            crate::metadata::windows::filetime_from_windows_ticks(-1).is_err()
+        );
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("change_time");
         fs::write(&path, b"native timestamp payload").unwrap();
-        filetime::set_file_mtime(&path, FileTime::from_unix_time(1_000_000_000, 0)).unwrap();
+        filetime::set_file_mtime(
+            &path,
+            FileTime::from_unix_time(1_000_000_000, 0),
+        )
+        .unwrap();
         let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
-        let actual = crate::metadata::windows::query_file_change_time(&path).unwrap();
+        let actual =
+            crate::metadata::windows::query_file_change_time(&path).unwrap();
         let timestamps = entity.metadata.timestamps.as_ref().unwrap();
-        assert_eq!((timestamps.ctime_sec, timestamps.ctime_nsec), (actual.unix_seconds(), actual.nanoseconds()));
+        assert_eq!(
+            (timestamps.ctime_sec, timestamps.ctime_nsec),
+            (actual.unix_seconds(), actual.nanoseconds())
+        );
         assert_ne!(timestamps.ctime_sec, timestamps.mtime_sec);
-        assert!(!entity.metadata.warnings.iter().any(|warning| warning.contains("change-time restoration")));
+        assert!(
+            !entity
+                .metadata
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("change-time restoration"))
+        );
         entity.metadata.environment = None;
         entity.metadata.read_time = None;
         ctb_formats_dcstring::assert_dc_roundtrip(&entity.metadata).unwrap();
-        let options = EntityAuditOptions { ignore_ctime: false, ..EntityAuditOptions::default() };
+        let options = EntityAuditOptions {
+            ignore_ctime: false,
+            ..EntityAuditOptions::default()
+        };
         assert!(audit_entity(&path, &entity, &options).unwrap().is_empty());
-        entity.metadata.timestamps.as_mut().unwrap().ctime_sec = actual.unix_seconds().saturating_sub(100);
+        entity.metadata.timestamps.as_mut().unwrap().ctime_sec =
+            actual.unix_seconds().saturating_sub(100);
         let differences = audit_entity(&path, &entity, &options).unwrap();
-        assert!(differences.iter().any(|difference| matches!(difference, DiffKind::CtimeMismatch { .. })));
-        assert!(!differences.iter().any(|difference| matches!(difference, DiffKind::ContentHashMismatch { .. })));
-        let ignored = EntityAuditOptions { ignore_ctime: true, ..options };
+        assert!(differences.iter().any(|difference| matches!(
+            difference,
+            DiffKind::CtimeMismatch { .. }
+        )));
+        assert!(!differences.iter().any(|difference| matches!(
+            difference,
+            DiffKind::ContentHashMismatch { .. }
+        )));
+        let ignored = EntityAuditOptions {
+            ignore_ctime: true,
+            ..options
+        };
         assert!(audit_entity(&path, &entity, &ignored).unwrap().is_empty());
     }
 
@@ -1526,35 +1766,83 @@ mod tests {
         let mut entity = FileEntity::from_filesystem(&source, None)?;
         entity.identity.relative_path = Some(PathBuf::from("restored"));
         let mut payload = MemoryPayloadSource::new(data)?;
-        let receipt = entity.materialize_at_path(Some(&mut payload), temp.path(),
-            &MaterializeOptions::default())?;
-        assert!(!receipt.warnings.iter().any(|warning| warning.contains("change time")), "{:?}", receipt.warnings);
-        assert_eq!(crate::metadata::windows::query_file_change_time(&receipt.destination_path)?, change_time);
+        let receipt = entity.materialize_at_path(
+            Some(&mut payload),
+            temp.path(),
+            &MaterializeOptions::default(),
+        )?;
+        assert!(
+            !receipt
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("change time")),
+            "{:?}",
+            receipt.warnings
+        );
+        assert_eq!(
+            crate::metadata::windows::query_file_change_time(
+                &receipt.destination_path
+            )?,
+            change_time
+        );
         let timestamps = entity.metadata.timestamps.as_ref().unwrap();
-        assert_eq!(FileTime::from_last_modification_time(&fs::metadata(&receipt.destination_path)?),
-            FileTime::from_unix_time(timestamps.mtime_sec, timestamps.mtime_nsec));
+        assert_eq!(
+            FileTime::from_last_modification_time(&fs::metadata(
+                &receipt.destination_path
+            )?),
+            FileTime::from_unix_time(
+                timestamps.mtime_sec,
+                timestamps.mtime_nsec
+            )
+        );
         for _ in 0..2 {
-            verify_materialized_entity(&receipt.destination_path, &entity, true)?;
-            assert_eq!(crate::metadata::windows::query_file_change_time(&receipt.destination_path)?, change_time);
+            verify_materialized_entity(
+                &receipt.destination_path,
+                &entity,
+                true,
+            )?;
+            assert_eq!(
+                crate::metadata::windows::query_file_change_time(
+                    &receipt.destination_path
+                )?,
+                change_time
+            );
         }
         Ok(())
     }
 
     #[cfg(windows)]
     #[crate::ctb_test]
-    fn test_windows_change_time_restoration_reports_unrepresentable_time() -> Result<()> {
+    fn test_windows_change_time_restoration_reports_unrepresentable_time()
+    -> Result<()> {
         let temp = tempfile::tempdir()?;
         let path = temp.path().join("timestamp");
         fs::write(&path, b"payload")?;
         let mut metadata = FileEntity::from_filesystem(&path, None)?.metadata;
         metadata.native = None;
         metadata.timestamps.as_mut().unwrap().ctime_nsec = 1;
-        let strict = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, true, true);
-        assert!(format!("{:#}", strict.unwrap_err()).contains("sub-100 ns precision"));
-        let warnings = crate::materializer::apply_entity_metadata(&path, None, &metadata, false, true, false, true)?;
-        assert!(warnings.iter().any(|warning| warning.contains("sub-100 ns precision")));
-        assert!(crate::metadata::windows::set_file_change_time(&path,
-            FileTime::from_unix_time(-11_644_473_600, 0)).is_err());
+        let strict = crate::materializer::apply_entity_metadata(
+            &path, None, &metadata, false, true, true, true,
+        );
+        assert!(
+            format!("{:#}", strict.unwrap_err())
+                .contains("sub-100 ns precision")
+        );
+        let warnings = crate::materializer::apply_entity_metadata(
+            &path, None, &metadata, false, true, false, true,
+        )?;
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("sub-100 ns precision"))
+        );
+        assert!(
+            crate::metadata::windows::set_file_change_time(
+                &path,
+                FileTime::from_unix_time(-11_644_473_600, 0)
+            )
+            .is_err()
+        );
         Ok(())
     }
 
@@ -1566,58 +1854,112 @@ mod tests {
         let mut entity = FileEntity::from_vec(data.clone());
         entity.identity.relative_path = Some(PathBuf::from("payload"));
         let mut payload = MemoryPayloadSource::new(data).unwrap();
-        let receipt = entity.materialize_at_path(
-            Some(&mut payload), temp.path(), &MaterializeOptions::default(),
-        ).unwrap();
+        let receipt = entity
+            .materialize_at_path(
+                Some(&mut payload),
+                temp.path(),
+                &MaterializeOptions::default(),
+            )
+            .unwrap();
         let options = EntityAuditOptions::default();
-        assert!(audit_entity(&receipt.destination_path, &entity, &options)
-            .unwrap().is_empty());
-        let mut captured = FileEntity::from_filesystem(&receipt.destination_path, None).unwrap();
+        assert!(
+            audit_entity(&receipt.destination_path, &entity, &options)
+                .unwrap()
+                .is_empty()
+        );
+        let mut captured =
+            FileEntity::from_filesystem(&receipt.destination_path, None)
+                .unwrap();
         assert_eq!(
-            (captured.metadata.uid, captured.metadata.gid, captured.metadata.mode),
+            (
+                captured.metadata.uid,
+                captured.metadata.gid,
+                captured.metadata.mode
+            ),
             (None, None, None),
         );
-        let mut timestamp_entity = FileEntity::from_vec(b"old timestamp".to_vec());
-        timestamp_entity.identity.relative_path = Some(PathBuf::from("restored_mtime"));
+        let mut timestamp_entity =
+            FileEntity::from_vec(b"old timestamp".to_vec());
+        timestamp_entity.identity.relative_path =
+            Some(PathBuf::from("restored_mtime"));
         let mut timestamps = captured.metadata.timestamps.clone().unwrap();
         timestamps.mtime_sec = 1_000_000_000;
         timestamps.mtime_nsec = 123_456_700;
         timestamps.birthtime_sec = None;
         timestamps.birthtime_nsec = None;
         timestamp_entity.metadata.timestamps = Some(timestamps);
-        let mut timestamp_payload = MemoryPayloadSource::new(b"old timestamp".to_vec()).unwrap();
-        let timestamp_receipt = timestamp_entity.materialize_at_path(
-            Some(&mut timestamp_payload), temp.path(), &MaterializeOptions::default(),
-        ).unwrap();
+        let mut timestamp_payload =
+            MemoryPayloadSource::new(b"old timestamp".to_vec()).unwrap();
+        let timestamp_receipt = timestamp_entity
+            .materialize_at_path(
+                Some(&mut timestamp_payload),
+                temp.path(),
+                &MaterializeOptions::default(),
+            )
+            .unwrap();
         let restored = FileTime::from_last_modification_time(
             &fs::metadata(&timestamp_receipt.destination_path).unwrap(),
         );
-        assert_eq!((restored.unix_seconds(), restored.nanoseconds()), (1_000_000_000, 123_456_700));
-        assert!(audit_entity(&timestamp_receipt.destination_path, &timestamp_entity, &options)
-            .unwrap().is_empty());
+        assert_eq!(
+            (restored.unix_seconds(), restored.nanoseconds()),
+            (1_000_000_000, 123_456_700)
+        );
+        assert!(
+            audit_entity(
+                &timestamp_receipt.destination_path,
+                &timestamp_entity,
+                &options
+            )
+            .unwrap()
+            .is_empty()
+        );
         if let Some(ref mut timestamps) = captured.metadata.timestamps {
             timestamps.mtime_sec = timestamps.mtime_sec.saturating_add(1);
         } else {
             panic!("Windows capture omitted timestamps");
         }
-        assert!(audit_entity(&receipt.destination_path, &captured, &options)
-            .unwrap().iter()
-            .any(|diff| matches!(diff, DiffKind::MtimeMismatch { .. })));
+        assert!(
+            audit_entity(&receipt.destination_path, &captured, &options)
+                .unwrap()
+                .iter()
+                .any(|diff| matches!(diff, DiffKind::MtimeMismatch { .. }))
+        );
         fs::write(&receipt.destination_path, b"tampered payload").unwrap();
-        assert!(audit_entity(&receipt.destination_path, &entity, &options)
-            .unwrap().iter()
-            .any(|diff| matches!(diff, DiffKind::ContentHashMismatch { .. })));
+        assert!(
+            audit_entity(&receipt.destination_path, &entity, &options)
+                .unwrap()
+                .iter()
+                .any(|diff| matches!(
+                    diff,
+                    DiffKind::ContentHashMismatch { .. }
+                ))
+        );
         entity.metadata.mode = Some(0o600);
-        assert!(audit_entity(&receipt.destination_path, &entity, &options)
-            .unwrap_err().to_string().contains("POSIX permission modes"));
+        assert!(
+            audit_entity(&receipt.destination_path, &entity, &options)
+                .unwrap_err()
+                .to_string()
+                .contains("POSIX permission modes")
+        );
         entity.metadata.mode = None;
-        if let FileEntityKind::Regular { ref mut is_sparse, .. } = entity.kind {
+        if let FileEntityKind::Regular {
+            ref mut is_sparse, ..
+        } = entity.kind
+        {
             *is_sparse = true;
         }
-        assert!(audit_entity(&receipt.destination_path, &entity, &options)
-            .unwrap()
-            .iter()
-            .any(|diff| matches!(diff, DiffKind::SparseHoleMismatch { expected_has_holes: true, actual_has_holes: false })));
+        assert!(
+            audit_entity(&receipt.destination_path, &entity, &options)
+                .unwrap()
+                .iter()
+                .any(|diff| matches!(
+                    diff,
+                    DiffKind::SparseHoleMismatch {
+                        expected_has_holes: true,
+                        actual_has_holes: false
+                    }
+                ))
+        );
     }
 
     #[cfg(unix)]
@@ -1647,10 +1989,18 @@ mod tests {
 
         // Coarser resolution volumes (e.g. 3s) allow larger tolerance
         assert!(verifier::is_timestamp_acceptable_best_effort(
-            1_000, 0, 1_003, 0, 3_000_000_000
+            1_000,
+            0,
+            1_003,
+            0,
+            3_000_000_000
         ));
         assert!(!verifier::is_timestamp_acceptable_best_effort(
-            1_000, 0, 1_004, 0, 3_000_000_000
+            1_000,
+            0,
+            1_004,
+            0,
+            3_000_000_000
         ));
     }
 
@@ -1697,16 +2047,19 @@ mod tests {
             let payload = DiskPayloadSource::open(&src_path).unwrap();
             assert!(payload.opened_with_noatime());
 
-            let mut entity = FileEntity::from_filesystem(&src_path, None).unwrap();
+            let mut entity =
+                FileEntity::from_filesystem(&src_path, None).unwrap();
             assert!(entity.used_noatime());
-            entity.identity.relative_path = Some(std::path::PathBuf::from("noatime_dest.txt"));
+            entity.identity.relative_path =
+                Some(std::path::PathBuf::from("noatime_dest.txt"));
             if let Some(ref mut ts) = entity.metadata.timestamps {
                 ts.birthtime_sec = None;
                 ts.birthtime_nsec = None;
             }
 
             let mut payload = DiskPayloadSource::open(&src_path).unwrap();
-            let dest_dir = sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();
+            let dest_dir =
+                sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();
             let options = MaterializeOptions {
                 dry_run: false,
                 strict_lossless: true,
@@ -1714,21 +2067,48 @@ mod tests {
                 path_policy: PathTraversalPolicy::StrictSandboxed,
                 copy_specials: false,
                 force_overwrite: true,
-                existing_entry_policy: crate::sandboxable_dir::ExistingEntryPolicy::Replace,
-                apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
-                apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
+                existing_entry_policy:
+                    crate::sandboxable_dir::ExistingEntryPolicy::Replace,
+                apple_write_mode:
+                    crate::apple_double::AppleWriteMode::NativeOnly,
+                apple_single_write_extension:
+                    crate::apple_double::AppleSingleExtension::WithoutExtension,
                 ..Default::default()
             };
 
-            materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+            materializer::materialize_entity(
+                &entity,
+                Some(&mut payload),
+                &dest_dir,
+                &options,
+            )
+            .unwrap();
 
             // Destination atime must match and pass verification when checked
-            verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false, cfg!(windows)).unwrap();
+            verifier::verify_materialized_entity_ext(
+                &dest_path,
+                &entity,
+                true,
+                true,
+                false,
+                cfg!(windows),
+            )
+            .unwrap();
 
             // When destination atime is modified, verification with check_atime must fail
             let bad_atime = FileTime::from_unix_time(1_700_000_000, 0);
             set_file_times(&dest_path, bad_atime, mtime).unwrap();
-            assert!(verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false, cfg!(windows)).is_err());
+            assert!(
+                verifier::verify_materialized_entity_ext(
+                    &dest_path,
+                    &entity,
+                    true,
+                    true,
+                    false,
+                    cfg!(windows)
+                )
+                .is_err()
+            );
         }
     }
 }

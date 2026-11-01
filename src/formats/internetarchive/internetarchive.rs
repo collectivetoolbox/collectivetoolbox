@@ -995,7 +995,9 @@ fn create_temp_path(parent_dir: &Path, file_name: &str) -> PathBuf {
     static ATOMIC_SEQ: std::sync::atomic::AtomicU64 =
         std::sync::atomic::AtomicU64::new(0);
     let pid = std::process::id();
-    let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+    let nanos = match std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+    {
         Ok(dur) => dur.subsec_nanos(),
         Err(_) => 0,
     };
@@ -1091,8 +1093,9 @@ fn download_to_writer_chunked_range(
             .context("Failed to format initial Range header")?,
     );
 
-    let mut response = https::blocking_get_response_with_headers(url, Some(headers))
-        .with_context(|| format!("Failed to connect to {url}"))?;
+    let mut response =
+        https::blocking_get_response_with_headers(url, Some(headers))
+            .with_context(|| format!("Failed to connect to {url}"))?;
 
     let status = response.status();
     if status == reqwest::StatusCode::OK {
@@ -1105,11 +1108,11 @@ fn download_to_writer_chunked_range(
             if n == 0 {
                 break;
             }
-            let n_u64 = u64::try_from(n)
-                .map_err(|e| anyhow!("Failed to convert read buffer length: {e}"))?;
-            let slice = buf
-                .get(..n)
-                .context("Buffer slice index out of bounds")?;
+            let n_u64 = u64::try_from(n).map_err(|e| {
+                anyhow!("Failed to convert read buffer length: {e}")
+            })?;
+            let slice =
+                buf.get(..n).context("Buffer slice index out of bounds")?;
             writer
                 .write_all(slice)
                 .context("Failed to write downloaded bytes to stream")?;
@@ -1158,8 +1161,9 @@ fn download_to_writer_chunked_range(
         return Ok(current_offset);
     }
 
-    let retry_limit =
-        invocation_settings::get_settings().retry_on_host_error.max(3);
+    let retry_limit = invocation_settings::get_settings()
+        .retry_on_host_error
+        .max(3);
 
     loop {
         if let Some(total) = total_size {
@@ -1170,23 +1174,23 @@ fn download_to_writer_chunked_range(
 
         let next_end = if let Some(total) = total_size {
             std::cmp::min(
-                current_offset.saturating_add(DOWNLOAD_CHUNK_SIZE).saturating_sub(1),
+                current_offset
+                    .saturating_add(DOWNLOAD_CHUNK_SIZE)
+                    .saturating_sub(1),
                 total.saturating_sub(1),
             )
         } else {
-            current_offset.saturating_add(DOWNLOAD_CHUNK_SIZE).saturating_sub(1)
+            current_offset
+                .saturating_add(DOWNLOAD_CHUNK_SIZE)
+                .saturating_sub(1)
         };
 
         if next_end < current_offset {
             break;
         }
 
-        let chunk_bytes_opt = fetch_chunk_with_retry(
-            url,
-            current_offset,
-            next_end,
-            retry_limit,
-        )?;
+        let chunk_bytes_opt =
+            fetch_chunk_with_retry(url, current_offset, next_end, retry_limit)?;
 
         let Some(chunk_bytes) = chunk_bytes_opt else {
             break;
@@ -1196,8 +1200,9 @@ fn download_to_writer_chunked_range(
             break;
         }
 
-        let chunk_len = u64::try_from(chunk_bytes.len())
-            .map_err(|e| anyhow!("Failed to convert chunk bytes length to u64: {e}"))?;
+        let chunk_len = u64::try_from(chunk_bytes.len()).map_err(|e| {
+            anyhow!("Failed to convert chunk bytes length to u64: {e}")
+        })?;
 
         writer
             .write_all(&chunk_bytes)
@@ -1237,16 +1242,17 @@ fn fetch_chunk_with_retry(
                 .context("Invalid Range header value")?,
         );
 
-        let req_res = https::blocking_get_response_with_headers(
-            url,
-            Some(chunk_headers),
-        );
+        let req_res =
+            https::blocking_get_response_with_headers(url, Some(chunk_headers));
 
         let chunk_read_res = match req_res {
             Ok(mut chunk_resp) => {
-                if chunk_resp.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                if chunk_resp.status()
+                    == reqwest::StatusCode::RANGE_NOT_SATISFIABLE
+                {
                     Ok(None)
-                } else if chunk_resp.status() != reqwest::StatusCode::PARTIAL_CONTENT
+                } else if chunk_resp.status()
+                    != reqwest::StatusCode::PARTIAL_CONTENT
                     && chunk_resp.status() != reqwest::StatusCode::OK
                 {
                     Err(anyhow!(
@@ -1277,7 +1283,9 @@ fn fetch_chunk_with_retry(
                     // Reason for fallback: power computation overflow safely caps multiplier
                     let multiplier = 2u64.checked_pow(exponent).unwrap_or(16);
                     let delay_ms = 500u64.saturating_mul(multiplier);
-                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                    std::thread::sleep(std::time::Duration::from_millis(
+                        delay_ms,
+                    ));
                     continue;
                 }
                 return Err(err.context(format!(
@@ -1470,9 +1478,7 @@ fn is_archive_org_host(host: &str) -> bool {
     // Reason for fallback: if host has no trailing dot, use host_no_port as-is.
     let host_clean = host_no_port.strip_suffix('.').unwrap_or(host_no_port);
     host_clean.eq_ignore_ascii_case("archive.org")
-        || host_clean
-            .to_ascii_lowercase()
-            .ends_with(".archive.org")
+        || host_clean.to_ascii_lowercase().ends_with(".archive.org")
 }
 
 fn is_wayback_host(host: &str) -> bool {
@@ -1524,9 +1530,7 @@ fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
         let segments: Vec<&str> = url
             .path_segments()
             // Reason for fallback: URL without a path produces empty segments; empty list safely avoids panic.
-            .map(|segs| {
-                segs.filter(|segment| !segment.is_empty()).collect()
-            })
+            .map(|segs| segs.filter(|segment| !segment.is_empty()).collect())
             .unwrap_or_default();
 
         let keyword_pos = segments.iter().position(|segment| {
@@ -1565,9 +1569,7 @@ fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
             .decode_utf8()
             .context("Invalid UTF-8 in identifier")?;
         if !is_probable_identifier(&ident) {
-            bail!(
-                "{ident} is not a plausible Internet Archive identifier"
-            );
+            bail!("{ident} is not a plausible Internet Archive identifier");
         }
 
         let archive_path = if path_slice.is_empty() {
@@ -1575,10 +1577,9 @@ fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
         } else {
             let mut parts = Vec::new();
             for part in path_slice {
-                let decoded =
-                    percent_encoding::percent_decode_str(part)
-                        .decode_utf8()
-                        .context("Invalid UTF-8 in archive path")?;
+                let decoded = percent_encoding::percent_decode_str(part)
+                    .decode_utf8()
+                    .context("Invalid UTF-8 in archive path")?;
                 parts.push(decoded.into_owned());
             }
             let path_str = parts.join("/");
@@ -2302,10 +2303,15 @@ mod tests {
         parse_archive_target("").unwrap_err();
         parse_archive_target("https://archive.org/details/").unwrap_err();
         parse_archive_target("https://archive.org/").unwrap_err();
-        parse_archive_target("https://dn711000.ca.archive.org/0/items/").unwrap_err();
+        parse_archive_target("https://dn711000.ca.archive.org/0/items/")
+            .unwrap_err();
         parse_archive_target("https://dn711000.ca.archive.org/").unwrap_err();
-        parse_archive_target("https://web.archive.org/web/20261018/https://example.com").unwrap_err();
-        parse_archive_target("https://example.com/items/test/file.ogg").unwrap_err();
+        parse_archive_target(
+            "https://web.archive.org/web/20261018/https://example.com",
+        )
+        .unwrap_err();
+        parse_archive_target("https://example.com/items/test/file.ogg")
+            .unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -2318,10 +2324,7 @@ mod tests {
             parse_content_range("bytes 100-200/*"),
             Some((100, 200, None))
         );
-        assert_eq!(
-            parse_content_range("bytes 0-0/1"),
-            Some((0, 0, Some(1)))
-        );
+        assert_eq!(parse_content_range("bytes 0-0/1"), Some((0, 0, Some(1))));
         assert_eq!(parse_content_range("invalid"), None);
         assert_eq!(parse_content_range("items 0-10/20"), None);
     }

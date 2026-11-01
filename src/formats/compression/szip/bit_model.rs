@@ -63,11 +63,19 @@ pub struct BitModel {
 
 impl BitModel {
     /// Initializes a new `BitModel` with symbol count and rescaling parameters.
-    pub fn new(num_symbols: usize, max_tot_f: i32, rescale: i32) -> Result<Self> {
+    pub fn new(
+        num_symbols: usize,
+        max_tot_f: i32,
+        rescale: i32,
+    ) -> Result<Self> {
         let n_i32 = i32::try_from(num_symbols)
             .map_err(|e| anyhow!("Symbol count conversion: {e}"))?;
         let min_max = n_i32.saturating_mul(2);
-        let max_tot = if max_tot_f < min_max { min_max } else { max_tot_f };
+        let max_tot = if max_tot_f < min_max {
+            min_max
+        } else {
+            max_tot_f
+        };
         ensure!(rescale > 0, "Invalid rescale parameter");
         let half_max = max_tot
             .checked_div(2)
@@ -120,7 +128,8 @@ impl BitModel {
                     0u16
                 } else {
                     let active = f_val & FREQ_MASK;
-                    self.total_freq = self.total_freq.saturating_add(i32::from(active));
+                    self.total_freq =
+                        self.total_freq.saturating_add(i32::from(active));
                     active
                 };
                 if let Some(cf_slot) = self.cf.get_mut(j) {
@@ -182,7 +191,9 @@ impl BitModel {
         idx &= idx.saturating_sub(1);
         while idx > 0 {
             // Reason for fallback: cumulative frequency tree node lookup defaults to 0
-            cul = cul.saturating_add(i32::from(self.cf.get(idx).copied().unwrap_or(0)));
+            cul = cul.saturating_add(i32::from(
+                self.cf.get(idx).copied().unwrap_or(0),
+            ));
             idx &= idx.saturating_sub(1);
         }
         let sy_f = u32::from(sy_f_u16);

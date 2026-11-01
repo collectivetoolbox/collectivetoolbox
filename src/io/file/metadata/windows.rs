@@ -41,15 +41,17 @@ use windows_sys::Win32::Security::{
     ATTRIBUTE_SECURITY_INFORMATION, DACL_SECURITY_INFORMATION,
     GROUP_SECURITY_INFORMATION, GetFileSecurityW, LABEL_SECURITY_INFORMATION,
     OBJECT_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
-    SACL_SECURITY_INFORMATION, SCOPE_SECURITY_INFORMATION, SE_SACL_PRESENT, SetFileSecurityW,
+    SACL_SECURITY_INFORMATION, SCOPE_SECURITY_INFORMATION, SE_SACL_PRESENT,
+    SetFileSecurityW,
 };
 use windows_sys::Win32::Storage::FileSystem::{
     BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_REPARSE_POINT,
-    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
+    FILE_BASIC_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
     FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
-    FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES,
-    GetFileInformationByHandle, GetFileInformationByHandleEx, SetFileInformationByHandle, FileBasicInfo,
-    FILE_BASIC_INFO, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_EXISTING,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES, FileBasicInfo,
+    GetFileInformationByHandle, GetFileInformationByHandleEx,
+    MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_EXISTING,
+    SetFileInformationByHandle,
 };
 use windows_sys::Win32::System::IO::DeviceIoControl;
 use windows_sys::Win32::System::Ioctl::{
@@ -106,7 +108,8 @@ pub fn path_to_wide(path: &Path) -> Result<Vec<u16>> {
         && raw_units.get(0) == Some(&backslash)
         && raw_units.get(3) == Some(&backslash)
         && raw_units.get(2) == Some(&qmark)
-        && (raw_units.get(1) == Some(&backslash) || raw_units.get(1) == Some(&qmark));
+        && (raw_units.get(1) == Some(&backslash)
+            || raw_units.get(1) == Some(&qmark));
 
     let mut wide = if is_verbatim {
         raw_units
@@ -127,7 +130,8 @@ pub fn path_to_wide(path: &Path) -> Result<Vec<u16>> {
         res
     } else {
         let cur_dir = std::env::current_dir()?;
-        let mut cur_units: Vec<u16> = cur_dir.as_os_str().encode_wide().collect();
+        let mut cur_units: Vec<u16> =
+            cur_dir.as_os_str().encode_wide().collect();
         for u in &mut cur_units {
             if *u == u16::from(b'/') {
                 *u = backslash;
@@ -254,7 +258,10 @@ fn query_handle_details(
     values: &mut BTreeMap<String, NativeMetadataValue>,
 ) -> Result<()> {
     let change_time = query_handle_change_time(handle)?;
-    values.insert("change_time".to_owned(), NativeMetadataValue::Signed(change_time));
+    values.insert(
+        "change_time".to_owned(),
+        NativeMetadataValue::Signed(change_time),
+    );
     let mut file_info = BY_HANDLE_FILE_INFORMATION::default();
     // SAFETY: handle is valid and file_info is an initialized output struct.
     if unsafe { GetFileInformationByHandle(handle, &raw mut file_info) } != 0 {
@@ -273,9 +280,7 @@ fn query_handle_details(
         );
         values.insert(
             "link_count".to_owned(),
-            NativeMetadataValue::Unsigned(u64::from(
-                file_info.nNumberOfLinks,
-            )),
+            NativeMetadataValue::Unsigned(u64::from(file_info.nNumberOfLinks)),
         );
     }
 
@@ -288,27 +293,46 @@ fn query_handle_details(
 }
 
 /// Converts Windows 100 ns intervals since 1601 to an exact Unix timestamp.
-pub(crate) fn filetime_from_windows_ticks(ticks: i64) -> Result<filetime::FileTime> {
+pub(crate) fn filetime_from_windows_ticks(
+    ticks: i64,
+) -> Result<filetime::FileTime> {
     anyhow::ensure!(ticks >= 0, "Negative Windows timestamp");
-    let unix_ticks = ticks.checked_sub(116_444_736_000_000_000)
+    let unix_ticks = ticks
+        .checked_sub(116_444_736_000_000_000)
         .context("Windows timestamp epoch overflow")?;
-    let seconds = unix_ticks.checked_div_euclid(10_000_000).context("Invalid tick divisor")?;
-    let nanos = unix_ticks.checked_rem_euclid(10_000_000)
-        .context("Invalid tick remainder")?.checked_mul(100).context("Nanosecond overflow")?;
-    Ok(filetime::FileTime::from_unix_time(seconds, u32::try_from(nanos)?))
+    let seconds = unix_ticks
+        .checked_div_euclid(10_000_000)
+        .context("Invalid tick divisor")?;
+    let nanos = unix_ticks
+        .checked_rem_euclid(10_000_000)
+        .context("Invalid tick remainder")?
+        .checked_mul(100)
+        .context("Nanosecond overflow")?;
+    Ok(filetime::FileTime::from_unix_time(
+        seconds,
+        u32::try_from(nanos)?,
+    ))
 }
 
-#[expect(unsafe_code, reason = "GetFileInformationByHandleEx writes to an initialized FILE_BASIC_INFO for a live handle")]
+#[expect(
+    unsafe_code,
+    reason = "GetFileInformationByHandleEx writes to an initialized FILE_BASIC_INFO for a live handle"
+)]
 fn query_handle_change_time(handle: HANDLE) -> Result<i64> {
     let mut basic = FILE_BASIC_INFO::default();
     // SAFETY: callers retain the live handle; basic is aligned and writable
     // for the exact buffer size throughout this synchronous query.
     let success = unsafe {
-        GetFileInformationByHandleEx(handle, FileBasicInfo, (&raw mut basic).cast(),
-            u32::try_from(std::mem::size_of_val(&basic))?)
+        GetFileInformationByHandleEx(
+            handle,
+            FileBasicInfo,
+            (&raw mut basic).cast(),
+            u32::try_from(std::mem::size_of_val(&basic))?,
+        )
     };
     if success == 0 {
-        return Err(std::io::Error::last_os_error()).context("Failed to query Windows native change time");
+        return Err(std::io::Error::last_os_error())
+            .context("Failed to query Windows native change time");
     }
     Ok(basic.ChangeTime)
 }
@@ -317,14 +341,22 @@ fn query_handle_change_time(handle: HANDLE) -> Result<i64> {
 pub fn query_file_change_time(path: &Path) -> Result<filetime::FileTime> {
     use std::os::windows::fs::OpenOptionsExt;
     use std::os::windows::io::AsRawHandle;
-    let file = std::fs::OpenOptions::new().read(true).access_mode(FILE_READ_ATTRIBUTES)
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .access_mode(FILE_READ_ATTRIBUTES)
         .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
-        .open(path).with_context(|| format!("Failed to open {} for change-time query", path.display()))?;
+        .open(path)
+        .with_context(|| {
+            format!("Failed to open {} for change-time query", path.display())
+        })?;
     filetime_from_windows_ticks(query_handle_change_time(file.as_raw_handle())?)
 }
 
 /// Prevents payload reads through this handle from updating access time.
-#[expect(unsafe_code, reason = "SetFileTime reads an initialized sentinel for an owned live file handle")]
+#[expect(
+    unsafe_code,
+    reason = "SetFileTime reads an initialized sentinel for an owned live file handle"
+)]
 pub(crate) fn prevent_access_time_updates(file: &std::fs::File) -> Result<()> {
     use std::os::windows::io::AsRawHandle;
     let unchanged = windows_sys::Win32::Foundation::FILETIME {
@@ -333,42 +365,79 @@ pub(crate) fn prevent_access_time_updates(file: &std::fs::File) -> Result<()> {
     };
     let success = unsafe {
         windows_sys::Win32::Storage::FileSystem::SetFileTime(
-            file.as_raw_handle(), core::ptr::null(), &raw const unchanged, core::ptr::null(),
+            file.as_raw_handle(),
+            core::ptr::null(),
+            &raw const unchanged,
+            core::ptr::null(),
         )
     };
-    anyhow::ensure!(success != 0, "Failed to suppress audit access-time updates: {}", std::io::Error::last_os_error());
+    anyhow::ensure!(
+        success != 0,
+        "Failed to suppress audit access-time updates: {}",
+        std::io::Error::last_os_error()
+    );
     Ok(())
 }
 
 /// Restores change time without following reparse points or changing other times.
-#[expect(unsafe_code, reason = "SetFileInformationByHandle reads an initialized FILE_BASIC_INFO while its owned handle is live")]
-pub(crate) fn set_file_change_time(path: &Path, time: filetime::FileTime) -> Result<()> {
+#[expect(
+    unsafe_code,
+    reason = "SetFileInformationByHandle reads an initialized FILE_BASIC_INFO while its owned handle is live"
+)]
+pub(crate) fn set_file_change_time(
+    path: &Path,
+    time: filetime::FileTime,
+) -> Result<()> {
     use std::os::windows::fs::OpenOptionsExt;
     use std::os::windows::io::AsRawHandle;
 
-    anyhow::ensure!(time.nanoseconds().checked_rem(100) == Some(0),
-        "Windows change time cannot represent sub-100 ns precision");
-    let ticks = time.unix_seconds().checked_add(11_644_473_600)
+    anyhow::ensure!(
+        time.nanoseconds().checked_rem(100) == Some(0),
+        "Windows change time cannot represent sub-100 ns precision"
+    );
+    let ticks = time
+        .unix_seconds()
+        .checked_add(11_644_473_600)
         .and_then(|seconds| seconds.checked_mul(10_000_000))
-        .and_then(|ticks| ticks.checked_add(i64::from(time.nanoseconds()).checked_div(100)?))
+        .and_then(|ticks| {
+            ticks.checked_add(i64::from(time.nanoseconds()).checked_div(100)?)
+        })
         .context("Windows change-time conversion overflow")?;
-    anyhow::ensure!(ticks > 0, "Windows change time must be positive; zero leaves the timestamp unchanged");
-    let file = std::fs::OpenOptions::new().access_mode(FILE_WRITE_ATTRIBUTES)
+    anyhow::ensure!(
+        ticks > 0,
+        "Windows change time must be positive; zero leaves the timestamp unchanged"
+    );
+    let file = std::fs::OpenOptions::new()
+        .access_mode(FILE_WRITE_ATTRIBUTES)
         .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
-        .open(path).with_context(|| format!("Failed to open {} to restore change time", path.display()))?;
-    let basic = FILE_BASIC_INFO { ChangeTime: ticks, ..Default::default() };
+        .open(path)
+        .with_context(|| {
+            format!("Failed to open {} to restore change time", path.display())
+        })?;
+    let basic = FILE_BASIC_INFO {
+        ChangeTime: ticks,
+        ..Default::default()
+    };
     // SAFETY: file owns the live handle; basic is initialized, aligned, and
     // readable for the supplied size throughout this synchronous call.
     let success = unsafe {
-        SetFileInformationByHandle(file.as_raw_handle(), FileBasicInfo, (&raw const basic).cast(),
-            u32::try_from(std::mem::size_of_val(&basic))?)
+        SetFileInformationByHandle(
+            file.as_raw_handle(),
+            FileBasicInfo,
+            (&raw const basic).cast(),
+            u32::try_from(std::mem::size_of_val(&basic))?,
+        )
     };
     if success == 0 {
-        return Err(std::io::Error::last_os_error()).context("Failed to restore Windows change time");
+        return Err(std::io::Error::last_os_error())
+            .context("Failed to restore Windows change time");
     }
     drop(file);
-    anyhow::ensure!(query_file_change_time(path)? == time,
-        "Filesystem did not retain restored Windows change time for {}", path.display());
+    anyhow::ensure!(
+        query_file_change_time(path)? == time,
+        "Filesystem did not retain restored Windows change time for {}",
+        path.display()
+    );
     Ok(())
 }
 
@@ -511,7 +580,8 @@ fn query_security_buffer(
         if code == ERROR_PRIVILEGE_NOT_HELD || code == ERROR_ACCESS_DENIED {
             return Ok(None);
         }
-        return Err(err).context("GetFileSecurityW failed with allocated buffer");
+        return Err(err)
+            .context("GetFileSecurityW failed with allocated buffer");
     }
 
     Ok(Some((buffer, requested_info)))
@@ -601,13 +671,21 @@ pub fn apply_windows_security_metadata(
             | LABEL_SECURITY_INFORMATION
     };
     let control = u16::from_le_bytes(
-        descriptor_bytes.get(2..4).context("Security descriptor has no control word")?
-            .try_into().context("Invalid security descriptor control word")?,
+        descriptor_bytes
+            .get(2..4)
+            .context("Security descriptor has no control word")?
+            .try_into()
+            .context("Invalid security descriptor control word")?,
     );
     let info_flags = if control & SE_SACL_PRESENT == 0 {
-        info_flags & !(SACL_SECURITY_INFORMATION | LABEL_SECURITY_INFORMATION
-            | ATTRIBUTE_SECURITY_INFORMATION | SCOPE_SECURITY_INFORMATION)
-    } else { info_flags };
+        info_flags
+            & !(SACL_SECURITY_INFORMATION
+                | LABEL_SECURITY_INFORMATION
+                | ATTRIBUTE_SECURITY_INFORMATION
+                | SCOPE_SECURITY_INFORMATION)
+    } else {
+        info_flags
+    };
 
     let wide_path = path_to_wide(dest)?;
 
@@ -716,7 +794,10 @@ pub fn apply_windows_reparse_metadata(
     }
 
     let safe_handle = SafeHandle(handle);
-    if std::fs::symlink_metadata(dest)?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+    if std::fs::symlink_metadata(dest)?.file_attributes()
+        & FILE_ATTRIBUTE_REPARSE_POINT
+        != 0
+    {
         let mut current = BTreeMap::new();
         capture_reparse_point_from_handle(safe_handle.0, &mut current)?;
         if current.get("reparse.data") == Some(reparse_val) {
@@ -780,23 +861,37 @@ mod tests {
     use crate::*;
 
     #[crate::ctb_test]
-    fn test_windows_change_time_restoration_on_directory_and_junction() -> Result<()> {
+    fn test_windows_change_time_restoration_on_directory_and_junction()
+    -> Result<()> {
         let temporary = tempfile::tempdir()?;
         let target = temporary.path().join("target");
         let junction = temporary.path().join("junction");
         std::fs::create_dir(&target)?;
         std::fs::create_dir(&junction)?;
         let absolute_target = std::fs::canonicalize(&target)?;
-        let target_name = absolute_target.to_str().context("Non-Unicode fixture path")?
-            .strip_prefix(r"\\?\").context("Missing verbatim fixture path prefix")?;
+        let target_name = absolute_target
+            .to_str()
+            .context("Non-Unicode fixture path")?
+            .strip_prefix(r"\\?\")
+            .context("Missing verbatim fixture path prefix")?;
         let buffer = super::super::reparse::build_mount_point_reparse_buffer(
-            &format!(r"\??\{target_name}"), target_name)?;
-        let mut native = NativeMetadata { source_os: OsFamily::Windows, values: BTreeMap::new() };
-        native.values.insert("reparse.data".to_owned(), NativeMetadataValue::Bytes(buffer.clone()));
+            &format!(r"\??\{target_name}"),
+            target_name,
+        )?;
+        let mut native = NativeMetadata {
+            source_os: OsFamily::Windows,
+            values: BTreeMap::new(),
+        };
+        native.values.insert(
+            "reparse.data".to_owned(),
+            NativeMetadataValue::Bytes(buffer.clone()),
+        );
         apply_windows_reparse_metadata(&junction, &native, true)?;
-        let target_time = filetime::FileTime::from_unix_time(1_000_000_000, 123_456_700);
+        let target_time =
+            filetime::FileTime::from_unix_time(1_000_000_000, 123_456_700);
         set_file_change_time(&target, target_time)?;
-        let junction_time = filetime::FileTime::from_unix_time(1_100_000_000, 765_432_100);
+        let junction_time =
+            filetime::FileTime::from_unix_time(1_100_000_000, 765_432_100);
         let metadata = std::fs::symlink_metadata(&junction)?;
         set_file_change_time(&junction, junction_time)?;
         assert_eq!(query_file_change_time(&junction)?, junction_time);
@@ -807,7 +902,10 @@ mod tests {
         assert_eq!(restored.last_write_time(), metadata.last_write_time());
         let mut values = BTreeMap::new();
         capture_windows_metadata(&junction, &restored, &mut values)?;
-        assert_eq!(values.get("reparse.data"), Some(&NativeMetadataValue::Bytes(buffer)));
+        assert_eq!(
+            values.get("reparse.data"),
+            Some(&NativeMetadataValue::Bytes(buffer))
+        );
         Ok(())
     }
 
@@ -816,11 +914,15 @@ mod tests {
         let mut values = std::collections::BTreeMap::new();
         values.insert(
             "security.descriptor".to_owned(),
-            metadata::NativeMetadataValue::Bytes(vec![1, 0, 4, 128, 20, 0, 0, 0]),
+            metadata::NativeMetadataValue::Bytes(vec![
+                1, 0, 4, 128, 20, 0, 0, 0,
+            ]),
         );
         values.insert(
             "security.sddl".to_owned(),
-            metadata::NativeMetadataValue::Bytes(b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()),
+            metadata::NativeMetadataValue::Bytes(
+                b"O:AOG:DAD:(A;;FA;;;WD)".to_vec(),
+            ),
         );
         values.insert(
             "security.info_flags".to_owned(),
@@ -856,11 +958,18 @@ mod tests {
             errors: Vec::new(),
         };
         let serialized = serde_json::to_string(&meta).unwrap();
-        let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
+        let deserialized: FileMetadata =
+            serde_json::from_str(&serialized).unwrap();
         assert_eq!(
-            deserialized.native.as_ref().unwrap().values.get("security.sddl"),
-            Some(&metadata::NativeMetadataValue::Bytes(b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()))
+            deserialized
+                .native
+                .as_ref()
+                .unwrap()
+                .values
+                .get("security.sddl"),
+            Some(&metadata::NativeMetadataValue::Bytes(
+                b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()
+            ))
         );
     }
 }
-

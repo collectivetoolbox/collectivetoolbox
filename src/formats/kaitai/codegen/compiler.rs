@@ -44,14 +44,17 @@ use crate::utilities::*;
 use std::collections::BTreeSet;
 
 use super::escape_rust_keyword;
-use super::translator::{translate_expr, TranslationContext};
+use super::translator::{TranslationContext, translate_expr};
 use super::writer::CodeWriter;
 use crate::expr::Expr;
 use crate::precompile::hierarchy::{
-    to_upper_camel_case, types_to_class_name, ClassSpec, ResolvedAttr, ResolvedInstance,
-    ResolvedParam, ResolvedValidation, ValidationRule,
+    ClassSpec, ResolvedAttr, ResolvedInstance, ResolvedParam,
+    ResolvedValidation, ValidationRule, to_upper_camel_case,
+    types_to_class_name,
 };
-use crate::precompile::types::{BitEndianness, DataType, Endianness, RepeatMode};
+use crate::precompile::types::{
+    BitEndianness, DataType, Endianness, RepeatMode,
+};
 
 /// Compiles a root `ClassSpec` and all its nested types into a complete Rust
 /// source file string.
@@ -62,7 +65,10 @@ pub fn compile_class(spec: &ClassSpec) -> String {
 
 /// Compiles a root `ClassSpec` with an optional custom license header comment.
 #[must_use]
-pub fn compile_class_with_header(spec: &ClassSpec, custom_header: Option<&str>) -> String {
+pub fn compile_class_with_header(
+    spec: &ClassSpec,
+    custom_header: Option<&str>,
+) -> String {
     let mut writer = CodeWriter::new();
 
     // 1. File header and license comments
@@ -101,20 +107,29 @@ fn emit_file_header(w: &mut CodeWriter, spec: &ClassSpec) {
 fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
     for ext in &root_spec.external_types {
         if let Some(first) = ext.first() {
-            if first == "struct" || first == "bytes_reader" || first == "kstruct" {
+            if first == "struct"
+                || first == "bytes_reader"
+                || first == "kstruct"
+            {
                 continue;
             }
             let class_name = types_to_class_name(ext);
-            if class_name == root_spec.class_type_name() || root_spec.name.first() == Some(first) {
+            if class_name == root_spec.class_type_name()
+                || root_spec.name.first() == Some(first)
+            {
                 continue;
             }
             let first_escaped = escape_rust_keyword(first);
             let is_common = root_spec.meta_imports.iter().any(|imp| {
-                imp.starts_with("/common/") && imp.trim_start_matches('/').split('/').next_back() == Some(first)
+                imp.starts_with("/common/")
+                    && imp.trim_start_matches('/').split('/').next_back()
+                        == Some(first)
             });
             if is_common {
                 w.puts(&format!("use crate::generated::common::{first_escaped}::{class_name};"));
-                w.puts(&format!("use crate::generated::common::{first_escaped}::*;"));
+                w.puts(&format!(
+                    "use crate::generated::common::{first_escaped}::*;"
+                ));
             } else {
                 w.puts(&format!("use super::{first_escaped}::{class_name};"));
                 w.puts(&format!("use super::{first_escaped}::*;"));
@@ -123,7 +138,11 @@ fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
     }
 }
 
-fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
+fn compile_single_class(
+    w: &mut CodeWriter,
+    current: &ClassSpec,
+    root: &ClassSpec,
+) {
     let class_name = current.class_type_name();
     let root_class_name = root.class_type_name();
     let parent_class_name = current.parent_class_type_name();
@@ -141,7 +160,9 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
     w.inc();
 
     w.puts(&format!("pub(crate) _root: SharedType<{root_class_name}>,"));
-    w.puts(&format!("pub(crate) _parent: SharedType<{parent_class_name}>,"));
+    w.puts(&format!(
+        "pub(crate) _parent: SharedType<{parent_class_name}>,"
+    ));
     w.puts("pub(crate) _self_shared: SharedType<Self>,");
 
     for p in &current.params {
@@ -221,7 +242,9 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
             let escaped_p = escape_rust_keyword(&p.id);
             w.puts(&format!("impl {class_name} {{"));
             w.inc();
-            w.puts(&format!("pub fn {escaped_p}(&self) -> Ref<'_, {p_type}> {{"));
+            w.puts(&format!(
+                "pub fn {escaped_p}(&self) -> Ref<'_, {p_type}> {{"
+            ));
             w.inc();
             w.puts(&format!("self.{escaped_p}.borrow()"));
             w.dec();
@@ -278,7 +301,9 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
 
     // Custom Display / to_string representation
     if let Some(to_string_expr_str) = &current.to_string {
-        if let Ok(parsed_expr) = crate::expr::parser::parse_expr(to_string_expr_str) {
+        if let Ok(parsed_expr) =
+            crate::expr::parser::parse_expr(to_string_expr_str)
+        {
             let ctx = TranslationContext::new(current, root, false);
             let translated = translate_expr(&parsed_expr, &ctx);
             w.puts(&format!("impl std::fmt::Display for {class_name} {{"));
@@ -304,14 +329,21 @@ fn has_substream(attr: &ResolvedAttr) -> bool {
         return true;
     }
     if let DataType::SwitchType { cases, .. } = &attr.data_type {
-        if cases.values().any(|ct| matches!(ct, DataType::UserType { .. })) {
+        if cases
+            .values()
+            .any(|ct| matches!(ct, DataType::UserType { .. }))
+        {
             return attr.size_expr.is_some() || attr.process.is_some();
         }
     }
     attr.size_expr.is_some() || attr.process.is_some()
 }
 
-fn rust_field_type(dt: &DataType, current: &ClassSpec, attr_id: &str) -> String {
+fn rust_field_type(
+    dt: &DataType,
+    current: &ClassSpec,
+    attr_id: &str,
+) -> String {
     match dt {
         DataType::Int1 { signed } => {
             if *signed {
@@ -344,7 +376,9 @@ fn rust_field_type(dt: &DataType, current: &ClassSpec, attr_id: &str) -> String 
         }
         DataType::ArrayType { element, .. } => {
             let inner = match element.as_ref() {
-                DataType::SwitchType { .. } => switch_enum_name(current, attr_id),
+                DataType::SwitchType { .. } => {
+                    switch_enum_name(current, attr_id)
+                }
                 other => rust_field_type(other, current, attr_id),
             };
             format!("Vec<{inner}>")
@@ -387,7 +421,10 @@ fn switch_variant_name(target_type: &DataType) -> String {
     }
 }
 
-fn switch_variant_inner_type(target_type: &DataType, current: &ClassSpec) -> String {
+fn switch_variant_inner_type(
+    target_type: &DataType,
+    current: &ClassSpec,
+) -> String {
     match target_type {
         DataType::UserType { names, .. } => {
             let c = types_to_class_name(names);
@@ -453,7 +490,15 @@ fn emit_switch_enum(
         && variants.iter().all(|(_, inner)| {
             matches!(
                 inner.as_str(),
-                "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "f32" | "f64"
+                "u8" | "u16"
+                    | "u32"
+                    | "u64"
+                    | "i8"
+                    | "i16"
+                    | "i32"
+                    | "i64"
+                    | "f32"
+                    | "f64"
             )
         });
 
@@ -498,12 +543,16 @@ fn emit_switch_enum(
             w.inc();
             w.puts("type Error = KError;");
             w.puts("#[allow(clippy::unnecessary_fallible_conversions, reason = \"Generic TryFrom implementation over varied enum variant types\")]");
-            w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
+            w.puts(&format!(
+                "fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"
+            ));
             w.inc();
             w.puts("match e {");
             w.inc();
             for (v_name, _) in &variants {
-                w.puts(&format!("{enum_name}::{v_name}(v) => Ok({target}::try_from(*v)?),"));
+                w.puts(&format!(
+                    "{enum_name}::{v_name}(v) => Ok({target}::try_from(*v)?),"
+                ));
             }
             w.dec();
             w.puts("}");
@@ -516,15 +565,21 @@ fn emit_switch_enum(
         w.puts(&format!("impl TryFrom<&{enum_name}> for usize {{"));
         w.inc();
         w.puts("type Error = KError;");
-        w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
+        w.puts(&format!(
+            "fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"
+        ));
         w.inc();
         w.puts("match e {");
         w.inc();
         for (v_name, inner_type) in &variants {
             if inner_type == "u8" || inner_type == "u16" {
-                w.puts(&format!("{enum_name}::{v_name}(v) => Ok(usize::from(*v)),"));
+                w.puts(&format!(
+                    "{enum_name}::{v_name}(v) => Ok(usize::from(*v)),"
+                ));
             } else {
-                w.puts(&format!("{enum_name}::{v_name}(v) => Ok(usize::try_from(*v)?),"));
+                w.puts(&format!(
+                    "{enum_name}::{v_name}(v) => Ok(usize::try_from(*v)?),"
+                ));
             }
         }
         w.dec();
@@ -539,7 +594,9 @@ fn emit_switch_enum(
         let mut seen_from_into = BTreeSet::new();
         for (v_name, inner_type) in &variants {
             if seen_from_from.insert(inner_type.clone()) {
-                w.puts(&format!("impl TryFrom<&{enum_name}> for {inner_type} {{"));
+                w.puts(&format!(
+                    "impl TryFrom<&{enum_name}> for {inner_type} {{"
+                ));
                 w.inc();
                 w.puts("type Error = KError;");
                 w.puts(&format!("fn try_from(v: &{enum_name}) -> Result<Self, Self::Error> {{"));
@@ -554,7 +611,9 @@ fn emit_switch_enum(
                 w.puts("}");
                 w.dec();
                 w.puts("}");
-                w.puts(&format!("impl TryFrom<&&{enum_name}> for {inner_type} {{"));
+                w.puts(&format!(
+                    "impl TryFrom<&&{enum_name}> for {inner_type} {{"
+                ));
                 w.inc();
                 w.puts("type Error = KError;");
                 w.puts(&format!("fn try_from(v: &&{enum_name}) -> Result<Self, Self::Error> {{"));
@@ -565,8 +624,13 @@ fn emit_switch_enum(
                 w.dec();
                 w.puts("}");
 
-                if let Some(target) = inner_type.strip_prefix("OptRc<").and_then(|s| s.strip_suffix('>')) {
-                    w.puts(&format!("impl DowncastOptRc<{target}> for {enum_name} {{"));
+                if let Some(target) = inner_type
+                    .strip_prefix("OptRc<")
+                    .and_then(|s| s.strip_suffix('>'))
+                {
+                    w.puts(&format!(
+                        "impl DowncastOptRc<{target}> for {enum_name} {{"
+                    ));
                     w.inc();
                     w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{target}>, KError> {{"));
                     w.inc();
@@ -575,7 +639,9 @@ fn emit_switch_enum(
                     w.puts("}");
                     w.dec();
                     w.puts("}");
-                    w.puts(&format!("impl DowncastOptRc<{target}> for &{enum_name} {{"));
+                    w.puts(&format!(
+                        "impl DowncastOptRc<{target}> for &{enum_name} {{"
+                    ));
                     w.inc();
                     w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{target}>, KError> {{"));
                     w.inc();
@@ -602,15 +668,23 @@ fn emit_switch_enum(
     }
 }
 
-fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
+fn emit_kstruct_impl(
+    w: &mut CodeWriter,
+    current: &ClassSpec,
+    root: &ClassSpec,
+) {
     let class_name = current.class_type_name();
     let root_class_name = root.class_type_name();
     let parent_class_name = current.parent_class_type_name();
 
-    w.puts(&format!("impl TryFrom<&{class_name}> for OptRc<{class_name}> {{"));
+    w.puts(&format!(
+        "impl TryFrom<&{class_name}> for OptRc<{class_name}> {{"
+    ));
     w.inc();
     w.puts("type Error = KError;");
-    w.puts(&format!("fn try_from(v: &{class_name}) -> Result<Self, Self::Error> {{"));
+    w.puts(&format!(
+        "fn try_from(v: &{class_name}) -> Result<Self, Self::Error> {{"
+    ));
     w.inc();
     w.puts("Ok(OptRc::from(v.clone()))");
     w.dec();
@@ -618,10 +692,14 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.dec();
     w.puts("}");
 
-    w.puts(&format!("impl TryFrom<&&{class_name}> for OptRc<{class_name}> {{"));
+    w.puts(&format!(
+        "impl TryFrom<&&{class_name}> for OptRc<{class_name}> {{"
+    ));
     w.inc();
     w.puts("type Error = KError;");
-    w.puts(&format!("fn try_from(v: &&{class_name}) -> Result<Self, Self::Error> {{"));
+    w.puts(&format!(
+        "fn try_from(v: &&{class_name}) -> Result<Self, Self::Error> {{"
+    ));
     w.inc();
     w.puts("Ok(OptRc::from((*v).clone()))");
     w.dec();
@@ -629,9 +707,13 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.dec();
     w.puts("}");
 
-    w.puts(&format!("impl DowncastOptRc<{class_name}> for {class_name} {{"));
+    w.puts(&format!(
+        "impl DowncastOptRc<{class_name}> for {class_name} {{"
+    ));
     w.inc();
-    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.puts(&format!(
+        "fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"
+    ));
     w.inc();
     w.puts("Ok(OptRc::from(self.clone()))");
     w.dec();
@@ -639,9 +721,13 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.dec();
     w.puts("}");
 
-    w.puts(&format!("impl DowncastOptRc<{class_name}> for &{class_name} {{"));
+    w.puts(&format!(
+        "impl DowncastOptRc<{class_name}> for &{class_name} {{"
+    ));
     w.inc();
-    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.puts(&format!(
+        "fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"
+    ));
     w.inc();
     w.puts("Ok(OptRc::from((*self).clone()))");
     w.dec();
@@ -649,9 +735,13 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.dec();
     w.puts("}");
 
-    w.puts(&format!("impl DowncastOptRc<{class_name}> for OptRc<{class_name}> {{"));
+    w.puts(&format!(
+        "impl DowncastOptRc<{class_name}> for OptRc<{class_name}> {{"
+    ));
     w.inc();
-    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.puts(&format!(
+        "fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"
+    ));
     w.inc();
     w.puts("Ok(self.clone())");
     w.dec();
@@ -659,9 +749,13 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.dec();
     w.puts("}");
 
-    w.puts(&format!("impl DowncastOptRc<{class_name}> for &OptRc<{class_name}> {{"));
+    w.puts(&format!(
+        "impl DowncastOptRc<{class_name}> for &OptRc<{class_name}> {{"
+    ));
     w.inc();
-    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.puts(&format!(
+        "fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"
+    ));
     w.inc();
     w.puts("Ok((*self).clone())");
     w.dec();
@@ -695,9 +789,15 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     let ctx = TranslationContext::new(current, root, true);
 
     if let Some(sw) = &current.endian_switch {
-        let sw_type = super::translator::detect_type_approx(&sw.switch_on, &ctx);
-        let is_bytes_switch = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
-            || sw.cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
+        let sw_type =
+            super::translator::detect_type_approx(&sw.switch_on, &ctx);
+        let is_bytes_switch = matches!(
+            sw_type,
+            Some(DataType::Bytes { .. } | DataType::CalcBytesType)
+        ) || sw
+            .cases
+            .keys()
+            .any(|k| k.starts_with('[') && k.ends_with(']'));
         let switch_on_expr = translate_expr(&sw.switch_on, &ctx);
         let match_target = if is_bytes_switch {
             let stripped = super::translator::remove_deref(&switch_on_expr);
@@ -709,7 +809,11 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
         w.inc();
         for (case_key, case_endian) in &sw.cases {
             let pattern = if let Some((p0, p1)) = case_key.split_once("::") {
-                let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(root));
+                let enum_scoped = super::translator::resolve_enum_type_name(
+                    p0,
+                    current,
+                    Some(root),
+                );
                 let variant = to_upper_camel_case(p1);
                 format!("{enum_scoped}::{variant}")
             } else {
@@ -732,7 +836,13 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
         w.puts("if *self_rc._is_le.borrow() == 0 {");
         w.inc();
         let src_path = if current.name.len() > 1 {
-            let types = current.name.iter().skip(1).cloned().collect::<Vec<_>>().join("/types/");
+            let types = current
+                .name
+                .iter()
+                .skip(1)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("/types/");
             format!("/types/{types}")
         } else {
             String::new()
@@ -770,11 +880,7 @@ fn emit_read_array_element(
     io: &str,
     parent_expr: Option<&crate::spec::ValueOrExpr>,
 ) {
-    let stream_type = if io == "_io" {
-        "_"
-    } else {
-        "BytesReader"
-    };
+    let stream_type = if io == "_io" { "_" } else { "BytesReader" };
     let io_expr = if io.starts_with('&') {
         io.to_string()
     } else if io == "_io" {
@@ -783,9 +889,15 @@ fn emit_read_array_element(
         format!("&{io}")
     };
 
-    if let DataType::UserType { names, is_external, args } = element {
+    if let DataType::UserType {
+        names,
+        is_external,
+        args,
+    } = element
+    {
         let type_name = types_to_class_name(names);
-        let target_args = get_target_args(names, *is_external, self_name, ctx, parent_expr);
+        let target_args =
+            get_target_args(names, *is_external, self_name, ctx, parent_expr);
 
         let target_class = super::translator::find_class_spec(ctx.root, names);
         let target_params = target_class.map(|c| c.params.as_slice());
@@ -800,9 +912,17 @@ fn emit_read_array_element(
                 w.puts(&format!("let _ = (|| -> KResult<()> {{ let f = |t : &mut {type_name}| Ok(t.set_endian(*{self_name}._is_le.borrow())); f(&mut *t.get_mut()) }})();"));
             }
             w.puts(&format!("let (root_in, parent_in) = ({target_args});"));
-            w.puts(&"let root = Self::downcast(root_in, t.clone(), true);".to_string());
-            w.puts(&"let parent = Self::downcast(parent_in, t.clone(), false);".to_string());
-            w.puts(&format!("let res = {type_name}::read(&t, {io_expr}, root, parent);"));
+            w.puts(
+                &"let root = Self::downcast(root_in, t.clone(), true);"
+                    .to_string(),
+            );
+            w.puts(
+                &"let parent = Self::downcast(parent_in, t.clone(), false);"
+                    .to_string(),
+            );
+            w.puts(&format!(
+                "let res = {type_name}::read(&t, {io_expr}, root, parent);"
+            ));
             w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
             w.puts("res?;");
         } else if args.is_empty() {
@@ -831,9 +951,15 @@ fn emit_read_array_element(
         }
     } else if let DataType::SwitchType { cases, switch_on } = element {
         let sw_type = super::translator::detect_type_approx(switch_on, ctx);
-        let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
-        let is_bytes_switch = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
-            || cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
+        let is_str_switch = matches!(
+            sw_type,
+            Some(DataType::Str { .. } | DataType::CalcStrType)
+        );
+        let is_bytes_switch =
+            matches!(
+                sw_type,
+                Some(DataType::Bytes { .. } | DataType::CalcBytesType)
+            ) || cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
         let switch_on_expr = translate_expr(switch_on, ctx);
         let match_target = if is_str_switch {
             let stripped = super::translator::remove_deref(&switch_on_expr);
@@ -850,8 +976,9 @@ fn emit_read_array_element(
             let pattern = if let Some(inner) = case_key
                 .strip_prefix('\'')
                 .and_then(|s| s.strip_suffix('\''))
-                .or_else(|| case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-            {
+                .or_else(|| {
+                    case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
+                }) {
                 if is_str_switch {
                     format!("\"{inner}\"")
                 } else if inner.len() > 1 {
@@ -860,7 +987,11 @@ fn emit_read_array_element(
                     case_key.clone()
                 }
             } else if let Some((p0, p1)) = case_key.split_once("::") {
-                let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(ctx.root));
+                let enum_scoped = super::translator::resolve_enum_type_name(
+                    p0,
+                    current,
+                    Some(ctx.root),
+                );
                 let variant = to_upper_camel_case(p1);
                 format!("{enum_scoped}::{variant}")
             } else {
@@ -870,17 +1001,30 @@ fn emit_read_array_element(
             w.puts(&format!("{pattern} => {{"));
             w.inc();
 
-            if let DataType::UserType { names, is_external, args } = case_type {
+            if let DataType::UserType {
+                names,
+                is_external,
+                args,
+            } = case_type
+            {
                 let type_name = types_to_class_name(names);
-                let target_args = get_target_args(names, *is_external, self_name, ctx, parent_expr);
-                let target_class = super::translator::find_class_spec(ctx.root, names);
+                let target_args = get_target_args(
+                    names,
+                    *is_external,
+                    self_name,
+                    ctx,
+                    parent_expr,
+                );
+                let target_class =
+                    super::translator::find_class_spec(ctx.root, names);
                 let target_params = target_class.map(|c| c.params.as_slice());
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<{stream_type}, {type_name}>({io_expr}, {target_args})?.into();"
                     ));
                 } else {
-                    let trans_args = translate_args(args, ctx, true, target_params);
+                    let trans_args =
+                        translate_args(args, ctx, true, target_params);
                     w.puts(&format!(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
@@ -891,14 +1035,21 @@ fn emit_read_array_element(
                 w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
             } else {
                 let val = read_expr_for_type(case_type, current, ctx, io);
-                let push_val = if val.ends_with(".into()") { val } else { format!("{val}.into()") };
-                w.puts(&format!("{self_name}.{id}.borrow_mut().push({push_val});"));
+                let push_val = if val.ends_with(".into()") {
+                    val
+                } else {
+                    format!("{val}.into()")
+                };
+                w.puts(&format!(
+                    "{self_name}.{id}.borrow_mut().push({push_val});"
+                ));
             }
 
             w.dec();
             w.puts("}");
         }
-        let is_exhaustive_bool = cases.contains_key("false") && cases.contains_key("true");
+        let is_exhaustive_bool =
+            cases.contains_key("false") && cases.contains_key("true");
         if !cases.contains_key("_") && !is_exhaustive_bool {
             w.puts("_ => {}");
         }
@@ -910,7 +1061,10 @@ fn emit_read_array_element(
     }
 }
 
-pub(crate) fn expr_to_usize(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
+pub(crate) fn expr_to_usize(
+    expr: &Expr,
+    ctx: &TranslationContext<'_>,
+) -> String {
     if let Expr::IntNum(n) = expr {
         if *n >= 0 {
             return format!("{n}_usize");
@@ -918,8 +1072,14 @@ pub(crate) fn expr_to_usize(expr: &Expr, ctx: &TranslationContext<'_>) -> String
     }
     let s = translate_expr(expr, ctx);
     match super::translator::detect_type_approx(expr, ctx) {
-        Some(DataType::Int1 { signed: false } | DataType::IntMulti {
-signed: false, width: 1 | 2, .. }) => format!("usize::from({s})"),
+        Some(
+            DataType::Int1 { signed: false }
+            | DataType::IntMulti {
+                signed: false,
+                width: 1 | 2,
+                ..
+            },
+        ) => format!("usize::from({s})"),
         _ => format!("usize::try_from({s})?"),
     }
 }
@@ -946,7 +1106,9 @@ fn emit_attr_read(
                 emit_single_read(w, current, attr, ctx, id, self_name);
             }
             RepeatMode::Expr(repeat_expr) => {
-                w.puts(&format!("*{self_name}.{id}.borrow_mut() = Vec::new();"));
+                w.puts(&format!(
+                    "*{self_name}.{id}.borrow_mut() = Vec::new();"
+                ));
                 let count_str = expr_to_usize(repeat_expr, ctx);
                 w.puts(&format!("let l_{id} = {count_str};"));
                 w.puts(&format!("for _i in 0_usize..l_{id} {{"));
@@ -955,8 +1117,10 @@ fn emit_attr_read(
                     || attr.size_eos
                     || attr.process.is_some()
                     || attr.terminator.is_some())
-                    && matches!(element.as_ref(), DataType::UserType { .. } | DataType::SwitchType { .. })
-                {
+                    && matches!(
+                        element.as_ref(),
+                        DataType::UserType { .. } | DataType::SwitchType { .. }
+                    ) {
                     let mut read_call = if attr.size_eos {
                         "_io.read_bytes_full()?".to_string()
                     } else if let Some(size_expr) = &attr.size_expr {
@@ -971,7 +1135,8 @@ fn emit_attr_read(
                         "_io.read_bytes_full()?".to_string()
                     };
                     if attr.size_expr.is_some() || attr.size_eos {
-                        if attr.terminator.is_some() || attr.pad_right.is_some() {
+                        if attr.terminator.is_some() || attr.pad_right.is_some()
+                        {
                             let term_str = match attr.terminator {
                                 Some(t) => format!("Some({t})"),
                                 None => "None".to_string(),
@@ -988,22 +1153,31 @@ fn emit_attr_read(
                     }
                     w.puts(&format!("let _raw_{id} = {read_call};"));
                     if let Some(proc) = &attr.process {
-                        let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                        let processed =
+                            translate_process(proc, &format!("_raw_{id}"), ctx);
                         w.puts(&format!("let _processed_{id} = {processed};"));
-                        w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                        w.puts(&format!(
+                            "let _io_{id} = BytesReader::from(_processed_{id});"
+                        ));
                     } else {
-                        w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                        w.puts(&format!(
+                            "let _io_{id} = BytesReader::from(_raw_{id});"
+                        ));
                     }
                     format!("_io_{id}")
                 } else {
                     "_io".to_string()
                 };
-                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var, None);
+                emit_read_array_element(
+                    w, element, current, ctx, id, self_name, &io_var, None,
+                );
                 w.dec();
                 w.puts("}");
             }
             RepeatMode::Eos => {
-                w.puts(&format!("*{self_name}.{id}.borrow_mut() = Vec::new();"));
+                w.puts(&format!(
+                    "*{self_name}.{id}.borrow_mut() = Vec::new();"
+                ));
                 w.puts("{");
                 w.inc();
                 w.puts("let mut _i = 0_usize;");
@@ -1013,8 +1187,10 @@ fn emit_attr_read(
                     || attr.size_eos
                     || attr.process.is_some()
                     || attr.terminator.is_some())
-                    && matches!(element.as_ref(), DataType::UserType { .. } | DataType::SwitchType { .. })
-                {
+                    && matches!(
+                        element.as_ref(),
+                        DataType::UserType { .. } | DataType::SwitchType { .. }
+                    ) {
                     let mut read_call = if attr.size_eos {
                         "_io.read_bytes_full()?".to_string()
                     } else if let Some(size_expr) = &attr.size_expr {
@@ -1029,7 +1205,8 @@ fn emit_attr_read(
                         "_io.read_bytes_full()?".to_string()
                     };
                     if attr.size_expr.is_some() || attr.size_eos {
-                        if attr.terminator.is_some() || attr.pad_right.is_some() {
+                        if attr.terminator.is_some() || attr.pad_right.is_some()
+                        {
                             let term_str = match attr.terminator {
                                 Some(t) => format!("Some({t})"),
                                 None => "None".to_string(),
@@ -1046,17 +1223,24 @@ fn emit_attr_read(
                     }
                     w.puts(&format!("let _raw_{id} = {read_call};"));
                     if let Some(proc) = &attr.process {
-                        let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                        let processed =
+                            translate_process(proc, &format!("_raw_{id}"), ctx);
                         w.puts(&format!("let _processed_{id} = {processed};"));
-                        w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                        w.puts(&format!(
+                            "let _io_{id} = BytesReader::from(_processed_{id});"
+                        ));
                     } else {
-                        w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                        w.puts(&format!(
+                            "let _io_{id} = BytesReader::from(_raw_{id});"
+                        ));
                     }
                     format!("_io_{id}")
                 } else {
                     "_io".to_string()
                 };
-                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var, None);
+                emit_read_array_element(
+                    w, element, current, ctx, id, self_name, &io_var, None,
+                );
                 w.puts("_i = _i.saturating_add(1);");
                 w.dec();
                 w.puts("}");
@@ -1064,7 +1248,9 @@ fn emit_attr_read(
                 w.puts("}");
             }
             RepeatMode::Until(until_expr) => {
-                w.puts(&format!("*{self_name}.{id}.borrow_mut() = Vec::new();"));
+                w.puts(&format!(
+                    "*{self_name}.{id}.borrow_mut() = Vec::new();"
+                ));
                 w.puts("{");
                 w.inc();
                 w.puts("let mut _i = 0_usize;");
@@ -1074,8 +1260,10 @@ fn emit_attr_read(
                     || attr.size_eos
                     || attr.process.is_some()
                     || attr.terminator.is_some())
-                    && matches!(element.as_ref(), DataType::UserType { .. } | DataType::SwitchType { .. })
-                {
+                    && matches!(
+                        element.as_ref(),
+                        DataType::UserType { .. } | DataType::SwitchType { .. }
+                    ) {
                     let mut read_call = if attr.size_eos {
                         "_io.read_bytes_full()?".to_string()
                     } else if let Some(size_expr) = &attr.size_expr {
@@ -1090,7 +1278,8 @@ fn emit_attr_read(
                         "_io.read_bytes_full()?".to_string()
                     };
                     if attr.size_expr.is_some() || attr.size_eos {
-                        if attr.terminator.is_some() || attr.pad_right.is_some() {
+                        if attr.terminator.is_some() || attr.pad_right.is_some()
+                        {
                             let term_str = match attr.terminator {
                                 Some(t) => format!("Some({t})"),
                                 None => "None".to_string(),
@@ -1107,19 +1296,28 @@ fn emit_attr_read(
                     }
                     w.puts(&format!("let _raw_{id} = {read_call};"));
                     if let Some(proc) = &attr.process {
-                        let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                        let processed =
+                            translate_process(proc, &format!("_raw_{id}"), ctx);
                         w.puts(&format!("let _processed_{id} = {processed};"));
-                        w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                        w.puts(&format!(
+                            "let _io_{id} = BytesReader::from(_processed_{id});"
+                        ));
                     } else {
-                        w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                        w.puts(&format!(
+                            "let _io_{id} = BytesReader::from(_raw_{id});"
+                        ));
                     }
                     format!("_io_{id}")
                 } else {
                     "_io".to_string()
                 };
-                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var, None);
+                emit_read_array_element(
+                    w, element, current, ctx, id, self_name, &io_var, None,
+                );
                 w.puts(&format!("let _t_{id} = {self_name}.{id}.borrow();"));
-                w.puts(&format!("let Some(_tmpa) = _t_{id}.last() else {{ break; }};"));
+                w.puts(&format!(
+                    "let Some(_tmpa) = _t_{id}.last() else {{ break; }};"
+                ));
                 if super::translator::needs_deref(element) {
                     w.puts("let _tmpa = *_tmpa;");
                 }
@@ -1150,12 +1348,36 @@ fn validation_primitive_type(dt: &DataType) -> &'static str {
     match dt {
         DataType::Int1 { signed: false } => "u8",
         DataType::Int1 { signed: true } => "i8",
-        DataType::IntMulti { signed: false, width: 2, .. } => "u16",
-        DataType::IntMulti { signed: false, width: 4, .. } => "u32",
-        DataType::IntMulti { signed: false, width: 8, .. } => "u64",
-        DataType::IntMulti { signed: true, width: 2, .. } => "i16",
-        DataType::IntMulti { signed: true, width: 4, .. } => "i32",
-        DataType::IntMulti { signed: true, width: 8, .. } => "i64",
+        DataType::IntMulti {
+            signed: false,
+            width: 2,
+            ..
+        } => "u16",
+        DataType::IntMulti {
+            signed: false,
+            width: 4,
+            ..
+        } => "u32",
+        DataType::IntMulti {
+            signed: false,
+            width: 8,
+            ..
+        } => "u64",
+        DataType::IntMulti {
+            signed: true,
+            width: 2,
+            ..
+        } => "i16",
+        DataType::IntMulti {
+            signed: true,
+            width: 4,
+            ..
+        } => "i32",
+        DataType::IntMulti {
+            signed: true,
+            width: 8,
+            ..
+        } => "i64",
         DataType::Bits1 { .. } | DataType::CalcBoolType => "bool",
         DataType::Bits { .. } => "u64",
         DataType::Float { width: 4, .. } | DataType::CalcFloatType => "f32",
@@ -1175,7 +1397,11 @@ fn emit_validation_check(
     let src_path = &valid.src_path;
 
     let (is_repeated, elem_dt) = match data_type {
-        DataType::ArrayType { element, repeat } if !matches!(repeat, RepeatMode::None) => (true, element.as_ref()),
+        DataType::ArrayType { element, repeat }
+            if !matches!(repeat, RepeatMode::None) =>
+        {
+            (true, element.as_ref())
+        }
         _ => (false, data_type),
     };
 
@@ -1203,7 +1429,9 @@ fn emit_validation_check(
                     let ty_cast = validation_primitive_type(elem_dt);
                     let expected_str = translate_expr(expected_expr, ctx);
                     w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
-                    w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x == expected) {{"));
+                    w.puts(&format!(
+                        "if !{access_expr}.iter().all(|_x| *_x == expected) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1227,16 +1455,23 @@ fn emit_validation_check(
                 w.dec();
                 w.puts("}");
             } else {
-                let resolved_dt = super::translator::resolve_switch_type(data_type);
+                let resolved_dt =
+                    super::translator::resolve_switch_type(data_type);
                 let ty_cast = validation_primitive_type(&resolved_dt);
-                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = data_type {
-                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
-                } else {
-                    false
-                };
+                let is_numeric_switch =
+                    if let DataType::SwitchType { cases, .. } = data_type {
+                        !cases.is_empty()
+                            && cases
+                                .values()
+                                .all(super::translator::is_numeric_type)
+                    } else {
+                        false
+                    };
                 let deref = if is_numeric_switch { "" } else { "*" };
                 let expected_str = translate_expr(expected_expr, ctx);
-                w.puts(&format!("let expected: {ty_cast} = ({expected_str}).try_into()?;"));
+                w.puts(&format!(
+                    "let expected: {ty_cast} = ({expected_str}).try_into()?;"
+                ));
                 w.puts(&format!("if !({deref}{access_expr} == expected) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotEqual, src_path: \"{src_path}\".to_string() }}));"));
@@ -1247,10 +1482,13 @@ fn emit_validation_check(
         ValidationRule::Min(min_expr) => {
             let is_sizeof = matches!(min_expr, Expr::Name(n) if n == "_sizeof");
             let target_dt = if is_repeated { elem_dt } else { data_type };
-            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let resolved_target_dt =
+                super::translator::resolve_switch_type(target_dt);
             let min_str = if is_sizeof {
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-                super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
+                super::translator::calculate_class_seq_size(current)
+                    .unwrap_or(0)
+                    .to_string()
             } else {
                 translate_expr(min_expr, ctx)
             };
@@ -1269,7 +1507,9 @@ fn emit_validation_check(
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("if !((*({access_expr})).as_str() >= {min_str}) {{"));
+                    w.puts(&format!(
+                        "if !((*({access_expr})).as_str() >= {min_str}) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1277,12 +1517,16 @@ fn emit_validation_check(
                 }
             } else if matches!(
                 resolved_target_dt,
-                DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. }
+                DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::ArrayType { .. }
             ) {
                 if is_repeated {
                     w.puts(&format!("for _x in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&format!("if !(_x.as_slice() >= ({min_str}).as_slice()) {{"));
+                    w.puts(&format!(
+                        "if !(_x.as_slice() >= ({min_str}).as_slice()) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1298,22 +1542,34 @@ fn emit_validation_check(
                 }
             } else {
                 let ty_cast = validation_primitive_type(&resolved_target_dt);
-                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
-                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
-                } else {
-                    false
-                };
+                let is_numeric_switch =
+                    if let DataType::SwitchType { cases, .. } = target_dt {
+                        !cases.is_empty()
+                            && cases
+                                .values()
+                                .all(super::translator::is_numeric_type)
+                    } else {
+                        false
+                    };
                 let deref = if is_numeric_switch { "" } else { "*" };
                 if is_repeated {
-                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                    w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x >= min_val) {{"));
+                    w.puts(&format!(
+                        "let min_val: {ty_cast} = ({min_str}).try_into()?;"
+                    ));
+                    w.puts(&format!(
+                        "if !{access_expr}.iter().all(|_x| *_x >= min_val) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                    w.puts(&format!("if !({deref}{access_expr} >= min_val) {{"));
+                    w.puts(&format!(
+                        "let min_val: {ty_cast} = ({min_str}).try_into()?;"
+                    ));
+                    w.puts(&format!(
+                        "if !({deref}{access_expr} >= min_val) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1324,10 +1580,13 @@ fn emit_validation_check(
         ValidationRule::Max(max_expr) => {
             let is_sizeof = matches!(max_expr, Expr::Name(n) if n == "_sizeof");
             let target_dt = if is_repeated { elem_dt } else { data_type };
-            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let resolved_target_dt =
+                super::translator::resolve_switch_type(target_dt);
             let max_str = if is_sizeof {
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-                super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
+                super::translator::calculate_class_seq_size(current)
+                    .unwrap_or(0)
+                    .to_string()
             } else {
                 translate_expr(max_expr, ctx)
             };
@@ -1346,7 +1605,9 @@ fn emit_validation_check(
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("if !((*({access_expr})).as_str() <= {max_str}) {{"));
+                    w.puts(&format!(
+                        "if !((*({access_expr})).as_str() <= {max_str}) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1354,12 +1615,16 @@ fn emit_validation_check(
                 }
             } else if matches!(
                 resolved_target_dt,
-                DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. }
+                DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::ArrayType { .. }
             ) {
                 if is_repeated {
                     w.puts(&format!("for _x in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&format!("if !(_x.as_slice() <= ({max_str}).as_slice()) {{"));
+                    w.puts(&format!(
+                        "if !(_x.as_slice() <= ({max_str}).as_slice()) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1375,22 +1640,34 @@ fn emit_validation_check(
                 }
             } else {
                 let ty_cast = validation_primitive_type(&resolved_target_dt);
-                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
-                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
-                } else {
-                    false
-                };
+                let is_numeric_switch =
+                    if let DataType::SwitchType { cases, .. } = target_dt {
+                        !cases.is_empty()
+                            && cases
+                                .values()
+                                .all(super::translator::is_numeric_type)
+                    } else {
+                        false
+                    };
                 let deref = if is_numeric_switch { "" } else { "*" };
                 if is_repeated {
-                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
-                    w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x <= max_val) {{"));
+                    w.puts(&format!(
+                        "let max_val: {ty_cast} = ({max_str}).try_into()?;"
+                    ));
+                    w.puts(&format!(
+                        "if !{access_expr}.iter().all(|_x| *_x <= max_val) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
-                    w.puts(&format!("if !({deref}{access_expr} <= max_val) {{"));
+                    w.puts(&format!(
+                        "let max_val: {ty_cast} = ({max_str}).try_into()?;"
+                    ));
+                    w.puts(&format!(
+                        "if !({deref}{access_expr} <= max_val) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1400,12 +1677,19 @@ fn emit_validation_check(
         }
         ValidationRule::Expr(expr) => {
             if is_repeated {
-                let deref = if super::translator::needs_deref(elem_dt) { "*" } else { "&*" };
+                let deref = if super::translator::needs_deref(elem_dt) {
+                    "*"
+                } else {
+                    "&*"
+                };
                 w.puts(&format!("for _item in {access_expr}.iter() {{"));
                 w.inc();
                 w.puts(&format!("let _tmpa = {deref}_item;"));
                 let val_ctx = ctx.with_element_type(Some(elem_dt));
-                let cond_str = super::translator::translate_validation_custom_expr(expr, elem_dt, current, &val_ctx);
+                let cond_str =
+                    super::translator::translate_validation_custom_expr(
+                        expr, elem_dt, current, &val_ctx,
+                    );
                 w.puts(&format!("if !({cond_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
@@ -1414,11 +1698,18 @@ fn emit_validation_check(
                 w.dec();
                 w.puts("}");
             } else {
-                let deref = if super::translator::needs_deref(data_type) { "*" } else { "&*" };
+                let deref = if super::translator::needs_deref(data_type) {
+                    "*"
+                } else {
+                    "&*"
+                };
                 w.puts(&format!("let _borrowed = {access_expr};"));
                 w.puts(&format!("let _tmpa = {deref}_borrowed;"));
                 let val_ctx = ctx.with_element_type(Some(data_type));
-                let cond_str = super::translator::translate_validation_custom_expr(expr, data_type, current, &val_ctx);
+                let cond_str =
+                    super::translator::translate_validation_custom_expr(
+                        expr, data_type, current, &val_ctx,
+                    );
                 w.puts(&format!("if !({cond_str}) {{"));
                 w.inc();
                 w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::Expr, src_path: \"{src_path}\".to_string() }}));"));
@@ -1427,19 +1718,32 @@ fn emit_validation_check(
             }
         }
         ValidationRule::Range(min_expr, max_expr) => {
-            let is_sizeof_min = matches!(min_expr, Expr::Name(n) if n == "_sizeof");
-            let is_sizeof_max = matches!(max_expr, Expr::Name(n) if n == "_sizeof");
+            let is_sizeof_min =
+                matches!(min_expr, Expr::Name(n) if n == "_sizeof");
+            let is_sizeof_max =
+                matches!(max_expr, Expr::Name(n) if n == "_sizeof");
             let target_dt = if is_repeated { elem_dt } else { data_type };
-            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let resolved_target_dt =
+                super::translator::resolve_switch_type(target_dt);
             let min_str = if is_sizeof_min {
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-                super::translator::calculate_class_seq_size_with_root(current, Some(ctx.root)).unwrap_or(0).to_string()
+                super::translator::calculate_class_seq_size_with_root(
+                    current,
+                    Some(ctx.root),
+                )
+                .unwrap_or(0)
+                .to_string()
             } else {
                 translate_expr(min_expr, ctx)
             };
             let max_str = if is_sizeof_max {
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-                super::translator::calculate_class_seq_size_with_root(current, Some(ctx.root)).unwrap_or(0).to_string()
+                super::translator::calculate_class_seq_size_with_root(
+                    current,
+                    Some(ctx.root),
+                )
+                .unwrap_or(0)
+                .to_string()
             } else {
                 translate_expr(max_expr, ctx)
             };
@@ -1463,12 +1767,16 @@ fn emit_validation_check(
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("if !((*({access_expr})).as_str() >= {min_str}) {{"));
+                    w.puts(&format!(
+                        "if !((*({access_expr})).as_str() >= {min_str}) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
-                    w.puts(&format!("if !((*({access_expr})).as_str() <= {max_str}) {{"));
+                    w.puts(&format!(
+                        "if !((*({access_expr})).as_str() <= {max_str}) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1476,17 +1784,23 @@ fn emit_validation_check(
                 }
             } else if matches!(
                 resolved_target_dt,
-                DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. }
+                DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::ArrayType { .. }
             ) {
                 if is_repeated {
                     w.puts(&format!("for _x in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&format!("if !(_x.as_slice() >= ({min_str}).as_slice()) {{"));
+                    w.puts(&format!(
+                        "if !(_x.as_slice() >= ({min_str}).as_slice()) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
-                    w.puts(&format!("if !(_x.as_slice() <= ({max_str}).as_slice()) {{"));
+                    w.puts(&format!(
+                        "if !(_x.as_slice() <= ({max_str}).as_slice()) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1507,15 +1821,23 @@ fn emit_validation_check(
                 }
             } else {
                 let ty_cast = validation_primitive_type(&resolved_target_dt);
-                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
-                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
-                } else {
-                    false
-                };
+                let is_numeric_switch =
+                    if let DataType::SwitchType { cases, .. } = target_dt {
+                        !cases.is_empty()
+                            && cases
+                                .values()
+                                .all(super::translator::is_numeric_type)
+                    } else {
+                        false
+                    };
                 let deref = if is_numeric_switch { "" } else { "*" };
                 if is_repeated {
-                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
+                    w.puts(&format!(
+                        "let min_val: {ty_cast} = ({min_str}).try_into()?;"
+                    ));
+                    w.puts(&format!(
+                        "let max_val: {ty_cast} = ({max_str}).try_into()?;"
+                    ));
                     w.puts(&format!("for _x in {access_expr}.iter() {{"));
                     w.inc();
                     w.puts(&"if !(*_x >= min_val) {".to_string());
@@ -1531,14 +1853,22 @@ fn emit_validation_check(
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
-                    w.puts(&format!("if !({deref}{access_expr} >= min_val) {{"));
+                    w.puts(&format!(
+                        "let min_val: {ty_cast} = ({min_str}).try_into()?;"
+                    ));
+                    w.puts(&format!(
+                        "let max_val: {ty_cast} = ({max_str}).try_into()?;"
+                    ));
+                    w.puts(&format!(
+                        "if !({deref}{access_expr} >= min_val) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
                     w.puts("}");
-                    w.puts(&format!("if !({deref}{access_expr} <= max_val) {{"));
+                    w.puts(&format!(
+                        "if !({deref}{access_expr} <= max_val) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1548,7 +1878,8 @@ fn emit_validation_check(
         }
         ValidationRule::AnyOf(exprs) => {
             let target_dt = if is_repeated { elem_dt } else { data_type };
-            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let resolved_target_dt =
+                super::translator::resolve_switch_type(target_dt);
             let is_bytes_or_str = matches!(
                 resolved_target_dt,
                 DataType::Bytes { .. }
@@ -1557,8 +1888,13 @@ fn emit_validation_check(
                     | DataType::CalcStrType
             );
             if is_bytes_or_str {
-                let trans_exprs: Vec<String> = exprs.iter().map(|e| translate_expr(e, ctx)).collect();
-                let check = trans_exprs.iter().map(|s| format!("*_item == {s}")).collect::<Vec<_>>().join(" || ");
+                let trans_exprs: Vec<String> =
+                    exprs.iter().map(|e| translate_expr(e, ctx)).collect();
+                let check = trans_exprs
+                    .iter()
+                    .map(|s| format!("*_item == {s}"))
+                    .collect::<Vec<_>>()
+                    .join(" || ");
                 if is_repeated {
                     w.puts(&format!("for _item in {access_expr}.iter() {{"));
                     w.inc();
@@ -1579,23 +1915,35 @@ fn emit_validation_check(
                 }
             } else {
                 let ty_cast = validation_primitive_type(&resolved_target_dt);
-                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
-                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
-                } else {
-                    false
-                };
+                let is_numeric_switch =
+                    if let DataType::SwitchType { cases, .. } = target_dt {
+                        !cases.is_empty()
+                            && cases
+                                .values()
+                                .all(super::translator::is_numeric_type)
+                    } else {
+                        false
+                    };
                 let mut expected_vars = Vec::new();
                 for (idx, e) in exprs.iter().enumerate() {
                     let trans = translate_expr(e, ctx);
                     let var_name = format!("expected_{idx}");
-                    w.puts(&format!("let {var_name}: {ty_cast} = ({trans}).try_into()?;"));
+                    w.puts(&format!(
+                        "let {var_name}: {ty_cast} = ({trans}).try_into()?;"
+                    ));
                     expected_vars.push(var_name);
                 }
-                let check = expected_vars.iter().map(|v| format!("_item == {v}")).collect::<Vec<_>>().join(" || ");
+                let check = expected_vars
+                    .iter()
+                    .map(|v| format!("_item == {v}"))
+                    .collect::<Vec<_>>()
+                    .join(" || ");
                 if is_repeated {
                     w.puts(&format!("for _elem in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&format!("let _item: {ty_cast} = (*_elem).try_into()?;"));
+                    w.puts(&format!(
+                        "let _item: {ty_cast} = (*_elem).try_into()?;"
+                    ));
                     w.puts(&format!("if !({check}) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotAnyOf, src_path: \"{src_path}\".to_string() }}));"));
@@ -1616,8 +1964,10 @@ fn emit_validation_check(
         }
         ValidationRule::InEnum => {
             let target_dt = if is_repeated { elem_dt } else { data_type };
-            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
-            if let DataType::EnumType { owner, name, .. } = &resolved_target_dt {
+            let resolved_target_dt =
+                super::translator::resolve_switch_type(target_dt);
+            if let DataType::EnumType { owner, name, .. } = &resolved_target_dt
+            {
                 let mut parts = owner.clone();
                 parts.push(name.clone());
                 let enum_type_name = types_to_class_name(&parts);
@@ -1625,7 +1975,9 @@ fn emit_validation_check(
                 if is_repeated {
                     w.puts(&format!("for _item in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&format!("if matches!(_item, {enum_type_name}::{catchall}(_)) {{"));
+                    w.puts(&format!(
+                        "if matches!(_item, {enum_type_name}::{catchall}(_)) {{"
+                    ));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotInEnum, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1644,11 +1996,19 @@ fn emit_validation_check(
     }
 }
 
-fn get_enum_catchall(ctx: &TranslationContext<'_>, owner: &[String], name: &str) -> &'static str {
+fn get_enum_catchall(
+    ctx: &TranslationContext<'_>,
+    owner: &[String],
+    name: &str,
+) -> &'static str {
     let target_class = super::translator::find_class_spec(ctx.root, owner);
     if let Some(tc) = target_class {
         if let Some(re) = tc.enums.get(name) {
-            if re.values.values().any(|l| to_upper_camel_case(l) == "Unknown") {
+            if re
+                .values
+                .values()
+                .any(|l| to_upper_camel_case(l) == "Unknown")
+            {
                 return "UnknownVariant";
             }
         }
@@ -1665,7 +2025,14 @@ fn emit_attr_validation(
     let Some(valid) = &attr.valid else { return };
     let id = &attr.id;
     let self_name = ctx.self_name();
-    emit_validation_check(w, current, &attr.data_type, valid, ctx, &format!("{self_name}.{id}()"));
+    emit_validation_check(
+        w,
+        current,
+        &attr.data_type,
+        valid,
+        ctx,
+        &format!("{self_name}.{id}()"),
+    );
 }
 
 fn get_target_args(
@@ -1680,18 +2047,26 @@ fn get_target_args(
     }
     let target_class = super::translator::find_class_spec(ctx.root, names);
     if let Some(tc) = target_class {
-        if tc.name != ctx.root.name && (tc.is_top_level || tc.parent_name.is_none()) {
+        if tc.name != ctx.root.name
+            && (tc.is_top_level || tc.parent_name.is_none())
+        {
             return "None, None".to_string();
         }
     }
     let parent = match parent_expr {
         Some(crate::spec::ValueOrExpr::Bool(false)) => "None".to_string(),
         Some(crate::spec::ValueOrExpr::Expr(p)) if p == "_parent" => {
-            format!("Some(SharedType::new({self_name}._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone()))")
+            format!(
+                "Some(SharedType::new({self_name}._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone()))"
+            )
         }
         _ => {
             if let Some(tc) = target_class {
-                if tc.parent_name.as_ref().is_some_and(|p| p.as_slice() == ["KStructUnit"]) {
+                if tc
+                    .parent_name
+                    .as_ref()
+                    .is_some_and(|p| p.as_slice() == ["KStructUnit"])
+                {
                     "None".to_string()
                 } else if tc.name == ctx.root.name {
                     if ctx.current_class.name == ctx.root.name {
@@ -1699,7 +2074,9 @@ fn get_target_args(
                     } else {
                         format!("Some({self_name}._root.clone())")
                     }
-                } else if tc.parent_name.as_ref() == Some(&ctx.current_class.name) {
+                } else if tc.parent_name.as_ref()
+                    == Some(&ctx.current_class.name)
+                {
                     format!("Some({self_name}._self_shared.clone())")
                 } else if tc.parent_name.as_ref() == Some(&ctx.root.name) {
                     format!("Some({self_name}._root.clone())")
@@ -1778,9 +2155,20 @@ fn emit_single_read(
         return;
     }
 
-    if let DataType::UserType { names, is_external, args } = &attr.data_type {
+    if let DataType::UserType {
+        names,
+        is_external,
+        args,
+    } = &attr.data_type
+    {
         let type_name = types_to_class_name(names);
-        let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
+        let target_args = get_target_args(
+            names,
+            *is_external,
+            self_name,
+            ctx,
+            attr.parent_expr.as_ref(),
+        );
         let target_class = super::translator::find_class_spec(ctx.root, names);
         let target_params = target_class.map(|c| c.params.as_slice());
         let trans_args = translate_args(args, ctx, true, target_params);
@@ -1820,20 +2208,31 @@ fn emit_single_read(
             }
             w.puts(&format!("let _raw_{id} = {read_call};"));
             if has_substream(attr) || attr.raw_id.is_some() {
-                w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = _raw_{id}.clone();"));
+                w.puts(&format!(
+                    "*{self_name}.{id}_raw.borrow_mut() = _raw_{id}.clone();"
+                ));
             }
             if let Some(proc) = &attr.process {
-                let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                let processed =
+                    translate_process(proc, &format!("_raw_{id}"), ctx);
                 w.puts(&format!("let _processed_{id} = {processed};"));
-                w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                w.puts(&format!(
+                    "let _io_{id} = BytesReader::from(_processed_{id});"
+                ));
             } else {
-                w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                w.puts(&format!(
+                    "let _io_{id} = BytesReader::from(_raw_{id});"
+                ));
             }
             format!("&_io_{id}")
         } else {
             "&*_io".to_string()
         };
-        let stream_type = if io_ref == "&*_io" { "_" } else { "BytesReader" };
+        let stream_type = if io_ref == "&*_io" {
+            "_"
+        } else {
+            "BytesReader"
+        };
 
         if trans_args.is_empty() {
             if current.has_dynamic_endian() {
@@ -1875,37 +2274,48 @@ fn emit_switch_read(
     self_name: &str,
     cases: &indexmap::IndexMap<String, DataType>,
 ) {
-    let (switch_on, is_str_switch) = if let DataType::SwitchType { switch_on, .. } = &attr.data_type {
-        let sw_type = super::translator::detect_type_approx(switch_on, ctx);
-        let is_str = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
-        let is_bytes = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
-            || cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
-        let sw_expr = translate_expr(switch_on, ctx);
-        if is_str {
-            let stripped = super::translator::remove_deref(&sw_expr);
-            (format!("{stripped}.as_str()"), true)
-        } else if is_bytes {
-            let stripped = super::translator::remove_deref(&sw_expr);
-            (format!("{stripped}.as_slice()"), false)
+    let (switch_on, is_str_switch) =
+        if let DataType::SwitchType { switch_on, .. } = &attr.data_type {
+            let sw_type = super::translator::detect_type_approx(switch_on, ctx);
+            let is_str = matches!(
+                sw_type,
+                Some(DataType::Str { .. } | DataType::CalcStrType)
+            );
+            let is_bytes = matches!(
+                sw_type,
+                Some(DataType::Bytes { .. } | DataType::CalcBytesType)
+            ) || cases
+                .keys()
+                .any(|k| k.starts_with('[') && k.ends_with(']'));
+            let sw_expr = translate_expr(switch_on, ctx);
+            if is_str {
+                let stripped = super::translator::remove_deref(&sw_expr);
+                (format!("{stripped}.as_str()"), true)
+            } else if is_bytes {
+                let stripped = super::translator::remove_deref(&sw_expr);
+                (format!("{stripped}.as_slice()"), false)
+            } else {
+                (sw_expr, false)
+            }
         } else {
-            (sw_expr, false)
-        }
-    } else {
-        ("*self_rc.switch_on()?".to_string(), false)
-    };
+            ("*self_rc.switch_on()?".to_string(), false)
+        };
 
     w.puts(&format!("match {switch_on} {{"));
     w.inc();
 
-    let _any_user_types = cases.values().any(|ct| matches!(ct, DataType::UserType { .. }));
+    let _any_user_types = cases
+        .values()
+        .any(|ct| matches!(ct, DataType::UserType { .. }));
     let escaped_id = escape_rust_keyword(id);
 
     for (case_key, case_type) in cases {
         let pattern = if let Some(inner) = case_key
             .strip_prefix('\'')
             .and_then(|s| s.strip_suffix('\''))
-            .or_else(|| case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-        {
+            .or_else(|| {
+                case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"'))
+            }) {
             if is_str_switch {
                 format!("\"{inner}\"")
             } else if inner.len() > 1 {
@@ -1914,7 +2324,11 @@ fn emit_switch_read(
                 case_key.clone()
             }
         } else if let Some((p0, p1)) = case_key.split_once("::") {
-            let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(ctx.root));
+            let enum_scoped = super::translator::resolve_enum_type_name(
+                p0,
+                current,
+                Some(ctx.root),
+            );
             let variant = to_upper_camel_case(p1);
             format!("{enum_scoped}::{variant}")
         } else {
@@ -1924,18 +2338,31 @@ fn emit_switch_read(
         w.puts(&format!("{pattern} => {{"));
         w.inc();
 
-        if let DataType::UserType { names, is_external, args } = case_type {
-            if has_substream(attr) || attr.size_expr.is_some() || attr.process.is_some() {
+        if let DataType::UserType {
+            names,
+            is_external,
+            args,
+        } = case_type
+        {
+            if has_substream(attr)
+                || attr.size_expr.is_some()
+                || attr.process.is_some()
+            {
                 let read_call = if let Some(size_expr) = &attr.size_expr {
                     let s = expr_to_usize(size_expr, ctx);
                     format!("_io.read_bytes({s})?.into()")
                 } else {
                     "_io.read_bytes_full()?.into()".to_string()
                 };
-                w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = {read_call};"));
-                w.puts(&format!("let {id}_raw = {self_name}.{id}_raw.borrow();"));
+                w.puts(&format!(
+                    "*{self_name}.{id}_raw.borrow_mut() = {read_call};"
+                ));
+                w.puts(&format!(
+                    "let {id}_raw = {self_name}.{id}_raw.borrow();"
+                ));
                 if let Some(proc) = &attr.process {
-                    let processed = translate_process(proc, &format!("{id}_raw"), ctx);
+                    let processed =
+                        translate_process(proc, &format!("{id}_raw"), ctx);
                     w.puts(&format!("let _t_{id}_raw_proc = {processed};"));
                     w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw_proc);"));
                 } else {
@@ -1943,15 +2370,23 @@ fn emit_switch_read(
                 }
 
                 let type_name = types_to_class_name(names);
-                let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
-                let target_class = super::translator::find_class_spec(ctx.root, names);
+                let target_args = get_target_args(
+                    names,
+                    *is_external,
+                    self_name,
+                    ctx,
+                    attr.parent_expr.as_ref(),
+                );
+                let target_class =
+                    super::translator::find_class_spec(ctx.root, names);
                 let target_params = target_class.map(|c| c.params.as_slice());
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
                     ));
                 } else {
-                    let trans_args = translate_args(args, ctx, true, target_params);
+                    let trans_args =
+                        translate_args(args, ctx, true, target_params);
                     w.puts(&format!(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
@@ -1959,18 +2394,28 @@ fn emit_switch_read(
                         "let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args}, &f)?.into();"
                     ));
                 }
-                w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(t);"));
+                w.puts(&format!(
+                    "*{self_name}.{escaped_id}.borrow_mut() = Some(t);"
+                ));
             } else {
                 let type_name = types_to_class_name(names);
-                let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
-                let target_class = super::translator::find_class_spec(ctx.root, names);
+                let target_args = get_target_args(
+                    names,
+                    *is_external,
+                    self_name,
+                    ctx,
+                    attr.parent_expr.as_ref(),
+                );
+                let target_class =
+                    super::translator::find_class_spec(ctx.root, names);
                 let target_params = target_class.map(|c| c.params.as_slice());
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<_, {type_name}>(&*_io, {target_args})?.into();"
                     ));
                 } else {
-                    let trans_args = translate_args(args, ctx, true, target_params);
+                    let trans_args =
+                        translate_args(args, ctx, true, target_params);
                     w.puts(&format!(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
@@ -1978,7 +2423,9 @@ fn emit_switch_read(
                         "let t = Self::read_into_with_init::<_, {type_name}>(&*_io, {target_args}, &f)?.into();"
                     ));
                 }
-                w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(t);"));
+                w.puts(&format!(
+                    "*{self_name}.{escaped_id}.borrow_mut() = Some(t);"
+                ));
             }
         } else {
             let val = read_expr_for_type(case_type, current, ctx, "_io");
@@ -1987,7 +2434,9 @@ fn emit_switch_read(
             } else {
                 format!("{val}.into()")
             };
-            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some({val});"));
+            w.puts(&format!(
+                "*{self_name}.{escaped_id}.borrow_mut() = Some({val});"
+            ));
         }
 
         w.dec();
@@ -1995,9 +2444,12 @@ fn emit_switch_read(
     }
 
     // Default case
-    let is_exhaustive_bool = cases.contains_key("false") && cases.contains_key("true");
+    let is_exhaustive_bool =
+        cases.contains_key("false") && cases.contains_key("true");
     if !cases.contains_key("_") && !is_exhaustive_bool {
-        let has_bytes_case = cases.values().any(|c| matches!(c, DataType::Bytes { .. } | DataType::CalcBytesType));
+        let has_bytes_case = cases.values().any(|c| {
+            matches!(c, DataType::Bytes { .. } | DataType::CalcBytesType)
+        });
         if has_bytes_case {
             w.puts("_ => {");
             w.inc();
@@ -2007,7 +2459,9 @@ fn emit_switch_read(
             } else {
                 "_io.read_bytes_full()?.into()".to_string()
             };
-            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some({read_call});"));
+            w.puts(&format!(
+                "*{self_name}.{escaped_id}.borrow_mut() = Some({read_call});"
+            ));
             w.dec();
             w.puts("}");
         } else {
@@ -2019,7 +2473,11 @@ fn emit_switch_read(
     w.puts("}");
 }
 
-fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationContext<'_>) -> String {
+fn translate_process(
+    proc_str: &str,
+    raw_bytes_var: &str,
+    ctx: &TranslationContext<'_>,
+) -> String {
     let proc_trimmed = proc_str.trim();
     if proc_trimmed == "zlib" {
         return format!("process_zlib(&{raw_bytes_var})?");
@@ -2043,19 +2501,30 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                                 })
                                 .collect();
                             let list_str = byte_strs.join(", ");
-                            return format!("process_xor_many(&{raw_bytes_var}, &[{list_str}])");
+                            return format!(
+                                "process_xor_many(&{raw_bytes_var}, &[{list_str}])"
+                            );
                         }
                         if let Expr::IntNum(n) = first_arg {
-                            return format!("process_xor_one(&{raw_bytes_var}, {n}_u8)");
+                            return format!(
+                                "process_xor_one(&{raw_bytes_var}, {n}_u8)"
+                            );
                         }
-                        let approx_ty = super::translator::detect_type_approx(first_arg, ctx);
+                        let approx_ty = super::translator::detect_type_approx(
+                            first_arg, ctx,
+                        );
                         let is_bytes = matches!(
                             approx_ty,
-                            Some(DataType::Bytes { .. } | DataType::CalcBytesType)
+                            Some(
+                                DataType::Bytes { .. }
+                                    | DataType::CalcBytesType
+                            )
                         );
                         let trans_arg = translate_expr(first_arg, ctx);
                         if is_bytes {
-                            return format!("process_xor_many(&{raw_bytes_var}, &{trans_arg})");
+                            return format!(
+                                "process_xor_many(&{raw_bytes_var}, &{trans_arg})"
+                            );
                         }
                         return format!(
                             "process_xor_one(&{raw_bytes_var}, u8::try_from(i64::try_from({trans_arg})? & 0xff)?)"
@@ -2193,11 +2662,23 @@ fn read_expr_for_type(
             let prefix = if *signed { 's' } else { 'u' };
             format!("{io}.read_{prefix}1()?")
         }
-        DataType::IntMulti { signed, width, endian } => {
+        DataType::IntMulti {
+            signed,
+            width,
+            endian,
+        } => {
             let prefix = if *signed { 's' } else { 'u' };
-            if current.has_dynamic_endian() && (endian.is_none() || *endian == Some(Endianness::Inherited)) {
-                let self_field = if ctx.self_name() == "self_rc" { "*self_rc._is_le.borrow()" } else { "*self._is_le.borrow()" };
-                format!("if {self_field} == 1 {{ {io}.read_{prefix}{width}le()? }} else {{ {io}.read_{prefix}{width}be()? }}")
+            if current.has_dynamic_endian()
+                && (endian.is_none() || *endian == Some(Endianness::Inherited))
+            {
+                let self_field = if ctx.self_name() == "self_rc" {
+                    "*self_rc._is_le.borrow()"
+                } else {
+                    "*self._is_le.borrow()"
+                };
+                format!(
+                    "if {self_field} == 1 {{ {io}.read_{prefix}{width}le()? }} else {{ {io}.read_{prefix}{width}be()? }}"
+                )
             } else {
                 // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
                 let endian_str = match endian.unwrap_or(Endianness::Big) {
@@ -2208,9 +2689,17 @@ fn read_expr_for_type(
             }
         }
         DataType::Float { width, endian } => {
-            if current.has_dynamic_endian() && (endian.is_none() || *endian == Some(Endianness::Inherited)) {
-                let self_field = if ctx.self_name() == "self_rc" { "*self_rc._is_le.borrow()" } else { "*self._is_le.borrow()" };
-                format!("if {self_field} == 1 {{ {io}.read_f{width}le()? }} else {{ {io}.read_f{width}be()? }}")
+            if current.has_dynamic_endian()
+                && (endian.is_none() || *endian == Some(Endianness::Inherited))
+            {
+                let self_field = if ctx.self_name() == "self_rc" {
+                    "*self_rc._is_le.borrow()"
+                } else {
+                    "*self._is_le.borrow()"
+                };
+                format!(
+                    "if {self_field} == 1 {{ {io}.read_f{width}le()? }} else {{ {io}.read_f{width}be()? }}"
+                )
             } else {
                 // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
                 let endian_str = match endian.unwrap_or(Endianness::Big) {
@@ -2250,7 +2739,9 @@ fn read_expr_for_type(
                 let s = expr_to_usize(size_expr, ctx);
                 format!("{io}.read_bytes({s})?")
             } else if let Some(term) = terminator {
-                format!("{io}.read_bytes_term({term}, {include}, {consume}, {eos_error})?")
+                format!(
+                    "{io}.read_bytes_term({term}, {include}, {consume}, {eos_error})?"
+                )
             } else {
                 format!("{io}.read_bytes_full()?")
             };
@@ -2285,9 +2776,9 @@ fn read_expr_for_type(
             pad_right,
             ..
         } => {
-            let is_utf16 = encoding.as_deref().is_some_and(|e| {
-                e.to_ascii_uppercase().starts_with("UTF-16")
-            });
+            let is_utf16 = encoding
+                .as_deref()
+                .is_some_and(|e| e.to_ascii_uppercase().starts_with("UTF-16"));
             let mut raw_bytes = if *size_eos {
                 format!("{io}.read_bytes_full()?")
             } else if let Some(size_expr) = size {
@@ -2295,9 +2786,13 @@ fn read_expr_for_type(
                 format!("{io}.read_bytes({s})?")
             } else if let Some(term) = terminator {
                 if is_utf16 && *term == 0 {
-                    format!("{io}.read_bytes_term_multi(&[0, 0], {include}, {consume}, {eos_error})?")
+                    format!(
+                        "{io}.read_bytes_term_multi(&[0, 0], {include}, {consume}, {eos_error})?"
+                    )
                 } else {
-                    format!("{io}.read_bytes_term({term}, {include}, {consume}, {eos_error})?")
+                    format!(
+                        "{io}.read_bytes_term({term}, {include}, {consume}, {eos_error})?"
+                    )
                 }
             } else {
                 format!("{io}.read_bytes_full()?")
@@ -2336,9 +2831,16 @@ fn read_expr_for_type(
                         let p = if *signed { 's' } else { 'u' };
                         format!("{io}.read_{p}1()?")
                     }
-                    DataType::IntMulti { signed, width, endian } => {
+                    DataType::IntMulti {
+                        signed,
+                        width,
+                        endian,
+                    } => {
                         let p = if *signed { 's' } else { 'u' };
-                        if current.has_dynamic_endian() && (endian.is_none() || *endian == Some(Endianness::Inherited)) {
+                        if current.has_dynamic_endian()
+                            && (endian.is_none()
+                                || *endian == Some(Endianness::Inherited))
+                        {
                             format!("{io}.read_{p}{width}()?")
                         } else {
                             // Reason for fallback: unspecified endianness defaults to big endian per Kaitai spec
@@ -2363,40 +2865,76 @@ fn read_expr_for_type(
                         };
                         format!("{io}.read_bits_int_{endian_str}(1)?")
                     }
-                    _ => format!("{io}.read_u4()?")
+                    _ => format!("{io}.read_u4()?"),
                 }
             } else {
                 format!("{io}.read_u4()?")
             };
             let is_u64 = if let Some(under) = underlying {
-                matches!(under.as_ref(), DataType::IntMulti { signed: false, width: 8, .. } | DataType::Bits { .. } | DataType::Bits1 { .. })
+                matches!(
+                    under.as_ref(),
+                    DataType::IntMulti {
+                        signed: false,
+                        width: 8,
+                        ..
+                    } | DataType::Bits { .. }
+                        | DataType::Bits1 { .. }
+                )
             } else {
                 false
             };
             let is_s64 = if let Some(under) = underlying {
-                matches!(under.as_ref(), DataType::IntMulti { signed: true, width: 8, .. })
+                matches!(
+                    under.as_ref(),
+                    DataType::IntMulti {
+                        signed: true,
+                        width: 8,
+                        ..
+                    }
+                )
             } else {
                 false
             };
             if is_u64 {
-                format!("i64::from_le_bytes(({read_call}).to_le_bytes()).try_into()?")
+                format!(
+                    "i64::from_le_bytes(({read_call}).to_le_bytes()).try_into()?"
+                )
             } else if is_s64 {
                 format!("{read_call}.try_into()?")
             } else {
                 format!("i64::from({read_call}).try_into()?")
             }
         }
-        DataType::UserType { names, is_external, args } => {
+        DataType::UserType {
+            names,
+            is_external,
+            args,
+        } => {
             let type_name = types_to_class_name(names);
-            let target_args = get_target_args(names, *is_external, ctx.self_name(), ctx, None);
-            let io_ref = if io == "_io" { "&*_io".to_string() } else { format!("&{io}") };
-            let target_class = super::translator::find_class_spec(ctx.root, names);
+            let target_args = get_target_args(
+                names,
+                *is_external,
+                ctx.self_name(),
+                ctx,
+                None,
+            );
+            let io_ref = if io == "_io" {
+                "&*_io".to_string()
+            } else {
+                format!("&{io}")
+            };
+            let target_class =
+                super::translator::find_class_spec(ctx.root, names);
             let target_params = target_class.map(|c| c.params.as_slice());
             if args.is_empty() {
-                format!("Self::read_into::<_, {type_name}>({io_ref}, {target_args})?.into()")
+                format!(
+                    "Self::read_into::<_, {type_name}>({io_ref}, {target_args})?.into()"
+                )
             } else {
                 let trans_args = translate_args(args, ctx, true, target_params);
-                format!("{{ let f = |t: &mut {type_name}| Ok(t.set_params({trans_args})); Self::read_into_with_init::<_, {type_name}>({io_ref}, {target_args}, &f)?.into() }}")
+                format!(
+                    "{{ let f = |t: &mut {type_name}| Ok(t.set_params({trans_args})); Self::read_into_with_init::<_, {type_name}>({io_ref}, {target_args}, &f)?.into() }}"
+                )
             }
         }
         DataType::ArrayType { element, .. } => {
@@ -2468,7 +3006,9 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
 
             // Value calculation or parse
             if let Some(value_expr) = &inst.value_expr {
-                let val_ctx = if let DataType::ArrayType { element, .. } = &inst.data_type {
+                let val_ctx = if let DataType::ArrayType { element, .. } =
+                    &inst.data_type
+                {
                     ctx.with_element_type(Some(element))
                 } else {
                     ctx.clone()
@@ -2476,15 +3016,25 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                 let expr_str = translate_expr(value_expr, &val_ctx);
                 let val_str = match &inst.data_type {
                     DataType::UserType { .. } => {
-                        format!("{}.clone()", super::translator::remove_deref(&expr_str))
+                        format!(
+                            "{}.clone()",
+                            super::translator::remove_deref(&expr_str)
+                        )
                     }
                     DataType::Str { .. } | DataType::CalcStrType => {
-                        format!("{}.to_string()", super::translator::remove_deref(&expr_str))
+                        format!(
+                            "{}.to_string()",
+                            super::translator::remove_deref(&expr_str)
+                        )
                     }
-                    DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. } => {
-                        let no_deref = super::translator::remove_deref(&expr_str);
+                    DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::ArrayType { .. } => {
+                        let no_deref =
+                            super::translator::remove_deref(&expr_str);
                         // Reason for fallback: string without leading ampersand remains unchanged
-                        let no_vec = no_deref.strip_prefix('&').unwrap_or(no_deref);
+                        let no_vec =
+                            no_deref.strip_prefix('&').unwrap_or(no_deref);
                         if no_vec.starts_with("vec![") {
                             no_vec.to_string()
                         } else {
@@ -2493,14 +3043,26 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                     }
                     DataType::EnumType { .. } => {
                         if inst.enum_name.is_some() {
-                            match super::translator::detect_type_approx(value_expr, &val_ctx) {
+                            match super::translator::detect_type_approx(
+                                value_expr, &val_ctx,
+                            ) {
                                 Some(
                                     DataType::Bits { .. }
-                                    | DataType::IntMulti { signed: false, width: 8, .. },
+                                    | DataType::IntMulti {
+                                        signed: false,
+                                        width: 8,
+                                        ..
+                                    },
                                 ) => {
-                                    format!("i64::from_le_bytes(({expr_str}).to_le_bytes()).try_into()?")
+                                    format!(
+                                        "i64::from_le_bytes(({expr_str}).to_le_bytes()).try_into()?"
+                                    )
                                 }
-                                Some(DataType::IntMulti { signed: true, width: 8, .. }) => {
+                                Some(DataType::IntMulti {
+                                    signed: true,
+                                    width: 8,
+                                    ..
+                                }) => {
                                     format!("({expr_str}).try_into()?")
                                 }
                                 Some(
@@ -2510,7 +3072,9 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                                 ) => {
                                     format!("i64::from({expr_str}).try_into()?")
                                 }
-                                _ => format!("i64::try_from({expr_str})?.try_into()?"),
+                                _ => format!(
+                                    "i64::try_from({expr_str})?.try_into()?"
+                                ),
                             }
                         } else {
                             expr_str
@@ -2531,8 +3095,9 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                             && !expr_str.contains(".parse")
                             && !expr_str.contains(' ')
                             && !super::translator::is_usize_expr_str(&expr_str)
-                            && !super::translator::is_numeric_switch_call(&expr_str, current, ctx.root)
-                        {
+                            && !super::translator::is_numeric_switch_call(
+                                &expr_str, current, ctx.root,
+                            ) {
                             format!("*{expr_str}")
                         } else {
                             expr_str
@@ -2540,7 +3105,9 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                         format!("({derefed}).try_into()?")
                     }
                 };
-                w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {val_str};"));
+                w.puts(&format!(
+                    "*self.{escaped_inst_id}.borrow_mut() = {val_str};"
+                ));
             } else {
                 emit_parse_instance_body(w, current, inst_id, inst, &ctx);
             }
@@ -2590,10 +3157,19 @@ fn emit_parse_instance_body(
     match &inst.data_type {
         DataType::SwitchType { switch_on, cases } => {
             let sw_type = super::translator::detect_type_approx(switch_on, ctx);
-            let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType))
-                || cases.keys().any(|k| (k.starts_with('"') && k.ends_with('"')) || (k.starts_with('\'') && k.ends_with('\'')));
-            let is_bytes_switch = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
-                || cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
+            let is_str_switch = matches!(
+                sw_type,
+                Some(DataType::Str { .. } | DataType::CalcStrType)
+            ) || cases.keys().any(|k| {
+                (k.starts_with('"') && k.ends_with('"'))
+                    || (k.starts_with('\'') && k.ends_with('\''))
+            });
+            let is_bytes_switch = matches!(
+                sw_type,
+                Some(DataType::Bytes { .. } | DataType::CalcBytesType)
+            ) || cases
+                .keys()
+                .any(|k| k.starts_with('[') && k.ends_with(']'));
             let switch_on_expr = translate_expr(switch_on, ctx);
             let match_target = if is_str_switch {
                 let stripped = super::translator::remove_deref(&switch_on_expr);
@@ -2622,8 +3198,11 @@ fn emit_parse_instance_body(
                 let pattern = if let Some(inner) = case_key
                     .strip_prefix('\'')
                     .and_then(|s| s.strip_suffix('\''))
-                    .or_else(|| case_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-                {
+                    .or_else(|| {
+                        case_key
+                            .strip_prefix('"')
+                            .and_then(|s| s.strip_suffix('"'))
+                    }) {
                     if is_str_switch {
                         format!("\"{inner}\"")
                     } else if inner.len() > 1 {
@@ -2632,7 +3211,11 @@ fn emit_parse_instance_body(
                         case_key.clone()
                     }
                 } else if let Some((p0, p1)) = case_key.split_once("::") {
-                    let enum_scoped = super::translator::resolve_enum_type_name(p0, current, Some(ctx.root));
+                    let enum_scoped = super::translator::resolve_enum_type_name(
+                        p0,
+                        current,
+                        Some(ctx.root),
+                    );
                     let variant = to_upper_camel_case(p1);
                     format!("{enum_scoped}::{variant}")
                 } else if is_str_switch && !case_key.starts_with('"') {
@@ -2644,24 +3227,52 @@ fn emit_parse_instance_body(
                 w.puts(&format!("{pattern} => {{"));
                 w.inc();
 
-                let (io_ref, stream_type) = if let Some(size) = &inst.size_expr {
+                let (io_ref, stream_type) = if let Some(size) = &inst.size_expr
+                {
                     let size_str = expr_to_usize(size, ctx);
                     w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = {io_var}.read_bytes({size_str})?.into();"));
-                    w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
+                    w.puts(&format!(
+                        "let {inst_id}_raw = self.{inst_id}_raw.borrow();"
+                    ));
                     w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                     (format!("&_t_{inst_id}_raw_io"), "BytesReader")
                 } else {
-                    (if io_var == "_io" { "&*_io".to_string() } else { format!("&{io_var}") }, "_")
+                    (
+                        if io_var == "_io" {
+                            "&*_io".to_string()
+                        } else {
+                            format!("&{io_var}")
+                        },
+                        "_",
+                    )
                 };
 
-                if let DataType::UserType { names, is_external, args } = case_type {
+                if let DataType::UserType {
+                    names,
+                    is_external,
+                    args,
+                } = case_type
+                {
                     let type_name = types_to_class_name(names);
-                    let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
-                    let target_class = super::translator::find_class_spec(ctx.root, names);
-                    let target_params = target_class.map(|c| c.params.as_slice());
-                    let has_dyn_endian = target_class.is_some_and(ClassSpec::has_dynamic_endian)
-                        || (current.has_dynamic_endian() && target_class.is_some_and(|tc| tc.meta_endian == Some(Endianness::Inherited)));
-                    let trans_args = translate_args(args, ctx, true, target_params);
+                    let target_args = get_target_args(
+                        names,
+                        *is_external,
+                        "self",
+                        ctx,
+                        inst.parent_expr.as_ref(),
+                    );
+                    let target_class =
+                        super::translator::find_class_spec(ctx.root, names);
+                    let target_params =
+                        target_class.map(|c| c.params.as_slice());
+                    let has_dyn_endian = target_class
+                        .is_some_and(ClassSpec::has_dynamic_endian)
+                        || (current.has_dynamic_endian()
+                            && target_class.is_some_and(|tc| {
+                                tc.meta_endian == Some(Endianness::Inherited)
+                            }));
+                    let trans_args =
+                        translate_args(args, ctx, true, target_params);
                     if !trans_args.is_empty() {
                         w.puts(&format!(
                             "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
@@ -2681,14 +3292,17 @@ fn emit_parse_instance_body(
                             "let t = Self::read_into::<{stream_type}, {type_name}>({io_ref}, {target_args})?.into();"
                         ));
                     }
-                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Some(t);"));
+                    w.puts(&format!(
+                        "*self.{escaped_inst_id}.borrow_mut() = Some(t);"
+                    ));
                 }
 
                 w.dec();
                 w.puts("}");
             }
 
-            let is_exhaustive_bool = cases.contains_key("false") && cases.contains_key("true");
+            let is_exhaustive_bool =
+                cases.contains_key("false") && cases.contains_key("true");
             if cases.contains_key("_") {
                 let fallback = if let Some(size) = &inst.size_expr {
                     let size_str = expr_to_usize(size, ctx);
@@ -2698,11 +3312,18 @@ fn emit_parse_instance_body(
                 };
                 w.puts("_ => {");
                 w.inc();
-                w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Some({fallback});"));
+                w.puts(&format!(
+                    "*self.{escaped_inst_id}.borrow_mut() = Some({fallback});"
+                ));
                 w.dec();
                 w.puts("}");
             } else if !cases.contains_key("_") && !is_exhaustive_bool {
-                let has_bytes_case = cases.values().any(|c| matches!(c, DataType::Bytes { .. } | DataType::CalcBytesType));
+                let has_bytes_case = cases.values().any(|c| {
+                    matches!(
+                        c,
+                        DataType::Bytes { .. } | DataType::CalcBytesType
+                    )
+                });
                 if has_bytes_case {
                     let fallback = if let Some(size) = &inst.size_expr {
                         let size_str = expr_to_usize(size, ctx);
@@ -2723,90 +3344,159 @@ fn emit_parse_instance_body(
             w.dec();
             w.puts("}");
         }
-        DataType::ArrayType { element, repeat } => {
-            match repeat {
-                RepeatMode::None => {
-                    let elem_val = read_expr_for_type(element, current, ctx, "_io");
-                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {elem_val};"));
-                }
-                RepeatMode::Expr(repeat_expr) => {
-                    if let Some(size) = &inst.size_expr {
-                        w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = Vec::new();"));
-                        w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
-                        let count_str = expr_to_usize(repeat_expr, ctx);
-                        w.puts(&format!("let l_{inst_id} = {count_str};"));
-                        w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
-                        w.inc();
-                        let size_str = expr_to_usize(size, ctx);
-                        w.puts(&format!("self.{inst_id}_raw.borrow_mut().push({io_var}.read_bytes({size_str})?.into());"));
-                        w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
-                        w.puts(&format!("let _io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().ok_or(KError::EmptyIterator)?.clone());"));
-                        let raw_io = format!("_io_{inst_id}_raw");
-                        emit_read_array_element(w, element, current, ctx, &escaped_inst_id, "self", &raw_io, inst.parent_expr.as_ref());
-                        w.dec();
-                        w.puts("}");
-                    } else {
-                        w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
-                        let count_str = expr_to_usize(repeat_expr, ctx);
-                        w.puts(&format!("let l_{inst_id} = {count_str};"));
-                        w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
-                        w.inc();
-                        emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io", inst.parent_expr.as_ref());
-                        w.dec();
-                        w.puts("}");
-                    }
-                }
-                RepeatMode::Eos => {
-                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
-                    w.puts("{");
+        DataType::ArrayType { element, repeat } => match repeat {
+            RepeatMode::None => {
+                let elem_val = read_expr_for_type(element, current, ctx, "_io");
+                w.puts(&format!(
+                    "*self.{escaped_inst_id}.borrow_mut() = {elem_val};"
+                ));
+            }
+            RepeatMode::Expr(repeat_expr) => {
+                if let Some(size) = &inst.size_expr {
+                    w.puts(&format!(
+                        "*self.{inst_id}_raw.borrow_mut() = Vec::new();"
+                    ));
+                    w.puts(&format!(
+                        "*self.{escaped_inst_id}.borrow_mut() = Vec::new();"
+                    ));
+                    let count_str = expr_to_usize(repeat_expr, ctx);
+                    w.puts(&format!("let l_{inst_id} = {count_str};"));
+                    w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                     w.inc();
-                    w.puts("let mut _i = 0_usize;");
-                    w.puts("while !_io.is_eof() {");
-                    w.inc();
-                    emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io", inst.parent_expr.as_ref());
-                    w.puts("_i = _i.saturating_add(1);");
+                    let size_str = expr_to_usize(size, ctx);
+                    w.puts(&format!("self.{inst_id}_raw.borrow_mut().push({io_var}.read_bytes({size_str})?.into());"));
+                    w.puts(&format!(
+                        "let {inst_id}_raw = self.{inst_id}_raw.borrow();"
+                    ));
+                    w.puts(&format!("let _io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().ok_or(KError::EmptyIterator)?.clone());"));
+                    let raw_io = format!("_io_{inst_id}_raw");
+                    emit_read_array_element(
+                        w,
+                        element,
+                        current,
+                        ctx,
+                        &escaped_inst_id,
+                        "self",
+                        &raw_io,
+                        inst.parent_expr.as_ref(),
+                    );
                     w.dec();
                     w.puts("}");
-                    w.dec();
-                    w.puts("}");
-                }
-                RepeatMode::Until(until_expr) => {
-                    w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = Vec::new();"));
-                    w.puts("{");
+                } else {
+                    w.puts(&format!(
+                        "*self.{escaped_inst_id}.borrow_mut() = Vec::new();"
+                    ));
+                    let count_str = expr_to_usize(repeat_expr, ctx);
+                    w.puts(&format!("let l_{inst_id} = {count_str};"));
+                    w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                     w.inc();
-                    w.puts("let mut _i = 0_usize;");
-                    w.puts("loop {");
-                    w.inc();
-                    emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io", inst.parent_expr.as_ref());
-                    w.puts(&format!("let _t_{inst_id} = self.{escaped_inst_id}.borrow();"));
-                    w.puts(&format!("let Some(_tmpa) = _t_{inst_id}.last() else {{ break; }};"));
-                    if super::translator::needs_deref(element) {
-                        w.puts("let _tmpa = *_tmpa;");
-                    }
-                    w.puts("_i = _i.saturating_add(1);");
-                    let until_ctx = ctx.with_element_type(Some(element));
-                    let until_str = translate_expr(until_expr, &until_ctx);
-                    w.puts(&format!("if {until_str} {{ break; }}"));
-                    w.dec();
-                    w.puts("}");
+                    emit_read_array_element(
+                        w,
+                        element,
+                        current,
+                        ctx,
+                        inst_id,
+                        "self",
+                        "_io",
+                        inst.parent_expr.as_ref(),
+                    );
                     w.dec();
                     w.puts("}");
                 }
             }
-        }
-        DataType::UserType { names, is_external, args } => {
+            RepeatMode::Eos => {
+                w.puts(&format!(
+                    "*self.{escaped_inst_id}.borrow_mut() = Vec::new();"
+                ));
+                w.puts("{");
+                w.inc();
+                w.puts("let mut _i = 0_usize;");
+                w.puts("while !_io.is_eof() {");
+                w.inc();
+                emit_read_array_element(
+                    w,
+                    element,
+                    current,
+                    ctx,
+                    inst_id,
+                    "self",
+                    "_io",
+                    inst.parent_expr.as_ref(),
+                );
+                w.puts("_i = _i.saturating_add(1);");
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+            }
+            RepeatMode::Until(until_expr) => {
+                w.puts(&format!(
+                    "*self.{escaped_inst_id}.borrow_mut() = Vec::new();"
+                ));
+                w.puts("{");
+                w.inc();
+                w.puts("let mut _i = 0_usize;");
+                w.puts("loop {");
+                w.inc();
+                emit_read_array_element(
+                    w,
+                    element,
+                    current,
+                    ctx,
+                    inst_id,
+                    "self",
+                    "_io",
+                    inst.parent_expr.as_ref(),
+                );
+                w.puts(&format!(
+                    "let _t_{inst_id} = self.{escaped_inst_id}.borrow();"
+                ));
+                w.puts(&format!(
+                    "let Some(_tmpa) = _t_{inst_id}.last() else {{ break; }};"
+                ));
+                if super::translator::needs_deref(element) {
+                    w.puts("let _tmpa = *_tmpa;");
+                }
+                w.puts("_i = _i.saturating_add(1);");
+                let until_ctx = ctx.with_element_type(Some(element));
+                let until_str = translate_expr(until_expr, &until_ctx);
+                w.puts(&format!("if {until_str} {{ break; }}"));
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+            }
+        },
+        DataType::UserType {
+            names,
+            is_external,
+            args,
+        } => {
             let type_name = types_to_class_name(names);
-            let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
-            let target_class = super::translator::find_class_spec(ctx.root, names);
+            let target_args = get_target_args(
+                names,
+                *is_external,
+                "self",
+                ctx,
+                inst.parent_expr.as_ref(),
+            );
+            let target_class =
+                super::translator::find_class_spec(ctx.root, names);
             let target_params = target_class.map(|c| c.params.as_slice());
-            let has_dyn_endian = target_class.is_some_and(ClassSpec::has_dynamic_endian)
-                || (current.has_dynamic_endian() && target_class.is_some_and(|tc| tc.meta_endian == Some(Endianness::Inherited)));
+            let has_dyn_endian = target_class
+                .is_some_and(ClassSpec::has_dynamic_endian)
+                || (current.has_dynamic_endian()
+                    && target_class.is_some_and(|tc| {
+                        tc.meta_endian == Some(Endianness::Inherited)
+                    }));
             let trans_args = translate_args(args, ctx, true, target_params);
 
             if let Some(size) = &inst.size_expr {
                 let size_str = expr_to_usize(size, ctx);
                 w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = {io_var}.read_bytes({size_str})?.into();"));
-                w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
+                w.puts(&format!(
+                    "let {inst_id}_raw = self.{inst_id}_raw.borrow();"
+                ));
                 w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                 if !trans_args.is_empty() {
                     w.puts(&format!("let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"));
@@ -2819,7 +3509,11 @@ fn emit_parse_instance_body(
                 }
                 w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = t;"));
             } else {
-                let io_ref = if io_var == "_io" { "&*_io".to_string() } else { format!("&{io_var}") };
+                let io_ref = if io_var == "_io" {
+                    "&*_io".to_string()
+                } else {
+                    format!("&{io_var}")
+                };
                 if !trans_args.is_empty() {
                     w.puts(&format!("let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"));
                     w.puts(&format!("let t = Self::read_into_with_init::<_, {type_name}>({io_ref}, {target_args}, &f)?.into();"));
@@ -2834,12 +3528,21 @@ fn emit_parse_instance_body(
         }
         other => {
             let elem_val = read_expr_for_type(other, current, ctx, io_var);
-            w.puts(&format!("*self.{escaped_inst_id}.borrow_mut() = {elem_val};"));
+            w.puts(&format!(
+                "*self.{escaped_inst_id}.borrow_mut() = {elem_val};"
+            ));
         }
     }
 
     if let Some(valid) = &inst.valid {
-        emit_validation_check(w, current, &inst.data_type, valid, ctx, &format!("self.{escaped_inst_id}.borrow()"));
+        emit_validation_check(
+            w,
+            current,
+            &inst.data_type,
+            valid,
+            ctx,
+            &format!("self.{escaped_inst_id}.borrow()"),
+        );
     }
 
     if inst.pos_expr.is_some() {
@@ -2859,11 +3562,16 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
         w.inc();
         let escaped_id = escape_rust_keyword(&attr.id);
         if let DataType::SwitchType { cases, .. } = &attr.data_type {
-            let is_numeric = !cases.is_empty() && cases.values().all(super::translator::is_numeric_type);
+            let is_numeric = !cases.is_empty()
+                && cases.values().all(super::translator::is_numeric_type);
             if is_numeric {
-                let resolved = super::translator::resolve_switch_type(&attr.data_type);
+                let resolved =
+                    super::translator::resolve_switch_type(&attr.data_type);
                 let target_ret = rust_field_type(&resolved, current, &attr.id);
-                w.puts(&format!("pub fn {}(&self) -> {target_ret} {{", attr.id));
+                w.puts(&format!(
+                    "pub fn {}(&self) -> {target_ret} {{",
+                    attr.id
+                ));
                 w.inc();
                 w.puts("// Reason for fallback: unwrap on parsed numeric switch option falls back to 0");
                 w.puts(&format!("self.{escaped_id}.borrow().as_ref().and_then(|v| {target_ret}::try_from(v).ok()).unwrap_or(0)"));
@@ -2881,14 +3589,18 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
                 escaped_id.clone()
             };
             let enum_name = switch_enum_name(current, &attr.id);
-            w.puts(&format!("pub fn {fn_name}(&self) -> Ref<'_, Option<{enum_name}>> {{"));
+            w.puts(&format!(
+                "pub fn {fn_name}(&self) -> Ref<'_, Option<{enum_name}>> {{"
+            ));
             w.inc();
             w.puts(&format!("self.{escaped_id}.borrow()"));
             w.dec();
             w.puts("}");
         } else {
             let ret_type = rust_field_type(&attr.data_type, current, &attr.id);
-            w.puts(&format!("pub fn {escaped_id}(&self) -> Ref<'_, {ret_type}> {{"));
+            w.puts(&format!(
+                "pub fn {escaped_id}(&self) -> Ref<'_, {ret_type}> {{"
+            ));
             w.inc();
             w.puts(&format!("self.{escaped_id}.borrow()"));
             w.dec();
@@ -2906,7 +3618,9 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
     w.puts("self._io.borrow()");
     w.dec();
     w.puts("}");
-    w.puts("pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {");
+    w.puts(
+        "pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {",
+    );
     w.inc();
     w.puts("self._parent.get().ok()");
     w.dec();
@@ -2924,7 +3638,10 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
         if attr.raw_id.is_some() || has_substream(attr) {
             w.puts(&format!("impl {class_name} {{"));
             w.inc();
-            w.puts(&format!("pub fn {}_raw(&self) -> Ref<'_, Vec<u8>> {{", attr.id));
+            w.puts(&format!(
+                "pub fn {}_raw(&self) -> Ref<'_, Vec<u8>> {{",
+                attr.id
+            ));
             w.inc();
             w.puts(&format!("self.{}_raw.borrow()", attr.id));
             w.dec();
@@ -2935,10 +3652,14 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
     }
     for (inst_id, inst) in &current.instances {
         if inst.pos_expr.is_some() || inst.io_expr.is_some() {
-            if matches!(inst.data_type, DataType::ArrayType { .. }) && inst.size_expr.is_some() {
+            if matches!(inst.data_type, DataType::ArrayType { .. })
+                && inst.size_expr.is_some()
+            {
                 w.puts(&format!("impl {class_name} {{"));
                 w.inc();
-                w.puts(&format!("pub fn {inst_id}_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {{"));
+                w.puts(&format!(
+                    "pub fn {inst_id}_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {{"
+                ));
                 w.inc();
                 w.puts(&format!("self.{inst_id}_raw.borrow()"));
                 w.dec();
@@ -2948,10 +3669,13 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
             } else if matches!(
                 inst.data_type,
                 DataType::SwitchType { .. } | DataType::UserType { .. }
-            ) && inst.size_expr.is_some() {
+            ) && inst.size_expr.is_some()
+            {
                 w.puts(&format!("impl {class_name} {{"));
                 w.inc();
-                w.puts(&format!("pub fn {inst_id}_raw(&self) -> Ref<'_, Vec<u8>> {{"));
+                w.puts(&format!(
+                    "pub fn {inst_id}_raw(&self) -> Ref<'_, Vec<u8>> {{"
+                ));
                 w.inc();
                 w.puts(&format!("self.{inst_id}_raw.borrow()"));
                 w.dec();
@@ -2973,7 +3697,11 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
             .values
             .values()
             .any(|l| to_upper_camel_case(l) == "Unknown");
-        let catchall = if has_unknown { "UnknownVariant" } else { "Unknown" };
+        let catchall = if has_unknown {
+            "UnknownVariant"
+        } else {
+            "Unknown"
+        };
 
         w.puts("#[derive(Debug, PartialEq, Copy, Clone)]");
         w.puts(&format!("pub enum {full_enum_name} {{"));
@@ -3001,7 +3729,9 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
         w.puts(&format!("impl TryFrom<i64> for {full_enum_name} {{"));
         w.inc();
         w.puts("type Error = KError;");
-        w.puts(&format!("fn try_from(flag: i64) -> KResult<{full_enum_name}> {{"));
+        w.puts(&format!(
+            "fn try_from(flag: i64) -> KResult<{full_enum_name}> {{"
+        ));
         w.inc();
         w.puts("match flag {");
         w.inc();
@@ -3041,7 +3771,9 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
         // Default
         w.puts(&format!("impl Default for {full_enum_name} {{"));
         w.inc();
-        w.puts(&format!("fn default() -> Self {{ {full_enum_name}::{catchall}(0) }}"));
+        w.puts(&format!(
+            "fn default() -> Self {{ {full_enum_name}::{catchall}(0) }}"
+        ));
         w.dec();
         w.puts("}");
         w.newline();
@@ -3051,7 +3783,10 @@ fn emit_enums(w: &mut CodeWriter, current: &ClassSpec) {
 fn is_bit_type(dt: &DataType) -> bool {
     match dt {
         DataType::Bits1 { .. } | DataType::Bits { .. } => true,
-        DataType::EnumType { underlying: Some(u), .. } => is_bit_type(u),
+        DataType::EnumType {
+            underlying: Some(u),
+            ..
+        } => is_bit_type(u),
         _ => false,
     }
 }

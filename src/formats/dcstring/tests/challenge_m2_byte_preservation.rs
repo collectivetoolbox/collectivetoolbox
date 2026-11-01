@@ -24,13 +24,17 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! 4. Sequential edits, varied field lengths, Unicode, and nested structures.
 //! 5. Verify total elimination of `DcMixedReader` and `source_edit::read_nodes`.
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
-use std::collections::BTreeMap;
-pub use ctb_formats_dcstring::*;
 use ctb_formats_dcdata::dc::*;
+pub use ctb_formats_dcstring::*;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
 #[dc(begin = 317, end = 318)]
@@ -72,7 +76,8 @@ pub struct KeyedFileRecord {
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes() -> Result<()> {
+fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes()
+-> Result<()> {
     let policy = DcProjectionPolicy::strict();
 
     let original = MultiFieldRecord {
@@ -98,10 +103,13 @@ fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes() ->
 
     // Update `name` to a substantially longer string
     let mut updated_longer = original.clone();
-    updated_longer.name = "beta_substantially_longer_replacement_string_for_testing".to_string();
+    updated_longer.name =
+        "beta_substantially_longer_replacement_string_for_testing".to_string();
 
     let revised_clean = view_clean.replace_field("name", &updated_longer)?;
-    ensure!(revised_clean.decode::<MultiFieldRecord>(&policy)? == updated_longer);
+    ensure!(
+        revised_clean.decode::<MultiFieldRecord>(&policy)? == updated_longer
+    );
 
     let rev_clean_view = revised_clean.inspect::<MultiFieldRecord>();
     let rev_name_range = rev_clean_view
@@ -113,13 +121,15 @@ fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes() ->
 
     // 1. Prefix before `name` is 100% byte-exact:
     ensure!(
-        &revised_clean.as_bytes()[..rev_name_range.start] == &orig_clean_bytes[..name_range.start],
+        &revised_clean.as_bytes()[..rev_name_range.start]
+            == &orig_clean_bytes[..name_range.start],
         "Untouched prefix before updated field was altered!"
     );
 
     // 2. Suffix after `name` is 100% byte-exact:
     ensure!(
-        &revised_clean.as_bytes()[rev_name_range.end..] == &orig_clean_bytes[name_range.end..],
+        &revised_clean.as_bytes()[rev_name_range.end..]
+            == &orig_clean_bytes[name_range.end..],
         "Untouched suffix after updated field was altered!"
     );
 
@@ -134,7 +144,10 @@ fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes() ->
     ensure!(view_trailing.value() == Some(&original));
 
     let rev_trailing = view_trailing.replace_field("name", &updated_longer)?;
-    ensure!(rev_trailing.inspect::<MultiFieldRecord>().value() == Some(&updated_longer));
+    ensure!(
+        rev_trailing.inspect::<MultiFieldRecord>().value()
+            == Some(&updated_longer)
+    );
 
     let rev_trailing_name_range = rev_trailing
         .inspect::<MultiFieldRecord>()
@@ -146,17 +159,22 @@ fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes() ->
 
     // Prefix before `name` in trailing document is byte-exact
     ensure!(
-        &rev_trailing.as_bytes()[..rev_trailing_name_range.start] == &orig_trailing_bytes[..name_range.start]
+        &rev_trailing.as_bytes()[..rev_trailing_name_range.start]
+            == &orig_trailing_bytes[..name_range.start]
     );
 
     // Suffix after `name` (including trailing binary payload) is 100% byte-exact!
     ensure!(
-        &rev_trailing.as_bytes()[rev_trailing_name_range.end..] == &orig_trailing_bytes[name_range.end..]
+        &rev_trailing.as_bytes()[rev_trailing_name_range.end..]
+            == &orig_trailing_bytes[name_range.end..]
     );
 
     // Trailing binary payload was not lost or corrupted
     ensure!(
-        rev_trailing.as_bytes().windows(trailing_data.len()).any(|w| w == trailing_data),
+        rev_trailing
+            .as_bytes()
+            .windows(trailing_data.len())
+            .any(|w| w == trailing_data),
         "Trailing binary payload was lost or modified!"
     );
 
@@ -168,7 +186,8 @@ fn test_challenge_source_edit_single_field_update_preserves_untouched_bytes() ->
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_source_edit_textual_dc_string_preserves_bytes_and_formatting() -> Result<()> {
+fn test_challenge_source_edit_textual_dc_string_preserves_bytes_and_formatting()
+-> Result<()> {
     let policy = DcProjectionPolicy::strict();
 
     let original = MultiFieldRecord {
@@ -206,12 +225,14 @@ fn test_challenge_source_edit_textual_dc_string_preserves_bytes_and_formatting()
 
     // Byte-exact prefix check
     ensure!(
-        &revised.as_bytes()[..rev_name_annot.range().start] == &orig_bytes[..name_range.start]
+        &revised.as_bytes()[..rev_name_annot.range().start]
+            == &orig_bytes[..name_range.start]
     );
 
     // Byte-exact suffix check (including active, score, and container closer)
     ensure!(
-        &revised.as_bytes()[rev_name_annot.range().end..] == &orig_bytes[name_range.end..]
+        &revised.as_bytes()[rev_name_annot.range().end..]
+            == &orig_bytes[name_range.end..]
     );
 
     Ok(())
@@ -222,7 +243,8 @@ fn test_challenge_source_edit_textual_dc_string_preserves_bytes_and_formatting()
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_first_and_last_field_updates_preserve_boundaries() -> Result<()> {
+fn test_challenge_first_and_last_field_updates_preserve_boundaries()
+-> Result<()> {
     let policy = DcProjectionPolicy::strict();
 
     let original = MultiFieldRecord {
@@ -249,7 +271,9 @@ fn test_challenge_first_and_last_field_updates_preserve_boundaries() -> Result<(
     updated_first.id = 123456789012345;
 
     let revised_first = view.replace_field("id", &updated_first)?;
-    ensure!(revised_first.decode::<MultiFieldRecord>(&policy)? == updated_first);
+    ensure!(
+        revised_first.decode::<MultiFieldRecord>(&policy)? == updated_first
+    );
 
     let rev_first_view = revised_first.inspect::<MultiFieldRecord>();
     let rev_id_end = rev_first_view
@@ -261,9 +285,14 @@ fn test_challenge_first_and_last_field_updates_preserve_boundaries() -> Result<(
         .end;
 
     // Opener before id is untouched:
-    ensure!(&revised_first.as_bytes()[..id_range.start] == &doc_bytes[..id_range.start]);
+    ensure!(
+        &revised_first.as_bytes()[..id_range.start]
+            == &doc_bytes[..id_range.start]
+    );
     // Suffix after id (name + active + score + closer) is untouched:
-    ensure!(&revised_first.as_bytes()[rev_id_end..] == &doc_bytes[id_range.end..]);
+    ensure!(
+        &revised_first.as_bytes()[rev_id_end..] == &doc_bytes[id_range.end..]
+    );
 
     // 2. Update LAST field (score)
     let score_annot = view
@@ -289,9 +318,15 @@ fn test_challenge_first_and_last_field_updates_preserve_boundaries() -> Result<(
         .end;
 
     // Everything before score is untouched:
-    ensure!(&revised_last.as_bytes()[..score_range.start] == &doc_bytes[..score_range.start]);
+    ensure!(
+        &revised_last.as_bytes()[..score_range.start]
+            == &doc_bytes[..score_range.start]
+    );
     // Closer after score is untouched:
-    ensure!(&revised_last.as_bytes()[rev_score_end..] == &doc_bytes[score_range.end..]);
+    ensure!(
+        &revised_last.as_bytes()[rev_score_end..]
+            == &doc_bytes[score_range.end..]
+    );
 
     // 3. Update MIDDLE field (active)
     let active_annot = view
@@ -316,8 +351,14 @@ fn test_challenge_first_and_last_field_updates_preserve_boundaries() -> Result<(
         .range()
         .end;
 
-    ensure!(&revised_mid.as_bytes()[..active_range.start] == &doc_bytes[..active_range.start]);
-    ensure!(&revised_mid.as_bytes()[rev_active_end..] == &doc_bytes[active_range.end..]);
+    ensure!(
+        &revised_mid.as_bytes()[..active_range.start]
+            == &doc_bytes[..active_range.start]
+    );
+    ensure!(
+        &revised_mid.as_bytes()[rev_active_end..]
+            == &doc_bytes[active_range.end..]
+    );
 
     Ok(())
 }
@@ -327,7 +368,8 @@ fn test_challenge_first_and_last_field_updates_preserve_boundaries() -> Result<(
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_sequential_edits_retain_untouched_bytes_throughout() -> Result<()> {
+fn test_challenge_sequential_edits_retain_untouched_bytes_throughout()
+-> Result<()> {
     let policy = DcProjectionPolicy::strict();
 
     let original = MultiFieldRecord {
@@ -343,21 +385,27 @@ fn test_challenge_sequential_edits_retain_untouched_bytes_throughout() -> Result
     let mut step1_target = original.clone();
     step1_target.name = "step1_modified_name".to_string();
 
-    let doc1 = doc.inspect::<MultiFieldRecord>().replace_field("name", &step1_target)?;
+    let doc1 = doc
+        .inspect::<MultiFieldRecord>()
+        .replace_field("name", &step1_target)?;
     ensure!(doc1.decode::<MultiFieldRecord>(&policy)? == step1_target);
 
     // Step 2: edit `score` on doc1
     let mut step2_target = step1_target.clone();
     step2_target.score = Some(888);
 
-    let doc2 = doc1.inspect::<MultiFieldRecord>().replace_field("score", &step2_target)?;
+    let doc2 = doc1
+        .inspect::<MultiFieldRecord>()
+        .replace_field("score", &step2_target)?;
     ensure!(doc2.decode::<MultiFieldRecord>(&policy)? == step2_target);
 
     // Step 3: edit `id` on doc2
     let mut step3_target = step2_target.clone();
     step3_target.id = 99999;
 
-    let doc3 = doc2.inspect::<MultiFieldRecord>().replace_field("id", &step3_target)?;
+    let doc3 = doc2
+        .inspect::<MultiFieldRecord>()
+        .replace_field("id", &step3_target)?;
     ensure!(doc3.decode::<MultiFieldRecord>(&policy)? == step3_target);
 
     // Verify untouched field `active` was NEVER modified:
@@ -392,7 +440,8 @@ fn test_challenge_sequential_edits_retain_untouched_bytes_throughout() -> Result
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_unknown_forward_compatible_tokens_preserved_around_edits() -> Result<()> {
+fn test_challenge_unknown_forward_compatible_tokens_preserved_around_edits()
+-> Result<()> {
     let policy = DcProjectionPolicy::forgiving();
 
     // Build document with unknown future tag 777 embedded between fields
@@ -433,7 +482,10 @@ fn test_challenge_unknown_forward_compatible_tokens_preserved_around_edits() -> 
 
     // Verify unknown payload was NOT corrupted or stripped
     ensure!(
-        revised.as_bytes().windows(unknown_bytes.len()).any(|w| w == unknown_bytes),
+        revised
+            .as_bytes()
+            .windows(unknown_bytes.len())
+            .any(|w| w == unknown_bytes),
         "Unknown future binary payload was destroyed during known field replacement!"
     );
 
@@ -441,7 +493,10 @@ fn test_challenge_unknown_forward_compatible_tokens_preserved_around_edits() -> 
     let mut tag_777_bytes = DcMstring::new();
     tag_777_bytes.push_char(DcChar::from_short(777));
     ensure!(
-        revised.as_bytes().windows(tag_777_bytes.payload_len()).any(|w| w == tag_777_bytes.payload_bytes()),
+        revised
+            .as_bytes()
+            .windows(tag_777_bytes.payload_len())
+            .any(|w| w == tag_777_bytes.payload_bytes()),
         "Unknown future tag was stripped during known field replacement!"
     );
 
@@ -492,14 +547,16 @@ fn test_challenge_complex_record_with_collections_and_maps() -> Result<()> {
 
     // 1. All bytes before `title` are 100% byte-exact:
     ensure!(
-        &revised.as_bytes()[..rev_title_range.start] == &orig_bytes[..title_range.start],
+        &revised.as_bytes()[..rev_title_range.start]
+            == &orig_bytes[..title_range.start],
         "Bytes before title diverged!"
     );
 
     // 2. All bytes after `title` (which includes `counters`, `flags`, and closer)
     // are 100% byte-exact!
     ensure!(
-        &revised.as_bytes()[rev_title_range.end..] == &orig_bytes[title_range.end..],
+        &revised.as_bytes()[rev_title_range.end..]
+            == &orig_bytes[title_range.end..],
         "Bytes after title diverged!"
     );
 
@@ -516,7 +573,9 @@ fn test_challenge_complex_record_with_collections_and_maps() -> Result<()> {
         .range();
 
     let revised2 = view2.replace_field("counters", &updated_counters)?;
-    ensure!(revised2.decode::<BoundedComplexRecord>(&policy)? == updated_counters);
+    ensure!(
+        revised2.decode::<BoundedComplexRecord>(&policy)? == updated_counters
+    );
 
     let rev2_view = revised2.inspect::<BoundedComplexRecord>();
     let rev2_counters_range = rev2_view
@@ -528,11 +587,13 @@ fn test_challenge_complex_record_with_collections_and_maps() -> Result<()> {
 
     // Title and opener before counters must be byte-exact:
     ensure!(
-        &revised2.as_bytes()[..rev2_counters_range.start] == &orig_bytes[..counters_range.start]
+        &revised2.as_bytes()[..rev2_counters_range.start]
+            == &orig_bytes[..counters_range.start]
     );
     // Flags and closer after counters must be byte-exact:
     ensure!(
-        &revised2.as_bytes()[rev2_counters_range.end..] == &orig_bytes[counters_range.end..]
+        &revised2.as_bytes()[rev2_counters_range.end..]
+            == &orig_bytes[counters_range.end..]
     );
 
     Ok(())
@@ -543,7 +604,8 @@ fn test_challenge_complex_record_with_collections_and_maps() -> Result<()> {
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_keyed_map_preserves_legacy_delimiters_and_untouched_entries() -> Result<()> {
+fn test_challenge_keyed_map_preserves_legacy_delimiters_and_untouched_entries()
+-> Result<()> {
     let strict = DcProjectionPolicy::strict();
     let original = KeyedFileRecord {
         title: "original_title".to_string(),
@@ -599,13 +661,15 @@ fn test_challenge_keyed_map_preserves_legacy_delimiters_and_untouched_entries() 
 
     // 1. Untouched entry `title` before `count` is 100% byte-exact:
     ensure!(
-        &revised.as_bytes()[..rev_count_annot.range().start] == &orig_bytes[..count_annot.range().start],
+        &revised.as_bytes()[..rev_count_annot.range().start]
+            == &orig_bytes[..count_annot.range().start],
         "Prefix before count in keyed map diverged!"
     );
 
     // 2. Untouched entry `active` after `count` is 100% byte-exact:
     ensure!(
-        &revised.as_bytes()[rev_count_annot.range().end..] == &orig_bytes[count_annot.range().end..],
+        &revised.as_bytes()[rev_count_annot.range().end..]
+            == &orig_bytes[count_annot.range().end..],
         "Suffix after count in keyed map diverged!"
     );
 

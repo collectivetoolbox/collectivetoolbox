@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! `PolyFile` attribution, polyglot container detection, and nested format
 //! parsing subsystem.
 //!
@@ -511,7 +510,8 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                 } else {
                     "GIF image"
                 };
-                let desc = format!("Polyglot container: {img_name} and ZIP archive");
+                let desc =
+                    format!("Polyglot container: {img_name} and ZIP archive");
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -521,7 +521,10 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                     score: 95,
                     evidence: vec![
                         DetectionEvidence::Polyglot {
-                            formats: vec![img_name.to_string(), "ZIP archive".to_string()],
+                            formats: vec![
+                                img_name.to_string(),
+                                "ZIP archive".to_string(),
+                            ],
                             detail: format!(
                                 "Dual valid headers: {} at offset 0, ZIP Central Directory with {} entries at EOF",
                                 img_name,
@@ -531,7 +534,13 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                         },
                         DetectionEvidence::ByteRange {
                             start: 0,
-                            end: if is_png { 8 } else if is_jpeg { 3 } else { 6 },
+                            end: if is_png {
+                                8
+                            } else if is_jpeg {
+                                3
+                            } else {
+                                6
+                            },
                             label: format!("{img_name} Header"),
                             score: 95,
                         },
@@ -543,11 +552,13 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
     }
 
     // 2. PDF + ZIP Polyglot (PDF at BOF, ZIP Central Directory at EOF)
-    let is_pdf = bof.starts_with(b"%PDF-") || bof.windows(5).take(1024).any(|w| w == b"%PDF-");
+    let is_pdf = bof.starts_with(b"%PDF-")
+        || bof.windows(5).take(1024).any(|w| w == b"%PDF-");
     if is_pdf && has_zip_eocd {
         if let Ok(Some(entries)) = parse_zip_central_directory(source) {
             if !entries.is_empty() {
-                let desc = "Polyglot container: PDF document and ZIP archive".to_string();
+                let desc = "Polyglot container: PDF document and ZIP archive"
+                    .to_string();
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -556,7 +567,10 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 95,
                     evidence: vec![DetectionEvidence::Polyglot {
-                        formats: vec!["PDF document".to_string(), "ZIP archive".to_string()],
+                        formats: vec![
+                            "PDF document".to_string(),
+                            "ZIP archive".to_string(),
+                        ],
                         detail: format!(
                             "Dual valid headers: PDF header at offset 0, ZIP Central Directory with {} entries at EOF",
                             entries.len()
@@ -575,8 +589,14 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
     if (is_pe || is_elf) && has_zip_eocd {
         if let Ok(Some(entries)) = parse_zip_central_directory(source) {
             if !entries.is_empty() {
-                let exec_name = if is_pe { "Windows PE executable" } else { "ELF executable" };
-                let desc = format!("Self-extracting archive (SFX polyglot: {exec_name} + ZIP)");
+                let exec_name = if is_pe {
+                    "Windows PE executable"
+                } else {
+                    "ELF executable"
+                };
+                let desc = format!(
+                    "Self-extracting archive (SFX polyglot: {exec_name} + ZIP)"
+                );
                 return Ok(Some(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -585,7 +605,10 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                     confidence: ConfidenceTier::HighestConfidence,
                     score: 95,
                     evidence: vec![DetectionEvidence::Polyglot {
-                        formats: vec![exec_name.to_string(), "ZIP archive".to_string()],
+                        formats: vec![
+                            exec_name.to_string(),
+                            "ZIP archive".to_string(),
+                        ],
                         detail: format!(
                             "SFX executable binary at offset 0 followed by embedded ZIP Central Directory with {} entries",
                             entries.len()
@@ -600,7 +623,8 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
 
     // 4. GIF + JavaScript Polyglot (starts with GIF89a/*)
     if bof.starts_with(b"GIF89a/*") {
-        let desc = "Polyglot container: GIF image and JavaScript source".to_string();
+        let desc =
+            "Polyglot container: GIF image and JavaScript source".to_string();
         return Ok(Some(DetectionCandidate {
             format_id: None,
             dc_id: None,
@@ -635,7 +659,10 @@ pub fn inspect_nested_archive_entries<S: DetectionSource + ?Sized>(
                     format_id: Some(FormatId::Xml),
                     dc_id: None,
                     mime: Some("application/xml".to_string()),
-                    description: format!("Embedded XML document: {}", entry.name),
+                    description: format!(
+                        "Embedded XML document: {}",
+                        entry.name
+                    ),
                     confidence: ConfidenceTier::Strong,
                     score: 80,
                     evidence: vec![DetectionEvidence::ContainerStructure {
@@ -702,7 +729,9 @@ mod tests {
         // Append minimal ZIP
         let cd_offset = u32::try_from(data.len()).unwrap_or(0);
         data.extend_from_slice(&[0x50, 0x4B, 0x01, 0x02]); // CD header
-        data.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&[
+            20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
         data.extend_from_slice(&4u16.to_le_bytes()); // flen
         data.extend_from_slice(&0u16.to_le_bytes());
         data.extend_from_slice(&0u16.to_le_bytes());
@@ -739,7 +768,9 @@ mod tests {
 
         let cd_offset = u32::try_from(data.len()).unwrap_or(0);
         data.extend_from_slice(&[0x50, 0x4B, 0x01, 0x02]);
-        data.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&[
+            20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
         data.extend_from_slice(&4u16.to_le_bytes());
         data.extend_from_slice(&0u16.to_le_bytes());
         data.extend_from_slice(&0u16.to_le_bytes());
@@ -769,12 +800,16 @@ mod tests {
     fn test_sfx_polyglot() {
         let mut data = Vec::new();
         // MZ stub
-        data.extend_from_slice(b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xFF\xFF\x00\x00");
+        data.extend_from_slice(
+            b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xFF\xFF\x00\x00",
+        );
         data.resize(500, 0);
 
         let cd_offset = u32::try_from(data.len()).unwrap_or(0);
         data.extend_from_slice(&[0x50, 0x4B, 0x01, 0x02]);
-        data.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&[
+            20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
         data.extend_from_slice(&5u16.to_le_bytes());
         data.extend_from_slice(&0u16.to_le_bytes());
         data.extend_from_slice(&0u16.to_le_bytes());

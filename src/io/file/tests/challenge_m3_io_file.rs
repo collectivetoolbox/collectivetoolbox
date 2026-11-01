@@ -25,22 +25,27 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! 3. Stress-test `AttachedStream`: missing stream data tags (Dc 385), missing StreamKind,
 //!    missing FileEntity, corrupt container framing, and nameless stream handling.
 
-
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 use ctb_utilities::*;
 
 use ctb_formats_dcstring::dc::*;
 use ctb_formats_dcstring::{
     DcChar, DcDocumentNavigator, DcMixedDecode, DcMixedEncode, DcMstring,
-    DcProjectionContext, DcProjectionPolicy, DcSyntaxArena, assert_dc_roundtrip,
+    DcProjectionContext, DcProjectionPolicy, DcSyntaxArena,
+    assert_dc_roundtrip,
 };
+use ctb_io_file::identity::{FileIdentity, FileOrigin};
 use ctb_io_file::metadata::{
     AppleMetadata, FileTimestamps, NativeMetadata, PlatformRawFlags,
 };
 use ctb_io_file::{
-    AttachedStream, FileEntity, FileEntityKind, LinkPath, StreamKind, StreamName,
+    AttachedStream, FileEntity, FileEntityKind, LinkPath, StreamKind,
+    StreamName,
 };
-use ctb_io_file::identity::{FileIdentity, FileOrigin};
 use ctb_utilities::format_id::FormatId;
 use std::path::{Path, PathBuf};
 
@@ -49,7 +54,8 @@ use std::path::{Path, PathBuf};
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_linkpath_strict_rejection_vs_forgiving_recovery() -> Result<()> {
+fn test_challenge_linkpath_strict_rejection_vs_forgiving_recovery() -> Result<()>
+{
     let strict = DcProjectionPolicy::strict();
     let forgiving = DcProjectionPolicy::forgiving();
 
@@ -96,16 +102,23 @@ fn test_challenge_linkpath_strict_rejection_vs_forgiving_recovery() -> Result<()
 
     // Both strict and forgiving MUST successfully decode typed path
     let decoded_strict = valid_mst.decode::<LinkPath>(&strict)?;
-    ensure!(decoded_strict == valid_path, "Strict failed to decode valid typed LinkPath");
+    ensure!(
+        decoded_strict == valid_path,
+        "Strict failed to decode valid typed LinkPath"
+    );
 
     let decoded_forgiving = valid_mst.decode::<LinkPath>(&forgiving)?;
-    ensure!(decoded_forgiving == valid_path, "Forgiving failed to decode valid typed LinkPath");
+    ensure!(
+        decoded_forgiving == valid_path,
+        "Forgiving failed to decode valid typed LinkPath"
+    );
 
     Ok(())
 }
 
 #[crate::ctb_test]
-fn test_challenge_linkpath_conflicting_and_malformed_representations() -> Result<()> {
+fn test_challenge_linkpath_conflicting_and_malformed_representations()
+-> Result<()> {
     let strict = DcProjectionPolicy::strict();
 
     // 1. Conflicting representations: segments disagree with binary payload
@@ -220,12 +233,18 @@ fn test_challenge_streamname_wtf8_and_invalid_utf8() -> Result<()> {
     // 3. WTF-8 format tag validation:
     // If bytes are canonical WTF-8, it decodes to WindowsUtf16
     let wtf8_bytes = vec![0xed, 0xa0, 0x80];
-    let from_enc = StreamName::from_encoded(FormatId::Wtf8, wtf8_bytes.clone())?;
+    let from_enc =
+        StreamName::from_encoded(FormatId::Wtf8, wtf8_bytes.clone())?;
     match from_enc {
         StreamName::WindowsUtf16(ref units) => {
-            ensure!(units == &[0xd800], "Expected single surrogate unit 0xd800");
+            ensure!(
+                units == &[0xd800],
+                "Expected single surrogate unit 0xd800"
+            );
         }
-        other => bail!("Expected WindowsUtf16 for canonical WTF-8, got {other:?}"),
+        other => {
+            bail!("Expected WindowsUtf16 for canonical WTF-8, got {other:?}")
+        }
     }
 
     Ok(())
@@ -336,7 +355,8 @@ fn test_challenge_attached_stream_missing_data_tag() -> Result<()> {
 }
 
 #[crate::ctb_test]
-fn test_challenge_attached_stream_missing_fields_and_corrupt_framing() -> Result<()> {
+fn test_challenge_attached_stream_missing_fields_and_corrupt_framing()
+-> Result<()> {
     let strict = DcProjectionPolicy::strict();
 
     // 1. Missing StreamKind: Container 323..324 with FileEntity (317..318) but no StreamKind
@@ -397,7 +417,10 @@ fn test_challenge_attached_stream_nameless_and_wtf8() -> Result<()> {
     nameless.encode_dc_mixed(&mut mst)?;
 
     let decoded: AttachedStream = mst.decode(&strict)?;
-    ensure!(decoded.name.is_none(), "Nameless stream must decode name as None");
+    ensure!(
+        decoded.name.is_none(),
+        "Nameless stream must decode name as None"
+    );
     ensure!(decoded.kind == StreamKind::MacOsResourceFork);
     ensure!(decoded.data == Some(b"RESOURCE_FORK_RAW_DATA".to_vec()));
 
@@ -427,7 +450,8 @@ fn test_challenge_attached_stream_nameless_and_wtf8() -> Result<()> {
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_challenge_file_timestamps_strict_rejection_and_resolution() -> Result<()> {
+fn test_challenge_file_timestamps_strict_rejection_and_resolution() -> Result<()>
+{
     let strict = DcProjectionPolicy::strict();
     let forgiving = DcProjectionPolicy::forgiving();
 
@@ -453,10 +477,17 @@ fn test_challenge_file_timestamps_strict_rejection_and_resolution() -> Result<()
     meta.encode_dc_mixed(&mut mst)?;
 
     let decoded_strict: ctb_io_file::FileMetadata = mst.decode(&strict)?;
-    ensure!(decoded_strict.timestamps == Some(ts), "Strict roundtrip mismatch for FileTimestamps");
+    ensure!(
+        decoded_strict.timestamps == Some(ts),
+        "Strict roundtrip mismatch for FileTimestamps"
+    );
 
-    let decoded_forgiving: ctb_io_file::FileMetadata = mst.decode(&forgiving)?;
-    ensure!(decoded_forgiving.timestamps == Some(ts), "Forgiving roundtrip mismatch for FileTimestamps");
+    let decoded_forgiving: ctb_io_file::FileMetadata =
+        mst.decode(&forgiving)?;
+    ensure!(
+        decoded_forgiving.timestamps == Some(ts),
+        "Forgiving roundtrip mismatch for FileTimestamps"
+    );
 
     // 2. Negative timestamps (before Unix epoch, e.g. 1950-01-01)
     let neg_ts = FileTimestamps {
@@ -477,7 +508,10 @@ fn test_challenge_file_timestamps_strict_rejection_and_resolution() -> Result<()
     let mut neg_mst = DcMstring::new();
     neg_meta.encode_dc_mixed(&mut neg_mst)?;
     let decoded_neg: ctb_io_file::FileMetadata = neg_mst.decode(&strict)?;
-    ensure!(decoded_neg.timestamps == Some(neg_ts), "Negative timestamp roundtrip mismatch");
+    ensure!(
+        decoded_neg.timestamps == Some(neg_ts),
+        "Negative timestamp roundtrip mismatch"
+    );
 
     // 3. Strict rejection of bare timestamp number without Dc 390..391 time moment framing
     let mut bare_ts = DcMstring::new();
@@ -512,7 +546,10 @@ fn test_challenge_platform_raw_flags_safety_and_width() -> Result<()> {
     flags8.encode_dc_mixed(&mut mst8)?;
 
     let decoded8: PlatformRawFlags = mst8.decode(&strict)?;
-    ensure!(decoded8 == flags8, "8-byte PlatformRawFlags roundtrip mismatch");
+    ensure!(
+        decoded8 == flags8,
+        "8-byte PlatformRawFlags roundtrip mismatch"
+    );
     ensure!(decoded8.raw_value == 0x0102030405060708);
 
     // 2. Valid 4-byte raw flags (32-bit legacy BSD chflags)
@@ -599,7 +636,9 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
         },
         // Named stream with Unicode name
         AttachedStream {
-            name: Some(StreamName::from_str("com.apple.metadata:kMDItemWhereFroms_üñîçødë")),
+            name: Some(StreamName::from_str(
+                "com.apple.metadata:kMDItemWhereFroms_üñîçødë",
+            )),
             kind: StreamKind::ExtendedAttribute,
             entity: Box::new(FileEntity::from_vec(Vec::new())),
             data: Some(b"https://example.com/test".to_vec()),
@@ -651,22 +690,37 @@ fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
         // Verify Dc 385 tag is present if and only if stream.data.is_some()
         let has_dc_385 = chars.iter().any(|&c| c == DcChar::from_short(385));
         if stream.data.is_some() {
-            ensure!(has_dc_385, "Expected Dc 385 tag when stream data is present");
+            ensure!(
+                has_dc_385,
+                "Expected Dc 385 tag when stream data is present"
+            );
         } else {
-            ensure!(!has_dc_385, "Dc 385 tag must not be present when stream data is None");
+            ensure!(
+                !has_dc_385,
+                "Dc 385 tag must not be present when stream data is None"
+            );
         }
 
         // Verify Dc 338 tag is present if and only if stream.name.is_some()
         let has_dc_338 = chars.iter().any(|&c| c == DcChar::from_short(338));
         if stream.name.is_some() {
-            ensure!(has_dc_338, "Expected Dc 338 tag when stream name is present");
+            ensure!(
+                has_dc_338,
+                "Expected Dc 338 tag when stream name is present"
+            );
         } else {
-            ensure!(!has_dc_338, "Dc 338 tag must not be present when stream name is None");
+            ensure!(
+                !has_dc_338,
+                "Dc 338 tag must not be present when stream name is None"
+            );
         }
 
         // Decode under strict policy and verify lossless roundtrip
         let decoded: AttachedStream = mst.decode(&strict)?;
-        ensure!(decoded == stream, "AttachedStream roundtrip mismatch for {stream:?}");
+        ensure!(
+            decoded == stream,
+            "AttachedStream roundtrip mismatch for {stream:?}"
+        );
     }
 
     Ok(())
@@ -706,7 +760,10 @@ fn test_attached_stream_in_file_entity_roundtrip() -> Result<()> {
 
     let decoded: FileEntity = mst.decode(&strict)?;
     ensure!(decoded.streams.len() == 3, "Decoded stream count mismatch");
-    ensure!(decoded.streams == entity.streams, "Attached streams in FileEntity roundtrip mismatch");
+    ensure!(
+        decoded.streams == entity.streams,
+        "Attached streams in FileEntity roundtrip mismatch"
+    );
 
     Ok(())
 }
@@ -716,7 +773,8 @@ fn test_attached_stream_in_file_entity_roundtrip() -> Result<()> {
 // ============================================================================
 
 #[crate::ctb_test]
-fn test_pathbuf_standalone_strict_rejection_vs_forgiving_recovery() -> Result<()> {
+fn test_pathbuf_standalone_strict_rejection_vs_forgiving_recovery() -> Result<()>
+{
     let strict = DcProjectionPolicy::strict();
     let forgiving = DcProjectionPolicy::forgiving();
 
@@ -726,9 +784,15 @@ fn test_pathbuf_standalone_strict_rejection_vs_forgiving_recovery() -> Result<()
     valid_path.encode_dc_mixed(&mut valid_mst)?;
 
     let decoded_strict: PathBuf = valid_mst.decode(&strict)?;
-    ensure!(decoded_strict == valid_path, "Strict failed to decode formatted PathBuf");
+    ensure!(
+        decoded_strict == valid_path,
+        "Strict failed to decode formatted PathBuf"
+    );
     let decoded_forgiving: PathBuf = valid_mst.decode(&forgiving)?;
-    ensure!(decoded_forgiving == valid_path, "Forgiving failed to decode formatted PathBuf");
+    ensure!(
+        decoded_forgiving == valid_path,
+        "Forgiving failed to decode formatted PathBuf"
+    );
 
     // 2. Bare string representation of PathBuf
     let mut bare_str_mst = DcMstring::new();
@@ -776,9 +840,15 @@ fn test_option_pathbuf_standalone_strict_vs_forgiving() -> Result<()> {
     let mut none_mst = DcMstring::new();
     none_mst.push_char(DC_OPTIONAL_ABSENT); // 316
     let dec_none_strict: Option<PathBuf> = none_mst.decode(&strict)?;
-    ensure!(dec_none_strict.is_none(), "Strict decode of Dc 316 must be None");
+    ensure!(
+        dec_none_strict.is_none(),
+        "Strict decode of Dc 316 must be None"
+    );
     let dec_none_forgiving: Option<PathBuf> = none_mst.decode(&forgiving)?;
-    ensure!(dec_none_forgiving.is_none(), "Forgiving decode of Dc 316 must be None");
+    ensure!(
+        dec_none_forgiving.is_none(),
+        "Forgiving decode of Dc 316 must be None"
+    );
 
     // 2. Some(formatted PathBuf) (Dc 315 + format 511 + f494)
     let opt_some = Some(PathBuf::from("usr/bin/python"));
@@ -786,9 +856,15 @@ fn test_option_pathbuf_standalone_strict_vs_forgiving() -> Result<()> {
     opt_some.encode_dc_mixed(&mut some_mst)?;
 
     let dec_some_strict: Option<PathBuf> = some_mst.decode(&strict)?;
-    ensure!(dec_some_strict == opt_some, "Strict decode of formatted Option<PathBuf> mismatch");
+    ensure!(
+        dec_some_strict == opt_some,
+        "Strict decode of formatted Option<PathBuf> mismatch"
+    );
     let dec_some_forgiving: Option<PathBuf> = some_mst.decode(&forgiving)?;
-    ensure!(dec_some_forgiving == opt_some, "Forgiving decode of formatted Option<PathBuf> mismatch");
+    ensure!(
+        dec_some_forgiving == opt_some,
+        "Forgiving decode of formatted Option<PathBuf> mismatch"
+    );
 
     // 3. Bare string inside Dc 315: 315 "usr/bin/python"
     let mut bare_some_mst = DcMstring::new();
@@ -814,13 +890,17 @@ fn test_option_pathbuf_standalone_strict_vs_forgiving() -> Result<()> {
 
     // Strict MUST reject bare binary inside Option
     ensure!(
-        bare_bin_some_mst.decode::<Option<PathBuf>>(&strict).is_err(),
+        bare_bin_some_mst
+            .decode::<Option<PathBuf>>(&strict)
+            .is_err(),
         "Strict decode of Option<PathBuf> with bare binary MUST error, but succeeded"
     );
 
     // Forgiving MUST also reject bare binary inside Option (no fallback)
     ensure!(
-        bare_bin_some_mst.decode::<Option<PathBuf>>(&forgiving).is_err(),
+        bare_bin_some_mst
+            .decode::<Option<PathBuf>>(&forgiving)
+            .is_err(),
         "Forgiving decode of Option<PathBuf> with bare binary MUST error"
     );
 
@@ -844,9 +924,15 @@ fn test_derived_struct_option_pathbuf_strict_vs_forgiving() -> Result<()> {
     valid_id.encode_dc_mixed(&mut valid_mst)?;
 
     let dec_strict: FileIdentity = valid_mst.decode(&strict)?;
-    ensure!(dec_strict == valid_id, "Valid FileIdentity strict roundtrip mismatch");
+    ensure!(
+        dec_strict == valid_id,
+        "Valid FileIdentity strict roundtrip mismatch"
+    );
     let dec_forgiving: FileIdentity = valid_mst.decode(&forgiving)?;
-    ensure!(dec_forgiving == valid_id, "Valid FileIdentity forgiving roundtrip mismatch");
+    ensure!(
+        dec_forgiving == valid_id,
+        "Valid FileIdentity forgiving roundtrip mismatch"
+    );
 
     // Case 3B: FileIdentity with unformatted bare string in relative_path
     // Framing: 319 (begin FileIdentity), origin, 337 (relative_path), "docs/report.pdf", 355 (nlink), 1, 320 (end)
@@ -927,7 +1013,8 @@ fn test_derived_struct_option_pathbuf_strict_vs_forgiving() -> Result<()> {
 }
 
 #[crate::ctb_test]
-fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()> {
+fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()>
+{
     let strict = DcProjectionPolicy::strict();
 
     // 1. assert_dc_roundtrip on standard AttachedStream
@@ -969,7 +1056,9 @@ fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()>
     );
     let kind_atom = arena.alloc(
         span,
-        ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(DcChar::from_short(379)),
+        ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(
+            DcChar::from_short(379),
+        ),
     );
     let entity_node = arena.alloc(
         span,
@@ -1053,7 +1142,10 @@ fn test_option_pathbuf_equivalent_list_separation() -> Result<()> {
     well_formed.push_char(DC_END_LIST); // 311
 
     let dec_wf_strict: PathBuf = well_formed.decode(&strict)?;
-    ensure!(dec_wf_strict == path, "Well-formed equivalent list decode mismatch");
+    ensure!(
+        dec_wf_strict == path,
+        "Well-formed equivalent list decode mismatch"
+    );
 
     // 2. Malformed equivalent list: missing separator Dc 312 between elements
     // 397 [ 275 formatted_path formatted_path 311 ]

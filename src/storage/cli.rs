@@ -26,56 +26,62 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-
 use crate as ctb_storage;
 
 pub fn adduser(username: &str, password_stdin: bool) -> Result<ToolResult> {
-                use std::io::IsTerminal;
-            use std::io::Write;
+    use std::io::IsTerminal;
+    use std::io::Write;
 
-            let password_str =
-                if !password_stdin && std::io::stdin().is_terminal() {
-                    print!("Enter password for '{username}': ");
-                    std::io::stdout().flush()?;
-                    let mut p1 = String::new();
-                    std::io::stdin().read_line(&mut p1)?;
-                    let p1 = p1.trim_end_matches(['\r', '\n']).to_string();
+    let password_str = if !password_stdin && std::io::stdin().is_terminal() {
+        print!("Enter password for '{username}': ");
+        std::io::stdout().flush()?;
+        let mut p1 = String::new();
+        std::io::stdin().read_line(&mut p1)?;
+        let p1 = p1.trim_end_matches(['\r', '\n']).to_string();
 
-                    print!("Confirm password: ");
-                    std::io::stdout().flush()?;
-                    let mut p2 = String::new();
-                    std::io::stdin().read_line(&mut p2)?;
-                    let p2 = p2.trim_end_matches(['\r', '\n']).to_string();
+        print!("Confirm password: ");
+        std::io::stdout().flush()?;
+        let mut p2 = String::new();
+        std::io::stdin().read_line(&mut p2)?;
+        let p2 = p2.trim_end_matches(['\r', '\n']).to_string();
 
-                    if p1 != p2 {
-                        bail!("Passwords do not match");
-                    }
-                    p1
-                } else {
-                    let mut p = String::new();
-                    std::io::stdin().read_line(&mut p)?;
-                    p.trim_end_matches(['\r', '\n']).to_string()
-                };
+        if p1 != p2 {
+            bail!("Passwords do not match");
+        }
+        p1
+    } else {
+        let mut p = String::new();
+        std::io::stdin().read_line(&mut p)?;
+        p.trim_end_matches(['\r', '\n']).to_string()
+    };
 
-            if password_str.is_empty() {
-                bail!("Password cannot be empty");
-            }
+    if password_str.is_empty() {
+        bail!("Password cannot be empty");
+    }
 
-            let password =
-                ctb_utilities::password::Password::from_string(&password_str);
-            let user =
-                ctb_storage::user::add_non_admin_user(username, &password)?;
+    let password =
+        ctb_utilities::password::Password::from_string(&password_str);
+    let user = ctb_storage::user::add_non_admin_user(username, &password)?;
 
-            println!(
-                "User '{name}' registered successfully with ID {id}.",
-                name = user.name(),
-                id = user.local_id()
-            );
-            Ok(ToolResult::immediate_ok(Vec::new()))
+    println!(
+        "User '{name}' registered successfully with ID {id}.",
+        name = user.name(),
+        id = user.local_id()
+    );
+    Ok(ToolResult::immediate_ok(Vec::new()))
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -103,5 +109,4 @@ mod tests {
         user.delete()?;
         Ok(())
     }
-
 }

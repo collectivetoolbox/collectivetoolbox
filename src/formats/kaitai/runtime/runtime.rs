@@ -47,7 +47,10 @@ SOFTWARE.
 
 //! Kaitai Struct runtime support for parsing and stream operations.
 
-#[expect(clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use flate2::read::ZlibDecoder;
@@ -329,7 +332,11 @@ pub trait KStruct: Default {
         Ok(t)
     }
 
-    fn downcast<T, U>(opt_rc: Option<SharedType<U>>, t: OptRc<T>, _panic: bool) -> SharedType<U>
+    fn downcast<T, U>(
+        opt_rc: Option<SharedType<U>>,
+        t: OptRc<T>,
+        _panic: bool,
+    ) -> SharedType<U>
     where
         T: KStruct + Default + Any,
         U: 'static,
@@ -413,7 +420,9 @@ impl Struct {
 }
 
 impl Struct {
-    pub fn downcast_optrc<T: 'static + Clone>(&self) -> Result<OptRc<T>, KError> {
+    pub fn downcast_optrc<T: 'static + Clone>(
+        &self,
+    ) -> Result<OptRc<T>, KError> {
         self.inner
             .as_ref()
             .and_then(|a| {
@@ -427,14 +436,18 @@ impl Struct {
                     .cloned()
                     .map(OptRc::from)
                     .or_else(|| a.downcast_ref::<OptRc<T>>().cloned())
-                    .or_else(|| a.downcast_ref::<Rc<T>>().cloned().map(OptRc::from))
+                    .or_else(|| {
+                        a.downcast_ref::<Rc<T>>().cloned().map(OptRc::from)
+                    })
             })
             .ok_or(KError::CastError)
     }
 }
 
 impl OptRc<Struct> {
-    pub fn downcast_optrc<T: 'static + Clone>(&self) -> Result<OptRc<T>, KError> {
+    pub fn downcast_optrc<T: 'static + Clone>(
+        &self,
+    ) -> Result<OptRc<T>, KError> {
         let inner_struct = self.as_ref().ok_or(KError::CastError)?;
         inner_struct.downcast_optrc()
     }
@@ -443,7 +456,6 @@ impl OptRc<Struct> {
 pub trait DowncastOptRc<T> {
     fn downcast_optrc(&self) -> Result<OptRc<T>, KError>;
 }
-
 
 impl<T: 'static + Clone> DowncastOptRc<T> for Struct {
     fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
@@ -490,7 +502,6 @@ impl<T: 'static + Clone, E: DowncastOptRc<T>> DowncastOptRc<T> for &Ref<'_, E> {
         (*self).downcast_optrc()
     }
 }
-
 
 impl KStruct for Struct {
     type Root = Struct;
@@ -566,7 +577,10 @@ pub trait KStream {
 
     fn read_s1(&self) -> KResult<i8> {
         let bytes = self.read_bytes(1)?;
-        let b = *bytes.first().ok_or(KError::Eof { requested: 1, available: 0 })?;
+        let b = *bytes.first().ok_or(KError::Eof {
+            requested: 1,
+            available: 0,
+        })?;
         Ok(i8::from_be_bytes([b]))
     }
     fn read_s2be(&self) -> KResult<i16> {
@@ -590,7 +604,10 @@ pub trait KStream {
 
     fn read_u1(&self) -> KResult<u8> {
         let bytes = self.read_bytes(1)?;
-        let b = *bytes.first().ok_or(KError::Eof { requested: 1, available: 0 })?;
+        let b = *bytes.first().ok_or(KError::Eof {
+            requested: 1,
+            available: 0,
+        })?;
         Ok(b)
     }
     fn read_u2(&self) -> KResult<u16> {
@@ -652,13 +669,15 @@ pub trait KStream {
             return Err(KError::ReadBitsTooLarge { requested: n });
         }
 
-        let n_i32: i32 = i32::try_from(n).map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
+        let n_i32: i32 = i32::try_from(n)
+            .map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
         let bits_needed = n_i32 - self.get_state().bits_left;
         self.get_state_mut().bits_left = -bits_needed & 7;
 
         if bits_needed > 0 {
             let bytes_needed = ((bits_needed - 1) / 8) + 1;
-            let bytes_len = usize::try_from(bytes_needed).map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
+            let bytes_len = usize::try_from(bytes_needed)
+                .map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
             let buf = self.read_bytes_not_aligned(bytes_len)?;
             for b in buf {
                 res = res << 8 | u64::from(b);
@@ -692,12 +711,14 @@ pub trait KStream {
             return Err(KError::ReadBitsTooLarge { requested: n });
         }
 
-        let n_i32: i32 = i32::try_from(n).map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
+        let n_i32: i32 = i32::try_from(n)
+            .map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
         let bits_needed = n_i32 - self.get_state().bits_left;
 
         if bits_needed > 0 {
             let bytes_needed = ((bits_needed - 1) / 8) + 1;
-            let bytes_len = usize::try_from(bytes_needed).map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
+            let bytes_len = usize::try_from(bytes_needed)
+                .map_err(|_err| KError::ReadBitsTooLarge { requested: n })?;
             let buf = self.read_bytes_not_aligned(bytes_len)?;
             for (i, &b) in buf.iter().enumerate() {
                 res |= u64::from(b) << (i * 8);
@@ -780,7 +801,8 @@ pub trait KStream {
         let unit_len = term.len();
         if let Some(&term_byte) = term.first() {
             if unit_len == 1 {
-                return self.read_bytes_term(term_byte, include, consume, eos_error);
+                return self
+                    .read_bytes_term(term_byte, include, consume, eos_error);
             }
         } else {
             return self.read_bytes_full();
@@ -891,18 +913,13 @@ impl BytesReader {
 
     // sync stream pos with state.pos
     fn sync_pos(&self) -> KResult<()> {
-        let cur_pos = self
-            .buf
-            .borrow_mut()
-            .stream_position()?;
+        let cur_pos = self.buf.borrow_mut().stream_position()?;
         // Reason for fallback: seek position exceeding target platform pointer width defaults to 0 offset
         let cur_pos_usize = usize::try_from(cur_pos).unwrap_or(0);
         if self.pos() != cur_pos_usize {
             // Reason for fallback: stream position exceeding u64 seek range defaults to beginning of stream
             let pos_u64 = u64::try_from(self.pos()).unwrap_or(0);
-            self.buf
-                .borrow_mut()
-                .seek(SeekFrom::Start(pos_u64))?;
+            self.buf.borrow_mut().seek(SeekFrom::Start(pos_u64))?;
         }
         Ok(())
     }
@@ -939,10 +956,7 @@ impl KStream for BytesReader {
         // let state = self.state.borrow_mut();
         // state.buf.resize(len, 0);
         let mut buf = vec![0; len];
-        self
-            .buf
-            .borrow_mut()
-            .read_exact(&mut buf[..])?;
+        self.buf.borrow_mut().read_exact(&mut buf[..])?;
         let mut state = self.get_state_mut();
         state.pos = state.pos.saturating_add(len);
         Ok(buf)
@@ -953,10 +967,7 @@ impl KStream for BytesReader {
         self.sync_pos()?;
         //let state = self.state.borrow_mut();
         let mut buf = Vec::new();
-        let readed = self
-            .buf
-            .borrow_mut()
-            .read_to_end(&mut buf)?;
+        let readed = self.buf.borrow_mut().read_to_end(&mut buf)?;
         let mut state = self.get_state_mut();
         state.pos = state.pos.saturating_add(readed);
         Ok(buf)
@@ -971,7 +982,10 @@ pub fn bytes_strip_right(bytes: &[u8], pad: u8) -> Vec<u8> {
             clippy::expect_used,
             reason = "last_non_pad_index returned by rposition is provably a valid index in bytes"
         )]
-        bytes.get(..=last_non_pad_index).expect("valid index").to_vec()
+        bytes
+            .get(..=last_non_pad_index)
+            .expect("valid index")
+            .to_vec()
     } else {
         vec![]
     }
@@ -998,7 +1012,11 @@ pub fn bytes_terminate(bytes: &[u8], term: u8, include_term: bool) -> Vec<u8> {
 
 /// Return a byte array that contains all bytes up until the multi-byte
 /// termination sequence. Can optionally include the termination sequence as well.
-pub fn bytes_terminate_multi(bytes: &[u8], term: &[u8], include_term: bool) -> Vec<u8> {
+pub fn bytes_terminate_multi(
+    bytes: &[u8],
+    term: &[u8],
+    include_term: bool,
+) -> Vec<u8> {
     let unit_len = term.len();
     if let Some(&term_byte) = term.first() {
         if unit_len == 1 {
@@ -1067,7 +1085,12 @@ pub fn bytes_terminate_pad_multi(
         let unit_len = t.len();
         if let Some(&t_byte) = t.first() {
             if unit_len == 1 {
-                return bytes_terminate_pad(bytes, Some(t_byte), include_term, pad);
+                return bytes_terminate_pad(
+                    bytes,
+                    Some(t_byte),
+                    include_term,
+                    pad,
+                );
             }
         } else {
             return bytes.to_vec();
@@ -1098,14 +1121,14 @@ pub fn bytes_terminate_pad_multi(
 }
 
 pub fn bytes_to_str(bytes: &[u8], label: &str) -> KResult<String> {
-    if label.eq_ignore_ascii_case("cp437") || label.eq_ignore_ascii_case("ibm437") {
+    if label.eq_ignore_ascii_case("cp437")
+        || label.eq_ignore_ascii_case("ibm437")
+    {
         return ctb_formats_encoding::decode(
             ctb_formats_encoding::CharEncoding::cp437(),
             bytes,
         )
-        .map_err(|e| KError::BytesDecodingError {
-            msg: e.to_string(),
-        });
+        .map_err(|e| KError::BytesDecodingError { msg: e.to_string() });
     }
 
     if let Some(enc) = encoding_rs::Encoding::for_label(label.as_bytes()) {
@@ -1196,9 +1219,17 @@ pub fn div_floor(a: i64, b: i64) -> KResult<i64> {
 }
 
 /// Extracts a substring slice safely without panicking on out-of-bounds or invalid UTF-8 boundaries.
-pub fn substring<I1: TryInto<usize>, I2: TryInto<usize>>(s: &str, from: I1, to: I2) -> &str {
-    let Ok(from) = from.try_into() else { return ""; };
-    let Ok(to) = to.try_into() else { return ""; };
+pub fn substring<I1: TryInto<usize>, I2: TryInto<usize>>(
+    s: &str,
+    from: I1,
+    to: I2,
+) -> &str {
+    let Ok(from) = from.try_into() else {
+        return "";
+    };
+    let Ok(to) = to.try_into() else {
+        return "";
+    };
     // Reason for fallback: out of bounds or invalid UTF-8 boundary substring defaults to empty string
     s.get(from..to).unwrap_or("")
 }
@@ -1492,7 +1523,10 @@ mod tests {
             [3]
         );
         assert!(
-            reader.read_bytes_term(3, false, true, true).unwrap().is_empty()
+            reader
+                .read_bytes_term(3, false, true, true)
+                .unwrap()
+                .is_empty()
         );
         assert_eq!(
             reader.read_bytes_term(5, true, true, true).unwrap()[..],

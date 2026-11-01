@@ -154,7 +154,9 @@ pub fn run(workspace_root: &Path, offline: bool) -> Result<()> {
 
 /// Discovers vendored crates directly inside `vendor/`, excluding
 /// `ctb-vendored` and `upstream-for-reference`.
-pub fn find_vendored_crates(vendor_dir: &Path) -> Result<Vec<(String, String)>> {
+pub fn find_vendored_crates(
+    vendor_dir: &Path,
+) -> Result<Vec<(String, String)>> {
     let mut results = Vec::new();
     let entries = fs::read_dir(vendor_dir).with_context(|| {
         format!("failed to read directory {}", vendor_dir.display())

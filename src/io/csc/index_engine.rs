@@ -27,9 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::FsindexArgs;
-use crate::journal::{
-    JournalSnapshot, StateJournal, resolve_journal_path,
-};
+use crate::journal::{JournalSnapshot, StateJournal, resolve_journal_path};
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -38,7 +36,10 @@ use turso::{Connection, Value};
 
 /// Derives a clean, trimmed source name for the database from a journal path.
 #[must_use]
-pub fn derive_source_name(journal_path: &Path, explicit_name: Option<&str>) -> String {
+pub fn derive_source_name(
+    journal_path: &Path,
+    explicit_name: Option<&str>,
+) -> String {
     if let Some(explicit) = explicit_name {
         return explicit.trim().to_string();
     }
@@ -83,7 +84,8 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     // 1. Process targets (traverse directories into journals, or collect existing journals)
     for target in &targets {
         if target.is_dir() {
-            let journal_path = index_directory_to_journal(target, &args, &progress)?;
+            let journal_path =
+                index_directory_to_journal(target, &args, &progress)?;
             journal_paths.push(journal_path);
         } else {
             let journal_path = resolve_journal_path(target)?;
@@ -152,8 +154,14 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
             } else {
                 None
             };
-            let flushed =
-                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress, &args.journal_projection_policy()).await?;
+            let flushed = flush_deleted_files_from_index(
+                &conn,
+                j_path,
+                explicit_name,
+                &progress,
+                &args.journal_projection_policy(),
+            )
+            .await?;
             total_flushed = total_flushed.saturating_add(flushed);
             sources_checked = sources_checked.saturating_add(1);
         }
@@ -163,7 +171,10 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
         writeln!(summary, "Database:         {}", db_path.display())?;
         writeln!(summary, "Sources checked:  {sources_checked}")?;
         writeln!(summary, "Entries flushed:  {total_flushed}")?;
-        writeln!(summary, "Status:           Indexing completed successfully.")?;
+        writeln!(
+            summary,
+            "Status:           Indexing completed successfully."
+        )?;
         return Ok(ToolResult::immediate_ok(summary.into_bytes()));
     }
 
@@ -183,7 +194,10 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     let is_fulltext = args.fulltext || args.fulltext_max != "20k";
     let fulltext_limit = if is_fulltext {
         let parsed = parse_bytes(&args.fulltext_max)?;
-        Some(usize::try_from(parsed).context("fulltext_max size exceeds memory limits")?)
+        Some(
+            usize::try_from(parsed)
+                .context("fulltext_max size exceeds memory limits")?,
+        )
     } else {
         None
     };
@@ -209,8 +223,14 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
             } else {
                 None
             };
-            let flushed =
-                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress, &args.journal_projection_policy()).await?;
+            let flushed = flush_deleted_files_from_index(
+                &conn,
+                j_path,
+                explicit_name,
+                &progress,
+                &args.journal_projection_policy(),
+            )
+            .await?;
             total_flushed = total_flushed.saturating_add(flushed);
         }
     }
@@ -232,8 +252,11 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
             j_path,
             &args.journal_projection_policy(),
         )?;
-        let env_json = snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
-        let src_id = get_or_create_source(&conn, &src_name, j_path, env_json.as_deref()).await?;
+        let env_json =
+            snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
+        let src_id =
+            get_or_create_source(&conn, &src_name, j_path, env_json.as_deref())
+                .await?;
 
         let count = ingest_journal_snapshot(
             &conn,
@@ -261,7 +284,10 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     if args.flush_deleted {
         writeln!(summary, "Entries flushed:  {total_flushed}")?;
     }
-    writeln!(summary, "Status:           Indexing completed successfully.")?;
+    writeln!(
+        summary,
+        "Status:           Indexing completed successfully."
+    )?;
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
 }
@@ -272,10 +298,13 @@ fn index_directory_to_journal(
     args: &FsindexArgs,
     progress: &Progress,
 ) -> Result<PathBuf> {
-    let target_dir = std::fs::canonicalize(target_dir)
-        .with_context(|| format!("Failed to canonicalize directory {}", target_dir.display()))?;
+    let target_dir = std::fs::canonicalize(target_dir).with_context(|| {
+        format!("Failed to canonicalize directory {}", target_dir.display())
+    })?;
 
-    let (mut journal, snapshot) = if args.resume || args.resume_journal.is_some() {
+    let (mut journal, snapshot) = if args.resume
+        || args.resume_journal.is_some()
+    {
         let journal_path = if let Some(ref rj) = args.resume_journal {
             resolve_journal_path(rj)?
         } else if let Some(ref jp) = args.journal_path {
@@ -288,14 +317,24 @@ fn index_directory_to_journal(
             &journal_path,
             &args.journal_projection_policy(),
         )?;
-        progress.message(&format!("Resuming indexing from journal: {}", journal_path.display()));
-        let jw = StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
+        progress.message(&format!(
+            "Resuming indexing from journal: {}",
+            journal_path.display()
+        ));
+        let jw =
+            StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
         (jw, Some(snap))
     } else {
-        let (journal_path, desc_path) = if let Some(ref custom_jp) = args.journal_path {
-            let jp = if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+        let (journal_path, desc_path) = if let Some(ref custom_jp) =
+            args.journal_path
+        {
+            let jp = if custom_jp.extension().and_then(|e| e.to_str())
+                == Some("cscdesc")
+            {
                 custom_jp.with_extension("cscjournal")
-            } else if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+            } else if custom_jp.extension().and_then(|e| e.to_str())
+                == Some("cscjournal")
+            {
                 custom_jp.clone()
             } else {
                 custom_jp.with_extension("cscjournal")
@@ -325,7 +364,10 @@ fn index_directory_to_journal(
             (jp, dp)
         };
 
-        progress.message(&format!("Creating state journal: {}", journal_path.display()));
+        progress.message(&format!(
+            "Creating state journal: {}",
+            journal_path.display()
+        ));
         let jw = StateJournal::create_at_path(
             &journal_path,
             &desc_path,
@@ -379,12 +421,13 @@ fn index_directory_to_journal(
     }
 
     journal.mark_completed()?;
-    progress.message(&format!("Completed scan: {total_scanned} entries committed to journal"));
+    progress.message(&format!(
+        "Completed scan: {total_scanned} entries committed to journal"
+    ));
     Ok(journal.journal_path().to_path_buf())
 }
 
 pub use ctb_formats_string::split_camel_case;
-
 
 /// Generates an expanded set of search keywords for a filename or path component,
 /// splitting on punctuation, whitespace, and CamelCase word boundaries, and emitting
@@ -392,7 +435,8 @@ pub use ctb_formats_string::split_camel_case;
 #[must_use]
 pub fn expand_search_keywords(text: &str) -> String {
     let mut tokens: Vec<String> = Vec::new();
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
 
     let mut add_token = |t: &str| {
         let lower = t.to_ascii_lowercase();
@@ -472,7 +516,9 @@ pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
         }
     }
     if !has_env_col {
-        let _ = conn.execute("ALTER TABLE sources ADD COLUMN environment TEXT", ()).await;
+        let _ = conn
+            .execute("ALTER TABLE sources ADD COLUMN environment TEXT", ())
+            .await;
     }
 
     conn.execute(
@@ -499,13 +545,41 @@ pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
     )
     .await?;
 
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_filename ON entries(filename)", ()).await?;
-    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_path ON entries(path)", ()).await?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_parent ON entries(parent_dir)", ()).await?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_source ON entries(source_id)", ()).await?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_mtime ON entries(mtime_sec)", ()).await?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_ctime ON entries(ctime_sec)", ()).await?;
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_size ON entries(size)", ()).await?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_filename ON entries(filename)",
+        (),
+    )
+    .await?;
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_path ON entries(path)",
+        (),
+    )
+    .await?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_parent ON entries(parent_dir)",
+        (),
+    )
+    .await?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_source ON entries(source_id)",
+        (),
+    )
+    .await?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_mtime ON entries(mtime_sec)",
+        (),
+    )
+    .await?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_ctime ON entries(ctime_sec)",
+        (),
+    )
+    .await?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_size ON entries(size)",
+        (),
+    )
+    .await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_name_fts ON entries USING fts (filename_keywords)", ()).await?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_entries_fts ON entries USING fts (filename_keywords, path_keywords)", ()).await?;
 
@@ -533,8 +607,12 @@ pub(crate) async fn get_or_create_source(
     journal_path: &Path,
     environment: Option<&str>,
 ) -> Result<i64> {
-    let mut stmt = conn.prepare("SELECT id, environment FROM sources WHERE name = ?").await?;
-    let mut rows = stmt.query(vec![Value::Text(source_name.to_string())]).await?;
+    let mut stmt = conn
+        .prepare("SELECT id, environment FROM sources WHERE name = ?")
+        .await?;
+    let mut rows = stmt
+        .query(vec![Value::Text(source_name.to_string())])
+        .await?;
 
     if let Some(row) = rows.next().await? {
         if let Ok(Value::Integer(id)) = row.get_value(0) {
@@ -542,10 +620,15 @@ pub(crate) async fn get_or_create_source(
                 let current_env = row.get_value(1).ok();
                 let is_null = matches!(current_env, Some(Value::Null) | None);
                 if is_null {
-                    let _ = conn.execute(
-                        "UPDATE sources SET environment = ? WHERE id = ?",
-                        vec![Value::Text(env_str.to_string()), Value::Integer(id)],
-                    ).await;
+                    let _ = conn
+                        .execute(
+                            "UPDATE sources SET environment = ? WHERE id = ?",
+                            vec![
+                                Value::Text(env_str.to_string()),
+                                Value::Integer(id),
+                            ],
+                        )
+                        .await;
                 }
             }
             return Ok(id);
@@ -592,17 +675,15 @@ pub(crate) async fn ingest_journal_snapshot(
     fulltext_limit: Option<usize>,
 ) -> Result<u64> {
     let mut inserted_count: u64 = 0;
-    let entities: Vec<&FileEntity> = snapshot.committed_entities.values().collect();
+    let entities: Vec<&FileEntity> =
+        snapshot.committed_entities.values().collect();
 
     let chunks = entities.chunks(batch_size);
     let total_chunks = chunks.len();
 
     let has_full_text = check_has_full_text(conn).await?;
     // Reason for fallback: snapshot without explicit sources defaults to indexing destination directory
-    let root_dir = snapshot
-        .sources
-        .first()
-        .unwrap_or(&snapshot.destination);
+    let root_dir = snapshot.sources.first().unwrap_or(&snapshot.destination);
 
     let sql_insert_without_ft = "INSERT INTO entries (
         source_id, path, filename, parent_dir, kind, size,
@@ -689,34 +770,48 @@ pub(crate) async fn ingest_journal_snapshot(
                         None
                     };
                     // Reason for fallback: file size exceeding signed 64-bit integer limit is clamped to i64::MAX for SQLite storage
-                    let size_i64 = <i64 as TryFrom<_>>::try_from(*size).unwrap_or(i64::MAX);
+                    let size_i64 = <i64 as TryFrom<_>>::try_from(*size)
+                        .unwrap_or(i64::MAX);
                     (size_i64, None, sha_hex)
                 }
-                FileEntityKind::Symlink { target } => (
-                    0_i64,
-                    Some(target.to_string()),
-                    None,
-                ),
-                FileEntityKind::Hardlink { target_relative_path } => (
-                    0_i64,
-                    Some(target_relative_path.to_string()),
-                    None,
-                ),
+                FileEntityKind::Symlink { target } => {
+                    (0_i64, Some(target.to_string()), None)
+                }
+                FileEntityKind::Hardlink {
+                    target_relative_path,
+                } => (0_i64, Some(target_relative_path.to_string()), None),
                 _ => (0_i64, None, None),
             };
 
             // Reason for fallback: absent metadata timestamps default to 0 epoch seconds
-            let mtime_sec = entity.metadata.timestamps.as_ref().map_or(0, |ts| ts.mtime_sec);
+            let mtime_sec = entity
+                .metadata
+                .timestamps
+                .as_ref()
+                .map_or(0, |ts| ts.mtime_sec);
             // Reason for fallback: absent metadata timestamps default to 0 nanoseconds
-            let mtime_nsec = entity.metadata.timestamps.as_ref().map_or(0, |ts| i64::from(ts.mtime_nsec));
+            let mtime_nsec = entity
+                .metadata
+                .timestamps
+                .as_ref()
+                .map_or(0, |ts| i64::from(ts.mtime_nsec));
             // Reason for fallback: absent metadata timestamps default to 0 epoch seconds
-            let ctime_sec = entity.metadata.timestamps.as_ref().map_or(0, |ts| ts.ctime_sec);
+            let ctime_sec = entity
+                .metadata
+                .timestamps
+                .as_ref()
+                .map_or(0, |ts| ts.ctime_sec);
             // Reason for fallback: absent metadata timestamps default to 0 nanoseconds
-            let ctime_nsec = entity.metadata.timestamps.as_ref().map_or(0, |ts| i64::from(ts.ctime_nsec));
+            let ctime_nsec = entity
+                .metadata
+                .timestamps
+                .as_ref()
+                .map_or(0, |ts| i64::from(ts.ctime_nsec));
             // Reason for fallback: absent mode defaults to 0 permissions in search index
             let mode = entity.metadata.mode.map_or(0, i64::from);
             // Reason for fallback: hardlink count exceeding signed 64-bit integer limit defaults to 1
-            let nlink = <i64 as TryFrom<_>>::try_from(entity.identity.nlink).unwrap_or(1);
+            let nlink = <i64 as TryFrom<_>>::try_from(entity.identity.nlink)
+                .unwrap_or(1);
 
             let filename_kw = expand_search_keywords(&filename);
             let path_kw = expand_search_keywords(&path_str);
@@ -750,7 +845,11 @@ pub(crate) async fn ingest_journal_snapshot(
                         None => root_dir.clone(),
                     };
                     if let Ok(mut f) = std::fs::File::open(&full_path) {
-                        ctb_formats_text_extraction::to_text(&mut f, fulltext_limit).ok()
+                        ctb_formats_text_extraction::to_text(
+                            &mut f,
+                            fulltext_limit,
+                        )
+                        .ok()
                     } else {
                         None
                     }
@@ -792,12 +891,12 @@ pub async fn flush_deleted_files_from_index(
     progress: &Progress,
     policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<u64> {
-    let snapshot = crate::journal::read_journal_snapshot_with_policy(journal_path, policy)?;
+    let snapshot = crate::journal::read_journal_snapshot_with_policy(
+        journal_path,
+        policy,
+    )?;
     // Reason for fallback: snapshot without explicit sources defaults to inspecting destination directory
-    let root_dir = snapshot
-        .sources
-        .first()
-        .unwrap_or(&snapshot.destination);
+    let root_dir = snapshot.sources.first().unwrap_or(&snapshot.destination);
 
     anyhow::ensure!(
         root_dir.exists(),
@@ -828,7 +927,8 @@ pub async fn flush_deleted_files_from_index(
     let mut entries_stmt = conn
         .prepare("SELECT id, path FROM entries WHERE source_id = ?")
         .await?;
-    let mut entries_rows = entries_stmt.query(vec![Value::Integer(source_id)]).await?;
+    let mut entries_rows =
+        entries_stmt.query(vec![Value::Integer(source_id)]).await?;
 
     let mut ids_to_delete: Vec<i64> = Vec::new();
 
@@ -852,7 +952,8 @@ pub async fn flush_deleted_files_from_index(
     }
 
     let count = u64::try_from(ids_to_delete.len())?;
-    progress.message(&format!("Flushing {count} deleted file(s) from index..."));
+    progress
+        .message(&format!("Flushing {count} deleted file(s) from index..."));
 
     for chunk in ids_to_delete.chunks(500) {
         conn.execute("BEGIN IMMEDIATE TRANSACTION", ()).await?;
@@ -899,19 +1000,26 @@ mod tests {
         fs::create_dir_all(src_a.join("nested/deep")).expect("create src_a");
         fs::create_dir_all(src_b.join("sub")).expect("create src_b");
 
-        fs::write(src_a.join("hello.txt"), b"Hello Source A").expect("write hello.txt");
-        fs::write(src_a.join("nested/doc.md"), b"# Markdown document").expect("write doc.md");
-        fs::write(src_a.join("nested/deep/data.bin"), vec![0u8; 1024]).expect("write data.bin");
+        fs::write(src_a.join("hello.txt"), b"Hello Source A")
+            .expect("write hello.txt");
+        fs::write(src_a.join("nested/doc.md"), b"# Markdown document")
+            .expect("write doc.md");
+        fs::write(src_a.join("nested/deep/data.bin"), vec![0u8; 1024])
+            .expect("write data.bin");
         #[cfg(unix)]
-        std::os::unix::fs::symlink("hello.txt", src_a.join("link_to_hello")).expect("create symlink");
+        std::os::unix::fs::symlink("hello.txt", src_a.join("link_to_hello"))
+            .expect("create symlink");
 
-        fs::write(src_b.join("world.txt"), b"World Source B").expect("write world.txt");
-        fs::write(src_b.join("sub/extra.log"), b"log entry 1\nlog entry 2\n").expect("write extra.log");
+        fs::write(src_b.join("world.txt"), b"World Source B")
+            .expect("write world.txt");
+        fs::write(src_b.join("sub/extra.log"), b"log entry 1\nlog entry 2\n")
+            .expect("write extra.log");
 
         let db_path = temp.path().join("combined.cscindex.sqlite");
 
         // 1. Run fsindex on source_a
-        let mut args_a = default_fsindex_args(vec![src_a.clone()], Some(db_path.clone()));
+        let mut args_a =
+            default_fsindex_args(vec![src_a.clone()], Some(db_path.clone()));
         args_a.source_name = Some("source_a_tag".to_string());
         let res_a = run_fsindex(args_a).await.expect("run_fsindex source_a");
         match res_a {
@@ -920,9 +1028,12 @@ mod tests {
         }
 
         // 2. append source_b into the same database
-        let mut args_b = default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
+        let mut args_b =
+            default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
         args_b.source_name = Some("source_b_tag".to_string());
-        let res_b = run_fsindex(args_b).await.expect("run_fsindex source_b (append)");
+        let res_b = run_fsindex(args_b)
+            .await
+            .expect("run_fsindex source_b (append)");
         match res_b {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
             _ => panic!("Expected immediate tool result"),
@@ -931,7 +1042,8 @@ mod tests {
         // 3. Search: filename glob "*.txt" -> should match hello.txt and world.txt across both sources
         let mut search_txt = default_fsearch_args(db_path.clone());
         search_txt.query = vec!["*.txt".to_string()];
-        let res_search_txt = run_fsearch(search_txt).await.expect("run_fsearch *.txt");
+        let res_search_txt =
+            run_fsearch(search_txt).await.expect("run_fsearch *.txt");
         if let ToolResult::Immediate { stdout, .. } = res_search_txt {
             let out_str = String::from_utf8_lossy(&stdout);
             assert!(out_str.contains("hello.txt"));
@@ -945,7 +1057,9 @@ mod tests {
         let mut search_src_a = default_fsearch_args(db_path.clone());
         search_src_a.query = vec!["*.txt".to_string()];
         search_src_a.source = Some("source_a_tag".to_string());
-        let res_src_a = run_fsearch(search_src_a).await.expect("run_fsearch source filter");
+        let res_src_a = run_fsearch(search_src_a)
+            .await
+            .expect("run_fsearch source filter");
         if let ToolResult::Immediate { stdout, .. } = res_src_a {
             let out_str = String::from_utf8_lossy(&stdout);
             assert!(out_str.contains("hello.txt"));
@@ -958,7 +1072,9 @@ mod tests {
         let mut search_path = default_fsearch_args(db_path.clone());
         search_path.path_glob = Some("nested/*".to_string());
         search_path.format = SearchOutputFormat::Long;
-        let res_path = run_fsearch(search_path).await.expect("run_fsearch path glob");
+        let res_path = run_fsearch(search_path)
+            .await
+            .expect("run_fsearch path glob");
         if let ToolResult::Immediate { stdout, .. } = res_path {
             let out_str = String::from_utf8_lossy(&stdout);
             assert!(out_str.contains("doc.md"));
@@ -974,7 +1090,9 @@ mod tests {
             search_sym.entry_type = Some("symlink".to_string());
             search_sym.sort = SearchSortField::Name;
             search_sym.format = SearchOutputFormat::Json;
-            let res_sym = run_fsearch(search_sym).await.expect("run_fsearch symlink json");
+            let res_sym = run_fsearch(search_sym)
+                .await
+                .expect("run_fsearch symlink json");
             if let ToolResult::Immediate { stdout, .. } = res_sym {
                 let out_str = String::from_utf8_lossy(&stdout);
                 assert!(out_str.contains("\"filename\": \"link_to_hello\""));
@@ -989,7 +1107,9 @@ mod tests {
         search_size.size_min = Some("500".to_string());
         search_size.sort = SearchSortField::Size;
         search_size.sort_desc = true;
-        let res_size = run_fsearch(search_size).await.expect("run_fsearch size filter");
+        let res_size = run_fsearch(search_size)
+            .await
+            .expect("run_fsearch size filter");
         if let ToolResult::Immediate { stdout, .. } = res_size {
             let out_str = String::from_utf8_lossy(&stdout);
             assert!(out_str.contains("data.bin"));
@@ -1001,7 +1121,9 @@ mod tests {
         // 8. Search with entry_type filter: "f" / "file"
         let mut search_type = default_fsearch_args(db_path.clone());
         search_type.entry_type = Some("f".to_string());
-        let res_type = run_fsearch(search_type).await.expect("run_fsearch type filter");
+        let res_type = run_fsearch(search_type)
+            .await
+            .expect("run_fsearch type filter");
         if let ToolResult::Immediate { stdout, .. } = res_type {
             let out_str = String::from_utf8_lossy(&stdout);
             assert!(out_str.contains("hello.txt"));
@@ -1016,7 +1138,8 @@ mod tests {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src");
         fs::create_dir_all(&src).expect("create src");
-        fs::write(src.join("item.txt"), b"Item content").expect("write item.txt");
+        fs::write(src.join("item.txt"), b"Item content")
+            .expect("write item.txt");
 
         let custom_journal = temp.path().join("custom_index.cscjournal");
         let custom_desc = temp.path().join("custom_index.cscdesc");
@@ -1025,7 +1148,9 @@ mod tests {
         args.journal_path = Some(custom_journal.clone());
         args.journal_only = true;
 
-        let res = run_fsindex(args.clone()).await.expect("run fsindex with explicit journal_path");
+        let res = run_fsindex(args.clone())
+            .await
+            .expect("run fsindex with explicit journal_path");
         match res {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
             _ => panic!("Expected immediate tool result"),
@@ -1063,7 +1188,8 @@ mod tests {
         let db_path = temp.path().join("files.cscindex.sqlite");
 
         // 1. Initial index
-        let mut args_init = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        let mut args_init =
+            default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
         args_init.journal_path = Some(journal_path.clone());
         args_init.source_name = Some("test_src".to_string());
         run_fsindex(args_init).await.expect("initial fsindex");
@@ -1077,9 +1203,18 @@ mod tests {
                 .await
                 .expect("open db");
             let conn = db.connect().expect("connect db");
-            let mut count_stmt = conn.prepare("SELECT COUNT(*) FROM entries").await.expect("prepare count");
+            let mut count_stmt = conn
+                .prepare("SELECT COUNT(*) FROM entries")
+                .await
+                .expect("prepare count");
             let mut rows = count_stmt.query(()).await.expect("query count");
-            let total: i64 = match rows.next().await.expect("row").expect("some row").get_value(0) {
+            let total: i64 = match rows
+                .next()
+                .await
+                .expect("row")
+                .expect("some row")
+                .get_value(0)
+            {
                 Ok(Value::Integer(n)) => n,
                 _ => panic!("Expected integer count"),
             };
@@ -1090,7 +1225,8 @@ mod tests {
         // 2. Delete b.txt from disk
         fs::remove_file(src.join("b.txt")).expect("remove b.txt");
 
-        let snap_before = read_journal_snapshot(&journal_path).expect("read snap");
+        let snap_before =
+            read_journal_snapshot(&journal_path).expect("read snap");
         assert!(
             snap_before.is_committed(b"b.txt"),
             "Journal must contain b.txt before flush"
@@ -1099,7 +1235,8 @@ mod tests {
         {
             use ctb_formats_dcdata::dc::{
                 DC_BEGIN_CHECKSUMMED_SECTION, DC_END_CHECKSUMMED_SECTION,
-                DC_OPERATION_COMPLETED, DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
+                DC_OPERATION_COMPLETED, DC_SECTION_DIGEST,
+                DC_SEQUENCE_IDENTIFIER,
             };
             use ctb_formats_dcstring::{DcMixedEncode, DcMstring};
             use std::io::Write;
@@ -1107,26 +1244,47 @@ mod tests {
             let mut fragment = DcMstring::new();
             fragment.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
             fragment.push_char(DC_SEQUENCE_IDENTIFIER);
-            snap_before.last_batch_id.saturating_add(1).encode_dc_mixed(&mut fragment).expect("sequence");
+            snap_before
+                .last_batch_id
+                .saturating_add(1)
+                .encode_dc_mixed(&mut fragment)
+                .expect("sequence");
             fragment.push_char(DC_END_CHECKSUMMED_SECTION);
             fragment.push_char(DC_SECTION_DIGEST);
-            fragment.push_checksum(ctb_utilities::format_id::DC_SHA256, &[0xFF; 32]).expect("digest");
+            fragment
+                .push_checksum(ctb_utilities::format_id::DC_SHA256, &[0xFF; 32])
+                .expect("digest");
             fragment.push_char(DC_OPERATION_COMPLETED);
-            fs::OpenOptions::new().append(true).open(&journal_path).expect("append journal")
-                .write_all(fragment.payload_bytes()).expect("write invalid-digest batch");
+            fs::OpenOptions::new()
+                .append(true)
+                .open(&journal_path)
+                .expect("append journal")
+                .write_all(fragment.payload_bytes())
+                .expect("write invalid-digest batch");
         }
-        let journal_before_flush = fs::read(&journal_path).expect("journal bytes");
-        let mut strict_flush = default_fsindex_args(vec![journal_path.clone()], Some(db_path.clone()));
+        let journal_before_flush =
+            fs::read(&journal_path).expect("journal bytes");
+        let mut strict_flush = default_fsindex_args(
+            vec![journal_path.clone()],
+            Some(db_path.clone()),
+        );
         strict_flush.flush_deleted = true;
         strict_flush.source_name = Some("test_src".to_string());
-        assert!(run_fsindex(strict_flush).await.is_err(), "Strict flush must reject interior digest mismatch");
+        assert!(
+            run_fsindex(strict_flush).await.is_err(),
+            "Strict flush must reject interior digest mismatch"
+        );
 
         // 3. Run fsindex again with the journal path and --flush-deleted
-        let mut args_flush = default_fsindex_args(vec![journal_path.clone()], Some(db_path.clone()));
+        let mut args_flush = default_fsindex_args(
+            vec![journal_path.clone()],
+            Some(db_path.clone()),
+        );
         args_flush.flush_deleted = true;
         args_flush.allow_journal_errors = true;
         args_flush.source_name = Some("test_src".to_string());
-        let res_flush = run_fsindex(args_flush).await.expect("run fsindex flush");
+        let res_flush =
+            run_fsindex(args_flush).await.expect("run fsindex flush");
         if let ToolResult::Immediate { stdout, .. } = res_flush {
             let out_str = String::from_utf8_lossy(&stdout);
             assert!(
@@ -1151,7 +1309,13 @@ mod tests {
             .await
             .expect("prepare check_b");
         let mut b_rows = check_b.query(()).await.expect("query b");
-        let b_count: i64 = match b_rows.next().await.expect("row").expect("some row").get_value(0) {
+        let b_count: i64 = match b_rows
+            .next()
+            .await
+            .expect("row")
+            .expect("some row")
+            .get_value(0)
+        {
             Ok(Value::Integer(n)) => n,
             _ => panic!("Expected integer count"),
         };
@@ -1162,17 +1326,28 @@ mod tests {
             .await
             .expect("prepare check_a");
         let mut a_rows = check_a.query(()).await.expect("query a");
-        let a_count: i64 = match a_rows.next().await.expect("row").expect("some row").get_value(0) {
+        let a_count: i64 = match a_rows
+            .next()
+            .await
+            .expect("row")
+            .expect("some row")
+            .get_value(0)
+        {
             Ok(Value::Integer(n)) => n,
             _ => panic!("Expected integer count"),
         };
         assert_eq!(a_count, 1, "a.txt must remain in SQLite index");
 
         // 5. Verify the journal file was completely untouched
-        assert_eq!(fs::read(&journal_path).expect("journal after flush"), journal_before_flush);
+        assert_eq!(
+            fs::read(&journal_path).expect("journal after flush"),
+            journal_before_flush
+        );
         let snap_after = crate::journal::read_journal_snapshot_with_policy(
-            &journal_path, &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
-        ).expect("read snap after");
+            &journal_path,
+            &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+        )
+        .expect("read snap after");
         assert!(
             snap_after.is_committed(b"b.txt"),
             "Journal file must be untouched and still contain b.txt"
@@ -1193,17 +1368,20 @@ mod tests {
         // Version 1 of shared file
         fs::write(src1.join("shared.txt"), b"version 1").expect("write v1");
         // Version 2 of shared file (longer content)
-        fs::write(src2.join("shared.txt"), b"version 2 longer content").expect("write v2");
+        fs::write(src2.join("shared.txt"), b"version 2 longer content")
+            .expect("write v2");
 
         let db_path = temp.path().join("dedup.cscindex.sqlite");
 
         // Index source 1
-        let mut args1 = default_fsindex_args(vec![src1.clone()], Some(db_path.clone()));
+        let mut args1 =
+            default_fsindex_args(vec![src1.clone()], Some(db_path.clone()));
         args1.source_name = Some("source_1".to_string());
         run_fsindex(args1).await.expect("index src1");
 
         // Index source 2 into same database (append)
-        let mut args2 = default_fsindex_args(vec![src2.clone()], Some(db_path.clone()));
+        let mut args2 =
+            default_fsindex_args(vec![src2.clone()], Some(db_path.clone()));
         args2.source_name = Some("source_2".to_string());
         run_fsindex(args2).await.expect("index src2");
 
@@ -1236,9 +1414,18 @@ mod tests {
             _ => panic!("Expected source name text"),
         };
 
-        assert_eq!(count, 1, "Appended index must deduplicate entries with the same path");
-        assert_eq!(size, 24, "Entry must be updated with the latest appended data");
-        assert_eq!(src_name, "source_2", "Source tag must be updated to the latest source");
+        assert_eq!(
+            count, 1,
+            "Appended index must deduplicate entries with the same path"
+        );
+        assert_eq!(
+            size, 24,
+            "Entry must be updated with the latest appended data"
+        );
+        assert_eq!(
+            src_name, "source_2",
+            "Source tag must be updated to the latest source"
+        );
     }
 
     #[crate::ctb_test("tokio")]
@@ -1265,10 +1452,13 @@ mod tests {
         let db_path = temp.path().join("fulltext.cscindex.sqlite");
 
         // Index with fulltext enabled
-        let mut idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        let mut idx_args =
+            default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
         idx_args.fulltext = true;
         idx_args.fulltext_max = "50k".to_string();
-        run_fsindex(idx_args).await.expect("run fsindex with fulltext");
+        run_fsindex(idx_args)
+            .await
+            .expect("run fsindex with fulltext");
 
         // 1. Keyword search on text content (-kt / --keyword-text)
         let mut search_kt = default_fsearch_args(db_path.clone());
@@ -1276,7 +1466,10 @@ mod tests {
         let res_kt = run_fsearch(search_kt).await.expect("search -kt");
         if let ToolResult::Immediate { stdout, .. } = res_kt {
             let s = String::from_utf8_lossy(&stdout);
-            assert!(s.contains("sample.txt"), "Must find sample.txt by content: {s}");
+            assert!(
+                s.contains("sample.txt"),
+                "Must find sample.txt by content: {s}"
+            );
             assert!(!s.contains("other.txt"), "Must not find other.txt");
         } else {
             panic!("Expected immediate result");
@@ -1286,24 +1479,40 @@ mod tests {
         let mut search_ctx = default_fsearch_args(db_path.clone());
         search_ctx.keyword_text = Some("unique_phrase_xyz".to_string());
         search_ctx.context = Some(1);
-        let res_ctx = run_fsearch(search_ctx).await.expect("search with context");
+        let res_ctx =
+            run_fsearch(search_ctx).await.expect("search with context");
         if let ToolResult::Immediate { stdout, .. } = res_ctx {
             let s = String::from_utf8_lossy(&stdout);
             assert!(s.contains("sample.txt"));
-            assert!(s.contains("1- Line 1 introductory text"), "Must show line 1 context: {s}");
-            assert!(s.contains("2: Line 2 contains unique_phrase_xyz for search"), "Must show matching line 2: {s}");
-            assert!(s.contains("3- Line 3 conclusion text"), "Must show line 3 context: {s}");
+            assert!(
+                s.contains("1- Line 1 introductory text"),
+                "Must show line 1 context: {s}"
+            );
+            assert!(
+                s.contains("2: Line 2 contains unique_phrase_xyz for search"),
+                "Must show matching line 2: {s}"
+            );
+            assert!(
+                s.contains("3- Line 3 conclusion text"),
+                "Must show line 3 context: {s}"
+            );
         } else {
             panic!("Expected immediate result");
         }
 
         // 3. Auto-resolved keyword search with multiple terms
         let mut search_multi = default_fsearch_args(db_path.clone());
-        search_multi.query = vec!["unique_phrase_xyz".to_string(), "conclusion".to_string()];
-        let res_multi = run_fsearch(search_multi).await.expect("search multiple positional terms");
+        search_multi.query =
+            vec!["unique_phrase_xyz".to_string(), "conclusion".to_string()];
+        let res_multi = run_fsearch(search_multi)
+            .await
+            .expect("search multiple positional terms");
         if let ToolResult::Immediate { stdout, .. } = res_multi {
             let s = String::from_utf8_lossy(&stdout);
-            assert!(s.contains("sample.txt"), "Multiple terms must match sample.txt: {s}");
+            assert!(
+                s.contains("sample.txt"),
+                "Multiple terms must match sample.txt: {s}"
+            );
         } else {
             panic!("Expected immediate result");
         }
@@ -1311,7 +1520,8 @@ mod tests {
         // 4. Auto-resolved glob search with wildcard '*'
         let mut search_glob = default_fsearch_args(db_path.clone());
         search_glob.query = vec!["*.txt".to_string()];
-        let res_glob = run_fsearch(search_glob).await.expect("search glob *.txt");
+        let res_glob =
+            run_fsearch(search_glob).await.expect("search glob *.txt");
         if let ToolResult::Immediate { stdout, .. } = res_glob {
             let s = String::from_utf8_lossy(&stdout);
             assert!(s.contains("sample.txt"));
@@ -1326,7 +1536,10 @@ mod tests {
         let res_kn = run_fsearch(search_kn).await.expect("search -kn");
         if let ToolResult::Immediate { stdout, .. } = res_kn {
             let s = String::from_utf8_lossy(&stdout);
-            assert!(!s.contains("sample.txt"), "-kn must not match text content in sample.txt: {s}");
+            assert!(
+                !s.contains("sample.txt"),
+                "-kn must not match text content in sample.txt: {s}"
+            );
         } else {
             panic!("Expected immediate result");
         }
@@ -1334,8 +1547,11 @@ mod tests {
         // 6. Multi-argument keyword search (-k with multiple parameters vs single argument with space)
         let mut search_k_multi = default_fsearch_args(db_path.clone());
         search_k_multi.keyword = vec!["sample".to_string(), "txt".to_string()];
-        let res_k_multi = run_fsearch(search_k_multi).await.expect("search -k multiple terms");
-        let s_multi = if let ToolResult::Immediate { stdout, .. } = res_k_multi {
+        let res_k_multi = run_fsearch(search_k_multi)
+            .await
+            .expect("search -k multiple terms");
+        let s_multi = if let ToolResult::Immediate { stdout, .. } = res_k_multi
+        {
             String::from_utf8_lossy(&stdout).to_string()
         } else {
             panic!("Expected immediate result");
@@ -1343,21 +1559,31 @@ mod tests {
 
         let mut search_k_joined = default_fsearch_args(db_path.clone());
         search_k_joined.keyword = vec!["sample txt".to_string()];
-        let res_k_joined = run_fsearch(search_k_joined).await.expect("search -k single term with space");
-        let s_joined = if let ToolResult::Immediate { stdout, .. } = res_k_joined {
-            String::from_utf8_lossy(&stdout).to_string()
-        } else {
-            panic!("Expected immediate result");
-        };
+        let res_k_joined = run_fsearch(search_k_joined)
+            .await
+            .expect("search -k single term with space");
+        let s_joined =
+            if let ToolResult::Immediate { stdout, .. } = res_k_joined {
+                String::from_utf8_lossy(&stdout).to_string()
+            } else {
+                panic!("Expected immediate result");
+            };
 
-        assert_eq!(s_multi, s_joined, "-k 'a' 'b' must produce identical results to -k 'a b'");
+        assert_eq!(
+            s_multi, s_joined,
+            "-k 'a' 'b' must produce identical results to -k 'a b'"
+        );
         assert!(s_multi.contains("sample.txt"));
 
         // 7. Rejection of conflicting explicit option and positional query
         let mut search_conflict = default_fsearch_args(db_path.clone());
         search_conflict.keyword = vec!["sample".to_string()];
-        search_conflict.query = vec!["unexpected_trailing_positional".to_string()];
-        let err_conflict = run_fsearch(search_conflict).await.err().expect("must fail on mixed explicit option and query");
+        search_conflict.query =
+            vec!["unexpected_trailing_positional".to_string()];
+        let err_conflict = run_fsearch(search_conflict)
+            .await
+            .err()
+            .expect("must fail on mixed explicit option and query");
         assert!(err_conflict.to_string().contains("Cannot specify both explicit search filter flags and positional query terms"));
     }
 
@@ -1375,8 +1601,11 @@ mod tests {
         let db_path = temp.path().join("nofulltext.cscindex.sqlite");
 
         // Index with fulltext disabled (default)
-        let idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
-        run_fsindex(idx_args).await.expect("run fsindex without fulltext");
+        let idx_args =
+            default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        run_fsindex(idx_args)
+            .await
+            .expect("run fsindex without fulltext");
 
         // Check SQLite schema: full_text column must NOT exist
         let db_str = db_path.to_string_lossy().to_string();
@@ -1386,7 +1615,10 @@ mod tests {
             .await
             .expect("open db");
         let conn = db.connect().expect("connect db");
-        let mut stmt = conn.prepare("PRAGMA table_info(entries)").await.expect("pragma table_info");
+        let mut stmt = conn
+            .prepare("PRAGMA table_info(entries)")
+            .await
+            .expect("pragma table_info");
         let mut rows = stmt.query(()).await.expect("query");
         let mut has_full_text_col = false;
         while let Some(row) = rows.next().await.expect("row") {
@@ -1396,19 +1628,27 @@ mod tests {
                 }
             }
         }
-        assert!(!has_full_text_col, "entries table must NOT contain full_text column when fulltext is disabled");
+        assert!(
+            !has_full_text_col,
+            "entries table must NOT contain full_text column when fulltext is disabled"
+        );
 
         // Searching with -kt or -C on non-fulltext database must error
         let mut search_kt = default_fsearch_args(db_path.clone());
         search_kt.keyword_text = Some("Normal".to_string());
-        let err = run_fsearch(search_kt).await.err().expect("must fail -kt on non-fulltext db");
+        let err = run_fsearch(search_kt)
+            .await
+            .err()
+            .expect("must fail -kt on non-fulltext db");
         assert!(err.to_string().contains("not indexed with --fulltext"));
 
         let mut search_ctx = default_fsearch_args(db_path.clone());
         search_ctx.query = vec!["Normal".to_string()];
         search_ctx.context = Some(2);
-        let err_ctx = run_fsearch(search_ctx).await.err().expect("must fail context on non-fulltext db");
+        let err_ctx = run_fsearch(search_ctx)
+            .await
+            .err()
+            .expect("must fail context on non-fulltext db");
         assert!(err_ctx.to_string().contains("not indexed with --fulltext"));
     }
 }
-

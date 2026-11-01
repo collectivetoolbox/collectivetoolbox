@@ -442,20 +442,54 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! ASN.1 DER (Distinguished Encoding Rules) tag scanner, parser, and
 //! comparator matching upstream `file` (`src/der.c`, `src/der.h`).
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
 /// Tag names matching upstream `der__tag` in `src/der.c`.
 const DER_TAG_NAMES: [&str; 37] = [
-    "eoc", "bool", "int", "bit_str", "octet_str", "null", "obj_id", "obj_desc",
-    "ext", "real", "enum", "embed", "utf8_str", "rel_oid", "time", "res2",
-    "seq", "set", "num_str", "prt_str", "t61_str", "vid_str", "ia5_str",
-    "utc_time", "gen_time", "gr_str", "vis_str", "gen_str", "univ_str",
-    "char_str", "bmp_str", "date", "tod", "datetime", "duration", "oid-iri",
+    "eoc",
+    "bool",
+    "int",
+    "bit_str",
+    "octet_str",
+    "null",
+    "obj_id",
+    "obj_desc",
+    "ext",
+    "real",
+    "enum",
+    "embed",
+    "utf8_str",
+    "rel_oid",
+    "time",
+    "res2",
+    "seq",
+    "set",
+    "num_str",
+    "prt_str",
+    "t61_str",
+    "vid_str",
+    "ia5_str",
+    "utc_time",
+    "gen_time",
+    "gr_str",
+    "vis_str",
+    "gen_str",
+    "univ_str",
+    "char_str",
+    "bmp_str",
+    "date",
+    "tod",
+    "datetime",
+    "duration",
+    "oid-iri",
     "rel-oid-iri",
 ];
 
@@ -564,7 +598,9 @@ pub fn format_der_data(tag: u32, payload: &[u8]) -> String {
             String::from_utf8_lossy(payload).to_string()
         }
         DER_TAG_UTCTIME => {
-            if let [y1, y2, m1, m2, d1, d2, h1, h2, min1, min2, s1, s2, ..] = payload {
+            if let [y1, y2, m1, m2, d1, d2, h1, h2, min1, min2, s1, s2, ..] =
+                payload
+            {
                 format!(
                     "20{y1_c}{y2_c}-{m1_c}{m2_c}-{d1_c}{d2_c} {h1_c}{h2_c}:{min1_c}{min2_c}:{s1_c}{s2_c} GMT",
                     y1_c = char::from(*y1),
@@ -581,10 +617,16 @@ pub fn format_der_data(tag: u32, payload: &[u8]) -> String {
                     s2_c = char::from(*s2),
                 )
             } else {
-                payload.iter().map(|b| format!("{b:02x}")).collect::<String>()
+                payload
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>()
             }
         }
-        _ => payload.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        _ => payload
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>(),
     }
 }
 
@@ -606,11 +648,12 @@ pub fn parse_der_pattern(raw: &str) -> Option<DerPattern> {
         return None;
     }
 
-    let (tag_part, val_part) = if let Some((before_eq, after_eq)) = trimmed.split_once('=') {
-        (before_eq.trim(), Some(after_eq.trim().to_string()))
-    } else {
-        (trimmed, None)
-    };
+    let (tag_part, val_part) =
+        if let Some((before_eq, after_eq)) = trimmed.split_once('=') {
+            (before_eq.trim(), Some(after_eq.trim().to_string()))
+        } else {
+            (trimmed, None)
+        };
 
     // Find the longest matching tag name from DER_TAG_NAMES that prefixes tag_part
     let mut matched_tag: Option<&str> = None;
@@ -670,7 +713,8 @@ pub fn match_der(pattern: &DerPattern, data: &[u8]) -> Option<DerMatchResult> {
     }
 
     if let Some(ref exp_val) = pattern.expected_val {
-        let inspect_len = payload_len.min(data.len().saturating_sub(header_len));
+        let inspect_len =
+            payload_len.min(data.len().saturating_sub(header_len));
         let end_idx = header_len.saturating_add(inspect_len);
         let Some(payload) = data.get(header_len..end_idx) else {
             return None;

@@ -65,7 +65,11 @@ impl KStruct for MozillaMar {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -79,7 +83,10 @@ impl KStruct for MozillaMar {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x41u8, 0x52u8, 0x31u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_index.borrow_mut() = _io.read_u4be()?;
@@ -91,16 +98,27 @@ impl KStruct for MozillaMar {
         *self_rc.signatures.borrow_mut() = Vec::new();
         let l_signatures = usize::try_from(*self_rc.len_signatures())?;
         for _i in 0_usize..l_signatures {
-            let t = Self::read_into::<_, MozillaMar_Signature>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, MozillaMar_Signature>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.signatures.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_additional_sections.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.additional_sections.borrow_mut() = Vec::new();
-        let l_additional_sections = usize::try_from(*self_rc.len_additional_sections())?;
+        let l_additional_sections =
+            usize::try_from(*self_rc.len_additional_sections())?;
         for _i in 0_usize..l_additional_sections {
-            let t = Self::read_into::<_, MozillaMar_AdditionalSection>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, MozillaMar_AdditionalSection>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.additional_sections.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -109,17 +127,24 @@ impl KStruct for MozillaMar {
     }
 }
 impl MozillaMar {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn index(
-        &self
-    ) -> KResult<Ref<'_, OptRc<MozillaMar_MarIndex>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn index(&self) -> KResult<Ref<'_, OptRc<MozillaMar_MarIndex>>> {
         let _io = self._io.borrow();
         if self.f_index.get() {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_index())?)?;
-        let t = Self::read_into::<_, MozillaMar_MarIndex>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, MozillaMar_MarIndex>(
+            &*_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.index.borrow())
@@ -156,7 +181,9 @@ impl MozillaMar {
     }
 }
 impl MozillaMar {
-    pub fn additional_sections(&self) -> Ref<'_, Vec<OptRc<MozillaMar_AdditionalSection>>> {
+    pub fn additional_sections(
+        &self,
+    ) -> Ref<'_, Vec<OptRc<MozillaMar_AdditionalSection>>> {
         self.additional_sections.borrow()
     }
 }
@@ -191,13 +218,15 @@ impl From<&MozillaMar_BlockIdentifiers> for i64 {
     fn from(v: &MozillaMar_BlockIdentifiers) -> Self {
         match *v {
             MozillaMar_BlockIdentifiers::ProductInformation => 1,
-            MozillaMar_BlockIdentifiers::Unknown(v) => v
+            MozillaMar_BlockIdentifiers::Unknown(v) => v,
         }
     }
 }
 
 impl Default for MozillaMar_BlockIdentifiers {
-    fn default() -> Self { MozillaMar_BlockIdentifiers::Unknown(0) }
+    fn default() -> Self {
+        MozillaMar_BlockIdentifiers::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -223,15 +252,16 @@ impl From<&MozillaMar_SignatureAlgorithms> for i64 {
         match *v {
             MozillaMar_SignatureAlgorithms::RsaPkcs1Sha1 => 1,
             MozillaMar_SignatureAlgorithms::RsaPkcs1Sha384 => 2,
-            MozillaMar_SignatureAlgorithms::Unknown(v) => v
+            MozillaMar_SignatureAlgorithms::Unknown(v) => v,
         }
     }
 }
 
 impl Default for MozillaMar_SignatureAlgorithms {
-    fn default() -> Self { MozillaMar_SignatureAlgorithms::Unknown(0) }
+    fn default() -> Self {
+        MozillaMar_SignatureAlgorithms::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct MozillaMar_AdditionalSection {
@@ -246,42 +276,64 @@ pub struct MozillaMar_AdditionalSection {
 }
 #[derive(Debug, Clone)]
 pub enum MozillaMar_AdditionalSection_Bytes {
-    MozillaMar_ProductInformationBlock(OptRc<MozillaMar_ProductInformationBlock>),
+    MozillaMar_ProductInformationBlock(
+        OptRc<MozillaMar_ProductInformationBlock>,
+    ),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&MozillaMar_AdditionalSection_Bytes> for OptRc<MozillaMar_ProductInformationBlock> {
+impl TryFrom<&MozillaMar_AdditionalSection_Bytes>
+    for OptRc<MozillaMar_ProductInformationBlock>
+{
     type Error = KError;
-    fn try_from(v: &MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MozillaMar_AdditionalSection_Bytes,
+    ) -> Result<Self, Self::Error> {
         if let MozillaMar_AdditionalSection_Bytes::MozillaMar_ProductInformationBlock(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&MozillaMar_AdditionalSection_Bytes> for OptRc<MozillaMar_ProductInformationBlock> {
+impl TryFrom<&&MozillaMar_AdditionalSection_Bytes>
+    for OptRc<MozillaMar_ProductInformationBlock>
+{
     type Error = KError;
-    fn try_from(v: &&MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MozillaMar_AdditionalSection_Bytes,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<MozillaMar_ProductInformationBlock> for MozillaMar_AdditionalSection_Bytes {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+impl DowncastOptRc<MozillaMar_ProductInformationBlock>
+    for MozillaMar_AdditionalSection_Bytes
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
         OptRc::<MozillaMar_ProductInformationBlock>::try_from(self)
     }
 }
-impl DowncastOptRc<MozillaMar_ProductInformationBlock> for &MozillaMar_AdditionalSection_Bytes {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+impl DowncastOptRc<MozillaMar_ProductInformationBlock>
+    for &MozillaMar_AdditionalSection_Bytes
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<MozillaMar_ProductInformationBlock>> for MozillaMar_AdditionalSection_Bytes {
+impl From<OptRc<MozillaMar_ProductInformationBlock>>
+    for MozillaMar_AdditionalSection_Bytes
+{
     fn from(v: OptRc<MozillaMar_ProductInformationBlock>) -> Self {
         Self::MozillaMar_ProductInformationBlock(v)
     }
 }
 impl TryFrom<&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
     type Error = KError;
-    fn try_from(v: &MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MozillaMar_AdditionalSection_Bytes,
+    ) -> Result<Self, Self::Error> {
         if let MozillaMar_AdditionalSection_Bytes::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -290,7 +342,9 @@ impl TryFrom<&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
 }
 impl TryFrom<&&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
     type Error = KError;
-    fn try_from(v: &&MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MozillaMar_AdditionalSection_Bytes,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -299,35 +353,57 @@ impl From<Vec<u8>> for MozillaMar_AdditionalSection_Bytes {
         Self::Bytes(v)
     }
 }
-impl TryFrom<&MozillaMar_AdditionalSection> for OptRc<MozillaMar_AdditionalSection> {
+impl TryFrom<&MozillaMar_AdditionalSection>
+    for OptRc<MozillaMar_AdditionalSection>
+{
     type Error = KError;
     fn try_from(v: &MozillaMar_AdditionalSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&MozillaMar_AdditionalSection> for OptRc<MozillaMar_AdditionalSection> {
+impl TryFrom<&&MozillaMar_AdditionalSection>
+    for OptRc<MozillaMar_AdditionalSection>
+{
     type Error = KError;
-    fn try_from(v: &&MozillaMar_AdditionalSection) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MozillaMar_AdditionalSection,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<MozillaMar_AdditionalSection> for MozillaMar_AdditionalSection {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+impl DowncastOptRc<MozillaMar_AdditionalSection>
+    for MozillaMar_AdditionalSection
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<MozillaMar_AdditionalSection> for &MozillaMar_AdditionalSection {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+impl DowncastOptRc<MozillaMar_AdditionalSection>
+    for &MozillaMar_AdditionalSection
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MozillaMar_AdditionalSection> for OptRc<MozillaMar_AdditionalSection> {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+impl DowncastOptRc<MozillaMar_AdditionalSection>
+    for OptRc<MozillaMar_AdditionalSection>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MozillaMar_AdditionalSection> for &OptRc<MozillaMar_AdditionalSection> {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+impl DowncastOptRc<MozillaMar_AdditionalSection>
+    for &OptRc<MozillaMar_AdditionalSection>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -335,7 +411,11 @@ impl KStruct for MozillaMar_AdditionalSection {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -349,18 +429,40 @@ impl KStruct for MozillaMar_AdditionalSection {
         let _io = io;
         *self_rc.len_block.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.block_identifier.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.block_identifier.borrow_mut() =
+            i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.block_identifier() {
             MozillaMar_BlockIdentifiers::ProductInformation => {
-                *self_rc.bytes_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.len_block()).saturating_sub(u32::try_from(4_i32)?)).saturating_sub(u32::try_from(4_i32)?))?)?.into();
+                *self_rc.bytes_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(
+                        ((*self_rc.len_block())
+                            .saturating_sub(u32::try_from(4_i32)?))
+                        .saturating_sub(u32::try_from(4_i32)?),
+                    )?)?
+                    .into();
                 let bytes_raw = self_rc.bytes_raw.borrow();
                 let _t_bytes_raw_io = BytesReader::from(bytes_raw.clone());
-                let t = Self::read_into::<BytesReader, MozillaMar_ProductInformationBlock>(&_t_bytes_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<
+                    BytesReader,
+                    MozillaMar_ProductInformationBlock,
+                >(
+                    &_t_bytes_raw_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.bytes.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.bytes.borrow_mut() = Some(_io.read_bytes(usize::try_from(((*self_rc.len_block()).saturating_sub(u32::try_from(4_i32)?)).saturating_sub(u32::try_from(4_i32)?))?)?.into());
+                *self_rc.bytes.borrow_mut() = Some(
+                    _io.read_bytes(usize::try_from(
+                        ((*self_rc.len_block())
+                            .saturating_sub(u32::try_from(4_i32)?))
+                        .saturating_sub(u32::try_from(4_i32)?),
+                    )?)?
+                    .into(),
+                );
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -368,8 +470,7 @@ impl KStruct for MozillaMar_AdditionalSection {
         Ok(())
     }
 }
-impl MozillaMar_AdditionalSection {
-}
+impl MozillaMar_AdditionalSection {}
 impl MozillaMar_AdditionalSection {
     pub fn len_block(&self) -> Ref<'_, u32> {
         self.len_block.borrow()
@@ -437,7 +538,9 @@ impl DowncastOptRc<MozillaMar_IndexEntries> for OptRc<MozillaMar_IndexEntries> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MozillaMar_IndexEntries> for &OptRc<MozillaMar_IndexEntries> {
+impl DowncastOptRc<MozillaMar_IndexEntries>
+    for &OptRc<MozillaMar_IndexEntries>
+{
     fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntries>, KError> {
         Ok((*self).clone())
     }
@@ -446,7 +549,11 @@ impl KStruct for MozillaMar_IndexEntries {
     type Root = MozillaMar;
     type Parent = MozillaMar_MarIndex;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -462,7 +569,12 @@ impl KStruct for MozillaMar_IndexEntries {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, MozillaMar_IndexEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, MozillaMar_IndexEntry>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.index_entry.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -472,8 +584,7 @@ impl KStruct for MozillaMar_IndexEntries {
         Ok(())
     }
 }
-impl MozillaMar_IndexEntries {
-}
+impl MozillaMar_IndexEntries {}
 impl MozillaMar_IndexEntries {
     pub fn index_entry(&self) -> Ref<'_, Vec<OptRc<MozillaMar_IndexEntry>>> {
         self.index_entry.borrow()
@@ -540,7 +651,11 @@ impl KStruct for MozillaMar_IndexEntry {
     type Root = MozillaMar;
     type Parent = MozillaMar_IndexEntries;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -558,26 +673,39 @@ impl KStruct for MozillaMar_IndexEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.file_name.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MozillaMar_IndexEntry {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn body(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn body(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                ._io(),
+        );
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs_content())?)?;
-        *self.body.borrow_mut() = io.read_bytes(usize::try_from(*self.len_content())?)?;
+        *self.body.borrow_mut() =
+            io.read_bytes(usize::try_from(*self.len_content())?)?;
         io.seek(_pos)?;
         Ok(self.body.borrow())
     }
@@ -664,7 +792,11 @@ impl KStruct for MozillaMar_MarIndex {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -678,18 +810,23 @@ impl KStruct for MozillaMar_MarIndex {
         let _io = io;
         *self_rc.len_index.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_index_entries = _io.read_bytes(usize::try_from(*self_rc.len_index())?)?;
+        let _raw_index_entries =
+            _io.read_bytes(usize::try_from(*self_rc.len_index())?)?;
         *self_rc.index_entries_raw.borrow_mut() = _raw_index_entries.clone();
         let _io_index_entries = BytesReader::from(_raw_index_entries);
-        let t = Self::read_into::<BytesReader, MozillaMar_IndexEntries>(&_io_index_entries, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, MozillaMar_IndexEntries>(
+            &_io_index_entries,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.index_entries.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MozillaMar_MarIndex {
-}
+impl MozillaMar_MarIndex {}
 impl MozillaMar_MarIndex {
     pub fn len_index(&self) -> Ref<'_, u32> {
         self.len_index.borrow()
@@ -728,35 +865,59 @@ pub struct MozillaMar_ProductInformationBlock {
     mar_channel_name_raw: RefCell<Vec<u8>>,
     product_version_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&MozillaMar_ProductInformationBlock> for OptRc<MozillaMar_ProductInformationBlock> {
+impl TryFrom<&MozillaMar_ProductInformationBlock>
+    for OptRc<MozillaMar_ProductInformationBlock>
+{
     type Error = KError;
-    fn try_from(v: &MozillaMar_ProductInformationBlock) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MozillaMar_ProductInformationBlock,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&MozillaMar_ProductInformationBlock> for OptRc<MozillaMar_ProductInformationBlock> {
+impl TryFrom<&&MozillaMar_ProductInformationBlock>
+    for OptRc<MozillaMar_ProductInformationBlock>
+{
     type Error = KError;
-    fn try_from(v: &&MozillaMar_ProductInformationBlock) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MozillaMar_ProductInformationBlock,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<MozillaMar_ProductInformationBlock> for MozillaMar_ProductInformationBlock {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+impl DowncastOptRc<MozillaMar_ProductInformationBlock>
+    for MozillaMar_ProductInformationBlock
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<MozillaMar_ProductInformationBlock> for &MozillaMar_ProductInformationBlock {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+impl DowncastOptRc<MozillaMar_ProductInformationBlock>
+    for &MozillaMar_ProductInformationBlock
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MozillaMar_ProductInformationBlock> for OptRc<MozillaMar_ProductInformationBlock> {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+impl DowncastOptRc<MozillaMar_ProductInformationBlock>
+    for OptRc<MozillaMar_ProductInformationBlock>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MozillaMar_ProductInformationBlock> for &OptRc<MozillaMar_ProductInformationBlock> {
-    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+impl DowncastOptRc<MozillaMar_ProductInformationBlock>
+    for &OptRc<MozillaMar_ProductInformationBlock>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
         Ok((*self).clone())
     }
 }
@@ -764,7 +925,11 @@ impl KStruct for MozillaMar_ProductInformationBlock {
     type Root = MozillaMar;
     type Parent = MozillaMar_AdditionalSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -776,16 +941,31 @@ impl KStruct for MozillaMar_ProductInformationBlock {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.mar_channel_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(64_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.mar_channel_name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(64_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.product_version.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.product_version.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(32_usize)?,
+                Some(0),
+                false,
+                None,
+            ),
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MozillaMar_ProductInformationBlock {
-}
+impl MozillaMar_ProductInformationBlock {}
 impl MozillaMar_ProductInformationBlock {
     pub fn mar_channel_name(&self) -> Ref<'_, String> {
         self.mar_channel_name.borrow()
@@ -865,7 +1045,11 @@ impl KStruct for MozillaMar_Signature {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -877,18 +1061,19 @@ impl KStruct for MozillaMar_Signature {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.algorithm.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.algorithm.borrow_mut() =
+            i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_signature.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_signature())?)?;
+        *self_rc.signature.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len_signature())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MozillaMar_Signature {
-}
+impl MozillaMar_Signature {}
 impl MozillaMar_Signature {
     pub fn algorithm(&self) -> Ref<'_, MozillaMar_SignatureAlgorithms> {
         self.algorithm.borrow()

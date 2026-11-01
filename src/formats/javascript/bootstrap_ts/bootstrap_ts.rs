@@ -698,8 +698,12 @@ try {
 
 pub fn get_default_ts_repo_path() -> Option<PathBuf> {
     let base = if ctb_utilities::testing::is_in_test() {
-        ctb_utilities::testing::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "")
-            .parent()?.to_path_buf()
+        ctb_utilities::testing::manifest_fixture_path(
+            env!("CARGO_MANIFEST_DIR"),
+            "",
+        )
+        .parent()?
+        .to_path_buf()
     } else {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     };
@@ -721,13 +725,20 @@ mod tests {
     use super::*;
 
     fn prepare_bootstrap_fixture(root: &Path) -> Result<PathBuf> {
-        let source = get_default_ts_repo_path().context("No default TS repo path")?;
-        let vendor = source.parent().context("Missing TypeScript parent directory")?;
+        let source =
+            get_default_ts_repo_path().context("No default TS repo path")?;
+        let vendor = source
+            .parent()
+            .context("Missing TypeScript parent directory")?;
         let staged = root.join("TypeScript");
         for directory in ["src", "scripts"] {
             copy_dir_all(&source.join(directory), &staged.join(directory))?;
         }
-        for directory in ["DefinitelyTyped-partial/node", "DefinitelyTyped-partial/deno", "undici/types"] {
+        for directory in [
+            "DefinitelyTyped-partial/node",
+            "DefinitelyTyped-partial/deno",
+            "undici/types",
+        ] {
             copy_dir_all(&vendor.join(directory), &root.join(directory))?;
         }
         Ok(staged)
@@ -735,8 +746,15 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_default_ts_repo_path() {
-        let repo_path = get_default_ts_repo_path().expect("No default TS repo path");
-        assert!(repo_path.join("src/compiler/diagnosticMessages.json").is_file(), "Missing TypeScript source: {}", repo_path.display());
+        let repo_path =
+            get_default_ts_repo_path().expect("No default TS repo path");
+        assert!(
+            repo_path
+                .join("src/compiler/diagnosticMessages.json")
+                .is_file(),
+            "Missing TypeScript source: {}",
+            repo_path.display()
+        );
         assert!(repo_path.join("scripts/CopyrightNotice.txt").is_file());
     }
 
@@ -745,9 +763,17 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let repo = prepare_bootstrap_fixture(temp.path()).unwrap();
         assert!(repo.join("src/compiler/diagnosticMessages.json").is_file());
-        assert!(temp.path().join("DefinitelyTyped-partial/node/index.d.ts").is_file());
+        assert!(
+            temp.path()
+                .join("DefinitelyTyped-partial/node/index.d.ts")
+                .is_file()
+        );
         assert!(temp.path().join("undici/types/index.d.ts").is_file());
-        std::fs::write(temp.path().join("TypeScript-built.tar"), b"writable fixture").unwrap();
+        std::fs::write(
+            temp.path().join("TypeScript-built.tar"),
+            b"writable fixture",
+        )
+        .unwrap();
     }
 
     #[crate::ctb_test]

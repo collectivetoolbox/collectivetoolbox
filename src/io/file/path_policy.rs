@@ -116,7 +116,10 @@ pub fn resolve_and_validate_path(
 ///
 /// Prevents "symlink poisoning" attacks where an archive contains a symlink
 /// pointing outside the root followed by a file inside that symlink.
-pub fn ensure_sandboxed_dir_all(dest_root: &Path, dir_path: &Path) -> Result<()> {
+pub fn ensure_sandboxed_dir_all(
+    dest_root: &Path,
+    dir_path: &Path,
+) -> Result<()> {
     if !dir_path.starts_with(dest_root) {
         anyhow::bail!(
             "Directory path {} is not inside destination root {}",
@@ -155,7 +158,9 @@ pub fn ensure_sandboxed_dir_all(dest_root: &Path, dir_path: &Path) -> Result<()>
                     }
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                         if let Err(create_err) = std::fs::create_dir(&current) {
-                            if create_err.kind() == std::io::ErrorKind::AlreadyExists {
+                            if create_err.kind()
+                                == std::io::ErrorKind::AlreadyExists
+                            {
                                 let sym_meta = std::fs::symlink_metadata(&current)
                                     .with_context(|| {
                                         format!(
@@ -248,7 +253,9 @@ pub fn validate_symlink_target(
         }
         SymlinkValidationPolicy::RejectEscapingSymlinks => {
             #[cfg(unix)]
-            let target_os = <OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(target_bytes);
+            let target_os = <OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(
+                target_bytes,
+            );
             #[cfg(not(unix))]
             let target_str = String::from_utf8_lossy(target_bytes);
             #[cfg(not(unix))]
@@ -328,15 +335,18 @@ pub fn resolve_existing_ancestors(path: &Path) -> Result<PathBuf> {
     match std::fs::canonicalize(path) {
         Ok(resolved) => Ok(resolved),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            let parent = path.parent().context("Path has no existing ancestor")?;
+            let parent =
+                path.parent().context("Path has no existing ancestor")?;
             let parent = if parent.as_os_str().is_empty() {
                 Path::new(".")
             } else {
                 parent
             };
-            Ok(resolve_existing_ancestors(parent)?.join(path.file_name().context("Path has no filename")?))
+            Ok(resolve_existing_ancestors(parent)?
+                .join(path.file_name().context("Path has no filename")?))
         }
-        Err(error) => Err(error).with_context(|| format!("Failed to resolve {}", path.display())),
+        Err(error) => Err(error)
+            .with_context(|| format!("Failed to resolve {}", path.display())),
     }
 }
 #[cfg(test)]
@@ -353,7 +363,7 @@ pub fn resolve_existing_ancestors(path: &Path) -> Result<PathBuf> {
 mod tests {
     use super::*;
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
 
     #[crate::ctb_test]
     fn test_symlink_policy_verbatim_vs_restricted() {
@@ -401,7 +411,10 @@ mod tests {
             escaping_non_utf8,
             SymlinkValidationPolicy::RejectEscapingSymlinks,
         );
-        assert!(res_escaping.is_err(), "Must detect escape even with non-UTF-8 bytes");
+        assert!(
+            res_escaping.is_err(),
+            "Must detect escape even with non-UTF-8 bytes"
+        );
 
         // Invalid UTF-8 bytes in target contained safely inside
         let contained_non_utf8 = b"internal/\xFF\xFE\xFD_safe";
@@ -444,12 +457,20 @@ mod tests {
         let dest_root = temp_dir.path().join("dest");
 
         let rel = PathBuf::from("a/b/../c/./d");
-        let resolved = resolve_and_validate_path(&dest_root, &rel, PathTraversalPolicy::StrictSandboxed)
-            .expect("valid relative path with dots");
+        let resolved = resolve_and_validate_path(
+            &dest_root,
+            &rel,
+            PathTraversalPolicy::StrictSandboxed,
+        )
+        .expect("valid relative path with dots");
         assert_eq!(resolved, dest_root.join("a").join("c").join("d"));
 
         let escaping = PathBuf::from("a/../../escaped");
-        let res = resolve_and_validate_path(&dest_root, &escaping, PathTraversalPolicy::StrictSandboxed);
+        let res = resolve_and_validate_path(
+            &dest_root,
+            &escaping,
+            PathTraversalPolicy::StrictSandboxed,
+        );
         assert!(res.is_err(), "Must reject path escaping root via ..");
     }
 
@@ -482,4 +503,3 @@ mod tests {
         );
     }
 }
-

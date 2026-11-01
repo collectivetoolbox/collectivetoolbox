@@ -97,15 +97,18 @@ mod tests {
         let decoded = decode_dc_stream_string(&dc_string).unwrap();
         assert_eq!(decoded, expr);
         // Confirm the parser flexibly supports other valid syntaxes
-        let long_dc_string = "298 302 298 303 298 302 f15 f542 299 f0 299 f0 299";
+        let long_dc_string =
+            "298 302 298 303 298 302 f15 f542 299 f0 299 f0 299";
         let decoded = decode_dc_stream_string(&long_dc_string).unwrap();
         assert_eq!(decoded, expr);
         let manually_written_dc_string = "302 303 302 f15 f542 299 f0 299 f0";
-        let decoded = decode_dc_stream_string(&manually_written_dc_string).unwrap();
+        let decoded =
+            decode_dc_stream_string(&manually_written_dc_string).unwrap();
         assert_eq!(decoded, expr);
         // Doesn't actually need terminators for transmutation/conversion as they only take two parameters... only & or | would need them
         let manually_written_dc_string = "302 303 302 f15 f542 f0 f0";
-        let decoded = decode_dc_stream_string(&manually_written_dc_string).unwrap();
+        let decoded =
+            decode_dc_stream_string(&manually_written_dc_string).unwrap();
         assert_eq!(decoded, expr);
     }
 
@@ -277,7 +280,11 @@ mod tests {
         let err = parse_format_expr("BaseNNumeral(radix=16)");
         assert!(err.is_err());
         let err_msg = err.unwrap_err().to_string();
-        assert!(err_msg.contains("Identifiers are not permitted as application targets"));
+        assert!(
+            err_msg.contains(
+                "Identifiers are not permitted as application targets"
+            )
+        );
     }
 
     #[crate::ctb_test]
@@ -322,7 +329,11 @@ mod tests {
         let invalid_radix = parse_format_expr("f350(radix=0)").unwrap();
         let err = validate_format_expr(&invalid_radix);
         assert!(err.is_err());
-        assert!(err.unwrap_err().to_string().contains("Radix parameter must be greater than 0"));
+        assert!(
+            err.unwrap_err()
+                .to_string()
+                .contains("Radix parameter must be greater than 0")
+        );
 
         // Duplicate parameter rejected
         let dup = FormatExpr::Apply {
@@ -340,6 +351,11 @@ mod tests {
         };
         let err_dup = validate_format_expr(&dup);
         assert!(err_dup.is_err());
-        assert!(err_dup.unwrap_err().to_string().contains("Duplicate parameter 'radix'"));
+        assert!(
+            err_dup
+                .unwrap_err()
+                .to_string()
+                .contains("Duplicate parameter 'radix'")
+        );
     }
 }

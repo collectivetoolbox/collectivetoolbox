@@ -207,8 +207,12 @@ impl ProcessManager for TokioProcessManager {
     ) -> Result<(), Error> {
         let targets = {
             let inner = self.inner.lock().await;
-            inner.children.iter()
-                .filter(|(child_pid, entry)| **child_pid == pid || entry.ancestors.contains(&pid))
+            inner
+                .children
+                .iter()
+                .filter(|(child_pid, entry)| {
+                    **child_pid == pid || entry.ancestors.contains(&pid)
+                })
                 .map(|(child_pid, entry)| (*child_pid, entry.terminate.clone()))
                 .collect::<Vec<_>>()
         };
@@ -372,31 +376,41 @@ mod tests {
     async fn terminate_descendant_after_intermediate_exit() -> Result<()> {
         let pm = TokioProcessManager::new();
         let root = pm.spawn_child(long_running_params(None)).await?;
-        let intermediate = pm
-            .spawn_child(long_running_params(Some(root.pid)))
-            .await?;
+        let intermediate =
+            pm.spawn_child(long_running_params(Some(root.pid))).await?;
         let descendant = pm
             .spawn_child(long_running_params(Some(intermediate.pid)))
             .await?;
         let terminate = {
             let inner = pm.inner.lock().await;
-            inner.children.get(&intermediate.pid)
-                .context("missing intermediate child")?.terminate.clone()
+            inner
+                .children
+                .get(&intermediate.pid)
+                .context("missing intermediate child")?
+                .terminate
+                .clone()
         };
         let (response, response_rx) = oneshot::channel();
         terminate.send(response)?;
         response_rx.await??;
         tokio::time::timeout(Duration::from_secs(2), async {
             loop {
-                if !pm.list_children().await?.iter()
-                    .any(|child| child.pid == intermediate.pid) {
+                if !pm
+                    .list_children()
+                    .await?
+                    .iter()
+                    .any(|child| child.pid == intermediate.pid)
+                {
                     return Ok::<(), anyhow::Error>(());
                 }
                 sleep(Duration::from_millis(20)).await;
             }
-        }).await??;
+        })
+        .await??;
         pm.terminate_tree(root.pid, true).await?;
-        let exited = pm.wait_for_exit(descendant.pid, Duration::from_secs(2)).await?;
+        let exited = pm
+            .wait_for_exit(descendant.pid, Duration::from_secs(2))
+            .await?;
         pm.terminate_tree(descendant.pid, true).await?;
         anyhow::ensure!(exited, "descendant survived after intermediate exit");
         Ok(())

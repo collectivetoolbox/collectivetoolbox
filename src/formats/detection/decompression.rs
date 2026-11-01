@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Transparent and deep recursive decompression inspection for format detection.
 //!
 //! Provides bounded stream decompression across all supported compression formats,
@@ -458,8 +457,8 @@ use crate::utilities::*;
 
 use std::io::{self, Read, Write};
 
-use crate::mime_derivation::FORMAT_CATALOG;
 use crate::extension::resolve_extension_candidates;
+use crate::mime_derivation::FORMAT_CATALOG;
 use crate::source::DetectionSource;
 use crate::types::{
     ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
@@ -494,8 +493,9 @@ impl<S: DetectionSource + ?Sized> Read for DetectionSourceReader<'_, S> {
             .source
             .read_at(self.offset, buf)
             .map_err(|e| io::Error::other(e.to_string()))?;
-        let advance = u64::try_from(n)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
+        let advance = u64::try_from(n).map_err(|e| {
+            io::Error::new(io::ErrorKind::InvalidData, e.to_string())
+        })?;
         self.offset = self.offset.saturating_add(advance);
         Ok(n)
     }
@@ -538,9 +538,7 @@ impl Write for BoundedWriter {
         let remaining = self.limit.saturating_sub(self.buffer.len());
         if remaining == 0 {
             self.limit_reached = true;
-            return Err(io::Error::other(
-                "decompression byte limit reached",
-            ));
+            return Err(io::Error::other("decompression byte limit reached"));
         }
         let take = buf.len().min(remaining);
         if let Some(slice) = buf.get(..take) {
@@ -563,17 +561,22 @@ pub fn decompress_bounded<S: DetectionSource + ?Sized>(
     format: FormatId,
     limit: usize,
 ) -> Result<Option<Vec<u8>>> {
-    let Ok(supported_format) = format.to_supported_decompression_format() else {
+    let Ok(supported_format) = format.to_supported_decompression_format()
+    else {
         return Ok(None);
     };
     let mut reader = DetectionSourceReader::new(source);
     let mut writer = BoundedWriter::new(limit);
-    if let Err(error) =
-        ctb_formats_compression::decompress_stream(&mut reader, &mut writer, supported_format)
-    {
+    if let Err(error) = ctb_formats_compression::decompress_stream(
+        &mut reader,
+        &mut writer,
+        supported_format,
+    ) {
         // A failed probe is a normal negative result during detection, but it
         // must not vanish entirely: log at debug level for diagnosability.
-        debug_fmt!("Decompression probe for {format:?} produced no result: {error}");
+        debug_fmt!(
+            "Decompression probe for {format:?} produced no result: {error}"
+        );
     }
     let out = writer.into_inner();
     if out.is_empty() {
@@ -584,7 +587,10 @@ pub fn decompress_bounded<S: DetectionSource + ?Sized>(
 
 /// Resolves an inner and outer format pair to a single compound `FormatId` if one is registered.
 #[must_use]
-pub fn resolve_compound_format(inner: FormatId, outer: FormatId) -> Option<FormatId> {
+pub fn resolve_compound_format(
+    inner: FormatId,
+    outer: FormatId,
+) -> Option<FormatId> {
     if inner == FormatId::Tar {
         match outer {
             FormatId::Gzip => Some(FormatId::TarGz),
@@ -607,17 +613,23 @@ pub fn resolve_compound_format(inner: FormatId, outer: FormatId) -> Option<Forma
 /// Validates the emitted directive against the format expression grammar and AST validator.
 #[must_use]
 pub fn format_chain_directive(layers: &[FormatId]) -> String {
-    let shorthands: Vec<&str> = layers.iter().map(FormatId::shorthand).collect();
+    let shorthands: Vec<&str> =
+        layers.iter().map(FormatId::shorthand).collect();
     let directive = format!("@chain({})", shorthands.join(" > "));
     // A generated directive failing validation indicates a formatter bug;
     // warn rather than emit an unparseable chain description silently.
-    match parse_format_expr(&directive).map(|expr| validate_format_expr(&expr)) {
+    match parse_format_expr(&directive).map(|expr| validate_format_expr(&expr))
+    {
         Ok(Ok(())) => {}
         Ok(Err(error)) => {
-            warn_fmt!("Format chain directive {directive} failed validation: {error}");
+            warn_fmt!(
+                "Format chain directive {directive} failed validation: {error}"
+            );
         }
         Err(error) => {
-            warn_fmt!("Format chain directive {directive} failed to parse: {error}");
+            warn_fmt!(
+                "Format chain directive {directive} failed to parse: {error}"
+            );
         }
     }
     directive
@@ -628,8 +640,10 @@ pub fn format_chain_directive(layers: &[FormatId]) -> String {
 #[must_use]
 fn format_chain_label(fid: FormatId) -> String {
     // Reason for fallback: format without catalog entry uses format title or ident as label
-    FORMAT_CATALOG
-        .lookup_format_id(fid).map_or_else(|| fid.title().unwrap_or(fid.ident()).to_string(), |m| m.label.clone())
+    FORMAT_CATALOG.lookup_format_id(fid).map_or_else(
+        || fid.title().unwrap_or(fid.ident()).to_string(),
+        |m| m.label.clone(),
+    )
 }
 
 /// Formats a human-readable pretty-printed format chain description,
@@ -665,7 +679,10 @@ pub fn build_compound_candidate(
 ) -> DetectionCandidate {
     let mapping = FORMAT_CATALOG.lookup_format_id(compound_fid);
     // Reason for fallback: unmapped compound format defaults to inner and outer descriptions
-    let desc = mapping.map_or_else(|| format!("{} ({})", inner_cand.description, outer_cand.description), |m| m.label.clone());
+    let desc = mapping.map_or_else(
+        || format!("{} ({})", inner_cand.description, outer_cand.description),
+        |m| m.label.clone(),
+    );
     let mime = mapping
         .and_then(|m| m.mime_types.first().cloned())
         .or_else(|| inner_cand.mime.clone());
@@ -699,9 +716,15 @@ pub fn build_format_chain_candidate(
 ) -> DetectionCandidate {
     let pretty_desc = format_chain_pretty(layers);
     // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
-    let inner_mime = inner_cand.mime.as_deref().unwrap_or("application/octet-stream");
+    let inner_mime = inner_cand
+        .mime
+        .as_deref()
+        .unwrap_or("application/octet-stream");
     // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
-    let outer_mime = outer_cand.mime.as_deref().unwrap_or("application/octet-stream");
+    let outer_mime = outer_cand
+        .mime
+        .as_deref()
+        .unwrap_or("application/octet-stream");
     let chain_mime = format!("{inner_mime} compressed-encoding={outer_mime}");
 
     DetectionCandidate {
@@ -737,11 +760,18 @@ pub fn build_compat_candidate(
         cand
     } else {
         // -z mode: report `<inner_desc> (<outer_desc>)`
-        let desc = format!("{} ({})", inner_cand.description, outer_cand.description);
+        let desc =
+            format!("{} ({})", inner_cand.description, outer_cand.description);
         // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
-        let inner_mime = inner_cand.mime.as_deref().unwrap_or("application/octet-stream");
+        let inner_mime = inner_cand
+            .mime
+            .as_deref()
+            .unwrap_or("application/octet-stream");
         // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
-        let outer_mime = outer_cand.mime.as_deref().unwrap_or("application/octet-stream");
+        let outer_mime = outer_cand
+            .mime
+            .as_deref()
+            .unwrap_or("application/octet-stream");
         let mime = format!("{inner_mime} compressed-encoding={outer_mime}");
 
         DetectionCandidate {
@@ -766,7 +796,10 @@ pub fn probe_decompression_candidates<S: DetectionSource + ?Sized, FReport>(
     mut run_inner_report: FReport,
 ) -> Result<Vec<DetectionCandidate>>
 where
-    FReport: FnMut(&mut dyn DetectionSource, Option<&DetectionHint>) -> Result<DetectionReport>,
+    FReport: FnMut(
+        &mut dyn DetectionSource,
+        Option<&DetectionHint>,
+    ) -> Result<DetectionReport>,
 {
     // Reason for fallback: hint defaults to non-compat mode if omitted
     let compat = hint.is_some_and(|h| h.compat);
@@ -826,8 +859,10 @@ where
         };
 
         // Reason for fallback: unmapped format uses debug format name
-        let desc = FORMAT_CATALOG
-            .lookup_format_id(fid).map_or_else(|| format!("{fid:?} compressed data"), |m| m.label.clone());
+        let desc = FORMAT_CATALOG.lookup_format_id(fid).map_or_else(
+            || format!("{fid:?} compressed data"),
+            |m| m.label.clone(),
+        );
         let mime = FORMAT_CATALOG
             .lookup_format_id(fid)
             .and_then(|m| m.mime_types.first().cloned());
@@ -849,7 +884,8 @@ where
         .and_then(|h| h.decompress_byte_limit)
         .unwrap_or(DEFAULT_DECOMPRESS_BYTE_LIMIT);
 
-    let Some(decompressed) = decompress_bounded(source, outer_fid, limit)? else {
+    let Some(decompressed) = decompress_bounded(source, outer_fid, limit)?
+    else {
         return Ok(Vec::new());
     };
 
@@ -871,7 +907,8 @@ where
         } else {
             filename.clone()
         };
-        inner_hint.extension = stripped.rsplit_once('.').map(|(_, ext)| ext.to_string());
+        inner_hint.extension =
+            stripped.rsplit_once('.').map(|(_, ext)| ext.to_string());
         inner_hint.filename = Some(stripped);
     }
 
@@ -884,10 +921,14 @@ where
 
     if compat {
         let mut outer_for_compat = outer_candidate_ref.clone();
-        if let Some(magic_desc) = outer_candidate_ref.evidence.iter().find_map(|e| match e {
-            DetectionEvidence::FileMagic { description, .. } => Some(description.clone()),
-            _ => None,
-        }) {
+        if let Some(magic_desc) =
+            outer_candidate_ref.evidence.iter().find_map(|e| match e {
+                DetectionEvidence::FileMagic { description, .. } => {
+                    Some(description.clone())
+                }
+                _ => None,
+            })
+        {
             outer_for_compat.description = magic_desc;
         }
 
@@ -918,7 +959,9 @@ where
         // Default rich mode: generate compound candidate and format chain candidate
         if let Some(inner) = inner_cand {
             if let Some(inner_fid) = inner.format_id {
-                if let Some(compound_fid) = resolve_compound_format(inner_fid, outer_fid) {
+                if let Some(compound_fid) =
+                    resolve_compound_format(inner_fid, outer_fid)
+                {
                     results.push(build_compound_candidate(
                         compound_fid,
                         inner,
@@ -941,12 +984,20 @@ where
                 ));
             } else {
                 // Inner candidate has no registered FormatId (e.g. arbitrary text / data)
-                let desc = format!("{} ({})", inner.description, outer_candidate_ref.description);
+                let desc = format!(
+                    "{} ({})",
+                    inner.description, outer_candidate_ref.description
+                );
                 // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
-                let inner_mime = inner.mime.as_deref().unwrap_or("application/octet-stream");
+                let inner_mime =
+                    inner.mime.as_deref().unwrap_or("application/octet-stream");
                 // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
-                let outer_mime = outer_candidate_ref.mime.as_deref().unwrap_or("application/octet-stream");
-                let chain_mime = format!("{inner_mime} compressed-encoding={outer_mime}");
+                let outer_mime = outer_candidate_ref
+                    .mime
+                    .as_deref()
+                    .unwrap_or("application/octet-stream");
+                let chain_mime =
+                    format!("{inner_mime} compressed-encoding={outer_mime}");
                 results.push(DetectionCandidate {
                     format_id: None,
                     dc_id: None,
@@ -989,7 +1040,9 @@ mod tests {
     fn csc_journal_v4_bytes() -> Vec<u8> {
         let mut data = Vec::new();
         data.extend_from_slice(b"CTBCSCJ\x04");
-        data.extend_from_slice(b"\x00\x01\x02\x03 synthetic journal payload for detection");
+        data.extend_from_slice(
+            b"\x00\x01\x02\x03 synthetic journal payload for detection",
+        );
         data
     }
 
@@ -1058,14 +1111,16 @@ mod tests {
 
     #[ctb_test]
     fn test_format_chain_directive_and_pretty() {
-        let directive = format_chain_directive(&[FormatId::Tar, FormatId::CompressLzw]);
+        let directive =
+            format_chain_directive(&[FormatId::Tar, FormatId::CompressLzw]);
         assert_eq!(directive, "@chain(f161 > f44)");
 
         let expr = parse_format_expr(&directive)
             .expect("Should parse chain directive");
         validate_format_expr(&expr).expect("Should validate chain expression");
 
-        let pretty = format_chain_pretty(&[FormatId::Tar, FormatId::CompressLzw]);
+        let pretty =
+            format_chain_pretty(&[FormatId::Tar, FormatId::CompressLzw]);
         assert!(pretty.starts_with("@chain(f161 > f44):"));
         assert!(pretty.contains("tar"));
 
@@ -1077,8 +1132,8 @@ mod tests {
             FormatId::Gzip,
         ]);
         assert_eq!(nested, "@chain(f632 > f35 > f35)");
-        let nested_expr =
-            parse_format_expr(&nested).expect("Flat 3-layer chain should parse");
+        let nested_expr = parse_format_expr(&nested)
+            .expect("Flat 3-layer chain should parse");
         validate_format_expr(&nested_expr)
             .expect("Flat 3-layer chain should validate");
     }
@@ -1086,20 +1141,20 @@ mod tests {
     #[ctb_test]
     fn test_decompression_probe_targz_compat_and_rich() {
         let tar_data = make_test_tar_bytes();
-        let gz_bytes =
-            ctb_formats_compression::compress(&tar_data, SupportedCompressionFormat::Gzip)
-                .expect("Compression should succeed");
+        let gz_bytes = ctb_formats_compression::compress(
+            &tar_data,
+            SupportedCompressionFormat::Gzip,
+        )
+        .expect("Compression should succeed");
 
         // 1. Compat mode without -z / -Z: no decompression
         let compat_hint = DetectionHint {
             compat: true,
             ..Default::default()
         };
-        let rep1 = guess_format_report(
-            &mut gz_bytes.as_slice(),
-            Some(&compat_hint),
-        )
-        .unwrap();
+        let rep1 =
+            guess_format_report(&mut gz_bytes.as_slice(), Some(&compat_hint))
+                .unwrap();
         assert_eq!(rep1.candidates[0].format_id, Some(FormatId::Gzip));
         assert!(
             rep1.candidates[0]
@@ -1114,9 +1169,8 @@ mod tests {
             uncompress: true,
             ..Default::default()
         };
-        let rep2 =
-            guess_format_report(&mut gz_bytes.as_slice(), Some(&z_hint))
-                .unwrap();
+        let rep2 = guess_format_report(&mut gz_bytes.as_slice(), Some(&z_hint))
+            .unwrap();
         assert!(
             rep2.candidates[0]
                 .description
@@ -1160,8 +1214,7 @@ mod tests {
         );
 
         // 4. Default rich mode: compound format TarGz is top, followed by format chain
-        let rep4 =
-            guess_format_report(&mut gz_bytes.as_slice(), None).unwrap();
+        let rep4 = guess_format_report(&mut gz_bytes.as_slice(), None).unwrap();
         assert_eq!(rep4.candidates[0].format_id, Some(FormatId::TarGz));
         assert!(
             rep4.candidates
@@ -1173,9 +1226,11 @@ mod tests {
     #[ctb_test]
     fn test_decompression_probe_tar_bzip2() {
         let tar_data = make_test_tar_bytes();
-        let bz2_bytes =
-            ctb_formats_compression::compress(&tar_data, SupportedCompressionFormat::Bzip2)
-                .expect("Compression should succeed");
+        let bz2_bytes = ctb_formats_compression::compress(
+            &tar_data,
+            SupportedCompressionFormat::Bzip2,
+        )
+        .expect("Compression should succeed");
 
         // Default rich mode: TarBz2 is top, format chain is present
         let rep = guess_format_report(&mut bz2_bytes.as_slice(), None).unwrap();
@@ -1212,9 +1267,11 @@ mod tests {
     #[ctb_test]
     fn test_decompression_probe_json_zstd() {
         let json_data = br#"{"name":"ctoolbox","version":1}"#;
-        let zst_bytes =
-            ctb_formats_compression::compress(json_data, SupportedCompressionFormat::Zstd)
-                .expect("Zstd compression should succeed");
+        let zst_bytes = ctb_formats_compression::compress(
+            json_data,
+            SupportedCompressionFormat::Zstd,
+        )
+        .expect("Zstd compression should succeed");
 
         // Default rich mode: non-compound pair emits @chain(f... > f...)
         let rep = guess_format_report(&mut zst_bytes.as_slice(), None).unwrap();
@@ -1244,9 +1301,11 @@ mod tests {
     #[ctb_test]
     fn test_decompression_probe_shell_script_gzip() {
         let script_data = b"#!/bin/sh\necho 'hello world'\n";
-        let gz_bytes =
-            ctb_formats_compression::compress(script_data, SupportedCompressionFormat::Gzip)
-                .expect("Gzip compression should succeed");
+        let gz_bytes = ctb_formats_compression::compress(
+            script_data,
+            SupportedCompressionFormat::Gzip,
+        )
+        .expect("Gzip compression should succeed");
 
         // Default rich mode: non-compound pair emits @chain
         let rep = guess_format_report(&mut gz_bytes.as_slice(), None).unwrap();
@@ -1327,19 +1386,18 @@ mod tests {
         let mut slice: &[u8] = &compressed;
         let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
         assert!(
-            !report
-                .candidates
-                .iter()
-                .any(|c| c.chain_layers.is_some()),
+            !report.candidates.iter().any(|c| c.chain_layers.is_some()),
             "No chain candidates should be produced at depth limit 0"
         );
         assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
 
         // File-report path, which must propagate the depth limit from the
         // caller-supplied hint into the internally built hint.
-        let vec_report =
-            crate::detection::guess_and_report_vec_with_hint(compressed, Some(&hint))
-                .unwrap();
+        let vec_report = crate::detection::guess_and_report_vec_with_hint(
+            compressed,
+            Some(&hint),
+        )
+        .unwrap();
         assert!(
             !vec_report
                 .candidates
@@ -1366,10 +1424,9 @@ mod tests {
         };
         let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
         let top = &report.candidates[0];
-        let layers = top
-            .chain_layers
-            .as_ref()
-            .expect("Extension-only outer should still produce a chain candidate");
+        let layers = top.chain_layers.as_ref().expect(
+            "Extension-only outer should still produce a chain candidate",
+        );
         assert_eq!(
             layers.first(),
             Some(&FormatId::Ascii),
@@ -1383,7 +1440,9 @@ mod tests {
     fn test_extension_fallback_garbage_yields_no_chain() {
         // A file that merely carries a compressed-extension name must fail
         // the decompression probe cleanly without erroring detection.
-        let garbage = "not gzip data at all, just plain text\n".repeat(4).into_bytes();
+        let garbage = "not gzip data at all, just plain text\n"
+            .repeat(4)
+            .into_bytes();
         let mut slice: &[u8] = &garbage;
         let hint = DetectionHint {
             filename: Some("garbage.gz".to_string()),

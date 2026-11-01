@@ -121,7 +121,9 @@ impl CodeWriter {
             for line in sanitized_r.lines() {
                 if is_first {
                     is_first = false;
-                    if line.starts_with("http://") || line.starts_with("https://") {
+                    if line.starts_with("http://")
+                        || line.starts_with("https://")
+                    {
                         if line.contains(' ') {
                             self.puts(&format!(" * \\sa {line}"));
                         } else {

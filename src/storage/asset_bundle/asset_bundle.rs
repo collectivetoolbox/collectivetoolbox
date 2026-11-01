@@ -132,7 +132,9 @@ impl ChunkedResourceBundle {
         let file = open_resource_bundle_file(bundle_path)?;
         let file_len = file
             .metadata()
-            .with_context(|| format!("Failed to stat {}", bundle_path.display()))?
+            .with_context(|| {
+                format!("Failed to stat {}", bundle_path.display())
+            })?
             .len();
 
         let initial_map_len = std::cmp::min(file_len, CHUNK_SIZE);
@@ -149,10 +151,7 @@ impl ChunkedResourceBundle {
                 .map(&file)
         }
         .with_context(|| {
-            format!(
-                "Failed to map header chunk of {}",
-                bundle_path.display()
-            )
+            format!("Failed to map header chunk of {}", bundle_path.display())
         })?;
 
         let (header, raw_entries) =
@@ -543,8 +542,8 @@ impl ResourceBundle {
                 let history_file = open_resource_bundle_file(&history_path)?;
                 #[expect(unsafe_code, reason = "Mmap requires unsafe")]
                 // SAFETY: The resource bundle file is not modified by other processes during read-only mapping.
-                let history_mmap =
-                    unsafe { Mmap::map(&history_file) }.with_context(|| {
+                let history_mmap = unsafe { Mmap::map(&history_file) }
+                    .with_context(|| {
                         format!("Failed to map {}", history_path.display())
                     })?;
                 let parsed_history =
@@ -656,7 +655,8 @@ impl ResourceBundle {
                 data_offset,
                 data_len,
             } => {
-                let chunked = self.chunked_bundles.get(*chunked_bundle_index)?;
+                let chunked =
+                    self.chunked_bundles.get(*chunked_bundle_index)?;
                 chunked.get_bytes(*data_offset, *data_len)?
             }
         };
@@ -750,7 +750,8 @@ mod tests {
 
         let temp_file = NamedTempFile::new().expect("create temp file");
         // SAFETY: Temporary file is private and not modified concurrently during read-only mapping.
-        let mmap = unsafe { Mmap::map(temp_file.as_file()).expect("mmap temp file") };
+        let mmap =
+            unsafe { Mmap::map(temp_file.as_file()).expect("mmap temp file") };
         let arc_mmap = Arc::new(mmap);
 
         let mut cache = ChunkCache::new(2);
@@ -767,8 +768,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_v86_images_chunked_loading_if_present() {
-        if let Ok(v86_path) =
-            find_resource_bundle_path().map(|p| p.with_file_name("v86_images.rsrc"))
+        if let Ok(v86_path) = find_resource_bundle_path()
+            .map(|p| p.with_file_name("v86_images.rsrc"))
         {
             if v86_path.is_file() {
                 let asset = get_asset("vendor/v86_images/guix/guix-fs.json");

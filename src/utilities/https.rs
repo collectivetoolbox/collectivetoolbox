@@ -229,7 +229,10 @@ impl AsyncClient {
             let remaining = self.timeout.map(|t| t.saturating_sub(elapsed));
             if let Some(rem) = remaining {
                 if rem.is_zero() {
-                    bail!("Request to {url} timed out after {:?}", self.timeout);
+                    bail!(
+                        "Request to {url} timed out after {:?}",
+                        self.timeout
+                    );
                 }
             }
 
@@ -252,11 +255,9 @@ impl AsyncClient {
                 Err(err) => {
                     if is_transient_error(&err) && attempt < retry_limit {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             tokio::time::sleep(delay).await;
                             continue;
                         }
@@ -285,7 +286,10 @@ impl AsyncClient {
             let remaining = self.timeout.map(|t| t.saturating_sub(elapsed));
             if let Some(rem) = remaining {
                 if rem.is_zero() {
-                    bail!("Request to {url} timed out after {:?}", self.timeout);
+                    bail!(
+                        "Request to {url} timed out after {:?}",
+                        self.timeout
+                    );
                 }
             }
 
@@ -312,11 +316,9 @@ impl AsyncClient {
                 Err(err) => {
                     if is_transient_error(&err) && attempt < retry_limit {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             tokio::time::sleep(delay).await;
                             continue;
                         }
@@ -345,7 +347,10 @@ impl AsyncClient {
             let remaining = self.timeout.map(|t| t.saturating_sub(elapsed));
             if let Some(rem) = remaining {
                 if rem.is_zero() {
-                    bail!("Request to {url} timed out after {:?}", self.timeout);
+                    bail!(
+                        "Request to {url} timed out after {:?}",
+                        self.timeout
+                    );
                 }
             }
 
@@ -370,11 +375,9 @@ impl AsyncClient {
                         && attempt < retry_count
                     {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             tokio::time::sleep(delay).await;
                             continue;
                         }
@@ -384,11 +387,9 @@ impl AsyncClient {
                 Err(err) => {
                     if is_transient_error(&err) && attempt < max_host_retries {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             tokio::time::sleep(delay).await;
                             continue;
                         }
@@ -457,11 +458,9 @@ impl BlockingClient {
                 Err(err) => {
                     if is_transient_error(&err) && attempt < retry_limit {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             std::thread::sleep(delay);
                             continue;
                         }
@@ -492,11 +491,9 @@ impl BlockingClient {
                     let status = resp.status();
                     if status.is_server_error() && attempt < retry_count {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             std::thread::sleep(delay);
                             continue;
                         }
@@ -506,11 +503,9 @@ impl BlockingClient {
                 Err(err) => {
                     if is_transient_error(&err) && attempt < max_host_retries {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             std::thread::sleep(delay);
                             continue;
                         }
@@ -544,11 +539,9 @@ impl BlockingClient {
                 Err(err) => {
                     if is_transient_error(&err) && attempt < retry_limit {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             std::thread::sleep(delay);
                             continue;
                         }
@@ -584,11 +577,9 @@ impl BlockingClient {
                     let status = resp.status();
                     if status.is_server_error() && attempt < retry_count {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             std::thread::sleep(delay);
                             continue;
                         }
@@ -598,11 +589,9 @@ impl BlockingClient {
                 Err(err) => {
                     if is_transient_error(&err) && attempt < max_host_retries {
                         attempt = attempt.saturating_add(1);
-                        if let Some(delay) = sleep_delay_bounded(
-                            attempt,
-                            start,
-                            self.timeout,
-                        ) {
+                        if let Some(delay) =
+                            sleep_delay_bounded(attempt, start, self.timeout)
+                        {
                             std::thread::sleep(delay);
                             continue;
                         }
@@ -934,16 +923,23 @@ mod tests {
         let mut client = async_client(ClientOptions::default())?;
         for skip_crlite in [false, true] {
             client.skip_crlite_ready_check = skip_crlite;
-            for url in ["http://unmocked.invalid/test", "https://unmocked.invalid/test"] {
+            for url in [
+                "http://unmocked.invalid/test",
+                "https://unmocked.invalid/test",
+            ] {
                 let results = [
                     client.get(url).await,
                     client.get_with_backoff(url, 10).await,
                     client.post(url, Vec::new(), None).await,
                 ];
                 for result in results {
-                    let error = result.err().context("Unmocked HTTP request succeeded")?;
+                    let error = result
+                        .err()
+                        .context("Unmocked HTTP request succeeded")?;
                     anyhow::ensure!(
-                        format!("{error:#}").contains("Real HTTP requests are forbidden in tests"),
+                        format!("{error:#}").contains(
+                            "Real HTTP requests are forbidden in tests"
+                        ),
                         "Unexpected error: {error:#}"
                     );
                 }
@@ -955,7 +951,10 @@ mod tests {
     #[crate::ctb_test]
     fn test_blocking_requests_require_mocks() -> Result<()> {
         let client = blocking_client_no_crlite()?;
-        for url in ["http://unmocked.invalid/test", "https://unmocked.invalid/test"] {
+        for url in [
+            "http://unmocked.invalid/test",
+            "https://unmocked.invalid/test",
+        ] {
             let results = [
                 client.get(url),
                 client.get_with_backoff(url, 10),
@@ -963,9 +962,12 @@ mod tests {
                 client.get_with_headers_and_backoff(url, None, 10),
             ];
             for result in results {
-                let error = result.err().context("Unmocked HTTP request succeeded")?;
+                let error =
+                    result.err().context("Unmocked HTTP request succeeded")?;
                 anyhow::ensure!(
-                    error.to_string().contains("Real HTTP requests are forbidden in tests"),
+                    error
+                        .to_string()
+                        .contains("Real HTTP requests are forbidden in tests"),
                     "Unexpected error: {error:#}"
                 );
             }
@@ -983,7 +985,9 @@ mod tests {
         .map_err(|_| anyhow::anyhow!("Network guard test worker panicked"))?
         .expect_err("Unnamed test worker must not access the network");
         anyhow::ensure!(
-            error.to_string().contains("Real HTTP requests are forbidden in tests"),
+            error
+                .to_string()
+                .contains("Real HTTP requests are forbidden in tests"),
             "Unexpected error: {error:#}"
         );
         Ok(())

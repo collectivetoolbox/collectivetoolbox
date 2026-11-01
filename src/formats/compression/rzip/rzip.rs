@@ -35,13 +35,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! 2. Second-stage bzip2 compression and block-level interleaving with
 //!    forward-linked 13-byte chunk headers.
 
+use anyhow::{Context, Result, bail, ensure};
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
-use anyhow::{bail, ensure, Context, Result};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
 const RZIP_MAGIC: [u8; 4] = *b"RZIP";
@@ -70,71 +70,325 @@ struct CompressionLevel {
 }
 
 const LEVELS: [CompressionLevel; 10] = [
-    CompressionLevel { bzip_level: 0, mb_used: 1, initial_freq: 4, max_chain_len: 1 },
-    CompressionLevel { bzip_level: 1, mb_used: 2, initial_freq: 4, max_chain_len: 2 },
-    CompressionLevel { bzip_level: 3, mb_used: 4, initial_freq: 4, max_chain_len: 2 },
-    CompressionLevel { bzip_level: 5, mb_used: 8, initial_freq: 4, max_chain_len: 2 },
-    CompressionLevel { bzip_level: 7, mb_used: 16, initial_freq: 4, max_chain_len: 3 },
-    CompressionLevel { bzip_level: 9, mb_used: 32, initial_freq: 4, max_chain_len: 4 },
-    CompressionLevel { bzip_level: 9, mb_used: 32, initial_freq: 2, max_chain_len: 6 },
-    CompressionLevel { bzip_level: 9, mb_used: 64, initial_freq: 1, max_chain_len: 16 },
-    CompressionLevel { bzip_level: 9, mb_used: 64, initial_freq: 1, max_chain_len: 32 },
-    CompressionLevel { bzip_level: 9, mb_used: 64, initial_freq: 1, max_chain_len: 128 },
+    CompressionLevel {
+        bzip_level: 0,
+        mb_used: 1,
+        initial_freq: 4,
+        max_chain_len: 1,
+    },
+    CompressionLevel {
+        bzip_level: 1,
+        mb_used: 2,
+        initial_freq: 4,
+        max_chain_len: 2,
+    },
+    CompressionLevel {
+        bzip_level: 3,
+        mb_used: 4,
+        initial_freq: 4,
+        max_chain_len: 2,
+    },
+    CompressionLevel {
+        bzip_level: 5,
+        mb_used: 8,
+        initial_freq: 4,
+        max_chain_len: 2,
+    },
+    CompressionLevel {
+        bzip_level: 7,
+        mb_used: 16,
+        initial_freq: 4,
+        max_chain_len: 3,
+    },
+    CompressionLevel {
+        bzip_level: 9,
+        mb_used: 32,
+        initial_freq: 4,
+        max_chain_len: 4,
+    },
+    CompressionLevel {
+        bzip_level: 9,
+        mb_used: 32,
+        initial_freq: 2,
+        max_chain_len: 6,
+    },
+    CompressionLevel {
+        bzip_level: 9,
+        mb_used: 64,
+        initial_freq: 1,
+        max_chain_len: 16,
+    },
+    CompressionLevel {
+        bzip_level: 9,
+        mb_used: 64,
+        initial_freq: 1,
+        max_chain_len: 32,
+    },
+    CompressionLevel {
+        bzip_level: 9,
+        mb_used: 64,
+        initial_freq: 1,
+        max_chain_len: 128,
+    },
 ];
 
 /// Table generated using Mark Adler's CRC-32 polynomial algorithm (0xEDB88320).
 pub const CRC_TABLE: [u32; 256] = [
-    0x0000_0000, 0x7707_3096, 0xEE0E_612C, 0x9909_51BA, 0x076D_C419,
-    0x706A_F48F, 0xE963_A535, 0x9E64_95A3, 0x0EDB_8832, 0x79DC_B8A4,
-    0xE0D5_E91E, 0x97D2_D988, 0x09B6_4C2B, 0x7EB1_7CBD, 0xE7B8_2D07,
-    0x90BF_1D91, 0x1DB7_1064, 0x6AB0_20F2, 0xF3B9_7148, 0x84BE_41DE,
-    0x1ADA_D47D, 0x6DDD_E4EB, 0xF4D4_B551, 0x83D3_85C7, 0x136C_9856,
-    0x646B_A8C0, 0xFD62_F97A, 0x8A65_C9EC, 0x1401_5C4F, 0x6306_6CD9,
-    0xFA0F_3D63, 0x8D08_0DF5, 0x3B6E_20C8, 0x4C69_105E, 0xD560_41E4,
-    0xA267_7172, 0x3C03_E4D1, 0x4B04_D447, 0xD20D_85FD, 0xA50A_B56B,
-    0x35B5_A8FA, 0x42B2_986C, 0xDBBB_C9D6, 0xACBC_F940, 0x32D8_6CE3,
-    0x45DF_5C75, 0xDCD6_0DCF, 0xABD1_3D59, 0x26D9_30AC, 0x51DE_003A,
-    0xC8D7_5180, 0xBFD0_6116, 0x21B4_F4B5, 0x56B3_C423, 0xCFBA_9599,
-    0xB8BD_A50F, 0x2802_B89E, 0x5F05_8808, 0xC60C_D9B2, 0xB10B_E924,
-    0x2F6F_7C87, 0x5868_4C11, 0xC161_1DAB, 0xB666_2D3D, 0x76DC_4190,
-    0x01DB_7106, 0x98D2_20BC, 0xEFD5_102A, 0x71B1_8589, 0x06B6_B51F,
-    0x9FBF_E4A5, 0xE8B8_D433, 0x7807_C9A2, 0x0F00_F934, 0x9609_A88E,
-    0xE10E_9818, 0x7F6A_0DBB, 0x086D_3D2D, 0x9164_6C97, 0xE663_5C01,
-    0x6B6B_51F4, 0x1C6C_6162, 0x8565_30D8, 0xF262_004E, 0x6C06_95ED,
-    0x1B01_A57B, 0x8208_F4C1, 0xF50F_C457, 0x65B0_D9C6, 0x12B7_E950,
-    0x8BBE_B8EA, 0xFCB9_887C, 0x62DD_1DDF, 0x15DA_2D49, 0x8CD3_7CF3,
-    0xFBD4_4C65, 0x4DB2_6158, 0x3AB5_51CE, 0xA3BC_0074, 0xD4BB_30E2,
-    0x4ADF_A541, 0x3DD8_95D7, 0xA4D1_C46D, 0xD3D6_F4FB, 0x4369_E96A,
-    0x346E_D9FC, 0xAD67_8846, 0xDA60_B8D0, 0x4404_2D73, 0x3303_1DE5,
-    0xAA0A_4C5F, 0xDD0D_7CC9, 0x5005_713C, 0x2702_41AA, 0xBE0B_1010,
-    0xC90C_2086, 0x5768_B525, 0x206F_85B3, 0xB966_D409, 0xCE61_E49F,
-    0x5EDE_F90E, 0x29D9_C998, 0xB0D0_9822, 0xC7D7_A8B4, 0x59B3_3D17,
-    0x2EB4_0D81, 0xB7BD_5C3B, 0xC0BA_6CAD, 0xEDB8_8320, 0x9ABF_B3B6,
-    0x03B6_E20C, 0x74B1_D29A, 0xEAD5_4739, 0x9DD2_77AF, 0x04DB_2615,
-    0x73DC_1683, 0xE363_0B12, 0x9464_3B84, 0x0D6D_6A3E, 0x7A6A_5AA8,
-    0xE40E_CF0B, 0x9309_FF9D, 0x0A00_AE27, 0x7D07_9EB1, 0xF00F_9344,
-    0x8708_A3D2, 0x1E01_F268, 0x6906_C2FE, 0xF762_575D, 0x8065_67CB,
-    0x196C_3671, 0x6E6B_06E7, 0xFED4_1B76, 0x89D3_2BE0, 0x10DA_7A5A,
-    0x67DD_4ACC, 0xF9B9_DF6F, 0x8EBE_EFF9, 0x17B7_BE43, 0x60B0_8ED5,
-    0xD6D6_A3E8, 0xA1D1_937E, 0x38D8_C2C4, 0x4FDF_F252, 0xD1BB_67F1,
-    0xA6BC_5767, 0x3FB5_06DD, 0x48B2_364B, 0xD80D_2BDA, 0xAF0A_1B4C,
-    0x3603_4AF6, 0x4104_7A60, 0xDF60_EFC3, 0xA867_DF55, 0x316E_8EEF,
-    0x4669_BE79, 0xCB61_B38C, 0xBC66_831A, 0x256F_D2A0, 0x5268_E236,
-    0xCC0C_7795, 0xBB0B_4703, 0x2202_16B9, 0x5505_262F, 0xC5BA_3BBE,
-    0xB2BD_0B28, 0x2BB4_5A92, 0x5CB3_6A04, 0xC2D7_FFA7, 0xB5D0_CF31,
-    0x2CD9_9E8B, 0x5BDE_AE1D, 0x9B64_C2B0, 0xEC63_F226, 0x756A_A39C,
-    0x026D_930A, 0x9C09_06A9, 0xEB0E_363F, 0x7207_6785, 0x0500_5713,
-    0x95BF_4A82, 0xE2B8_7A14, 0x7BB1_2BAE, 0x0CB6_1B38, 0x92D2_8E9B,
-    0xE5D5_BE0D, 0x7CDC_EFB7, 0x0BDB_DF21, 0x86D3_D2D4, 0xF1D4_E242,
-    0x68DD_B3F8, 0x1FDA_836E, 0x81BE_16CD, 0xF6B9_265B, 0x6FB0_77E1,
-    0x18B7_4777, 0x8808_5AE6, 0xFF0F_6A70, 0x6606_3BCA, 0x1101_0B5C,
-    0x8F65_9EFF, 0xF862_AE69, 0x616B_FFD3, 0x166C_CF45, 0xA00A_E278,
-    0xD70D_D2EE, 0x4E04_8354, 0x3903_B3C2, 0xA767_2661, 0xD060_16F7,
-    0x4969_474D, 0x3E6E_77DB, 0xAED1_6A4A, 0xD9D6_5ADC, 0x40DF_0B66,
-    0x37D8_3BF0, 0xA9BC_AE53, 0xDEBB_9EC5, 0x47B2_CF7F, 0x30B5_FFE9,
-    0xBDBD_F21C, 0xCABA_C28A, 0x53B3_9330, 0x24B4_A3A6, 0xBAD0_3605,
-    0xCDD7_0693, 0x54DE_5729, 0x23D9_67BF, 0xB366_7A2E, 0xC461_4AB8,
-    0x5D68_1B02, 0x2A6F_2B94, 0xB40B_BE37, 0xC30C_8EA1, 0x5A05_DF1B,
+    0x0000_0000,
+    0x7707_3096,
+    0xEE0E_612C,
+    0x9909_51BA,
+    0x076D_C419,
+    0x706A_F48F,
+    0xE963_A535,
+    0x9E64_95A3,
+    0x0EDB_8832,
+    0x79DC_B8A4,
+    0xE0D5_E91E,
+    0x97D2_D988,
+    0x09B6_4C2B,
+    0x7EB1_7CBD,
+    0xE7B8_2D07,
+    0x90BF_1D91,
+    0x1DB7_1064,
+    0x6AB0_20F2,
+    0xF3B9_7148,
+    0x84BE_41DE,
+    0x1ADA_D47D,
+    0x6DDD_E4EB,
+    0xF4D4_B551,
+    0x83D3_85C7,
+    0x136C_9856,
+    0x646B_A8C0,
+    0xFD62_F97A,
+    0x8A65_C9EC,
+    0x1401_5C4F,
+    0x6306_6CD9,
+    0xFA0F_3D63,
+    0x8D08_0DF5,
+    0x3B6E_20C8,
+    0x4C69_105E,
+    0xD560_41E4,
+    0xA267_7172,
+    0x3C03_E4D1,
+    0x4B04_D447,
+    0xD20D_85FD,
+    0xA50A_B56B,
+    0x35B5_A8FA,
+    0x42B2_986C,
+    0xDBBB_C9D6,
+    0xACBC_F940,
+    0x32D8_6CE3,
+    0x45DF_5C75,
+    0xDCD6_0DCF,
+    0xABD1_3D59,
+    0x26D9_30AC,
+    0x51DE_003A,
+    0xC8D7_5180,
+    0xBFD0_6116,
+    0x21B4_F4B5,
+    0x56B3_C423,
+    0xCFBA_9599,
+    0xB8BD_A50F,
+    0x2802_B89E,
+    0x5F05_8808,
+    0xC60C_D9B2,
+    0xB10B_E924,
+    0x2F6F_7C87,
+    0x5868_4C11,
+    0xC161_1DAB,
+    0xB666_2D3D,
+    0x76DC_4190,
+    0x01DB_7106,
+    0x98D2_20BC,
+    0xEFD5_102A,
+    0x71B1_8589,
+    0x06B6_B51F,
+    0x9FBF_E4A5,
+    0xE8B8_D433,
+    0x7807_C9A2,
+    0x0F00_F934,
+    0x9609_A88E,
+    0xE10E_9818,
+    0x7F6A_0DBB,
+    0x086D_3D2D,
+    0x9164_6C97,
+    0xE663_5C01,
+    0x6B6B_51F4,
+    0x1C6C_6162,
+    0x8565_30D8,
+    0xF262_004E,
+    0x6C06_95ED,
+    0x1B01_A57B,
+    0x8208_F4C1,
+    0xF50F_C457,
+    0x65B0_D9C6,
+    0x12B7_E950,
+    0x8BBE_B8EA,
+    0xFCB9_887C,
+    0x62DD_1DDF,
+    0x15DA_2D49,
+    0x8CD3_7CF3,
+    0xFBD4_4C65,
+    0x4DB2_6158,
+    0x3AB5_51CE,
+    0xA3BC_0074,
+    0xD4BB_30E2,
+    0x4ADF_A541,
+    0x3DD8_95D7,
+    0xA4D1_C46D,
+    0xD3D6_F4FB,
+    0x4369_E96A,
+    0x346E_D9FC,
+    0xAD67_8846,
+    0xDA60_B8D0,
+    0x4404_2D73,
+    0x3303_1DE5,
+    0xAA0A_4C5F,
+    0xDD0D_7CC9,
+    0x5005_713C,
+    0x2702_41AA,
+    0xBE0B_1010,
+    0xC90C_2086,
+    0x5768_B525,
+    0x206F_85B3,
+    0xB966_D409,
+    0xCE61_E49F,
+    0x5EDE_F90E,
+    0x29D9_C998,
+    0xB0D0_9822,
+    0xC7D7_A8B4,
+    0x59B3_3D17,
+    0x2EB4_0D81,
+    0xB7BD_5C3B,
+    0xC0BA_6CAD,
+    0xEDB8_8320,
+    0x9ABF_B3B6,
+    0x03B6_E20C,
+    0x74B1_D29A,
+    0xEAD5_4739,
+    0x9DD2_77AF,
+    0x04DB_2615,
+    0x73DC_1683,
+    0xE363_0B12,
+    0x9464_3B84,
+    0x0D6D_6A3E,
+    0x7A6A_5AA8,
+    0xE40E_CF0B,
+    0x9309_FF9D,
+    0x0A00_AE27,
+    0x7D07_9EB1,
+    0xF00F_9344,
+    0x8708_A3D2,
+    0x1E01_F268,
+    0x6906_C2FE,
+    0xF762_575D,
+    0x8065_67CB,
+    0x196C_3671,
+    0x6E6B_06E7,
+    0xFED4_1B76,
+    0x89D3_2BE0,
+    0x10DA_7A5A,
+    0x67DD_4ACC,
+    0xF9B9_DF6F,
+    0x8EBE_EFF9,
+    0x17B7_BE43,
+    0x60B0_8ED5,
+    0xD6D6_A3E8,
+    0xA1D1_937E,
+    0x38D8_C2C4,
+    0x4FDF_F252,
+    0xD1BB_67F1,
+    0xA6BC_5767,
+    0x3FB5_06DD,
+    0x48B2_364B,
+    0xD80D_2BDA,
+    0xAF0A_1B4C,
+    0x3603_4AF6,
+    0x4104_7A60,
+    0xDF60_EFC3,
+    0xA867_DF55,
+    0x316E_8EEF,
+    0x4669_BE79,
+    0xCB61_B38C,
+    0xBC66_831A,
+    0x256F_D2A0,
+    0x5268_E236,
+    0xCC0C_7795,
+    0xBB0B_4703,
+    0x2202_16B9,
+    0x5505_262F,
+    0xC5BA_3BBE,
+    0xB2BD_0B28,
+    0x2BB4_5A92,
+    0x5CB3_6A04,
+    0xC2D7_FFA7,
+    0xB5D0_CF31,
+    0x2CD9_9E8B,
+    0x5BDE_AE1D,
+    0x9B64_C2B0,
+    0xEC63_F226,
+    0x756A_A39C,
+    0x026D_930A,
+    0x9C09_06A9,
+    0xEB0E_363F,
+    0x7207_6785,
+    0x0500_5713,
+    0x95BF_4A82,
+    0xE2B8_7A14,
+    0x7BB1_2BAE,
+    0x0CB6_1B38,
+    0x92D2_8E9B,
+    0xE5D5_BE0D,
+    0x7CDC_EFB7,
+    0x0BDB_DF21,
+    0x86D3_D2D4,
+    0xF1D4_E242,
+    0x68DD_B3F8,
+    0x1FDA_836E,
+    0x81BE_16CD,
+    0xF6B9_265B,
+    0x6FB0_77E1,
+    0x18B7_4777,
+    0x8808_5AE6,
+    0xFF0F_6A70,
+    0x6606_3BCA,
+    0x1101_0B5C,
+    0x8F65_9EFF,
+    0xF862_AE69,
+    0x616B_FFD3,
+    0x166C_CF45,
+    0xA00A_E278,
+    0xD70D_D2EE,
+    0x4E04_8354,
+    0x3903_B3C2,
+    0xA767_2661,
+    0xD060_16F7,
+    0x4969_474D,
+    0x3E6E_77DB,
+    0xAED1_6A4A,
+    0xD9D6_5ADC,
+    0x40DF_0B66,
+    0x37D8_3BF0,
+    0xA9BC_AE53,
+    0xDEBB_9EC5,
+    0x47B2_CF7F,
+    0x30B5_FFE9,
+    0xBDBD_F21C,
+    0xCABA_C28A,
+    0x53B3_9330,
+    0x24B4_A3A6,
+    0xBAD0_3605,
+    0xCDD7_0693,
+    0x54DE_5729,
+    0x23D9_67BF,
+    0xB366_7A2E,
+    0xC461_4AB8,
+    0x5D68_1B02,
+    0x2A6F_2B94,
+    0xB40B_BE37,
+    0xC30C_8EA1,
+    0x5A05_DF1B,
     0x2D02_EF8D,
 ];
 
@@ -154,57 +408,261 @@ fn update_crc32(crc: u32, buf: &[u8]) -> u32 {
 /// consistent across platforms, while using a precomputed table is; which
 /// sounds plausible but I haven't verified.
 const HASH_INDEX: [u32; 256] = [
-    0x771C_23C6, 0xFE5A_4873, 0xC518_5CFF, 0xF61F_58EC, 0x59C1_7CCD,
-    0x08C4_D7AB, 0x0045_1EFB, 0xDCA6_E146, 0x5BAC_62C2, 0x45E5_27F8,
-    0x3C0D_E9E8, 0xAB08_438D, 0x3C24_255A, 0xF4C3_7263, 0xD9DC_D79F,
-    0xAFA1_079A, 0xDE82_5D32, 0x1316_D7B7, 0xC6B2_E458, 0x5218_D95A,
-    0x03A9_895D, 0xC318_A317, 0x8545_5AE9, 0xF1FC_A8D4, 0xC428_8CB2,
-    0xDBCE_E0C6, 0x227F_9EB4, 0x08FC_8611, 0xC69E_1D82, 0xF067_8641,
-    0x891C_BD3D, 0xE136_F087, 0x5F66_DDE9, 0xA971_D4A1, 0x9736_F8E1,
-    0xA8FB_2367, 0xF578_5F01, 0x9A36_2A97, 0xE762_4ADC, 0xFE3A_7796,
-    0xC2B1_A438, 0x28FA_4E2A, 0x68A4_7CB0, 0xA661_06FB, 0xCDD6_CCAF,
-    0xC664_8F54, 0xE405_1B18, 0x099F_A45C, 0x9148_481A, 0x0C64_BB43,
-    0x5B5B_26FA, 0xAB6C_C33A, 0xF53D_A529, 0xDA9B_3FE6, 0xD3FC_C13C,
-    0x9026_C794, 0x7984_0FD8, 0x36E5_A861, 0xB9C6_E9F9, 0xDB4E_26BB,
-    0xA68B_3C99, 0xD758_4095, 0x201F_35EB, 0xD5FD_50B3, 0x5135_5DEF,
-    0x164D_BF00, 0x9BA1_EAA1, 0xDF8D_0AE5, 0xEA5A_700B, 0x1595_7FD0,
-    0x48D5_0247, 0x05A6_96BD, 0x0CA5_5D23, 0x62D9_9EA8, 0x3CCF_EE7B,
-    0xA45A_FDC5, 0x3A50_7B73, 0x3459_82C5, 0xAB6C_234B, 0xBB92_2F63,
-    0xE18D_DF70, 0xFA57_0624, 0xD036_709E, 0x0106_59DC, 0xE641_5BD4,
-    0xD0EE_11F2, 0x283C_2110, 0xBFB9_703B, 0x4C11_E7CD, 0x6608_C550,
-    0x90FF_D447, 0xFAFB_015C, 0x437A_016F, 0xE4CD_0119, 0x5BBB_579B,
-    0x4028_A5F5, 0x678B_1EE1, 0xF3A2_011C, 0xF90D_BD23, 0x30A7_7029,
-    0x47CD_34A4, 0xFFFD_7713, 0x6A13_2ACA, 0x8D73_D3E8, 0x1B42_F632,
-    0x8687_E8E0, 0xD72D_5C4D, 0xC2B2_1A34, 0x4023_6E5F, 0x4A46_8277,
-    0x96A2_4BCB, 0x5434_FD05, 0x2F4A_D486, 0xF05E_FA2B, 0xDA72_591A,
-    0x53E2_AAA2, 0xE13E_EC70, 0x21DC_E373, 0x5BA0_0904, 0xAAAC_29D3,
-    0xC2E7_5094, 0x35BB_C9AF, 0xBBBF_FCF0, 0xE6DF_0A9E, 0x325A_FF32,
-    0xDC8B_3149, 0x5D5C_B582, 0x7E08_B5A9, 0xA000_2C70, 0xB636_1BB2,
-    0xD22C_1A29, 0xE6BA_1348, 0x0DAD_E80A, 0x86F2_1DD5, 0xFAF1_AE18,
-    0x69E0_F044, 0xB542_5A5B, 0x9D05_AB8E, 0x73A5_9DD7, 0xAE64_C29B,
-    0x9D7C_4342, 0xD988_E806, 0xCF1B_2233, 0xE830_82CD, 0x17D8_4D84,
-    0xC9B8_D42D, 0x04B6_64D4, 0x923E_6E47, 0x56D3_DE32, 0xCA3A_3DEC,
-    0xFF9E_D3C4, 0x41EE_8AF6, 0x67E0_E823, 0x158A_856C, 0xBAFD_ECB2,
-    0x24AD_2304, 0x0AB5_3BEC, 0x5C98_28B9, 0x4FEC_A8BA, 0x9481_ACC3,
-    0xAA8A_4A05, 0x9C98_5DEC, 0xA15C_6867, 0xE211_FBB7, 0x31D1_5850,
-    0x7603_D2E3, 0x44AC_67D3, 0x7739_5A34, 0x1BA3_945E, 0xFE83_D5F2,
-    0x8859_27A8, 0xAA21_B105, 0x4772_0401, 0xD214_C1B4, 0xDB21_8544,
-    0x4F82_A2FA, 0xAEC8_EF69, 0x14C7_7E23, 0x07C5_CD1A, 0x6340_9E69,
-    0x13E7_B37E, 0x4337_517E, 0x32EB_CF25, 0xFA0C_6B48, 0x48CF_8B53,
-    0x5050_E494, 0xB24A_3A31, 0xF686_1690, 0x309F_6F57, 0x840D_EAEE,
-    0xCDE7_46BC, 0xD775_C3E5, 0x0A8D_8ECF, 0x4E0D_8DF5, 0x6AEB_BBE2,
-    0x7842_8153, 0x7FBB_9DAA, 0xD404_8AB2, 0x0F23_7E85, 0xCD5F_D054,
-    0x42A1_3735, 0xF73B_BCD4, 0x5F35_4A82, 0xA2A5_AF98, 0xAC65_ABA8,
-    0xD9CC_AE75, 0xBE35_2870, 0x186D_288A, 0xBB99_B462, 0xA337_1329,
-    0x6C98_E2DE, 0xB145_DFA5, 0xF0E2_674E, 0x0219_ED59, 0xE175_6051,
-    0xDE30_EFAC, 0xFC83_7295, 0xB0CA_08EC, 0xF373_7FE4, 0xEEDC_76F1,
-    0x779B_530C, 0x163C_1DF1, 0x4CF1_97C0, 0x771C_32BB, 0x5FEF_FCFC,
-    0x4439_BC66, 0xEF30_DA61, 0xC268_6063, 0x1287_0662, 0x3809_2783,
-    0x0113_0B69, 0x30C2_FE3A, 0x7D3B_C3AF, 0x6B22_3B16, 0x11D0_BFAC,
-    0x814D_6F1F, 0x4EBB_D76D, 0xDBD3_8E34, 0x6B18_D38D, 0x972A_BB4F,
-    0x9FB3_06D4, 0x3F18_B063, 0xE18E_13C1, 0x31BC_22E4, 0x77E0_5E83,
-    0x61D6_80D8, 0x196E_6196, 0x5705_E7EC, 0x3292_8639, 0x6373_68D8,
-    0x139E_D50A, 0xCF8E_589D, 0xF617_6509, 0xA0C0_1BA5, 0x4FCD_A7C1,
+    0x771C_23C6,
+    0xFE5A_4873,
+    0xC518_5CFF,
+    0xF61F_58EC,
+    0x59C1_7CCD,
+    0x08C4_D7AB,
+    0x0045_1EFB,
+    0xDCA6_E146,
+    0x5BAC_62C2,
+    0x45E5_27F8,
+    0x3C0D_E9E8,
+    0xAB08_438D,
+    0x3C24_255A,
+    0xF4C3_7263,
+    0xD9DC_D79F,
+    0xAFA1_079A,
+    0xDE82_5D32,
+    0x1316_D7B7,
+    0xC6B2_E458,
+    0x5218_D95A,
+    0x03A9_895D,
+    0xC318_A317,
+    0x8545_5AE9,
+    0xF1FC_A8D4,
+    0xC428_8CB2,
+    0xDBCE_E0C6,
+    0x227F_9EB4,
+    0x08FC_8611,
+    0xC69E_1D82,
+    0xF067_8641,
+    0x891C_BD3D,
+    0xE136_F087,
+    0x5F66_DDE9,
+    0xA971_D4A1,
+    0x9736_F8E1,
+    0xA8FB_2367,
+    0xF578_5F01,
+    0x9A36_2A97,
+    0xE762_4ADC,
+    0xFE3A_7796,
+    0xC2B1_A438,
+    0x28FA_4E2A,
+    0x68A4_7CB0,
+    0xA661_06FB,
+    0xCDD6_CCAF,
+    0xC664_8F54,
+    0xE405_1B18,
+    0x099F_A45C,
+    0x9148_481A,
+    0x0C64_BB43,
+    0x5B5B_26FA,
+    0xAB6C_C33A,
+    0xF53D_A529,
+    0xDA9B_3FE6,
+    0xD3FC_C13C,
+    0x9026_C794,
+    0x7984_0FD8,
+    0x36E5_A861,
+    0xB9C6_E9F9,
+    0xDB4E_26BB,
+    0xA68B_3C99,
+    0xD758_4095,
+    0x201F_35EB,
+    0xD5FD_50B3,
+    0x5135_5DEF,
+    0x164D_BF00,
+    0x9BA1_EAA1,
+    0xDF8D_0AE5,
+    0xEA5A_700B,
+    0x1595_7FD0,
+    0x48D5_0247,
+    0x05A6_96BD,
+    0x0CA5_5D23,
+    0x62D9_9EA8,
+    0x3CCF_EE7B,
+    0xA45A_FDC5,
+    0x3A50_7B73,
+    0x3459_82C5,
+    0xAB6C_234B,
+    0xBB92_2F63,
+    0xE18D_DF70,
+    0xFA57_0624,
+    0xD036_709E,
+    0x0106_59DC,
+    0xE641_5BD4,
+    0xD0EE_11F2,
+    0x283C_2110,
+    0xBFB9_703B,
+    0x4C11_E7CD,
+    0x6608_C550,
+    0x90FF_D447,
+    0xFAFB_015C,
+    0x437A_016F,
+    0xE4CD_0119,
+    0x5BBB_579B,
+    0x4028_A5F5,
+    0x678B_1EE1,
+    0xF3A2_011C,
+    0xF90D_BD23,
+    0x30A7_7029,
+    0x47CD_34A4,
+    0xFFFD_7713,
+    0x6A13_2ACA,
+    0x8D73_D3E8,
+    0x1B42_F632,
+    0x8687_E8E0,
+    0xD72D_5C4D,
+    0xC2B2_1A34,
+    0x4023_6E5F,
+    0x4A46_8277,
+    0x96A2_4BCB,
+    0x5434_FD05,
+    0x2F4A_D486,
+    0xF05E_FA2B,
+    0xDA72_591A,
+    0x53E2_AAA2,
+    0xE13E_EC70,
+    0x21DC_E373,
+    0x5BA0_0904,
+    0xAAAC_29D3,
+    0xC2E7_5094,
+    0x35BB_C9AF,
+    0xBBBF_FCF0,
+    0xE6DF_0A9E,
+    0x325A_FF32,
+    0xDC8B_3149,
+    0x5D5C_B582,
+    0x7E08_B5A9,
+    0xA000_2C70,
+    0xB636_1BB2,
+    0xD22C_1A29,
+    0xE6BA_1348,
+    0x0DAD_E80A,
+    0x86F2_1DD5,
+    0xFAF1_AE18,
+    0x69E0_F044,
+    0xB542_5A5B,
+    0x9D05_AB8E,
+    0x73A5_9DD7,
+    0xAE64_C29B,
+    0x9D7C_4342,
+    0xD988_E806,
+    0xCF1B_2233,
+    0xE830_82CD,
+    0x17D8_4D84,
+    0xC9B8_D42D,
+    0x04B6_64D4,
+    0x923E_6E47,
+    0x56D3_DE32,
+    0xCA3A_3DEC,
+    0xFF9E_D3C4,
+    0x41EE_8AF6,
+    0x67E0_E823,
+    0x158A_856C,
+    0xBAFD_ECB2,
+    0x24AD_2304,
+    0x0AB5_3BEC,
+    0x5C98_28B9,
+    0x4FEC_A8BA,
+    0x9481_ACC3,
+    0xAA8A_4A05,
+    0x9C98_5DEC,
+    0xA15C_6867,
+    0xE211_FBB7,
+    0x31D1_5850,
+    0x7603_D2E3,
+    0x44AC_67D3,
+    0x7739_5A34,
+    0x1BA3_945E,
+    0xFE83_D5F2,
+    0x8859_27A8,
+    0xAA21_B105,
+    0x4772_0401,
+    0xD214_C1B4,
+    0xDB21_8544,
+    0x4F82_A2FA,
+    0xAEC8_EF69,
+    0x14C7_7E23,
+    0x07C5_CD1A,
+    0x6340_9E69,
+    0x13E7_B37E,
+    0x4337_517E,
+    0x32EB_CF25,
+    0xFA0C_6B48,
+    0x48CF_8B53,
+    0x5050_E494,
+    0xB24A_3A31,
+    0xF686_1690,
+    0x309F_6F57,
+    0x840D_EAEE,
+    0xCDE7_46BC,
+    0xD775_C3E5,
+    0x0A8D_8ECF,
+    0x4E0D_8DF5,
+    0x6AEB_BBE2,
+    0x7842_8153,
+    0x7FBB_9DAA,
+    0xD404_8AB2,
+    0x0F23_7E85,
+    0xCD5F_D054,
+    0x42A1_3735,
+    0xF73B_BCD4,
+    0x5F35_4A82,
+    0xA2A5_AF98,
+    0xAC65_ABA8,
+    0xD9CC_AE75,
+    0xBE35_2870,
+    0x186D_288A,
+    0xBB99_B462,
+    0xA337_1329,
+    0x6C98_E2DE,
+    0xB145_DFA5,
+    0xF0E2_674E,
+    0x0219_ED59,
+    0xE175_6051,
+    0xDE30_EFAC,
+    0xFC83_7295,
+    0xB0CA_08EC,
+    0xF373_7FE4,
+    0xEEDC_76F1,
+    0x779B_530C,
+    0x163C_1DF1,
+    0x4CF1_97C0,
+    0x771C_32BB,
+    0x5FEF_FCFC,
+    0x4439_BC66,
+    0xEF30_DA61,
+    0xC268_6063,
+    0x1287_0662,
+    0x3809_2783,
+    0x0113_0B69,
+    0x30C2_FE3A,
+    0x7D3B_C3AF,
+    0x6B22_3B16,
+    0x11D0_BFAC,
+    0x814D_6F1F,
+    0x4EBB_D76D,
+    0xDBD3_8E34,
+    0x6B18_D38D,
+    0x972A_BB4F,
+    0x9FB3_06D4,
+    0x3F18_B063,
+    0xE18E_13C1,
+    0x31BC_22E4,
+    0x77E0_5E83,
+    0x61D6_80D8,
+    0x196E_6196,
+    0x5705_E7EC,
+    0x3292_8639,
+    0x6373_68D8,
+    0x139E_D50A,
+    0xCF8E_589D,
+    0xF617_6509,
+    0xA0C0_1BA5,
+    0x4FCD_A7C1,
     0xA06E_091F,
 ];
 
@@ -220,7 +678,6 @@ fn tag_index(b: u8) -> u32 {
         .copied()
         .expect("u8 is bounded by 0..=255 for 256-element HASH_INDEX")
 }
-
 
 #[inline]
 fn compute_full_tag(slice: &[u8]) -> u32 {
@@ -288,7 +745,9 @@ impl MatchFinder {
         }
         if chunk_size > 0 {
             let mut chunk_bits = 8u32;
-            while (1_usize.wrapping_shl(chunk_bits)) < chunk_size && chunk_bits < bits {
+            while (1_usize.wrapping_shl(chunk_bits)) < chunk_size
+                && chunk_bits < bits
+            {
                 chunk_bits = chunk_bits.saturating_add(1);
             }
             bits = chunk_bits;
@@ -300,7 +759,8 @@ impl MatchFinder {
             .context("Non-zero divisor")?
             .checked_mul(2)
             .context("Hash limit calculation overflow")?;
-        let initial_mask = (1_u32.wrapping_shl(level.initial_freq)).wrapping_sub(1);
+        let initial_mask =
+            (1_u32.wrapping_shl(level.initial_freq)).wrapping_sub(1);
 
         Ok(Self {
             hash_bits: bits,
@@ -325,8 +785,9 @@ impl MatchFinder {
         reason = "u32 fits in usize on supported 32-bit and 64-bit architectures"
     )]
     fn primary_hash(&self, t: u32) -> usize {
-        let t_usize = usize::try_from(t)
-            .expect("u32 fits in usize on supported 32-bit and 64-bit architectures");
+        let t_usize = usize::try_from(t).expect(
+            "u32 fits in usize on supported 32-bit and 64-bit architectures",
+        );
         t_usize & self.mask()
     }
 
@@ -485,7 +946,8 @@ impl MatchFinder {
                 if t == entry.tag {
                     let op = usize::try_from(entry.offset)
                         .expect("u32 fits in usize on supported 32-bit and 64-bit architectures");
-                    let (mlen, rev) = Self::match_len(buf, p_idx, op, last_match);
+                    let (mlen, rev) =
+                        Self::match_len(buf, p_idx, op, last_match);
                     if mlen >= length && mlen > 0 {
                         length = mlen;
                         // Reason for fallback: on 64-bit systems with huge chunks rev could theoretically exceed u32, saturating offset subtraction to 0
@@ -521,7 +983,10 @@ impl ChunkStreamWriter {
             100_usize
                 .checked_mul(1024)
                 .context("Buffer size calculation overflow")?
-                .checked_mul(usize::try_from(bzip_level).context("bzip level overflow")?)
+                .checked_mul(
+                    usize::try_from(bzip_level)
+                        .context("bzip level overflow")?,
+                )
                 .context("Buffer size calculation overflow")?
         };
 
@@ -553,25 +1018,33 @@ impl ChunkStreamWriter {
     }
 
     fn flush_buffer(&mut self, stream: usize) -> Result<()> {
-        let u_len_usize = self.stream_buf.get(stream).context("Invalid stream index")?.len();
+        let u_len_usize = self
+            .stream_buf
+            .get(stream)
+            .context("Invalid stream index")?
+            .len();
         if u_len_usize == 0 {
             return Ok(());
         }
 
-        let u_len = u32::try_from(u_len_usize).context("Stream buffer length overflow")?;
+        let u_len = u32::try_from(u_len_usize)
+            .context("Stream buffer length overflow")?;
         let cur_pos = usize::try_from(self.out.position())
             .context("Stream position overflow")?;
-        let cur_pos_u32 = u32::try_from(cur_pos).context("Chunk offset overflow")?;
+        let cur_pos_u32 =
+            u32::try_from(cur_pos).context("Chunk offset overflow")?;
 
         // 1. Back-patch previous block header's next_head pointer
-        let prev_head = *self.last_head.get(stream).context("Invalid stream index")?;
+        let prev_head =
+            *self.last_head.get(stream).context("Invalid stream index")?;
         self.out.seek(SeekFrom::Start(
             u64::try_from(prev_head).context("Seek offset overflow")?,
         ))?;
         self.out.write_all(&cur_pos_u32.to_le_bytes())?;
 
         // 2. Update last_head for this new block
-        let new_head = cur_pos.checked_add(9).context("Header offset overflow")?;
+        let new_head =
+            cur_pos.checked_add(9).context("Header offset overflow")?;
         if let Some(target_head) = self.last_head.get_mut(stream) {
             *target_head = new_head;
         }
@@ -593,15 +1066,24 @@ impl ChunkStreamWriter {
             if compressed.len() < max_benefit {
                 (CTYPE_BZIP2, compressed)
             } else {
-                let raw = std::mem::take(self.stream_buf.get_mut(stream).context("Invalid stream index")?);
+                let raw = std::mem::take(
+                    self.stream_buf
+                        .get_mut(stream)
+                        .context("Invalid stream index")?,
+                );
                 (CTYPE_NONE, raw)
             }
         } else {
-            let raw = std::mem::take(self.stream_buf.get_mut(stream).context("Invalid stream index")?);
+            let raw = std::mem::take(
+                self.stream_buf
+                    .get_mut(stream)
+                    .context("Invalid stream index")?,
+            );
             (CTYPE_NONE, raw)
         };
 
-        let c_len = u32::try_from(payload.len()).context("Compressed length overflow")?;
+        let c_len = u32::try_from(payload.len())
+            .context("Compressed length overflow")?;
 
         // 4. Write 13-byte header and payload
         let mut header = [0u8; STREAM_BLOCK_HEADER_SIZE];
@@ -630,14 +1112,21 @@ impl ChunkStreamWriter {
     fn write_stream(&mut self, stream: usize, data: &[u8]) -> Result<()> {
         let mut remaining = data;
         while !remaining.is_empty() {
-            let buf = self.stream_buf.get_mut(stream).context("Invalid stream index")?;
+            let buf = self
+                .stream_buf
+                .get_mut(stream)
+                .context("Invalid stream index")?;
             let space = self.bufsize.saturating_sub(buf.len());
             let n = remaining.len().min(space);
             let slice = remaining.get(..n).context("Slice range error")?;
             buf.extend_from_slice(slice);
             remaining = remaining.get(n..).context("Slice range error")?;
 
-            let updated_len = self.stream_buf.get(stream).context("Invalid stream index")?.len();
+            let updated_len = self
+                .stream_buf
+                .get(stream)
+                .context("Invalid stream index")?
+                .len();
             if updated_len >= self.bufsize {
                 self.flush_buffer(stream)?;
             }
@@ -657,17 +1146,15 @@ impl ChunkStreamWriter {
 }
 
 /// Emits a literal record: Stream 0 receives header (0, len), Stream 1 receives raw bytes.
-fn emit_literal(
-    sw: &mut ChunkStreamWriter,
-    bytes: &[u8],
-) -> Result<()> {
+fn emit_literal(sw: &mut ChunkStreamWriter, bytes: &[u8]) -> Result<()> {
     let mut offset = 0usize;
     let total = bytes.len();
 
     while offset < total {
         let chunk_len = (total.saturating_sub(offset)).min(0xFFFF);
         let len_u16 = u16::try_from(chunk_len).context("Length overflow")?;
-        let slice = bytes.get(offset..offset.saturating_add(chunk_len))
+        let slice = bytes
+            .get(offset..offset.saturating_add(chunk_len))
             .context("Slice range error")?;
 
         let mut header = [0u8; 3];
@@ -699,7 +1186,8 @@ fn emit_match(
     while len > 0 {
         let n = len.min(0xFFFF);
         let n_u16 = u16::try_from(n).context("Match length overflow")?;
-        let ofs = u32::try_from(p.saturating_sub(m_pos)).context("Match offset overflow")?;
+        let ofs = u32::try_from(p.saturating_sub(m_pos))
+            .context("Match offset overflow")?;
 
         let mut header = [0u8; 7];
         if let Some(first) = header.first_mut() {
@@ -736,20 +1224,27 @@ fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
 
     if chunk.len() >= MINIMUM_MATCH {
         let mut p = 0usize;
-        let mut t = compute_full_tag(chunk.get(..MINIMUM_MATCH).context("Slice range error")?);
+        let mut t = compute_full_tag(
+            chunk.get(..MINIMUM_MATCH).context("Slice range error")?,
+        );
 
         while p < end {
             p = p.saturating_add(1);
-            let prev = *chunk.get(p.saturating_sub(1)).context("Prev chunk byte out of bounds")?;
+            let prev = *chunk
+                .get(p.saturating_sub(1))
+                .context("Prev chunk byte out of bounds")?;
             let next_idx = p.saturating_add(MINIMUM_MATCH.saturating_sub(1));
-            let next = *chunk.get(next_idx).context("Next chunk byte out of bounds")?;
+            let next = *chunk
+                .get(next_idx)
+                .context("Next chunk byte out of bounds")?;
             t = compute_next_tag(prev, next, t);
 
             if (t & finder.minimum_tag_mask) != finder.minimum_tag_mask {
                 continue;
             }
 
-            let (mlen, offset, rev) = finder.find_best_match(t, p, chunk, last_match);
+            let (mlen, offset, rev) =
+                finder.find_best_match(t, p, chunk, last_match);
 
             if (t & tag_mask) == tag_mask {
                 finder.hash_count = finder.hash_count.saturating_add(1);
@@ -763,14 +1258,19 @@ fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
             if mlen > current_len {
                 current_p = p.saturating_sub(rev);
                 current_len = mlen;
-                current_ofs = usize::try_from(offset).context("Offset overflow")?;
+                current_ofs =
+                    usize::try_from(offset).context("Offset overflow")?;
             }
 
             let reached_great = current_len >= GREAT_MATCH;
-            let reached_lookahead = p >= current_p.saturating_add(MINIMUM_MATCH);
-            if (reached_great || reached_lookahead) && current_len >= MINIMUM_MATCH {
+            let reached_lookahead =
+                p >= current_p.saturating_add(MINIMUM_MATCH);
+            if (reached_great || reached_lookahead)
+                && current_len >= MINIMUM_MATCH
+            {
                 if last_match < current_p {
-                    let lit_slice = chunk.get(last_match..current_p)
+                    let lit_slice = chunk
+                        .get(last_match..current_p)
                         .context("Slice range error")?;
                     emit_literal(&mut sw, lit_slice)?;
                 }
@@ -781,7 +1281,8 @@ fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
                 current_len = 0;
 
                 if p < end {
-                    let full_slice = chunk.get(p..p.saturating_add(MINIMUM_MATCH))
+                    let full_slice = chunk
+                        .get(p..p.saturating_add(MINIMUM_MATCH))
                         .context("Slice range error")?;
                     t = compute_full_tag(full_slice);
                 }
@@ -791,7 +1292,9 @@ fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
 
     // Emit trailing literal bytes if any
     if last_match < chunk.len() {
-        let trailing = chunk.get(last_match..chunk.len()).context("Slice range error")?;
+        let trailing = chunk
+            .get(last_match..chunk.len())
+            .context("Slice range error")?;
         emit_literal(&mut sw, trailing)?;
     }
 
@@ -807,15 +1310,21 @@ fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
 }
 
 /// Compresses a stream from `reader` into `writer` using the `rzip` 2.1 format.
-pub fn compress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<u64> {
+pub fn compress_stream<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+) -> Result<u64> {
     let level_idx = 6usize; // Default level 6
     let level = LEVELS.get(level_idx).context("Invalid level index")?;
 
     let mut input_data = Vec::new();
-    reader.read_to_end(&mut input_data).context("Failed to read input stream")?;
+    reader
+        .read_to_end(&mut input_data)
+        .context("Failed to read input stream")?;
 
     let total_uncompressed = input_data.len();
-    let total_u64 = u64::try_from(total_uncompressed).context("Size overflow")?;
+    let total_u64 =
+        u64::try_from(total_uncompressed).context("Size overflow")?;
 
     // 1. Write 24-byte magic header
     let mut magic_header = [0u8; MAGIC_HEADER_SIZE];
@@ -829,8 +1338,10 @@ pub fn compress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Res
         *min = RZIP_MINOR;
     }
 
-    let low_32 = u32::try_from(total_u64 & 0xFFFF_FFFF).context("Masked 32 bits")?;
-    let high_32 = u32::try_from(total_u64.wrapping_shr(32)).context("Shifted 32 bits")?;
+    let low_32 =
+        u32::try_from(total_u64 & 0xFFFF_FFFF).context("Masked 32 bits")?;
+    let high_32 =
+        u32::try_from(total_u64.wrapping_shr(32)).context("Shifted 32 bits")?;
 
     // Bytes 6..10: low 32 bits (Big Endian), Bytes 10..14: high 32 bits (Big Endian)
     if let Some(low_slice) = magic_header.get_mut(6..10) {
@@ -840,8 +1351,11 @@ pub fn compress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Res
         high_slice.copy_from_slice(&high_32.to_be_bytes());
     }
 
-    writer.write_all(&magic_header).context("Failed to write magic header")?;
-    let mut total_written = u64::try_from(MAGIC_HEADER_SIZE).context("Header size")?;
+    writer
+        .write_all(&magic_header)
+        .context("Failed to write magic header")?;
+    let mut total_written =
+        u64::try_from(MAGIC_HEADER_SIZE).context("Header size")?;
 
     if total_uncompressed == 0 {
         return Ok(total_written);
@@ -857,14 +1371,20 @@ pub fn compress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Res
     while offset < total_uncompressed {
         let remaining = total_uncompressed.saturating_sub(offset);
         let n = remaining.min(chunk_size);
-        let chunk_slice = input_data.get(offset..offset.saturating_add(n))
+        let chunk_slice = input_data
+            .get(offset..offset.saturating_add(n))
             .context("Slice range error")?;
 
         let compressed_chunk = compress_chunk(chunk_slice, level)?;
-        writer.write_all(&compressed_chunk).context("Failed to write compressed chunk")?;
+        writer
+            .write_all(&compressed_chunk)
+            .context("Failed to write compressed chunk")?;
 
-        let chunk_len_u64 = u64::try_from(compressed_chunk.len()).context("Length overflow")?;
-        total_written = total_written.checked_add(chunk_len_u64).context("Written overflow")?;
+        let chunk_len_u64 =
+            u64::try_from(compressed_chunk.len()).context("Length overflow")?;
+        total_written = total_written
+            .checked_add(chunk_len_u64)
+            .context("Written overflow")?;
         offset = offset.saturating_add(n);
     }
 
@@ -872,12 +1392,19 @@ pub fn compress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Res
 }
 
 /// Reads multiplexed blocks from `reader` and returns the assembled stream byte vectors.
-fn read_demuxed_streams<R: Read>(reader: &mut R) -> Result<[Vec<u8>; NUM_STREAMS]> {
+fn read_demuxed_streams<R: Read>(
+    reader: &mut R,
+) -> Result<[Vec<u8>; NUM_STREAMS]> {
     let mut init_headers = [0u8; 26];
-    reader.read_exact(&mut init_headers).context("Failed to read initial stream headers")?;
+    reader
+        .read_exact(&mut init_headers)
+        .context("Failed to read initial stream headers")?;
 
     let s0_type = *init_headers.first().context("Stream 0 type missing")?;
-    ensure!(s0_type == CTYPE_NONE, "Unexpected initial stream 0 type {s0_type}");
+    ensure!(
+        s0_type == CTYPE_NONE,
+        "Unexpected initial stream 0 type {s0_type}"
+    );
     let s0_bytes: [u8; 4] = init_headers
         .get(9..13)
         .context("Stream 0 offset slice")?
@@ -886,7 +1413,10 @@ fn read_demuxed_streams<R: Read>(reader: &mut R) -> Result<[Vec<u8>; NUM_STREAMS
     let s0_next = u32::from_le_bytes(s0_bytes);
 
     let s1_type = *init_headers.get(13).context("Stream 1 type missing")?;
-    ensure!(s1_type == CTYPE_NONE, "Unexpected initial stream 1 type {s1_type}");
+    ensure!(
+        s1_type == CTYPE_NONE,
+        "Unexpected initial stream 1 type {s1_type}"
+    );
     let s1_bytes: [u8; 4] = init_headers
         .get(22..26)
         .context("Stream 1 offset slice")?
@@ -900,7 +1430,9 @@ fn read_demuxed_streams<R: Read>(reader: &mut R) -> Result<[Vec<u8>; NUM_STREAMS
 
     while next_head.iter().any(|&h| h != 0) {
         let mut block_header = [0u8; STREAM_BLOCK_HEADER_SIZE];
-        reader.read_exact(&mut block_header).context("Failed to read stream block header")?;
+        reader
+            .read_exact(&mut block_header)
+            .context("Failed to read stream block header")?;
 
         let c_type = *block_header.first().context("Missing block c_type")?;
         let c_len_bytes: [u8; 4] = block_header
@@ -924,11 +1456,15 @@ fn read_demuxed_streams<R: Read>(reader: &mut R) -> Result<[Vec<u8>; NUM_STREAMS
             .context("block_next length")?;
         let block_next = u32::from_le_bytes(block_next_bytes);
 
-        let c_len_usize = usize::try_from(c_len).context("Block length overflow")?;
+        let c_len_usize =
+            usize::try_from(c_len).context("Block length overflow")?;
         let mut payload = vec![0u8; c_len_usize];
-        reader.read_exact(&mut payload).context("Failed to read block payload")?;
+        reader
+            .read_exact(&mut payload)
+            .context("Failed to read block payload")?;
 
-        let stream_idx = if next_head.first().is_some_and(|&h| h == cur_offset) {
+        let stream_idx = if next_head.first().is_some_and(|&h| h == cur_offset)
+        {
             if let Some(target) = next_head.first_mut() {
                 *target = block_next;
             }
@@ -947,13 +1483,16 @@ fn read_demuxed_streams<R: Read>(reader: &mut R) -> Result<[Vec<u8>; NUM_STREAMS
             CTYPE_BZIP2 => {
                 let mut decoder = bzip2::read::BzDecoder::new(&payload[..]);
                 let mut decomp = Vec::new();
-                decoder.read_to_end(&mut decomp).context("Failed to decompress bzip2 block")?;
+                decoder
+                    .read_to_end(&mut decomp)
+                    .context("Failed to decompress bzip2 block")?;
                 decomp
             }
             other => bail!("Invalid stream compression type {other}"),
         };
 
-        let u_len_usize = usize::try_from(u_len).context("Block u_len overflow")?;
+        let u_len_usize =
+            usize::try_from(u_len).context("Block u_len overflow")?;
         ensure!(
             uncompressed.len() == u_len_usize,
             "Decompressed block length mismatch: got {}, expected {}",
@@ -969,7 +1508,9 @@ fn read_demuxed_streams<R: Read>(reader: &mut R) -> Result<[Vec<u8>; NUM_STREAMS
             .context("Header size fits u32")?
             .checked_add(c_len)
             .context("Offset overflow")?;
-        cur_offset = cur_offset.checked_add(advance).context("Chunk offset overflow")?;
+        cur_offset = cur_offset
+            .checked_add(advance)
+            .context("Chunk offset overflow")?;
     }
 
     Ok(stream_data)
@@ -997,12 +1538,14 @@ fn replay_stream0_instructions<W: Write>(
         let [head] = head_buf;
 
         let mut len_buf = [0u8; 2];
-        s0.read_exact(&mut len_buf).context("Failed to read record length")?;
+        s0.read_exact(&mut len_buf)
+            .context("Failed to read record length")?;
         let len = usize::from(u16::from_le_bytes(len_buf));
 
         if head == 0 && len == 0 {
             let mut crc_buf = [0u8; 4];
-            s0.read_exact(&mut crc_buf).context("Failed to read chunk CRC-32")?;
+            s0.read_exact(&mut crc_buf)
+                .context("Failed to read chunk CRC-32")?;
             let stored_crc = u32::from_le_bytes(crc_buf);
             ensure!(
                 stored_crc == running_crc,
@@ -1014,19 +1557,24 @@ fn replay_stream0_instructions<W: Write>(
         match head {
             0 => {
                 let mut lit_buf = vec![0u8; len];
-                s1.read_exact(&mut lit_buf).context("Failed to read literal data from stream 1")?;
+                s1.read_exact(&mut lit_buf)
+                    .context("Failed to read literal data from stream 1")?;
 
-                writer.write_all(&lit_buf).context("Failed to write decompressed literal")?;
+                writer
+                    .write_all(&lit_buf)
+                    .context("Failed to write decompressed literal")?;
                 running_crc = update_crc32(running_crc, &lit_buf);
                 chunk_history.extend_from_slice(&lit_buf);
 
                 let len_u64 = u64::try_from(len).context("Length overflow")?;
-                chunk_decompressed = chunk_decompressed.checked_add(len_u64)
+                chunk_decompressed = chunk_decompressed
+                    .checked_add(len_u64)
                     .context("Decompressed length overflow")?;
             }
             1 => {
                 let mut ofs_buf = [0u8; 4];
-                s0.read_exact(&mut ofs_buf).context("Failed to read match offset")?;
+                s0.read_exact(&mut ofs_buf)
+                    .context("Failed to read match offset")?;
                 let offset = usize::try_from(u32::from_le_bytes(ofs_buf))
                     .context("Match offset overflow")?;
 
@@ -1036,23 +1584,32 @@ fn replay_stream0_instructions<W: Write>(
                     "Invalid match offset {offset}, current history length is {cur_history_len}"
                 );
 
-                let match_start = cur_history_len.checked_sub(offset)
+                let match_start = cur_history_len
+                    .checked_sub(offset)
                     .context("Underflow calculating match start")?;
 
                 let old_len = chunk_history.len();
                 for i in 0..len {
-                    let read_idx = match_start.checked_add(i).context("Index overflow")?;
-                    let b = chunk_history.get(read_idx).copied().context("Match index out of bounds")?;
+                    let read_idx =
+                        match_start.checked_add(i).context("Index overflow")?;
+                    let b = chunk_history
+                        .get(read_idx)
+                        .copied()
+                        .context("Match index out of bounds")?;
                     chunk_history.push(b);
                 }
 
-                let match_slice = chunk_history.get(old_len..old_len.saturating_add(len))
+                let match_slice = chunk_history
+                    .get(old_len..old_len.saturating_add(len))
                     .context("Slice range error")?;
-                writer.write_all(match_slice).context("Failed to write decompressed match")?;
+                writer
+                    .write_all(match_slice)
+                    .context("Failed to write decompressed match")?;
                 running_crc = update_crc32(running_crc, match_slice);
 
                 let len_u64 = u64::try_from(len).context("Length overflow")?;
-                chunk_decompressed = chunk_decompressed.checked_add(len_u64)
+                chunk_decompressed = chunk_decompressed
+                    .checked_add(len_u64)
                     .context("Decompressed length overflow")?;
             }
             other => bail!("Invalid record head type {other} in stream 0"),
@@ -1078,10 +1635,15 @@ fn decompress_chunk<R: Read, W: Write>(
 }
 
 /// Decompresses a stream from `reader` into `writer` using the `rzip` 2.1 format.
-pub fn decompress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Result<u64> {
+pub fn decompress_stream<R: Read, W: Write>(
+    reader: &mut R,
+    writer: &mut W,
+) -> Result<u64> {
     // 1. Read 24-byte magic header
     let mut magic_header = [0u8; MAGIC_HEADER_SIZE];
-    reader.read_exact(&mut magic_header).context("Failed to read 24-byte rzip magic header")?;
+    reader
+        .read_exact(&mut magic_header)
+        .context("Failed to read 24-byte rzip magic header")?;
 
     ensure!(
         magic_header.get(0..4) == Some(&RZIP_MAGIC),
@@ -1108,7 +1670,8 @@ pub fn decompress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> R
         .try_into()
         .context("High size length")?;
     let high_32 = u32::from_be_bytes(high_bytes);
-    let expected_size = u64::from(low_32) | (u64::from(high_32).wrapping_shl(32));
+    let expected_size =
+        u64::from(low_32) | (u64::from(high_32).wrapping_shl(32));
 
     if expected_size == 0 {
         return Ok(0);
@@ -1119,8 +1682,10 @@ pub fn decompress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> R
 
     while total_decompressed < expected_size {
         let remaining = expected_size.saturating_sub(total_decompressed);
-        let decompressed_this_chunk = decompress_chunk(reader, writer, remaining)?;
-        total_decompressed = total_decompressed.checked_add(decompressed_this_chunk)
+        let decompressed_this_chunk =
+            decompress_chunk(reader, writer, remaining)?;
+        total_decompressed = total_decompressed
+            .checked_add(decompressed_this_chunk)
             .context("Total decompressed overflow")?;
     }
 
@@ -1276,7 +1841,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_rzip_corrupted_crc() {
-        let mut compressed = compress_bytes(b"Test data with enough length to test").unwrap();
+        let mut compressed =
+            compress_bytes(b"Test data with enough length to test").unwrap();
         let last = compressed.len().saturating_sub(1);
         if let Some(target) = compressed.get_mut(last) {
             *target ^= 0xFF;
@@ -1289,15 +1855,15 @@ mod tests {
 Licensing details for rzip, from rzip-2.1/COPYING:
 
 ```
-		    GNU GENERAL PUBLIC LICENSE
-		       Version 2, June 1991
+            GNU GENERAL PUBLIC LICENSE
+               Version 2, June 1991
 
  Copyright (C) 1989, 1991 Free Software Foundation, Inc.
                           675 Mass Ave, Cambridge, MA 02139, USA
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.
 
-			    Preamble
+                Preamble
 
   The licenses for most software are designed to take away your
 freedom to share and change it.  By contrast, the GNU General Public
@@ -1346,8 +1912,8 @@ patent must be licensed for everyone's free use or not licensed at all.
 
   The precise terms and conditions for copying, distribution and
 modification follow.
-
-		    GNU GENERAL PUBLIC LICENSE
+
+            GNU GENERAL PUBLIC LICENSE
    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
   0. This License applies to any program or other work which contains
@@ -1401,7 +1967,7 @@ above, provided that you also meet all of these conditions:
     License.  (Exception: if the Program itself is interactive but
     does not normally print such an announcement, your work based on
     the Program is not required to print an announcement.)
-
+
 These requirements apply to the modified work as a whole.  If
 identifiable sections of that work are not derived from the Program,
 and can be reasonably considered independent and separate works in
@@ -1459,7 +2025,7 @@ access to copy from a designated place, then offering equivalent
 access to copy the source code from the same place counts as
 distribution of the source code, even though third parties are not
 compelled to copy the source along with the object code.
-
+
   4. You may not copy, modify, sublicense, or distribute the Program
 except as expressly provided under this License.  Any attempt
 otherwise to copy, modify, sublicense or distribute the Program is
@@ -1516,7 +2082,7 @@ impose that choice.
 
 This section is intended to make thoroughly clear what is believed to
 be a consequence of the rest of this License.
-
+
   8. If the distribution and/or use of the Program is restricted in
 certain countries either by patents or by copyrighted interfaces, the
 original copyright holder who places the Program under this License
@@ -1546,7 +2112,7 @@ make exceptions for this.  Our decision will be guided by the two goals
 of preserving the free status of all derivatives of our free software and
 of promoting the sharing and reuse of software generally.
 
-			    NO WARRANTY
+                NO WARRANTY
 
   11. BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
 FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN
@@ -1568,9 +2134,9 @@ YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER
 PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGES.
 
-		     END OF TERMS AND CONDITIONS
-
-	Appendix: How to Apply These Terms to Your New Programs
+             END OF TERMS AND CONDITIONS
+
+    Appendix: How to Apply These Terms to Your New Programs
 
   If you develop a new program, and you want it to be of the greatest
 possible use to the public, the best way to achieve this is to make it

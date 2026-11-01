@@ -67,7 +67,10 @@ pub fn dc_base64_digit_to_char(val: u8) -> DcChar {
 /// # Errors
 /// Returns an error if `ch` is not a valid Base64 encapsulation character.
 pub fn dc_base64_char_to_digit(ch: DcChar) -> Result<u8> {
-    dc_base64_char_to_digit_with_resolver(ch, crate::syntax::default_syntax_resolver().as_ref())
+    dc_base64_char_to_digit_with_resolver(
+        ch,
+        crate::syntax::default_syntax_resolver().as_ref(),
+    )
 }
 
 /// Converts a Base64 encapsulation `DcChar` into its 6-bit numeral value (0..=63)
@@ -126,10 +129,7 @@ pub fn u128_to_dc_number_chars(mut val: u128) -> Vec<DcChar> {
             )
             .expect("remainder mod 64 fits in u8");
             digits.push(dc_base64_digit_to_char(rem_u8));
-            #[expect(
-                clippy::expect_used,
-                reason = "Divisor 64 is non-zero"
-            )]
+            #[expect(clippy::expect_used, reason = "Divisor 64 is non-zero")]
             {
                 val = val.checked_div(64).expect("divisor 64 is non-zero");
             }
@@ -185,7 +185,10 @@ pub fn u128_to_dc_number_short(val: u128) -> Vec<u32> {
 /// Returns an error if the token stream does not start with a valid Dc integer
 /// numeral frame or if the value overflows `u128`.
 pub fn read_dc_number_u128(gids: &[u128]) -> Result<(u128, usize)> {
-    read_dc_number_u128_with_resolver(gids, crate::syntax::default_syntax_resolver().as_ref())
+    read_dc_number_u128_with_resolver(
+        gids,
+        crate::syntax::default_syntax_resolver().as_ref(),
+    )
 }
 
 /// Reads a single unsigned 128-bit integer from a slice of Document Character
@@ -232,7 +235,10 @@ pub fn read_dc_number_u128_with_resolver(
 
         let digit = dc_base64_char_to_digit_with_resolver(dc, resolver)?;
 
-        ensure!(digit < 64, "Padding character not permitted in integer numeral");
+        ensure!(
+            digit < 64,
+            "Padding character not permitted in integer numeral"
+        );
         val = val
             .checked_mul(64)
             .and_then(|v| v.checked_add(u128::from(digit)))
@@ -288,7 +294,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_read_dc_number_u128_roundtrip() {
-        for &val in &[0u128, 1, 42, 63, 64, 65, 4095, 4096, 1_000_000, u128::MAX] {
+        for &val in
+            &[0u128, 1, 42, 63, 64, 65, 4095, 4096, 1_000_000, u128::MAX]
+        {
             let chars = u128_to_dc_number_chars(val);
             let gids: Vec<u128> = chars.iter().map(|c| c.to_u128()).collect();
             let (parsed, consumed) = read_dc_number_u128(&gids).unwrap();
@@ -307,11 +315,16 @@ mod tests {
             ) -> Option<&crate::syntax::DcSyntaxRule> {
                 crate::syntax::default_syntax_resolver().resolve_rule(target)
             }
-            fn resolve_named_type(&self, name: &str) -> Option<&crate::syntax::SyntaxPattern> {
-                crate::syntax::default_syntax_resolver().resolve_named_type(name)
+            fn resolve_named_type(
+                &self,
+                name: &str,
+            ) -> Option<&crate::syntax::SyntaxPattern> {
+                crate::syntax::default_syntax_resolver()
+                    .resolve_named_type(name)
             }
             fn matches_script(&self, script_name: &str, token: u128) -> bool {
-                crate::syntax::default_syntax_resolver().matches_script(script_name, token)
+                crate::syntax::default_syntax_resolver()
+                    .matches_script(script_name, token)
             }
             fn canonical_token(&self, token: u128) -> u128 {
                 let mapped = self.0.get(&token).copied().unwrap_or(token);
@@ -336,8 +349,15 @@ mod tests {
             DcChar::from_u128(alias_digit1),
             &resolver
         ));
-        let gids = vec![alias_begin, alias_int, alias_digit1, alias_digit0, alias_end];
-        let (parsed, consumed) = read_dc_number_u128_with_resolver(&gids, &resolver).unwrap();
+        let gids = vec![
+            alias_begin,
+            alias_int,
+            alias_digit1,
+            alias_digit0,
+            alias_end,
+        ];
+        let (parsed, consumed) =
+            read_dc_number_u128_with_resolver(&gids, &resolver).unwrap();
         assert_eq!(parsed, 64);
         assert_eq!(consumed, 5);
     }

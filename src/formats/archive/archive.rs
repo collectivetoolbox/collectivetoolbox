@@ -29,7 +29,6 @@ pub(crate) use ctb_utilities::*;
 pub use ctb_formats_apple_single_double as apple_single_double;
 pub use ctb_io_file::AppleArchiveExt;
 
-
 /// Retrieves archive test fixture data by path key.
 #[cfg(test)]
 #[must_use]
@@ -49,13 +48,14 @@ pub fn get_archive_data(key: &str) -> Option<Vec<u8>> {
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
-    use super::*;
     use super::apple_single_double::*;
+    use super::*;
 
     #[crate::ctb_test]
     fn test_apple_single_fixtures() -> anyhow::Result<()> {
-        let data1 = get_apple_single_double_data("fixtures/AppleSingle/test file.as")
-            .context("test file.as fixture missing")?;
+        let data1 =
+            get_apple_single_double_data("fixtures/AppleSingle/test file.as")
+                .context("test file.as fixture missing")?;
         let archive1 = read_apple_single_double(&data1)?;
 
         ensure!(archive1.format == AppleFormat::AppleSingle);
@@ -65,7 +65,10 @@ mod tests {
         ensure!(archive1.data_fork_size == Some(9));
         ensure!(archive1.resource_fork_size == Some(332));
 
-        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        let finfo1 = archive1
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo1.file_type == "TEXT");
         ensure!(finfo1.file_creator == "ttxt");
         ensure!(finfo1.label.index() == 0);
@@ -91,17 +94,24 @@ mod tests {
         ensure!(streams1[0].data.as_ref().map(Vec::len) == Some(332));
 
         // Test second AppleSingle fixture with green label
-        let data2 = get_apple_single_double_data("fixtures/AppleSingle/test file green2.as")
-            .context("test file green2.as fixture missing")?;
+        let data2 = get_apple_single_double_data(
+            "fixtures/AppleSingle/test file green2.as",
+        )
+        .context("test file green2.as fixture missing")?;
         let archive2 = read_apple_single_double(&data2)?;
 
         ensure!(archive2.format == AppleFormat::AppleSingle);
         ensure!(archive2.real_name.as_deref() == Some("test file green2"));
-        ensure!(archive2.data_fork.as_deref() == Some(b"test file\x01".as_slice()));
+        ensure!(
+            archive2.data_fork.as_deref() == Some(b"test file\x01".as_slice())
+        );
         ensure!(archive2.data_fork_size == Some(10));
         ensure!(archive2.resource_fork_size == Some(372));
 
-        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        let finfo2 = archive2
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo2.file_type == "TEXT");
         ensure!(finfo2.file_creator == "ttxt");
         ensure!(finfo2.label.index() == 2);
@@ -117,15 +127,20 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_double_alongside_fixtures() -> anyhow::Result<()> {
-        let data1 = get_apple_single_double_data("fixtures/AppleDouble/Alongside/test file/._test file")
-            .context("Alongside ._test file missing")?;
+        let data1 = get_apple_single_double_data(
+            "fixtures/AppleDouble/Alongside/test file/._test file",
+        )
+        .context("Alongside ._test file missing")?;
         let archive1 = read_apple_single_double(&data1)?;
 
         ensure!(archive1.format == AppleFormat::AppleDouble);
         ensure!(archive1.data_fork.is_none());
         ensure!(archive1.resource_fork_size == Some(332));
 
-        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        let finfo1 = archive1
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo1.file_type == "TEXT");
         ensure!(finfo1.file_creator == "ttxt");
         ensure!(finfo1.label.index() == 0);
@@ -138,7 +153,10 @@ mod tests {
         ensure!(archive2.data_fork.is_none());
         ensure!(archive2.resource_fork_size == Some(372));
 
-        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        let finfo2 = archive2
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo2.file_type == "TEXT");
         ensure!(finfo2.file_creator == "ttxt");
         ensure!(finfo2.label.index() == 2);
@@ -168,7 +186,10 @@ mod tests {
         ensure!(archive.entries[0].entry_type == EntryType::FinderInfo);
         ensure!(archive.resource_fork.is_none());
 
-        let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
+        let finfo = archive
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo.file_type == "BINA");
         ensure!(finfo.file_creator == "SITx");
         ensure!(finfo.label.index() == 1);

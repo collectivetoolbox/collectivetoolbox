@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Filesystem and inode special file detection subsystem ported from
 //! `fsmagic.c` in `file`.
 //!
@@ -464,7 +463,9 @@ use crate::detection::types::{
 
 /// Evaluates special filesystem entity hints (directory, symlink, fifo, socket,
 /// devices).
-pub fn detect_special_entity(hint: Option<&DetectionHint>) -> Option<DetectionCandidate> {
+pub fn detect_special_entity(
+    hint: Option<&DetectionHint>,
+) -> Option<DetectionCandidate> {
     let hint = hint?;
     let kind = hint.special_kind.as_deref()?;
 
@@ -474,7 +475,9 @@ pub fn detect_special_entity(hint: Option<&DetectionHint>) -> Option<DetectionCa
         "fifo" | "pipe" => ("fifo (named pipe)", "inode/fifo"),
         "socket" | "sock" => ("socket", "inode/socket"),
         "block" | "block_device" => ("block special", "inode/blockdevice"),
-        "char" | "character" | "char_device" => ("character special", "inode/chardevice"),
+        "char" | "character" | "char_device" => {
+            ("character special", "inode/chardevice")
+        }
         _ => return None,
     };
 
@@ -494,7 +497,9 @@ pub fn detect_special_entity(hint: Option<&DetectionHint>) -> Option<DetectionCa
 }
 
 /// Detects whether a source is an empty 0-byte file/stream.
-pub fn detect_empty_file<S: DetectionSource + ?Sized>(source: &mut S) -> Option<DetectionCandidate> {
+pub fn detect_empty_file<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Option<DetectionCandidate> {
     let is_empty = match source.total_len() {
         Some(0) => true,
         Some(_) => false,

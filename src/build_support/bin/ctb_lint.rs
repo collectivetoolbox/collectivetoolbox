@@ -26,8 +26,8 @@ use anyhow::{Result, bail};
 use ctb_build_support::ctbnbdl::recover_pending_ledger_journal;
 use ctb_build_support::find_repository_root;
 use ctb_build_support::lint::{
-    deny_config, format_log, headers, helper, patches, runner, test_boilerplate,
-    unwrap_or, vendor_versions,
+    deny_config, format_log, headers, helper, patches, runner,
+    test_boilerplate, unwrap_or, vendor_versions,
 };
 
 fn print_usage() {
@@ -71,13 +71,16 @@ fn main() -> Result<()> {
         Some("headers") => ("headers", args.get(1..).unwrap_or(&[])),
         Some("helper") => ("helper", args.get(1..).unwrap_or(&[])),
         Some("patches") => ("patches", args.get(1..).unwrap_or(&[])),
-        Some("test-boilerplate") => ("test-boilerplate", args.get(1..).unwrap_or(&[])),
+        Some("test-boilerplate") => {
+            ("test-boilerplate", args.get(1..).unwrap_or(&[]))
+        }
         Some("unwrap-or") => ("unwrap-or", args.get(1..).unwrap_or(&[])),
-        Some("vendor-versions") => ("vendor-versions", args.get(1..).unwrap_or(&[])),
-        Some("recover-ledger-journal") => (
-            "recover-ledger-journal",
-            args.get(1..).unwrap_or(&[]),
-        ),
+        Some("vendor-versions") => {
+            ("vendor-versions", args.get(1..).unwrap_or(&[]))
+        }
+        Some("recover-ledger-journal") => {
+            ("recover-ledger-journal", args.get(1..).unwrap_or(&[]))
+        }
         Some("--help" | "-h") => {
             print_usage();
             return Ok(());
@@ -129,7 +132,8 @@ fn main() -> Result<()> {
         idx = idx.saturating_add(1);
     }
 
-    let default_root = find_repository_root().unwrap_or_else(|_| PathBuf::from("."));
+    let default_root =
+        find_repository_root().unwrap_or_else(|_| PathBuf::from("."));
     let root = workspace_root.unwrap_or(default_root);
 
     match subcmd {

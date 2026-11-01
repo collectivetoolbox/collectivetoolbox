@@ -99,8 +99,9 @@ pub fn parse_kst_str(src: &str) -> Result<KstSpec> {
 /// # Errors
 /// Returns an error if the file cannot be read or parsed.
 pub fn parse_kst_file(path: &Path) -> Result<KstSpec> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read .kst file at {}", path.display()))?;
+    let content = fs::read_to_string(path).with_context(|| {
+        format!("Failed to read .kst file at {}", path.display())
+    })?;
     parse_kst_str(&content)
 }
 
@@ -150,13 +151,21 @@ asserts:
             let entry = entry?;
             let path = entry.path();
             if path.extension().is_some_and(|ext| ext == "kst") {
-                let spec = parse_kst_file(&path)
-                    .with_context(|| format!("Failed to parse {}", path.display()))?;
-                assert!(!spec.id.is_empty(), "KstSpec id should not be empty in {}", path.display());
+                let spec = parse_kst_file(&path).with_context(|| {
+                    format!("Failed to parse {}", path.display())
+                })?;
+                assert!(
+                    !spec.id.is_empty(),
+                    "KstSpec id should not be empty in {}",
+                    path.display()
+                );
                 count = count.saturating_add(1);
             }
         }
-        assert!(count >= 250, "Expected at least 250 .kst files, found {count}");
+        assert!(
+            count >= 250,
+            "Expected at least 250 .kst files, found {count}"
+        );
         Ok(())
     }
 }

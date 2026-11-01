@@ -216,8 +216,8 @@ pub use attached_stream as stream_sidecar;
 pub use attached_stream as stream_companion;
 pub mod block_device_size;
 pub mod clean_name;
-pub mod entity;
 pub mod encoding;
+pub mod entity;
 pub mod filesystem;
 pub mod identity;
 pub mod link_path;
@@ -235,20 +235,19 @@ pub mod traversal;
 pub mod verifier;
 
 pub use attached_stream::{
-    AppleArchive, AppleArchiveExt, AppleDoubleStyle, AppleFormat, AppleMetadata,
-    AppleRawEntry, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
-    ExtendedFinderInfo, FinderFlags, FinderInfo, FinderLabel,
-    PlannedWindowsAdsCompanion, StreamAdaptationRecord,
-    create_apple_archive_from_entity,
+    APPLESINGLE_MAGIC_BE, APPLESINGLE_MAGIC_LE, AppleArchive, AppleArchiveExt,
+    AppleDoubleStyle, AppleFormat, AppleMetadata, AppleRawEntry,
+    AppleReadOptions, AppleSingleExtension, AppleWriteMode, ExtendedFinderInfo,
+    FinderFlags, FinderInfo, FinderLabel, PlannedWindowsAdsCompanion,
+    StreamAdaptationRecord, VERSION_2_0_BE, create_apple_archive_from_entity,
     create_apple_archive_from_entity_with_stream_source, get_companion_path,
-    is_apple_double_file, plan_windows_ads_companions, read_apple_single_double,
-    serialize_apple_double_for_entity,
+    is_apple_double_file, plan_windows_ads_companions,
+    read_apple_single_double, serialize_apple_double_for_entity,
     serialize_apple_double_for_entity_with_stream_source,
     split_windows_ads_companion_bytes, windows_ads_companion_paths,
-    write_apple_double_companion, write_apple_double_companion_with_stream_source,
-    write_apple_single_double, write_windows_ads_companions,
-    write_windows_ads_companions_with_warnings, APPLESINGLE_MAGIC_BE,
-    APPLESINGLE_MAGIC_LE, VERSION_2_0_BE,
+    write_apple_double_companion,
+    write_apple_double_companion_with_stream_source, write_apple_single_double,
+    write_windows_ads_companions, write_windows_ads_companions_with_warnings,
 };
 pub use block_device_size::query_block_device_size;
 pub use clean_name::{
@@ -259,38 +258,46 @@ pub use clean_name::{
     is_windows_disallowed_filename_char,
     is_windows_disallowed_filename_code_unit,
 };
-pub use entity::{File, FileEntity, FileEntityKind, FileEntityType, FileEntityWithPayload};
-pub use link_path::LinkPath;
+pub use ctb_formats_dcstring::{Integer, Natural};
+pub use entity::{
+    File, FileEntity, FileEntityKind, FileEntityType, FileEntityWithPayload,
+};
 pub use filesystem::{
-    FS_CACHE_TEST_MUTEX, FilesystemInfo, clear_filesystem_cache, extract_device_id,
-    extract_device_id_for_path, is_cross_device_error, query_filesystem_info,
-    query_filesystem_resolution, query_filesystem_type, set_cached_filesystem_info,
+    FS_CACHE_TEST_MUTEX, FilesystemInfo, clear_filesystem_cache,
+    extract_device_id, extract_device_id_for_path, is_cross_device_error,
+    query_filesystem_info, query_filesystem_resolution, query_filesystem_type,
+    set_cached_filesystem_info,
 };
 pub use identity::{
-    FileIdentity, FileOrigin, InodeKey, extract_device_id_for_path as extract_identity_device_id,
+    FileIdentity, FileOrigin, InodeKey,
+    extract_device_id_for_path as extract_identity_device_id,
     extract_file_identity, query_file_identity, query_open_file_identity,
     resolve_relative_path_for_materialization, resolve_relative_path_for_os,
     try_query_open_file_identity, try_query_open_file_path,
 };
-pub use ctb_formats_dcstring::{Integer, Natural};
+pub use link_path::LinkPath;
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata,
     materialize_directory_streams_and_companions, materialize_entity,
-    materialize_entity_at_path, materialize_entity_with_stream_source, verify_directory_filenames_exact,
-    verify_filename_exact_bytes, write_file_durable,
+    materialize_entity_at_path, materialize_entity_with_stream_source,
+    verify_directory_filenames_exact, verify_filename_exact_bytes,
+    write_file_durable,
 };
 pub use metadata::{
-    FileFlag, FileMetadata, FileTimestamps, FlagSettability, OsFamily, PlatformRawFlags,
+    FileFlag, FileMetadata, FileTimestamps, FlagSettability, OsFamily,
+    PlatformRawFlags,
 };
 pub use metadata_json::{
     FileMetadataJson, export_file_metadata_json,
     rematerialize_from_metadata_json,
 };
-pub use name_collisions::{PlannedItemAction, validate_and_order_directory_entries};
+pub use name_collisions::{
+    PlannedItemAction, validate_and_order_directory_entries,
+};
 pub use path_policy::{
-    PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all, normalize_path,
-    path_has_trailing_slash, resolve_and_validate_path, resolve_existing_ancestors,
-    validate_symlink_target,
+    PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all,
+    normalize_path, path_has_trailing_slash, resolve_and_validate_path,
+    resolve_existing_ancestors, validate_symlink_target,
 };
 pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource,
@@ -298,17 +305,20 @@ pub use payload::{
 };
 pub use sandboxable_dir::{ExistingEntryPolicy, SandboxableDir, SandboxedDir};
 pub use streams::{
-    AttachedStream, AttachedStreamWithPayload, StreamKind, StreamName, read_and_hash_streams,
-    write_stream_from_reader, write_stream_from_reader_with_warnings, write_streams,
+    AttachedStream, AttachedStreamWithPayload, StreamKind, StreamName,
+    read_and_hash_streams, write_stream_from_reader,
+    write_stream_from_reader_with_warnings, write_streams,
     write_streams_from_source_with_warnings, write_streams_with_warnings,
 };
 pub use sys_flags::{apply_file_flags, query_file_flags};
 pub use traversal::{
-    DirectoryTraverser, DirEntryItem, DirTraverser, OnTraversalError, TraversalOptions, TraversalOrder,
-    read_dir_raw, read_dir_safe, traverse_dir,
+    DirEntryItem, DirTraverser, DirectoryTraverser, OnTraversalError,
+    TraversalOptions, TraversalOrder, read_dir_raw, read_dir_safe,
+    traverse_dir,
 };
 pub use verifier::{
-    DiffKind, EntityAuditOptions, IgnoredDifferences, StreamDiffKind, audit_entity,
-    audit_entity_detailed, evict_fd_cache, has_cache_flush_privileges, hex_encode,
-    try_drop_system_caches, verify_materialized_entity, verify_materialized_entity_ext,
+    DiffKind, EntityAuditOptions, IgnoredDifferences, StreamDiffKind,
+    audit_entity, audit_entity_detailed, evict_fd_cache,
+    has_cache_flush_privileges, hex_encode, try_drop_system_caches,
+    verify_materialized_entity, verify_materialized_entity_ext,
 };

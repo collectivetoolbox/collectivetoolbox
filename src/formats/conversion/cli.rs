@@ -29,18 +29,6 @@ use crate::utilities::*;
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 
-pub use ctb_formats_unicode::cli::{
-    CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
-};
-pub use ctb_utilities::{SupportedDcInputFormat, SupportedDcOutputFormat};
-use ctb_formats_utilities::{
-    CliAutoDocumentInputArgs, CliInputSourceArgs, CliOutputDestArgs,
-    parse_supported_dc_input_format, parse_supported_dc_output_format,
-};
-use ctb_formats_dcstring::character_description::{
-    ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
-    describe_dclist, describe_graph_id,
-};
 use crate::convert_api::{
     DcConversionOptions, DcExportOptions, FormatSpec,
     convert_bytes_to_dcmstring, convert_dcmstring_to_bytes,
@@ -48,6 +36,18 @@ use crate::convert_api::{
 use crate::convert_bytes::{
     format_supported_input_formats_table, format_supported_output_formats_table,
 };
+use ctb_formats_dcstring::character_description::{
+    ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
+    describe_dclist, describe_graph_id,
+};
+pub use ctb_formats_unicode::cli::{
+    CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
+};
+use ctb_formats_utilities::{
+    CliAutoDocumentInputArgs, CliInputSourceArgs, CliOutputDestArgs,
+    parse_supported_dc_input_format, parse_supported_dc_output_format,
+};
+pub use ctb_utilities::{SupportedDcInputFormat, SupportedDcOutputFormat};
 
 fn parse_codepoint_arg(token: &str) -> Result<u128> {
     let trimmed = token.trim();
@@ -60,7 +60,9 @@ fn parse_codepoint_arg(token: &str) -> Result<u128> {
 /// Global static lazy string containing the formatted `character_description` help table and examples.
 pub static CHARACTER_DESCRIPTION_AFTER_HELP: std::sync::LazyLock<String> =
     std::sync::LazyLock::new(|| {
-        let formats = format_supported_input_formats_table("Supported input formats (--from):");
+        let formats = format_supported_input_formats_table(
+            "Supported input formats (--from):",
+        );
         format!(
             "{formats}\n\nExamples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description --from dcmm --permissive -f input.bin\n  $ ctoolbox character_description -f input.txt -o output.txt"
         )
@@ -69,8 +71,12 @@ pub static CHARACTER_DESCRIPTION_AFTER_HELP: std::sync::LazyLock<String> =
 /// Global static lazy string containing the formatted `convert` help table and examples.
 pub static CONVERT_AFTER_HELP: std::sync::LazyLock<String> =
     std::sync::LazyLock::new(|| {
-        let in_formats = format_supported_input_formats_table("Supported input formats (--from):");
-        let out_formats = format_supported_output_formats_table("Supported output formats (--to):");
+        let in_formats = format_supported_input_formats_table(
+            "Supported input formats (--from):",
+        );
+        let out_formats = format_supported_output_formats_table(
+            "Supported output formats (--to):",
+        );
         format!(
             "{in_formats}\n\n{out_formats}\n\nExamples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal\n  $ ctoolbox convert --from dcmm --permissive -f input.bin --to dctext"
         )
@@ -256,7 +262,8 @@ where
         } else {
             ctb_formats_dcstring::DcProjectionPolicy::strict()
         };
-        let dc_string = conversion.document.to_dc_string_with_policy(&policy)?;
+        let dc_string =
+            conversion.document.to_dc_string_with_policy(&policy)?;
         let dclist = dc_string.to_dclist();
         describe_dclist(&dclist, options)
     };
@@ -368,9 +375,7 @@ where
         &conversion_options,
     )?;
 
-    let export_options = DcExportOptions {
-        format: args.to,
-    };
+    let export_options = DcExportOptions { format: args.to };
 
     let export = convert_dcmstring_to_bytes(
         &conversion.document,
@@ -492,7 +497,10 @@ mod tests {
     #[crate::ctb_test]
     fn test_execute_cli_dctext_binary_dcutf_input() {
         let text = "hi @64@ @L42@";
-        let raw_bytes = ctb_formats_dcstring::converters::dctext::dctext_to_dcutf(text.as_bytes().to_vec())
+        let raw_bytes =
+            ctb_formats_dcstring::converters::dctext::dctext_to_dcutf(
+                text.as_bytes().to_vec(),
+            )
             .expect("convert dctext to dcutf");
         let args = CharacterDescriptionArgs {
             from: Some(CharacterDescriptionInputFormat::DcText),
@@ -549,9 +557,10 @@ mod tests {
             input: Some("A".to_string()),
             ..Default::default()
         };
-        let out = execute_cli_character_description(args, |p| Ok(std::fs::read(p)?))
-            .expect("Run character_description")
-            .unwrap_or_default();
+        let out =
+            execute_cli_character_description(args, |p| Ok(std::fs::read(p)?))
+                .expect("Run character_description")
+                .unwrap_or_default();
         assert_eq!(
             String::from_utf8(out).expect("UTF-8 stdout"),
             "U+0041 : LATIN CAPITAL LETTER A\n"
@@ -565,9 +574,11 @@ mod tests {
             from: Some(CharacterDescriptionInputFormat::Dcal),
             ..Default::default()
         };
-        let out_dcal = execute_cli_character_description(args_dcal, |p| Ok(std::fs::read(p)?))
-            .expect("Run character_description --from dcal")
-            .unwrap_or_default();
+        let out_dcal = execute_cli_character_description(args_dcal, |p| {
+            Ok(std::fs::read(p)?)
+        })
+        .expect("Run character_description --from dcal")
+        .unwrap_or_default();
         let s = String::from_utf8(out_dcal).expect("UTF-8 stdout");
         let lines: Vec<&str> = s.lines().collect();
         assert_eq!(lines.len(), 3);
@@ -597,8 +608,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_character_description_from_cscjournal() {
-        let fixture_dir =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../io/csc/fixtures/journals");
+        let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../io/csc/fixtures/journals");
         let fixtures = [
             "v1_ctbmeta1-20261011.cscjournal",
             "v2_ctbmeta2-20261011.cscjournal",
@@ -623,7 +634,8 @@ mod tests {
             .expect("Run character_description with cscjournal")
             .unwrap_or_default();
 
-            let desc = String::from_utf8(out).expect("UTF-8 output from description");
+            let desc =
+                String::from_utf8(out).expect("UTF-8 output from description");
             assert!(
                 !desc.is_empty(),
                 "Output for {fixture_name} should not be empty"
@@ -638,18 +650,23 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_character_description_autodetect_dcmm() {
-        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../io/csc/fixtures/journals/v4_dcmixed_only-20261010.dcmm");
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../../io/csc/fixtures/journals/v4_dcmixed_only-20261010.dcmm",
+        );
         let bytes = std::fs::read(&fixture_path).expect("read dcmm fixture");
         let args = CharacterDescriptionArgs {
             file: Some(fixture_path),
             ..Default::default()
         };
-        let out = execute_cli_character_description(args, |_| Ok(bytes.clone()))
-            .expect("Run character_description with auto-detected dcmm")
-            .unwrap_or_default();
-        let desc = String::from_utf8(out).expect("UTF-8 output from description");
-        assert!(desc.contains("1114659 : <Dc> Begin operation session description"));
+        let out =
+            execute_cli_character_description(args, |_| Ok(bytes.clone()))
+                .expect("Run character_description with auto-detected dcmm")
+                .unwrap_or_default();
+        let desc =
+            String::from_utf8(out).expect("UTF-8 output from description");
+        assert!(
+            desc.contains("1114659 : <Dc> Begin operation session description")
+        );
         assert!(desc.contains("1114661 : <Dc> Source path"));
     }
 
@@ -698,8 +715,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_execute_cli_convert_cscjournal_to_dcal() {
-        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../io/csc/fixtures/journals/v1_ctbmeta1-20261011.cscjournal");
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../../io/csc/fixtures/journals/v1_ctbmeta1-20261011.cscjournal",
+        );
         let journal_bytes =
             std::fs::read(&fixture_path).expect("read journal fixture");
 
@@ -714,27 +732,44 @@ mod tests {
             .unwrap_or_default();
         let s = String::from_utf8(out).expect("UTF-8 dcal output");
         assert!(!s.is_empty());
-        assert!(s
-            .split_ascii_whitespace()
-            .all(|token| token.chars().all(|c| c.is_ascii_digit())));
+        assert!(
+            s.split_ascii_whitespace()
+                .all(|token| token.chars().all(|c| c.is_ascii_digit()))
+        );
     }
 
     #[crate::ctb_test]
-    fn test_cli_format_parsing_accepts_nicknames_and_rust_names_and_categorizes_errors() {
+    fn test_cli_format_parsing_accepts_nicknames_and_rust_names_and_categorizes_errors()
+     {
         use clap::{Args, Command, FromArgMatches};
 
         for arg_val in ["dcmm", "DcMixed", "dcmixed", "f484"] {
-            let cmd = CharacterDescriptionArgs::augment_args(Command::new("character_description"));
+            let cmd = CharacterDescriptionArgs::augment_args(Command::new(
+                "character_description",
+            ));
             let matches = cmd
-                .try_get_matches_from(["character_description", "--from", arg_val, "hello"])
+                .try_get_matches_from([
+                    "character_description",
+                    "--from",
+                    arg_val,
+                    "hello",
+                ])
                 .expect("parse valid --from format");
-            let parsed = CharacterDescriptionArgs::from_arg_matches(&matches).unwrap();
+            let parsed =
+                CharacterDescriptionArgs::from_arg_matches(&matches).unwrap();
             assert_eq!(parsed.from, Some(SupportedDcInputFormat::DcMixed));
         }
 
-        let cmd = CharacterDescriptionArgs::augment_args(Command::new("character_description"));
+        let cmd = CharacterDescriptionArgs::augment_args(Command::new(
+            "character_description",
+        ));
         let err = cmd
-            .try_get_matches_from(["character_description", "--from", "not_a_real_format", "hello"])
+            .try_get_matches_from([
+                "character_description",
+                "--from",
+                "not_a_real_format",
+                "hello",
+            ])
             .unwrap_err();
         let err_str = err.to_string();
         assert!(err_str.contains("Document formats:"));

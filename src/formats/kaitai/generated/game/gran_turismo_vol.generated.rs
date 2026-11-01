@@ -57,7 +57,11 @@ impl KStruct for GranTurismoVol {
     type Root = GranTurismoVol;
     type Parent = GranTurismoVol;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -70,8 +74,13 @@ impl KStruct for GranTurismoVol {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(8_usize)?;
-        if !(*self_rc.magic() == vec![0x47u8, 0x54u8, 0x46u8, 0x53u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+        if !(*self_rc.magic()
+            == vec![0x47u8, 0x54u8, 0x46u8, 0x53u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_files.borrow_mut() = _io.read_u2le()?;
@@ -80,7 +89,10 @@ impl KStruct for GranTurismoVol {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/3".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offsets.borrow_mut() = Vec::new();
@@ -94,9 +106,13 @@ impl KStruct for GranTurismoVol {
     }
 }
 impl GranTurismoVol {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn files(
-        &self
+        &self,
     ) -> KResult<Ref<'_, Vec<OptRc<GranTurismoVol_FileInfo>>>> {
         let _io = self._io.borrow();
         if self.f_files.get() {
@@ -106,24 +122,42 @@ impl GranTurismoVol {
         let _pos = _io.pos();
         _io.seek(usize::try_from(((*self.ofs_dir()?) & (4294965248_u32)))?)?;
         *self.files.borrow_mut() = Vec::new();
-        let l_files = usize::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.num_entries());
+        let l_files = usize::from(
+            *self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                .num_entries(),
+        );
         for _i in 0_usize..l_files {
-            let t = Self::read_into::<_, GranTurismoVol_FileInfo>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, GranTurismoVol_FileInfo>(
+                &*_io,
+                Some(self._root.clone()),
+                Some(self._self_shared.clone()),
+            )?
+            .into();
             self.files.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
         Ok(self.files.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn ofs_dir(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn ofs_dir(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_ofs_dir.get() {
             return Ok(self.ofs_dir.borrow());
         }
         self.f_ofs_dir.set(true);
-        *self.ofs_dir.borrow_mut() = (*(self.offsets().get(1_usize).ok_or(KError::CastError)?)).try_into()?;
+        *self.ofs_dir.borrow_mut() =
+            (*(self.offsets().get(1_usize).ok_or(KError::CastError)?))
+                .try_into()?;
         Ok(self.ofs_dir.borrow())
     }
 }
@@ -211,7 +245,9 @@ impl DowncastOptRc<GranTurismoVol_FileInfo> for OptRc<GranTurismoVol_FileInfo> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<GranTurismoVol_FileInfo> for &OptRc<GranTurismoVol_FileInfo> {
+impl DowncastOptRc<GranTurismoVol_FileInfo>
+    for &OptRc<GranTurismoVol_FileInfo>
+{
     fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol_FileInfo>, KError> {
         Ok((*self).clone())
     }
@@ -220,7 +256,11 @@ impl KStruct for GranTurismoVol_FileInfo {
     type Root = GranTurismoVol;
     type Parent = GranTurismoVol;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -238,17 +278,27 @@ impl KStruct for GranTurismoVol_FileInfo {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(25_usize)?, Some(0), false, Some(0)), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(
+            &bytes_terminate_pad(
+                &_io.read_bytes(25_usize)?,
+                Some(0),
+                false,
+                Some(0),
+            ),
+            "ASCII",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl GranTurismoVol_FileInfo {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn body(
-        &self
-    ) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn body(&self) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
@@ -256,46 +306,92 @@ impl GranTurismoVol_FileInfo {
         self.f_body.set(true);
         if !(*self.is_dir()?) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::from(*self.offset_idx())).ok_or(KError::CastError)?)) & (4294965248_u32)))?)?;
-            *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size()?)?)?;
+            _io.seek(usize::try_from(
+                ((*(self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .offsets()
+                    .get(usize::from(*self.offset_idx()))
+                    .ok_or(KError::CastError)?))
+                    & (4294965248_u32)),
+            )?)?;
+            *self.body.borrow_mut() =
+                _io.read_bytes(usize::try_from(*self.size()?)?)?;
             _io.seek(_pos)?;
         }
         Ok(self.body.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_dir(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_dir(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_dir.get() {
             return Ok(self.is_dir.borrow());
         }
         self.f_is_dir.set(true);
-        *self.is_dir.borrow_mut() = (((i32::from(*self.flags())) & (1_i32)) != 0).try_into()?;
+        *self.is_dir.borrow_mut() =
+            (((i32::from(*self.flags())) & (1_i32)) != 0).try_into()?;
         Ok(self.is_dir.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_last_entry(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_last_entry(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_last_entry.get() {
             return Ok(self.is_last_entry.borrow());
         }
         self.f_is_last_entry.set(true);
-        *self.is_last_entry.borrow_mut() = (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
+        *self.is_last_entry.borrow_mut() =
+            (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
         Ok(self.is_last_entry.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn size(
-        &self
-    ) -> KResult<Ref<'_, u32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn size(&self) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_size.get() {
             return Ok(self.size.borrow());
         }
         self.f_size.set(true);
-        *self.size.borrow_mut() = ((((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::try_from((i32::from(*self.offset_idx())).saturating_add(1_i32))?).ok_or(KError::CastError)?)) & (4294965248_u32))).saturating_sub(*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::from(*self.offset_idx())).ok_or(KError::CastError)?))).try_into()?;
+        *self.size.borrow_mut() = (((*(self
+            ._root
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingRoot)?
+            .offsets()
+            .get(usize::try_from(
+                (i32::from(*self.offset_idx())).saturating_add(1_i32),
+            )?)
+            .ok_or(KError::CastError)?))
+            & (4294965248_u32))
+            .saturating_sub(
+                *(self
+                    ._root
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingRoot)?
+                    .offsets()
+                    .get(usize::from(*self.offset_idx()))
+                    .ok_or(KError::CastError)?),
+            ))
+        .try_into()?;
         Ok(self.size.borrow())
     }
 }

@@ -121,12 +121,12 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
 
     let mut counts1 = [0usize; 256];
     for i in 0..255 {
-        let cur = *counts1
-            .get(i)
-            .ok_or_else(|| anyhow!("Frequency count lookup out of bounds at {i}"))?;
-        let c_val = *counts
-            .get(i)
-            .ok_or_else(|| anyhow!("Frequency count lookup out of bounds at {i}"))?;
+        let cur = *counts1.get(i).ok_or_else(|| {
+            anyhow!("Frequency count lookup out of bounds at {i}")
+        })?;
+        let c_val = *counts.get(i).ok_or_else(|| {
+            anyhow!("Frequency count lookup out of bounds at {i}")
+        })?;
         if let Some(next) = counts1.get_mut(i.saturating_add(1)) {
             *next = cur.saturating_add(c_val);
         }
@@ -158,7 +158,8 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
             .get(i)
             .ok_or_else(|| anyhow!("Missing frequency count bucket at {i}"))?;
         if cnt > 0 {
-            let i_u8 = u8::try_from(i).map_err(|e| anyhow!("Index conversion: {e}"))?;
+            let i_u8 = u8::try_from(i)
+                .map_err(|e| anyhow!("Index conversion: {e}"))?;
             let minmatch = usize::from(i_u8 != first_byte);
             let end = start.saturating_add(cnt);
             if let Some(slice) = contextp.get_mut(start..end) {
@@ -166,10 +167,13 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
             }
             if i_u8 == last_byte {
                 let target = length.saturating_sub(1);
-                for (j, &val) in contextp.iter().enumerate().skip(start).take(cnt) {
+                for (j, &val) in
+                    contextp.iter().enumerate().skip(start).take(cnt)
+                {
                     if val == target {
-                        indexfirst = u32::try_from(j)
-                            .map_err(|e| anyhow!("Indexfirst conversion: {e}"))?;
+                        indexfirst = u32::try_from(j).map_err(|e| {
+                            anyhow!("Indexfirst conversion: {e}")
+                        })?;
                         break;
                     }
                 }
@@ -192,9 +196,9 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
                 .copied()
                 .ok_or_else(|| anyhow!("Context position missing at {i}"))?
                 .saturating_add(1);
-            *slot = *inout
-                .get(next_pos)
-                .ok_or_else(|| anyhow!("Position index out of bounds at {next_pos}"))?;
+            *slot = *inout.get(next_pos).ok_or_else(|| {
+                anyhow!("Position index out of bounds at {next_pos}")
+            })?;
         }
     }
     inout.copy_from_slice(&transformed);
@@ -202,7 +206,11 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
 }
 
 /// Unsorts unlimited order BWT block.
-pub fn unsort_bwt(input: &[u8], output: &mut [u8], indexfirst: u32) -> Result<()> {
+pub fn unsort_bwt(
+    input: &[u8],
+    output: &mut [u8],
+    indexfirst: u32,
+) -> Result<()> {
     let length = input.len();
     if length <= 1 {
         output.copy_from_slice(input);
@@ -273,12 +281,14 @@ pub fn unsort_bwt(input: &[u8], output: &mut [u8], indexfirst: u32) -> Result<()
 
     let mut ic = idx_first_usize;
     for slot in output.iter_mut().take(length) {
-        *slot = *input
-            .get(ic)
-            .ok_or_else(|| anyhow!("Corrupted BWT transform: input index {ic} out of bounds"))?;
-        ic = *transvec
-            .get(ic)
-            .ok_or_else(|| anyhow!("Corrupted BWT transform: transvec index {ic} out of bounds"))?;
+        *slot = *input.get(ic).ok_or_else(|| {
+            anyhow!("Corrupted BWT transform: input index {ic} out of bounds")
+        })?;
+        ic = *transvec.get(ic).ok_or_else(|| {
+            anyhow!(
+                "Corrupted BWT transform: transvec index {ic} out of bounds"
+            )
+        })?;
     }
     if ic != idx_first_usize {
         bail!("Szip BWT cycle verification failed");
@@ -337,7 +347,9 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
         counters
             .get(initial_ctx.saturating_add(1))
             .copied()
-            .ok_or_else(|| anyhow!("Missing counter for initial context {initial_ctx}"))?
+            .ok_or_else(|| {
+                anyhow!("Missing counter for initial context {initial_ctx}")
+            })?
             .saturating_sub(1)
     };
 
@@ -350,17 +362,17 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
     let b_len3 = *inout
         .get(length.saturating_sub(3))
         .ok_or_else(|| anyhow!("Input buffer too short for order4 sort"))?;
-    let mut full_ctx = ((((usize::from(b_len1) << 8) | usize::from(b_len2)) << 8)
+    let mut full_ctx = ((((usize::from(b_len1) << 8) | usize::from(b_len2))
+        << 8)
         | usize::from(b_len3))
         << 8
         | usize::from(b_len4);
 
     for &b in &*inout {
         let low_ctx = full_ctx & 0xFFFF;
-        let x = counters
-            .get(low_ctx)
-            .copied()
-            .ok_or_else(|| anyhow!("Missing counter for low context {low_ctx}"))?;
+        let x = counters.get(low_ctx).copied().ok_or_else(|| {
+            anyhow!("Missing counter for low context {low_ctx}")
+        })?;
         if let Some(slot) = counters.get_mut(low_ctx) {
             *slot = slot.saturating_add(1);
         }
@@ -388,9 +400,9 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
             .ok_or_else(|| anyhow!("Missing counter for context: {c_val}"))?;
         *cnt_slot = cnt_slot.saturating_sub(1);
         let pos = *cnt_slot;
-        let out_slot = inout
-            .get_mut(pos)
-            .ok_or_else(|| anyhow!("Output buffer position out of bounds: {pos}"))?;
+        let out_slot = inout.get_mut(pos).ok_or_else(|| {
+            anyhow!("Output buffer position out of bounds: {pos}")
+        })?;
         *out_slot = *symbols
             .get(i)
             .ok_or_else(|| anyhow!("Symbol index out of bounds: {i}"))?;
@@ -417,9 +429,9 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
             .ok_or_else(|| anyhow!("Missing counter for context: {c_val}"))?;
         *cnt_slot = cnt_slot.saturating_sub(1);
         let pos = *cnt_slot;
-        let out_slot = inout
-            .get_mut(pos)
-            .ok_or_else(|| anyhow!("Output buffer position out of bounds: {pos}"))?;
+        let out_slot = inout.get_mut(pos).ok_or_else(|| {
+            anyhow!("Output buffer position out of bounds: {pos}")
+        })?;
         *out_slot = *symbols
             .get(i)
             .ok_or_else(|| anyhow!("Symbol index out of bounds: {i}"))?;
@@ -444,7 +456,8 @@ fn sort_order2(
     let b_len_off_minus_1 = *in_ext
         .get(length.saturating_sub(order).saturating_sub(1))
         .ok_or_else(|| anyhow!("Input buffer too short for order2 sort"))?;
-    let init_ctx = (usize::from(b_len_off) << 8) | usize::from(b_len_off_minus_1);
+    let init_ctx =
+        (usize::from(b_len_off) << 8) | usize::from(b_len_off_minus_1);
 
     let indexlast = if init_ctx == 0xFFFF {
         length.saturating_sub(1)
@@ -452,7 +465,9 @@ fn sort_order2(
         o2counts
             .get(init_ctx.saturating_add(1))
             .copied()
-            .ok_or_else(|| anyhow!("Missing counter for initial order2 context {init_ctx}"))?
+            .ok_or_else(|| {
+                anyhow!("Missing counter for initial order2 context {init_ctx}")
+            })?
             .saturating_sub(1)
     };
 
@@ -469,9 +484,9 @@ fn sort_order2(
             .ok_or_else(|| anyhow!("Extended buffer index out of bounds"))?;
         *dest = copy_val;
         let sample_idx = length.saturating_add(i).saturating_sub(offset);
-        let sample_byte = *in_ext
-            .get(sample_idx)
-            .ok_or_else(|| anyhow!("Missing sample byte at index {sample_idx}"))?;
+        let sample_byte = *in_ext.get(sample_idx).ok_or_else(|| {
+            anyhow!("Missing sample byte at index {sample_idx}")
+        })?;
         context = (context >> 8) | (usize::from(sample_byte) << 8);
 
         let dest_pos = *o2counts
@@ -490,9 +505,9 @@ fn sort_order2(
 
     for i in offset..length {
         let sample_idx = i.saturating_sub(offset);
-        let sample_byte = *in_ext
-            .get(sample_idx)
-            .ok_or_else(|| anyhow!("Missing sample byte at index {sample_idx}"))?;
+        let sample_byte = *in_ext.get(sample_idx).ok_or_else(|| {
+            anyhow!("Missing sample byte at index {sample_idx}")
+        })?;
         context = (context >> 8) | (usize::from(sample_byte) << 8);
 
         let dest_pos = *o2counts
@@ -501,7 +516,8 @@ fn sort_order2(
         if let Some(slot) = o2counts.get_mut(context) {
             *slot = slot.saturating_add(1);
         }
-        let ptr_val = u32::try_from(i).map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let ptr_val =
+            u32::try_from(i).map_err(|e| anyhow!("Ptr conversion: {e}"))?;
         let slot = ptrs
             .get_mut(dest_pos)
             .ok_or_else(|| anyhow!("Ptr position {dest_pos} out of bounds"))?;
@@ -524,11 +540,9 @@ fn inc_sort_order(
     let mut last_ch = 0u8;
 
     for i in 0..=old_idxlast {
-        let tmp = usize::try_from(
-            *ptrs
-                .get(i)
-                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
-        )
+        let tmp = usize::try_from(*ptrs.get(i).ok_or_else(|| {
+            anyhow!("Szip sort missing pointer at index {i}")
+        })?)
         .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
         let ch = *in_ext
             .get(tmp.saturating_sub(off))
@@ -541,8 +555,8 @@ fn inc_sort_order(
         if let Some(slot) = ct.get_mut(ch_idx) {
             *slot = slot.saturating_add(1);
         }
-        let tmp_u32 = u32::try_from(tmp)
-            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let tmp_u32 =
+            u32::try_from(tmp).map_err(|e| anyhow!("Ptr conversion: {e}"))?;
         let slot = next_ptrs
             .get_mut(pos)
             .ok_or_else(|| anyhow!("Next pointer index {pos} out of bounds"))?;
@@ -556,11 +570,9 @@ fn inc_sort_order(
         .saturating_sub(1);
 
     for i in (old_idxlast.saturating_add(1))..length {
-        let tmp = usize::try_from(
-            *ptrs
-                .get(i)
-                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
-        )
+        let tmp = usize::try_from(*ptrs.get(i).ok_or_else(|| {
+            anyhow!("Szip sort missing pointer at index {i}")
+        })?)
         .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
         let ch = *in_ext
             .get(tmp.saturating_sub(off))
@@ -572,8 +584,8 @@ fn inc_sort_order(
         if let Some(slot) = ct.get_mut(ch_idx) {
             *slot = slot.saturating_add(1);
         }
-        let tmp_u32 = u32::try_from(tmp)
-            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let tmp_u32 =
+            u32::try_from(tmp).map_err(|e| anyhow!("Ptr conversion: {e}"))?;
         let slot = next_ptrs
             .get_mut(pos)
             .ok_or_else(|| anyhow!("Next pointer index {pos} out of bounds"))?;
@@ -596,11 +608,9 @@ fn finish_sort(
     let mut out_bytes = vec![0u8; length];
 
     for i in 0..=old_idxlast {
-        let tmp = usize::try_from(
-            *ptrs
-                .get(i)
-                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
-        )
+        let tmp = usize::try_from(*ptrs.get(i).ok_or_else(|| {
+            anyhow!("Szip sort missing pointer at index {i}")
+        })?)
         .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
         let ch = *in_ext
             .get(tmp.saturating_sub(1))
@@ -629,11 +639,9 @@ fn finish_sort(
         .saturating_sub(1);
 
     for i in (old_idxlast.saturating_add(1))..length {
-        let tmp = usize::try_from(
-            *ptrs
-                .get(i)
-                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
-        )
+        let tmp = usize::try_from(*ptrs.get(i).ok_or_else(|| {
+            anyhow!("Szip sort missing pointer at index {i}")
+        })?)
         .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
         let ch = *in_ext
             .get(tmp.saturating_sub(1))
@@ -655,7 +663,8 @@ fn finish_sort(
     }
 
     inout.copy_from_slice(&out_bytes);
-    u32::try_from(final_idxlast).map_err(|e| anyhow!("Indexlast conversion: {e}"))
+    u32::try_from(final_idxlast)
+        .map_err(|e| anyhow!("Indexlast conversion: {e}"))
 }
 
 /// Sorts block using general context order N (order >= 3).
@@ -711,12 +720,14 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
         }
     }
 
-    let (mut indexlast, mut ptrs) = sort_order2(&mut in_ext, length, order, o2counts)?;
+    let (mut indexlast, mut ptrs) =
+        sort_order2(&mut in_ext, length, order, o2counts)?;
 
     if order > 3 {
         for off in (2..=(order.saturating_sub(2))).rev() {
-            let (next_idx, next_ptrs) =
-                inc_sort_order(&in_ext, length, &counts, off, indexlast, &ptrs)?;
+            let (next_idx, next_ptrs) = inc_sort_order(
+                &in_ext, length, &counts, off, indexlast, &ptrs,
+            )?;
             indexlast = next_idx;
             ptrs = next_ptrs;
         }
@@ -725,7 +736,11 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
     finish_sort(&in_ext, length, &counts, indexlast, &ptrs, inout)
 }
 
-fn make_order2(flags: &mut [u8], input: &[u8], counts: &[usize; 256]) -> Result<()> {
+fn make_order2(
+    flags: &mut [u8],
+    input: &[u8],
+    counts: &[usize; 256],
+) -> Result<()> {
     let mut ct = *counts;
     for i in 0..256 {
         let pos = *ct
@@ -739,11 +754,9 @@ fn make_order2(flags: &mut [u8], input: &[u8], counts: &[usize; 256]) -> Result<
             .get(i.saturating_add(1))
             .ok_or_else(|| anyhow!("Missing frequency bucket limit"))?;
         while j_pos < k_limit {
-            let b = usize::from(
-                *input
-                    .get(j_pos)
-                    .ok_or_else(|| anyhow!("Input byte out of bounds at {j_pos}"))?,
-            );
+            let b = usize::from(*input.get(j_pos).ok_or_else(|| {
+                anyhow!("Input byte out of bounds at {j_pos}")
+            })?);
             if let Some(slot) = ct.get_mut(b) {
                 *slot = slot.saturating_add(1);
             }
@@ -778,9 +791,9 @@ fn increase_order(
             if let Some(ls_slot) = last_seen.get_mut(b) {
                 *ls_slot = context_start;
             }
-            let pos = *ct_inc
-                .get(b)
-                .ok_or_else(|| anyhow!("Missing cumulative count for byte {b}"))?;
+            let pos = *ct_inc.get(b).ok_or_else(|| {
+                anyhow!("Missing cumulative count for byte {b}")
+            })?;
             set_bit(flags_out, pos);
         }
         if let Some(slot) = ct_inc.get_mut(b) {
@@ -810,9 +823,9 @@ fn make_table(
             .ok_or_else(|| anyhow!("First seen index out of bounds"))?;
         if first <= context_start {
             if let Some(slot) = table.get_mut(i) {
-                let ct_val = *ct_tbl
-                    .get(b)
-                    .ok_or_else(|| anyhow!("Count table index out of bounds"))?;
+                let ct_val = *ct_tbl.get(b).ok_or_else(|| {
+                    anyhow!("Count table index out of bounds")
+                })?;
                 *slot = u32::try_from(ct_val)
                     .map_err(|e| anyhow!("Table entry conversion: {e}"))?;
             }
@@ -845,21 +858,20 @@ fn unsort_traverse(
     let mut j_idx = usize::try_from(indexlast)
         .map_err(|e| anyhow!("Indexlast conversion: {e}"))?;
     for slot in output.iter_mut().take(length) {
-        let tmp = *table
-            .get(j_idx)
-            .ok_or_else(|| anyhow!("Szip unsort table index out of bounds: {j_idx}"))?;
+        let tmp = *table.get(j_idx).ok_or_else(|| {
+            anyhow!("Szip unsort table index out of bounds: {j_idx}")
+        })?;
         if (tmp & INDIRECT) != 0 {
             let target_idx = usize::try_from(tmp & !INDIRECT)
                 .map_err(|e| anyhow!("Corrupt indirect index: {e}"))?;
-            let next_j = usize::try_from(
-                *table
-                    .get(target_idx)
-                    .ok_or_else(|| anyhow!("Corrupt indirect target index: {target_idx}"))?,
-            )
-            .map_err(|e| anyhow!("Table entry conversion error: {e}"))?;
-            let entry = table
-                .get_mut(target_idx)
-                .ok_or_else(|| anyhow!("Missing indirect target table entry"))?;
+            let next_j =
+                usize::try_from(*table.get(target_idx).ok_or_else(|| {
+                    anyhow!("Corrupt indirect target index: {target_idx}")
+                })?)
+                .map_err(|e| anyhow!("Table entry conversion error: {e}"))?;
+            let entry = table.get_mut(target_idx).ok_or_else(|| {
+                anyhow!("Missing indirect target table entry")
+            })?;
             *entry = entry.saturating_add(1);
             j_idx = next_j;
         } else {
@@ -867,14 +879,16 @@ fn unsort_traverse(
                 .get_mut(j_idx)
                 .ok_or_else(|| anyhow!("Missing table entry at {j_idx}"))?;
             *entry = entry.saturating_add(1);
-            j_idx = usize::try_from(tmp).map_err(|e| anyhow!("Table entry conversion error: {e}"))?;
+            j_idx = usize::try_from(tmp)
+                .map_err(|e| anyhow!("Table entry conversion error: {e}"))?;
         }
-        *slot = *input
-            .get(j_idx)
-            .ok_or_else(|| anyhow!("Szip unsort input index out of bounds: {j_idx}"))?;
+        *slot = *input.get(j_idx).ok_or_else(|| {
+            anyhow!("Szip unsort input index out of bounds: {j_idx}")
+        })?;
     }
 
-    let final_j = u32::try_from(j_idx).map_err(|e| anyhow!("Final index conversion: {e}"))?;
+    let final_j = u32::try_from(j_idx)
+        .map_err(|e| anyhow!("Final index conversion: {e}"))?;
     if final_j != indexlast {
         bail!("Szip general unsort cycle verification failed");
     }
@@ -981,7 +995,6 @@ mod tests {
         assert_eq!(out.as_slice(), orig.as_slice());
     }
 }
-
 
 /*
 

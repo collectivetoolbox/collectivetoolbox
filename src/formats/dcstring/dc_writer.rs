@@ -124,10 +124,8 @@ impl<'output> DcWriter<'output> {
     pub fn push_char(&mut self, character: impl Into<DcChar>) -> Result<()> {
         let character = character.into();
         let mut buffer = [0_u8; 24];
-        let length = ctb_formats_dctf::encode_dctf_buf(
-            &mut buffer,
-            character.0,
-        );
+        let length =
+            ctb_formats_dctf::encode_dctf_buf(&mut buffer, character.0);
         self.emit(
             buffer
                 .get(..length)
@@ -184,10 +182,7 @@ impl<'output> DcWriter<'output> {
         resolver: &dyn crate::SyntaxRuleResolver,
     ) -> Result<()> {
         crate::encapsulation::validate_metadata_with_policy_and_resolver(
-            metadata,
-            bytes,
-            policy,
-            resolver,
+            metadata, bytes, policy, resolver,
         )?;
         self.emit(&crate::dc_mixed::DC_203_BYTES)?;
         self.emit(&[crate::dc_mixed::TYPE_BINARY_METADATA])?;

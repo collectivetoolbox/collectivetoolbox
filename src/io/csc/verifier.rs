@@ -29,13 +29,19 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscVerifyArgs, VerifyOutputFormat};
-use crate::journal::{read_journal_snapshot, resolve_journal_path, JournalErrorRecord};
 use crate::journal::PLATFORM_WINDOWS;
+use crate::journal::{
+    JournalErrorRecord, read_journal_snapshot, resolve_journal_path,
+};
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::{extract_file_identity, resolve_relative_path_for_os};
+use ctb_io::file::identity::{
+    extract_file_identity, resolve_relative_path_for_os,
+};
 use ctb_io::file::link_path::LinkPath;
 pub use ctb_io::file::verifier::IgnoredDifferences;
-use ctb_io::file::verifier::{DiffKind, audit_entity_detailed, try_drop_system_caches};
+use ctb_io::file::verifier::{
+    DiffKind, audit_entity_detailed, try_drop_system_caches,
+};
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -106,11 +112,23 @@ impl VerificationReport {
 
     /// Formats the audit report into a human-readable text document.
     #[must_use]
-    #[expect(clippy::let_underscore_must_use, reason = "Writing into in-memory String cannot fail")]
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "Writing into in-memory String cannot fail"
+    )]
     pub fn format_human_report(&self) -> String {
         use std::fmt::Write;
         let mut out = String::new();
-        let (header, source_lbl, target_lbl, target_subject, source_summary_lbl, missing_lbl, untracked_lbl, untracked_tag) = match self.report_kind {
+        let (
+            header,
+            source_lbl,
+            target_lbl,
+            target_subject,
+            source_summary_lbl,
+            missing_lbl,
+            untracked_lbl,
+            untracked_tag,
+        ) = match self.report_kind {
             VerificationReportKind::ManifestVerification => (
                 "--- CSC Manifest Verification Report ---",
                 "Manifest:        ",
@@ -134,11 +152,14 @@ impl VerificationReport {
         };
         let _ = writeln!(out, "{header}");
         let _ = writeln!(out, "{source_lbl} {}", self.manifest_path.display());
-        let _ = writeln!(out, "{target_lbl} {}", self.target_directory.display());
+        let _ =
+            writeln!(out, "{target_lbl} {}", self.target_directory.display());
 
         if self.is_clean() {
             let match_subject = match self.report_kind {
-                VerificationReportKind::ManifestVerification => "Directory matches manifest",
+                VerificationReportKind::ManifestVerification => {
+                    "Directory matches manifest"
+                }
                 VerificationReportKind::PathDiff => "Paths match",
             };
             if self.caveats.is_empty() {
@@ -152,35 +173,55 @@ impl VerificationReport {
                     parts.push(format!(
                         "{} ownership difference{}",
                         self.ignored_differences.ownership,
-                        if self.ignored_differences.ownership == 1 { "" } else { "s" }
+                        if self.ignored_differences.ownership == 1 {
+                            ""
+                        } else {
+                            "s"
+                        }
                     ));
                 }
                 if self.ignored_differences.timestamps > 0 {
                     parts.push(format!(
                         "{} timestamp difference{}",
                         self.ignored_differences.timestamps,
-                        if self.ignored_differences.timestamps == 1 { "" } else { "s" }
+                        if self.ignored_differences.timestamps == 1 {
+                            ""
+                        } else {
+                            "s"
+                        }
                     ));
                 }
                 if self.ignored_differences.permissions > 0 {
                     parts.push(format!(
                         "{} permission difference{}",
                         self.ignored_differences.permissions,
-                        if self.ignored_differences.permissions == 1 { "" } else { "s" }
+                        if self.ignored_differences.permissions == 1 {
+                            ""
+                        } else {
+                            "s"
+                        }
                     ));
                 }
                 if self.ignored_differences.flags > 0 {
                     parts.push(format!(
                         "{} flag difference{}",
                         self.ignored_differences.flags,
-                        if self.ignored_differences.flags == 1 { "" } else { "s" }
+                        if self.ignored_differences.flags == 1 {
+                            ""
+                        } else {
+                            "s"
+                        }
                     ));
                 }
                 if self.ignored_differences.sparseness > 0 {
                     parts.push(format!(
                         "{} sparse file difference{}",
                         self.ignored_differences.sparseness,
-                        if self.ignored_differences.sparseness == 1 { "" } else { "s" }
+                        if self.ignored_differences.sparseness == 1 {
+                            ""
+                        } else {
+                            "s"
+                        }
                     ));
                 }
                 let details = parts.join(" and ");
@@ -189,10 +230,8 @@ impl VerificationReport {
                     "Status:           OK - {match_subject} in best-effort mode; ignored {details}."
                 );
             } else {
-                let _ = writeln!(
-                    out,
-                    "Status:           OK - {match_subject}."
-                );
+                let _ =
+                    writeln!(out, "Status:           OK - {match_subject}.");
             }
             let _ = writeln!(
                 out,
@@ -217,7 +256,11 @@ impl VerificationReport {
         );
 
         if !self.recorded_errors.is_empty() {
-            let _ = writeln!(out, "Recorded Copy Errors ({}):", self.recorded_errors.len());
+            let _ = writeln!(
+                out,
+                "Recorded Copy Errors ({}):",
+                self.recorded_errors.len()
+            );
             for err in &self.recorded_errors {
                 let _ = writeln!(
                     out,
@@ -231,7 +274,11 @@ impl VerificationReport {
         }
 
         if !self.missing_entries.is_empty() {
-            let _ = writeln!(out, "{missing_lbl} ({}):", self.missing_entries.len());
+            let _ = writeln!(
+                out,
+                "{missing_lbl} ({}):",
+                self.missing_entries.len()
+            );
             for m in &self.missing_entries {
                 let _ = writeln!(out, "  [MISSING] {}", m.display());
             }
@@ -239,7 +286,11 @@ impl VerificationReport {
         }
 
         if !self.untracked_entries.is_empty() {
-            let _ = writeln!(out, "{untracked_lbl} ({}):", self.untracked_entries.len());
+            let _ = writeln!(
+                out,
+                "{untracked_lbl} ({}):",
+                self.untracked_entries.len()
+            );
             for u in &self.untracked_entries {
                 let _ = writeln!(out, "  {untracked_tag} {}", u.display());
             }
@@ -247,9 +298,17 @@ impl VerificationReport {
         }
 
         if !self.changed_entries.is_empty() {
-            let _ = writeln!(out, "Changed Entries ({}):", self.changed_entries.len());
+            let _ = writeln!(
+                out,
+                "Changed Entries ({}):",
+                self.changed_entries.len()
+            );
             for entry in &self.changed_entries {
-                let _ = writeln!(out, "  [CHANGED] {}", entry.relative_path.display());
+                let _ = writeln!(
+                    out,
+                    "  [CHANGED] {}",
+                    entry.relative_path.display()
+                );
                 for diff in &entry.differences {
                     let _ = writeln!(out, "    - {diff}");
                 }
@@ -258,10 +317,19 @@ impl VerificationReport {
         }
 
         let _ = writeln!(out, "Summary:");
-        let _ = writeln!(out, "  {source_summary_lbl} {}", self.total_manifest_entries);
+        let _ = writeln!(
+            out,
+            "  {source_summary_lbl} {}",
+            self.total_manifest_entries
+        );
         let _ = writeln!(out, "  Clean matches:     {}", self.matched_entries);
-        let _ = writeln!(out, "  Changed entries:   {}", self.changed_entries.len());
-        let _ = writeln!(out, "  {missing_lbl}:   {}", self.missing_entries.len());
+        let _ = writeln!(
+            out,
+            "  Changed entries:   {}",
+            self.changed_entries.len()
+        );
+        let _ =
+            writeln!(out, "  {missing_lbl}:   {}", self.missing_entries.len());
         let _ = writeln!(
             out,
             "  {untracked_lbl}: {}",
@@ -281,7 +349,8 @@ impl VerificationReport {
 
     /// Formats the audit report as JSON.
     pub fn format_json_report(&self) -> Result<String> {
-        serde_json::to_string_pretty(self).context("Failed to serialize verification report to JSON")
+        serde_json::to_string_pretty(self)
+            .context("Failed to serialize verification report to JSON")
     }
 }
 
@@ -297,7 +366,10 @@ pub struct AuditPassResult {
 }
 
 /// Audits a sequence of expected entities against entries on disk in `target_dir`.
-#[expect(clippy::too_many_lines, reason = "Comprehensive entity traversal and audit against target")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Comprehensive entity traversal and audit against target"
+)]
 pub fn audit_entries_against_target(
     target_dir: &Path,
     expected_entries: impl IntoIterator<Item = (PathBuf, FileEntity)>,
@@ -311,12 +383,26 @@ pub fn audit_entries_against_target(
             && (rel_path.as_os_str().is_empty() || rel_path == Path::new("."))
         {
             // For root directory itself, check directory attributes
-            let (diffs, ignored) = audit_entity_detailed(target_dir, &entity, audit_options)?;
-            result.total_ignored.ownership = result.total_ignored.ownership.saturating_add(ignored.ownership);
-            result.total_ignored.timestamps = result.total_ignored.timestamps.saturating_add(ignored.timestamps);
-            result.total_ignored.permissions = result.total_ignored.permissions.saturating_add(ignored.permissions);
-            result.total_ignored.flags = result.total_ignored.flags.saturating_add(ignored.flags);
-            result.total_ignored.sparseness = result.total_ignored.sparseness.saturating_add(ignored.sparseness);
+            let (diffs, ignored) =
+                audit_entity_detailed(target_dir, &entity, audit_options)?;
+            result.total_ignored.ownership = result
+                .total_ignored
+                .ownership
+                .saturating_add(ignored.ownership);
+            result.total_ignored.timestamps = result
+                .total_ignored
+                .timestamps
+                .saturating_add(ignored.timestamps);
+            result.total_ignored.permissions = result
+                .total_ignored
+                .permissions
+                .saturating_add(ignored.permissions);
+            result.total_ignored.flags =
+                result.total_ignored.flags.saturating_add(ignored.flags);
+            result.total_ignored.sparseness = result
+                .total_ignored
+                .sparseness
+                .saturating_add(ignored.sparseness);
             if !diffs.is_empty() && diffs != vec![DiffKind::MissingOnDisk] {
                 result.changed_entries.push(EntryDiff {
                     relative_path: rel_path.clone(),
@@ -326,17 +412,32 @@ pub fn audit_entries_against_target(
             continue;
         }
 
-        let disk_rel_path = if let Some(mat_rel) = entity.metadata.materialized_relative_path() {
+        let disk_rel_path = if let Some(mat_rel) =
+            entity.metadata.materialized_relative_path()
+        {
             mat_rel
-        } else if audit_options.best_effort && std::fs::symlink_metadata(target_dir.join(&rel_path)).is_err() {
+        } else if audit_options.best_effort
+            && std::fs::symlink_metadata(target_dir.join(&rel_path)).is_err()
+        {
             let (adapted_host, _) =
-                ctb_io::file::adapt_relative_path_for_materialization(&rel_path, cfg!(windows));
-            if adapted_host != rel_path && std::fs::symlink_metadata(target_dir.join(&adapted_host)).is_ok() {
+                ctb_io::file::adapt_relative_path_for_materialization(
+                    &rel_path,
+                    cfg!(windows),
+                );
+            if adapted_host != rel_path
+                && std::fs::symlink_metadata(target_dir.join(&adapted_host))
+                    .is_ok()
+            {
                 adapted_host
             } else {
                 let (adapted_win, _) =
-                    ctb_io::file::adapt_relative_path_for_materialization(&rel_path, true);
-                if adapted_win != rel_path && std::fs::symlink_metadata(target_dir.join(&adapted_win)).is_ok() {
+                    ctb_io::file::adapt_relative_path_for_materialization(
+                        &rel_path, true,
+                    );
+                if adapted_win != rel_path
+                    && std::fs::symlink_metadata(target_dir.join(&adapted_win))
+                        .is_ok()
+                {
                     adapted_win
                 } else {
                     rel_path.clone()
@@ -346,10 +447,16 @@ pub fn audit_entries_against_target(
             rel_path.clone()
         };
 
-        result.verified_paths.insert(normalize_rel_path(&disk_rel_path));
+        result
+            .verified_paths
+            .insert(normalize_rel_path(&disk_rel_path));
         for stream in &entity.streams {
-            if let Some(mat_stream_rel) = stream.entity.metadata.materialized_relative_path() {
-                result.verified_paths.insert(normalize_rel_path(&mat_stream_rel));
+            if let Some(mat_stream_rel) =
+                stream.entity.metadata.materialized_relative_path()
+            {
+                result
+                    .verified_paths
+                    .insert(normalize_rel_path(&mat_stream_rel));
             }
             let stream_name_opt = stream
                 .entity
@@ -358,8 +465,12 @@ pub fn audit_entries_against_target(
                 .map(ctb_io::file::StreamName::from_bytes)
                 .or_else(|| stream.name.clone())
                 .or_else(|| {
-                    if stream.kind == ctb_io::file::StreamKind::MacOsResourceFork {
-                        Some(ctb_io::file::StreamName::from_str("com.apple.ResourceFork"))
+                    if stream.kind
+                        == ctb_io::file::StreamKind::MacOsResourceFork
+                    {
+                        Some(ctb_io::file::StreamName::from_str(
+                            "com.apple.ResourceFork",
+                        ))
                     } else {
                         None
                     }
@@ -376,7 +487,11 @@ pub fn audit_entries_against_target(
         }
         if !entity.streams.is_empty()
             || entity.metadata.apple.is_some()
-            || entity.metadata.flags.as_ref().is_some_and(|f| !f.is_empty())
+            || entity
+                .metadata
+                .flags
+                .as_ref()
+                .is_some_and(|f| !f.is_empty())
         {
             if let Some(fname) = disk_rel_path.file_name() {
                 let mut ad_name = std::ffi::OsString::from("._");
@@ -385,7 +500,8 @@ pub fn audit_entries_against_target(
                     Some(p) if !p.as_os_str().is_empty() => p.join(&ad_name),
                     _ => PathBuf::from(&ad_name),
                 };
-                if ctb_io::file::is_apple_double_file(&target_dir.join(&ad_rel)) {
+                if ctb_io::file::is_apple_double_file(&target_dir.join(&ad_rel))
+                {
                     result.verified_paths.insert(normalize_rel_path(&ad_rel));
                 }
                 let zip_rel = match disk_rel_path.parent() {
@@ -394,7 +510,9 @@ pub fn audit_entries_against_target(
                     }
                     _ => Path::new("__MACOSX").join(&ad_name),
                 };
-                if ctb_io::file::is_apple_double_file(&target_dir.join(&zip_rel)) {
+                if ctb_io::file::is_apple_double_file(
+                    &target_dir.join(&zip_rel),
+                ) {
                     result.verified_paths.insert(normalize_rel_path(&zip_rel));
                     let mut anc = zip_rel.parent();
                     while let Some(p) = anc {
@@ -410,14 +528,18 @@ pub fn audit_entries_against_target(
                 disk_rel_path.join(".AppleDouble").join(".Parent")
             } else if let Some(fname) = disk_rel_path.file_name() {
                 match disk_rel_path.parent() {
-                    Some(p) if !p.as_os_str().is_empty() => p.join(".AppleDouble").join(fname),
+                    Some(p) if !p.as_os_str().is_empty() => {
+                        p.join(".AppleDouble").join(fname)
+                    }
                     _ => Path::new(".AppleDouble").join(fname),
                 }
             } else {
                 PathBuf::new()
             };
             if !neta_rel.as_os_str().is_empty()
-                && ctb_io::file::is_apple_double_file(&target_dir.join(&neta_rel))
+                && ctb_io::file::is_apple_double_file(
+                    &target_dir.join(&neta_rel),
+                )
             {
                 result.verified_paths.insert(normalize_rel_path(&neta_rel));
                 if let Some(p) = neta_rel.parent() {
@@ -428,8 +550,9 @@ pub fn audit_entries_against_target(
         let full_path = target_dir.join(&disk_rel_path);
 
         if let FileEntityKind::Hardlink {
-                target_relative_path,
-            } = &entity.kind {
+            target_relative_path,
+        } = &entity.kind
+        {
             let mut tgt_rel = match target_relative_path
                 .to_path_buf_for_materialization(strict_hardlink_paths)
             {
@@ -444,15 +567,30 @@ pub fn audit_entries_against_target(
                     continue;
                 }
             };
-            if audit_options.best_effort && std::fs::symlink_metadata(target_dir.join(&tgt_rel)).is_err() {
+            if audit_options.best_effort
+                && std::fs::symlink_metadata(target_dir.join(&tgt_rel)).is_err()
+            {
                 let (adapted_tgt, _) =
-                    ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, cfg!(windows));
-                if adapted_tgt != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_tgt)).is_ok() {
+                    ctb_io::file::adapt_relative_path_for_materialization(
+                        &tgt_rel,
+                        cfg!(windows),
+                    );
+                if adapted_tgt != tgt_rel
+                    && std::fs::symlink_metadata(target_dir.join(&adapted_tgt))
+                        .is_ok()
+                {
                     tgt_rel = adapted_tgt;
                 } else {
                     let (adapted_win, _) =
-                        ctb_io::file::adapt_relative_path_for_materialization(&tgt_rel, true);
-                    if adapted_win != tgt_rel && std::fs::symlink_metadata(target_dir.join(&adapted_win)).is_ok() {
+                        ctb_io::file::adapt_relative_path_for_materialization(
+                            &tgt_rel, true,
+                        );
+                    if adapted_win != tgt_rel
+                        && std::fs::symlink_metadata(
+                            target_dir.join(&adapted_win),
+                        )
+                        .is_ok()
+                    {
                         tgt_rel = adapted_win;
                     }
                 }
@@ -464,10 +602,13 @@ pub fn audit_entries_against_target(
                 std::fs::symlink_metadata(&tgt_full),
             ) {
                 (Ok(m1), Ok(m2)) => {
-                    let first_identity = extract_file_identity(&full_path, &m1)?;
-                    let target_identity = extract_file_identity(&tgt_full, &m2)?;
+                    let first_identity =
+                        extract_file_identity(&full_path, &m1)?;
+                    let target_identity =
+                        extract_file_identity(&tgt_full, &m2)?;
                     if first_identity == target_identity {
-                        result.matched_entries = result.matched_entries.saturating_add(1);
+                        result.matched_entries =
+                            result.matched_entries.saturating_add(1);
                     } else {
                         result.changed_entries.push(EntryDiff {
                             relative_path: rel_path.clone(),
@@ -484,14 +625,24 @@ pub fn audit_entries_against_target(
                         });
                     }
                 }
-                (Err(error), _) if error.kind() != std::io::ErrorKind::NotFound => {
+                (Err(error), _)
+                    if error.kind() != std::io::ErrorKind::NotFound =>
+                {
                     return Err(error).with_context(|| {
-                        format!("Failed to query hardlink metadata: {}", full_path.display())
+                        format!(
+                            "Failed to query hardlink metadata: {}",
+                            full_path.display()
+                        )
                     });
                 }
-                (_, Err(error)) if error.kind() != std::io::ErrorKind::NotFound => {
+                (_, Err(error))
+                    if error.kind() != std::io::ErrorKind::NotFound =>
+                {
                     return Err(error).with_context(|| {
-                        format!("Failed to query hardlink target metadata: {}", tgt_full.display())
+                        format!(
+                            "Failed to query hardlink target metadata: {}",
+                            tgt_full.display()
+                        )
                     });
                 }
                 (Err(_), _) => {
@@ -511,15 +662,30 @@ pub fn audit_entries_against_target(
                 }
             }
         } else {
-            let (diffs, ignored) = audit_entity_detailed(&full_path, &entity, audit_options)?;
-            result.total_ignored.ownership = result.total_ignored.ownership.saturating_add(ignored.ownership);
-            result.total_ignored.timestamps = result.total_ignored.timestamps.saturating_add(ignored.timestamps);
-            result.total_ignored.permissions = result.total_ignored.permissions.saturating_add(ignored.permissions);
-            result.total_ignored.flags = result.total_ignored.flags.saturating_add(ignored.flags);
-            result.total_ignored.sparseness = result.total_ignored.sparseness.saturating_add(ignored.sparseness);
+            let (diffs, ignored) =
+                audit_entity_detailed(&full_path, &entity, audit_options)?;
+            result.total_ignored.ownership = result
+                .total_ignored
+                .ownership
+                .saturating_add(ignored.ownership);
+            result.total_ignored.timestamps = result
+                .total_ignored
+                .timestamps
+                .saturating_add(ignored.timestamps);
+            result.total_ignored.permissions = result
+                .total_ignored
+                .permissions
+                .saturating_add(ignored.permissions);
+            result.total_ignored.flags =
+                result.total_ignored.flags.saturating_add(ignored.flags);
+            result.total_ignored.sparseness = result
+                .total_ignored
+                .sparseness
+                .saturating_add(ignored.sparseness);
 
             if diffs.is_empty() {
-                result.matched_entries = result.matched_entries.saturating_add(1);
+                result.matched_entries =
+                    result.matched_entries.saturating_add(1);
             } else if diffs == vec![DiffKind::MissingOnDisk] {
                 result.missing_entries.push(rel_path.clone());
             } else {
@@ -552,13 +718,20 @@ pub fn build_audit_caveats(
         caveats.push("Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string());
     }
     if audit_options.ignore_mtime {
-        caveats.push("Modification times (mtime) not verified (--ignore-mtime)".to_string());
+        caveats.push(
+            "Modification times (mtime) not verified (--ignore-mtime)"
+                .to_string(),
+        );
     }
     if audit_options.ignore_owner {
-        caveats.push("File ownership (UID/GID) not verified (--ignore-owner)".to_string());
+        caveats.push(
+            "File ownership (UID/GID) not verified (--ignore-owner)"
+                .to_string(),
+        );
     }
     if audit_options.ignore_perms {
-        caveats.push("File permissions not verified (--ignore-perms)".to_string());
+        caveats
+            .push("File permissions not verified (--ignore-perms)".to_string());
     }
     if audit_options.ignore_flags {
         caveats.push("File flags not verified (--ignore-flags)".to_string());
@@ -567,10 +740,13 @@ pub fn build_audit_caveats(
         caveats.push("Extended attributes and alternate data streams not verified (--ignore-xattrs)".to_string());
     }
     if ignore_untracked {
-        caveats.push("Untracked disk files not scanned (--ignore-untracked)".to_string());
+        caveats.push(
+            "Untracked disk files not scanned (--ignore-untracked)".to_string(),
+        );
     }
     if !dropped_caches {
-        caveats.push("OS cache eviction skipped (--no-drop-caches)".to_string());
+        caveats
+            .push("OS cache eviction skipped (--no-drop-caches)".to_string());
     }
     if is_best_effort {
         if total_ignored.is_empty() {
@@ -581,21 +757,33 @@ pub fn build_audit_caveats(
                 parts.push(format!(
                     "{} ownership difference{}",
                     total_ignored.ownership,
-                    if total_ignored.ownership == 1 { "" } else { "s" }
+                    if total_ignored.ownership == 1 {
+                        ""
+                    } else {
+                        "s"
+                    }
                 ));
             }
             if total_ignored.timestamps > 0 {
                 parts.push(format!(
                     "{} timestamp difference{}",
                     total_ignored.timestamps,
-                    if total_ignored.timestamps == 1 { "" } else { "s" }
+                    if total_ignored.timestamps == 1 {
+                        ""
+                    } else {
+                        "s"
+                    }
                 ));
             }
             if total_ignored.permissions > 0 {
                 parts.push(format!(
                     "{} permission difference{}",
                     total_ignored.permissions,
-                    if total_ignored.permissions == 1 { "" } else { "s" }
+                    if total_ignored.permissions == 1 {
+                        ""
+                    } else {
+                        "s"
+                    }
                 ));
             }
             if total_ignored.flags > 0 {
@@ -612,14 +800,19 @@ pub fn build_audit_caveats(
                     if total_ignored.sparseness == 1 { "" } else { "s" }
                 ));
             }
-            caveats.push(format!("Best-effort mode: ignored {}", parts.join(" and ")));
+            caveats.push(format!(
+                "Best-effort mode: ignored {}",
+                parts.join(" and ")
+            ));
         }
     }
     caveats
 }
 
 /// Performs verification of target directory against manifest according to options.
-pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<VerificationReport> {
+pub fn verify_directory_against_manifest(
+    args: &CscVerifyArgs,
+) -> Result<VerificationReport> {
     let journal_path = resolve_journal_path(&args.manifest)?;
     let snapshot = crate::journal::read_journal_snapshot_with_policy(
         &journal_path,
@@ -672,10 +865,13 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         .count();
 
     let mut changed_entries = Vec::new();
-    let mut expected_entries = Vec::with_capacity(snapshot.committed_entities.len());
+    let mut expected_entries =
+        Vec::with_capacity(snapshot.committed_entities.len());
 
     for (raw_rel, entity) in &snapshot.committed_entities {
-        let rel_path = if let Some(mat_rel) = entity.metadata.materialized_relative_path() {
+        let rel_path = if let Some(mat_rel) =
+            entity.metadata.materialized_relative_path()
+        {
             mat_rel
         } else {
             match resolve_relative_path_for_os(raw_rel, is_windows) {
@@ -728,21 +924,25 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     let mut total_disk_scanned = 0_usize;
 
     if !args.should_ignore_untracked() {
-        let is_root_target = snapshot.committed_entities.iter().any(|(raw_rel, entity)| {
-            (raw_rel.is_empty() || raw_rel == b".")
-                && matches!(entity.kind, FileEntityKind::Directory)
-        });
+        let is_root_target =
+            snapshot.committed_entities.iter().any(|(raw_rel, entity)| {
+                (raw_rel.is_empty() || raw_rel == b".")
+                    && matches!(entity.kind, FileEntityKind::Directory)
+            });
         let top_level_roots: Option<HashSet<PathBuf>> = if is_root_target {
             None
         } else {
             let roots: HashSet<PathBuf> = verified_paths
                 .iter()
-                .filter_map(|p| p.components().next().map(|c| PathBuf::from(c.as_os_str())))
+                .filter_map(|p| {
+                    p.components().next().map(|c| PathBuf::from(c.as_os_str()))
+                })
                 .collect();
             Some(roots)
         };
 
-        let disk_entries = scan_disk_entries(&target_dir, top_level_roots.as_ref())?;
+        let disk_entries =
+            scan_disk_entries(&target_dir, top_level_roots.as_ref())?;
         total_disk_scanned = disk_entries.len();
 
         for disk_rel in disk_entries {
@@ -808,10 +1008,17 @@ pub(crate) fn scan_disk_entries(
             let full = root.join(r);
             let sym_meta = match std::fs::symlink_metadata(&full) {
                 Ok(metadata) => metadata,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                Err(error) => return Err(error).with_context(|| format!(
-                    "Failed to inspect audit subtree {}", full.display()
-                )),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    continue;
+                }
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!(
+                            "Failed to inspect audit subtree {}",
+                            full.display()
+                        )
+                    });
+                }
             };
             result.insert(r.clone());
             if sym_meta.is_dir() {
@@ -820,9 +1027,12 @@ pub(crate) fn scan_disk_entries(
                     .error_policy(ctb_io::file::OnTraversalError::Bail);
                 let traverser = ctb_io::file::traverse_dir(&full, opts)?;
                 for item in traverser {
-                    let item = item.with_context(|| format!(
-                        "Failed to enumerate audit subtree {}", full.display()
-                    ))?;
+                    let item = item.with_context(|| {
+                        format!(
+                            "Failed to enumerate audit subtree {}",
+                            full.display()
+                        )
+                    })?;
                     let rel = r.join(item.relative_path());
                     result.insert(rel);
                 }
@@ -834,9 +1044,12 @@ pub(crate) fn scan_disk_entries(
             .error_policy(ctb_io::file::OnTraversalError::Bail);
         let traverser = ctb_io::file::traverse_dir(root, opts)?;
         for item in traverser {
-            let item = item.with_context(|| format!(
-                "Failed to enumerate audit directory {}", root.display()
-            ))?;
+            let item = item.with_context(|| {
+                format!(
+                    "Failed to enumerate audit directory {}",
+                    root.display()
+                )
+            })?;
             result.insert(item.relative_path().to_path_buf());
         }
     }
@@ -879,13 +1092,15 @@ pub fn run_csc_verify(args: &CscVerifyArgs) -> Result<ToolResult> {
 )]
 mod tests {
     use super::*;
-    use crate::args::{VerifyOutputFormat, default_test_args, default_verify_args};
+    use crate::args::{
+        VerifyOutputFormat, default_test_args, default_verify_args,
+    };
     use crate::cli::run_csc;
-    use crate::verifier::run_csc_verify;
     use crate::journal::find_cscjournal;
+    use crate::verifier::run_csc_verify;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[crate::ctb_test]
@@ -895,7 +1110,11 @@ mod tests {
         let roots = HashSet::from([PathBuf::from("invalid\0path")]);
         assert!(scan_disk_entries(temp.path(), Some(&roots)).is_err());
         let missing = HashSet::from([PathBuf::from("missing")]);
-        assert!(scan_disk_entries(temp.path(), Some(&missing)).unwrap().is_empty());
+        assert!(
+            scan_disk_entries(temp.path(), Some(&missing))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[cfg(unix)]
@@ -904,18 +1123,22 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         if crate::run_permission_test_unprivileged(
             "verifier::tests::test_untracked_scan_refuses_unreadable_subtrees",
-        ).unwrap() {
+        )
+        .unwrap()
+        {
             return;
         }
         let temp = tempdir().unwrap();
         let unreadable = temp.path().join("unreadable");
         fs::create_dir(&unreadable).unwrap();
         fs::write(unreadable.join("hidden"), b"untracked data").unwrap();
-        fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o000)).unwrap();
+        fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o000))
+            .unwrap();
         let roots = HashSet::from([PathBuf::from("unreadable")]);
         let whole_tree = scan_disk_entries(temp.path(), None);
         let selected_tree = scan_disk_entries(temp.path(), Some(&roots));
-        fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o700)).unwrap();
+        fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o700))
+            .unwrap();
         assert!(whole_tree.is_err());
         assert!(selected_tree.is_err());
     }
@@ -928,12 +1151,26 @@ mod tests {
         fs::create_dir(&destination).unwrap();
         let path = destination.join("file");
         fs::write(&path, b"journal ctime payload").unwrap();
-        let mut entity = ctb_io::file::FileEntity::from_filesystem(&path, Some(&destination)).unwrap();
-        entity.metadata.timestamps.as_mut().unwrap().ctime_sec = entity.metadata.timestamps.as_ref().unwrap().ctime_sec.saturating_sub(100);
+        let mut entity = ctb_io::file::FileEntity::from_filesystem(
+            &path,
+            Some(&destination),
+        )
+        .unwrap();
+        entity.metadata.timestamps.as_mut().unwrap().ctime_sec = entity
+            .metadata
+            .timestamps
+            .as_ref()
+            .unwrap()
+            .ctime_sec
+            .saturating_sub(100);
         let journal = temp.path().join("ctime.cscjournal");
         let mut writer = crate::journal::StateJournal::create_at_path(
-            &journal, &temp.path().join("ctime.cscdesc"), &[], &destination,
-        ).unwrap();
+            &journal,
+            &temp.path().join("ctime.cscdesc"),
+            &[],
+            &destination,
+        )
+        .unwrap();
         for warning in &entity.metadata.warnings {
             writer.record_warning("FileReadWarning", warning).unwrap();
         }
@@ -942,25 +1179,41 @@ mod tests {
         writer.mark_completed().unwrap();
         drop(writer);
         let snapshot = read_journal_snapshot(&journal).unwrap();
-        let stored = snapshot.committed_entities.get(b"file".as_slice()).unwrap();
+        let stored =
+            snapshot.committed_entities.get(b"file".as_slice()).unwrap();
         assert_eq!(stored.metadata.timestamps, entity.metadata.timestamps);
         assert_eq!(stored.metadata.warnings, entity.metadata.warnings);
-        assert!(!snapshot.warnings.iter().any(|warning| warning.message.contains("change-time restoration")));
+        assert!(!snapshot.warnings.iter().any(|warning| {
+            warning.message.contains("change-time restoration")
+        }));
         let mut args = default_verify_args(journal, None);
         args.best_effort = false;
         let report = verify_directory_against_manifest(&args).unwrap();
         assert!(report.is_clean(), "{}", report.format_human_report());
-        assert!(report.caveats.iter().any(|caveat| caveat.contains("Change times (ctime) not verified")));
-        assert!(!report.caveats.iter().any(|caveat| caveat.contains("change-time restoration")));
+        assert!(report.caveats.iter().any(|caveat| {
+            caveat.contains("Change times (ctime) not verified")
+        }));
+        assert!(
+            !report
+                .caveats
+                .iter()
+                .any(|caveat| caveat.contains("change-time restoration"))
+        );
         args.check_ctime = true;
         let checked = verify_directory_against_manifest(&args).unwrap();
-        assert!(checked.changed_entries.iter().any(|entry| entry.differences.iter()
-            .any(|difference| matches!(difference, DiffKind::CtimeMismatch { .. }))));
+        assert!(checked.changed_entries.iter().any(|entry| {
+            entry.differences.iter().any(|difference| {
+                matches!(difference, DiffKind::CtimeMismatch { .. })
+            })
+        }));
         args.check_ctime = false;
         args.strict = true;
         let strict = verify_directory_against_manifest(&args).unwrap();
-        assert!(strict.changed_entries.iter().any(|entry| entry.differences.iter()
-            .any(|difference| matches!(difference, DiffKind::CtimeMismatch { .. }))));
+        assert!(strict.changed_entries.iter().any(|entry| {
+            entry.differences.iter().any(|difference| {
+                matches!(difference, DiffKind::CtimeMismatch { .. })
+            })
+        }));
     }
 
     #[crate::ctb_test]
@@ -974,59 +1227,118 @@ mod tests {
         fs::create_dir(&first).expect("create first root");
         fs::create_dir(&second).expect("create second root");
         fs::create_dir(&state).expect("create state");
-        fs::write(first.join("shared"), b"shared payload").expect("write shared file");
-        fs::hard_link(first.join("shared"), second.join("linked")).expect("create hardlink");
-        run_csc(default_test_args(vec![first.clone(), second.clone(), dest.clone()], state.clone()))
-            .expect("copy hardlinks across roots");
+        fs::write(first.join("shared"), b"shared payload")
+            .expect("write shared file");
+        fs::hard_link(first.join("shared"), second.join("linked"))
+            .expect("create hardlink");
+        run_csc(default_test_args(
+            vec![first.clone(), second.clone(), dest.clone()],
+            state.clone(),
+        ))
+        .expect("copy hardlinks across roots");
         let journal = find_cscjournal(&state);
-        let journal_file = fs::OpenOptions::new().write(true).open(&journal)
+        let journal_file = fs::OpenOptions::new()
+            .write(true)
+            .open(&journal)
             .expect("open journal");
-        let journal_length = journal_file.metadata().expect("journal metadata").len();
-        journal_file.set_len(journal_length.saturating_sub(1)).expect("remove completion marker");
+        let journal_length =
+            journal_file.metadata().expect("journal metadata").len();
+        journal_file
+            .set_len(journal_length.saturating_sub(1))
+            .expect("remove completion marker");
         drop(journal_file);
         let description = journal.with_extension("cscdesc");
         if description.exists() {
             fs::remove_file(description).expect("remove completed description");
         }
-        fs::hard_link(first.join("shared"), second.join("resumed")).expect("create resumed link");
-        let mut resume_args = default_test_args(vec![first, second, dest.clone()], state);
+        fs::hard_link(first.join("shared"), second.join("resumed"))
+            .expect("create resumed link");
+        let mut resume_args =
+            default_test_args(vec![first, second, dest.clone()], state);
         resume_args.resume = Some(journal.clone());
         resume_args.overwrite = true;
         run_csc(resume_args).expect("resume hardlink copy");
-        let shared_identity = ctb_io::file::identity::query_file_identity(&dest.join("first/shared"))
-            .expect("shared identity");
-        assert_eq!(shared_identity, ctb_io::file::identity::query_file_identity(&dest.join("second/linked"))
-            .expect("copied link identity"));
-        assert_eq!(shared_identity, ctb_io::file::identity::query_file_identity(&dest.join("second/resumed"))
-            .expect("resumed link identity"));
+        let shared_identity = ctb_io::file::identity::query_file_identity(
+            &dest.join("first/shared"),
+        )
+        .expect("shared identity");
+        assert_eq!(
+            shared_identity,
+            ctb_io::file::identity::query_file_identity(
+                &dest.join("second/linked")
+            )
+            .expect("copied link identity")
+        );
+        assert_eq!(
+            shared_identity,
+            ctb_io::file::identity::query_file_identity(
+                &dest.join("second/resumed")
+            )
+            .expect("resumed link identity")
+        );
         fs::rename(&dest, &relocated).expect("relocate destination");
-        let args = default_verify_args(journal.clone(), Some(relocated.clone()));
-        let report = verify_directory_against_manifest(&args).expect("verify hardlinks");
+        let args =
+            default_verify_args(journal.clone(), Some(relocated.clone()));
+        let report =
+            verify_directory_against_manifest(&args).expect("verify hardlinks");
         assert!(report.is_clean(), "{}", report.format_human_report());
         let snapshot = read_journal_snapshot(&journal).expect("read journal");
-        let (raw_link, entity) = snapshot.committed_entities.iter()
-            .find(|(_, entity)| matches!(entity.kind, FileEntityKind::Hardlink { .. }))
+        let (raw_link, entity) = snapshot
+            .committed_entities
+            .iter()
+            .find(|(_, entity)| {
+                matches!(entity.kind, FileEntityKind::Hardlink { .. })
+            })
             .expect("journal must record hardlink semantics");
-        let link = resolve_relative_path_for_os(raw_link, snapshot.origin_platform == PLATFORM_WINDOWS)
-            .expect("resolve link path");
-        let FileEntityKind::Hardlink { target_relative_path } = &entity.kind else {
+        let link = resolve_relative_path_for_os(
+            raw_link,
+            snapshot.origin_platform == PLATFORM_WINDOWS,
+        )
+        .expect("resolve link path");
+        let FileEntityKind::Hardlink {
+            target_relative_path,
+        } = &entity.kind
+        else {
             panic!("expected hardlink");
         };
-        let target = target_relative_path.to_path_buf()
+        let target = target_relative_path
+            .to_path_buf()
             .expect("resolve target path");
         fs::remove_file(relocated.join(&link)).expect("remove hardlink");
-        fs::write(relocated.join(&link), b"shared payload").expect("write identical independent file");
-        let report = verify_directory_against_manifest(&args).expect("verify independent file");
-        assert!(report.changed_entries.iter().any(|entry| entry.relative_path == link
-            && entry.differences.iter().any(|diff| matches!(diff, DiffKind::HardlinkMismatch { .. }))));
-        fs::remove_file(relocated.join(&link)).expect("remove independent file");
-        let report = verify_directory_against_manifest(&args).expect("verify missing link");
+        fs::write(relocated.join(&link), b"shared payload")
+            .expect("write identical independent file");
+        let report = verify_directory_against_manifest(&args)
+            .expect("verify independent file");
+        assert!(
+            report
+                .changed_entries
+                .iter()
+                .any(|entry| entry.relative_path == link
+                    && entry.differences.iter().any(|diff| matches!(
+                        diff,
+                        DiffKind::HardlinkMismatch { .. }
+                    )))
+        );
+        fs::remove_file(relocated.join(&link))
+            .expect("remove independent file");
+        let report = verify_directory_against_manifest(&args)
+            .expect("verify missing link");
         assert!(report.missing_entries.contains(&link));
-        fs::hard_link(relocated.join(&target), relocated.join(&link)).expect("restore hardlink");
+        fs::hard_link(relocated.join(&target), relocated.join(&link))
+            .expect("restore hardlink");
         fs::remove_file(relocated.join(&target)).expect("remove target");
-        let report = verify_directory_against_manifest(&args).expect("verify missing target");
-        assert!(report.changed_entries.iter().any(|entry| entry.relative_path == link
-            && entry.differences.iter().any(|diff| matches!(diff, DiffKind::HardlinkMismatch { .. }))));
+        let report = verify_directory_against_manifest(&args)
+            .expect("verify missing target");
+        assert!(
+            report
+                .changed_entries
+                .iter()
+                .any(|entry| entry.relative_path == link
+                    && entry.differences.iter().any(|diff| matches!(
+                        diff,
+                        DiffKind::HardlinkMismatch { .. }
+                    )))
+        );
     }
 
     #[crate::ctb_test]
@@ -1036,36 +1348,71 @@ mod tests {
         fs::create_dir(&destination).unwrap();
         fs::write(destination.join("existing"), b"payload").unwrap();
         let invalid_component = "x".repeat(300);
-        let query_error = fs::symlink_metadata(destination.join(&invalid_component)).unwrap_err();
-        let reported_missing = query_error.kind() == std::io::ErrorKind::NotFound;
+        let query_error =
+            fs::symlink_metadata(destination.join(&invalid_component))
+                .unwrap_err();
+        let reported_missing =
+            query_error.kind() == std::io::ErrorKind::NotFound;
         if reported_missing {
-            assert!(ctb_io_environment::is_wine(),
-                "Only WINE is expected to report an overlong component as missing");
+            assert!(
+                ctb_io_environment::is_wine(),
+                "Only WINE is expected to report an overlong component as missing"
+            );
         }
         for (case, link, target, context) in [
-            ("link", invalid_component.as_str(), "existing", "Failed to query hardlink metadata"),
-            ("target", "existing", invalid_component.as_str(), "Failed to query hardlink target metadata"),
+            (
+                "link",
+                invalid_component.as_str(),
+                "existing",
+                "Failed to query hardlink metadata",
+            ),
+            (
+                "target",
+                "existing",
+                invalid_component.as_str(),
+                "Failed to query hardlink target metadata",
+            ),
         ] {
             let journal = temp.path().join(format!("{case}.cscjournal"));
             let mut writer = crate::journal::StateJournal::create_at_path(
-                &journal, &journal.with_extension("cscdesc"), &[], &destination,
-            ).unwrap();
+                &journal,
+                &journal.with_extension("cscdesc"),
+                &[],
+                &destination,
+            )
+            .unwrap();
             let mut entity = ctb_io::file::FileEntity::from_vec(Vec::new());
             entity.identity.relative_path = Some(PathBuf::from(link));
-            entity.kind = FileEntityKind::Hardlink { target_relative_path: LinkPath::from_bytes(target.as_bytes(), cfg!(windows)) };
+            entity.kind = FileEntityKind::Hardlink {
+                target_relative_path: LinkPath::from_bytes(
+                    target.as_bytes(),
+                    cfg!(windows),
+                ),
+            };
             writer.record_entity(&entity);
             writer.commit_batch().unwrap();
             writer.mark_completed().unwrap();
             drop(writer);
-            let result = verify_directory_against_manifest(&default_verify_args(journal, None));
+            let result = verify_directory_against_manifest(
+                &default_verify_args(journal, None),
+            );
             if reported_missing {
                 let report = result.unwrap();
                 assert!(!report.is_clean());
                 if case == "link" {
-                    assert!(report.missing_entries.contains(&PathBuf::from(link)));
+                    assert!(
+                        report.missing_entries.contains(&PathBuf::from(link))
+                    );
                 } else {
-                    assert!(report.changed_entries.iter().any(|entry| entry.relative_path == PathBuf::from(link)
-                        && entry.differences.iter().any(|difference| matches!(difference, DiffKind::HardlinkMismatch { .. }))));
+                    assert!(report.changed_entries.iter().any(|entry| {
+                        entry.relative_path == PathBuf::from(link)
+                            && entry.differences.iter().any(|difference| {
+                                matches!(
+                                    difference,
+                                    DiffKind::HardlinkMismatch { .. }
+                                )
+                            })
+                    }));
                 }
                 continue;
             }
@@ -1085,14 +1432,13 @@ mod tests {
         fs::create_dir_all(src.join("sub")).expect("create sub");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("hello.txt"), b"Hello verification!").expect("write hello");
-        fs::write(src.join("sub").join("data.bin"), b"binary payload").expect("write data");
+        fs::write(src.join("hello.txt"), b"Hello verification!")
+            .expect("write hello");
+        fs::write(src.join("sub").join("data.bin"), b"binary payload")
+            .expect("write data");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
@@ -1102,7 +1448,11 @@ mod tests {
         let res = run_csc_verify(&verify_args).expect("run verifier");
 
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("OK - Directory matches manifest"));
@@ -1121,14 +1471,13 @@ mod tests {
         fs::create_dir_all(src.join("nested")).expect("create nested");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("file.txt"), b"Relocated test data").expect("write file");
-        fs::write(src.join("nested").join("sub.txt"), b"nested data").expect("write nested");
+        fs::write(src.join("file.txt"), b"Relocated test data")
+            .expect("write file");
+        fs::write(src.join("nested").join("sub.txt"), b"nested data")
+            .expect("write nested");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
@@ -1139,10 +1488,15 @@ mod tests {
         let journal = find_cscjournal(&state);
         // Verify with relocated folder specified
         let verify_args = default_verify_args(journal, Some(relocated));
-        let res = run_csc_verify(&verify_args).expect("run verifier on relocated");
+        let res =
+            run_csc_verify(&verify_args).expect("run verifier on relocated");
 
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 let out = String::from_utf8_lossy(&stdout);
                 assert_eq!(exit_code, 0, "{out}");
                 assert!(out.contains("OK - Directory matches manifest"));
@@ -1160,27 +1514,33 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("tampered.txt"), b"Original authentic content").expect("write file");
+        fs::write(src.join("tampered.txt"), b"Original authentic content")
+            .expect("write file");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
 
         // Tamper with destination file content
-        fs::write(dest.join("tampered.txt"), b"Modified corrupted content").expect("tamper file");
+        fs::write(dest.join("tampered.txt"), b"Modified corrupted content")
+            .expect("tamper file");
 
         let journal = find_cscjournal(&state);
         let verify_args = default_verify_args(journal, None);
         let res = run_csc_verify(&verify_args).expect("run verifier");
 
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
-                assert_eq!(exit_code, 1, "Verification must fail on changed content");
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
+                assert_eq!(
+                    exit_code, 1,
+                    "Verification must fail on changed content"
+                );
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("[CHANGED] tampered.txt"));
                 assert!(out.contains("SHA-256 mismatch"));
@@ -1203,19 +1563,21 @@ mod tests {
 
         let file = src.join("script.sh");
         fs::write(&file, b"#!/bin/sh\necho test\n").expect("write file");
-        fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).expect("set mode");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o755))
+            .expect("set mode");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
 
         // Alter permissions on destination file
-        fs::set_permissions(dest.join("script.sh"), fs::Permissions::from_mode(0o644)).expect("alter mode");
+        fs::set_permissions(
+            dest.join("script.sh"),
+            fs::Permissions::from_mode(0o644),
+        )
+        .expect("alter mode");
 
         let journal = find_cscjournal(&state);
 
@@ -1223,7 +1585,11 @@ mod tests {
         let verify_args = default_verify_args(journal.clone(), None);
         let res = run_csc_verify(&verify_args).expect("run strict verifier");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Permissions mismatch"));
@@ -1235,12 +1601,19 @@ mod tests {
         let mut ignored_args = default_verify_args(journal, None);
         ignored_args.ignore_perms = true;
         ignored_args.ignore_atime = true;
-        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_perms");
+        let res2 = run_csc_verify(&ignored_args)
+            .expect("run verifier with ignore_perms");
         match res2 {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
+                assert!(out.contains(
+                    "OK - Directory matches manifest in best-effort mode"
+                ));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -1258,23 +1631,28 @@ mod tests {
         let file = src.join("read_me.txt");
         fs::write(&file, b"Access time test payload").expect("write file");
 
-        let initial_atime = filetime::FileTime::from_unix_time(1_600_000_000, 0);
-        let initial_mtime = filetime::FileTime::from_unix_time(1_600_000_000, 0);
-        filetime::set_file_times(&file, initial_atime, initial_mtime).expect("set initial times");
+        let initial_atime =
+            filetime::FileTime::from_unix_time(1_600_000_000, 0);
+        let initial_mtime =
+            filetime::FileTime::from_unix_time(1_600_000_000, 0);
+        filetime::set_file_times(&file, initial_atime, initial_mtime)
+            .expect("set initial times");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
 
         // Alter only atime on destination
-        let modified_atime = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_times(dest.join("read_me.txt"), modified_atime, initial_mtime)
-            .expect("alter atime");
+        let modified_atime =
+            filetime::FileTime::from_unix_time(1_700_000_000, 0);
+        filetime::set_file_times(
+            dest.join("read_me.txt"),
+            modified_atime,
+            initial_mtime,
+        )
+        .expect("alter atime");
 
         let journal = find_cscjournal(&state);
 
@@ -1282,10 +1660,16 @@ mod tests {
         let verify_args = default_verify_args(journal.clone(), None);
         let res = run_csc_verify(&verify_args).expect("run default verifier");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
+                assert!(out.contains(
+                    "OK - Directory matches manifest in best-effort mode"
+                ));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -1293,9 +1677,14 @@ mod tests {
         // Opt-in with --check-atime: should detect atime mismatch
         let mut checked_args = default_verify_args(journal, None);
         checked_args.check_atime = true;
-        let res2 = run_csc_verify(&checked_args).expect("run verifier with check_atime");
+        let res2 = run_csc_verify(&checked_args)
+            .expect("run verifier with check_atime");
         match res2 {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Atime mismatch"));
@@ -1313,21 +1702,20 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("to_delete.txt"), b"Will be deleted").expect("write to_delete");
+        fs::write(src.join("to_delete.txt"), b"Will be deleted")
+            .expect("write to_delete");
         fs::write(src.join("kept.txt"), b"Will remain").expect("write kept");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
 
         // Delete one expected file and create one untracked extra file
         fs::remove_file(dest.join("to_delete.txt")).expect("remove file");
-        fs::write(dest.join("untracked_extra.log"), b"stray log").expect("write untracked");
+        fs::write(dest.join("untracked_extra.log"), b"stray log")
+            .expect("write untracked");
 
         let journal = find_cscjournal(&state);
 
@@ -1335,7 +1723,11 @@ mod tests {
         let verify_args = default_verify_args(journal.clone(), None);
         let res = run_csc_verify(&verify_args).expect("run verifier");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("[MISSING] to_delete.txt"));
@@ -1347,9 +1739,14 @@ mod tests {
         // With --ignore-untracked: untracked file is not reported, but missing file is still caught
         let mut ignored_args = default_verify_args(journal, None);
         ignored_args.ignore_untracked = true;
-        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_untracked");
+        let res2 = run_csc_verify(&ignored_args)
+            .expect("run verifier with ignore_untracked");
         match res2 {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("[MISSING] to_delete.txt"));
@@ -1370,12 +1767,14 @@ mod tests {
         fs::create_dir_all(&state).expect("create state");
 
         // Populate source fonts
-        fs::write(src_fonts.join("font1.ttf"), b"font content 1").expect("write font1");
+        fs::write(src_fonts.join("font1.ttf"), b"font content 1")
+            .expect("write font1");
 
         // Destination root already contains unrelated files/directories outside the copied tree
         let dosbox = dest_dir.join(".dosbox");
         fs::create_dir_all(&dosbox).expect("create dosbox");
-        fs::write(dosbox.join("dosbox.conf"), b"conf").expect("write dosbox.conf");
+        fs::write(dosbox.join("dosbox.conf"), b"conf")
+            .expect("write dosbox.conf");
         fs::write(dest_dir.join(".face"), b"image").expect("write .face");
         fs::write(dest_dir.join("e"), b"file e").expect("write e");
 
@@ -1387,19 +1786,33 @@ mod tests {
         run_csc(csc_args).expect("run csc");
 
         // Now add a real untracked file INSIDE the copied subtree
-        fs::write(dest_dir.join("my_fonts").join("untracked_in_fonts.ttf"), b"extra font")
-            .expect("write untracked font");
+        fs::write(
+            dest_dir.join("my_fonts").join("untracked_in_fonts.ttf"),
+            b"extra font",
+        )
+        .expect("write untracked font");
 
         let journal = find_cscjournal(&state);
         let verify_args = default_verify_args(journal, None);
         let res = run_csc_verify(&verify_args).expect("run csc-verify");
 
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 // Untracked entry inside my_fonts MUST be reported
-                assert!(out.contains(&format!("[UNTRACKED] {}", Path::new("my_fonts").join("untracked_in_fonts.ttf").display())));
+                assert!(
+                    out.contains(&format!(
+                        "[UNTRACKED] {}",
+                        Path::new("my_fonts")
+                            .join("untracked_in_fonts.ttf")
+                            .display()
+                    ))
+                );
                 // Sibling entries outside my_fonts MUST NOT be reported
                 assert!(!out.contains(".dosbox"));
                 assert!(!out.contains(".face"));
@@ -1418,13 +1831,11 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("sample.txt"), b"JSON verification sample").expect("write sample");
+        fs::write(src.join("sample.txt"), b"JSON verification sample")
+            .expect("write sample");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
@@ -1435,15 +1846,35 @@ mod tests {
 
         let res = run_csc_verify(&verify_args).expect("run json verifier");
         match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+            ctb_utilities::cli::ToolResult::Immediate {
+                stdout,
+                exit_code,
+                ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let json_str = String::from_utf8(stdout).expect("valid utf8");
-                let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("parse json");
+                let parsed: serde_json::Value =
+                    serde_json::from_str(&json_str).expect("parse json");
                 assert_eq!(parsed["total_manifest_entries"], 1, "{json_str}");
                 assert_eq!(parsed["matched_entries"], 1);
-                assert!(parsed["changed_entries"].as_array().expect("array").is_empty());
-                assert!(parsed["missing_entries"].as_array().expect("array").is_empty());
-                assert!(parsed["untracked_entries"].as_array().expect("array").is_empty());
+                assert!(
+                    parsed["changed_entries"]
+                        .as_array()
+                        .expect("array")
+                        .is_empty()
+                );
+                assert!(
+                    parsed["missing_entries"]
+                        .as_array()
+                        .expect("array")
+                        .is_empty()
+                );
+                assert!(
+                    parsed["untracked_entries"]
+                        .as_array()
+                        .expect("array")
+                        .is_empty()
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
@@ -1458,7 +1889,8 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("data.txt"), b"Incomplete test").expect("write file");
+        fs::write(src.join("data.txt"), b"Incomplete test")
+            .expect("write file");
 
         let mut args = default_test_args(
             vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
@@ -1470,27 +1902,39 @@ mod tests {
         let res = run_csc(args).expect("run csc");
         match res {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
 
         let journal = find_cscjournal(&state);
 
         // Verification without --allow-incomplete must fail
         let verify_args = default_verify_args(journal.clone(), None);
-        let err = run_csc_verify(&verify_args).err().expect("must fail on incomplete manifest");
-        assert!(err.to_string().contains("incomplete or was not marked finished"));
+        let err = run_csc_verify(&verify_args)
+            .err()
+            .expect("must fail on incomplete manifest");
+        assert!(
+            err.to_string()
+                .contains("incomplete or was not marked finished")
+        );
 
         // Verification with --allow-incomplete must succeed
         let mut allow_args = default_verify_args(journal, None);
         allow_args.allow_incomplete = true;
-        let res2 = run_csc_verify(&allow_args).expect("run verifier with allow_incomplete");
+        let res2 = run_csc_verify(&allow_args)
+            .expect("run verifier with allow_incomplete");
         match res2 {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("OK - Directory matches manifest"));
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
     }
 
@@ -1519,21 +1963,29 @@ mod tests {
         // Modify mtime on destination by 1 second
         let dest_file = dest.join("item.txt");
         let meta = fs::metadata(&dest_file).expect("metadata");
-        let mtime_sec = FileTime::from_last_modification_time(&meta).unix_seconds();
-        set_file_mtime(&dest_file, FileTime::from_unix_time(mtime_sec.saturating_add(1), 0))
-            .expect("set mtime");
+        let mtime_sec =
+            FileTime::from_last_modification_time(&meta).unix_seconds();
+        set_file_mtime(
+            &dest_file,
+            FileTime::from_unix_time(mtime_sec.saturating_add(1), 0),
+        )
+        .expect("set mtime");
 
         // Strict verification: fails with MtimeMismatch
         let mut strict_args = default_verify_args(journal.clone(), None);
         strict_args.best_effort = false;
         let res = run_csc_verify(&strict_args).expect("run strict verifier");
         match res {
-            ToolResult::Immediate { exit_code, stdout, .. } => {
+            ToolResult::Immediate {
+                exit_code, stdout, ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Mtime mismatch"));
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
 
         // Best-effort verification: passes, reports ignored differences, and does NOT claim perfection
@@ -1541,14 +1993,18 @@ mod tests {
         be_args.best_effort = true;
         let res2 = run_csc_verify(&be_args).expect("run best effort verifier");
         match res2 {
-            ToolResult::Immediate { exit_code, stdout, .. } => {
+            ToolResult::Immediate {
+                exit_code, stdout, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("OK - Directory matches manifest in best-effort mode; ignored"));
                 assert!(out.contains("timestamp"));
                 assert!(!out.contains("Directory matches manifest perfectly"));
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
     }
 
@@ -1562,13 +2018,11 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state");
 
-        fs::write(src.join("sample.txt"), b"Caveat verification test").expect("write sample");
+        fs::write(src.join("sample.txt"), b"Caveat verification test")
+            .expect("write sample");
 
         let csc_args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         run_csc(csc_args).expect("run csc");
@@ -1582,9 +2036,12 @@ mod tests {
         verify_args.ignore_atime = true;
         verify_args.ignore_ctime = true;
 
-        let res = run_csc_verify(&verify_args).expect("run verifier without strict");
+        let res =
+            run_csc_verify(&verify_args).expect("run verifier without strict");
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("OK - Directory matches manifest"));
@@ -1593,28 +2050,43 @@ mod tests {
                 assert!(out.contains("Access times (atime) not verified"));
                 assert!(out.contains("Change times (ctime) not verified"));
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
 
         // Alter atime on destination
         let dest_file = dest.join("sample.txt");
         let orig_meta = fs::metadata(&dest_file).expect("metadata");
-        let orig_atime = filetime::FileTime::from_unix_time(orig_meta.atime().saturating_add(100), 0);
-        let orig_mtime = filetime::FileTime::from_unix_time(orig_meta.mtime(), 0);
-        filetime::set_file_times(&dest_file, orig_atime, orig_mtime).expect("alter atime");
+        let orig_atime = filetime::FileTime::from_unix_time(
+            orig_meta.atime().saturating_add(100),
+            0,
+        );
+        let orig_mtime =
+            filetime::FileTime::from_unix_time(orig_meta.mtime(), 0);
+        filetime::set_file_times(&dest_file, orig_atime, orig_mtime)
+            .expect("alter atime");
 
         // Strict verification must catch differences and fail
         let mut strict_args = default_verify_args(journal, None);
         strict_args.strict = true;
 
-        let res_strict = run_csc_verify(&strict_args).expect("run strict verifier");
+        let res_strict =
+            run_csc_verify(&strict_args).expect("run strict verifier");
         match res_strict {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("mismatch") || out.contains("Discrepancies detected"));
+                assert!(
+                    out.contains("mismatch")
+                        || out.contains("Discrepancies detected")
+                );
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
     }
 
@@ -1640,7 +2112,9 @@ mod tests {
             recorded_errors: Vec::new(),
         };
         let out = strict_clean.format_human_report();
-        assert!(out.contains("Status:           OK - Directory matches manifest perfectly."));
+        assert!(out.contains(
+            "Status:           OK - Directory matches manifest perfectly."
+        ));
         assert!(!out.contains("Caveats:"));
 
         // 2. Clean report with caveats (non-strict settings)
@@ -1663,7 +2137,9 @@ mod tests {
             recorded_errors: Vec::new(),
         };
         let out2 = non_strict_clean.format_human_report();
-        assert!(out2.contains("Status:           OK - Directory matches manifest."));
+        assert!(
+            out2.contains("Status:           OK - Directory matches manifest.")
+        );
         assert!(!out2.contains("Directory matches manifest perfectly"));
         assert!(out2.contains("Caveats:"));
         assert!(out2.contains("Access times (atime) not verified"));
@@ -1741,7 +2217,9 @@ mod tests {
             recorded_errors: Vec::new(),
         };
         let out5 = diff_fail.format_human_report();
-        assert!(out5.contains("Status:           FAILED - Discrepancies detected between paths."));
+        assert!(out5.contains(
+            "Status:           FAILED - Discrepancies detected between paths."
+        ));
         assert!(out5.contains("Path A entries:   3"));
         assert!(out5.contains("Missing in B (1):"));
         assert!(out5.contains("Extra in B (1):"));
@@ -1750,7 +2228,10 @@ mod tests {
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_sparse_verification_best_effort_filesystem_support() {
-        use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
+        use ctb_io::file::{
+            FilesystemInfo, clear_filesystem_cache, extract_device_id,
+            set_cached_filesystem_info,
+        };
 
         let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().expect("create tempdir");
@@ -1763,25 +2244,48 @@ mod tests {
 
         let dest_file_path = dest.join("sparse.bin");
         let size = 1_048_580_u64;
-        fs::write(&dest_file_path, vec![0x7F_u8; usize::try_from(size).unwrap()]).unwrap();
-        fs::File::options().write(true).open(&dest_file_path).unwrap().sync_all().unwrap();
+        fs::write(
+            &dest_file_path,
+            vec![0x7F_u8; usize::try_from(size).unwrap()],
+        )
+        .unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&dest_file_path)
+            .unwrap()
+            .sync_all()
+            .unwrap();
         let mut expected = ctb_io::file::FileEntity::from_filesystem(
-            &dest_file_path, Some(&dest),
-        ).unwrap();
+            &dest_file_path,
+            Some(&dest),
+        )
+        .unwrap();
         // A deliberately incorrect expected layout keeps this policy fixture
         // independent of ZFS zero-block compression without changing the hash.
-        let FileEntityKind::Regular { is_sparse, extents, .. } = &mut expected.kind else {
+        let FileEntityKind::Regular {
+            is_sparse, extents, ..
+        } = &mut expected.kind
+        else {
             panic!("Expected regular fixture");
         };
         *is_sparse = true;
         *extents = vec![
-            ctb_io::file::Extent::Data { offset: 0, length: 6 },
-            ctb_io::file::Extent::Hole { offset: 6, length: size.saturating_sub(10) },
-            ctb_io::file::Extent::Data { offset: size.saturating_sub(4), length: 4 },
+            ctb_io::file::Extent::Data {
+                offset: 0,
+                length: 6,
+            },
+            ctb_io::file::Extent::Hole {
+                offset: 6,
+                length: size.saturating_sub(10),
+            },
+            ctb_io::file::Extent::Data {
+                offset: size.saturating_sub(4),
+                length: 4,
+            },
         ];
-        let mut journal = crate::journal::StateJournal::create_new(
-            &state, &[src], &dest,
-        ).unwrap();
+        let mut journal =
+            crate::journal::StateJournal::create_new(&state, &[src], &dest)
+                .unwrap();
         journal.record_entity(&expected);
         journal.commit_batch().unwrap();
         journal.mark_completed().unwrap();
@@ -1789,54 +2293,81 @@ mod tests {
         drop(journal);
 
         let file = fs::File::open(&dest_file_path).expect("open dest");
-        let actual_extents = ctb_io::file::payload::get_file_extents(&file, size).expect("get extents");
-        let still_sparse = actual_extents.iter().any(|e| matches!(e, ctb_io::file::Extent::Hole { .. }));
-        assert!(!still_sparse, "Nonzero fixture must provide allocated logical data ranges");
+        let actual_extents =
+            ctb_io::file::payload::get_file_extents(&file, size)
+                .expect("get extents");
+        let still_sparse = actual_extents
+            .iter()
+            .any(|e| matches!(e, ctb_io::file::Extent::Hole { .. }));
+        assert!(
+            !still_sparse,
+            "Nonzero fixture must provide allocated logical data ranges"
+        );
 
         let meta = fs::metadata(&dest).expect("read dest metadata");
-        let dev_id = extract_device_id(&meta).expect("Sparse policy fixture requires filesystem identity");
+        let dev_id = extract_device_id(&meta)
+            .expect("Sparse policy fixture requires filesystem identity");
 
         // 1. On known sparse filesystem (e.g. ext4):
-        set_cached_filesystem_info(dev_id, FilesystemInfo {
-            fs_type: "ext4".to_string(),
-            resolution_nsec: 1,
-        });
+        set_cached_filesystem_info(
+            dev_id,
+            FilesystemInfo {
+                fs_type: "ext4".to_string(),
+                resolution_nsec: 1,
+            },
+        );
 
         // Strict mode fails
-        let mut strict_args = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        let mut strict_args =
+            default_verify_args(journal_path.clone(), Some(dest.clone()));
         strict_args.best_effort = false;
         strict_args.strict = true;
         let res = run_csc_verify(&strict_args).expect("verify strict");
         if let ToolResult::Immediate { stdout, .. } = res {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+            assert!(
+                out.contains("Sparse hole mismatch")
+                    || out.contains("1 discrepancies detected")
+            );
         }
 
         // Best-effort mode ALSO fails because ext4 supports sparse files
-        let mut be_args = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        let mut be_args =
+            default_verify_args(journal_path.clone(), Some(dest.clone()));
         be_args.best_effort = true;
         be_args.strict = false;
         let res = run_csc_verify(&be_args).expect("verify best_effort on ext4");
         if let ToolResult::Immediate { stdout, .. } = res {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+            assert!(
+                out.contains("Sparse hole mismatch")
+                    || out.contains("1 discrepancies detected")
+            );
         }
 
         // 2. On filesystem without sparse support (e.g. vfat):
-        set_cached_filesystem_info(dev_id, FilesystemInfo {
-            fs_type: "vfat".to_string(),
-            resolution_nsec: 2_000_000_000,
-        });
+        set_cached_filesystem_info(
+            dev_id,
+            FilesystemInfo {
+                fs_type: "vfat".to_string(),
+                resolution_nsec: 2_000_000_000,
+            },
+        );
 
         // Strict mode still fails
-        let res_vfat_strict = run_csc_verify(&strict_args).expect("verify strict on vfat");
+        let res_vfat_strict =
+            run_csc_verify(&strict_args).expect("verify strict on vfat");
         if let ToolResult::Immediate { stdout, .. } = res_vfat_strict {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+            assert!(
+                out.contains("Sparse hole mismatch")
+                    || out.contains("1 discrepancies detected")
+            );
         }
 
         // Best-effort mode succeeds, tolerates lost hole, and emits caveat!
-        let res_vfat_be = run_csc_verify(&be_args).expect("verify best_effort on vfat");
+        let res_vfat_be =
+            run_csc_verify(&be_args).expect("verify best_effort on vfat");
         if let ToolResult::Immediate { stdout, .. } = res_vfat_be {
             let out = String::from_utf8_lossy(&stdout);
             assert!(

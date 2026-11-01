@@ -78,7 +78,12 @@ fn format_expr_inner(
                 true,
             );
             let res = format!("{left_str} > {right_str}");
-            wrap_operational(res, FormatOp::Convert, parent_ctx, is_right_child_of_op)
+            wrap_operational(
+                res,
+                FormatOp::Convert,
+                parent_ctx,
+                is_right_child_of_op,
+            )
         }
         FormatExpr::Transmute(left, right) => {
             let left_str = format_expr_inner(
@@ -121,13 +126,14 @@ fn format_expr_inner(
         FormatExpr::Union(children) => {
             let parts: Vec<String> = children
                 .iter()
-                .map(|child| format_expr_inner(child, Some(ParentContext::Union), false))
+                .map(|child| {
+                    format_expr_inner(child, Some(ParentContext::Union), false)
+                })
                 .collect();
             let res = parts.join(" & ");
             match parent_ctx {
                 Some(
-                    ParentContext::Operational(_)
-                    | ParentContext::Intersection,
+                    ParentContext::Operational(_) | ParentContext::Intersection,
                 ) => format!("({res})"),
                 _ => res,
             }
@@ -136,14 +142,18 @@ fn format_expr_inner(
             let parts: Vec<String> = children
                 .iter()
                 .map(|child| {
-                    format_expr_inner(child, Some(ParentContext::Intersection), false)
+                    format_expr_inner(
+                        child,
+                        Some(ParentContext::Intersection),
+                        false,
+                    )
                 })
                 .collect();
             let res = parts.join(" | ");
             match parent_ctx {
-                Some(
-                    ParentContext::Operational(_) | ParentContext::Union,
-                ) => format!("({res})"),
+                Some(ParentContext::Operational(_) | ParentContext::Union) => {
+                    format!("({res})")
+                }
                 _ => res,
             }
         }
@@ -177,7 +187,9 @@ fn wrap_operational(
         return format!("({s})");
     }
     match parent_ctx {
-        Some(ParentContext::Operational(parent_op)) if parent_op != current_op => {
+        Some(ParentContext::Operational(parent_op))
+            if parent_op != current_op =>
+        {
             format!("({s})")
         }
         Some(ParentContext::Union | ParentContext::Intersection) => {

@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Parser for libmagic-style hierarchical magic signature rule files (`Magdir`).
 
 #[expect(
@@ -480,10 +479,7 @@ pub enum Offset {
         adjustment: i64,
     },
     /// Search within window starting at given offset.
-    Search {
-        start: u64,
-        max_bytes: usize,
-    },
+    Search { start: u64, max_bytes: usize },
 }
 
 /// Binary operation applied to indirect offset dereferenced pointer before applying adjustment.
@@ -756,7 +752,11 @@ pub struct HierarchicalMagicRule {
 
 impl HierarchicalMagicRule {
     /// Constructs a root rule with given offset, test, and description.
-    pub fn new_root(offset: Offset, test: MagicTest, description: Option<String>) -> Self {
+    pub fn new_root(
+        offset: Offset,
+        test: MagicTest,
+        description: Option<String>,
+    ) -> Self {
         Self {
             cont_level: 0,
             offset,
@@ -892,9 +892,15 @@ fn split_magic_tokens(line: &str) -> Vec<String> {
 /// Parses an integer string with decimal, hex (`0x`), or octal (`0`) notation.
 fn parse_magic_int(val: &str) -> Option<u64> {
     let trimmed = val.trim();
-    if let Some(hex) = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")) {
+    if let Some(hex) = trimmed
+        .strip_prefix("0x")
+        .or_else(|| trimmed.strip_prefix("0X"))
+    {
         u64::from_str_radix(hex.trim_end_matches(['L', 'h']), 16).ok()
-    } else if trimmed.starts_with('0') && trimmed.len() > 1 && trimmed.chars().all(|c| ('0'..='7').contains(&c)) {
+    } else if trimmed.starts_with('0')
+        && trimmed.len() > 1
+        && trimmed.chars().all(|c| ('0'..='7').contains(&c))
+    {
         u64::from_str_radix(trimmed, 8).ok()
     } else {
         trimmed.parse::<u64>().ok()
@@ -950,7 +956,8 @@ fn parse_indirect_op_and_adj(s: &str) -> (Option<IndirectOp>, i64) {
     match first_char {
         '*' | '/' | '%' | '&' | '|' | '^' => {
             // Reason for fallback: slice boundary defaults to empty string if trimmed is empty
-            let after_op = trimmed.get(first_char.len_utf8()..).unwrap_or("").trim();
+            let after_op =
+                trimmed.get(first_char.len_utf8()..).unwrap_or("").trim();
             let (operand_str, adj) = split_trailing_adj(after_op);
             // Reason for fallback: invalid or missing operand defaults to identity multiplier/divisor 1
             let operand = parse_signed_magic_int(operand_str).unwrap_or(1);
@@ -983,51 +990,61 @@ fn parse_indirect_offset(raw: &str) -> Option<Offset> {
     } else {
         false
     };
-    let (base_part, ind_type, is_signed, is_inverse, op, adjustment) = if let Some(sep_idx) = inner.find(['.', ',']) {
-        let base_str = inner.get(..sep_idx)?;
-        let sep = inner.as_bytes().get(sep_idx)?;
-        let is_signed = *sep == b',';
-        let after_sep = inner.get(sep_idx.saturating_add(1)..)?.trim();
+    let (base_part, ind_type, is_signed, is_inverse, op, adjustment) =
+        if let Some(sep_idx) = inner.find(['.', ',']) {
+            let base_str = inner.get(..sep_idx)?;
+            let sep = inner.as_bytes().get(sep_idx)?;
+            let is_signed = *sep == b',';
+            let after_sep = inner.get(sep_idx.saturating_add(1)..)?.trim();
 
-        let (after_tilde, mut is_inverse) = if let Some(stripped) = after_sep.strip_prefix('~') {
-            (stripped, true)
+            let (after_tilde, mut is_inverse) =
+                if let Some(stripped) = after_sep.strip_prefix('~') {
+                    (stripped, true)
+                } else {
+                    (after_sep, false)
+                };
+            if starts_with_tilde {
+                is_inverse = true;
+            }
+
+            let type_char = after_tilde.chars().next()?;
+            let type_char_len = type_char.len_utf8();
+            let rest_after_type = after_tilde.get(type_char_len..)?.trim();
+
+            let rest_clean =
+                if let Some(stripped) = rest_after_type.strip_prefix('~') {
+                    is_inverse = true;
+                    stripped.trim()
+                } else {
+                    rest_after_type
+                };
+
+            let t = match type_char {
+                'b' | 'B' | 'c' | 'C' => IndirectType::Byte,
+                's' | 'h' => IndirectType::ShortLe,
+                'S' | 'H' => IndirectType::ShortBe,
+                'l' => IndirectType::LongLe,
+                'L' => IndirectType::LongBe,
+                'i' => IndirectType::Id3Le,
+                'I' => IndirectType::Id3Be,
+                'q' | 'm' | 'e' | 'f' | 'g' => IndirectType::QuadLe,
+                'Q' | 'E' | 'F' | 'G' => IndirectType::QuadBe,
+                _ => IndirectType::LongLe,
+            };
+
+            let (op, adjustment) = parse_indirect_op_and_adj(rest_clean);
+            (base_str.trim(), t, is_signed, is_inverse, op, adjustment)
         } else {
-            (after_sep, false)
+            let (before_adj, adjustment) = split_trailing_adj(inner);
+            (
+                before_adj.trim(),
+                IndirectType::LongLe,
+                false,
+                starts_with_tilde,
+                None,
+                adjustment,
+            )
         };
-        if starts_with_tilde {
-            is_inverse = true;
-        }
-
-        let type_char = after_tilde.chars().next()?;
-        let type_char_len = type_char.len_utf8();
-        let rest_after_type = after_tilde.get(type_char_len..)?.trim();
-
-        let rest_clean = if let Some(stripped) = rest_after_type.strip_prefix('~') {
-            is_inverse = true;
-            stripped.trim()
-        } else {
-            rest_after_type
-        };
-
-        let t = match type_char {
-            'b' | 'B' | 'c' | 'C' => IndirectType::Byte,
-            's' | 'h' => IndirectType::ShortLe,
-            'S' | 'H' => IndirectType::ShortBe,
-            'l' => IndirectType::LongLe,
-            'L' => IndirectType::LongBe,
-            'i' => IndirectType::Id3Le,
-            'I' => IndirectType::Id3Be,
-            'q' | 'm' | 'e' | 'f' | 'g' => IndirectType::QuadLe,
-            'Q' | 'E' | 'F' | 'G' => IndirectType::QuadBe,
-            _ => IndirectType::LongLe,
-        };
-
-        let (op, adjustment) = parse_indirect_op_and_adj(rest_clean);
-        (base_str.trim(), t, is_signed, is_inverse, op, adjustment)
-    } else {
-        let (before_adj, adjustment) = split_trailing_adj(inner);
-        (before_adj.trim(), IndirectType::LongLe, false, starts_with_tilde, None, adjustment)
-    };
 
     let base = if let Some(stripped) = base_part.strip_prefix('&') {
         let rel_val = parse_signed_magic_int(stripped)?;
@@ -1056,8 +1073,23 @@ pub fn parse_offset(offset_str: &str) -> Option<Offset> {
     if trimmed.starts_with("&(") && trimmed.ends_with(')') {
         let inner = trimmed.strip_prefix('&')?;
         let ind = parse_indirect_offset(inner)?;
-        if let Offset::Indirect { base, ind_type, is_signed, is_inverse, op, adjustment } = ind {
-            Some(Offset::RelativeIndirect { base, ind_type, is_signed, is_inverse, op, adjustment })
+        if let Offset::Indirect {
+            base,
+            ind_type,
+            is_signed,
+            is_inverse,
+            op,
+            adjustment,
+        } = ind
+        {
+            Some(Offset::RelativeIndirect {
+                base,
+                ind_type,
+                is_signed,
+                is_inverse,
+                op,
+                adjustment,
+            })
         } else {
             None
         }
@@ -1084,14 +1116,21 @@ fn parse_guid(s: &str) -> Option<[u8; 16]> {
     if clean.len() != 32 {
         return None;
     }
-    let d1 = u32::from_str_radix(clean.get(0..8)?, 16).ok()?.to_le_bytes();
-    let d2 = u16::from_str_radix(clean.get(8..12)?, 16).ok()?.to_le_bytes();
-    let d3 = u16::from_str_radix(clean.get(12..16)?, 16).ok()?.to_le_bytes();
+    let d1 = u32::from_str_radix(clean.get(0..8)?, 16)
+        .ok()?
+        .to_le_bytes();
+    let d2 = u16::from_str_radix(clean.get(8..12)?, 16)
+        .ok()?
+        .to_le_bytes();
+    let d3 = u16::from_str_radix(clean.get(12..16)?, 16)
+        .ok()?
+        .to_le_bytes();
     let mut out = [0u8; 16];
     out[0..4].copy_from_slice(&d1);
     out[4..6].copy_from_slice(&d2);
     out[6..8].copy_from_slice(&d3);
-    for (i, chunk) in clean.get(16..32)?.as_bytes().chunks_exact(2).enumerate() {
+    for (i, chunk) in clean.get(16..32)?.as_bytes().chunks_exact(2).enumerate()
+    {
         let chunk_str = std::str::from_utf8(chunk).ok()?;
         let b = u8::from_str_radix(chunk_str, 16).ok()?;
         let idx = 8usize.saturating_add(i);
@@ -1153,7 +1192,9 @@ fn parse_pstring_flags(flags_str: Option<&str>) -> (PascalLengthSize, bool) {
     (size, inc)
 }
 
-fn parse_regex_flags(flags_str: Option<&str>) -> (bool, usize, Option<usize>, bool) {
+fn parse_regex_flags(
+    flags_str: Option<&str>,
+) -> (bool, usize, Option<usize>, bool) {
     let mut case_insensitive = false;
     let mut line_limit = None;
     let mut offset_start = false;
@@ -1200,7 +1241,10 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
             if let Some(&first_digit) = chars.peek() {
                 if ('0'..='7').contains(&first_digit) {
                     chars.next();
-                    #[expect(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
+                    #[expect(
+                        clippy::expect_used,
+                        reason = "character checked in '0'..='7' so to_digit(8) is infallible"
+                    )]
                     let mut oct_val = first_digit
                         .to_digit(8)
                         .expect("first_digit in '0'..='7' is valid octal");
@@ -1208,11 +1252,16 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
                         if let Some(&d) = chars.peek() {
                             if ('0'..='7').contains(&d) {
                                 chars.next();
-                                #[expect(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
-                                let d_val = d
-                                    .to_digit(8)
-                                    .expect("digit in '0'..='7' is valid octal");
-                                oct_val = oct_val.saturating_mul(8).saturating_add(d_val);
+                                #[expect(
+                                    clippy::expect_used,
+                                    reason = "character checked in '0'..='7' so to_digit(8) is infallible"
+                                )]
+                                let d_val = d.to_digit(8).expect(
+                                    "digit in '0'..='7' is valid octal",
+                                );
+                                oct_val = oct_val
+                                    .saturating_mul(8)
+                                    .saturating_add(d_val);
                             } else {
                                 break;
                             }
@@ -1235,11 +1284,15 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
     res
 }
 
-
 /// Parses a single libmagic rule line into components.
-pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTest, Option<String>)> {
+pub fn parse_magic_line(
+    line: &str,
+) -> Option<(usize, Offset, MagicCond, MagicTest, Option<String>)> {
     let trimmed = line.trim();
-    if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("!:") {
+    if trimmed.is_empty()
+        || trimmed.starts_with('#')
+        || trimmed.starts_with("!:")
+    {
         return None;
     }
 
@@ -1273,10 +1326,12 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
         if tokens.get(1).map(std::string::String::as_str) == Some("if") {
             cond = MagicCond::If;
             tokens.remove(1);
-        } else if tokens.get(1).map(std::string::String::as_str) == Some("elif") {
+        } else if tokens.get(1).map(std::string::String::as_str) == Some("elif")
+        {
             cond = MagicCond::Elif;
             tokens.remove(1);
-        } else if tokens.get(1).map(std::string::String::as_str) == Some("else") {
+        } else if tokens.get(1).map(std::string::String::as_str) == Some("else")
+        {
             cond = MagicCond::Else;
             tokens.remove(1);
         }
@@ -1332,13 +1387,31 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
 
     // Handle named templates and use invocations
     if type_str == "name" {
-        return Some((cont_level, offset, cond, MagicTest::Name(val_str.to_string()), description));
+        return Some((
+            cont_level,
+            offset,
+            cond,
+            MagicTest::Name(val_str.to_string()),
+            description,
+        ));
     }
     if type_str == "use" {
-        return Some((cont_level, offset, cond, MagicTest::Use(val_str.to_string()), description));
+        return Some((
+            cont_level,
+            offset,
+            cond,
+            MagicTest::Use(val_str.to_string()),
+            description,
+        ));
     }
     if type_str == "indirect" {
-        return Some((cont_level, offset, cond, MagicTest::Indirect, description));
+        return Some((
+            cont_level,
+            offset,
+            cond,
+            MagicTest::Indirect,
+            description,
+        ));
     }
 
     // Parse type and optional mask (&...)
@@ -1350,39 +1423,52 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
     };
 
     // Parse type and optional numeric operator (%N, /N) or string flags (/...)
-    let (base_type, flags_str, num_op) = if let Some(idx) = type_no_mask.find('%') {
-        let (t, op_str) = type_no_mask.split_at(idx);
-        // Reason for fallback: default to modulo 1 if operator operand is missing or invalid
-        let operand = op_str.strip_prefix('%').and_then(parse_magic_int).unwrap_or(1);
-        (t, None, NumOp::Mod(operand))
-    } else if let Some(idx) = type_no_mask.find('/') {
-        let (t, rest) = type_no_mask.split_at(idx);
-        // Reason for fallback: strip leading slash from type flags or division string, defaulting to empty string
-        let f = rest.strip_prefix('/').unwrap_or("");
-        if f.chars().all(|c| c.is_ascii_digit())
-            && !f.is_empty()
-            && (t.contains("long") || t.contains("short") || t.contains("byte") || t.contains("quad"))
-        {
-            // Reason for fallback: default to division by 1 if division operand is invalid
-            let operand = parse_magic_int(f).unwrap_or(1);
-            (t, None, NumOp::Div(operand))
+    let (base_type, flags_str, num_op) =
+        if let Some(idx) = type_no_mask.find('%') {
+            let (t, op_str) = type_no_mask.split_at(idx);
+            // Reason for fallback: default to modulo 1 if operator operand is missing or invalid
+            let operand = op_str
+                .strip_prefix('%')
+                .and_then(parse_magic_int)
+                .unwrap_or(1);
+            (t, None, NumOp::Mod(operand))
+        } else if let Some(idx) = type_no_mask.find('/') {
+            let (t, rest) = type_no_mask.split_at(idx);
+            // Reason for fallback: strip leading slash from type flags or division string, defaulting to empty string
+            let f = rest.strip_prefix('/').unwrap_or("");
+            if f.chars().all(|c| c.is_ascii_digit())
+                && !f.is_empty()
+                && (t.contains("long")
+                    || t.contains("short")
+                    || t.contains("byte")
+                    || t.contains("quad"))
+            {
+                // Reason for fallback: default to division by 1 if division operand is invalid
+                let operand = parse_magic_int(f).unwrap_or(1);
+                (t, None, NumOp::Div(operand))
+            } else {
+                (t, Some(f), NumOp::None)
+            }
         } else {
-            (t, Some(f), NumOp::None)
-        }
-    } else {
-        (type_no_mask, None, NumOp::None)
-    };
+            (type_no_mask, None, NumOp::None)
+        };
 
     // Parse type adjustment e.g. leldate+631065600
     let (base_type_no_adj, type_adj) = if let Some(idx) = base_type.find('+') {
         let (t, a) = base_type.split_at(idx);
         // Reason for fallback: default to zero offset adjustment if positive adjustment is invalid or missing
-        let adj = a.strip_prefix('+').and_then(parse_signed_magic_int).unwrap_or(0);
+        let adj = a
+            .strip_prefix('+')
+            .and_then(parse_signed_magic_int)
+            .unwrap_or(0);
         (t, adj)
     } else if let Some(idx) = base_type.find('-') {
         let (t, a) = base_type.split_at(idx);
         // Reason for fallback: default to zero offset adjustment if negative adjustment is invalid or missing
-        let adj = a.strip_prefix('-').and_then(parse_signed_magic_int).map_or(0, i64::saturating_neg);
+        let adj = a
+            .strip_prefix('-')
+            .and_then(parse_signed_magic_int)
+            .map_or(0, i64::saturating_neg);
         (t, adj)
     } else {
         (base_type, 0)
@@ -1396,29 +1482,51 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
                 MagicTest::StringAny(flags)
             } else if let Some(stripped) = val_str.strip_prefix('>') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::StringRelOp { pattern: bytes, op: RelOp::Gt, flags }
+                MagicTest::StringRelOp {
+                    pattern: bytes,
+                    op: RelOp::Gt,
+                    flags,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('<') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::StringRelOp { pattern: bytes, op: RelOp::Lt, flags }
+                MagicTest::StringRelOp {
+                    pattern: bytes,
+                    op: RelOp::Lt,
+                    flags,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('!') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::StringRelOp { pattern: bytes, op: RelOp::Ne, flags }
+                MagicTest::StringRelOp {
+                    pattern: bytes,
+                    op: RelOp::Ne,
+                    flags,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('=') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String { pattern: bytes, flags }
+                MagicTest::String {
+                    pattern: bytes,
+                    flags,
+                }
             } else {
                 let bytes = decode_magic_escapes(val_str);
                 if flags == StringFlags::default() {
                     MagicTest::ExactBytes(bytes)
                 } else {
-                    MagicTest::String { pattern: bytes, flags }
+                    MagicTest::String {
+                        pattern: bytes,
+                        flags,
+                    }
                 }
             }
         }
         "pstring" => {
-            let (length_size, length_includes_itself) = parse_pstring_flags(flags_str);
+            let (length_size, length_includes_itself) =
+                parse_pstring_flags(flags_str);
             if val_str == "x" {
-                MagicTest::PascalStringAny { length_size, length_includes_itself }
+                MagicTest::PascalStringAny {
+                    length_size,
+                    length_includes_itself,
+                }
             } else {
                 let bytes = decode_magic_escapes(val_str);
                 MagicTest::PascalString {
@@ -1429,18 +1537,21 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
             }
         }
         "regex" => {
-            let (case_insensitive, max_bytes, line_limit, offset_start) = parse_regex_flags(flags_str);
+            let (case_insensitive, max_bytes, line_limit, offset_start) =
+                parse_regex_flags(flags_str);
             let (_, pattern_raw) = parse_op_and_val(val_str);
-            let unescaped_pattern = if let Some(stripped) = pattern_raw.strip_prefix(r"\^") {
-                format!("^{stripped}")
-            } else if let Some(stripped) = pattern_raw.strip_prefix(r"\<") {
-                format!("<{stripped}")
-            } else if let Some(stripped) = pattern_raw.strip_prefix(r"\>") {
-                format!(">{stripped}")
-            } else {
-                pattern_raw.to_string()
-            };
-            let converted_pattern = convert_regex_octal_escapes(&unescaped_pattern);
+            let unescaped_pattern =
+                if let Some(stripped) = pattern_raw.strip_prefix(r"\^") {
+                    format!("^{stripped}")
+                } else if let Some(stripped) = pattern_raw.strip_prefix(r"\<") {
+                    format!("<{stripped}")
+                } else if let Some(stripped) = pattern_raw.strip_prefix(r"\>") {
+                    format!(">{stripped}")
+                } else {
+                    pattern_raw.to_string()
+                };
+            let converted_pattern =
+                convert_regex_octal_escapes(&unescaped_pattern);
             MagicTest::Regex {
                 pattern: converted_pattern,
                 case_insensitive,
@@ -1450,116 +1561,228 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
             }
         }
         "byte" | "ubyte" => {
-            let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u8::try_from(v).ok()));
+            let mask = mask_str.and_then(|m| {
+                parse_magic_int(m).and_then(|v| u8::try_from(v).ok())
+            });
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::U8 { value: 0, op: RelOp::Any, mask, num_op }
+                MagicTest::U8 {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                    num_op,
+                }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u8::try_from(val_u64).ok()?;
-                MagicTest::U8 { value: val, op, mask, num_op }
+                MagicTest::U8 {
+                    value: val,
+                    op,
+                    mask,
+                    num_op,
+                }
             }
         }
         "leshort" | "short" | "ushort" | "uleshort" => {
-            let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u16::try_from(v).ok()));
+            let mask = mask_str.and_then(|m| {
+                parse_magic_int(m).and_then(|v| u16::try_from(v).ok())
+            });
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::U16Le { value: 0, op: RelOp::Any, mask, num_op }
+                MagicTest::U16Le {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                    num_op,
+                }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u16::try_from(val_u64).ok()?;
-                MagicTest::U16Le { value: val, op, mask, num_op }
+                MagicTest::U16Le {
+                    value: val,
+                    op,
+                    mask,
+                    num_op,
+                }
             }
         }
         "beshort" | "ubeshort" => {
-            let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u16::try_from(v).ok()));
+            let mask = mask_str.and_then(|m| {
+                parse_magic_int(m).and_then(|v| u16::try_from(v).ok())
+            });
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::U16Be { value: 0, op: RelOp::Any, mask, num_op }
+                MagicTest::U16Be {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                    num_op,
+                }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u16::try_from(val_u64).ok()?;
-                MagicTest::U16Be { value: val, op, mask, num_op }
+                MagicTest::U16Be {
+                    value: val,
+                    op,
+                    mask,
+                    num_op,
+                }
             }
         }
         "lelong" | "long" | "ulong" | "ulelong" => {
-            let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u32::try_from(v).ok()));
+            let mask = mask_str.and_then(|m| {
+                parse_magic_int(m).and_then(|v| u32::try_from(v).ok())
+            });
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::U32Le { value: 0, op: RelOp::Any, mask, num_op }
+                MagicTest::U32Le {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                    num_op,
+                }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u32::try_from(val_u64).ok()?;
-                MagicTest::U32Le { value: val, op, mask, num_op }
+                MagicTest::U32Le {
+                    value: val,
+                    op,
+                    mask,
+                    num_op,
+                }
             }
         }
         "belong" | "ubelong" => {
-            let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u32::try_from(v).ok()));
+            let mask = mask_str.and_then(|m| {
+                parse_magic_int(m).and_then(|v| u32::try_from(v).ok())
+            });
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::U32Be { value: 0, op: RelOp::Any, mask, num_op }
+                MagicTest::U32Be {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                    num_op,
+                }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u32::try_from(val_u64).ok()?;
-                MagicTest::U32Be { value: val, op, mask, num_op }
+                MagicTest::U32Be {
+                    value: val,
+                    op,
+                    mask,
+                    num_op,
+                }
             }
         }
         "lequad" | "ulequad" => {
             let mask = mask_str.and_then(parse_magic_int);
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::U64Le { value: 0, op: RelOp::Any, mask, num_op }
+                MagicTest::U64Le {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                    num_op,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::U64Le { value: val, op, mask, num_op }
+                MagicTest::U64Le {
+                    value: val,
+                    op,
+                    mask,
+                    num_op,
+                }
             }
         }
         "bequad" | "ubequad" | "quad" => {
             let mask = mask_str.and_then(parse_magic_int);
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::U64Be { value: 0, op: RelOp::Any, mask, num_op }
+                MagicTest::U64Be {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                    num_op,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::U64Be { value: val, op, mask, num_op }
+                MagicTest::U64Be {
+                    value: val,
+                    op,
+                    mask,
+                    num_op,
+                }
             }
         }
         "date" | "bedate" | "ldate" | "beldate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date32Be { value: 0, op: RelOp::Any, adjustment: type_adj }
+                MagicTest::Date32Be {
+                    value: 0,
+                    op: RelOp::Any,
+                    adjustment: type_adj,
+                }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u32::try_from(val_u64).ok()?;
-                MagicTest::Date32Be { value: val, op, adjustment: type_adj }
+                MagicTest::Date32Be {
+                    value: val,
+                    op,
+                    adjustment: type_adj,
+                }
             }
         }
         "ledate" | "leldate" | "medate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date32Le { value: 0, op: RelOp::Any, adjustment: type_adj }
+                MagicTest::Date32Le {
+                    value: 0,
+                    op: RelOp::Any,
+                    adjustment: type_adj,
+                }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u32::try_from(val_u64).ok()?;
-                MagicTest::Date32Le { value: val, op, adjustment: type_adj }
+                MagicTest::Date32Le {
+                    value: val,
+                    op,
+                    adjustment: type_adj,
+                }
             }
         }
         "qdate" | "beqdate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date64Be { value: 0, op: RelOp::Any, adjustment: type_adj }
+                MagicTest::Date64Be {
+                    value: 0,
+                    op: RelOp::Any,
+                    adjustment: type_adj,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::Date64Be { value: val, op, adjustment: type_adj }
+                MagicTest::Date64Be {
+                    value: val,
+                    op,
+                    adjustment: type_adj,
+                }
             }
         }
         "leqdate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date64Le { value: 0, op: RelOp::Any, adjustment: type_adj }
+                MagicTest::Date64Le {
+                    value: 0,
+                    op: RelOp::Any,
+                    adjustment: type_adj,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::Date64Le { value: val, op, adjustment: type_adj }
+                MagicTest::Date64Le {
+                    value: val,
+                    op,
+                    adjustment: type_adj,
+                }
             }
         }
         "lemsdosdate" | "msdosdate" => MagicTest::MsDosDate,
@@ -1583,37 +1806,61 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
         "float" | "lefloat" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::FloatLe { value_bits: 0, op: RelOp::Any }
+                MagicTest::FloatLe {
+                    value_bits: 0,
+                    op: RelOp::Any,
+                }
             } else {
                 let val: f32 = num_str.parse().ok()?;
-                MagicTest::FloatLe { value_bits: val.to_bits(), op }
+                MagicTest::FloatLe {
+                    value_bits: val.to_bits(),
+                    op,
+                }
             }
         }
         "befloat" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::FloatBe { value_bits: 0, op: RelOp::Any }
+                MagicTest::FloatBe {
+                    value_bits: 0,
+                    op: RelOp::Any,
+                }
             } else {
                 let val: f32 = num_str.parse().ok()?;
-                MagicTest::FloatBe { value_bits: val.to_bits(), op }
+                MagicTest::FloatBe {
+                    value_bits: val.to_bits(),
+                    op,
+                }
             }
         }
         "double" | "ledouble" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::DoubleLe { value_bits: 0, op: RelOp::Any }
+                MagicTest::DoubleLe {
+                    value_bits: 0,
+                    op: RelOp::Any,
+                }
             } else {
                 let val: f64 = num_str.parse().ok()?;
-                MagicTest::DoubleLe { value_bits: val.to_bits(), op }
+                MagicTest::DoubleLe {
+                    value_bits: val.to_bits(),
+                    op,
+                }
             }
         }
         "bedouble" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::DoubleBe { value_bits: 0, op: RelOp::Any }
+                MagicTest::DoubleBe {
+                    value_bits: 0,
+                    op: RelOp::Any,
+                }
             } else {
                 let val: f64 = num_str.parse().ok()?;
-                MagicTest::DoubleBe { value_bits: val.to_bits(), op }
+                MagicTest::DoubleBe {
+                    value_bits: val.to_bits(),
+                    op,
+                }
             }
         }
         "lestring16" => {
@@ -1622,19 +1869,39 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
                 MagicTest::String16LeAny(flags)
             } else if let Some(stripped) = val_str.strip_prefix('>') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Gt }
+                MagicTest::String16Le {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Gt,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('<') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Lt }
+                MagicTest::String16Le {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Lt,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('!') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Ne }
+                MagicTest::String16Le {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Ne,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('=') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Eq }
+                MagicTest::String16Le {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Eq,
+                }
             } else {
                 let bytes = decode_magic_escapes(val_str);
-                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Eq }
+                MagicTest::String16Le {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Eq,
+                }
             }
         }
         "bestring16" => {
@@ -1643,65 +1910,123 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
                 MagicTest::String16BeAny(flags)
             } else if let Some(stripped) = val_str.strip_prefix('>') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Gt }
+                MagicTest::String16Be {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Gt,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('<') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Lt }
+                MagicTest::String16Be {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Lt,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('!') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Ne }
+                MagicTest::String16Be {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Ne,
+                }
             } else if let Some(stripped) = val_str.strip_prefix('=') {
                 let bytes = decode_magic_escapes(stripped);
-                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Eq }
+                MagicTest::String16Be {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Eq,
+                }
             } else {
                 let bytes = decode_magic_escapes(val_str);
-                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Eq }
+                MagicTest::String16Be {
+                    pattern: bytes,
+                    flags,
+                    op: RelOp::Eq,
+                }
             }
         }
         "levarint" => {
             let mask = mask_str.and_then(parse_magic_int);
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::VarintLe { value: 0, op: RelOp::Any, mask }
+                MagicTest::VarintLe {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::VarintLe { value: val, op, mask }
+                MagicTest::VarintLe {
+                    value: val,
+                    op,
+                    mask,
+                }
             }
         }
         "bevarint" => {
             let mask = mask_str.and_then(parse_magic_int);
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::VarintBe { value: 0, op: RelOp::Any, mask }
+                MagicTest::VarintBe {
+                    value: 0,
+                    op: RelOp::Any,
+                    mask,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::VarintBe { value: val, op, mask }
+                MagicTest::VarintBe {
+                    value: val,
+                    op,
+                    mask,
+                }
             }
         }
         "qwdate" | "beqwdate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::DateWindows64Be { value: 0, op: RelOp::Any, adjustment: type_adj }
+                MagicTest::DateWindows64Be {
+                    value: 0,
+                    op: RelOp::Any,
+                    adjustment: type_adj,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::DateWindows64Be { value: val, op, adjustment: type_adj }
+                MagicTest::DateWindows64Be {
+                    value: val,
+                    op,
+                    adjustment: type_adj,
+                }
             }
         }
         "leqwdate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::DateWindows64Le { value: 0, op: RelOp::Any, adjustment: type_adj }
+                MagicTest::DateWindows64Le {
+                    value: 0,
+                    op: RelOp::Any,
+                    adjustment: type_adj,
+                }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::DateWindows64Le { value: val, op, adjustment: type_adj }
+                MagicTest::DateWindows64Le {
+                    value: val,
+                    op,
+                    adjustment: type_adj,
+                }
             }
         }
         "octal" => {
             if val_str == "x" {
-                MagicTest::Octal { pattern: Vec::new(), is_any: true }
+                MagicTest::Octal {
+                    pattern: Vec::new(),
+                    is_any: true,
+                }
             } else {
                 let bytes = decode_magic_escapes(val_str);
-                MagicTest::Octal { pattern: bytes, is_any: false }
+                MagicTest::Octal {
+                    pattern: bytes,
+                    is_any: false,
+                }
             }
         }
         "offset" => MagicTest::OffsetVal,
@@ -1713,15 +2038,21 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
         }
         _ if base_type_no_adj.starts_with("search") => {
             let (flags, max_bytes) = parse_search_flags(flags_str);
-            let (negated, target_val) = if let Some(stripped) = val_str.strip_prefix('!') {
-                (true, stripped)
-            } else if let Some(stripped) = val_str.strip_prefix('=') {
-                (false, stripped)
-            } else {
-                (false, val_str)
-            };
+            let (negated, target_val) =
+                if let Some(stripped) = val_str.strip_prefix('!') {
+                    (true, stripped)
+                } else if let Some(stripped) = val_str.strip_prefix('=') {
+                    (false, stripped)
+                } else {
+                    (false, val_str)
+                };
             let bytes = decode_magic_escapes(target_val);
-            MagicTest::Search { pattern: bytes, max_bytes, flags, negated }
+            MagicTest::Search {
+                pattern: bytes,
+                max_bytes,
+                flags,
+                negated,
+            }
         }
         _ => return None,
     };
@@ -1761,50 +2092,128 @@ pub fn calculate_rule_strength(test: &MagicTest) -> u32 {
     let base = 20u32;
     match test {
         MagicTest::Default => 0,
-        MagicTest::Clear | MagicTest::Name(_) | MagicTest::Use(_) | MagicTest::Indirect => 0,
-        MagicTest::ExactBytes(b) => base.saturating_add(pattern_len_strength(b.len()).saturating_mul(mult)),
-        MagicTest::MaskedBytes { bytes, .. } => base.saturating_add(pattern_len_strength(bytes.len()).saturating_mul(mult)),
-        MagicTest::String { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
+        MagicTest::Clear
+        | MagicTest::Name(_)
+        | MagicTest::Use(_)
+        | MagicTest::Indirect => 0,
+        MagicTest::ExactBytes(b) => base
+            .saturating_add(pattern_len_strength(b.len()).saturating_mul(mult)),
+        MagicTest::MaskedBytes { bytes, .. } => base.saturating_add(
+            pattern_len_strength(bytes.len()).saturating_mul(mult),
+        ),
+        MagicTest::String { pattern, .. } => base.saturating_add(
+            pattern_len_strength(pattern.len()).saturating_mul(mult),
+        ),
         MagicTest::StringAny(_) => 0,
-        MagicTest::StringRelOp { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
-        MagicTest::PascalString { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
+        MagicTest::StringRelOp { pattern, .. } => base.saturating_add(
+            pattern_len_strength(pattern.len()).saturating_mul(mult),
+        ),
+        MagicTest::PascalString { pattern, .. } => base.saturating_add(
+            pattern_len_strength(pattern.len()).saturating_mul(mult),
+        ),
         MagicTest::PascalStringAny { .. } => 20,
-        MagicTest::Search { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
-        MagicTest::Regex { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len().min(10)).saturating_mul(mult)),
-        MagicTest::U8 { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(10) },
-        MagicTest::U16Le { op, .. } | MagicTest::U16Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(20) },
-        MagicTest::U32Le { op, .. } | MagicTest::U32Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(40) },
-        MagicTest::U64Le { op, .. } | MagicTest::U64Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(80) },
-        MagicTest::Date32Le { op, .. } | MagicTest::Date32Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(40) },
-        MagicTest::Date64Le { op, .. } | MagicTest::Date64Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(80) },
-        MagicTest::Guid(_) | MagicTest::GuidLe(_) | MagicTest::GuidBe(_) => base.saturating_add(160),
+        MagicTest::Search { pattern, .. } => base.saturating_add(
+            pattern_len_strength(pattern.len()).saturating_mul(mult),
+        ),
+        MagicTest::Regex { pattern, .. } => base.saturating_add(
+            pattern_len_strength(pattern.len().min(10)).saturating_mul(mult),
+        ),
+        MagicTest::U8 { op, .. } => {
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(10)
+            }
+        }
+        MagicTest::U16Le { op, .. } | MagicTest::U16Be { op, .. } => {
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(20)
+            }
+        }
+        MagicTest::U32Le { op, .. } | MagicTest::U32Be { op, .. } => {
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(40)
+            }
+        }
+        MagicTest::U64Le { op, .. } | MagicTest::U64Be { op, .. } => {
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(80)
+            }
+        }
+        MagicTest::Date32Le { op, .. } | MagicTest::Date32Be { op, .. } => {
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(40)
+            }
+        }
+        MagicTest::Date64Le { op, .. } | MagicTest::Date64Be { op, .. } => {
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(80)
+            }
+        }
+        MagicTest::Guid(_) | MagicTest::GuidLe(_) | MagicTest::GuidBe(_) => {
+            base.saturating_add(160)
+        }
         MagicTest::GuidLeAny | MagicTest::GuidBeAny => 0,
         MagicTest::FloatLe { op, .. } | MagicTest::FloatBe { op, .. } => {
-            if *op == RelOp::Any { 0 } else { base.saturating_add(40) }
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(40)
+            }
         }
         MagicTest::DoubleLe { op, .. } | MagicTest::DoubleBe { op, .. } => {
-            if *op == RelOp::Any { 0 } else { base.saturating_add(80) }
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(80)
+            }
         }
-        MagicTest::String16Le { pattern, .. } | MagicTest::String16Be { pattern, .. } => {
+        MagicTest::String16Le { pattern, .. }
+        | MagicTest::String16Be { pattern, .. } => {
             // Reason for fallback: Divisor 2 is non-zero so dividing 16-bit byte length to character count cannot fail.
             let char_count = pattern.len().checked_div(2).unwrap_or(0);
-            base.saturating_add(pattern_len_strength(char_count).saturating_mul(mult))
+            base.saturating_add(
+                pattern_len_strength(char_count).saturating_mul(mult),
+            )
         }
         MagicTest::String16LeAny(_) | MagicTest::String16BeAny(_) => 0,
         MagicTest::VarintLe { op, .. } | MagicTest::VarintBe { op, .. } => {
-            if *op == RelOp::Any { 0 } else { base.saturating_add(80) }
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(80)
+            }
         }
-        MagicTest::DateWindows64Le { op, .. } | MagicTest::DateWindows64Be { op, .. } => {
-            if *op == RelOp::Any { 0 } else { base.saturating_add(80) }
+        MagicTest::DateWindows64Le { op, .. }
+        | MagicTest::DateWindows64Be { op, .. } => {
+            if *op == RelOp::Any {
+                0
+            } else {
+                base.saturating_add(80)
+            }
         }
         MagicTest::Octal { pattern, is_any } => {
             if *is_any {
                 0
             } else {
-                base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult))
+                base.saturating_add(
+                    pattern_len_strength(pattern.len()).saturating_mul(mult),
+                )
             }
         }
-        MagicTest::MsDosDate | MagicTest::MsDosTime | MagicTest::OffsetVal => base.saturating_add(20),
+        MagicTest::MsDosDate | MagicTest::MsDosTime | MagicTest::OffsetVal => {
+            base.saturating_add(20)
+        }
         MagicTest::Der(pat) => {
             if pat.expected_val.as_deref() == Some("x")
                 || (pat.expected_len.is_none() && pat.expected_val.is_none())
@@ -1820,10 +2229,15 @@ pub fn calculate_rule_strength(test: &MagicTest) -> u32 {
 /// Parses an entire libmagic file content into hierarchical root rules and named templates.
 pub fn parse_magic_content_with_templates(
     content: &str,
-) -> (Vec<HierarchicalMagicRule>, std::collections::HashMap<String, HierarchicalMagicRule>) {
+) -> (
+    Vec<HierarchicalMagicRule>,
+    std::collections::HashMap<String, HierarchicalMagicRule>,
+) {
     let mut root_rules = Vec::new();
-    let mut named_templates: std::collections::HashMap<String, HierarchicalMagicRule> =
-        std::collections::HashMap::new();
+    let mut named_templates: std::collections::HashMap<
+        String,
+        HierarchicalMagicRule,
+    > = std::collections::HashMap::new();
     let mut stack: Vec<HierarchicalMagicRule> = Vec::new();
     let mut current_template_name: Option<String> = None;
 
@@ -1835,7 +2249,8 @@ pub fn parse_magic_content_with_templates(
 
         // Check directives: !:mime, !:ext, !:apple, !:strength
         if let Some(directive) = trimmed.strip_prefix("!:") {
-            let parts: Vec<&str> = directive.splitn(2, char::is_whitespace).collect();
+            let parts: Vec<&str> =
+                directive.splitn(2, char::is_whitespace).collect();
             // Reason for fallback: empty directive parts default to empty string
             let name = parts.first().copied().unwrap_or("");
             // Reason for fallback: directive without value defaults to empty string
@@ -1851,19 +2266,27 @@ pub fn parse_magic_content_with_templates(
                         if let Some(root_target) = stack.first_mut() {
                             if let Some(rest) = clean.strip_prefix('+') {
                                 if let Ok(delta) = rest.parse::<u32>() {
-                                    root_target.strength = root_target.strength.saturating_add(delta);
+                                    root_target.strength = root_target
+                                        .strength
+                                        .saturating_add(delta);
                                 }
                             } else if let Some(rest) = clean.strip_prefix('-') {
                                 if let Ok(delta) = rest.parse::<u32>() {
-                                    root_target.strength = root_target.strength.saturating_sub(delta);
+                                    root_target.strength = root_target
+                                        .strength
+                                        .saturating_sub(delta);
                                 }
                             } else if let Some(rest) = clean.strip_prefix('*') {
                                 if let Ok(factor) = rest.parse::<u32>() {
-                                    root_target.strength = root_target.strength.saturating_mul(factor);
+                                    root_target.strength = root_target
+                                        .strength
+                                        .saturating_mul(factor);
                                 }
                             } else if let Some(rest) = clean.strip_prefix('/') {
                                 if let Ok(div) = rest.parse::<u32>() {
-                                    if let Some(res) = root_target.strength.checked_div(div) {
+                                    if let Some(res) =
+                                        root_target.strength.checked_div(div)
+                                    {
                                         root_target.strength = res;
                                     }
                                 }
@@ -1878,7 +2301,9 @@ pub fn parse_magic_content_with_templates(
             continue;
         }
 
-        let Some((level, offset, cond, test, description)) = parse_magic_line(trimmed) else {
+        let Some((level, offset, cond, test, description)) =
+            parse_magic_line(trimmed)
+        else {
             continue;
         };
 
@@ -1946,7 +2371,9 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
     parse_magic_content_with_templates(content).0
 }
 
-fn collapse_stack(stack: &mut Vec<HierarchicalMagicRule>) -> Option<HierarchicalMagicRule> {
+fn collapse_stack(
+    stack: &mut Vec<HierarchicalMagicRule>,
+) -> Option<HierarchicalMagicRule> {
     while stack.len() > 1 {
         let child = stack.pop()?;
         if let Some(parent) = stack.last_mut() {
@@ -2153,7 +2580,10 @@ mod tests {
 
         assert_eq!(rules.len(), 1);
         assert_eq!(rules[0].children.len(), 1);
-        assert_eq!(rules[0].children[0].test, MagicTest::Use("elf-details".to_string()));
+        assert_eq!(
+            rules[0].children[0].test,
+            MagicTest::Use("elf-details".to_string())
+        );
     }
 
     #[crate::ctb_test]
@@ -2185,29 +2615,78 @@ mod tests {
         assert_eq!(root.children.len(), 18);
 
         // lefloat >0.0001
-        assert!(matches!(root.children[0].test, MagicTest::FloatLe { op: RelOp::Gt, .. }));
+        assert!(matches!(
+            root.children[0].test,
+            MagicTest::FloatLe { op: RelOp::Gt, .. }
+        ));
         // befloat !0.0
-        assert!(matches!(root.children[1].test, MagicTest::FloatBe { op: RelOp::Ne, .. }));
+        assert!(matches!(
+            root.children[1].test,
+            MagicTest::FloatBe { op: RelOp::Ne, .. }
+        ));
         // ledouble
-        assert!(matches!(root.children[2].test, MagicTest::DoubleLe { op: RelOp::Eq, .. }));
+        assert!(matches!(
+            root.children[2].test,
+            MagicTest::DoubleLe { op: RelOp::Eq, .. }
+        ));
         // bedouble x
-        assert!(matches!(root.children[3].test, MagicTest::DoubleBe { op: RelOp::Any, .. }));
+        assert!(matches!(
+            root.children[3].test,
+            MagicTest::DoubleBe { op: RelOp::Any, .. }
+        ));
         // lestring16 Workbook
-        assert!(matches!(root.children[4].test, MagicTest::String16Le { ref pattern, op: RelOp::Eq, .. } if pattern == b"Workbook"));
+        assert!(
+            matches!(root.children[4].test, MagicTest::String16Le { ref pattern, op: RelOp::Eq, .. } if pattern == b"Workbook")
+        );
         // bestring16/c Title
-        assert!(matches!(root.children[5].test, MagicTest::String16Be { ref pattern, flags, .. } if pattern == b"Title" && flags.case_insensitive));
+        assert!(
+            matches!(root.children[5].test, MagicTest::String16Be { ref pattern, flags, .. } if pattern == b"Title" && flags.case_insensitive)
+        );
         // lestring16 x / bestring16 x
         assert!(matches!(root.children[6].test, MagicTest::String16LeAny(_)));
         assert!(matches!(root.children[7].test, MagicTest::String16BeAny(_)));
         // levarint / bevarint
-        assert!(matches!(root.children[8].test, MagicTest::VarintLe { value: 300, op: RelOp::Eq, mask: None }));
-        assert!(matches!(root.children[9].test, MagicTest::VarintBe { value: 120, op: RelOp::Eq, mask: Some(0xFF) }));
+        assert!(matches!(
+            root.children[8].test,
+            MagicTest::VarintLe {
+                value: 300,
+                op: RelOp::Eq,
+                mask: None
+            }
+        ));
+        assert!(matches!(
+            root.children[9].test,
+            MagicTest::VarintBe {
+                value: 120,
+                op: RelOp::Eq,
+                mask: Some(0xFF)
+            }
+        ));
         // qwdate / leqwdate
-        assert!(matches!(root.children[10].test, MagicTest::DateWindows64Be { op: RelOp::Any, adjustment: 3600, .. }));
-        assert!(matches!(root.children[11].test, MagicTest::DateWindows64Le { value: 1000, op: RelOp::Gt, .. }));
+        assert!(matches!(
+            root.children[10].test,
+            MagicTest::DateWindows64Be {
+                op: RelOp::Any,
+                adjustment: 3600,
+                ..
+            }
+        ));
+        assert!(matches!(
+            root.children[11].test,
+            MagicTest::DateWindows64Le {
+                value: 1000,
+                op: RelOp::Gt,
+                ..
+            }
+        ));
         // octal
-        assert!(matches!(root.children[12].test, MagicTest::Octal { ref pattern, is_any: false } if pattern == b"0755"));
-        assert!(matches!(root.children[13].test, MagicTest::Octal { is_any: true, .. }));
+        assert!(
+            matches!(root.children[12].test, MagicTest::Octal { ref pattern, is_any: false } if pattern == b"0755")
+        );
+        assert!(matches!(
+            root.children[13].test,
+            MagicTest::Octal { is_any: true, .. }
+        ));
         // guid / leguid / beguid
         assert!(matches!(root.children[14].test, MagicTest::GuidLe(_)));
         assert!(matches!(root.children[15].test, MagicTest::GuidLeAny));
@@ -2339,14 +2818,22 @@ mod tests {
         assert_eq!(rules.len(), 1);
         let root = &rules[0];
         assert_eq!(root.cond, MagicCond::None);
-        assert!(matches!(root.test, MagicTest::String { flags, .. } if flags.optional_whitespace));
+        assert!(
+            matches!(root.test, MagicTest::String { flags, .. } if flags.optional_whitespace)
+        );
         assert_eq!(root.children.len(), 4);
         assert_eq!(root.children[0].cond, MagicCond::If);
-        assert!(matches!(root.children[0].children[0].test, MagicTest::String { flags, .. } if flags.full_word));
+        assert!(
+            matches!(root.children[0].children[0].test, MagicTest::String { flags, .. } if flags.full_word)
+        );
         assert_eq!(root.children[1].cond, MagicCond::Elif);
-        assert!(matches!(root.children[1].children[0].test, MagicTest::String { flags, .. } if flags.text_only));
+        assert!(
+            matches!(root.children[1].children[0].test, MagicTest::String { flags, .. } if flags.text_only)
+        );
         assert_eq!(root.children[2].cond, MagicCond::Else);
-        assert!(matches!(root.children[2].children[0].test, MagicTest::String { flags, .. } if flags.binary_only));
+        assert!(
+            matches!(root.children[2].children[0].test, MagicTest::String { flags, .. } if flags.binary_only)
+        );
         assert_eq!(root.children[3].test, MagicTest::Clear);
     }
 }

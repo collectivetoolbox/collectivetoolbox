@@ -26,22 +26,28 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Tier 3: Cross-Feature Combinations (key-value maps in checksummed sections, format in optionals, shared contexts)
 //! - Tier 5: Adversarial Hardening (tamper detection, truncated byte streams, forward-compatible tags)
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
 use ctb_formats_checksum::sha256;
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_IDENTIFIER,
-    DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST,
-    DC_BEGIN_OPERATION_SESSION, DC_BEGIN_TYPE_DEF, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
-    DC_END_CHECKSUMMED_SECTION, DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER,
-    DC_END_KV_MAP, DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP, DC_END_LIST,
-    DC_END_OPERATION_SESSION, DC_END_TYPE_DEF, DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
-    DC_LIST_ELEMENT_SEPARATOR, DC_LOG_MESSAGE, DC_OPERATION_STATUS_CODE,
-    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
-    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_START_ENCAPSULATION_BINARY,
-    DC_END_ENCAPSULATION_BINARY, DC_TYPE_ANY,
+    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION,
+    DC_BEGIN_IDENTIFIER, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
+    DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BEGIN_OPERATION_SESSION,
+    DC_BEGIN_TYPE_DEF, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
+    DC_END_CHECKSUMMED_SECTION, DC_END_ENCAPSULATION_BINARY,
+    DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER, DC_END_KV_MAP,
+    DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP, DC_END_LIST,
+    DC_END_OPERATION_SESSION, DC_END_TYPE_DEF, DC_EQUIVALENT_REPRESENTATIONS,
+    DC_FILE_PATH_DELIMITER, DC_LIST_ELEMENT_SEPARATOR, DC_LOG_MESSAGE,
+    DC_OPERATION_STATUS_CODE, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
+    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_SECTION_DIGEST,
+    DC_SEQUENCE_IDENTIFIER, DC_START_ENCAPSULATION_BINARY, DC_TYPE_ANY,
 };
 use ctb_formats_dcdata::syntax::{
     CharTarget, DatasetRuleResolver, DcRole, Quantifier, SyntaxElement,
@@ -63,7 +69,9 @@ fn create_test_mstring(chars: &[DcChar]) -> DcMstring {
 }
 
 /// Helper to build a canonical typed list: `310 [275] [item1] 312 [item2] ... 311`.
-fn build_typed_list<T: DcMixedEncode + Clone>(items: &[T]) -> Result<DcMstring> {
+fn build_typed_list<T: DcMixedEncode + Clone>(
+    items: &[T],
+) -> Result<DcMstring> {
     let mut mst = DcMstring::new();
     items.to_vec().encode_dc_mixed(&mut mst)?;
     Ok(mst)
@@ -89,7 +97,12 @@ mod tier1_feature_coverage {
         doc.push_char(DC_TYPE_WILDCARD);
 
         // Format representation for FileName: 511 [f228] "test.txt" 512
-        encode_format_representation(&"test.txt".to_string(), fmt_char, &mut doc, &Default::default())?;
+        encode_format_representation(
+            &"test.txt".to_string(),
+            fmt_char,
+            &mut doc,
+            &Default::default(),
+        )?;
 
         doc.push_char(DC_END_LIST);
 
@@ -107,7 +120,10 @@ mod tier1_feature_coverage {
             list_stub.closer_dc == Some(DC_END_LIST),
             "Outer stub closer must be DC_END_LIST"
         );
-        ensure!(!list_stub.is_unclosed(), "Outer list should not be unclosed");
+        ensure!(
+            !list_stub.is_unclosed(),
+            "Outer list should not be unclosed"
+        );
 
         // 2. Drill into outer list
         nav.enter_frame(&list_stub)?;
@@ -134,11 +150,17 @@ mod tier1_feature_coverage {
             fmt_stub.closer_dc == Some(DC_END_FORMAT_REPRESENTATION),
             "Inner stub closer must be DC_END_FORMAT_REPRESENTATION"
         );
-        ensure!(!fmt_stub.is_unclosed(), "Inner format representation should not be unclosed");
+        ensure!(
+            !fmt_stub.is_unclosed(),
+            "Inner format representation should not be unclosed"
+        );
 
         // 3. Drill into inner format representation
         nav.enter_frame(&fmt_stub)?;
-        ensure!(nav.depth() == 2, "Nesting depth must be 2 inside format representation");
+        ensure!(
+            nav.depth() == 2,
+            "Nesting depth must be 2 inside format representation"
+        );
 
         // Step inside format representation consumes payload
         let _ = nav.next_sibling_stub(&policy)?;
@@ -178,9 +200,19 @@ mod tier1_feature_coverage {
         doc.push_char(DC_BEGIN_LIST);
         doc.push_char(DC_TYPE_WILDCARD);
 
-        encode_format_representation(&"first.txt".to_string(), fmt_char, &mut doc, &Default::default())?;
+        encode_format_representation(
+            &"first.txt".to_string(),
+            fmt_char,
+            &mut doc,
+            &Default::default(),
+        )?;
         doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
-        encode_format_representation(&"second.txt".to_string(), fmt_char, &mut doc, &Default::default())?;
+        encode_format_representation(
+            &"second.txt".to_string(),
+            fmt_char,
+            &mut doc,
+            &Default::default(),
+        )?;
 
         doc.push_char(DC_END_LIST);
 
@@ -258,19 +290,23 @@ mod tier1_feature_coverage {
 
         // Opener and closer mapping is completely data-driven
         ensure!(
-            resolver.closer_for_opener(&CharTarget::Dc(310)) == Some(sdc_val(311)),
+            resolver.closer_for_opener(&CharTarget::Dc(310))
+                == Some(sdc_val(311)),
             "Resolver must map 310 to closer 311"
         );
         ensure!(
-            resolver.closer_for_opener(&CharTarget::Dc(511)) == Some(sdc_val(512)),
+            resolver.closer_for_opener(&CharTarget::Dc(511))
+                == Some(sdc_val(512)),
             "Resolver must map 511 to closer 512"
         );
         ensure!(
-            resolver.closer_for_opener(&CharTarget::Dc(543)) == Some(sdc_val(544)),
+            resolver.closer_for_opener(&CharTarget::Dc(543))
+                == Some(sdc_val(544)),
             "Resolver must map 543 to closer 544"
         );
         ensure!(
-            resolver.closer_for_opener(&CharTarget::Dc(559)) == Some(sdc_val(560)),
+            resolver.closer_for_opener(&CharTarget::Dc(559))
+                == Some(sdc_val(560)),
             "Resolver must map 559 to closer 560"
         );
 
@@ -303,9 +339,7 @@ mod tier1_feature_coverage {
         );
 
         // Stray closer without opener
-        let stray_closer = create_test_mstring(&[
-            DC_END_LIST,
-        ]);
+        let stray_closer = create_test_mstring(&[DC_END_LIST]);
         ensure!(
             validate_dc_mixed_strict(&stray_closer).is_err(),
             "Stray closer without opener must be rejected by strict validation"
@@ -328,8 +362,16 @@ mod tier2_boundary_corner_cases {
     fn test_tier2_empty_containers() -> Result<()> {
         let policy = DcProjectionPolicy::forgiving();
         for (opener, closer, name) in [
-            (DC_BEGIN_FORMAT_REPRESENTATION, DC_END_FORMAT_REPRESENTATION, "empty format representation"),
-            (DC_BEGIN_LEGACY_KV_MAP, DC_END_LEGACY_KV_MAP, "empty legacy kv map"),
+            (
+                DC_BEGIN_FORMAT_REPRESENTATION,
+                DC_END_FORMAT_REPRESENTATION,
+                "empty format representation",
+            ),
+            (
+                DC_BEGIN_LEGACY_KV_MAP,
+                DC_END_LEGACY_KV_MAP,
+                "empty legacy kv map",
+            ),
             (DC_BEGIN_KV_MAP, DC_END_KV_MAP, "empty kv map"),
         ] {
             let doc = create_test_mstring(&[opener, closer]);
@@ -380,7 +422,9 @@ mod tier2_boundary_corner_cases {
         let mut strict_nav = DcDocumentNavigator::from_mstr(&unclosed_list);
         let strict_res = strict_nav.next_sibling_stub(&strict_policy);
         ensure!(
-            strict_res.is_err() || strict_res.is_ok_and(|opt| opt.is_some_and(|s| s.is_unclosed())),
+            strict_res.is_err()
+                || strict_res
+                    .is_ok_and(|opt| opt.is_some_and(|s| s.is_unclosed())),
             "Strict navigation must reject or flag unclosed container"
         );
 
@@ -426,7 +470,8 @@ mod tier2_boundary_corner_cases {
         ]);
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
-        let outer = nav.next_sibling_stub(&policy)?.context("Outer list stub")?;
+        let outer =
+            nav.next_sibling_stub(&policy)?.context("Outer list stub")?;
         ensure!(outer.head_dc == DC_BEGIN_LIST, "Outer list stub head");
         ensure!(!outer.is_unclosed(), "Outer list must not be unclosed");
 
@@ -469,7 +514,9 @@ mod tier2_boundary_corner_cases {
 
         // Escaped delimiters (255 515 and 255 312) inside a 514..515 key-value pair
         let mut kv_doc = DcString::new();
-        for short_id in [559u32, 275, 275, 514, 255, 515, 312, 255, 312, 515, 560] {
+        for short_id in
+            [559u32, 275, 275, 514, 255, 515, 312, 255, 312, 515, 560]
+        {
             kv_doc.push(DcChar::from_short(short_id));
         }
         let mut arena = DcSyntaxArena::new();
@@ -481,17 +528,24 @@ mod tier2_boundary_corner_cases {
         )?;
         let mut ctx = DcProjectionContext::new(&arena, &policy);
         let (_, entries) = ctx.extract_kv_map_entries(root_id)?;
-        ensure!(entries.len() == 1, "Expected 1 kv entry, got {}", entries.len());
-        let (key_id, val_id, _, _) = entries.into_iter().next().context("Missing kv entry")??;
+        ensure!(
+            entries.len() == 1,
+            "Expected 1 kv entry, got {}",
+            entries.len()
+        );
+        let (key_id, val_id, _, _) =
+            entries.into_iter().next().context("Missing kv entry")??;
         let key_node = arena.get(key_id).context("Missing key node")?;
         let val_node = arena.get(val_id).context("Missing val node")?;
         ensure!(
-            key_node.kind == DcSyntaxKind::Atom(DcChar::from_short(515)) && key_node.is_escaped_atom(),
+            key_node.kind == DcSyntaxKind::Atom(DcChar::from_short(515))
+                && key_node.is_escaped_atom(),
             "Expected escaped Atom(515) key, got {:?}",
             key_node
         );
         ensure!(
-            val_node.kind == DcSyntaxKind::Atom(DcChar::from_short(312)) && val_node.is_escaped_atom(),
+            val_node.kind == DcSyntaxKind::Atom(DcChar::from_short(312))
+                && val_node.is_escaped_atom(),
             "Expected escaped Atom(312) value, got {:?}",
             val_node
         );
@@ -513,15 +567,27 @@ mod tier2_boundary_corner_cases {
             legacy_arena.diagnostics()
         );
         let mut legacy_ctx = DcProjectionContext::new(&legacy_arena, &policy);
-        let (_, legacy_entries) = legacy_ctx.extract_kv_map_entries(legacy_root)?;
-        ensure!(legacy_entries.len() == 1, "Expected 1 legacy kv entry, got {}", legacy_entries.len());
-        let (lkey_id, lval_id, _, _) = legacy_entries.into_iter().next().context("Missing legacy kv entry")??;
+        let (_, legacy_entries) =
+            legacy_ctx.extract_kv_map_entries(legacy_root)?;
         ensure!(
-            legacy_arena.get(lkey_id).is_some_and(|n| n.kind == DcSyntaxKind::Atom(DcChar::from_short(314)) && n.is_escaped_atom()),
+            legacy_entries.len() == 1,
+            "Expected 1 legacy kv entry, got {}",
+            legacy_entries.len()
+        );
+        let (lkey_id, lval_id, _, _) = legacy_entries
+            .into_iter()
+            .next()
+            .context("Missing legacy kv entry")??;
+        ensure!(
+            legacy_arena.get(lkey_id).is_some_and(|n| n.kind
+                == DcSyntaxKind::Atom(DcChar::from_short(314))
+                && n.is_escaped_atom()),
             "Expected escaped Atom(314) key in legacy kv map"
         );
         ensure!(
-            legacy_arena.get(lval_id).is_some_and(|n| n.kind == DcSyntaxKind::Atom(DcChar::from_short(312)) && n.is_escaped_atom()),
+            legacy_arena.get(lval_id).is_some_and(|n| n.kind
+                == DcSyntaxKind::Atom(DcChar::from_short(312))
+                && n.is_escaped_atom()),
             "Expected escaped Atom(312) value in legacy kv map"
         );
         let mut reject_deprecated = DcProjectionPolicy::strict();
@@ -540,14 +606,20 @@ mod tier2_boundary_corner_cases {
         let mut resolution = DcMstring::new();
         resolution.push_char(DcChar::from_short(378));
         resolution.push_char(DC_EQUIVALENT_REPRESENTATIONS);
-        vec![std::time::Duration::from_nanos(1), std::time::Duration::from_nanos(1)]
-            .encode_dc_mixed(&mut resolution)?;
+        vec![
+            std::time::Duration::from_nanos(1),
+            std::time::Duration::from_nanos(1),
+        ]
+        .encode_dc_mixed(&mut resolution)?;
         validate_dc_mixed_strict(&resolution)?;
         let mut wrong_resolution = DcMstring::new();
         wrong_resolution.push_char(DcChar::from_short(378));
         wrong_resolution.push_char(DC_EQUIVALENT_REPRESENTATIONS);
         vec![true, true].encode_dc_mixed(&mut wrong_resolution)?;
-        ensure!(validate_dc_mixed_strict(&wrong_resolution).is_err(), "Representations bypassed datemagnitude operand type");
+        ensure!(
+            validate_dc_mixed_strict(&wrong_resolution).is_err(),
+            "Representations bypassed datemagnitude operand type"
+        );
 
         // Dc 388..389 (`:~ ([list:Semantic:fileflag] | [539:])? 389`) accepts 397/561 wrapping
         // both branches of the grouped alternation without explicit `| [397:] | [561:]` in CSV,
@@ -581,7 +653,8 @@ mod tier2_boundary_corner_cases {
     }
 
     #[crate::ctb_test]
-    fn numeric_subtype_constraints_apply_to_raw_and_wrapped_operands() -> Result<()> {
+    fn numeric_subtype_constraints_apply_to_raw_and_wrapped_operands()
+    -> Result<()> {
         let mut raw = DcMstring::new();
         raw.push_char(DcChar::from_short(376));
         (-1i64).encode_dc_mixed(&mut raw)?;
@@ -591,8 +664,10 @@ mod tier2_boundary_corner_cases {
         vec![-1i64, -1i64].encode_dc_mixed(&mut wrapped)?;
         let raw_accepted = validate_dc_mixed_strict(&raw).is_ok();
         let wrapped_accepted = validate_dc_mixed_strict(&wrapped).is_ok();
-        ensure!(!raw_accepted && !wrapped_accepted,
-            "Numeric subtype validation is pending: negative Natural0 accepted (raw={raw_accepted}, wrapped={wrapped_accepted})");
+        ensure!(
+            !raw_accepted && !wrapped_accepted,
+            "Numeric subtype validation is pending: negative Natural0 accepted (raw={raw_accepted}, wrapped={wrapped_accepted})"
+        );
         Ok(())
     }
 
@@ -716,7 +791,10 @@ mod tier3_cross_feature_combinations {
         if let DcFrameHeaderInfo::ChecksummedSection { digest_valid, .. } =
             section_stub.header_info
         {
-            ensure!(digest_valid, "Trailing section digest must be verified as valid");
+            ensure!(
+                digest_valid,
+                "Trailing section digest must be verified as valid"
+            );
         } else {
             anyhow::bail!("Expected ChecksummedSection header info");
         }
@@ -732,9 +810,20 @@ mod tier3_cross_feature_combinations {
         );
 
         nav.enter_frame(&kv_stub)?;
-        ensure!(nav.next_sibling_stub(&policy)?.context("Key type header")?.head_dc == DC_TYPE_WILDCARD);
-        ensure!(nav.next_sibling_stub(&policy)?.context("Value type header")?.head_dc == DC_TYPE_WILDCARD);
-        let pair_stub = nav.next_sibling_stub(&policy)?.context("KV pair stub")?;
+        ensure!(
+            nav.next_sibling_stub(&policy)?
+                .context("Key type header")?
+                .head_dc
+                == DC_TYPE_WILDCARD
+        );
+        ensure!(
+            nav.next_sibling_stub(&policy)?
+                .context("Value type header")?
+                .head_dc
+                == DC_TYPE_WILDCARD
+        );
+        let pair_stub =
+            nav.next_sibling_stub(&policy)?.context("KV pair stub")?;
         ensure!(
             pair_stub.head_dc == DC_BEGIN_KV_PAIR,
             "Pair stub must be DC_BEGIN_KV_PAIR"
@@ -757,11 +846,17 @@ mod tier3_cross_feature_combinations {
         present_doc.push_char(DC_BEGIN_LIST);
         present_doc.push_char(DC_TYPE_WILDCARD);
         present_doc.push_char(DC_OPTIONAL_PRESENT);
-        encode_format_representation(&"doc.txt".to_string(), fmt_char, &mut present_doc, &Default::default())?;
+        encode_format_representation(
+            &"doc.txt".to_string(),
+            fmt_char,
+            &mut present_doc,
+            &Default::default(),
+        )?;
         present_doc.push_char(DC_END_LIST);
 
-        validate_dc_mixed_strict(&present_doc)
-            .context("Optional present containing format must pass strict validation")?;
+        validate_dc_mixed_strict(&present_doc).context(
+            "Optional present containing format must pass strict validation",
+        )?;
 
         // Optional absent
         let absent_doc = create_test_mstring(&[
@@ -804,13 +899,25 @@ mod tier3_cross_feature_combinations {
         // Clear must reset length while retaining capacity
         arena.clear();
 
-        ensure!(arena.nodes().is_empty(), "Cleared arena must have zero nodes");
-        ensure!(arena.roots().is_empty(), "Cleared arena must have zero roots");
-        ensure!(arena.diagnostics().is_empty(), "Cleared arena must have zero diagnostics");
+        ensure!(
+            arena.nodes().is_empty(),
+            "Cleared arena must have zero nodes"
+        );
+        ensure!(
+            arena.roots().is_empty(),
+            "Cleared arena must have zero roots"
+        );
+        ensure!(
+            arena.diagnostics().is_empty(),
+            "Cleared arena must have zero diagnostics"
+        );
 
         // Reallocating in cleared arena works seamlessly
         let id3 = arena.alloc(span1, DcSyntaxKind::Atom(DC_BOOLEAN_TRUE));
-        ensure!(id3.0 == 0, "First allocation in cleared arena must reuse index 0");
+        ensure!(
+            id3.0 == 0,
+            "First allocation in cleared arena must reuse index 0"
+        );
 
         Ok(())
     }
@@ -836,13 +943,21 @@ mod tier5_adversarial_hardening {
             mst.push_char(DC_SEQUENCE_IDENTIFIER);
             1u64.encode_dc_mixed(&mut mst)?;
             mst.push_char(DC_BOOLEAN_TRUE);
-            let mut hasher = ctb_formats_checksum::StreamingHasher::new(algorithm);
-            hasher.update(mst.as_bytes().get(start..).context("Missing section body")?);
+            let mut hasher =
+                ctb_formats_checksum::StreamingHasher::new(algorithm);
+            hasher.update(
+                mst.as_bytes()
+                    .get(start..)
+                    .context("Missing section body")?,
+            );
             let digest = hasher.finalize();
             mst.push_char(DC_END_CHECKSUMMED_SECTION);
             mst.push_char(DC_SECTION_DIGEST);
             mst.push_checksum(
-                algorithm.to_format_id().dc_char().context("Missing hash format Dc")?,
+                algorithm
+                    .to_format_id()
+                    .dc_char()
+                    .context("Missing hash format Dc")?,
                 &digest,
             )?;
             let text = mst.to_dc_string()?;
@@ -853,10 +968,15 @@ mod tier5_adversarial_hardening {
                 DcDocumentNavigator::from_dc_str(&text),
                 DcDocumentNavigator::from_dcmm_file(file, 0)?,
             ] {
-                let stub = nav.next_sibling_stub(&DcProjectionPolicy::strict())?
+                let stub = nav
+                    .next_sibling_stub(&DcProjectionPolicy::strict())?
                     .context("Missing checksummed section")?;
-                ensure!(matches!(stub.header_info,
-                    DcFrameHeaderInfo::ChecksummedSection { digest_valid: true, .. }
+                ensure!(matches!(
+                    stub.header_info,
+                    DcFrameHeaderInfo::ChecksummedSection {
+                        digest_valid: true,
+                        ..
+                    }
                 ));
             }
         }
@@ -874,7 +994,11 @@ mod tier5_adversarial_hardening {
         mst.push_binary(&[0; 32]);
         mst.push_char(DC_BOOLEAN_TRUE);
         let mut strict = DcDocumentNavigator::from_mstr(&mst);
-        ensure!(strict.next_sibling_stub(&DcProjectionPolicy::strict()).is_err());
+        ensure!(
+            strict
+                .next_sibling_stub(&DcProjectionPolicy::strict())
+                .is_err()
+        );
         let mut file = tempfile::tempfile()?;
         std::io::Write::write_all(&mut file, mst.as_ref())?;
         for mut nav in [
@@ -882,33 +1006,53 @@ mod tier5_adversarial_hardening {
             DcDocumentNavigator::from_dcmm_file(file, 0)?,
         ] {
             let policy = DcProjectionPolicy::forgiving_quiet();
-            let stub = nav.next_sibling_stub(&policy)?.context("Missing recovered section")?;
-            ensure!(matches!(stub.header_info,
-                DcFrameHeaderInfo::ChecksummedSection { digest_valid: false, .. }
+            let stub = nav
+                .next_sibling_stub(&policy)?
+                .context("Missing recovered section")?;
+            ensure!(matches!(
+                stub.header_info,
+                DcFrameHeaderInfo::ChecksummedSection {
+                    digest_valid: false,
+                    ..
+                }
             ));
-            ensure!(nav.next_sibling_stub(&policy)?.context("Missing following sibling")?.head_dc == DC_BOOLEAN_TRUE);
+            ensure!(
+                nav.next_sibling_stub(&policy)?
+                    .context("Missing following sibling")?
+                    .head_dc
+                    == DC_BOOLEAN_TRUE
+            );
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_section_digest_length_rejected_before_materialization() -> Result<()> {
+    fn test_section_digest_length_rejected_before_materialization() -> Result<()>
+    {
         let mut mst = DcMstring::new();
         mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
         mst.push_char(DC_SEQUENCE_IDENTIFIER);
         1u64.encode_dc_mixed(&mut mst)?;
         mst.push_char(DC_END_CHECKSUMMED_SECTION);
         mst.push_char(DC_SECTION_DIGEST);
-        mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &vec![0; 65_536])?;
+        mst.push_checksum(
+            ctb_utilities::format_id::DC_SHA256,
+            &vec![0; 65_536],
+        )?;
         let mut file = tempfile::tempfile()?;
         std::io::Write::write_all(&mut file, mst.as_ref())?;
         for mut nav in [
             DcDocumentNavigator::from_mstr(&mst),
             DcDocumentNavigator::from_dcmm_file(file, 0)?,
         ] {
-            let error = nav.next_sibling_stub(&DcProjectionPolicy::strict())
-                .err().context("Oversized section digest was accepted")?;
-            ensure!(format!("{error:#}").contains("digest length"), "{error:#}");
+            let error = nav
+                .next_sibling_stub(&DcProjectionPolicy::strict())
+                .err()
+                .context("Oversized section digest was accepted")?;
+            ensure!(
+                format!("{error:#}").contains("digest length"),
+                "{error:#}"
+            );
         }
         Ok(())
     }
@@ -931,9 +1075,8 @@ mod tier5_adversarial_hardening {
 
         let digest = {
             let mstr_bytes: &[u8] = mst.as_ref();
-            let body_bytes = mstr_bytes
-                .get(body_start..body_end)
-                .context("Body slice")?;
+            let body_bytes =
+                mstr_bytes.get(body_start..body_end).context("Body slice")?;
             sha256(body_bytes)
         };
 
@@ -965,7 +1108,8 @@ mod tier5_adversarial_hardening {
         tampered_mst.push_char(DC_END_CHECKSUMMED_SECTION);
 
         tampered_mst.push_char(DC_SECTION_DIGEST);
-        tampered_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
+        tampered_mst
+            .push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
 
         let mut nav = DcDocumentNavigator::from_mstr(&tampered_mst);
         ensure!(nav.next_sibling_stub(&policy).is_err());
@@ -974,7 +1118,9 @@ mod tier5_adversarial_hardening {
             .next_sibling_stub(&DcProjectionPolicy::forgiving())?
             .context("Stub for tampered section")?;
 
-        if let DcFrameHeaderInfo::ChecksummedSection { digest_valid, .. } = stub.header_info {
+        if let DcFrameHeaderInfo::ChecksummedSection { digest_valid, .. } =
+            stub.header_info
+        {
             ensure!(
                 !digest_valid,
                 "Tampered checksummed section must NOT be marked digest_valid"
@@ -991,7 +1137,8 @@ mod tier5_adversarial_hardening {
         corrupted_framing.push_char(DC_BOOLEAN_FALSE);
         // Missing DC_END_CHECKSUMMED_SECTION
         corrupted_framing.push_char(DC_SECTION_DIGEST);
-        corrupted_framing.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
+        corrupted_framing
+            .push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
 
         ensure!(
             validate_dc_mixed_strict(&corrupted_framing).is_err(),
@@ -1023,7 +1170,8 @@ mod tier5_adversarial_hardening {
 
         // Forgiving navigation must recover stub marked as unclosed
         let mut forgiving_nav = DcDocumentNavigator::from_mstr(&mst);
-        let forgiving_res = forgiving_nav.next_sibling_stub(&forgiving_policy)?;
+        let forgiving_res =
+            forgiving_nav.next_sibling_stub(&forgiving_policy)?;
         ensure!(
             forgiving_res.is_some_and(|s| s.is_unclosed()),
             "Forgiving navigation must recover unclosed stub"
@@ -1094,8 +1242,13 @@ mod tier4_expression_evaluation_and_stream_splicing {
             resolver: &dyn SyntaxRuleResolver,
         ) -> Result<Option<DcEvaluatedValue>> {
             if let Some(first) = expr_tokens.first() {
-                if resolver.token_fills_role(first.to_u128(), DcRole::EvaluableExpressionStarter) {
-                    return Ok(Some(DcEvaluatedValue::Document(self.mock_doc.clone())));
+                if resolver.token_fills_role(
+                    first.to_u128(),
+                    DcRole::EvaluableExpressionStarter,
+                ) {
+                    return Ok(Some(DcEvaluatedValue::Document(
+                        self.mock_doc.clone(),
+                    )));
                 }
             }
             Ok(None)
@@ -1114,12 +1267,15 @@ mod tier4_expression_evaluation_and_stream_splicing {
     /// by evaluable Dc expressions returning that type, and that subtype violations
     /// (e.g., negative numbers for `Natural0`) are rejected.
     #[crate::ctb_test]
-    fn test_typed_expression_evaluation_and_subtype_constraints() -> Result<()> {
+    fn test_typed_expression_evaluation_and_subtype_constraints() -> Result<()>
+    {
         let resolver = default_syntax_resolver();
 
         // 1. [string] satisfied by an expression returning a string
         let mut string_doc = DcMstring::new();
-        "Hello from expression".to_string().encode_dc_mixed(&mut string_doc)?;
+        "Hello from expression"
+            .to_string()
+            .encode_dc_mixed(&mut string_doc)?;
 
         let string_evaluator = Arc::new(MockExpressionEvaluator {
             mock_doc: string_doc,
@@ -1141,7 +1297,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
             capture_var: None,
         };
         let string_matched = nav.eval_term_single(&string_term, &mut ctx)?;
-        ensure!(string_matched, "[string] must be satisfied by expression evaluating to string");
+        ensure!(
+            string_matched,
+            "[string] must be satisfied by expression evaluating to string"
+        );
 
         // 2. [number:Natural0] satisfied by an expression returning a non-negative number
         let mut natural_doc = DcMstring::new();
@@ -1161,7 +1320,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
             capture_var: None,
         };
         let natural_matched = nav.eval_term_single(&natural_term, &mut ctx)?;
-        ensure!(natural_matched, "[number:Natural0] must be satisfied by expression evaluating to non-negative number");
+        ensure!(
+            natural_matched,
+            "[number:Natural0] must be satisfied by expression evaluating to non-negative number"
+        );
 
         // 3. [number:Natural0] rejected when the expression returns a negative number
         let mut negative_doc = DcMstring::new();
@@ -1176,7 +1338,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
         ctx.evaluator = Some(negative_evaluator);
 
         let negative_matched = nav.eval_term_single(&natural_term, &mut ctx)?;
-        ensure!(!negative_matched, "[number:Natural0] must reject expression evaluating to negative number");
+        ensure!(
+            !negative_matched,
+            "[number:Natural0] must reject expression evaluating to negative number"
+        );
 
         Ok(())
     }
@@ -1188,11 +1353,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         // 1. [data] satisfied by an expression returning binary data (Dc 203)
         let mut data_doc = DcMstring::new();
-        BinaryPayload::new(vec![0xAA, 0xBB, 0xCC]).encode_dc_mixed(&mut data_doc)?;
+        BinaryPayload::new(vec![0xAA, 0xBB, 0xCC])
+            .encode_dc_mixed(&mut data_doc)?;
 
-        let data_evaluator = Arc::new(MockExpressionEvaluator {
-            mock_doc: data_doc,
-        });
+        let data_evaluator =
+            Arc::new(MockExpressionEvaluator { mock_doc: data_doc });
 
         let mut expr_doc = DcMstring::new();
         expr_doc.push_char(DcChar::from_short(540));
@@ -1210,7 +1375,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
             capture_var: None,
         };
         let data_matched = nav.eval_term_single(&data_term, &mut ctx)?;
-        ensure!(data_matched, "[data] must be satisfied by expression evaluating to binary data");
+        ensure!(
+            data_matched,
+            "[data] must be satisfied by expression evaluating to binary data"
+        );
 
         // 2. [identifier] satisfied by an expression returning an identifier
         let mut id_doc = DcMstring::new();
@@ -1218,9 +1386,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         id_doc.push_str("evaluated_id");
         id_doc.push_char(DC_END_IDENTIFIER);
 
-        let id_evaluator = Arc::new(MockExpressionEvaluator {
-            mock_doc: id_doc,
-        });
+        let id_evaluator =
+            Arc::new(MockExpressionEvaluator { mock_doc: id_doc });
 
         let mut nav = DcDocumentNavigator::from_mstr(&expr_doc);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
@@ -1232,7 +1399,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
             capture_var: None,
         };
         let id_matched = nav.eval_term_single(&id_term, &mut ctx)?;
-        ensure!(id_matched, "[identifier] must be satisfied by expression evaluating to identifier");
+        ensure!(
+            id_matched,
+            "[identifier] must be satisfied by expression evaluating to identifier"
+        );
 
         Ok(())
     }
@@ -1272,22 +1442,34 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // 1. String ref satisfies [string] requirement
         let mut nav = DcDocumentNavigator::from_mstr(&string_ref);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
-        ensure!(nav.eval_term_single(&string_term, &mut ctx)?, "276 [string] must satisfy [string]");
+        ensure!(
+            nav.eval_term_single(&string_term, &mut ctx)?,
+            "276 [string] must satisfy [string]"
+        );
 
         // 2. String ref rejected for [number] requirement
         let mut nav = DcDocumentNavigator::from_mstr(&string_ref);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
-        ensure!(!nav.eval_term_single(&number_term, &mut ctx)?, "276 [string] must reject [number]");
+        ensure!(
+            !nav.eval_term_single(&number_term, &mut ctx)?,
+            "276 [string] must reject [number]"
+        );
 
         // 3. Number ref satisfies [number] requirement
         let mut nav = DcDocumentNavigator::from_mstr(&number_ref);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
-        ensure!(nav.eval_term_single(&number_term, &mut ctx)?, "276 [number] must satisfy [number]");
+        ensure!(
+            nav.eval_term_single(&number_term, &mut ctx)?,
+            "276 [number] must satisfy [number]"
+        );
 
         // 4. Number ref rejected for [string] requirement
         let mut nav = DcDocumentNavigator::from_mstr(&number_ref);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
-        ensure!(!nav.eval_term_single(&string_term, &mut ctx)?, "276 [number] must reject [string]");
+        ensure!(
+            !nav.eval_term_single(&string_term, &mut ctx)?,
+            "276 [number] must reject [string]"
+        );
 
         // 5. Explicit type wrapped in 262..263 type def
         let mut wrapped_string_ref = DcMstring::new();
@@ -1301,10 +1483,16 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         let mut nav = DcDocumentNavigator::from_mstr(&wrapped_string_ref);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
-        ensure!(nav.eval_term_single(&string_term, &mut ctx)?, "276 [262 264 263] must satisfy [string]");
+        ensure!(
+            nav.eval_term_single(&string_term, &mut ctx)?,
+            "276 [262 264 263] must satisfy [string]"
+        );
         let mut nav = DcDocumentNavigator::from_mstr(&wrapped_string_ref);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
-        ensure!(!nav.eval_term_single(&number_term, &mut ctx)?, "276 [262 264 263] must reject [number]");
+        ensure!(
+            !nav.eval_term_single(&number_term, &mut ctx)?,
+            "276 [262 264 263] must reject [number]"
+        );
 
         Ok(())
     }
@@ -1332,16 +1520,30 @@ mod tier4_expression_evaluation_and_stream_splicing {
             name: "number",
             subtype: Some("Natural0"),
         };
-        let res = evaluator.eval_expression_for_requirement(&tokens, &num_req, &**resolver)?;
-        ensure!(res.is_some(), "Default evaluator must find matching candidate for [number:Natural0]");
+        let res = evaluator.eval_expression_for_requirement(
+            &tokens,
+            &num_req,
+            &**resolver,
+        )?;
+        ensure!(
+            res.is_some(),
+            "Default evaluator must find matching candidate for [number:Natural0]"
+        );
 
         // 2. Evaluate for [string] (no candidate in list)
         let str_req = ValueRequirement::NamedConstruct {
             name: "string",
             subtype: None,
         };
-        let res = evaluator.eval_expression_for_requirement(&tokens, &str_req, &**resolver)?;
-        ensure!(res.is_none(), "Default evaluator must return None when no candidate satisfies [string]");
+        let res = evaluator.eval_expression_for_requirement(
+            &tokens,
+            &str_req,
+            &**resolver,
+        )?;
+        ensure!(
+            res.is_none(),
+            "Default evaluator must return None when no candidate satisfies [string]"
+        );
 
         Ok(())
     }
@@ -1349,7 +1551,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
     /// Verifies that a Group pattern wrapping [number:Natural0] properly checks subtype
     /// constraints on an EquivalentRepresentations set.
     #[crate::ctb_test]
-    fn test_group_pattern_wrapping_constrained_number_in_equivalent_set() -> Result<()> {
+    fn test_group_pattern_wrapping_constrained_number_in_equivalent_set()
+    -> Result<()> {
         let resolver = default_syntax_resolver();
 
         // 397 with negative number -42 only
@@ -1361,21 +1564,23 @@ mod tier4_expression_evaluation_and_stream_splicing {
         neg_equiv.push_char(DC_END_LIST);
 
         // Group wrapping [number:Natural0]
-        let group_term = SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
-            SyntaxElement {
+        let group_term =
+            SyntaxTerm::Group(SyntaxPattern::Sequence(vec![SyntaxElement {
                 term: SyntaxTerm::NamedConstruct {
                     name: "number".to_string(),
                     subtype: Some("Natural0".to_string()),
                     capture_var: None,
                 },
                 quantifier: Quantifier::ExactOne,
-            },
-        ]));
+            }]));
 
         let mut nav = DcDocumentNavigator::from_mstr(&neg_equiv);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
         let matched = nav.eval_term_single(&group_term, &mut ctx)?;
-        ensure!(!matched, "Group wrapping [number:Natural0] must reject equivalent set with negative number");
+        ensure!(
+            !matched,
+            "Group wrapping [number:Natural0] must reject equivalent set with negative number"
+        );
 
         // 397 with non-negative number 42
         let mut pos_equiv = DcMstring::new();
@@ -1388,7 +1593,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut nav = DcDocumentNavigator::from_mstr(&pos_equiv);
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
         let matched = nav.eval_term_single(&group_term, &mut ctx)?;
-        ensure!(matched, "Group wrapping [number:Natural0] must accept equivalent set with non-negative number");
+        ensure!(
+            matched,
+            "Group wrapping [number:Natural0] must accept equivalent set with non-negative number"
+        );
 
         Ok(())
     }
@@ -1416,10 +1624,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // 261 (literal closer)
         // 259 (param closer)
         let token_ids: [u32; 23] = [
-            286, 256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19,
-            287, 261, 259,
+            286, 256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72,
+            96, 99, 93, 85, 19, 287, 261, 259,
         ];
-        let chars: Vec<DcChar> = token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
+        let chars: Vec<DcChar> =
+            token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
         let doc = create_test_mstring(&chars);
 
         // --- Part 1: Stream Splicing Verification ---
@@ -1427,19 +1636,25 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         // Step 1: Open italic span (Dc 286)
         let first = nav.read_next_token()?.context("Missing opening Dc 286")?;
-        ensure!(first == DcChar::from_short(286), "Expected Dc 286, found {first}");
+        ensure!(
+            first == DcChar::from_short(286),
+            "Expected Dc 286, found {first}"
+        );
 
         // Step 2: Next token is Dc 256 (lang.say)
         let evaluator = DefaultDcExpressionEvaluator;
-        let spliced = nav.splice_stream_invocation(&evaluator, &**resolver, &policy)?;
+        let spliced =
+            nav.splice_stream_invocation(&evaluator, &**resolver, &policy)?;
         ensure!(spliced, "splice_stream_invocation must succeed on Dc 256");
 
         // Verify spliced_tokens queue contains "Hello, World!" followed by 287
-        let expected_spliced: Vec<DcChar> = [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19, 287]
-            .iter()
-            .map(|&id| DcChar::from_short(id))
-            .collect();
-        let actual_spliced: Vec<DcChar> = nav.spliced_tokens().iter().copied().collect();
+        let expected_spliced: Vec<DcChar> =
+            [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19, 287]
+                .iter()
+                .map(|&id| DcChar::from_short(id))
+                .collect();
+        let actual_spliced: Vec<DcChar> =
+            nav.spliced_tokens().iter().copied().collect();
         ensure!(
             actual_spliced == expected_spliced,
             "Spliced tokens queue mismatch: expected {expected_spliced:?}, got {actual_spliced:?}"
@@ -1447,18 +1662,32 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         // Step 3: Consume tokens from stream, encountering "Hello, World!" and then 287
         let payload_len = expected_spliced.len().saturating_sub(1);
-        let payload = expected_spliced.get(..payload_len).context("Missing payload slice")?;
+        let payload = expected_spliced
+            .get(..payload_len)
+            .context("Missing payload slice")?;
         for &expected_char in payload {
-            let ch = nav.read_next_token()?.context("Missing spliced character")?;
-            ensure!(ch == expected_char, "Character mismatch: expected {expected_char}, got {ch}");
+            let ch = nav
+                .read_next_token()?
+                .context("Missing spliced character")?;
+            ensure!(
+                ch == expected_char,
+                "Character mismatch: expected {expected_char}, got {ch}"
+            );
         }
 
         // Cleanly encounter closing 287 (End italicized text)
-        let closer = nav.read_next_token()?.context("Missing closing Dc 287")?;
-        ensure!(closer == DcChar::from_short(287), "Expected Dc 287, found {closer}");
+        let closer =
+            nav.read_next_token()?.context("Missing closing Dc 287")?;
+        ensure!(
+            closer == DcChar::from_short(287),
+            "Expected Dc 287, found {closer}"
+        );
 
         // Stream is cleanly consumed at end
-        ensure!(nav.read_next_token()?.is_none(), "Stream must be exhausted after closing 287");
+        ensure!(
+            nav.read_next_token()?.is_none(),
+            "Stream must be exhausted after closing 287"
+        );
 
         // --- Part 2: CST Arena Parsing Verification ---
         let mut arena_nav = DcDocumentNavigator::from_mstr(&doc);
@@ -1466,7 +1695,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         arena_nav.parse_document_into_arena(&mut arena, &policy)?;
 
         let roots = arena.roots();
-        ensure!(roots.len() == 1, "Expected 1 root node in arena, found {}", roots.len());
+        ensure!(
+            roots.len() == 1,
+            "Expected 1 root node in arena, found {}",
+            roots.len()
+        );
 
         let root_id = *roots.first().context("Root node missing")?;
         let root_node = arena.get(root_id).context("Root node missing")?;
@@ -1478,8 +1711,14 @@ mod tier4_expression_evaluation_and_stream_splicing {
                 children,
                 ..
             } => {
-                ensure!(*opener == DcChar::from_short(286), "Opener must be 286, got {opener}");
-                ensure!(*closer == DcChar::from_short(287), "Closer must be 287, got {closer}");
+                ensure!(
+                    *opener == DcChar::from_short(286),
+                    "Opener must be 286, got {opener}"
+                );
+                ensure!(
+                    *closer == DcChar::from_short(287),
+                    "Closer must be 287, got {closer}"
+                );
                 ensure!(!unclosed, "Container must not be marked unclosed");
                 ensure!(
                     children.len() == 13,
@@ -1487,10 +1726,14 @@ mod tier4_expression_evaluation_and_stream_splicing {
                     children.len()
                 );
 
-                let expected_text = [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
+                let expected_text =
+                    [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
                 for (i, &expected_id) in expected_text.iter().enumerate() {
-                    let node_id = *children.get(i).context("Child index out of bounds")?;
-                    let child_node = arena.get(node_id).context("Child node missing")?;
+                    let node_id = *children
+                        .get(i)
+                        .context("Child index out of bounds")?;
+                    let child_node =
+                        arena.get(node_id).context("Child node missing")?;
                     match &child_node.kind {
                         DcSyntaxKind::Atom(ch) => {
                             ensure!(
@@ -1498,7 +1741,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
                                 "Child {i} expected {expected_id}, got {ch}"
                             );
                         }
-                        other => bail!("Child {i} expected Atom, got {other:?}"),
+                        other => {
+                            bail!("Child {i} expected Atom, got {other:?}")
+                        }
                     }
                 }
             }
@@ -1519,10 +1764,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // 258 260 262 264 263 57 86 93 93 96 30 18 72 96 99 93 85 19 261 259
         // 287 (End italicized text - outside lang.say)
         let token_ids: [u32; 23] = [
-            286, 256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19,
-            261, 259, 287,
+            286, 256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72,
+            96, 99, 93, 85, 19, 261, 259, 287,
         ];
-        let chars: Vec<DcChar> = token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
+        let chars: Vec<DcChar> =
+            token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
         let doc = create_test_mstring(&chars);
 
         let mut arena_nav = DcDocumentNavigator::from_mstr(&doc);
@@ -1530,7 +1776,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         arena_nav.parse_document_into_arena(&mut arena, &policy)?;
 
         let roots = arena.roots();
-        ensure!(roots.len() == 1, "Expected 1 root node in arena, found {}", roots.len());
+        ensure!(
+            roots.len() == 1,
+            "Expected 1 root node in arena, found {}",
+            roots.len()
+        );
 
         let root_id = *roots.first().context("Root node missing")?;
         let root_node = arena.get(root_id).context("Root node missing")?;
@@ -1542,8 +1792,14 @@ mod tier4_expression_evaluation_and_stream_splicing {
                 children,
                 ..
             } => {
-                ensure!(*opener == DcChar::from_short(286), "Opener must be 286, got {opener}");
-                ensure!(*closer == DcChar::from_short(287), "Closer must be 287, got {closer}");
+                ensure!(
+                    *opener == DcChar::from_short(286),
+                    "Opener must be 286, got {opener}"
+                );
+                ensure!(
+                    *closer == DcChar::from_short(287),
+                    "Closer must be 287, got {closer}"
+                );
                 ensure!(!unclosed, "Container must not be marked unclosed");
                 ensure!(
                     children.len() == 13,
@@ -1551,10 +1807,14 @@ mod tier4_expression_evaluation_and_stream_splicing {
                     children.len()
                 );
 
-                let expected_text = [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
+                let expected_text =
+                    [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
                 for (i, &expected_id) in expected_text.iter().enumerate() {
-                    let node_id = *children.get(i).context("Child index out of bounds")?;
-                    let child_node = arena.get(node_id).context("Child node missing")?;
+                    let node_id = *children
+                        .get(i)
+                        .context("Child index out of bounds")?;
+                    let child_node =
+                        arena.get(node_id).context("Child node missing")?;
                     match &child_node.kind {
                         DcSyntaxKind::Atom(ch) => {
                             ensure!(
@@ -1562,7 +1822,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
                                 "Child {i} expected {expected_id}, got {ch}"
                             );
                         }
-                        other => bail!("Child {i} expected Atom, got {other:?}"),
+                        other => {
+                            bail!("Child {i} expected Atom, got {other:?}")
+                        }
                     }
                 }
             }
@@ -1582,10 +1844,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // 256 (void lang.say(String))
         // 258 260 262 264 263 57 86 93 93 96 30 18 72 96 99 93 85 19 261 259
         let token_ids: [u32; 21] = [
-            256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19,
-            261, 259,
+            256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96,
+            99, 93, 85, 19, 261, 259,
         ];
-        let chars: Vec<DcChar> = token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
+        let chars: Vec<DcChar> =
+            token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
         let doc = create_test_mstring(&chars);
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
@@ -1626,7 +1889,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
         valid_doc.push_char(ctb_formats_dcdata::dc::DC_END_LIST);
 
         let mut nav = DcDocumentNavigator::from_mstr(&valid_doc);
-        ensure!(nav.validate_document(&policy).is_ok(), "Declared length 2 with 2 elements must validate");
+        ensure!(
+            nav.validate_document(&policy).is_ok(),
+            "Declared length 2 with 2 elements must validate"
+        );
 
         // Declared length 3 with 2 elements -> mismatch:
         let mut bad_doc = DcMstring::new();
@@ -1639,7 +1905,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
         bad_doc.push_char(ctb_formats_dcdata::dc::DC_END_LIST);
 
         let mut bad_nav = DcDocumentNavigator::from_mstr(&bad_doc);
-        ensure!(bad_nav.validate_document(&policy).is_err(), "Declared length 3 with 2 elements must fail strict validation");
+        ensure!(
+            bad_nav.validate_document(&policy).is_err(),
+            "Declared length 3 with 2 elements must fail strict validation"
+        );
         Ok(())
     }
 
@@ -1659,7 +1928,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
             subtype: Some("f200".to_string()),
             capture_var: None,
         };
-        ensure!(nav.eval_term_single(&term_f200, &mut ctx)?, "2 must satisfy f200 (Natural0)");
+        ensure!(
+            nav.eval_term_single(&term_f200, &mut ctx)?,
+            "2 must satisfy f200 (Natural0)"
+        );
 
         let mut nav_u8 = DcDocumentNavigator::from_mstr(&doc_2);
         let mut ctx_u8 = SyntaxEvalContext::new(&**resolver, None);
@@ -1668,7 +1940,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
             subtype: Some("f203".to_string()),
             capture_var: None,
         };
-        ensure!(nav_u8.eval_term_single(&term_u8, &mut ctx_u8)?, "2 must satisfy f203 (U8)");
+        ensure!(
+            nav_u8.eval_term_single(&term_u8, &mut ctx_u8)?,
+            "2 must satisfy f203 (U8)"
+        );
 
         // Test format rule resolution via resolver (e.g. DcIdentifier: :[number:Natural1 & <(2^128)])
         let mut nav_rule = DcDocumentNavigator::from_mstr(&doc_2);
@@ -1678,7 +1953,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
             subtype: Some("DcIdentifier".to_string()),
             capture_var: None,
         };
-        ensure!(nav_rule.eval_term_single(&term_ident_rule, &mut ctx_rule)?, "2 must satisfy DcIdentifier format rule");
+        ensure!(
+            nav_rule.eval_term_single(&term_ident_rule, &mut ctx_rule)?,
+            "2 must satisfy DcIdentifier format rule"
+        );
         Ok(())
     }
 
@@ -1696,7 +1974,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
         ensure!(decoded == expected_ip, "Decoded IPv4 must match 127.0.0.1");
 
         let decoded_ip: IpAddr = mst.decode::<IpAddr>(&policy)?;
-        ensure!(decoded_ip == IpAddr::V4(expected_ip), "Decoded IpAddr must match 127.0.0.1");
+        ensure!(
+            decoded_ip == IpAddr::V4(expected_ip),
+            "Decoded IpAddr must match 127.0.0.1"
+        );
         Ok(())
     }
 
@@ -1723,11 +2004,17 @@ mod tier4_expression_evaluation_and_stream_splicing {
             self.fallback.token_fills_role(token, role)
         }
 
-        fn resolve_rule(&self, target: &ctb_formats_dcdata::CharTarget) -> Option<&ctb_formats_dcdata::DcSyntaxRule> {
+        fn resolve_rule(
+            &self,
+            target: &ctb_formats_dcdata::CharTarget,
+        ) -> Option<&ctb_formats_dcdata::DcSyntaxRule> {
             self.fallback.resolve_rule(target)
         }
 
-        fn resolve_named_type(&self, name: &str) -> Option<&ctb_formats_dcdata::DcSyntaxExpr> {
+        fn resolve_named_type(
+            &self,
+            name: &str,
+        ) -> Option<&ctb_formats_dcdata::DcSyntaxExpr> {
             self.fallback.resolve_named_type(name)
         }
 
@@ -1738,29 +2025,47 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
     /// Verifies threading custom SyntaxRuleResolver and DcExpressionEvaluator into DcProjectionContext.
     #[crate::ctb_test]
-    fn test_projection_context_custom_resolver_and_evaluator_threading() -> Result<()> {
+    fn test_projection_context_custom_resolver_and_evaluator_threading()
+    -> Result<()> {
         let policy = DcProjectionPolicy::strict();
         let arena = DcSyntaxArena::new();
         let fallback = default_syntax_resolver().clone();
         let custom_resolver = CustomMockResolver { fallback };
         let custom_evaluator = DefaultDcExpressionEvaluator;
 
-        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let mut ctx =
+            ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         // Default resolver is default_syntax_resolver
-        ensure!(!ctx.tokens_equivalent(DcChar::from_u128(999999), DcChar::from_u128(888888)));
+        ensure!(!ctx.tokens_equivalent(
+            DcChar::from_u128(999999),
+            DcChar::from_u128(888888)
+        ));
         ensure!(ctx.evaluator().is_none());
 
         // Thread custom resolver and evaluator
-        ctx = ctx.with_syntax_resolver(&custom_resolver).with_evaluator(&custom_evaluator);
-        ensure!(ctx.tokens_equivalent(DcChar::from_u128(999999), DcChar::from_u128(888888)));
-        ensure!(ctx.canonical_token(DcChar::from_u128(999999)).to_u128() == 888888);
+        ctx = ctx
+            .with_syntax_resolver(&custom_resolver)
+            .with_evaluator(&custom_evaluator);
+        ensure!(ctx.tokens_equivalent(
+            DcChar::from_u128(999999),
+            DcChar::from_u128(888888)
+        ));
+        ensure!(
+            ctx.canonical_token(DcChar::from_u128(999999)).to_u128() == 888888
+        );
         ensure!(ctx.evaluator().is_some());
 
         // Test from_eval_context
         let mut eval_ctx = SyntaxEvalContext::new(&custom_resolver, None);
-        eval_ctx.evaluator = Some(std::sync::Arc::new(DefaultDcExpressionEvaluator));
-        let ctx2 = ctb_formats_dcstring::DcProjectionContext::from_eval_context(&arena, &eval_ctx, &policy);
-        ensure!(ctx2.tokens_equivalent(DcChar::from_u128(999999), DcChar::from_u128(888888)));
+        eval_ctx.evaluator =
+            Some(std::sync::Arc::new(DefaultDcExpressionEvaluator));
+        let ctx2 = ctb_formats_dcstring::DcProjectionContext::from_eval_context(
+            &arena, &eval_ctx, &policy,
+        );
+        ensure!(ctx2.tokens_equivalent(
+            DcChar::from_u128(999999),
+            DcChar::from_u128(888888)
+        ));
         ensure!(ctx2.evaluator().is_some());
         Ok(())
     }
@@ -1782,10 +2087,14 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &policy)?;
         let root = *arena.roots().first().context("Missing root for 398")?;
-        let ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let ctx =
+            ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped = ctx.unwrap_equivalent_or_self(root)?;
         let num_node = ctx.node(unwrapped)?;
-        ensure!(matches!(num_node.kind, DcSyntaxKind::Number { .. }), "398 must unwrap to Number");
+        ensure!(
+            matches!(num_node.kind, DcSyntaxKind::Number { .. }),
+            "398 must unwrap to Number"
+        );
 
         // 2. Bound value reference (540) to an assignment in the arena
         let mut doc_assign = DcMstring::new();
@@ -1802,14 +2111,25 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut nav = DcDocumentNavigator::from_mstr(&doc_assign);
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &policy)?;
-        let ref_node_id = *arena.roots().get(1).context("Missing reference root")?;
-        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let ref_node_id =
+            *arena.roots().get(1).context("Missing reference root")?;
+        let mut ctx =
+            ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped_ref = ctx.unwrap_equivalent_or_self(ref_node_id)?;
         let target_node = ctx.node(unwrapped_ref)?;
-        ensure!(matches!(target_node.kind, DcSyntaxKind::Number { .. }), "540 must resolve to assigned Number");
+        ensure!(
+            matches!(target_node.kind, DcSyntaxKind::Number { .. }),
+            "540 must resolve to assigned Number"
+        );
         // Test transparent decoding through decode_dc_node:
-        let decoded: u64 = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut ctx, ref_node_id)?;
-        ensure!(decoded == 100, "540 reference must transparently decode as 100");
+        let decoded: u64 = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(
+            &mut ctx,
+            ref_node_id,
+        )?;
+        ensure!(
+            decoded == 100,
+            "540 reference must transparently decode as 100"
+        );
 
         // 3. Named object reference (276)
         let mut doc_named = DcMstring::new();
@@ -1826,13 +2146,27 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut nav = DcDocumentNavigator::from_mstr(&doc_named);
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &policy)?;
-        let ref_node_id = *arena.roots().get(1).context("Missing named reference root")?;
-        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let ref_node_id = *arena
+            .roots()
+            .get(1)
+            .context("Missing named reference root")?;
+        let mut ctx =
+            ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped_ref = ctx.unwrap_equivalent_or_self(ref_node_id)?;
         let target_node = ctx.node(unwrapped_ref)?;
-        ensure!(matches!(target_node.kind, DcSyntaxKind::Literal { .. }), "276 must resolve to assigned Literal");
-        let decoded_str: String = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut ctx, ref_node_id)?;
-        ensure!(decoded_str == "named_str", "276 reference must transparently decode as named_str");
+        ensure!(
+            matches!(target_node.kind, DcSyntaxKind::Literal { .. }),
+            "276 must resolve to assigned Literal"
+        );
+        let decoded_str: String =
+            ctb_formats_dcstring::DcMixedDecode::decode_dc_node(
+                &mut ctx,
+                ref_node_id,
+            )?;
+        ensure!(
+            decoded_str == "named_str",
+            "276 reference must transparently decode as named_str"
+        );
 
         // 4. Routine invocation (279)
         let mut doc_routine = DcMstring::new();
@@ -1841,26 +2175,40 @@ mod tier4_expression_evaluation_and_stream_splicing {
         doc_routine.push_str("lang.say");
         doc_routine.push_char(DC_END_IDENTIFIER);
         doc_routine.push_char(ctb_formats_dcdata::dc::DC_BEGIN_PARAMETER);
-        "routine_payload".to_string().encode_dc_mixed(&mut doc_routine)?;
+        "routine_payload"
+            .to_string()
+            .encode_dc_mixed(&mut doc_routine)?;
         doc_routine.push_char(ctb_formats_dcdata::dc::DC_END_PARAMETER);
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc_routine);
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &policy)?;
-        let routine_id = *arena.roots().first().context("Missing routine root")?;
-        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let routine_id =
+            *arena.roots().first().context("Missing routine root")?;
+        let mut ctx =
+            ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped_routine = ctx.unwrap_equivalent_or_self(routine_id)?;
         let target_node = ctx.node(unwrapped_routine)?;
-        ensure!(matches!(target_node.kind, DcSyntaxKind::Literal { .. }), "279 must resolve to argument Literal");
-        let decoded_routine: String = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut ctx, routine_id)?;
-        ensure!(decoded_routine == "routine_payload", "279 routine must transparently decode payload");
+        ensure!(
+            matches!(target_node.kind, DcSyntaxKind::Literal { .. }),
+            "279 must resolve to argument Literal"
+        );
+        let decoded_routine: String =
+            ctb_formats_dcstring::DcMixedDecode::decode_dc_node(
+                &mut ctx, routine_id,
+            )?;
+        ensure!(
+            decoded_routine == "routine_payload",
+            "279 routine must transparently decode payload"
+        );
         Ok(())
     }
 
     /// Verifies that decoding equivalent representations selects a candidate that decodes cleanly
     /// for the target type even when preceding candidates in the set have different types.
     #[crate::ctb_test]
-    fn test_equivalent_representations_clean_target_type_selection() -> Result<()> {
+    fn test_equivalent_representations_clean_target_type_selection()
+    -> Result<()> {
         use ctb_formats_dcstring::DcMixedDecode;
         let policy = DcProjectionPolicy::strict();
 
@@ -1879,7 +2227,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &policy)?;
         let root = *arena.roots().first().context("Missing root")?;
-        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let mut ctx =
+            ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
 
         // Target type u64 should cleanly select candidate 1 (12345)
         let num_val: u64 = u64::decode_dc_node(&mut ctx, root)?;
@@ -1887,7 +2236,10 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         // Target type String should cleanly select candidate 0 ("hello")
         let str_val: String = String::decode_dc_node(&mut ctx, root)?;
-        ensure!(str_val == "hello", "String must select Literal candidate (hello)");
+        ensure!(
+            str_val == "hello",
+            "String must select Literal candidate (hello)"
+        );
 
         // 2. 398 with [ 999u64, true ]
         // First candidate is Number; second is Boolean.
@@ -1904,7 +2256,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &policy)?;
         let root = *arena.roots().first().context("Missing root")?;
-        let mut ctx = ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
+        let mut ctx =
+            ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
 
         // Target type bool should cleanly select candidate 1 (true)
         let bool_val: bool = bool::decode_dc_node(&mut ctx, root)?;
@@ -1921,8 +2274,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
 mod dynamic_runtime_equivalence_overlay_tests {
     use super::*;
     use ctb_formats_dcdata::dc::{
-        DC_BEGIN_LITERAL, DC_END_LITERAL, DC_TYPE_STRING,
-        DC_BEGIN_NUMBER, DC_END_NUMBER,
+        DC_BEGIN_LITERAL, DC_BEGIN_NUMBER, DC_END_LITERAL, DC_END_NUMBER,
+        DC_TYPE_STRING,
     };
     use ctb_formats_dcstring::DcMixed;
 
@@ -1946,7 +2299,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
     /// Verifies list container openers, closers, and separators (`310`..`312`)
     /// dynamically substituted via runtime equivalence overlay.
     #[crate::ctb_test]
-    fn test_list_openers_closers_and_separators_equivalence_overlay() -> Result<()> {
+    fn test_list_openers_closers_and_separators_equivalence_overlay()
+    -> Result<()> {
         let policy = DcProjectionPolicy::strict();
         let mut registry = SyntaxRuntimeRegistry::default();
 
@@ -1956,7 +2310,10 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         registry.register_equivalence(synth_list_open, DC_BEGIN_LIST.to_u128());
         registry.register_equivalence(synth_list_close, DC_END_LIST.to_u128());
-        registry.register_equivalence(synth_list_sep, DC_LIST_ELEMENT_SEPARATOR.to_u128());
+        registry.register_equivalence(
+            synth_list_sep,
+            DC_LIST_ELEMENT_SEPARATOR.to_u128(),
+        );
 
         let mut doc = DcMstring::new();
         doc.push_char(DcChar::from_u128(synth_list_open));
@@ -1971,7 +2328,10 @@ mod dynamic_runtime_equivalence_overlay_tests {
         // 1. Decodes successfully using the overlay resolver on DcMstr
         let list: Vec<u64> =
             doc.decode_with_resolver(registry.resolver(), &policy)?;
-        ensure!(list == [10, 20, 30], "List must decode elements [10, 20, 30]");
+        ensure!(
+            list == [10, 20, 30],
+            "List must decode elements [10, 20, 30]"
+        );
 
         // 2. Decodes successfully using the overlay resolver on DcStr
         let dc_string = doc.to_dc_string()?;
@@ -2000,10 +2360,13 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let synth_pair_open = DcChar::from_short(3914).to_u128();
         let synth_pair_close = DcChar::from_short(3915).to_u128();
 
-        registry.register_equivalence(synth_map_open, DC_BEGIN_KV_MAP.to_u128());
+        registry
+            .register_equivalence(synth_map_open, DC_BEGIN_KV_MAP.to_u128());
         registry.register_equivalence(synth_map_close, DC_END_KV_MAP.to_u128());
-        registry.register_equivalence(synth_pair_open, DC_BEGIN_KV_PAIR.to_u128());
-        registry.register_equivalence(synth_pair_close, DC_END_KV_PAIR.to_u128());
+        registry
+            .register_equivalence(synth_pair_open, DC_BEGIN_KV_PAIR.to_u128());
+        registry
+            .register_equivalence(synth_pair_close, DC_END_KV_PAIR.to_u128());
 
         let mut doc = DcMstring::new();
         doc.push_char(DcChar::from_u128(synth_map_open));
@@ -2055,8 +2418,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
     /// (`260`..`261`, `270`..`271`, `6`..`7`, `517`..`518`) dynamically
     /// substituted via runtime equivalence overlay.
     #[crate::ctb_test]
-    fn test_primitives_literals_identifiers_numbers_and_booleans_overlay(
-    ) -> Result<()> {
+    fn test_primitives_literals_identifiers_numbers_and_booleans_overlay()
+    -> Result<()> {
         let policy = DcProjectionPolicy::strict();
         let mut registry = SyntaxRuntimeRegistry::default();
 
@@ -2069,14 +2432,25 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let synth_bool_true = DcChar::from_short(3917).to_u128();
         let synth_bool_false = DcChar::from_short(3918).to_u128();
 
-        registry.register_equivalence(synth_lit_open, DC_BEGIN_LITERAL.to_u128());
-        registry.register_equivalence(synth_lit_close, DC_END_LITERAL.to_u128());
-        registry.register_equivalence(synth_ident_open, DC_BEGIN_IDENTIFIER.to_u128());
-        registry.register_equivalence(synth_ident_close, DC_END_IDENTIFIER.to_u128());
-        registry.register_equivalence(synth_num_open, DC_BEGIN_NUMBER.to_u128());
+        registry
+            .register_equivalence(synth_lit_open, DC_BEGIN_LITERAL.to_u128());
+        registry
+            .register_equivalence(synth_lit_close, DC_END_LITERAL.to_u128());
+        registry.register_equivalence(
+            synth_ident_open,
+            DC_BEGIN_IDENTIFIER.to_u128(),
+        );
+        registry.register_equivalence(
+            synth_ident_close,
+            DC_END_IDENTIFIER.to_u128(),
+        );
+        registry
+            .register_equivalence(synth_num_open, DC_BEGIN_NUMBER.to_u128());
         registry.register_equivalence(synth_num_close, DC_END_NUMBER.to_u128());
-        registry.register_equivalence(synth_bool_true, DC_BOOLEAN_TRUE.to_u128());
-        registry.register_equivalence(synth_bool_false, DC_BOOLEAN_FALSE.to_u128());
+        registry
+            .register_equivalence(synth_bool_true, DC_BOOLEAN_TRUE.to_u128());
+        registry
+            .register_equivalence(synth_bool_false, DC_BOOLEAN_FALSE.to_u128());
 
         // 1. Literal string decoding
         let mut lit_doc = DcMstring::new();
@@ -2089,7 +2463,10 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         let decoded_str: String =
             lit_doc.decode_with_resolver(registry.resolver(), &policy)?;
-        ensure!(decoded_str == "overlay_text", "Decoded literal string mismatch");
+        ensure!(
+            decoded_str == "overlay_text",
+            "Decoded literal string mismatch"
+        );
 
         // 2. Identifier decoding
         let mut ident_doc = DcMstring::new();
@@ -2141,8 +2518,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
     /// and enum variant tags deserialize identically to their canonical targets
     /// for `#[derive(DcMixed)]` types without code recompilation.
     #[crate::ctb_test]
-    fn test_derive_dc_mixed_structs_and_enums_equivalence_overlay(
-    ) -> Result<()> {
+    fn test_derive_dc_mixed_structs_and_enums_equivalence_overlay() -> Result<()>
+    {
         let policy = DcProjectionPolicy::strict();
         let mut registry = SyntaxRuntimeRegistry::default();
 
@@ -2153,12 +2530,30 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let synth_variant_active = DcChar::from_short(3805).to_u128();
         let synth_variant_inactive = DcChar::from_short(3806).to_u128();
 
-        registry.register_equivalence(synth_rec_open, DcChar::from_short(401).to_u128());
-        registry.register_equivalence(synth_rec_close, DcChar::from_short(402).to_u128());
-        registry.register_equivalence(synth_field_title, DcChar::from_short(400).to_u128());
-        registry.register_equivalence(synth_field_count, DcChar::from_short(406).to_u128());
-        registry.register_equivalence(synth_variant_active, DcChar::from_short(327).to_u128());
-        registry.register_equivalence(synth_variant_inactive, DcChar::from_short(359).to_u128());
+        registry.register_equivalence(
+            synth_rec_open,
+            DcChar::from_short(401).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_rec_close,
+            DcChar::from_short(402).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_field_title,
+            DcChar::from_short(400).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_field_count,
+            DcChar::from_short(406).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_variant_active,
+            DcChar::from_short(327).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_variant_inactive,
+            DcChar::from_short(359).to_u128(),
+        );
 
         // 1. Struct with overlay container opener/closer and field tags
         let mut struct_doc = DcMstring::new();
@@ -2197,9 +2592,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
         );
 
         // 3. Inspection with overlay resolver
-        let inspection = struct_doc.inspect_with_resolver::<OverlaySampleRecord>(
-            registry.resolver(),
-        );
+        let inspection = struct_doc
+            .inspect_with_resolver::<OverlaySampleRecord>(registry.resolver());
         let fields = inspection.fields();
         ensure!(
             fields.iter().any(|f| f.field() == "title"),
@@ -2215,7 +2609,9 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
     #[crate::ctb_test]
     fn test_dynamic_custom_container_header_and_trailing_rule() -> Result<()> {
-        use ctb_formats_dcdata::syntax::ast::{DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm};
+        use ctb_formats_dcdata::syntax::ast::{
+            DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm,
+        };
 
         let mut registry = SyntaxRuntimeRegistry::new();
         let custom_open = CharTarget::Dc(9800);
@@ -2225,11 +2621,38 @@ mod dynamic_runtime_equivalence_overlay_tests {
         // Header: [type], Body: [number], Closer: 9801, Trailing: [type]
         let rule = DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
-                SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "number".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::CharRef(custom_close.clone()), quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "type".to_owned(), subtype: None, capture_var: None }, quantifier: Quantifier::ExactOne },
+                SyntaxElement {
+                    term: SyntaxTerm::SelfChar,
+                    quantifier: Quantifier::ExactOne,
+                },
+                SyntaxElement {
+                    term: SyntaxTerm::NamedConstruct {
+                        name: "type".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    },
+                    quantifier: Quantifier::ExactOne,
+                },
+                SyntaxElement {
+                    term: SyntaxTerm::NamedConstruct {
+                        name: "number".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    },
+                    quantifier: Quantifier::ExactOne,
+                },
+                SyntaxElement {
+                    term: SyntaxTerm::CharRef(custom_close.clone()),
+                    quantifier: Quantifier::ExactOne,
+                },
+                SyntaxElement {
+                    term: SyntaxTerm::NamedConstruct {
+                        name: "type".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    },
+                    quantifier: Quantifier::ExactOne,
+                },
             ]),
             action: None,
             raw: String::new(),
@@ -2237,21 +2660,45 @@ mod dynamic_runtime_equivalence_overlay_tests {
         registry.register_closing_pair(custom_open.clone(), custom_close_u128);
         registry.register_rule(custom_open.clone(), rule);
 
-        let headers = registry.resolver().container_header_elements(&custom_open);
-        ensure!(headers.len() == 1, "Expected 1 header element, found {}", headers.len());
-        ensure!(matches!(&headers[0].term, SyntaxTerm::NamedConstruct { name, .. } if name == "type"), "Header should be type construct");
+        let headers =
+            registry.resolver().container_header_elements(&custom_open);
+        ensure!(
+            headers.len() == 1,
+            "Expected 1 header element, found {}",
+            headers.len()
+        );
+        ensure!(
+            matches!(&headers[0].term, SyntaxTerm::NamedConstruct { name, .. } if name == "type"),
+            "Header should be type construct"
+        );
 
         let trailing = registry.resolver().trailing_after_closer(&custom_open);
-        ensure!(trailing.len() == 1, "Expected 1 trailing element, found {}", trailing.len());
-        ensure!(matches!(&trailing[0].term, SyntaxTerm::NamedConstruct { name, .. } if name == "type"), "Trailing should be type construct");
+        ensure!(
+            trailing.len() == 1,
+            "Expected 1 trailing element, found {}",
+            trailing.len()
+        );
+        ensure!(
+            matches!(&trailing[0].term, SyntaxTerm::NamedConstruct { name, .. } if name == "type"),
+            "Trailing should be type construct"
+        );
 
         // Also test equivalent opener inherits the custom headers and trailing:
         let equiv_open = CharTarget::Dc(9802);
-        registry.register_equivalence(equiv_open.to_u128(), custom_open.to_u128());
-        let equiv_headers = registry.resolver().container_header_elements(&equiv_open);
-        ensure!(equiv_headers.len() == 1, "Equiv opener must inherit custom header");
-        let equiv_trailing = registry.resolver().trailing_after_closer(&equiv_open);
-        ensure!(equiv_trailing.len() == 1, "Equiv opener must inherit custom trailing");
+        registry
+            .register_equivalence(equiv_open.to_u128(), custom_open.to_u128());
+        let equiv_headers =
+            registry.resolver().container_header_elements(&equiv_open);
+        ensure!(
+            equiv_headers.len() == 1,
+            "Equiv opener must inherit custom header"
+        );
+        let equiv_trailing =
+            registry.resolver().trailing_after_closer(&equiv_open);
+        ensure!(
+            equiv_trailing.len() == 1,
+            "Equiv opener must inherit custom trailing"
+        );
 
         Ok(())
     }
@@ -2271,7 +2718,10 @@ mod dynamic_runtime_equivalence_overlay_tests {
             DcChar::from_short(127 + 5).to_u128(),
             DC_END_NUMBER.to_u128(),
         ]; // @L5@
-        let dctext_bytes = converters::dctext::dclist_to_dctext_with_resolver(&gids, registry.resolver());
+        let dctext_bytes = converters::dctext::dclist_to_dctext_with_resolver(
+            &gids,
+            registry.resolver(),
+        );
         let dctext_str = std::str::from_utf8(&dctext_bytes)?;
         ensure!(dctext_str == "@L5@", "Expected @L5@, found {dctext_str}");
 
@@ -2298,8 +2748,16 @@ mod dynamic_runtime_equivalence_overlay_tests {
         new_doc.push_char(DC_END_KV_PAIR);
         new_doc.push_char(DC_END_KV_MAP);
 
-        let preserved = ctb_formats_dcstring::source_edit::preserve_source_with_resolver(&old_doc, &new_doc, registry.resolver())?;
-        ensure!(!preserved.as_bytes().is_empty(), "Preserved output must not be empty");
+        let preserved =
+            ctb_formats_dcstring::source_edit::preserve_source_with_resolver(
+                &old_doc,
+                &new_doc,
+                registry.resolver(),
+            )?;
+        ensure!(
+            !preserved.as_bytes().is_empty(),
+            "Preserved output must not be empty"
+        );
 
         Ok(())
     }
@@ -2333,13 +2791,25 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         let encoded_lit = payload_mstr.to_dc_mixed()?;
         let mut arena = DcSyntaxArena::new();
-        let root_id = DcDocumentNavigator::parse_arena(encoded_lit.as_bytes(), &mut arena, &policy)?;
-        let root_node = arena.node(root_id).context("Missing literal root node")?;
+        let root_id = DcDocumentNavigator::parse_arena(
+            encoded_lit.as_bytes(),
+            &mut arena,
+            &policy,
+        )?;
+        let root_node =
+            arena.node(root_id).context("Missing literal root node")?;
         match &root_node.kind {
             DcSyntaxKind::Literal { decoded, .. } => {
-                ensure!(*decoded == payload_mstr, "Arena Literal node must preserve exact DcMstring");
-                let actual_chars: Vec<DcChar> = decoded.to_dc_string()?.chars().collect();
-                ensure!(actual_chars == expected_chars, "Decoded DcChar sequence mismatch");
+                ensure!(
+                    *decoded == payload_mstr,
+                    "Arena Literal node must preserve exact DcMstring"
+                );
+                let actual_chars: Vec<DcChar> =
+                    decoded.to_dc_string()?.chars().collect();
+                ensure!(
+                    actual_chars == expected_chars,
+                    "Decoded DcChar sequence mismatch"
+                );
             }
             other => bail!("Expected Literal node, found {other:?}"),
         }
@@ -2354,13 +2824,17 @@ mod dynamic_runtime_equivalence_overlay_tests {
         // lossy canonicalization, and rejected by pure-UTF-8 String::decode:
         let mut registry = SyntaxRuntimeRegistry::new();
         let alias_dc = DcChar::from_short(9850);
-        registry.register_equivalence(alias_dc.to_u128(), u128::from(u32::from('Z')));
-        let alias_payload: DcMstring = [DcChar::from_char('A'), alias_dc, DcChar::from_char('B')]
-            .into_iter()
-            .collect();
+        registry.register_equivalence(
+            alias_dc.to_u128(),
+            u128::from(u32::from('Z')),
+        );
+        let alias_payload: DcMstring =
+            [DcChar::from_char('A'), alias_dc, DcChar::from_char('B')]
+                .into_iter()
+                .collect();
         let encoded_alias_lit = alias_payload.to_dc_mixed()?;
-        let preserved_mstr: DcMstring =
-            encoded_alias_lit.decode_with_resolver(registry.resolver(), &policy)?;
+        let preserved_mstr: DcMstring = encoded_alias_lit
+            .decode_with_resolver(registry.resolver(), &policy)?;
         ensure!(
             preserved_mstr == alias_payload,
             "DcMstring decode must preserve original alias DcChar without lossy canonicalization"
@@ -2397,23 +2871,45 @@ mod dynamic_runtime_equivalence_overlay_tests {
         ];
         let ident_mstr: DcMstring = ident_chars.into_iter().collect();
         let mut single_ident_doc = DcMstring::new();
-        ctb_formats_dcstring::encode_dc_identifier(&mut single_ident_doc, &ident_mstr)?;
+        ctb_formats_dcstring::encode_dc_identifier(
+            &mut single_ident_doc,
+            &ident_mstr,
+        )?;
         let decoded_ident: DcMstring = single_ident_doc.decode(&policy)?;
-        ensure!(decoded_ident == ident_mstr, "Identifier DcMstring roundtrip mismatch");
+        ensure!(
+            decoded_ident == ident_mstr,
+            "Identifier DcMstring roundtrip mismatch"
+        );
 
         let mut assign_doc = DcMstring::new();
-        ctb_formats_dcstring::encode_dc_identifier(&mut assign_doc, &ident_mstr)?;
+        ctb_formats_dcstring::encode_dc_identifier(
+            &mut assign_doc,
+            &ident_mstr,
+        )?;
         assign_doc.push_char(ctb_formats_dcdata::dc::DC_ASSIGN);
         777u64.encode_dc_mixed(&mut assign_doc)?;
         assign_doc.push_char(ctb_formats_dcdata::dc::DC_REFERENCE_BOUND_VALUE);
-        ctb_formats_dcstring::encode_dc_identifier(&mut assign_doc, &ident_mstr)?;
+        ctb_formats_dcstring::encode_dc_identifier(
+            &mut assign_doc,
+            &ident_mstr,
+        )?;
 
         let mut assign_nav = DcDocumentNavigator::from_mstr(&assign_doc);
         let mut assign_arena = DcSyntaxArena::new();
         assign_nav.parse_document_into_arena(&mut assign_arena, &policy)?;
-        let ref_root = *assign_arena.roots().get(1).context("Missing bound reference root")?;
-        let mut proj_ctx = ctb_formats_dcstring::DcProjectionContext::new(&assign_arena, &policy);
-        let resolved_val: u64 = ctb_formats_dcstring::DcMixedDecode::decode_dc_node(&mut proj_ctx, ref_root)?;
+        let ref_root = *assign_arena
+            .roots()
+            .get(1)
+            .context("Missing bound reference root")?;
+        let mut proj_ctx = ctb_formats_dcstring::DcProjectionContext::new(
+            &assign_arena,
+            &policy,
+        );
+        let resolved_val: u64 =
+            ctb_formats_dcstring::DcMixedDecode::decode_dc_node(
+                &mut proj_ctx,
+                ref_root,
+            )?;
         ensure!(
             resolved_val == 777,
             "Bound reference (540) with non-Unicode Dc identifier must resolve to assigned value 777"
@@ -2423,7 +2919,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
     }
 
     #[crate::ctb_test]
-    fn test_retained_diagnostics_and_custom_resolver_boundaries() -> Result<()> {
+    fn test_retained_diagnostics_and_custom_resolver_boundaries() -> Result<()>
+    {
         // 1. decode_frame_with_arena retains projection diagnostics (unknown_field,
         //    missing_required_field, malformed_field) in arena.diagnostics():
         let forgiving = DcProjectionPolicy::forgiving();
@@ -2447,11 +2944,17 @@ mod dynamic_runtime_equivalence_overlay_tests {
         ensure!(rec.title == "hello", "Expected title == hello");
         ensure!(rec.count == 0, "Expected defaulted count == 0");
         ensure!(
-            arena.diagnostics().iter().any(|d| d.message.contains("Unknown Dc tag")),
+            arena
+                .diagnostics()
+                .iter()
+                .any(|d| d.message.contains("Unknown Dc tag")),
             "decode_frame_with_arena must retain unknown_field diagnostic in arena.diagnostics()"
         );
         ensure!(
-            arena.diagnostics().iter().any(|d| d.message.contains("Missing required field")),
+            arena
+                .diagnostics()
+                .iter()
+                .any(|d| d.message.contains("Missing required field")),
             "decode_frame_with_arena must retain missing_required_field diagnostic in arena.diagnostics()"
         );
 
@@ -2464,8 +2967,10 @@ mod dynamic_runtime_equivalence_overlay_tests {
         "not_a_number".encode_dc_mixed(&mut malformed_doc)?;
         malformed_doc.push_char(DcChar::from_short(402));
 
-        let strict_insp =
-            malformed_doc.inspect_with_policy::<OverlaySampleRecord>(&DcProjectionPolicy::strict());
+        let strict_insp = malformed_doc
+            .inspect_with_policy::<OverlaySampleRecord>(
+                &DcProjectionPolicy::strict(),
+            );
         ensure!(
             strict_insp.value().is_none(),
             "Strict inspection of malformed field must report error"
@@ -2483,10 +2988,22 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let synth_rec_close = DcChar::from_short(3802).to_u128();
         let synth_field_title = DcChar::from_short(3803).to_u128();
         let synth_field_count = DcChar::from_short(3804).to_u128();
-        registry.register_equivalence(synth_rec_open, DcChar::from_short(401).to_u128());
-        registry.register_equivalence(synth_rec_close, DcChar::from_short(402).to_u128());
-        registry.register_equivalence(synth_field_title, DcChar::from_short(400).to_u128());
-        registry.register_equivalence(synth_field_count, DcChar::from_short(406).to_u128());
+        registry.register_equivalence(
+            synth_rec_open,
+            DcChar::from_short(401).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_rec_close,
+            DcChar::from_short(402).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_field_title,
+            DcChar::from_short(400).to_u128(),
+        );
+        registry.register_equivalence(
+            synth_field_count,
+            DcChar::from_short(406).to_u128(),
+        );
 
         let mut overlay_doc = DcMstring::new();
         overlay_doc.push_char(DcChar::from_u128(synth_rec_open));
@@ -2496,15 +3013,18 @@ mod dynamic_runtime_equivalence_overlay_tests {
         10u64.encode_dc_mixed(&mut overlay_doc)?;
         overlay_doc.push_char(DcChar::from_u128(synth_rec_close));
 
-        let overlay_insp =
-            overlay_doc.inspect_with_resolver::<OverlaySampleRecord>(registry.resolver());
+        let overlay_insp = overlay_doc
+            .inspect_with_resolver::<OverlaySampleRecord>(registry.resolver());
         let updated_rec = OverlaySampleRecord {
             title: "after".to_owned(),
             count: 10,
         };
         let replaced_doc = overlay_insp.replace_field("title", &updated_rec)?;
-        let replaced_rec: OverlaySampleRecord =
-            replaced_doc.decode_with_resolver(registry.resolver(), &DcProjectionPolicy::strict())?;
+        let replaced_rec: OverlaySampleRecord = replaced_doc
+            .decode_with_resolver(
+                registry.resolver(),
+                &DcProjectionPolicy::strict(),
+            )?;
         ensure!(replaced_rec.title == "after", "Replaced title mismatch");
         ensure!(replaced_rec.count == 10, "Replaced count mismatch");
 
@@ -2526,8 +3046,11 @@ mod dynamic_runtime_equivalence_overlay_tests {
                 alias_dc_str.push(ch);
             }
         }
-        let decoded_bin: ctb_formats_dcstring::BinaryPayload =
-            alias_dc_str.decode_with_resolver(enc_registry.resolver(), &DcProjectionPolicy::strict())?;
+        let decoded_bin: ctb_formats_dcstring::BinaryPayload = alias_dc_str
+            .decode_with_resolver(
+                enc_registry.resolver(),
+                &DcProjectionPolicy::strict(),
+            )?;
         ensure!(
             decoded_bin.0 == vec![0, 0, 0],
             "Expected 3 zero bytes from custom base64 digit in textual encapsulation"
@@ -2537,7 +3060,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
     }
 
     #[crate::ctb_test]
-    fn test_spliced_streams_multi_token_outer_closers_and_quoted_content() -> Result<()> {
+    fn test_spliced_streams_multi_token_outer_closers_and_quoted_content()
+    -> Result<()> {
         let strict = DcProjectionPolicy::strict();
 
         // 1. lang.say (Dc 256) inside a struct container (401..402) emitting:
@@ -2573,7 +3097,9 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         nav.validate_document(&strict)?;
 
-        #[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+        #[derive(
+            Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed,
+        )]
         #[dc(begin = 401, end = 402)]
         struct SplicedDcMstrRecord {
             #[dc(400)]
@@ -2623,8 +3149,10 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let mut list_arena = DcSyntaxArena::new();
         let mut list_nav2 = DcDocumentNavigator::from_mstr(&list_doc);
         list_nav2.parse_document_into_arena(&mut list_arena, &strict)?;
-        let list_root = *list_arena.roots().first().context("Missing list root")?;
-        let list_node = list_arena.node(list_root).context("Missing list node")?;
+        let list_root =
+            *list_arena.roots().first().context("Missing list root")?;
+        let list_node =
+            list_arena.node(list_root).context("Missing list node")?;
         let children = list_node.children();
         let operands = list_arena.split_operands(&children[1..]);
         ensure!(
@@ -2745,9 +3273,8 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
                 Ok(())
             })?;
-        handle
-            .join()
-            .map_err(|_| anyhow::anyhow!("Thread panicked during raised depth qualification"))?
+        handle.join().map_err(|_| {
+            anyhow::anyhow!("Thread panicked during raised depth qualification")
+        })?
     }
 }
-

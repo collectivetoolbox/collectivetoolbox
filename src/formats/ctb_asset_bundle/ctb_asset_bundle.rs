@@ -616,9 +616,7 @@ pub fn write_asset_bundle_from_disk_entries_with_details(
     let temp_path = output_path.with_file_name(temp_name);
     let file = File::create(&temp_path)
         .with_context(|| format!("Failed to create {}", temp_path.display()))?;
-    let capacity = 256_usize
-        .checked_mul(1024)
-        .context("capacity overflow")?;
+    let capacity = 256_usize.checked_mul(1024).context("capacity overflow")?;
     let mut writer = BufWriter::with_capacity(capacity, file);
 
     // 1. Write placeholder header
@@ -642,8 +640,9 @@ pub fn write_asset_bundle_from_disk_entries_with_details(
         hasher.update(entry.path.as_bytes());
         hasher.update(entry.size.to_le_bytes());
 
-        let mut in_file = File::open(&entry.disk_path)
-            .with_context(|| format!("Failed to open {}", entry.disk_path.display()))?;
+        let mut in_file = File::open(&entry.disk_path).with_context(|| {
+            format!("Failed to open {}", entry.disk_path.display())
+        })?;
         let mut bytes_copied: u64 = 0;
         loop {
             let n = in_file.read(&mut read_buf)?;
@@ -712,8 +711,13 @@ pub fn write_asset_bundle_from_disk_entries_with_details(
     out_file.sync_all()?;
     drop(out_file);
 
-    fs::rename(&temp_path, output_path)
-        .with_context(|| format!("Failed to rename {} to {}", temp_path.display(), output_path.display()))?;
+    fs::rename(&temp_path, output_path).with_context(|| {
+        format!(
+            "Failed to rename {} to {}",
+            temp_path.display(),
+            output_path.display()
+        )
+    })?;
 
     Ok(header)
 }
@@ -1548,7 +1552,8 @@ mod tests {
     }
 
     #[test]
-    fn test_write_asset_bundle_from_disk_entries_matches_in_memory() -> Result<()> {
+    fn test_write_asset_bundle_from_disk_entries_matches_in_memory()
+    -> Result<()> {
         let temp_dir = std::env::temp_dir().join("ctb_test_disk_bundle");
         let _ = fs::remove_dir_all(&temp_dir);
         fs::create_dir_all(&temp_dir)?;

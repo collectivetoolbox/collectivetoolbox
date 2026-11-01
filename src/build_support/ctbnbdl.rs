@@ -33,11 +33,9 @@ use crate::utilities::*;
 
 use std::path::{Path, PathBuf};
 
+use crate::dctf::{decode_dctf_buf, decode_utf_8e_128_buf, encode_dctf_buf};
 use crate::global_graph_layout::{SYSTEM_REGION_END, SYSTEM_REGION_START};
 use crate::shorthand::DcShorthand;
-use crate::dctf::{
-    decode_dctf_buf, decode_utf_8e_128_buf, encode_dctf_buf,
-};
 
 /// Maximum number of node declarations stored in a single `.ctbnodes` chunk file.
 pub const MAX_NODES_PER_CHUNK: usize = 100;
@@ -157,9 +155,12 @@ impl LedgerNode {
                 "{file_label}:{line_no}: missing ':' separator in node declaration '{trimmed}'"
             );
         };
-        let lhs_shorthand = DcShorthand::parse(lhs.trim()).with_context(|| {
-            format!("{file_label}:{line_no}: invalid node ID shorthand '{lhs}'")
-        })?;
+        let lhs_shorthand =
+            DcShorthand::parse(lhs.trim()).with_context(|| {
+                format!(
+                    "{file_label}:{line_no}: invalid node ID shorthand '{lhs}'"
+                )
+            })?;
         let DcShorthand::Long(id) = lhs_shorthand else {
             bail!(
                 "{file_label}:{line_no}: System-block node ID must use 'l<digits>' syntax, found '{lhs}'"
@@ -189,8 +190,9 @@ impl LedgerNode {
 fn format_grouped_id(first_id: u128) -> String {
     let digits = first_id.to_string();
     let len = digits.len();
-    let mut grouped =
-        String::with_capacity(len.saturating_add(len.checked_div(5).unwrap_or(0)));
+    let mut grouped = String::with_capacity(
+        len.saturating_add(len.checked_div(5).unwrap_or(0)),
+    );
     for (idx, ch) in digits.chars().enumerate() {
         let remaining = len.saturating_sub(idx);
         if idx > 0 && remaining.is_multiple_of(5) {
@@ -417,7 +419,9 @@ pub const HIGHWATER_LEDGER_REL_PATH: &str = "built/graph-ledger/highwater";
 
 fn highwater_shadow_dirs(repo_root: &Path) -> Vec<(String, PathBuf)> {
     vec![(
-        format!("reconstructible high-water ledger cache ({HIGHWATER_LEDGER_REL_PATH})"),
+        format!(
+            "reconstructible high-water ledger cache ({HIGHWATER_LEDGER_REL_PATH})"
+        ),
         repo_root.join(HIGHWATER_LEDGER_REL_PATH),
     )]
 }
@@ -432,7 +436,10 @@ pub fn verify_repo_graph_append_only(
         if shadow_dir.is_dir() {
             let shadow_nodes = load_ledger_nodes_from_dir_raw(&shadow_dir)
                 .with_context(|| {
-                    format!("Failed to load {label} from {}", shadow_dir.display())
+                    format!(
+                        "Failed to load {label} from {}",
+                        shadow_dir.display()
+                    )
                 })?;
             if !shadow_nodes.is_empty() {
                 verify_nodes_append_only_against_baseline(
@@ -456,7 +463,8 @@ pub fn verify_repo_graph_append_only(
             let mut keyed_paths: Vec<(u128, String)> = Vec::new();
             for line in stdout.lines() {
                 let rel = line.trim();
-                let Some(fname) = Path::new(rel).file_name().and_then(|s| s.to_str())
+                let Some(fname) =
+                    Path::new(rel).file_name().and_then(|s| s.to_str())
                 else {
                     continue;
                 };
@@ -464,7 +472,8 @@ pub fn verify_repo_graph_append_only(
                     keyed_paths.push((start_id, rel.to_string()));
                 }
             }
-            keyed_paths.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+            keyed_paths
+                .sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
             let mut head_nodes = Vec::new();
             for (_, rel) in keyed_paths {
                 let show_out = std::process::Command::new("/usr/bin/git")
@@ -478,7 +487,9 @@ pub fn verify_repo_graph_append_only(
                     })?;
                 if show_out.status.success() {
                     let text = String::from_utf8(show_out.stdout)
-                        .with_context(|| format!("Invalid UTF-8 in HEAD:{rel}"))?;
+                        .with_context(|| {
+                            format!("Invalid UTF-8 in HEAD:{rel}")
+                        })?;
                     let chunk_nodes = load_ledger_nodes_from_str(&text, &rel)?;
                     head_nodes.extend(chunk_nodes);
                 }
@@ -502,12 +513,18 @@ pub fn verify_repo_graph_append_only(
 ///   `O_WRONLY | O_APPEND` (compatible with kernel `chattr +a`) and writes only the newly appended tail.
 /// - If `path` already exists and is NOT a strict byte prefix of `content`, fails loudly (`Err`).
 /// - If `path` does not exist yet, creates it with `O_WRONLY | O_CREAT | O_EXCL`.
-pub fn write_chunk_file_append_only(path: &Path, content: &str) -> Result<bool> {
+pub fn write_chunk_file_append_only(
+    path: &Path,
+    content: &str,
+) -> Result<bool> {
     use std::io::Write;
 
     if path.exists() {
         let existing = std::fs::read(path).with_context(|| {
-            format!("Failed to read existing .ctbnodes chunk {}", path.display())
+            format!(
+                "Failed to read existing .ctbnodes chunk {}",
+                path.display()
+            )
         })?;
         if existing == content.as_bytes() {
             return Ok(false);
@@ -520,8 +537,9 @@ pub fn write_chunk_file_append_only(path: &Path, content: &str) -> Result<bool> 
             existing.len(),
             content.len()
         );
-        let tail = content.as_bytes().get(existing.len()..)
-            .context("Existing chunk exceeds verified replacement byte length")?;
+        let tail = content.as_bytes().get(existing.len()..).context(
+            "Existing chunk exceeds verified replacement byte length",
+        )?;
         let mut file = std::fs::OpenOptions::new()
             .append(true)
             .open(path)
@@ -529,7 +547,11 @@ pub fn write_chunk_file_append_only(path: &Path, content: &str) -> Result<bool> 
                 format!("Failed to open {} in O_APPEND mode", path.display())
             })?;
         file.write_all(tail).with_context(|| {
-            format!("Failed to append {} bytes to {}", tail.len(), path.display())
+            format!(
+                "Failed to append {} bytes to {}",
+                tail.len(),
+                path.display()
+            )
         })?;
         return Ok(true);
     }
@@ -899,8 +921,8 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
         return Ok(Vec::new());
     }
 
-    let max_nodes_u128 = u128::try_from(max_nodes_per_bundle)
-        .unwrap_or(1_000_000);
+    let max_nodes_u128 =
+        u128::try_from(max_nodes_per_bundle).unwrap_or(1_000_000);
     let mut bundles: Vec<(u128, Vec<u8>)> = Vec::new();
     let mut current_first_id: Option<u128> = None;
     let mut current_bucket: u128 = 0;
@@ -933,10 +955,9 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
 
         if let Some(first_id) = current_first_id {
             let crosses_bucket = bucket != current_bucket;
-            let exceeds_bytes = current_bytes
-                .len()
-                .saturating_add(node_bytes.len())
-                > max_bytes_per_bundle;
+            let exceeds_bytes =
+                current_bytes.len().saturating_add(node_bytes.len())
+                    > max_bytes_per_bundle;
             if crosses_bucket || exceeds_bytes {
                 bundles.push((first_id, std::mem::take(&mut current_bytes)));
                 current_first_id = None;
@@ -1008,7 +1029,8 @@ pub fn encode_for_each_statement_tokens_with(
     targets: &[DcShorthand],
     framing: CtbnbdlFramingDcs,
 ) -> Vec<DcShorthand> {
-    let mut out = Vec::with_capacity(targets.len().saturating_mul(2).saturating_add(7));
+    let mut out =
+        Vec::with_capacity(targets.len().saturating_mul(2).saturating_add(7));
     out.push(DcShorthand::Short(638));
     out.push(inner_verb);
     push_atom_dc_with(&mut out, inner_subj, framing);
@@ -1055,7 +1077,8 @@ pub fn parse_for_each_statement_tokens_with(
         let list_type = *tokens.get(idx)?;
         idx = idx.saturating_add(1);
         let end_idx = tokens.len().checked_sub(1)?;
-        if idx >= end_idx || tokens.get(end_idx) != Some(&DcShorthand::Short(311))
+        if idx >= end_idx
+            || tokens.get(end_idx) != Some(&DcShorthand::Short(311))
         {
             return None;
         }
@@ -1063,7 +1086,8 @@ pub fn parse_for_each_statement_tokens_with(
         while idx < end_idx {
             if tokens.get(idx) == Some(&DcShorthand::Short(4)) {
                 idx = idx.saturating_add(1);
-                let start_tok = consume_atom_dc_with(tokens, &mut idx, framing)?;
+                let start_tok =
+                    consume_atom_dc_with(tokens, &mut idx, framing)?;
                 let end_tok = consume_atom_dc_with(tokens, &mut idx, framing)?;
                 match (start_tok, end_tok) {
                     (DcShorthand::Long(s), DcShorthand::Long(e))
@@ -1073,7 +1097,9 @@ pub fn parse_for_each_statement_tokens_with(
                             targets.push(DcShorthand::Long(id));
                         }
                     }
-                    (DcShorthand::Short(s), DcShorthand::Short(e)) if s <= e => {
+                    (DcShorthand::Short(s), DcShorthand::Short(e))
+                        if s <= e =>
+                    {
                         for id in s..=e {
                             targets.push(DcShorthand::Short(id));
                         }
@@ -1205,7 +1231,9 @@ pub fn partition_active_and_inactive_nodes_with(
                 || revision_stmt_ids.contains(&node.id)
             {
                 false
-            } else if inner_verb == framing.has_a && inner_obj != framing.preferred {
+            } else if inner_verb == framing.has_a
+                && inner_obj != framing.preferred
+            {
                 has_a_with_active_value.contains(&node.id)
             } else {
                 true
@@ -1374,10 +1402,7 @@ fn write_ctbnbdl_bundles_to_dir(
     }
 
     for entry in std::fs::read_dir(dst_dir).with_context(|| {
-        format!(
-            "Failed to read destination directory {}",
-            dst_dir.display()
-        )
+        format!("Failed to read destination directory {}", dst_dir.display())
     })? {
         let entry = entry?;
         let path = entry.path();
@@ -1444,11 +1469,8 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
         max_nodes_per_bundle,
         max_bytes_per_bundle,
     )?;
-    let compiled_count = write_ctbnbdl_bundles_to_dir(
-        dst_dir,
-        &active_bundles,
-        !is_same_dir,
-    )?;
+    let compiled_count =
+        write_ctbnbdl_bundles_to_dir(dst_dir, &active_bundles, !is_same_dir)?;
 
     if is_same_dir {
         let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(

@@ -49,7 +49,9 @@ use ctb_io::file::resolve_existing_ancestors;
 /// - `src/ dest/`: copies contents of `src` into `dest/`.
 /// - `src dest/`: copies `src` into `dest/src`.
 /// - Multiple sources always require destination to be treated as a container directory.
-pub fn resolve_tasks(paths: &[PathBuf]) -> Result<(Vec<ResolvedCopyTask>, PathBuf)> {
+pub fn resolve_tasks(
+    paths: &[PathBuf],
+) -> Result<(Vec<ResolvedCopyTask>, PathBuf)> {
     anyhow::ensure!(
         paths.len() >= 2,
         "At least one source path and one destination path are required"
@@ -69,8 +71,10 @@ pub fn resolve_tasks(paths: &[PathBuf]) -> Result<(Vec<ResolvedCopyTask>, PathBu
     let mut tasks = Vec::with_capacity(sources.len());
 
     for source in sources {
-        let source_meta = std::fs::symlink_metadata(source)
-            .with_context(|| format!("Source path does not exist: {}", source.display()))?;
+        let source_meta =
+            std::fs::symlink_metadata(source).with_context(|| {
+                format!("Source path does not exist: {}", source.display())
+            })?;
         let src_has_slash = path_has_trailing_slash(source);
         let src_is_dir = source_meta.is_dir();
 
@@ -139,15 +143,24 @@ pub(crate) fn validate_task_overlap(tasks: &[ResolvedCopyTask]) -> Result<()> {
         let source = resolve_existing_ancestors(&source_task.source_root)?;
         for target_task in tasks {
             let target = resolve_existing_ancestors(&target_task.target_root)?;
-            anyhow::ensure!(source != target
-                && !(source_meta.is_dir() && target.starts_with(&source))
-                && !source.starts_with(&target),
-                "Source and destination overlap: {} -> {}", source.display(), target.display());
+            anyhow::ensure!(
+                source != target
+                    && !(source_meta.is_dir() && target.starts_with(&source))
+                    && !source.starts_with(&target),
+                "Source and destination overlap: {} -> {}",
+                source.display(),
+                target.display()
+            );
             #[cfg(unix)]
-            if let Ok(target_meta) = std::fs::symlink_metadata(&target_task.target_root) {
+            if let Ok(target_meta) =
+                std::fs::symlink_metadata(&target_task.target_root)
+            {
                 use std::os::unix::fs::MetadataExt;
-                anyhow::ensure!(source_meta.dev() != target_meta.dev() || source_meta.ino() != target_meta.ino(),
-                    "Source and destination refer to the same inode");
+                anyhow::ensure!(
+                    source_meta.dev() != target_meta.dev()
+                        || source_meta.ino() != target_meta.ino(),
+                    "Source and destination refer to the same inode"
+                );
             }
         }
     }
@@ -188,15 +201,15 @@ mod tests {
 
         // Case 1: src with trailing slash
         let src_with_slash = PathBuf::from(format!("{}/", src_dir.display()));
-        let (tasks1, _) =
-            resolve_tasks(&[src_with_slash, dest_dir.clone()]).expect("resolve");
+        let (tasks1, _) = resolve_tasks(&[src_with_slash, dest_dir.clone()])
+            .expect("resolve");
         assert_eq!(tasks1.len(), 1);
         assert!(tasks1[0].copy_contents_only);
         assert_eq!(tasks1[0].target_root, dest_dir);
 
         // Case 2: src without trailing slash, dest is existing dir
-        let (tasks2, _) =
-            resolve_tasks(&[src_dir.clone(), dest_dir.clone()]).expect("resolve");
+        let (tasks2, _) = resolve_tasks(&[src_dir.clone(), dest_dir.clone()])
+            .expect("resolve");
         assert_eq!(tasks2.len(), 1);
         assert!(!tasks2[0].copy_contents_only);
         assert_eq!(tasks2[0].target_root, dest_dir.join("src_folder"));
@@ -222,7 +235,10 @@ mod tests {
         let source = temp.path().join("source");
         std::fs::create_dir(&source).unwrap();
         assert!(resolve_tasks(&[source.join(""), source.clone()]).is_err());
-        assert!(resolve_tasks(&[source.clone(), source.join("nested/destination")]).is_err());
+        assert!(
+            resolve_tasks(&[source.clone(), source.join("nested/destination")])
+                .is_err()
+        );
         assert!(!source.join("nested").exists());
     }
 
@@ -232,7 +248,9 @@ mod tests {
         let temp = tempdir().unwrap();
         let source = temp.path().join("dangling");
         std::os::unix::fs::symlink("missing", &source).unwrap();
-        assert!(resolve_tasks(&[source, temp.path().join("destination")]).is_ok());
+        assert!(
+            resolve_tasks(&[source, temp.path().join("destination")]).is_ok()
+        );
         assert!(!path_has_trailing_slash(Path::new("literal\\")));
     }
 }

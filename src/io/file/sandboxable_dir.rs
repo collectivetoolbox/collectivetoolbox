@@ -38,7 +38,10 @@ use crate::path_policy::{
 #[cfg(unix)]
 use rustix::fd::{AsFd, BorrowedFd, OwnedFd};
 #[cfg(unix)]
-use rustix::fs::{AtFlags, Mode, OFlags, fstat, linkat, mkdirat, open, openat, renameat, statat, symlinkat, unlinkat};
+use rustix::fs::{
+    AtFlags, Mode, OFlags, fstat, linkat, mkdirat, open, openat, renameat,
+    statat, symlinkat, unlinkat,
+};
 
 #[cfg(target_os = "linux")]
 use rustix::fs::{ResolveFlags, openat2};
@@ -92,7 +95,9 @@ pub struct SandboxableDir {
     #[cfg(windows)]
     root_handle: std::fs::File,
     #[cfg(any(unix, windows))]
-    owned_directories: std::sync::Mutex<std::collections::HashMap<std::ffi::OsString, RetainedDirectoryHandle>>,
+    owned_directories: std::sync::Mutex<
+        std::collections::HashMap<std::ffi::OsString, RetainedDirectoryHandle>,
+    >,
 }
 
 /// Backward compatibility type alias for `SandboxableDir`.
@@ -123,12 +128,19 @@ impl SandboxableDir {
                 OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
                 Mode::empty(),
             )
-            .with_context(|| format!("Failed to open directory root: {}", root_path.display()))?;
+            .with_context(|| {
+                format!(
+                    "Failed to open directory root: {}",
+                    root_path.display()
+                )
+            })?;
 
             Ok(Self {
                 root_path,
                 root_fd: fd,
-                owned_directories: std::sync::Mutex::new(std::collections::HashMap::new()),
+                owned_directories: std::sync::Mutex::new(
+                    std::collections::HashMap::new(),
+                ),
             })
         }
         #[cfg(windows)]
@@ -137,7 +149,9 @@ impl SandboxableDir {
             Ok(Self {
                 root_path,
                 root_handle,
-                owned_directories: std::sync::Mutex::new(std::collections::HashMap::new()),
+                owned_directories: std::sync::Mutex::new(
+                    std::collections::HashMap::new(),
+                ),
             })
         }
         #[cfg(not(any(unix, windows)))]
@@ -147,9 +161,7 @@ impl SandboxableDir {
                 "Path is not a directory: {}",
                 root_path.display()
             );
-            Ok(Self {
-                root_path,
-            })
+            Ok(Self { root_path })
         }
     }
 
@@ -162,28 +174,48 @@ impl SandboxableDir {
         let path: PathBuf = absolute.components().collect();
         let created = match std::fs::create_dir(&path) {
             Ok(()) => true,
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => false,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                false
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                let parent = path.parent().context("Directory root has no parent")?;
+                let parent =
+                    path.parent().context("Directory root has no parent")?;
                 std::fs::create_dir_all(parent).with_context(|| {
-                    format!("Failed to create directory root parents: {}", parent.display())
+                    format!(
+                        "Failed to create directory root parents: {}",
+                        parent.display()
+                    )
                 })?;
                 match std::fs::create_dir(&path) {
                     Ok(()) => true,
-                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => false,
-                    Err(error) => return Err(error).context("Failed to create directory root"),
+                    Err(error)
+                        if error.kind()
+                            == std::io::ErrorKind::AlreadyExists =>
+                    {
+                        false
+                    }
+                    Err(error) => {
+                        return Err(error)
+                            .context("Failed to create directory root");
+                    }
                 }
             }
-            Err(error) => return Err(error).context("Failed to create directory root"),
+            Err(error) => {
+                return Err(error).context("Failed to create directory root");
+            }
         };
         let sandbox = Self::open(&path)?;
         #[cfg(unix)]
         if created {
-            sandbox.remember_created_directory(Path::new(""), &sandbox.root_fd)?;
+            sandbox
+                .remember_created_directory(Path::new(""), &sandbox.root_fd)?;
         }
         #[cfg(windows)]
         if created {
-            sandbox.remember_created_directory(Path::new(""), &sandbox.root_handle)?;
+            sandbox.remember_created_directory(
+                Path::new(""),
+                &sandbox.root_handle,
+            )?;
         }
         #[cfg(not(any(unix, windows)))]
         let _ = created;
@@ -197,7 +229,11 @@ impl SandboxableDir {
     /// preventing identity reuse and no-follow identity revalidation at this call.
     /// Callers must authorize before changing metadata or opening streams. This
     /// check does not protect a subsequent path-based operation from renames.
-    pub fn authorize_metadata(&self, relative: &Path, existing: ExistingEntryPolicy) -> Result<()> {
+    pub fn authorize_metadata(
+        &self,
+        relative: &Path,
+        existing: ExistingEntryPolicy,
+    ) -> Result<()> {
         if existing == ExistingEntryPolicy::Replace {
             return Ok(());
         }
@@ -207,11 +243,13 @@ impl SandboxableDir {
                 &self.root_path,
                 OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
                 Mode::empty(),
-            ).context("Metadata root no longer names a no-follow directory")?;
+            )
+            .context("Metadata root no longer names a no-follow directory")?;
             let expected_root = fstat(&self.root_fd)?;
             let actual_root = fstat(&current_root)?;
             anyhow::ensure!(
-                expected_root.st_dev == actual_root.st_dev && expected_root.st_ino == actual_root.st_ino,
+                expected_root.st_dev == actual_root.st_dev
+                    && expected_root.st_ino == actual_root.st_ino,
                 "Metadata root directory identity changed"
             );
             let mut current = current_root;
@@ -221,31 +259,46 @@ impl SandboxableDir {
                     Component::CurDir => {}
                     Component::Normal(name) => {
                         current = openat(
-                            &current, name,
-                            OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                            &current,
+                            name,
+                            OFlags::DIRECTORY
+                                | OFlags::NOFOLLOW
+                                | OFlags::CLOEXEC,
                             Mode::empty(),
-                        ).context("Metadata destination is not a no-follow directory")?;
+                        )
+                        .context(
+                            "Metadata destination is not a no-follow directory",
+                        )?;
                         normalized.push(name);
                     }
-                    _ => anyhow::bail!("Metadata authorization requires a contained relative path"),
+                    _ => anyhow::bail!(
+                        "Metadata authorization requires a contained relative path"
+                    ),
                 }
             }
             let actual = fstat(&current)?;
-            let owned = self.owned_directories.lock()
-                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?;
+            let owned = self.owned_directories.lock().map_err(|_| {
+                anyhow::anyhow!("Created-directory ownership lock poisoned")
+            })?;
             if let Some(handle) = owned.get(normalized.as_os_str()) {
                 let expected = fstat(handle)?;
-                if expected.st_dev == actual.st_dev && expected.st_ino == actual.st_ino {
+                if expected.st_dev == actual.st_dev
+                    && expected.st_ino == actual.st_ino
+                {
                     return Ok(());
                 }
             }
-            anyhow::bail!("Metadata destination was not created by this sandbox instance: {}", relative.display())
+            anyhow::bail!(
+                "Metadata destination was not created by this sandbox instance: {}",
+                relative.display()
+            )
         }
         #[cfg(windows)]
         {
             let mut current = open_windows_directory(&self.root_path)?;
             anyhow::ensure!(
-                windows_directory_identity(&self.root_handle)? == windows_directory_identity(&current)?,
+                windows_directory_identity(&self.root_handle)?
+                    == windows_directory_identity(&current)?,
                 "Metadata root directory identity changed"
             );
             let mut normalized = PathBuf::new();
@@ -258,47 +311,71 @@ impl SandboxableDir {
                         destination.push(name);
                         current = open_windows_directory(&destination)?;
                     }
-                    _ => anyhow::bail!("Metadata authorization requires a contained relative path"),
+                    _ => anyhow::bail!(
+                        "Metadata authorization requires a contained relative path"
+                    ),
                 }
             }
             let actual = windows_directory_identity(&current)?;
-            let owned = self.owned_directories.lock()
-                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?;
+            let owned = self.owned_directories.lock().map_err(|_| {
+                anyhow::anyhow!("Created-directory ownership lock poisoned")
+            })?;
             if let Some(handle) = owned.get(normalized.as_os_str()) {
                 if windows_directory_identity(handle)? == actual {
                     return Ok(());
                 }
             }
-            anyhow::bail!("Metadata destination was not created by this sandbox instance: {}", relative.display())
+            anyhow::bail!(
+                "Metadata destination was not created by this sandbox instance: {}",
+                relative.display()
+            )
         }
         #[cfg(not(any(unix, windows)))]
-        anyhow::bail!("No-replace metadata identity authorization is unsupported on this platform: {}", relative.display())
+        anyhow::bail!(
+            "No-replace metadata identity authorization is unsupported on this platform: {}",
+            relative.display()
+        )
     }
 
     #[cfg(any(unix, windows))]
-    fn remember_created_directory(&self, relative: &Path, handle: &RetainedDirectoryHandle) -> Result<()> {
-        let retained = handle.try_clone().context("Failed to retain created directory handle")?;
-        self.owned_directories.lock()
-            .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?
+    fn remember_created_directory(
+        &self,
+        relative: &Path,
+        handle: &RetainedDirectoryHandle,
+    ) -> Result<()> {
+        let retained = handle
+            .try_clone()
+            .context("Failed to retain created directory handle")?;
+        self.owned_directories
+            .lock()
+            .map_err(|_| {
+                anyhow::anyhow!("Created-directory ownership lock poisoned")
+            })?
             .insert(relative.as_os_str().to_owned(), retained);
         Ok(())
     }
 
     /// Queries the unique filesystem identity ([`InodeKey`]) of a directory owned
     /// and created by this sandbox instance.
-    pub fn query_owned_directory_identity(&self, relative: &Path) -> Result<crate::identity::InodeKey> {
+    pub fn query_owned_directory_identity(
+        &self,
+        relative: &Path,
+    ) -> Result<crate::identity::InodeKey> {
         let mut normalized = PathBuf::new();
         for component in relative.components() {
             match component {
                 Component::CurDir => {}
                 Component::Normal(name) => normalized.push(name),
-                _ => anyhow::bail!("Querying directory identity requires a contained relative path"),
+                _ => anyhow::bail!(
+                    "Querying directory identity requires a contained relative path"
+                ),
             }
         }
         #[cfg(unix)]
         {
-            let owned = self.owned_directories.lock()
-                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?;
+            let owned = self.owned_directories.lock().map_err(|_| {
+                anyhow::anyhow!("Created-directory ownership lock poisoned")
+            })?;
             let handle = owned.get(normalized.as_os_str())
                 .with_context(|| format!("Directory was not created by this sandbox instance: {}", relative.display()))?;
             let st = fstat(handle)?;
@@ -306,8 +383,9 @@ impl SandboxableDir {
         }
         #[cfg(windows)]
         {
-            let owned = self.owned_directories.lock()
-                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?;
+            let owned = self.owned_directories.lock().map_err(|_| {
+                anyhow::anyhow!("Created-directory ownership lock poisoned")
+            })?;
             let handle = owned.get(normalized.as_os_str())
                 .with_context(|| format!("Directory was not created by this sandbox instance: {}", relative.display()))?;
             windows_directory_identity(handle)
@@ -315,7 +393,9 @@ impl SandboxableDir {
         #[cfg(not(any(unix, windows)))]
         {
             let _ = relative;
-            anyhow::bail!("Directory identity query is unsupported on this platform")
+            anyhow::bail!(
+                "Directory identity query is unsupported on this platform"
+            )
         }
     }
 
@@ -333,11 +413,13 @@ impl SandboxableDir {
                 &self.root_path,
                 OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
                 Mode::empty(),
-            ).context("Metadata root no longer names a no-follow directory")?;
+            )
+            .context("Metadata root no longer names a no-follow directory")?;
             let expected_root = fstat(&self.root_fd)?;
             let actual_root = fstat(&current_root)?;
             anyhow::ensure!(
-                expected_root.st_dev == actual_root.st_dev && expected_root.st_ino == actual_root.st_ino,
+                expected_root.st_dev == actual_root.st_dev
+                    && expected_root.st_ino == actual_root.st_ino,
                 "Metadata root directory identity changed"
             );
             let mut current = current_root;
@@ -347,18 +429,30 @@ impl SandboxableDir {
                     Component::CurDir => {}
                     Component::Normal(name) => {
                         current = openat(
-                            &current, name,
-                            OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                            &current,
+                            name,
+                            OFlags::DIRECTORY
+                                | OFlags::NOFOLLOW
+                                | OFlags::CLOEXEC,
                             Mode::empty(),
-                        ).with_context(|| format!("Failed to open directory component '{}'", Path::new(name).display()))?;
+                        )
+                        .with_context(|| {
+                            format!(
+                                "Failed to open directory component '{}'",
+                                Path::new(name).display()
+                            )
+                        })?;
                         normalized.push(name);
                     }
-                    _ => anyhow::bail!("Metadata authorization requires a contained relative path"),
+                    _ => anyhow::bail!(
+                        "Metadata authorization requires a contained relative path"
+                    ),
                 }
             }
             let actual = fstat(&current)?;
             anyhow::ensure!(
-                actual.st_dev == expected_identity.device_id && actual.st_ino == expected_identity.inode,
+                actual.st_dev == expected_identity.device_id
+                    && actual.st_ino == expected_identity.inode,
                 "Directory identity mismatch for {}: expected dev={}, ino={}, got dev={}, ino={}",
                 relative.display(),
                 expected_identity.device_id,
@@ -366,8 +460,11 @@ impl SandboxableDir {
                 actual.st_dev,
                 actual.st_ino,
             );
-            self.owned_directories.lock()
-                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?
+            self.owned_directories
+                .lock()
+                .map_err(|_| {
+                    anyhow::anyhow!("Created-directory ownership lock poisoned")
+                })?
                 .insert(normalized.as_os_str().to_owned(), current);
             Ok(())
         }
@@ -375,7 +472,8 @@ impl SandboxableDir {
         {
             let mut current = open_windows_directory(&self.root_path)?;
             anyhow::ensure!(
-                windows_directory_identity(&self.root_handle)? == windows_directory_identity(&current)?,
+                windows_directory_identity(&self.root_handle)?
+                    == windows_directory_identity(&current)?,
                 "Metadata root directory identity changed"
             );
             let mut normalized = PathBuf::new();
@@ -388,7 +486,9 @@ impl SandboxableDir {
                         destination.push(name);
                         current = open_windows_directory(&destination)?;
                     }
-                    _ => anyhow::bail!("Metadata authorization requires a contained relative path"),
+                    _ => anyhow::bail!(
+                        "Metadata authorization requires a contained relative path"
+                    ),
                 }
             }
             let actual_identity = windows_directory_identity(&current)?;
@@ -401,15 +501,20 @@ impl SandboxableDir {
                 actual_identity.device_id,
                 actual_identity.inode,
             );
-            self.owned_directories.lock()
-                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?
+            self.owned_directories
+                .lock()
+                .map_err(|_| {
+                    anyhow::anyhow!("Created-directory ownership lock poisoned")
+                })?
                 .insert(normalized.as_os_str().to_owned(), current);
             Ok(())
         }
         #[cfg(not(any(unix, windows)))]
         {
             let _ = (relative, expected_identity);
-            anyhow::bail!("Restoring directory ownership is unsupported on this platform")
+            anyhow::bail!(
+                "Restoring directory ownership is unsupported on this platform"
+            )
         }
     }
 
@@ -427,7 +532,9 @@ impl SandboxableDir {
     /// Borrowed handle of the root directory.
     #[cfg(not(unix))]
     pub fn root_fd(&self) -> DirHandleRef<'_> {
-        DirHandleRef { path: &self.root_path }
+        DirHandleRef {
+            path: &self.root_path,
+        }
     }
 
     /// Ensures that all directory components in `rel_dir` exist under the root,
@@ -474,14 +581,17 @@ impl SandboxableDir {
                 Component::CurDir => {}
                 Component::Normal(c) => {
                     relative.push(c);
-                    let open_flags = if policy == PathTraversalPolicy::StrictSandboxed {
+                    let open_flags = if policy
+                        == PathTraversalPolicy::StrictSandboxed
+                    {
                         OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC
                     } else {
                         OFlags::DIRECTORY | OFlags::CLOEXEC
                     };
 
                     let c_path = Path::new(c);
-                    let next_res = openat(&current_fd, c, open_flags, Mode::empty());
+                    let next_res =
+                        openat(&current_fd, c, open_flags, Mode::empty());
                     match next_res {
                         Ok(fd) => {
                             current_fd = fd;
@@ -503,16 +613,24 @@ impl SandboxableDir {
                                 }
                             };
 
-                            let reopened = openat(&current_fd, c, open_flags | OFlags::NOFOLLOW, Mode::empty());
+                            let reopened = openat(
+                                &current_fd,
+                                c,
+                                open_flags | OFlags::NOFOLLOW,
+                                Mode::empty(),
+                            );
                             match reopened {
                                 Ok(fd) => {
                                     if created {
-                                        self.remember_created_directory(&relative, &fd)?;
+                                        self.remember_created_directory(
+                                            &relative, &fd,
+                                        )?;
                                     }
                                     current_fd = fd;
                                 }
                                 Err(reopen_err)
-                                    if reopen_err.raw_os_error() == nix::libc::ELOOP =>
+                                    if reopen_err.raw_os_error()
+                                        == nix::libc::ELOOP =>
                                 {
                                     anyhow::bail!(
                                         "Security rejection: intermediate component '{}' was created as a symlink under StrictSandboxed policy",
@@ -566,10 +684,13 @@ impl SandboxableDir {
         policy: PathTraversalPolicy,
     ) -> Result<DirHandle> {
         let full_path = crate::path_policy::resolve_and_validate_path(
-            &self.root_path, rel_dir, policy,
+            &self.root_path,
+            rel_dir,
+            policy,
         )?;
         let Ok(relative) = full_path.strip_prefix(&self.root_path) else {
-            std::fs::create_dir_all(&full_path).context("Failed to create external directory")?;
+            std::fs::create_dir_all(&full_path)
+                .context("Failed to create external directory")?;
             open_windows_directory(&full_path)?;
             return Ok(DirHandle { path: full_path });
         };
@@ -584,15 +705,25 @@ impl SandboxableDir {
                     normalized.push(name);
                     let created = match std::fs::create_dir(&current_path) {
                         Ok(()) => true,
-                        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => false,
-                        Err(error) => return Err(error).context("Failed to create directory"),
+                        Err(error)
+                            if error.kind()
+                                == std::io::ErrorKind::AlreadyExists =>
+                        {
+                            false
+                        }
+                        Err(error) => {
+                            return Err(error)
+                                .context("Failed to create directory");
+                        }
                     };
                     let handle = open_windows_directory(&current_path)?;
                     if created {
                         self.remember_created_directory(&normalized, &handle)?;
                     }
                 }
-                _ => anyhow::bail!("Directory creation requires a contained relative path"),
+                _ => anyhow::bail!(
+                    "Directory creation requires a contained relative path"
+                ),
             }
         }
         Ok(DirHandle { path: current_path })
@@ -618,7 +749,10 @@ impl SandboxableDir {
         )?;
 
         if policy == PathTraversalPolicy::StrictSandboxed {
-            crate::path_policy::ensure_sandboxed_dir_all(&self.root_path, &full_path)?;
+            crate::path_policy::ensure_sandboxed_dir_all(
+                &self.root_path,
+                &full_path,
+            )?;
         } else if !full_path.exists() {
             std::fs::create_dir_all(&full_path).with_context(|| {
                 format!("Failed to create directory '{}'", full_path.display())
@@ -636,12 +770,15 @@ impl SandboxableDir {
         rel_path: &Path,
         policy: PathTraversalPolicy,
     ) -> Result<(DirHandle, PathBuf)> {
-        let clean_path = if policy == PathTraversalPolicy::StrictSandboxed && rel_path.is_absolute()
+        let clean_path = if policy == PathTraversalPolicy::StrictSandboxed
+            && rel_path.is_absolute()
         {
             // Re-root absolute path safely beneath the destination root
             let stripped: PathBuf = rel_path
                 .components()
-                .filter(|c| !matches!(c, Component::Prefix(_) | Component::RootDir))
+                .filter(|c| {
+                    !matches!(c, Component::Prefix(_) | Component::RootDir)
+                })
                 .collect();
             stripped
         } else {
@@ -739,7 +876,13 @@ impl SandboxableDir {
         final_name: impl AsRef<std::ffi::OsStr>,
         existing: ExistingEntryPolicy,
     ) -> Result<()> {
-        self.rename_from_parent(parent_dir_fd, temp_name, parent_dir_fd, final_name, existing)
+        self.rename_from_parent(
+            parent_dir_fd,
+            temp_name,
+            parent_dir_fd,
+            final_name,
+            existing,
+        )
     }
 
     /// Renames an entry between open parents under explicit authorization.
@@ -763,7 +906,12 @@ impl SandboxableDir {
                 renameat(source_parent, temp_os, destination_parent, final_os)
                     .map_err(std::io::Error::from)
             }
-            #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple", target_os = "redox"))]
+            #[cfg(any(
+                target_os = "linux",
+                target_os = "android",
+                target_vendor = "apple",
+                target_os = "redox"
+            ))]
             ExistingEntryPolicy::Refuse => match rustix::fs::renameat_with(
                 source_parent,
                 temp_os,
@@ -772,14 +920,16 @@ impl SandboxableDir {
                 rustix::fs::RenameFlags::NOREPLACE,
             ) {
                 Ok(()) => Ok(()),
-                Err(rustix::io::Errno::NOSYS | rustix::io::Errno::INVAL | rustix::io::Errno::NOTSUP) => {
-                    renameat_noreplace_fallback(
-                        source_parent,
-                        temp_os,
-                        destination_parent,
-                        final_os,
-                    )
-                }
+                Err(
+                    rustix::io::Errno::NOSYS
+                    | rustix::io::Errno::INVAL
+                    | rustix::io::Errno::NOTSUP,
+                ) => renameat_noreplace_fallback(
+                    source_parent,
+                    temp_os,
+                    destination_parent,
+                    final_os,
+                ),
                 Err(err) => Err(std::io::Error::from(err)),
             },
             #[cfg(target_os = "freebsd")]
@@ -803,10 +953,13 @@ impl SandboxableDir {
                 final_os,
             ),
         };
-        result.with_context(|| format!(
-            "Failed to publish {} as {} in sandboxed parent ({existing:?})",
-            temp_os.to_string_lossy(), final_os.to_string_lossy()
-        ))
+        result.with_context(|| {
+            format!(
+                "Failed to publish {} as {} in sandboxed parent ({existing:?})",
+                temp_os.to_string_lossy(),
+                final_os.to_string_lossy()
+            )
+        })
     }
 
     /// Publishes a staged file without unlinking the destination first.
@@ -820,7 +973,13 @@ impl SandboxableDir {
         final_name: impl AsRef<std::ffi::OsStr>,
         existing: ExistingEntryPolicy,
     ) -> Result<()> {
-        self.rename_from_parent(parent_dir_fd, temp_name, parent_dir_fd, final_name, existing)
+        self.rename_from_parent(
+            parent_dir_fd,
+            temp_name,
+            parent_dir_fd,
+            final_name,
+            existing,
+        )
     }
 
     /// Renames between parents using native publication without a sync barrier.
@@ -839,12 +998,17 @@ impl SandboxableDir {
         let temp_path = source_parent.path.join(temp_name.as_ref());
         let final_path = destination_parent.path.join(final_name.as_ref());
         #[cfg(windows)]
-        { publish_windows(&temp_path, &final_path, existing) }
+        {
+            publish_windows(&temp_path, &final_path, existing)
+        }
         #[cfg(not(windows))]
         {
-            anyhow::ensure!(existing == ExistingEntryPolicy::Replace,
-                "Atomic no-replace file publication is unsupported on this platform");
-            std::fs::rename(&temp_path, &final_path).context("Failed to publish staged file")
+            anyhow::ensure!(
+                existing == ExistingEntryPolicy::Replace,
+                "Atomic no-replace file publication is unsupported on this platform"
+            );
+            std::fs::rename(&temp_path, &final_path)
+                .context("Failed to publish staged file")
         }
     }
 
@@ -861,12 +1025,24 @@ impl SandboxableDir {
         existing: ExistingEntryPolicy,
     ) -> Result<()> {
         let link_os = link_name.as_ref();
-        validate_symlink_target(&self.root_path, symlink_path, target_bytes, policy)?;
+        validate_symlink_target(
+            &self.root_path,
+            symlink_path,
+            target_bytes,
+            policy,
+        )?;
 
         let target_os = std::ffi::OsStr::from_bytes(target_bytes);
-        replace_node_atomically(*parent_dir_fd, link_os, existing, |temporary| {
-            symlinkat(target_os, parent_dir_fd, temporary).context("Failed to stage symlink")
-        }).with_context(|| {
+        replace_node_atomically(
+            *parent_dir_fd,
+            link_os,
+            existing,
+            |temporary| {
+                symlinkat(target_os, parent_dir_fd, temporary)
+                    .context("Failed to stage symlink")
+            },
+        )
+        .with_context(|| {
             format!(
                 "Failed to create symlink {} in sandboxed parent",
                 link_os.to_string_lossy()
@@ -886,7 +1062,14 @@ impl SandboxableDir {
         existing: ExistingEntryPolicy,
     ) -> Result<()> {
         let symlink_path = self.root_path.join(link_name.as_ref());
-        self.create_symlink_at(parent_dir_fd, link_name, &symlink_path, target_bytes, policy, existing)
+        self.create_symlink_at(
+            parent_dir_fd,
+            link_name,
+            &symlink_path,
+            target_bytes,
+            policy,
+            existing,
+        )
     }
 
     /// Creates a symbolic link directly inside `parent_dir_fd`, using the provided
@@ -902,7 +1085,12 @@ impl SandboxableDir {
         existing: ExistingEntryPolicy,
     ) -> Result<()> {
         use std::os::windows::fs::symlink_file;
-        validate_symlink_target(&self.root_path, symlink_path, target_bytes, policy)?;
+        validate_symlink_target(
+            &self.root_path,
+            symlink_path,
+            target_bytes,
+            policy,
+        )?;
 
         let target_str = std::str::from_utf8(target_bytes)
             .context("Target bytes are not valid UTF-8 on Windows")?;
@@ -932,17 +1120,30 @@ impl SandboxableDir {
         use crate::metadata::{NativeMetadataValue, reparse, windows};
         use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_DIRECTORY;
 
-        validate_symlink_target(&self.root_path, destination, target.as_os_str().as_encoded_bytes(), policy)?;
-        let Some(NativeMetadataValue::Unsigned(tag)) = native.values.get("reparse.tag") else {
+        validate_symlink_target(
+            &self.root_path,
+            destination,
+            target.as_os_str().as_encoded_bytes(),
+            policy,
+        )?;
+        let Some(NativeMetadataValue::Unsigned(tag)) =
+            native.values.get("reparse.tag")
+        else {
             anyhow::bail!("Native link is missing its reparse tag");
         };
-        let Some(NativeMetadataValue::Unsigned(attributes)) = native.values.get("attributes") else {
+        let Some(NativeMetadataValue::Unsigned(attributes)) =
+            native.values.get("attributes")
+        else {
             anyhow::bail!("Native link is missing its file attributes");
         };
-        let is_directory = attributes & u64::from(FILE_ATTRIBUTE_DIRECTORY) != 0;
-        anyhow::ensure!(*tag == u64::from(reparse::IO_REPARSE_TAG_SYMLINK)
-            || (*tag == u64::from(reparse::IO_REPARSE_TAG_MOUNT_POINT) && is_directory),
-            "Unsupported native link reparse tag {tag:#x}");
+        let is_directory =
+            attributes & u64::from(FILE_ATTRIBUTE_DIRECTORY) != 0;
+        anyhow::ensure!(
+            *tag == u64::from(reparse::IO_REPARSE_TAG_SYMLINK)
+                || (*tag == u64::from(reparse::IO_REPARSE_TAG_MOUNT_POINT)
+                    && is_directory),
+            "Unsupported native link reparse tag {tag:#x}"
+        );
         replace_node_windows(destination, existing, |path| {
             if *tag == u64::from(reparse::IO_REPARSE_TAG_MOUNT_POINT) {
                 std::fs::create_dir(path)?;
@@ -951,13 +1152,26 @@ impl SandboxableDir {
             } else {
                 std::os::windows::fs::symlink_file(target, path)?;
             }
-            let result = windows::apply_windows_reparse_metadata(path, native, true).and_then(|()| {
-                let actual_target = std::fs::read_link(path)?;
-                validate_symlink_target(&self.root_path, destination, actual_target.as_os_str().as_encoded_bytes(), policy)
-            });
+            let result =
+                windows::apply_windows_reparse_metadata(path, native, true)
+                    .and_then(|()| {
+                        let actual_target = std::fs::read_link(path)?;
+                        validate_symlink_target(
+                            &self.root_path,
+                            destination,
+                            actual_target.as_os_str().as_encoded_bytes(),
+                            policy,
+                        )
+                    });
             if let Err(error) = result {
-                let cleanup = if is_directory { std::fs::remove_dir(path) } else { std::fs::remove_file(path) };
-                cleanup.with_context(|| format!("Failed to clean up native link after {error:#}"))?;
+                let cleanup = if is_directory {
+                    std::fs::remove_dir(path)
+                } else {
+                    std::fs::remove_file(path)
+                };
+                cleanup.with_context(|| {
+                    format!("Failed to clean up native link after {error:#}")
+                })?;
                 return Err(error);
             }
             Ok(())
@@ -975,7 +1189,14 @@ impl SandboxableDir {
         existing: ExistingEntryPolicy,
     ) -> Result<()> {
         let symlink_path = parent_dir_fd.path.join(link_name.as_ref());
-        self.create_symlink_at(parent_dir_fd, link_name, &symlink_path, target_bytes, policy, existing)
+        self.create_symlink_at(
+            parent_dir_fd,
+            link_name,
+            &symlink_path,
+            target_bytes,
+            policy,
+            existing,
+        )
     }
 
     /// Creates a symbolic link directly inside `parent_dir_fd`.
@@ -989,7 +1210,9 @@ impl SandboxableDir {
         _policy: SymlinkValidationPolicy,
         _existing: ExistingEntryPolicy,
     ) -> Result<()> {
-        anyhow::bail!("Lossless symlink creation requires native link type metadata on this platform")
+        anyhow::bail!(
+            "Lossless symlink creation requires native link type metadata on this platform"
+        )
     }
 
     /// Creates a symbolic link directly inside `parent_dir_fd`.
@@ -1002,7 +1225,9 @@ impl SandboxableDir {
         _policy: SymlinkValidationPolicy,
         _existing: ExistingEntryPolicy,
     ) -> Result<()> {
-        anyhow::bail!("Lossless symlink creation requires native link type metadata on this platform")
+        anyhow::bail!(
+            "Lossless symlink creation requires native link type metadata on this platform"
+        )
     }
 
     /// Creates a hard link to `target_rel` inside `parent_dir_fd`.
@@ -1021,24 +1246,36 @@ impl SandboxableDir {
             (self.root_fd.as_fd(), target_rel)
         };
         if existing == ExistingEntryPolicy::Replace {
-            if let Ok(dest_stat) = statat(*parent_dir_fd, link_os, AtFlags::SYMLINK_NOFOLLOW) {
-                if let Ok(target_stat) = statat(target_fd, target_path, AtFlags::SYMLINK_NOFOLLOW) {
-                    if dest_stat.st_dev == target_stat.st_dev && dest_stat.st_ino == target_stat.st_ino {
+            if let Ok(dest_stat) =
+                statat(*parent_dir_fd, link_os, AtFlags::SYMLINK_NOFOLLOW)
+            {
+                if let Ok(target_stat) =
+                    statat(target_fd, target_path, AtFlags::SYMLINK_NOFOLLOW)
+                {
+                    if dest_stat.st_dev == target_stat.st_dev
+                        && dest_stat.st_ino == target_stat.st_ino
+                    {
                         return Ok(());
                     }
                 }
             }
         }
-        replace_node_atomically(*parent_dir_fd, link_os, existing, |temporary| {
-            linkat(
-                target_fd,
-                target_path,
-                parent_dir_fd,
-                temporary,
-                AtFlags::empty(),
-            )
-            .context("Failed to stage hardlink")
-        }).with_context(|| {
+        replace_node_atomically(
+            *parent_dir_fd,
+            link_os,
+            existing,
+            |temporary| {
+                linkat(
+                    target_fd,
+                    target_path,
+                    parent_dir_fd,
+                    temporary,
+                    AtFlags::empty(),
+                )
+                .context("Failed to stage hardlink")
+            },
+        )
+        .with_context(|| {
             format!(
                 "Failed to create hardlink to {} as {} in sandboxed parent",
                 target_rel.display(),
@@ -1066,13 +1303,16 @@ impl SandboxableDir {
         #[cfg(windows)]
         {
             replace_node_windows(&link_path, existing, |path| {
-                std::fs::hard_link(&target_path, path).context("Failed to create hardlink")
+                std::fs::hard_link(&target_path, path)
+                    .context("Failed to create hardlink")
             })
         }
         #[cfg(not(windows))]
         {
-            anyhow::ensure!(existing == ExistingEntryPolicy::Refuse,
-                "Atomic hardlink replacement is unsupported on this platform");
+            anyhow::ensure!(
+                existing == ExistingEntryPolicy::Refuse,
+                "Atomic hardlink replacement is unsupported on this platform"
+            );
             std::fs::hard_link(&target_path, &link_path).with_context(|| {
                 format!(
                     "Failed to create hardlink to {} as {} in sandboxed parent",
@@ -1098,25 +1338,29 @@ impl SandboxableDir {
         let mode_t_val = nix::sys::stat::mode_t::try_from(mode & 0o177_777)
             .context("Failed to convert file mode to target mode_t")?;
         let nix_mode = nix::sys::stat::Mode::from_bits_truncate(mode_t_val);
-        replace_node_atomically(*parent_dir_fd, name_os, existing, |temporary| {
-        match kind {
-            FileEntityKind::Fifo => {
-                nix::sys::stat::mknodat(
-                    parent_dir_fd,
-                    temporary,
-                    nix::sys::stat::SFlag::S_IFIFO,
-                    nix_mode,
-                    0,
-                )
-                .with_context(|| {
-                    format!(
-                        "Failed to create FIFO {} in sandboxed parent",
-                        name_os.to_string_lossy()
-                    )
-                })?;
-            }
-            FileEntityKind::CharDevice { rdev } => {
-                nix::sys::stat::mknodat(
+        replace_node_atomically(
+            *parent_dir_fd,
+            name_os,
+            existing,
+            |temporary| {
+                match kind {
+                    FileEntityKind::Fifo => {
+                        nix::sys::stat::mknodat(
+                            parent_dir_fd,
+                            temporary,
+                            nix::sys::stat::SFlag::S_IFIFO,
+                            nix_mode,
+                            0,
+                        )
+                        .with_context(|| {
+                            format!(
+                                "Failed to create FIFO {} in sandboxed parent",
+                                name_os.to_string_lossy()
+                            )
+                        })?;
+                    }
+                    FileEntityKind::CharDevice { rdev } => {
+                        nix::sys::stat::mknodat(
                     parent_dir_fd,
                     temporary,
                     nix::sys::stat::SFlag::S_IFCHR,
@@ -1129,9 +1373,9 @@ impl SandboxableDir {
                         name_os.to_string_lossy()
                     )
                 })?;
-            }
-            FileEntityKind::BlockDevice { rdev } => {
-                nix::sys::stat::mknodat(
+                    }
+                    FileEntityKind::BlockDevice { rdev } => {
+                        nix::sys::stat::mknodat(
                     parent_dir_fd,
                     temporary,
                     nix::sys::stat::SFlag::S_IFBLK,
@@ -1144,13 +1388,16 @@ impl SandboxableDir {
                         name_os.to_string_lossy()
                     )
                 })?;
-            }
-            _ => {
-                anyhow::bail!("create_special called on non-special entity kind: {kind:?}");
-            }
-        }
-        Ok(())
-        })
+                    }
+                    _ => {
+                        anyhow::bail!(
+                            "create_special called on non-special entity kind: {kind:?}"
+                        );
+                    }
+                }
+                Ok(())
+            },
+        )
     }
 
     /// Creates a special file (FIFO, Character Device, Block Device) inside `parent_dir_fd`.
@@ -1182,22 +1429,31 @@ fn open_windows_directory(path: &Path) -> Result<std::fs::File> {
         .access_mode(FILE_READ_ATTRIBUTES)
         .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
         .open(path)
-        .with_context(|| format!("Failed to open no-follow directory: {}", path.display()))?;
+        .with_context(|| {
+            format!("Failed to open no-follow directory: {}", path.display())
+        })?;
     let metadata = handle.metadata()?;
     anyhow::ensure!(
-        metadata.is_dir() && metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
-        "Directory is a reparse point or not a directory: {}", path.display()
+        metadata.is_dir()
+            && metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+        "Directory is a reparse point or not a directory: {}",
+        path.display()
     );
     Ok(handle)
 }
 
 #[cfg(windows)]
-fn windows_directory_identity(handle: &std::fs::File) -> Result<crate::identity::InodeKey> {
+fn windows_directory_identity(
+    handle: &std::fs::File,
+) -> Result<crate::identity::InodeKey> {
     crate::identity::query_open_file_identity(handle)
 }
 
 #[cfg(target_os = "freebsd")]
-#[expect(unsafe_code, reason = "FreeBSD libc renameat2 FFI call with live CStrings")]
+#[expect(
+    unsafe_code,
+    reason = "FreeBSD libc renameat2 FFI call with live CStrings"
+)]
 fn renameat_noreplace_freebsd(
     source_parent: &DirHandleRef<'_>,
     temp_name: &std::ffi::OsStr,
@@ -1206,10 +1462,12 @@ fn renameat_noreplace_freebsd(
 ) -> std::io::Result<()> {
     use rustix::fd::AsRawFd;
 
-    let from_c = std::ffi::CString::new(temp_name.as_bytes())
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
-    let to_c = std::ffi::CString::new(final_name.as_bytes())
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+    let from_c = std::ffi::CString::new(temp_name.as_bytes()).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    })?;
+    let to_c = std::ffi::CString::new(final_name.as_bytes()).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    })?;
 
     unsafe extern "C" {
         fn renameat2(
@@ -1239,8 +1497,16 @@ fn renameat_noreplace_freebsd(
     }
 
     let err = std::io::Error::last_os_error();
-    if matches!(err.raw_os_error(), Some(nix::libc::ENOSYS | nix::libc::EOPNOTSUPP | nix::libc::EINVAL)) {
-        return renameat_noreplace_fallback(source_parent, temp_name, destination_parent, final_name);
+    if matches!(
+        err.raw_os_error(),
+        Some(nix::libc::ENOSYS | nix::libc::EOPNOTSUPP | nix::libc::EINVAL)
+    ) {
+        return renameat_noreplace_fallback(
+            source_parent,
+            temp_name,
+            destination_parent,
+            final_name,
+        );
     }
 
     Err(err)
@@ -1261,8 +1527,10 @@ fn renameat_noreplace_fallback(
         AtFlags::empty(),
     ) {
         Ok(()) => {
-            if let Err(e) = unlinkat(source_parent, temp_name, AtFlags::empty()) {
-                let _ = unlinkat(destination_parent, final_name, AtFlags::empty());
+            if let Err(e) = unlinkat(source_parent, temp_name, AtFlags::empty())
+            {
+                let _ =
+                    unlinkat(destination_parent, final_name, AtFlags::empty());
                 return Err(std::io::Error::from(e));
             }
             Ok(())
@@ -1270,14 +1538,26 @@ fn renameat_noreplace_fallback(
         Err(rustix::io::Errno::EXIST) => {
             Err(std::io::Error::from_raw_os_error(nix::libc::EEXIST))
         }
-        Err(rustix::io::Errno::PERM | rustix::io::Errno::XDEV |
-rustix::io::Errno::NOTSUP) => {
-            match statat(destination_parent, final_name, AtFlags::SYMLINK_NOFOLLOW) {
-                Ok(_) => Err(std::io::Error::from_raw_os_error(nix::libc::EEXIST)),
-                Err(rustix::io::Errno::NOENT) => {
-                    renameat(source_parent, temp_name, destination_parent, final_name)
-                        .map_err(std::io::Error::from)
+        Err(
+            rustix::io::Errno::PERM
+            | rustix::io::Errno::XDEV
+            | rustix::io::Errno::NOTSUP,
+        ) => {
+            match statat(
+                destination_parent,
+                final_name,
+                AtFlags::SYMLINK_NOFOLLOW,
+            ) {
+                Ok(_) => {
+                    Err(std::io::Error::from_raw_os_error(nix::libc::EEXIST))
                 }
+                Err(rustix::io::Errno::NOENT) => renameat(
+                    source_parent,
+                    temp_name,
+                    destination_parent,
+                    final_name,
+                )
+                .map_err(std::io::Error::from),
                 Err(err) => Err(std::io::Error::from(err)),
             }
         }
@@ -1311,15 +1591,25 @@ fn replace_node_atomically(
 
 #[cfg(any(unix, windows))]
 fn staged_node_name() -> String {
-    static SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    static SEQUENCE: std::sync::atomic::AtomicU64 =
+        std::sync::atomic::AtomicU64::new(0);
     let sequence = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     format!(".csc-node.{}.{}", std::process::id(), sequence)
 }
 
 #[cfg(windows)]
-#[expect(unsafe_code, reason = "MoveFileExW receives validated NUL-terminated path buffers kept alive until it returns")]
-fn publish_windows(temp: &Path, destination: &Path, existing: ExistingEntryPolicy) -> Result<()> {
-    use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_REPLACE_EXISTING};
+#[expect(
+    unsafe_code,
+    reason = "MoveFileExW receives validated NUL-terminated path buffers kept alive until it returns"
+)]
+fn publish_windows(
+    temp: &Path,
+    destination: &Path,
+    existing: ExistingEntryPolicy,
+) -> Result<()> {
+    use windows_sys::Win32::Storage::FileSystem::{
+        MOVEFILE_REPLACE_EXISTING, MoveFileExW,
+    };
 
     let source = crate::metadata::windows::path_to_wide(temp)?;
     let target = crate::metadata::windows::path_to_wide(destination)?;
@@ -1329,9 +1619,13 @@ fn publish_windows(temp: &Path, destination: &Path, existing: ExistingEntryPolic
     };
     // SAFETY: source and target are valid, non-null, NUL-terminated wide string buffers that outlive MoveFileExW.
     if unsafe { MoveFileExW(source.as_ptr(), target.as_ptr(), flags) } == 0 {
-        return Err(std::io::Error::last_os_error()).with_context(|| format!(
-            "Failed to publish {} as {} ({existing:?})", temp.display(), destination.display()
-        ));
+        return Err(std::io::Error::last_os_error()).with_context(|| {
+            format!(
+                "Failed to publish {} as {} ({existing:?})",
+                temp.display(),
+                destination.display()
+            )
+        });
     }
     Ok(())
 }
@@ -1350,17 +1644,21 @@ fn replace_node_windows(
     let temporary = destination.with_file_name(staged_node_name());
     create(&temporary)?;
     if let Err(error) = publish_windows(&temporary, destination, existing) {
-        let cleanup = std::fs::symlink_metadata(&temporary).and_then(|metadata| {
-            if metadata.file_type().is_symlink_dir() {
-                std::fs::remove_dir(&temporary)
-            } else {
-                std::fs::remove_file(&temporary)
-            }
-        });
+        let cleanup =
+            std::fs::symlink_metadata(&temporary).and_then(|metadata| {
+                if metadata.file_type().is_symlink_dir() {
+                    std::fs::remove_dir(&temporary)
+                } else {
+                    std::fs::remove_file(&temporary)
+                }
+            });
         if let Err(cleanup) = cleanup {
-            return Err(error).with_context(|| format!(
-                "Also failed to clean up {}: {cleanup}", temporary.display()
-            ));
+            return Err(error).with_context(|| {
+                format!(
+                    "Also failed to clean up {}: {cleanup}",
+                    temporary.display()
+                )
+            });
         }
         return Err(error);
     }
@@ -1368,7 +1666,10 @@ fn replace_node_windows(
 }
 
 #[cfg(unix)]
-fn sync_node_parent(parent: BorrowedFd<'_>, name: &std::ffi::OsStr) -> Result<()> {
+fn sync_node_parent(
+    parent: BorrowedFd<'_>,
+    name: &std::ffi::OsStr,
+) -> Result<()> {
     if let Err(error) = rustix::fs::fsync(parent) {
         let raw = error.raw_os_error();
         if raw == nix::libc::EINVAL
@@ -1402,7 +1703,7 @@ mod tests {
     use crate::*;
     use ctb_formats_checksum::Sha256Stream;
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
 
     #[crate::ctb_test]
     fn test_existing_entry_policy_defaults_to_refuse() {
@@ -1421,14 +1722,41 @@ mod tests {
         for relative in ["", ".", "existing"] {
             let path = temp.path().join(relative);
             let before = fs::symlink_metadata(&path).unwrap();
-            sandbox.ensure_dir_all(Path::new(relative), PathTraversalPolicy::StrictSandboxed).unwrap();
-            assert!(sandbox.authorize_metadata(Path::new(relative), ExistingEntryPolicy::Refuse).is_err());
-            sandbox.authorize_metadata(Path::new(relative), ExistingEntryPolicy::Replace).unwrap();
+            sandbox
+                .ensure_dir_all(
+                    Path::new(relative),
+                    PathTraversalPolicy::StrictSandboxed,
+                )
+                .unwrap();
+            assert!(
+                sandbox
+                    .authorize_metadata(
+                        Path::new(relative),
+                        ExistingEntryPolicy::Refuse
+                    )
+                    .is_err()
+            );
+            sandbox
+                .authorize_metadata(
+                    Path::new(relative),
+                    ExistingEntryPolicy::Replace,
+                )
+                .unwrap();
             let after = fs::symlink_metadata(&path).unwrap();
-            assert_eq!((before.ino(), before.mode(), before.mtime(), before.mtime_nsec()),
-                (after.ino(), after.mode(), after.mtime(), after.mtime_nsec()));
+            assert_eq!(
+                (
+                    before.ino(),
+                    before.mode(),
+                    before.mtime(),
+                    before.mtime_nsec()
+                ),
+                (after.ino(), after.mode(), after.mtime(), after.mtime_nsec())
+            );
         }
-        assert_eq!(fs::read(temp.path().join("existing/sentinel")).unwrap(), b"unchanged");
+        assert_eq!(
+            fs::read(temp.path().join("existing/sentinel")).unwrap(),
+            b"unchanged"
+        );
     }
 
     #[cfg(any(unix, windows))]
@@ -1437,22 +1765,69 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("parents/root");
         let sandbox = SandboxableDir::create_or_open(&path).unwrap();
-        sandbox.ensure_dir_all(Path::new("middle/leaf"), PathTraversalPolicy::StrictSandboxed).unwrap();
+        sandbox
+            .ensure_dir_all(
+                Path::new("middle/leaf"),
+                PathTraversalPolicy::StrictSandboxed,
+            )
+            .unwrap();
         for relative in ["", ".", "middle", "middle/leaf", "./middle/./leaf"] {
-            sandbox.authorize_metadata(Path::new(relative), ExistingEntryPolicy::Refuse).unwrap();
+            sandbox
+                .authorize_metadata(
+                    Path::new(relative),
+                    ExistingEntryPolicy::Refuse,
+                )
+                .unwrap();
         }
-        for (index, reopened) in [SandboxableDir::open(&path).unwrap(), SandboxableDir::create_or_open(&path).unwrap()].into_iter().enumerate() {
-            reopened.ensure_dir_all(Path::new("middle/leaf"), PathTraversalPolicy::StrictSandboxed).unwrap();
+        for (index, reopened) in [
+            SandboxableDir::open(&path).unwrap(),
+            SandboxableDir::create_or_open(&path).unwrap(),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            reopened
+                .ensure_dir_all(
+                    Path::new("middle/leaf"),
+                    PathTraversalPolicy::StrictSandboxed,
+                )
+                .unwrap();
             for relative in ["", "middle", "middle/leaf"] {
-                assert!(reopened.authorize_metadata(Path::new(relative), ExistingEntryPolicy::Refuse).is_err());
+                assert!(
+                    reopened
+                        .authorize_metadata(
+                            Path::new(relative),
+                            ExistingEntryPolicy::Refuse
+                        )
+                        .is_err()
+                );
             }
             let new_path = PathBuf::from(format!("new{index}/leaf"));
-            reopened.ensure_dir_all(&new_path, PathTraversalPolicy::StrictSandboxed).unwrap();
-            reopened.authorize_metadata(&new_path, ExistingEntryPolicy::Refuse).unwrap();
-            assert!(sandbox.authorize_metadata(&new_path, ExistingEntryPolicy::Refuse).is_err());
+            reopened
+                .ensure_dir_all(&new_path, PathTraversalPolicy::StrictSandboxed)
+                .unwrap();
+            reopened
+                .authorize_metadata(&new_path, ExistingEntryPolicy::Refuse)
+                .unwrap();
+            assert!(
+                sandbox
+                    .authorize_metadata(&new_path, ExistingEntryPolicy::Refuse)
+                    .is_err()
+            );
         }
-        assert!(sandbox.authorize_metadata(Path::new("../root"), ExistingEntryPolicy::Refuse).is_err());
-        assert!(sandbox.authorize_metadata(&path, ExistingEntryPolicy::Refuse).is_err());
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("../root"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
+        assert!(
+            sandbox
+                .authorize_metadata(&path, ExistingEntryPolicy::Refuse)
+                .is_err()
+        );
     }
 
     #[cfg(unix)]
@@ -1460,8 +1835,15 @@ mod tests {
     fn test_metadata_replaced_owned_directory_and_symlink_refused() {
         for replacement in ["directory", "symlink"] {
             let temp = tempfile::tempdir().unwrap();
-            let sandbox = SandboxableDir::create_or_open(temp.path().join("root")).unwrap();
-            sandbox.ensure_dir_all(Path::new("owned/leaf"), PathTraversalPolicy::StrictSandboxed).unwrap();
+            let sandbox =
+                SandboxableDir::create_or_open(temp.path().join("root"))
+                    .unwrap();
+            sandbox
+                .ensure_dir_all(
+                    Path::new("owned/leaf"),
+                    PathTraversalPolicy::StrictSandboxed,
+                )
+                .unwrap();
             let leaf = sandbox.root_path().join("owned/leaf");
             let retained = sandbox.owned_directories.lock().unwrap().len();
             fs::remove_dir(&leaf).unwrap();
@@ -1469,10 +1851,21 @@ mod tests {
                 fs::create_dir(&leaf).unwrap();
             } else {
                 fs::create_dir(temp.path().join("outside")).unwrap();
-                std::os::unix::fs::symlink(temp.path().join("outside"), &leaf).unwrap();
+                std::os::unix::fs::symlink(temp.path().join("outside"), &leaf)
+                    .unwrap();
             }
-            assert!(sandbox.authorize_metadata(Path::new("owned/leaf"), ExistingEntryPolicy::Refuse).is_err());
-            assert_eq!(sandbox.owned_directories.lock().unwrap().len(), retained);
+            assert!(
+                sandbox
+                    .authorize_metadata(
+                        Path::new("owned/leaf"),
+                        ExistingEntryPolicy::Refuse
+                    )
+                    .is_err()
+            );
+            assert_eq!(
+                sandbox.owned_directories.lock().unwrap().len(),
+                retained
+            );
         }
     }
 
@@ -1482,18 +1875,45 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("root");
         let sandbox = SandboxableDir::create_or_open(&root).unwrap();
-        sandbox.ensure_dir_all(Path::new("owned/leaf"), PathTraversalPolicy::StrictSandboxed).unwrap();
+        sandbox
+            .ensure_dir_all(
+                Path::new("owned/leaf"),
+                PathTraversalPolicy::StrictSandboxed,
+            )
+            .unwrap();
         fs::rename(root.join("owned"), root.join("moved")).unwrap();
         std::os::unix::fs::symlink("moved", root.join("owned")).unwrap();
-        assert!(sandbox.authorize_metadata(Path::new("owned/leaf"), ExistingEntryPolicy::Refuse).is_err());
-        assert!(sandbox.ensure_dir_all(Path::new("owned/child"), PathTraversalPolicy::StrictSandboxed).is_err());
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("owned/leaf"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
+        assert!(
+            sandbox
+                .ensure_dir_all(
+                    Path::new("owned/child"),
+                    PathTraversalPolicy::StrictSandboxed
+                )
+                .is_err()
+        );
         assert!(!root.join("moved/child").exists());
         fs::rename(&root, temp.path().join("moved-root")).unwrap();
         fs::create_dir(&root).unwrap();
-        assert!(sandbox.authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse).is_err());
+        assert!(
+            sandbox
+                .authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse)
+                .is_err()
+        );
         fs::remove_dir(&root).unwrap();
         std::os::unix::fs::symlink("moved-root", &root).unwrap();
-        assert!(sandbox.authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse).is_err());
+        assert!(
+            sandbox
+                .authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse)
+                .is_err()
+        );
         assert!(SandboxableDir::open(&root).is_err());
         assert!(SandboxableDir::create_or_open(&root).is_err());
         assert!(SandboxableDir::create_or_open(root.join(".")).is_err());
@@ -1507,18 +1927,51 @@ mod tests {
     #[crate::ctb_test]
     fn test_metadata_verbatim_symlink_traversal_does_not_authorize() {
         let temp = tempfile::tempdir().unwrap();
-        let sandbox = SandboxableDir::create_or_open(temp.path().join("root")).unwrap();
+        let sandbox =
+            SandboxableDir::create_or_open(temp.path().join("root")).unwrap();
         let outside = temp.path().join("outside");
         fs::create_dir(&outside).unwrap();
-        std::os::unix::fs::symlink(&outside, sandbox.root_path().join("link")).unwrap();
-        sandbox.ensure_dir_all(Path::new("link/leaf"), PathTraversalPolicy::PreserveVerbatim).unwrap();
+        std::os::unix::fs::symlink(&outside, sandbox.root_path().join("link"))
+            .unwrap();
+        sandbox
+            .ensure_dir_all(
+                Path::new("link/leaf"),
+                PathTraversalPolicy::PreserveVerbatim,
+            )
+            .unwrap();
         assert!(outside.join("leaf").is_dir());
-        assert!(sandbox.authorize_metadata(Path::new("link/leaf"), ExistingEntryPolicy::Refuse).is_err());
-        assert!(sandbox.authorize_metadata(Path::new("link"), ExistingEntryPolicy::Refuse).is_err());
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("link/leaf"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("link"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
         fs::write(sandbox.root_path().join("file"), b"unchanged").unwrap();
-        assert!(sandbox.authorize_metadata(Path::new("file"), ExistingEntryPolicy::Refuse).is_err());
-        sandbox.authorize_metadata(Path::new("file"), ExistingEntryPolicy::Replace).unwrap();
-        assert_eq!(fs::read(sandbox.root_path().join("file")).unwrap(), b"unchanged");
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("file"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
+        sandbox
+            .authorize_metadata(Path::new("file"), ExistingEntryPolicy::Replace)
+            .unwrap();
+        assert_eq!(
+            fs::read(sandbox.root_path().join("file")).unwrap(),
+            b"unchanged"
+        );
     }
 
     #[cfg(any(unix, windows))]
@@ -1535,16 +1988,35 @@ mod tests {
                 workers.push(scope.spawn(move || {
                     barrier.wait();
                     let sandbox = SandboxableDir::create_or_open(path).unwrap();
-                    sandbox.ensure_dir_all(Path::new("shared/leaf"), PathTraversalPolicy::StrictSandboxed).unwrap();
+                    sandbox
+                        .ensure_dir_all(
+                            Path::new("shared/leaf"),
+                            PathTraversalPolicy::StrictSandboxed,
+                        )
+                        .unwrap();
                     sandbox
                 }));
             }
-            workers.into_iter().map(|worker| worker.join().unwrap()).collect::<Vec<_>>()
+            workers
+                .into_iter()
+                .map(|worker| worker.join().unwrap())
+                .collect::<Vec<_>>()
         });
         for relative in ["", "shared", "shared/leaf"] {
-            assert_eq!(sandboxes.iter().filter(|sandbox| {
-                sandbox.authorize_metadata(Path::new(relative), ExistingEntryPolicy::Refuse).is_ok()
-            }).count(), 1);
+            assert_eq!(
+                sandboxes
+                    .iter()
+                    .filter(|sandbox| {
+                        sandbox
+                            .authorize_metadata(
+                                Path::new(relative),
+                                ExistingEntryPolicy::Refuse,
+                            )
+                            .is_ok()
+                    })
+                    .count(),
+                1
+            );
         }
     }
 
@@ -1552,15 +2024,40 @@ mod tests {
     #[crate::ctb_test]
     fn test_metadata_windows_replaced_directory_refused() {
         let temp = tempfile::tempdir().unwrap();
-        let sandbox = SandboxableDir::create_or_open(temp.path().join("root")).unwrap();
-        sandbox.ensure_dir_all(Path::new("owned/leaf"), PathTraversalPolicy::StrictSandboxed).unwrap();
+        let sandbox =
+            SandboxableDir::create_or_open(temp.path().join("root")).unwrap();
+        sandbox
+            .ensure_dir_all(
+                Path::new("owned/leaf"),
+                PathTraversalPolicy::StrictSandboxed,
+            )
+            .unwrap();
         let leaf = sandbox.root_path().join("owned/leaf");
         fs::rename(&leaf, sandbox.root_path().join("retained")).unwrap();
         fs::create_dir(&leaf).unwrap();
-        assert!(sandbox.authorize_metadata(Path::new("owned/leaf"), ExistingEntryPolicy::Refuse).is_err());
-        assert!(sandbox.authorize_metadata(Path::new("retained"), ExistingEntryPolicy::Refuse).is_err());
-        let reopened = SandboxableDir::create_or_open(sandbox.root_path()).unwrap();
-        assert!(reopened.authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse).is_err());
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("owned/leaf"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("retained"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
+        let reopened =
+            SandboxableDir::create_or_open(sandbox.root_path()).unwrap();
+        assert!(
+            reopened
+                .authorize_metadata(Path::new(""), ExistingEntryPolicy::Refuse)
+                .is_err()
+        );
     }
 
     #[cfg(unix)]
@@ -1570,32 +2067,63 @@ mod tests {
         fs::create_dir(temp.path().join("source")).unwrap();
         fs::create_dir(temp.path().join("destination")).unwrap();
         let source = SandboxableDir::open(temp.path().join("source")).unwrap();
-        let destination = SandboxableDir::open(temp.path().join("destination")).unwrap();
+        let destination =
+            SandboxableDir::open(temp.path().join("destination")).unwrap();
         let original = destination.root_path().join("entry");
         let alias = destination.root_path().join("alias");
         let staged = source.root_path().join("entry");
         fs::write(&original, b"original").unwrap();
         fs::hard_link(&original, &alias).unwrap();
         fs::write(&staged, b"replacement").unwrap();
-        let error = destination.rename_from_parent(
-            &source.root_fd(), "entry", &destination.root_fd(), "entry", ExistingEntryPolicy::Refuse,
-        ).unwrap_err();
-        assert_eq!(error.downcast_ref::<std::io::Error>().unwrap().raw_os_error(), Some(nix::libc::EEXIST));
+        let error = destination
+            .rename_from_parent(
+                &source.root_fd(),
+                "entry",
+                &destination.root_fd(),
+                "entry",
+                ExistingEntryPolicy::Refuse,
+            )
+            .unwrap_err();
+        assert_eq!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .unwrap()
+                .raw_os_error(),
+            Some(nix::libc::EEXIST)
+        );
         assert_eq!(fs::read(&staged).unwrap(), b"replacement");
         assert_eq!(fs::read(&original).unwrap(), b"original");
-        destination.rename_from_parent(
-            &source.root_fd(), "entry", &destination.root_fd(), "fresh", ExistingEntryPolicy::Refuse,
-        ).unwrap();
+        destination
+            .rename_from_parent(
+                &source.root_fd(),
+                "entry",
+                &destination.root_fd(),
+                "fresh",
+                ExistingEntryPolicy::Refuse,
+            )
+            .unwrap();
         assert!(!staged.exists());
-        assert_eq!(fs::read(destination.root_path().join("fresh")).unwrap(), b"replacement");
+        assert_eq!(
+            fs::read(destination.root_path().join("fresh")).unwrap(),
+            b"replacement"
+        );
         fs::write(&staged, b"second replacement").unwrap();
-        destination.rename_from_parent(
-            &source.root_fd(), "entry", &destination.root_fd(), "entry", ExistingEntryPolicy::Replace,
-        ).unwrap();
+        destination
+            .rename_from_parent(
+                &source.root_fd(),
+                "entry",
+                &destination.root_fd(),
+                "entry",
+                ExistingEntryPolicy::Replace,
+            )
+            .unwrap();
         assert_eq!(fs::read(&original).unwrap(), b"second replacement");
         assert_eq!(fs::read(&alias).unwrap(), b"original");
         assert!(!staged.exists());
-        assert_eq!(fs::read(destination.root_path().join("fresh")).unwrap(), b"replacement");
+        assert_eq!(
+            fs::read(destination.root_path().join("fresh")).unwrap(),
+            b"replacement"
+        );
     }
 
     #[cfg(unix)]
@@ -1603,14 +2131,33 @@ mod tests {
     fn test_metadata_recreated_directory_replaces_authority() {
         let temp = tempfile::tempdir().unwrap();
         let sandbox = SandboxableDir::open(temp.path()).unwrap();
-        sandbox.ensure_dir_all(Path::new("owned"), PathTraversalPolicy::StrictSandboxed).unwrap();
+        sandbox
+            .ensure_dir_all(
+                Path::new("owned"),
+                PathTraversalPolicy::StrictSandboxed,
+            )
+            .unwrap();
         fs::rename(temp.path().join("owned"), temp.path().join("old")).unwrap();
-        sandbox.ensure_dir_all(Path::new("owned"), PathTraversalPolicy::StrictSandboxed).unwrap();
-        sandbox.authorize_metadata(Path::new("owned"), ExistingEntryPolicy::Refuse).unwrap();
+        sandbox
+            .ensure_dir_all(
+                Path::new("owned"),
+                PathTraversalPolicy::StrictSandboxed,
+            )
+            .unwrap();
+        sandbox
+            .authorize_metadata(Path::new("owned"), ExistingEntryPolicy::Refuse)
+            .unwrap();
         assert_eq!(sandbox.owned_directories.lock().unwrap().len(), 1);
         fs::remove_dir(temp.path().join("owned")).unwrap();
         fs::rename(temp.path().join("old"), temp.path().join("owned")).unwrap();
-        assert!(sandbox.authorize_metadata(Path::new("owned"), ExistingEntryPolicy::Refuse).is_err());
+        assert!(
+            sandbox
+                .authorize_metadata(
+                    Path::new("owned"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
     }
 
     #[cfg(target_os = "linux")]
@@ -1626,22 +2173,40 @@ mod tests {
             if already_exists {
                 fs::write(&destination, b"original").unwrap();
             }
-            let mut staged = root.create_temp_file(&root.root_fd(), "staged", 0o600).unwrap();
+            let mut staged = root
+                .create_temp_file(&root.root_fd(), "staged", 0o600)
+                .unwrap();
             staged.write_all(b"replacement").unwrap();
             if !already_exists {
                 fs::write(&destination, b"original").unwrap();
             }
             let before = fs::symlink_metadata(&destination).unwrap();
-            assert!(root.commit_atomic_file(
-                &root.root_fd(), "staged", "destination", ExistingEntryPolicy::Refuse,
-            ).is_err());
+            assert!(
+                root.commit_atomic_file(
+                    &root.root_fd(),
+                    "staged",
+                    "destination",
+                    ExistingEntryPolicy::Refuse,
+                )
+                .is_err()
+            );
             assert_eq!(fs::read(&destination).unwrap(), b"original");
-            assert_eq!(fs::symlink_metadata(&destination).unwrap().ino(), before.ino());
-            assert_eq!(fs::read(temp.path().join("staged")).unwrap(), b"replacement");
+            assert_eq!(
+                fs::symlink_metadata(&destination).unwrap().ino(),
+                before.ino()
+            );
+            assert_eq!(
+                fs::read(temp.path().join("staged")).unwrap(),
+                b"replacement"
+            );
 
             root.commit_atomic_file(
-                &root.root_fd(), "staged", "destination", ExistingEntryPolicy::Replace,
-            ).unwrap();
+                &root.root_fd(),
+                "staged",
+                "destination",
+                ExistingEntryPolicy::Replace,
+            )
+            .unwrap();
             assert_eq!(fs::read(&destination).unwrap(), b"replacement");
             assert!(!temp.path().join("staged").exists());
         }
@@ -1650,8 +2215,12 @@ mod tests {
         let root = SandboxableDir::open(temp.path()).unwrap();
         fs::write(temp.path().join("staged"), b"new").unwrap();
         root.commit_atomic_file(
-            &root.root_fd(), "staged", "destination", ExistingEntryPolicy::Refuse,
-        ).unwrap();
+            &root.root_fd(),
+            "staged",
+            "destination",
+            ExistingEntryPolicy::Refuse,
+        )
+        .unwrap();
         assert_eq!(fs::read(temp.path().join("destination")).unwrap(), b"new");
         assert!(!temp.path().join("staged").exists());
     }
@@ -1665,14 +2234,24 @@ mod tests {
         std::os::unix::fs::symlink("missing", &destination).unwrap();
         fs::write(temp.path().join("staged"), b"new").unwrap();
 
-        assert!(root.commit_atomic_file(
-            &root.root_fd(), "staged", "destination", ExistingEntryPolicy::Refuse,
-        ).is_err());
+        assert!(
+            root.commit_atomic_file(
+                &root.root_fd(),
+                "staged",
+                "destination",
+                ExistingEntryPolicy::Refuse,
+            )
+            .is_err()
+        );
         assert_eq!(fs::read_link(&destination).unwrap(), Path::new("missing"));
         assert_eq!(fs::read(temp.path().join("staged")).unwrap(), b"new");
         root.commit_atomic_file(
-            &root.root_fd(), "staged", "destination", ExistingEntryPolicy::Replace,
-        ).unwrap();
+            &root.root_fd(),
+            "staged",
+            "destination",
+            ExistingEntryPolicy::Replace,
+        )
+        .unwrap();
         assert_eq!(fs::read(&destination).unwrap(), b"new");
         assert!(!temp.path().join("missing").exists());
         assert!(!temp.path().join("staged").exists());
@@ -1690,29 +2269,49 @@ mod tests {
         fs::write(&source, b"original").unwrap();
         fs::hard_link(&source, &alias).unwrap();
         let before = fs::metadata(&source).unwrap();
-        assert!(root.create_hardlink(
-            Path::new("source"), &root.root_fd(), "alias", ExistingEntryPolicy::Refuse,
-        ).is_err());
+        assert!(
+            root.create_hardlink(
+                Path::new("source"),
+                &root.root_fd(),
+                "alias",
+                ExistingEntryPolicy::Refuse,
+            )
+            .is_err()
+        );
         assert_eq!(fs::metadata(&alias).unwrap().ino(), before.ino());
         assert_eq!(fs::metadata(&source).unwrap().nlink(), before.nlink());
         assert_eq!(fs::read(&source).unwrap(), b"original");
         root.create_hardlink(
-            Path::new("source"), &root.root_fd(), "alias", ExistingEntryPolicy::Replace,
-        ).unwrap();
+            Path::new("source"),
+            &root.root_fd(),
+            "alias",
+            ExistingEntryPolicy::Replace,
+        )
+        .unwrap();
         assert_eq!(fs::metadata(&alias).unwrap().ino(), before.ino());
         assert_eq!(fs::metadata(&source).unwrap().nlink(), before.nlink());
 
         #[cfg(target_os = "linux")]
         {
             fs::write(temp.path().join("staged"), b"replacement").unwrap();
-            assert!(root.commit_atomic_file(
-                &root.root_fd(), "staged", "alias", ExistingEntryPolicy::Refuse,
-            ).is_err());
+            assert!(
+                root.commit_atomic_file(
+                    &root.root_fd(),
+                    "staged",
+                    "alias",
+                    ExistingEntryPolicy::Refuse,
+                )
+                .is_err()
+            );
             assert_eq!(fs::metadata(&alias).unwrap().ino(), before.ino());
             assert_eq!(fs::metadata(&source).unwrap().nlink(), before.nlink());
             root.commit_atomic_file(
-                &root.root_fd(), "staged", "alias", ExistingEntryPolicy::Replace,
-            ).unwrap();
+                &root.root_fd(),
+                "staged",
+                "alias",
+                ExistingEntryPolicy::Replace,
+            )
+            .unwrap();
             assert_eq!(fs::read(&alias).unwrap(), b"replacement");
             assert_eq!(fs::read(&source).unwrap(), b"original");
             assert!(!temp.path().join("staged").exists());
@@ -1725,7 +2324,9 @@ mod tests {
         use std::os::unix::fs::{FileTypeExt, MetadataExt};
 
         for operation in ["symlink", "hardlink", "fifo"] {
-            for collision in ["regular", "symlink", "directory", "fifo", "hardlink"] {
+            for collision in
+                ["regular", "symlink", "directory", "fifo", "hardlink"]
+            {
                 let temp = tempfile::tempdir().unwrap();
                 let root = SandboxableDir::open(temp.path()).unwrap();
                 let destination = temp.path().join("destination");
@@ -1733,9 +2334,16 @@ mod tests {
                 fs::write(&source, b"source").unwrap();
                 match collision {
                     "regular" => fs::write(&destination, b"original").unwrap(),
-                    "symlink" => std::os::unix::fs::symlink("missing", &destination).unwrap(),
+                    "symlink" => {
+                        std::os::unix::fs::symlink("missing", &destination)
+                            .unwrap()
+                    }
                     "directory" => fs::create_dir(&destination).unwrap(),
-                    "fifo" => nix::unistd::mkfifo(&destination, nix::sys::stat::Mode::S_IRUSR).unwrap(),
+                    "fifo" => nix::unistd::mkfifo(
+                        &destination,
+                        nix::sys::stat::Mode::S_IRUSR,
+                    )
+                    .unwrap(),
                     "hardlink" => fs::hard_link(&source, &destination).unwrap(),
                     _ => unreachable!(),
                 }
@@ -1743,14 +2351,25 @@ mod tests {
                 let source_before = fs::metadata(&source).unwrap();
                 let create = |existing| match operation {
                     "symlink" => root.create_symlink_at(
-                        &root.root_fd(), "destination", &destination, b"source",
-                        SymlinkValidationPolicy::PreserveVerbatim, existing,
+                        &root.root_fd(),
+                        "destination",
+                        &destination,
+                        b"source",
+                        SymlinkValidationPolicy::PreserveVerbatim,
+                        existing,
                     ),
                     "hardlink" => root.create_hardlink(
-                        Path::new("source"), &root.root_fd(), "destination", existing,
+                        Path::new("source"),
+                        &root.root_fd(),
+                        "destination",
+                        existing,
                     ),
                     "fifo" => root.create_special(
-                        &root.root_fd(), "destination", &FileEntityKind::Fifo, 0o600, existing,
+                        &root.root_fd(),
+                        "destination",
+                        &FileEntityKind::Fifo,
+                        0o600,
+                        existing,
                     ),
                     _ => unreachable!(),
                 };
@@ -1759,23 +2378,37 @@ mod tests {
                 assert_eq!(after.ino(), before.ino());
                 assert_eq!(after.mode(), before.mode());
                 assert_eq!(after.nlink(), before.nlink());
-                assert_eq!(fs::metadata(&source).unwrap().nlink(), source_before.nlink());
+                assert_eq!(
+                    fs::metadata(&source).unwrap().nlink(),
+                    source_before.nlink()
+                );
                 assert_eq!(fs::read(&source).unwrap(), b"source");
                 if collision == "regular" {
                     assert_eq!(fs::read(&destination).unwrap(), b"original");
                 }
                 if collision == "symlink" {
-                    assert_eq!(fs::read_link(&destination).unwrap(), Path::new("missing"));
+                    assert_eq!(
+                        fs::read_link(&destination).unwrap(),
+                        Path::new("missing")
+                    );
                 }
                 if collision == "directory" {
                     assert!(create(ExistingEntryPolicy::Replace).is_err());
-                    assert_eq!(fs::symlink_metadata(&destination).unwrap().ino(), before.ino());
+                    assert_eq!(
+                        fs::symlink_metadata(&destination).unwrap().ino(),
+                        before.ino()
+                    );
                 } else {
                     create(ExistingEntryPolicy::Replace).unwrap();
                     let published = fs::symlink_metadata(&destination).unwrap();
                     match operation {
-                        "symlink" => assert_eq!(fs::read_link(&destination).unwrap(), Path::new("source")),
-                        "hardlink" => assert_eq!(published.ino(), source_before.ino()),
+                        "symlink" => assert_eq!(
+                            fs::read_link(&destination).unwrap(),
+                            Path::new("source")
+                        ),
+                        "hardlink" => {
+                            assert_eq!(published.ino(), source_before.ino())
+                        }
                         "fifo" => assert!(published.file_type().is_fifo()),
                         _ => unreachable!(),
                     }
@@ -1794,21 +2427,42 @@ mod tests {
         let root = SandboxableDir::open(temp.path()).unwrap();
         fs::write(temp.path().join("source"), b"source").unwrap();
         root.create_symlink(
-            &root.root_fd(), "symlink", b"source",
-            SymlinkValidationPolicy::PreserveVerbatim, ExistingEntryPolicy::Refuse,
-        ).unwrap();
+            &root.root_fd(),
+            "symlink",
+            b"source",
+            SymlinkValidationPolicy::PreserveVerbatim,
+            ExistingEntryPolicy::Refuse,
+        )
+        .unwrap();
         root.create_hardlink(
-            Path::new("source"), &root.root_fd(), "hardlink", ExistingEntryPolicy::Refuse,
-        ).unwrap();
+            Path::new("source"),
+            &root.root_fd(),
+            "hardlink",
+            ExistingEntryPolicy::Refuse,
+        )
+        .unwrap();
         root.create_special(
-            &root.root_fd(), "fifo", &FileEntityKind::Fifo, 0o600, ExistingEntryPolicy::Refuse,
-        ).unwrap();
-        assert_eq!(fs::read_link(temp.path().join("symlink")).unwrap(), Path::new("source"));
+            &root.root_fd(),
+            "fifo",
+            &FileEntityKind::Fifo,
+            0o600,
+            ExistingEntryPolicy::Refuse,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_link(temp.path().join("symlink")).unwrap(),
+            Path::new("source")
+        );
         assert_eq!(
             fs::metadata(temp.path().join("hardlink")).unwrap().ino(),
             fs::metadata(temp.path().join("source")).unwrap().ino(),
         );
-        assert!(fs::symlink_metadata(temp.path().join("fifo")).unwrap().file_type().is_fifo());
+        assert!(
+            fs::symlink_metadata(temp.path().join("fifo"))
+                .unwrap()
+                .file_type()
+                .is_fifo()
+        );
         assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 4);
     }
 
@@ -1897,10 +2551,7 @@ mod tests {
 
         // Verify symlink target on disk is preserved verbatim
         let symlink_path = dest_root.join("external_link");
-        assert_eq!(
-            fs::read_link(&symlink_path).unwrap(),
-            outside_dir
-        );
+        assert_eq!(fs::read_link(&symlink_path).unwrap(), outside_dir);
 
         // 2. Strict containment: subsequent traversal through external_link must NOT follow it!
         let escape_attempt = PathBuf::from("external_link/secret.txt");
@@ -1920,7 +2571,8 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let dest_root = temp_dir.path().join("dest");
 
-        let payload_bytes = b"Testing materialize_entity_at_path convenience API";
+        let payload_bytes =
+            b"Testing materialize_entity_at_path convenience API";
         let mut hasher = Sha256Stream::new();
         hasher.update(payload_bytes);
         let sha256 = hasher.finalize();
@@ -1964,12 +2616,16 @@ mod tests {
                 size,
                 sha256,
                 is_sparse: false,
-                extents: vec![Extent::Data { offset: 0, length: size }],
+                extents: vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }],
             },
             streams: Vec::new(),
         };
 
-        let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let mut payload =
+            MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
         let options = MaterializeOptions::default();
 
         let receipt = materialize_entity_at_path(
@@ -1992,7 +2648,8 @@ mod tests {
         let sandbox1 = SandboxableDir::create_or_open(&root)?;
 
         let rel_nested = Path::new("nested/sub");
-        sandbox1.ensure_dir_all(rel_nested, PathTraversalPolicy::StrictSandboxed)?;
+        sandbox1
+            .ensure_dir_all(rel_nested, PathTraversalPolicy::StrictSandboxed)?;
 
         // Created directory can be authorized under Refuse policy in the same instance
         sandbox1.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse)?;
@@ -2001,7 +2658,9 @@ mod tests {
         // Reopening the sandbox creates a fresh instance without in-memory ownership
         let sandbox2 = SandboxableDir::open(&root)?;
         assert!(
-            sandbox2.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse).is_err(),
+            sandbox2
+                .authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse)
+                .is_err(),
             "Reopened sandbox without restored ownership must refuse authorization"
         );
 
@@ -2011,11 +2670,18 @@ mod tests {
             malachite::Natural::from(123456789_u64),
         );
         assert!(
-            sandbox2.restore_applied_directory_ownership(rel_nested, &bogus_identity).is_err(),
+            sandbox2
+                .restore_applied_directory_ownership(
+                    rel_nested,
+                    &bogus_identity
+                )
+                .is_err(),
             "Restoring with mismatched identity must fail"
         );
         assert!(
-            sandbox2.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse).is_err(),
+            sandbox2
+                .authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse)
+                .is_err(),
             "Authorization must still be refused after failed restore"
         );
 
@@ -2037,7 +2703,9 @@ mod tests {
         let new_id = crate::identity::query_file_identity(&tampered_path)?;
         if new_id != identity {
             assert!(
-                sandbox3.restore_applied_directory_ownership(rel_nested, &identity).is_err(),
+                sandbox3
+                    .restore_applied_directory_ownership(rel_nested, &identity)
+                    .is_err(),
                 "Replaced directory with different inode must not match original receipt"
             );
         }
@@ -2045,4 +2713,3 @@ mod tests {
         Ok(())
     }
 }
-

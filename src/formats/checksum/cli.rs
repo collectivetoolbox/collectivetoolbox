@@ -68,13 +68,11 @@ mod tests {
         std::fs::write(&temp_file_path, b"hello world")
             .expect("Write temp file");
 
-        let result = super::csum(
-            HashAlgorithm::XxHash32,
-            &temp_file_path,
-            false,
-            |p| Ok(std::fs::read(p)?),
-        )
-        .expect("Run csum command");
+        let result =
+            super::csum(HashAlgorithm::XxHash32, &temp_file_path, false, |p| {
+                Ok(std::fs::read(p)?)
+            })
+            .expect("Run csum command");
         match result {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "cebb6622\n");
@@ -82,13 +80,11 @@ mod tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let result_0x = super::csum(
-            HashAlgorithm::XxHash32,
-            &temp_file_path,
-            true,
-            |p| Ok(std::fs::read(p)?),
-        )
-        .expect("Run csum command");
+        let result_0x =
+            super::csum(HashAlgorithm::XxHash32, &temp_file_path, true, |p| {
+                Ok(std::fs::read(p)?)
+            })
+            .expect("Run csum command");
         match result_0x {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "0xcebb6622\n");
@@ -96,22 +92,22 @@ mod tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let result_fnv = super::csum(
-            HashAlgorithm::Fnv1a_64,
-            &temp_file_path,
-            false,
-            |p| Ok(std::fs::read(p)?),
-        )
-        .expect("Run csum command with fnv1a_64");
+        let result_fnv =
+            super::csum(HashAlgorithm::Fnv1a_64, &temp_file_path, false, |p| {
+                Ok(std::fs::read(p)?)
+            })
+            .expect("Run csum command with fnv1a_64");
         match result_fnv {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(
                     String::from_utf8_lossy(&stdout),
-                    format!("{}\n", ctb_formats_checksum::fnv::fnv1a_64_hex(b"hello world"))
+                    format!(
+                        "{}\n",
+                        ctb_formats_checksum::fnv::fnv1a_64_hex(b"hello world")
+                    )
                 );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
     }
-
 }

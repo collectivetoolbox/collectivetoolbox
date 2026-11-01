@@ -66,7 +66,11 @@ pub trait SyntaxRuleResolver {
     /// Resolves the pattern definition for a named syntactic construct.
     fn resolve_named_type(&self, name: &str) -> Option<&SyntaxPattern>;
     /// Resolves the pattern definition for a named construct with macro arguments substituted.
-    fn resolve_named_type_with_arg(&self, name: &str, arg: Option<&str>) -> Option<SyntaxPattern> {
+    fn resolve_named_type_with_arg(
+        &self,
+        name: &str,
+        arg: Option<&str>,
+    ) -> Option<SyntaxPattern> {
         let pattern = self.resolve_named_type(name)?;
         if let Some(arg_val) = arg {
             Some(substitute_pattern_param(pattern, "$type", arg_val))
@@ -106,7 +110,8 @@ pub trait SyntaxRuleResolver {
         if canonical != token && role.matches_canonical(canonical) {
             return true;
         }
-        if role == DcRole::TypeToken && self.matches_script(".EL Types", token) {
+        if role == DcRole::TypeToken && self.matches_script(".EL Types", token)
+        {
             return true;
         }
         if role == DcRole::EvaluableExpressionStarter
@@ -131,12 +136,17 @@ pub trait SyntaxRuleResolver {
     /// Classifies full and partial alternative-representation wrappers.
     fn is_representation_set(&self, token: u128) -> bool {
         self.is_equivalent_to(token, DC_EQUIVALENT_REPRESENTATIONS.to_u128())
-            || self.is_equivalent_to(token, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128())
+            || self.is_equivalent_to(
+                token,
+                DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128(),
+            )
     }
     /// Classifies list headers and separators in alternative representations.
     fn is_representation_header_or_separator(&self, token: u128) -> bool {
-        self.is_equivalent_to(token, crate::dc::DC_LIST_ELEMENT_SEPARATOR.to_u128())
-            || self.is_equivalent_to(token, crate::dc::DC_TYPE_ANY.to_u128())
+        self.is_equivalent_to(
+            token,
+            crate::dc::DC_LIST_ELEMENT_SEPARATOR.to_u128(),
+        ) || self.is_equivalent_to(token, crate::dc::DC_TYPE_ANY.to_u128())
     }
     /// Returns the opener target if this character token is a closing delimiter.
     fn closing_opener_for(&self, _token: u128) -> Option<&CharTarget> {
@@ -151,12 +161,18 @@ pub trait SyntaxRuleResolver {
         false
     }
     /// Returns the preferred replacement target (`<prefer>...`) for a deprecated target, if any.
-    fn preferred_replacement(&self, _target: &CharTarget) -> Option<&CharTarget> {
+    fn preferred_replacement(
+        &self,
+        _target: &CharTarget,
+    ) -> Option<&CharTarget> {
         None
     }
     /// Returns the leading header syntax elements between `~` and the container body/closer
     /// (for example, `[number $length]? [type]` for `310`, or `[format]` for `511`).
-    fn container_header_elements(&self, _opener: &CharTarget) -> &[SyntaxElement] {
+    fn container_header_elements(
+        &self,
+        _opener: &CharTarget,
+    ) -> &[SyntaxElement] {
         &[]
     }
     /// Returns any syntax elements required immediately after a container's closing delimiter
@@ -166,7 +182,10 @@ pub trait SyntaxRuleResolver {
     }
     /// Resolves an infix operator rule `(lhs_elements, rhs_elements)` where `~` is preceded
     /// by a left-hand operand (for example, `Dc 269`: `:[identifier $ident] ~ [value $val]`).
-    fn resolve_infix_rule(&self, _op_token: u128) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
+    fn resolve_infix_rule(
+        &self,
+        _op_token: u128,
+    ) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
         None
     }
     /// Returns true if the container opened by `opener_token` is a lexical/opaque payload
@@ -209,10 +228,16 @@ pub trait SyntaxRuleResolver {
     /// Returns true if `token` matches the single-token branch of `[atom_dc]`
     /// (i.e. is not in the negated delimiter/operator exclusion set of `atom_dc`).
     fn is_plain_atom_dc(&self, token: u128) -> bool {
-        if let Some(SyntaxPattern::Alternation(branches)) = self.resolve_named_type("atom_dc") {
+        if let Some(SyntaxPattern::Alternation(branches)) =
+            self.resolve_named_type("atom_dc")
+        {
             if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
                 if let Some(SyntaxElement {
-                    term: SyntaxTerm::CharSet { negated: true, members },
+                    term:
+                        SyntaxTerm::CharSet {
+                            negated: true,
+                            members,
+                        },
                     ..
                 }) = elems.first()
                 {
@@ -235,17 +260,23 @@ pub trait SyntaxRuleResolver {
                 .is_some_and(|a| a.method == "lang.assign")
     }
     /// Checks whether a single type/format token `tok` satisfies the type requirement `(req_name, req_subtype)`.
-    fn token_satisfies_type(&self, tok: u128, req_name: &str, req_subtype: Option<&str>) -> bool {
+    fn token_satisfies_type(
+        &self,
+        tok: u128,
+        req_name: &str,
+        req_subtype: Option<&str>,
+    ) -> bool {
         if !matches!(req_name, "format" | "formats" | "script")
             && !(req_name == "type" && req_subtype.is_some())
             && self.token_fills_role(tok, DcRole::TypeAny)
         {
             return true;
         }
-        let is_format = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-            ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-            .contains(&tok)
-            || self.matches_script("Formats", tok);
+        let is_format =
+            (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                .contains(&tok)
+                || self.matches_script("Formats", tok);
         let matches_format_sub = |sub: &str| -> bool {
             let script_name = format!("Formats:{sub}");
             self.matches_script(&script_name, tok)
@@ -256,7 +287,9 @@ pub trait SyntaxRuleResolver {
                     .is_some_and(|exp| self.is_subtype_of(tok, exp))
         };
         match req_name {
-            "script" => req_subtype.is_some_and(|sub| self.matches_script(sub, tok)),
+            "script" => {
+                req_subtype.is_some_and(|sub| self.matches_script(sub, tok))
+            }
             "string" | "String" => {
                 let is_str = self.token_fills_role(tok, DcRole::TypeString)
                     || self.matches_script("Formats:string", tok)
@@ -303,13 +336,16 @@ pub trait SyntaxRuleResolver {
                     || self.matches_script(".EL Types", tok);
                 is_type && req_subtype.is_none_or(matches_format_sub)
             }
-            "format" | "formats" => is_format && req_subtype.is_none_or(matches_format_sub),
+            "format" | "formats" => {
+                is_format && req_subtype.is_none_or(matches_format_sub)
+            }
             "Routine" => self.token_fills_role(tok, DcRole::TypeRoutine),
             "Routine name" | "RoutineName" => {
                 self.token_fills_role(tok, DcRole::TypeRoutineName)
                     || self.token_fills_role(tok, DcRole::TypeRoutine)
             }
-            "identifier" => req_subtype.is_none_or(|sub| self.token_satisfies_type(tok, sub, None)),
+            "identifier" => req_subtype
+                .is_none_or(|sub| self.token_satisfies_type(tok, sub, None)),
             _ => matches_format_sub(req_name),
         }
     }
@@ -318,7 +354,10 @@ pub trait SyntaxRuleResolver {
         Ok(parse_dc_syntax(subtype)?.pattern)
     }
     /// Resolves the element [`SyntaxTerm`] for a `[list:<subtype>]` constraint.
-    fn resolve_list_element_term(&self, subtype: Option<&str>) -> Option<SyntaxTerm> {
+    fn resolve_list_element_term(
+        &self,
+        subtype: Option<&str>,
+    ) -> Option<SyntaxTerm> {
         let Some(sub) = subtype else {
             return Some(SyntaxTerm::NamedConstruct {
                 name: "value".to_owned(),
@@ -422,9 +461,7 @@ fn substitute_term_param(
             }
         }
         SyntaxTerm::Group(nested) => {
-            SyntaxTerm::Group(substitute_pattern_param(
-                nested, param, value,
-            ))
+            SyntaxTerm::Group(substitute_pattern_param(nested, param, value))
         }
         other => other.clone(),
     }
@@ -436,25 +473,21 @@ fn substitute_pattern_param(
     value: &str,
 ) -> SyntaxPattern {
     match pat {
-        SyntaxPattern::Sequence(elements) => {
-            SyntaxPattern::Sequence(
-                elements
-                    .iter()
-                    .map(|el| SyntaxElement {
-                        term: substitute_term_param(&el.term, param, value),
-                        quantifier: el.quantifier,
-                    })
-                    .collect(),
-            )
-        }
-        SyntaxPattern::Alternation(patterns) => {
-            SyntaxPattern::Alternation(
-                patterns
-                    .iter()
-                    .map(|p| substitute_pattern_param(p, param, value))
-                    .collect(),
-            )
-        }
+        SyntaxPattern::Sequence(elements) => SyntaxPattern::Sequence(
+            elements
+                .iter()
+                .map(|el| SyntaxElement {
+                    term: substitute_term_param(&el.term, param, value),
+                    quantifier: el.quantifier,
+                })
+                .collect(),
+        ),
+        SyntaxPattern::Alternation(patterns) => SyntaxPattern::Alternation(
+            patterns
+                .iter()
+                .map(|p| substitute_pattern_param(p, param, value))
+                .collect(),
+        ),
     }
 }
 
@@ -485,9 +518,7 @@ fn element_matches_closer(el: &SyntaxElement, closer_token: u128) -> bool {
             members,
         } => {
             members.len() == 1
-                && members
-                    .first()
-                    .is_some_and(|t| t.to_u128() == closer_token)
+                && members.first().is_some_and(|t| t.to_u128() == closer_token)
         }
         _ => false,
     }
@@ -526,7 +557,10 @@ fn term_is_lexical_payload(term: &SyntaxTerm) -> bool {
     }
 }
 
-fn pattern_is_opaque_container(pattern: &SyntaxPattern, closer_token: u128) -> bool {
+fn pattern_is_opaque_container(
+    pattern: &SyntaxPattern,
+    closer_token: u128,
+) -> bool {
     if closer_token == crate::dc::DC_END_IDENTIFIER.to_u128() {
         return true;
     }
@@ -664,22 +698,29 @@ fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
     parse_decomposition_target(decompositions, "<prefer>")
 }
 
-fn parse_decomposition_target(decompositions: &[String], marker: &str) -> Option<CharTarget> {
+fn parse_decomposition_target(
+    decompositions: &[String],
+    marker: &str,
+) -> Option<CharTarget> {
     for item in decompositions {
         if let Some(rest) = item.trim().strip_prefix(marker) {
             let trimmed = rest.trim();
-            if let Ok(shorthand) = ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed) {
+            if let Ok(shorthand) =
+                ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed)
+            {
                 return match shorthand {
                     ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
                         u32::try_from(id).ok().map(CharTarget::Dc)
                     }
                     ctb_storage_minimal::shorthand::DcShorthand::Format(_) => {
-                        ctb_utilities::format_id::FormatId::from_shorthand(trimmed)
-                            .map(CharTarget::Format)
+                        ctb_utilities::format_id::FormatId::from_shorthand(
+                            trimmed,
+                        )
+                        .map(CharTarget::Format)
                     }
-                    ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
-                        Some(CharTarget::Unicode(cp))
-                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Unicode(
+                        cp,
+                    ) => Some(CharTarget::Unicode(cp)),
                     _ => None,
                 };
             }
@@ -699,7 +740,8 @@ pub struct DatasetRuleResolver {
     pub(super) deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
     pub(super) container_headers: HashMap<CharTarget, Vec<SyntaxElement>>,
     pub(super) trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
-    pub(super) infix_rules: HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
+    pub(super) infix_rules:
+        HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
     pub(super) named_type_starters: HashMap<String, StarterSet>,
     pub(super) semantic_equivalents: HashMap<u128, HashSet<u128>>,
     pub(super) opaque_containers: HashSet<u128>,
@@ -741,13 +783,21 @@ impl DatasetRuleResolver {
     }
 
     /// Registers a delimiter token as closing an opener target.
-    pub fn register_closing_delimiter(&mut self, closer_token: u128, opener: CharTarget) {
+    pub fn register_closing_delimiter(
+        &mut self,
+        closer_token: u128,
+        opener: CharTarget,
+    ) {
         self.opener_to_closer.insert(opener.clone(), closer_token);
         self.closing_delimiters.insert(closer_token, opener);
     }
 
     /// Registers a deprecated target and its optional preferred replacement.
-    pub fn register_deprecated(&mut self, target: CharTarget, preferred: Option<CharTarget>) {
+    pub fn register_deprecated(
+        &mut self,
+        target: CharTarget,
+        preferred: Option<CharTarget>,
+    ) {
         self.deprecated_targets.insert(target, preferred);
     }
 
@@ -850,12 +900,15 @@ impl DatasetRuleResolver {
                     }
                     return;
                 }
-                if (name == "format" || name == "formats") && subtype.is_some() {
+                if (name == "format" || name == "formats") && subtype.is_some()
+                {
                     if let Some(sub) = subtype {
                         out.scripts.push(format!("Formats:{sub}"));
                         out.scripts.push(sub.clone());
                     }
-                } else if (name == "format" || name == "formats") && subtype.is_none() {
+                } else if (name == "format" || name == "formats")
+                    && subtype.is_none()
+                {
                     out.scripts.push("Formats".to_string());
                     out.ranges.push((
                         ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
@@ -874,14 +927,15 @@ impl DatasetRuleResolver {
                 if name == "value" {
                     out.exact_tokens
                         .insert(DC_EQUIVALENT_REPRESENTATIONS.to_u128());
-                    out.exact_tokens
-                        .insert(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128());
+                    out.exact_tokens.insert(
+                        DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128(),
+                    );
                     out.exact_tokens.insert(DC_OPTIONAL_PRESENT.to_u128());
                     out.exact_tokens.insert(DC_OPTIONAL_ABSENT.to_u128());
                 }
                 if visited_named.insert(name.clone()) {
-                    if let Some(pat) =
-                        self.resolve_named_type_with_arg(name, subtype.as_deref())
+                    if let Some(pat) = self
+                        .resolve_named_type_with_arg(name, subtype.as_deref())
                     {
                         self.collect_pattern_starters(
                             &pat,
@@ -906,11 +960,15 @@ impl DatasetRuleResolver {
             .collect();
         for (opener, closer_tok) in opener_closers {
             if let Some(rule) = self.rules.get(&opener) {
-                let header = extract_container_header_elements(&rule.pattern, closer_tok);
+                let header = extract_container_header_elements(
+                    &rule.pattern,
+                    closer_tok,
+                );
                 if !header.is_empty() {
                     self.container_headers.insert(opener.clone(), header);
                 }
-                let trailing = extract_trailing_after_closer(&rule.pattern, closer_tok);
+                let trailing =
+                    extract_trailing_after_closer(&rule.pattern, closer_tok);
                 if !trailing.is_empty() {
                     self.trailing_after_closer.insert(opener.clone(), trailing);
                 }
@@ -933,7 +991,9 @@ impl DatasetRuleResolver {
                     .iter()
                     .position(|el| matches!(el.term, SyntaxTerm::SelfChar))
                 {
-                    if self_idx > 0 && self_idx.saturating_add(1) < elements.len() {
+                    if self_idx > 0
+                        && self_idx.saturating_add(1) < elements.len()
+                    {
                         if let (Some(lhs), Some(rhs)) = (
                             elements.get(..self_idx),
                             elements.get(self_idx.saturating_add(1)..),
@@ -975,7 +1035,8 @@ impl DatasetRuleResolver {
         self.special_wrapper_tokens.clear();
         self.excluded_atom_dc_tokens.clear();
 
-        let mut candidate_targets: HashSet<CharTarget> = self.rules.keys().cloned().collect();
+        let mut candidate_targets: HashSet<CharTarget> =
+            self.rules.keys().cloned().collect();
         candidate_targets.extend(self.opener_to_closer.keys().cloned());
         for &closer_tok in self.closing_delimiters.keys() {
             if let Some(target) = CharTarget::from_u128(closer_tok) {
@@ -1029,10 +1090,16 @@ impl DatasetRuleResolver {
             }
         }
 
-        if let Some(SyntaxPattern::Alternation(branches)) = self.named_types.get("atom_dc") {
+        if let Some(SyntaxPattern::Alternation(branches)) =
+            self.named_types.get("atom_dc")
+        {
             if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
                 if let Some(SyntaxElement {
-                    term: SyntaxTerm::CharSet { negated: true, members },
+                    term:
+                        SyntaxTerm::CharSet {
+                            negated: true,
+                            members,
+                        },
                     ..
                 }) = elems.first()
                 {
@@ -1041,8 +1108,11 @@ impl DatasetRuleResolver {
                         self.excluded_atom_dc_tokens.insert(m_tok);
                         let canon = self.canonical_token(m_tok);
                         self.excluded_atom_dc_tokens.insert(canon);
-                        if let Some(equivs) = self.semantic_equivalents.get(&canon) {
-                            self.excluded_atom_dc_tokens.extend(equivs.iter().copied());
+                        if let Some(equivs) =
+                            self.semantic_equivalents.get(&canon)
+                        {
+                            self.excluded_atom_dc_tokens
+                                .extend(equivs.iter().copied());
                         }
                     }
                     for (&alias, &canon) in &self.canonical_map {
@@ -1123,9 +1193,11 @@ impl DatasetRuleResolver {
             if defn.script == ".EL Routines" {
                 continue;
             }
-            if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax) {
+            if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax)
+            {
                 if let (Ok(id), Some(closer)) = (
-                    u32::try_from(short_id), detect_container_closer(&rule.pattern),
+                    u32::try_from(short_id),
+                    detect_container_closer(&rule.pattern),
                 ) {
                     let target = CharTarget::Dc(id);
                     if !resolver.opener_to_closer.contains_key(&target)
@@ -1143,11 +1215,14 @@ impl DatasetRuleResolver {
                 if !defn.script.is_empty() {
                     resolver.add_script_char(defn.script.clone(), defn.dc_id);
                 }
-                let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{short_id}"))
+                let Some(fid) =
+                    ctb_utilities::format_id::FormatId::from_shorthand(
+                        &format!("f{short_id}"),
+                    )
                     .or_else(|| {
-                        defn.ident
-                            .as_deref()
-                            .and_then(ctb_utilities::format_id::FormatId::from_ident)
+                        defn.ident.as_deref().and_then(
+                            ctb_utilities::format_id::FormatId::from_ident,
+                        )
                     })
                 else {
                     continue;
@@ -1159,11 +1234,16 @@ impl DatasetRuleResolver {
                 }
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(target.clone(), rule.clone());
-                    if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
+                    if let Some(closer_tok) =
+                        detect_container_closer(&rule.pattern)
+                    {
                         if !resolver.opener_to_closer.contains_key(&target)
-                            && !resolver.closing_delimiters.contains_key(&closer_tok)
+                            && !resolver
+                                .closing_delimiters
+                                .contains_key(&closer_tok)
                         {
-                            resolver.register_closing_delimiter(closer_tok, target);
+                            resolver
+                                .register_closing_delimiter(closer_tok, target);
                         }
                     }
                 }
@@ -1179,7 +1259,9 @@ impl DatasetRuleResolver {
             for (index, result) in rdr.records().enumerate() {
                 let row = index.saturating_add(2);
                 let record = result.with_context(|| {
-                    format!("README-named-types.csv row {row}: invalid CSV record")
+                    format!(
+                        "README-named-types.csv row {row}: invalid CSV record"
+                    )
                 })?;
                 let name = record.get(0).map(str::trim)
                     .filter(|name| !name.is_empty())
@@ -1194,24 +1276,40 @@ impl DatasetRuleResolver {
                 if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
                     if let Some(first_elem) = elems.first() {
                         if first_elem.quantifier == Quantifier::ExactOne {
-                            if let SyntaxTerm::CharRef(ref lead_target) = first_elem.term {
+                            if let SyntaxTerm::CharRef(ref lead_target) =
+                                first_elem.term
+                            {
                                 if !resolver.rules.contains_key(lead_target) {
-                                    resolver.add_rule(lead_target.clone(), rule.clone());
+                                    resolver.add_rule(
+                                        lead_target.clone(),
+                                        rule.clone(),
+                                    );
                                 }
-                                if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
-                                    if let Some(&existing_closer) = resolver.opener_to_closer.get(lead_target) {
+                                if let Some(closer_tok) =
+                                    detect_container_closer(&rule.pattern)
+                                {
+                                    if let Some(&existing_closer) = resolver
+                                        .opener_to_closer
+                                        .get(lead_target)
+                                    {
                                         ensure!(
                                             existing_closer == closer_tok,
                                             "README-named-types.csv row {row}: named type '{name}' closer {closer_tok:#X} for {lead_target} conflicts with existing closer {existing_closer:#X}"
                                         );
                                     }
-                                    if let Some(existing_opener) = resolver.closing_delimiters.get(&closer_tok) {
+                                    if let Some(existing_opener) = resolver
+                                        .closing_delimiters
+                                        .get(&closer_tok)
+                                    {
                                         ensure!(
                                             existing_opener == lead_target,
                                             "README-named-types.csv row {row}: named type '{name}' closer {closer_tok:#X} for {lead_target} already closes {existing_opener}"
                                         );
                                     }
-                                    resolver.register_closing_delimiter(closer_tok, lead_target.clone());
+                                    resolver.register_closing_delimiter(
+                                        closer_tok,
+                                        lead_target.clone(),
+                                    );
                                 }
                             }
                         }
@@ -1225,7 +1323,9 @@ impl DatasetRuleResolver {
             if defn.script != ".EL Types" {
                 continue;
             }
-            let Some(el_type_name) = crate::validation::extract_el_type_name(&defn.name) else {
+            let Some(el_type_name) =
+                crate::validation::extract_el_type_name(&defn.name)
+            else {
                 continue;
             };
             let pattern_opt = if let Some(imp) = defn
@@ -1246,7 +1346,9 @@ impl DatasetRuleResolver {
                 )
             } else {
                 let lower = el_type_name.to_ascii_lowercase();
-                if let Some(existing) = resolver.named_types.get(&lower).cloned() {
+                if let Some(existing) =
+                    resolver.named_types.get(&lower).cloned()
+                {
                     Some(existing)
                 } else if let Some(sid) = defn.short_id {
                     Some(
@@ -1263,10 +1365,7 @@ impl DatasetRuleResolver {
                 }
             };
             if let Some(pattern) = pattern_opt {
-                resolver
-                    .named_types
-                    .entry(el_type_name)
-                    .or_insert(pattern);
+                resolver.named_types.entry(el_type_name).or_insert(pattern);
             }
         }
 
@@ -1274,7 +1373,11 @@ impl DatasetRuleResolver {
             for imp in &defn.implies {
                 for raw_part in imp.split('&') {
                     let trimmed = raw_part.trim();
-                    if let Ok(sh) = ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed) {
+                    if let Ok(sh) =
+                        ctb_storage_minimal::shorthand::DcShorthand::parse(
+                            trimmed,
+                        )
+                    {
                         if let Ok(super_gid) = sh.to_global_id() {
                             resolver.add_subtype(defn.dc_id, super_gid);
                         }
@@ -1287,18 +1390,19 @@ impl DatasetRuleResolver {
             .iter()
             .chain(format_defns.iter())
             .flat_map(|defn| {
-                defn.decompositions
-                    .iter()
-                    .filter_map(move |decomposition| {
-                        parse_decomposition_target(
-                            std::slice::from_ref(decomposition),
-                            "<equiv>",
-                        )
-                        .map(|target| (defn.dc_id, target))
-                    })
+                defn.decompositions.iter().filter_map(move |decomposition| {
+                    parse_decomposition_target(
+                        std::slice::from_ref(decomposition),
+                        "<equiv>",
+                    )
+                    .map(|target| (defn.dc_id, target))
+                })
             })
             .collect();
-        let closes_by_id: HashMap<u128, ctb_storage_minimal::shorthand::DcShorthand> = dc_defns
+        let closes_by_id: HashMap<
+            u128,
+            ctb_storage_minimal::shorthand::DcShorthand,
+        > = dc_defns
             .iter()
             .chain(format_defns.iter())
             .filter_map(|d| d.closes.map(|c| (d.dc_id, c)))
@@ -1557,7 +1661,8 @@ impl DatasetRuleResolver {
                 _ => None,
             })
             .collect();
-        named_constructs.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+        named_constructs
+            .sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
         for (seed_id, name) in named_constructs {
             let Some(rule) = index
@@ -1582,8 +1687,9 @@ impl DatasetRuleResolver {
                                 if let Some(closer_tok) =
                                     detect_container_closer(&rule.pattern)
                                 {
-                                    if let Some(&existing_closer) =
-                                        resolver.opener_to_closer.get(lead_target)
+                                    if let Some(&existing_closer) = resolver
+                                        .opener_to_closer
+                                        .get(lead_target)
                                     {
                                         ensure!(
                                             existing_closer == closer_tok,
@@ -1729,11 +1835,8 @@ impl DatasetRuleResolver {
                 .copied()
                 .filter(|m| equiv_targets.contains(m) && !is_dep(*m))
                 .collect();
-            let non_dep_members: Vec<u128> = members
-                .iter()
-                .copied()
-                .filter(|m| !is_dep(*m))
-                .collect();
+            let non_dep_members: Vec<u128> =
+                members.iter().copied().filter(|m| !is_dep(*m)).collect();
             let any_targets: Vec<u128> = members
                 .iter()
                 .copied()
@@ -1983,9 +2086,7 @@ impl DatasetRuleResolver {
                 .cloned();
             if let Some(infix) = infix {
                 for &m in members {
-                    self.infix_rules
-                        .entry(m)
-                        .or_insert_with(|| infix.clone());
+                    self.infix_rules.entry(m).or_insert_with(|| infix.clone());
                 }
             }
 
@@ -2089,7 +2190,9 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         let c1 = self.canonical_token(token);
         let c2 = self.canonical_token(canonical);
         c1 == c2
-            || self.semantic_equivalents.get(&canonical)
+            || self
+                .semantic_equivalents
+                .get(&canonical)
                 .is_some_and(|members| members.contains(&token))
     }
 
@@ -2115,7 +2218,8 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         // "EL Types" matches ".EL Types")
         for (name, set) in &self.script_chars {
             let clean_name = name.trim_start_matches('.');
-            if (clean_name == clean_target || clean_name.starts_with(clean_target))
+            if (clean_name == clean_target
+                || clean_name.starts_with(clean_target))
                 && set.contains(&token)
             {
                 return true;
@@ -2137,7 +2241,9 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         let clean_target = script_name.trim_start_matches('.');
         for name in self.script_chars.keys() {
             let clean_name = name.trim_start_matches('.');
-            if clean_name == clean_target || clean_name.starts_with(clean_target) {
+            if clean_name == clean_target
+                || clean_name.starts_with(clean_target)
+            {
                 return true;
             }
             if let Some(suffix) = clean_name.split(':').next_back() {
@@ -2181,13 +2287,17 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         self.deprecated_targets.contains_key(target)
     }
 
-    fn preferred_replacement(&self, target: &CharTarget) -> Option<&CharTarget> {
-        self.deprecated_targets
-            .get(target)
-            .and_then(Option::as_ref)
+    fn preferred_replacement(
+        &self,
+        target: &CharTarget,
+    ) -> Option<&CharTarget> {
+        self.deprecated_targets.get(target).and_then(Option::as_ref)
     }
 
-    fn container_header_elements(&self, opener: &CharTarget) -> &[SyntaxElement] {
+    fn container_header_elements(
+        &self,
+        opener: &CharTarget,
+    ) -> &[SyntaxElement] {
         // Reason for fallback: Openers without container headers fall back to an empty slice.
         self.container_headers
             .get(opener)
@@ -2201,7 +2311,10 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             .map_or(&[], Vec::as_slice)
     }
 
-    fn resolve_infix_rule(&self, op_token: u128) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
+    fn resolve_infix_rule(
+        &self,
+        op_token: u128,
+    ) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
         self.infix_rules
             .get(&op_token)
             .map(|(lhs, rhs)| (lhs.as_slice(), rhs.as_slice()))
@@ -2222,7 +2335,8 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         {
             if let Some(target) = CharTarget::from_u128(token) {
                 let closer = self.closer_for_opener(&target);
-                let has_trailing = !self.trailing_after_closer(&target).is_empty();
+                let has_trailing =
+                    !self.trailing_after_closer(&target).is_empty();
                 let closing_opener = self.closing_opener_for(token).cloned();
                 let rule = self.resolve_rule(&target);
                 // Reason for fallback: Tokens without a recognized compound framing shape act as atomic tokens.
@@ -2253,10 +2367,16 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         if !self.excluded_atom_dc_tokens.is_empty() {
             return !self.excluded_atom_dc_tokens.contains(&token);
         }
-        if let Some(SyntaxPattern::Alternation(branches)) = self.resolve_named_type("atom_dc") {
+        if let Some(SyntaxPattern::Alternation(branches)) =
+            self.resolve_named_type("atom_dc")
+        {
             if let Some(SyntaxPattern::Sequence(elems)) = branches.get(1) {
                 if let Some(SyntaxElement {
-                    term: SyntaxTerm::CharSet { negated: true, members },
+                    term:
+                        SyntaxTerm::CharSet {
+                            negated: true,
+                            members,
+                        },
                     ..
                 }) = elems.first()
                 {
@@ -2285,8 +2405,10 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_representation_starters_include_equivalent_spellings() -> Result<()> {
-        let original = crate::lookup::get_all_dc_defns().iter()
+    fn test_representation_starters_include_equivalent_spellings() -> Result<()>
+    {
+        let original = crate::lookup::get_all_dc_defns()
+            .iter()
             .find(|defn| defn.dc_id == DC_EQUIVALENT_REPRESENTATIONS.to_u128())
             .context("Missing equivalent-representations definition")?;
         let mut alias = original.clone();
@@ -2300,30 +2422,51 @@ mod tests {
         let named = crate::get_dc_data_file("README-named-types.csv")
             .context("Missing named types")?;
         let resolver = DatasetRuleResolver::load_from_dataset(
-            &[chained, alias, original.clone()], &[], Some(&named),
+            &[chained, alias, original.clone()],
+            &[],
+            Some(&named),
         )?;
-        for token in [DC_EQUIVALENT_REPRESENTATIONS, DcChar::from_short(9000), DcChar::from_short(9001)] {
+        for token in [
+            DC_EQUIVALENT_REPRESENTATIONS,
+            DcChar::from_short(9000),
+            DcChar::from_short(9001),
+        ] {
             assert!(resolver.is_representation_set(token.to_u128()));
-            assert!(resolver.is_equivalent_to(DC_EQUIVALENT_REPRESENTATIONS.to_u128(), token.to_u128()));
+            assert!(resolver.is_equivalent_to(
+                DC_EQUIVALENT_REPRESENTATIONS.to_u128(),
+                token.to_u128()
+            ));
         }
-        assert!(!resolver.is_representation_set(crate::dc::DC_BEGIN_LIST.to_u128()));
+        assert!(
+            !resolver.is_representation_set(crate::dc::DC_BEGIN_LIST.to_u128())
+        );
         assert!(resolver.resolve_rule(&CharTarget::Dc(9001)).is_some());
         let mut incompatible = original.clone();
         incompatible.short_id = Some(9002);
         incompatible.dc_id = DcChar::from_short(9002).to_u128();
         incompatible.syntax = None;
         incompatible.decompositions = vec!["<equiv>397".to_owned()];
-        assert!(DatasetRuleResolver::load_from_dataset(&[incompatible, original.clone()], &[], Some(&named)).is_err());
+        assert!(
+            DatasetRuleResolver::load_from_dataset(
+                &[incompatible, original.clone()],
+                &[],
+                Some(&named)
+            )
+            .is_err()
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_load_from_dataset_multi_character_equivalence_expansion() -> Result<()> {
+    fn test_load_from_dataset_multi_character_equivalence_expansion()
+    -> Result<()> {
         let defns = crate::lookup::get_all_dc_defns();
-        let list_open = defns.iter()
+        let list_open = defns
+            .iter()
             .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
             .context("Missing DC_BEGIN_LIST definition")?;
-        let list_close = defns.iter()
+        let list_close = defns
+            .iter()
             .find(|d| d.dc_id == crate::dc::DC_END_LIST.to_u128())
             .context("Missing DC_END_LIST definition")?;
 
@@ -2346,7 +2489,13 @@ mod tests {
             .context("Missing named types")?;
 
         let resolver = DatasetRuleResolver::load_from_dataset(
-            &[chained_open, alias_open, list_open.clone(), alias_close, list_close.clone()],
+            &[
+                chained_open,
+                alias_open,
+                list_open.clone(),
+                alias_close,
+                list_close.clone(),
+            ],
             &[],
             Some(&named),
         )?;
@@ -2369,16 +2518,32 @@ mod tests {
         assert!(resolver.is_equivalent_to(close_canonical, tok_9110));
 
         // 3. Opener-to-closer propagation across equivalence chain
-        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(9100)), Some(close_canonical));
-        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(9101)), Some(close_canonical));
+        assert_eq!(
+            resolver.closer_for_opener(&CharTarget::Dc(9100)),
+            Some(close_canonical)
+        );
+        assert_eq!(
+            resolver.closer_for_opener(&CharTarget::Dc(9101)),
+            Some(close_canonical)
+        );
 
         // 4. Closing delimiter propagation
-        assert_eq!(resolver.closing_opener_for(tok_9110), Some(&CharTarget::Dc(310)));
+        assert_eq!(
+            resolver.closing_opener_for(tok_9110),
+            Some(&CharTarget::Dc(310))
+        );
 
         // 5. Container headers propagation
-        let expected_headers = resolver.container_header_elements(&CharTarget::Dc(310));
-        assert_eq!(resolver.container_header_elements(&CharTarget::Dc(9100)), expected_headers);
-        assert_eq!(resolver.container_header_elements(&CharTarget::Dc(9101)), expected_headers);
+        let expected_headers =
+            resolver.container_header_elements(&CharTarget::Dc(310));
+        assert_eq!(
+            resolver.container_header_elements(&CharTarget::Dc(9100)),
+            expected_headers
+        );
+        assert_eq!(
+            resolver.container_header_elements(&CharTarget::Dc(9101)),
+            expected_headers
+        );
 
         // 6. Syntax rules propagation
         assert!(resolver.resolve_rule(&CharTarget::Dc(9100)).is_some());
@@ -2396,17 +2561,19 @@ mod tests {
         assert!(resolver.resolve_named_type("string").is_some());
         assert!(resolver.resolve_named_type("value").is_some());
         assert!(resolver.resolve_rule(&CharTarget::Dc(310)).is_some());
-        assert!(resolver
-            .closer_for_opener(&CharTarget::Dc(310))
-            .is_some());
-        assert!(resolver
-            .matches_named_type_starter("value", DC_OPTIONAL_PRESENT.to_u128()));
+        assert!(resolver.closer_for_opener(&CharTarget::Dc(310)).is_some());
+        assert!(resolver.matches_named_type_starter(
+            "value",
+            DC_OPTIONAL_PRESENT.to_u128()
+        ));
     }
 
     #[crate::ctb_test]
-    fn test_canonical_selection_prefers_nondeprecated_target_over_lower_id() -> Result<()> {
+    fn test_canonical_selection_prefers_nondeprecated_target_over_lower_id()
+    -> Result<()> {
         let defns = crate::lookup::get_all_dc_defns();
-        let original = defns.iter()
+        let original = defns
+            .iter()
             .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
             .context("Missing DC_BEGIN_LIST")?;
 
@@ -2443,12 +2610,15 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_rule_and_delimiter_pairing_when_non_canonical_or_target_owns_rule() -> Result<()> {
+    fn test_rule_and_delimiter_pairing_when_non_canonical_or_target_owns_rule()
+    -> Result<()> {
         let defns = crate::lookup::get_all_dc_defns();
-        let list_open = defns.iter()
+        let list_open = defns
+            .iter()
             .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
             .context("Missing DC_BEGIN_LIST")?;
-        let list_close = defns.iter()
+        let list_close = defns
+            .iter()
             .find(|d| d.dc_id == crate::dc::DC_END_LIST.to_u128())
             .context("Missing DC_END_LIST")?;
 
@@ -2456,7 +2626,9 @@ mod tests {
         let mut target_open = list_open.clone();
         target_open.short_id = Some(950);
         target_open.dc_id = DcChar::from_short(950).to_u128();
-        target_open.syntax = Some(parse_dc_syntax(":[950:] [type] [element] (312 [element])* 960")?);
+        target_open.syntax = Some(parse_dc_syntax(
+            ":[950:] [type] [element] (312 [element])* 960",
+        )?);
         target_open.decompositions.clear();
 
         // Alias opener 100 has lower ID, identical syntax rule, points to 950
@@ -2472,7 +2644,8 @@ mod tests {
         target_close.short_id = Some(960);
         target_close.dc_id = DcChar::from_short(960).to_u128();
         target_close.is_deprecated = false;
-        target_close.closes = Some(ctb_storage_minimal::shorthand::DcShorthand::Short(950));
+        target_close.closes =
+            Some(ctb_storage_minimal::shorthand::DcShorthand::Short(950));
         target_close.decompositions.clear();
 
         // Alias closer 110 has lower ID, points to 960
@@ -2480,7 +2653,8 @@ mod tests {
         alias_close.short_id = Some(110);
         alias_close.dc_id = DcChar::from_short(110).to_u128();
         alias_close.is_deprecated = true;
-        alias_close.closes = Some(ctb_storage_minimal::shorthand::DcShorthand::Short(950));
+        alias_close.closes =
+            Some(ctb_storage_minimal::shorthand::DcShorthand::Short(950));
         alias_close.decompositions = vec!["<equiv>960".to_owned()];
 
         let resolver = DatasetRuleResolver::load_from_dataset(
@@ -2499,12 +2673,24 @@ mod tests {
         assert!(resolver.resolve_rule(&CharTarget::Dc(950)).is_some());
 
         // 2. Both openers map to canonical closer 960
-        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(100)), Some(tok_960));
-        assert_eq!(resolver.closer_for_opener(&CharTarget::Dc(950)), Some(tok_960));
+        assert_eq!(
+            resolver.closer_for_opener(&CharTarget::Dc(100)),
+            Some(tok_960)
+        );
+        assert_eq!(
+            resolver.closer_for_opener(&CharTarget::Dc(950)),
+            Some(tok_960)
+        );
 
         // 3. Both closers map to canonical opener 950 in closing_delimiters
-        assert_eq!(resolver.closing_opener_for(tok_110), Some(&CharTarget::Dc(950)));
-        assert_eq!(resolver.closing_opener_for(tok_960), Some(&CharTarget::Dc(950)));
+        assert_eq!(
+            resolver.closing_opener_for(tok_110),
+            Some(&CharTarget::Dc(950))
+        );
+        assert_eq!(
+            resolver.closing_opener_for(tok_960),
+            Some(&CharTarget::Dc(950))
+        );
 
         Ok(())
     }
@@ -2512,7 +2698,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_script_chars_expanded_for_equivalent_tokens() -> Result<()> {
         let defns = crate::lookup::get_all_dc_defns();
-        let list_open = defns.iter()
+        let list_open = defns
+            .iter()
             .find(|d| d.dc_id == crate::dc::DC_BEGIN_LIST.to_u128())
             .context("Missing DC_BEGIN_LIST")?;
 
@@ -2549,7 +2736,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_rejects_conflicting_closes_and_rule_delimiter_mismatches() -> Result<()> {
+    fn test_rejects_conflicting_closes_and_rule_delimiter_mismatches()
+    -> Result<()> {
         let defns = crate::lookup::get_all_dc_defns();
         let list_open = defns
             .iter()
@@ -2564,7 +2752,8 @@ mod tests {
         let mut rival_close = list_close.clone();
         rival_close.short_id = Some(9700);
         rival_close.dc_id = DcChar::from_short(9700).to_u128();
-        rival_close.closes = Some(ctb_storage_minimal::shorthand::DcShorthand::Short(310));
+        rival_close.closes =
+            Some(ctb_storage_minimal::shorthand::DcShorthand::Short(310));
         rival_close.decompositions.clear();
 
         assert!(
@@ -2578,7 +2767,9 @@ mod tests {
 
         // 2. Opener's syntax rule ending with a closer (9701) that conflicts with its declared @closes closer (311)
         let mut mismatched_open = list_open.clone();
-        mismatched_open.syntax = Some(parse_dc_syntax(":~ [type] [element] (312 [element])* 9701")?);
+        mismatched_open.syntax = Some(parse_dc_syntax(
+            ":~ [type] [element] (312 [element])* 9701",
+        )?);
         assert!(
             DatasetRuleResolver::load_from_dataset(
                 &[mismatched_open, list_close.clone()],
@@ -2629,10 +2820,10 @@ mod tests {
 
         assert_eq!(from_graph.rules.len(), from_csv.rules.len());
         for (target, csv_rule) in &from_csv.rules {
-            let graph_rule = from_graph
-                .rules
-                .get(target)
-                .with_context(|| format!("Missing rule for {target} in seed graph resolver"))?;
+            let graph_rule =
+                from_graph.rules.get(target).with_context(|| {
+                    format!("Missing rule for {target} in seed graph resolver")
+                })?;
             assert_eq!(
                 graph_rule.pattern, csv_rule.pattern,
                 "Pattern mismatch for {target}"
@@ -2654,7 +2845,10 @@ mod tests {
     fn test_authoritative_grammar_rejects_invalid_named_types() -> Result<()> {
         for (csv, expected) in [
             ("Named type,Syntax\nbroken,:[\n", "invalid syntax"),
-            ("Named type,Syntax\nbroken,:(260){1..bad}\n", "invalid syntax"),
+            (
+                "Named type,Syntax\nbroken,:(260){1..bad}\n",
+                "invalid syntax",
+            ),
             ("Named type,Syntax\nbroken\n", "has no syntax"),
             ("Named type,Syntax\nbroken,\n", "has no syntax"),
             ("Named type,Syntax\n,:(260)\n", "missing named type"),
@@ -2667,7 +2861,10 @@ mod tests {
             .err()
             .context("Invalid named grammar was accepted")?;
             let message = format!("{error:#}");
-            assert!(message.contains("README-named-types.csv row 2"), "{message}");
+            assert!(
+                message.contains("README-named-types.csv row 2"),
+                "{message}"
+            );
             assert!(message.contains(expected), "{message}");
         }
         Ok(())

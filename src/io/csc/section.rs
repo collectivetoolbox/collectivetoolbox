@@ -63,7 +63,10 @@ pub(crate) fn write_section<W: Write>(
     marker.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
     writer.write_all(marker.payload_bytes())?;
 
-    let mut digest_writer = DigestWriter { writer, digest: Sha256Stream::new() };
+    let mut digest_writer = DigestWriter {
+        writer,
+        digest: Sha256Stream::new(),
+    };
     let mut header = DcMstring::new();
     header.push_char(DC_SEQUENCE_IDENTIFIER);
     sequence.encode_dc_mixed(&mut header)?;
@@ -97,7 +100,8 @@ mod tests {
 
     impl Write for ShortWriter {
         fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-            let accepted = bytes.get(..bytes.len().min(3))
+            let accepted = bytes
+                .get(..bytes.len().min(3))
                 .ok_or_else(|| std::io::Error::other("Invalid test slice"))?;
             self.0.extend_from_slice(accepted);
             Ok(accepted.len())
@@ -127,7 +131,10 @@ mod tests {
             &ctb_formats_checksum::sha256(body.payload_bytes()),
         )?;
         bytes.extend_from_slice(footer.payload_bytes());
-        ensure!(actual.0 == bytes, "Streaming section changed journal wire bytes");
+        ensure!(
+            actual.0 == bytes,
+            "Streaming section changed journal wire bytes"
+        );
         Ok(())
     }
 
@@ -139,7 +146,10 @@ mod tests {
             bail!("injected payload failure")
         });
         ensure!(outcome.is_err());
-        ensure!(bytes.ends_with(b"partial"), "Failed section acquired a commit footer");
+        ensure!(
+            bytes.ends_with(b"partial"),
+            "Failed section acquired a commit footer"
+        );
         Ok(())
     }
 }

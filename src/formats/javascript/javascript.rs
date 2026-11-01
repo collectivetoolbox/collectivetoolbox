@@ -26,7 +26,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-
 pub mod deno_config;
 pub mod diagnostics;
 pub mod js_lint;

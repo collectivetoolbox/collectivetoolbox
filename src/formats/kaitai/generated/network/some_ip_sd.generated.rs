@@ -2,12 +2,12 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::some_ip_sd_entries::SomeIpSdEntries;
 use super::some_ip_sd_entries::*;
 use super::some_ip_sd_options::SomeIpSdOptions;
 use super::some_ip_sd_options::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 /**
  * The main tasks of the Service Discovery Protocol are communicating the
@@ -71,7 +71,11 @@ impl KStruct for SomeIpSd {
     type Root = SomeIpSd;
     type Parent = SomeIpSd;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -83,33 +87,49 @@ impl KStruct for SomeIpSd {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SomeIpSd_SdFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, SomeIpSd_SdFlags>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_entries.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_entries = _io.read_bytes(usize::try_from(*self_rc.len_entries())?)?;
+        let _raw_entries =
+            _io.read_bytes(usize::try_from(*self_rc.len_entries())?)?;
         *self_rc.entries_raw.borrow_mut() = _raw_entries.clone();
         let _io_entries = BytesReader::from(_raw_entries);
-        let t = Self::read_into::<BytesReader, SomeIpSdEntries>(&_io_entries, None, None)?.into();
+        let t = Self::read_into::<BytesReader, SomeIpSdEntries>(
+            &_io_entries,
+            None,
+            None,
+        )?
+        .into();
         *self_rc.entries.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_options.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_options = _io.read_bytes(usize::try_from(*self_rc.len_options())?)?;
+        let _raw_options =
+            _io.read_bytes(usize::try_from(*self_rc.len_options())?)?;
         *self_rc.options_raw.borrow_mut() = _raw_options.clone();
         let _io_options = BytesReader::from(_raw_options);
-        let t = Self::read_into::<BytesReader, SomeIpSdOptions>(&_io_options, None, None)?.into();
+        let t = Self::read_into::<BytesReader, SomeIpSdOptions>(
+            &_io_options,
+            None,
+            None,
+        )?
+        .into();
         *self_rc.options.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl SomeIpSd {
-}
+impl SomeIpSd {}
 
 /**
  * The SOME/IP-SD Header shall start with an 8 Bit field called flags.
@@ -222,7 +242,11 @@ impl KStruct for SomeIpSd_SdFlags {
     type Root = SomeIpSd;
     type Parent = SomeIpSd;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -246,8 +270,7 @@ impl KStruct for SomeIpSd_SdFlags {
         Ok(())
     }
 }
-impl SomeIpSd_SdFlags {
-}
+impl SomeIpSd_SdFlags {}
 impl SomeIpSd_SdFlags {
     pub fn reboot(&self) -> Ref<'_, bool> {
         self.reboot.borrow()

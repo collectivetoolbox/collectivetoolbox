@@ -79,11 +79,13 @@ impl FormatValidationRegistry {
         }
         if let Some(ref ident) = info.ident {
             self.id_by_ident.insert(ident.clone(), info.short_id);
-            self.id_by_ident.insert(ident.to_ascii_lowercase(), info.short_id);
+            self.id_by_ident
+                .insert(ident.to_ascii_lowercase(), info.short_id);
         }
         for nick in &info.nicknames {
             self.id_by_nick.insert(nick.clone(), info.short_id);
-            self.id_by_nick.insert(nick.to_ascii_lowercase(), info.short_id);
+            self.id_by_nick
+                .insert(nick.to_ascii_lowercase(), info.short_id);
         }
         self.formats_by_id.insert(info.short_id, info);
     }
@@ -123,7 +125,9 @@ impl FormatValidationRegistry {
 
 /// Constructs a `FormatValidationRegistry` from parsed format definitions.
 #[must_use]
-pub fn build_format_validation_registry(format_rows: &[crate::DcDefn]) -> FormatValidationRegistry {
+pub fn build_format_validation_registry(
+    format_rows: &[crate::DcDefn],
+) -> FormatValidationRegistry {
     let mut reg = FormatValidationRegistry::new();
     for row in format_rows {
         if let Some(short_id) = row.short_id {
@@ -264,7 +268,9 @@ fn check_target_reference(
                     format!("Referenced Unicode codepoint 'u{cp:04x}' (U+{cp:04X}) exceeds maximum Unicode codepoint U+10FFFF"),
                     Some("Ensure referenced Unicode codepoint is <= 0x10FFFF"),
                 );
-            } else if !is_range_endpoint && !ctb_formats_unicode::is_assigned_unicode(*cp) {
+            } else if !is_range_endpoint
+                && !ctb_formats_unicode::is_assigned_unicode(*cp)
+            {
                 report.add_error(
                     source_file,
                     Some(line_no),
@@ -449,7 +455,11 @@ fn validate_syntax_element(
                 );
             }
         }
-        SyntaxTerm::NamedConstruct { name, subtype, capture_var } => {
+        SyntaxTerm::NamedConstruct {
+            name,
+            subtype,
+            capture_var,
+        } => {
             if name.is_empty() {
                 report.add_error(
                     source_file,
@@ -463,12 +473,19 @@ fn validate_syntax_element(
                     let (format, _) = match super::parse_data_constraint(sub) {
                         Ok(constraint) => constraint,
                         Err(error) => {
-                            report.add_error(source_file, Some(line_no), Some(col_name),
-                                format!("Invalid data constraint: {error}"), None);
+                            report.add_error(
+                                source_file,
+                                Some(line_no),
+                                Some(col_name),
+                                format!("Invalid data constraint: {error}"),
+                                None,
+                            );
                             return;
                         }
                     };
-                    let Some(sub_trimmed) = format else { return; };
+                    let Some(sub_trimmed) = format else {
+                        return;
+                    };
                     if sub_trimmed.is_empty() {
                         report.add_error(
                             source_file,
@@ -484,8 +501,12 @@ fn validate_syntax_element(
                             .or_else(|| sub_trimmed.strip_prefix("Formats:"))
                             .or_else(|| sub_trimmed.strip_prefix("format_"))
                             .unwrap_or(sub_trimmed);
-                        let is_category = formats.categories.contains(clean_cat)
-                            || formats.categories.contains(&clean_cat.to_ascii_lowercase())
+                        let is_category = formats
+                            .categories
+                            .contains(clean_cat)
+                            || formats
+                                .categories
+                                .contains(&clean_cat.to_ascii_lowercase())
                             || clean_cat.eq_ignore_ascii_case("hash")
                             || clean_cat.eq_ignore_ascii_case("compression")
                             || clean_cat.eq_ignore_ascii_case("container")
@@ -503,10 +524,17 @@ fn validate_syntax_element(
                                     "Specify a specific format identifier with import and export support rather than a category name",
                                 ),
                             );
-                        } else if let Some(fmt_info) = formats.find_format(sub_trimmed) {
-                            if !fmt_info.has_import_support || !fmt_info.has_export_support {
+                        } else if let Some(fmt_info) =
+                            formats.find_format(sub_trimmed)
+                        {
+                            if !fmt_info.has_import_support
+                                || !fmt_info.has_export_support
+                            {
                                 // Reason for fallback: Formats lacking a canonical identifier use the subtype string specified in the syntax definition.
-                                let fmt_name = fmt_info.ident.as_deref().unwrap_or(sub_trimmed);
+                                let fmt_name = fmt_info
+                                    .ident
+                                    .as_deref()
+                                    .unwrap_or(sub_trimmed);
                                 report.add_error(
                                     source_file,
                                     Some(line_no),

@@ -83,8 +83,12 @@ pub fn is_database_encrypted(db_path: &Path) -> Result<bool> {
     if !db_path.exists() {
         return Ok(false);
     }
-    let mut file = std::fs::File::open(db_path)
-        .with_context(|| format!("Failed to open database for header check: {}", db_path.display()))?;
+    let mut file = std::fs::File::open(db_path).with_context(|| {
+        format!(
+            "Failed to open database for header check: {}",
+            db_path.display()
+        )
+    })?;
     let mut header = [0u8; 5];
     let count = file.read(&mut header)?;
     if count >= 5 && &header[..5] == b"Turso" {
@@ -134,23 +138,32 @@ pub fn save_index_meta(meta_path: &Path, meta: &FsIndexMeta) -> Result<()> {
     }
     let json = serde_json::to_string_pretty(meta)
         .context("Failed to serialize index metadata to JSON")?;
-    std::fs::write(meta_path, json.as_bytes())
-        .with_context(|| format!("Failed to write index metadata to {}", meta_path.display()))?;
+    std::fs::write(meta_path, json.as_bytes()).with_context(|| {
+        format!("Failed to write index metadata to {}", meta_path.display())
+    })?;
     Ok(())
 }
 
 /// Loads and parses index metadata from the specified path.
 pub fn load_index_meta(meta_path: &Path) -> Result<FsIndexMeta> {
-    let bytes = std::fs::read(meta_path)
-        .with_context(|| format!("Failed to read index metadata from {}", meta_path.display()))?;
-    let meta: FsIndexMeta = serde_json::from_slice(&bytes)
-        .with_context(|| format!("Failed to parse index metadata from {}", meta_path.display()))?;
+    let bytes = std::fs::read(meta_path).with_context(|| {
+        format!("Failed to read index metadata from {}", meta_path.display())
+    })?;
+    let meta: FsIndexMeta =
+        serde_json::from_slice(&bytes).with_context(|| {
+            format!(
+                "Failed to parse index metadata from {}",
+                meta_path.display()
+            )
+        })?;
     Ok(meta)
 }
 
 /// Securely generates a new random DEK, derives an Argon2id KEK from the password,
 /// wraps the DEK under AES-256-GCM, and returns both the metadata structure and raw DEK.
-pub fn create_encrypted_index_meta(password: &Password) -> Result<(FsIndexMeta, Vec<u8>)> {
+pub fn create_encrypted_index_meta(
+    password: &Password,
+) -> Result<(FsIndexMeta, Vec<u8>)> {
     // 1. Generate 32-byte cryptographically secure DEK
     let dek = ctb_utilities::rand_bytes(32)
         .context("Failed to generate random DEK")?;
@@ -176,7 +189,9 @@ pub fn create_encrypted_index_meta(password: &Password) -> Result<(FsIndexMeta, 
     );
     hasher
         .hash_password_into(&password.password, &salt, &mut kek)
-        .map_err(|e| anyhow::anyhow!("Failed to derive KEK with Argon2id: {e:?}"))?;
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to derive KEK with Argon2id: {e:?}")
+        })?;
 
     // 4. Wrap DEK using AES-256-GCM
     let nonce_bytes = ctb_utilities::rand_bytes(12)
@@ -184,8 +199,9 @@ pub fn create_encrypted_index_meta(password: &Password) -> Result<(FsIndexMeta, 
     let nonce = Nonce::try_from(nonce_bytes.as_slice())
         .map_err(|_| anyhow::anyhow!("Invalid nonce length"))?;
 
-    let cipher = Aes256Gcm::new_from_slice(&kek)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}"))?;
+    let cipher = Aes256Gcm::new_from_slice(&kek).map_err(|e| {
+        anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}")
+    })?;
 
     let payload = Payload {
         msg: &dek,
@@ -225,7 +241,10 @@ pub fn create_encrypted_index_meta(password: &Password) -> Result<(FsIndexMeta, 
 
 /// Derives the KEK from the password using the salt and parameters stored in `meta`,
 /// then unwraps and authenticates the DEK using AES-256-GCM.
-pub fn unlock_index_dek(meta: &FsIndexMeta, password: &Password) -> Result<Vec<u8>> {
+pub fn unlock_index_dek(
+    meta: &FsIndexMeta,
+    password: &Password,
+) -> Result<Vec<u8>> {
     // 1. Decode salt
     let salt = BASE64_STANDARD
         .decode(&meta.kek_params.salt_base64)
@@ -239,7 +258,9 @@ pub fn unlock_index_dek(meta: &FsIndexMeta, password: &Password) -> Result<Vec<u
         meta.kek_params.p_cost,
         Some(kek.len()),
     )
-    .map_err(|e| anyhow::anyhow!("Invalid Argon2 parameters in metadata: {e:?}"))?;
+    .map_err(|e| {
+        anyhow::anyhow!("Invalid Argon2 parameters in metadata: {e:?}")
+    })?;
 
     let hasher = argon2::Argon2::new(
         argon2::Algorithm::Argon2id,
@@ -248,7 +269,9 @@ pub fn unlock_index_dek(meta: &FsIndexMeta, password: &Password) -> Result<Vec<u
     );
     hasher
         .hash_password_into(&password.password, &salt, &mut kek)
-        .map_err(|e| anyhow::anyhow!("Failed to derive KEK with Argon2id: {e:?}"))?;
+        .map_err(|e| {
+            anyhow::anyhow!("Failed to derive KEK with Argon2id: {e:?}")
+        })?;
 
     // 3. Decode wrapped DEK
     let wrapped = BASE64_STANDARD
@@ -256,24 +279,27 @@ pub fn unlock_index_dek(meta: &FsIndexMeta, password: &Password) -> Result<Vec<u
         .context("Failed to decode wrapped DEK from metadata")?;
 
     if wrapped.len() < 12 {
-        anyhow::bail!("Corrupt metadata: wrapped DEK is shorter than 12-byte nonce");
+        anyhow::bail!(
+            "Corrupt metadata: wrapped DEK is shorter than 12-byte nonce"
+        );
     }
 
     let (nonce_bytes, ciphertext) = wrapped.split_at(12);
     let nonce = Nonce::try_from(nonce_bytes)
         .map_err(|_| anyhow::anyhow!("Invalid nonce length"))?;
 
-    let cipher = Aes256Gcm::new_from_slice(&kek)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}"))?;
+    let cipher = Aes256Gcm::new_from_slice(&kek).map_err(|e| {
+        anyhow::anyhow!("Failed to initialize AES-GCM cipher: {e:?}")
+    })?;
 
     let payload = Payload {
         msg: ciphertext,
         aad: DEK_AAD,
     };
 
-    let dek = cipher
-        .decrypt(&nonce, payload)
-        .map_err(|_| anyhow::anyhow!("Incorrect password for encrypted index"))?;
+    let dek = cipher.decrypt(&nonce, payload).map_err(|_| {
+        anyhow::anyhow!("Incorrect password for encrypted index")
+    })?;
 
     Ok(dek)
 }
@@ -286,8 +312,10 @@ pub fn acquire_password(
     db_name: &str,
 ) -> Result<Password> {
     if let Some(file_path) = password_file {
-        let content = std::fs::read_to_string(file_path)
-            .with_context(|| format!("Failed to read password file: {}", file_path.display()))?;
+        let content =
+            std::fs::read_to_string(file_path).with_context(|| {
+                format!("Failed to read password file: {}", file_path.display())
+            })?;
         let pass_str = content.trim_end_matches(['\r', '\n']);
         anyhow::ensure!(
             !pass_str.is_empty(),
@@ -303,11 +331,16 @@ pub fn acquire_password(
             .read_line(&mut line)
             .context("Failed to read password from standard input")?;
         let pass_str = line.trim_end_matches(['\r', '\n']);
-        anyhow::ensure!(!pass_str.is_empty(), "Password received from stdin is empty");
+        anyhow::ensure!(
+            !pass_str.is_empty(),
+            "Password received from stdin is empty"
+        );
         return Ok(Password::from_string(pass_str));
     }
 
-    if let Ok(env_pass) = std::env::var("CSC_PASSWORD").or_else(|_| std::env::var("CSC_INDEX_PASSWORD")) {
+    if let Ok(env_pass) = std::env::var("CSC_PASSWORD")
+        .or_else(|_| std::env::var("CSC_INDEX_PASSWORD"))
+    {
         let trimmed = env_pass.trim_end_matches(['\r', '\n']);
         if !trimmed.is_empty() {
             return Ok(Password::from_string(trimmed));
@@ -405,12 +438,8 @@ pub async fn open_index_database(
                 .await?)
         }
     } else if encrypt_if_new {
-        let password = acquire_password(
-            password_file,
-            password_stdin,
-            true,
-            db_name,
-        )?;
+        let password =
+            acquire_password(password_file, password_stdin, true, db_name)?;
         let (meta, dek) = create_encrypted_index_meta(&password)?;
         let meta_path = resolve_meta_path(db_path);
         save_index_meta(&meta_path, &meta)?;
@@ -453,22 +482,64 @@ mod tests {
         use turso::Builder;
 
         // Verify parsing shortcuts and canonical names
-        assert_eq!(FileEntityType::parse("f").unwrap(), FileEntityType::Regular);
-        assert_eq!(FileEntityType::parse("file").unwrap(), FileEntityType::Regular);
-        assert_eq!(FileEntityType::parse("regular").unwrap(), FileEntityType::Regular);
-        assert_eq!(FileEntityType::parse("d").unwrap(), FileEntityType::Directory);
-        assert_eq!(FileEntityType::parse("dir").unwrap(), FileEntityType::Directory);
-        assert_eq!(FileEntityType::parse("l").unwrap(), FileEntityType::Symlink);
-        assert_eq!(FileEntityType::parse("symlink").unwrap(), FileEntityType::Symlink);
-        assert_eq!(FileEntityType::parse("h").unwrap(), FileEntityType::Hardlink);
+        assert_eq!(
+            FileEntityType::parse("f").unwrap(),
+            FileEntityType::Regular
+        );
+        assert_eq!(
+            FileEntityType::parse("file").unwrap(),
+            FileEntityType::Regular
+        );
+        assert_eq!(
+            FileEntityType::parse("regular").unwrap(),
+            FileEntityType::Regular
+        );
+        assert_eq!(
+            FileEntityType::parse("d").unwrap(),
+            FileEntityType::Directory
+        );
+        assert_eq!(
+            FileEntityType::parse("dir").unwrap(),
+            FileEntityType::Directory
+        );
+        assert_eq!(
+            FileEntityType::parse("l").unwrap(),
+            FileEntityType::Symlink
+        );
+        assert_eq!(
+            FileEntityType::parse("symlink").unwrap(),
+            FileEntityType::Symlink
+        );
+        assert_eq!(
+            FileEntityType::parse("h").unwrap(),
+            FileEntityType::Hardlink
+        );
         assert_eq!(FileEntityType::parse("p").unwrap(), FileEntityType::Fifo);
-        assert_eq!(FileEntityType::parse("c").unwrap(), FileEntityType::CharDevice);
-        assert_eq!(FileEntityType::parse("chardev").unwrap(), FileEntityType::CharDevice);
-        assert_eq!(FileEntityType::parse("b").unwrap(), FileEntityType::BlockDevice);
-        assert_eq!(FileEntityType::parse("blockdev").unwrap(), FileEntityType::BlockDevice);
+        assert_eq!(
+            FileEntityType::parse("c").unwrap(),
+            FileEntityType::CharDevice
+        );
+        assert_eq!(
+            FileEntityType::parse("chardev").unwrap(),
+            FileEntityType::CharDevice
+        );
+        assert_eq!(
+            FileEntityType::parse("b").unwrap(),
+            FileEntityType::BlockDevice
+        );
+        assert_eq!(
+            FileEntityType::parse("blockdev").unwrap(),
+            FileEntityType::BlockDevice
+        );
         assert_eq!(FileEntityType::parse("s").unwrap(), FileEntityType::Socket);
-        assert_eq!(FileEntityType::parse("door").unwrap(), FileEntityType::Door);
-        assert_eq!(FileEntityType::parse("bundle").unwrap(), FileEntityType::Bundle);
+        assert_eq!(
+            FileEntityType::parse("door").unwrap(),
+            FileEntityType::Door
+        );
+        assert_eq!(
+            FileEntityType::parse("bundle").unwrap(),
+            FileEntityType::Bundle
+        );
         assert!(FileEntityType::parse("invalid_kind").is_err());
 
         // Verify SQLite CHECK constraint rejects invalid kinds
@@ -481,7 +552,9 @@ mod tests {
             .expect("open db");
         let conn = db.connect().expect("connect db");
 
-        crate::index_engine::init_database_schema(&conn).await.expect("init database schema");
+        crate::index_engine::init_database_schema(&conn)
+            .await
+            .expect("init database schema");
 
         // Insert a valid source
         conn.execute("INSERT INTO sources (name, journal_path, indexed_at) VALUES ('test', '/test.cscjournal', 0)", ())
@@ -505,7 +578,9 @@ mod tests {
         )
         .await;
 
-        assert!(bad_insert.is_err(), "CHECK constraint should reject invalid kind");
+        assert!(
+            bad_insert.is_err(),
+            "CHECK constraint should reject invalid kind"
+        );
     }
 }
-

@@ -39,7 +39,9 @@ pub struct MyCustomFx {
 impl MyCustomFx {
     pub fn new(p_key: u8, p_flag: bool, _p_some_bytes: &[u8]) -> Self {
         if p_flag {
-            Self { key: i32::from(p_key) }
+            Self {
+                key: i32::from(p_key),
+            }
         } else {
             Self {
                 key: (0_i32).saturating_sub(i32::from(p_key)),

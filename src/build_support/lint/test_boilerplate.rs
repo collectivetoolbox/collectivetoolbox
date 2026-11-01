@@ -29,7 +29,8 @@ use syn::spanned::Spanned;
 use syn::visit::Visit;
 
 use crate::standard_boilerplate::{
-    REQUIRED_LINTS, get_standard_boilerplate, get_standard_repository_test_allows,
+    REQUIRED_LINTS, get_standard_boilerplate,
+    get_standard_repository_test_allows,
 };
 
 #[derive(Debug, Clone)]
@@ -87,16 +88,26 @@ impl TestModuleVisitor<'_> {
                 && let syn::Meta::List(ref list) = attr.meta
             {
                 let s = list.tokens.to_string();
-                if (item_mod.ident == "tests" && s.contains("test")) || s.trim() == "test" {
-                    cfg_span = Some((attr.span().start().line, attr.span().end().line));
+                if (item_mod.ident == "tests" && s.contains("test"))
+                    || s.trim() == "test"
+                {
+                    cfg_span = Some((
+                        attr.span().start().line,
+                        attr.span().end().line,
+                    ));
                 }
-            } else if attr.path().is_ident("allow") || attr.path().is_ident("expect") {
+            } else if attr.path().is_ident("allow")
+                || attr.path().is_ident("expect")
+            {
                 let attr_tokens = attr.to_token_stream().to_string();
                 if attr_tokens.contains("Standard repository test boilerplate")
                     || attr_tokens.contains("test boilerplate")
                     || attr_tokens.contains("tests are allowed")
                 {
-                    boilerplate_attr_span = Some((attr.span().start().line, attr.span().end().line));
+                    boilerplate_attr_span = Some((
+                        attr.span().start().line,
+                        attr.span().end().line,
+                    ));
                     if attr.path().is_ident("allow") {
                         found_boilerplate_allow = true;
                         let normalized_attr = attr_tokens.replace(' ', "");
@@ -113,18 +124,22 @@ impl TestModuleVisitor<'_> {
             }
         }
 
-        let (replace_start, replace_end, needs_cfg) = match (cfg_span, boilerplate_attr_span) {
-            (Some(_), Some(b_span)) => (b_span.0, b_span.1, false),
-            (Some(c_span), None) => (c_span.1.saturating_add(1), c_span.1, false),
-            (None, Some(b_span)) => (b_span.0, b_span.1, true),
-            (None, None) => (mod_line, mod_line.saturating_sub(1), true),
-        };
+        let (replace_start, replace_end, needs_cfg) =
+            match (cfg_span, boilerplate_attr_span) {
+                (Some(_), Some(b_span)) => (b_span.0, b_span.1, false),
+                (Some(c_span), None) => {
+                    (c_span.1.saturating_add(1), c_span.1, false)
+                }
+                (None, Some(b_span)) => (b_span.0, b_span.1, true),
+                (None, None) => (mod_line, mod_line.saturating_sub(1), true),
+            };
 
         if !has_cfg_test {
             self.violations.push(BoilerplateViolation {
                 file: self.file_path.to_path_buf(),
                 line: mod_line,
-                message: "Test module is missing `#[cfg(test)]` attribute".to_string(),
+                message: "Test module is missing `#[cfg(test)]` attribute"
+                    .to_string(),
                 replace_start_line: replace_start,
                 replace_end_line: replace_end,
                 needs_cfg_test: true,
@@ -173,7 +188,10 @@ impl TestModuleVisitor<'_> {
     }
 }
 
-pub fn check_file_ast(file_path: &Path, syntax_tree: &syn::File) -> Vec<BoilerplateViolation> {
+pub fn check_file_ast(
+    file_path: &Path,
+    syntax_tree: &syn::File,
+) -> Vec<BoilerplateViolation> {
     let mut visitor = TestModuleVisitor {
         file_path,
         violations: Vec::new(),
@@ -182,7 +200,10 @@ pub fn check_file_ast(file_path: &Path, syntax_tree: &syn::File) -> Vec<Boilerpl
     visitor.violations
 }
 
-pub fn fix_file(file_path: &Path, violations: &[BoilerplateViolation]) -> Result<bool> {
+pub fn fix_file(
+    file_path: &Path,
+    violations: &[BoilerplateViolation],
+) -> Result<bool> {
     if violations.is_empty() {
         return Ok(false);
     }
@@ -190,10 +211,12 @@ pub fn fix_file(file_path: &Path, violations: &[BoilerplateViolation]) -> Result
     let content = fs::read_to_string(file_path)?;
     let lines: Vec<&str> = content.lines().collect();
 
-    let mut sorted_violations: Vec<&BoilerplateViolation> = violations.iter().collect();
+    let mut sorted_violations: Vec<&BoilerplateViolation> =
+        violations.iter().collect();
     sorted_violations.sort_by(|a, b| b.mod_line.cmp(&a.mod_line));
 
-    let mut new_lines: Vec<String> = lines.into_iter().map(String::from).collect();
+    let mut new_lines: Vec<String> =
+        lines.into_iter().map(String::from).collect();
 
     let std_boilerplate = get_standard_boilerplate();
     let std_allow = get_standard_repository_test_allows();
@@ -204,7 +227,10 @@ pub fn fix_file(file_path: &Path, violations: &[BoilerplateViolation]) -> Result
         let end_idx = v.replace_end_line.saturating_sub(1);
 
         let mod_line_str = new_lines.get(mod_idx).cloned().unwrap_or_default();
-        let indent: String = mod_line_str.chars().take_while(|c| c.is_whitespace()).collect();
+        let indent: String = mod_line_str
+            .chars()
+            .take_while(|c| c.is_whitespace())
+            .collect();
 
         let boilerplate_template = if v.needs_cfg_test {
             &std_boilerplate
@@ -283,8 +309,9 @@ pub fn run(workspace_root: &Path, do_fix: bool) -> Result<()> {
     let mut fixed_files: usize = 0;
 
     for file_path in &rs_files {
-        let content = fs::read_to_string(file_path)
-            .with_context(|| format!("failed to read {}", file_path.display()))?;
+        let content = fs::read_to_string(file_path).with_context(|| {
+            format!("failed to read {}", file_path.display())
+        })?;
 
         // Quick substring check to avoid parsing files without test modules
         if !content.contains("tests") && !content.contains("cfg(test)") {
@@ -299,7 +326,8 @@ pub fn run(workspace_root: &Path, do_fix: bool) -> Result<()> {
 
         if !violations.is_empty() {
             files_with_violations = files_with_violations.saturating_add(1);
-            total_violations = total_violations.saturating_add(violations.len());
+            total_violations =
+                total_violations.saturating_add(violations.len());
 
             if do_fix {
                 if fix_file(file_path, &violations)? {
@@ -307,8 +335,14 @@ pub fn run(workspace_root: &Path, do_fix: bool) -> Result<()> {
                 }
             } else {
                 for v in &violations {
-                    let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
-                    eprintln!("{}:{}: {}", relative.display(), v.line, v.message);
+                    let relative =
+                        v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
+                    eprintln!(
+                        "{}:{}: {}",
+                        relative.display(),
+                        v.line,
+                        v.message
+                    );
                 }
             }
         }

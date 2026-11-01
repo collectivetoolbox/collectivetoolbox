@@ -44,15 +44,15 @@ use crate::utilities::*;
 use indexmap::IndexMap;
 
 use super::hierarchy::{
-    ClassSpec, EndianSwitch, ResolvedAttr, ResolvedEnum, ResolvedInstance, ResolvedParam,
-    ResolvedValidation, ValidationRule,
+    ClassSpec, EndianSwitch, ResolvedAttr, ResolvedEnum, ResolvedInstance,
+    ResolvedParam, ResolvedValidation, ValidationRule,
 };
 use super::imports::SpecRegistry;
 use super::types::{BitEndianness, DataType, Endianness, RepeatMode};
-use crate::expr::{parse_expr, BoolOp, CmpOp, Expr, Operator, UnaryOp};
+use crate::expr::{BoolOp, CmpOp, Expr, Operator, UnaryOp, parse_expr};
 use crate::spec::{
-    AttrSpec, ContentsSpec, EndianSpec, EnumValueSpec, InstanceSpec, KsyFile, TypeSpec,
-    ValidationSpec, ValueOrExpr,
+    AttrSpec, ContentsSpec, EndianSpec, EnumValueSpec, InstanceSpec, KsyFile,
+    TypeSpec, ValidationSpec, ValueOrExpr,
 };
 
 fn java_string_hash(s: &str) -> u32 {
@@ -79,7 +79,9 @@ fn resolve_validation(
 ) -> Result<Option<ResolvedValidation>> {
     if let Some(contents) = &attr.contents {
         let bytes: Vec<Expr> = match contents {
-            ContentsSpec::Text(s) => s.bytes().map(|b| Expr::IntNum(i128::from(b))).collect(),
+            ContentsSpec::Text(s) => {
+                s.bytes().map(|b| Expr::IntNum(i128::from(b))).collect()
+            }
             ContentsSpec::Sequence(seq) => {
                 let mut v = Vec::new();
                 for item in seq {
@@ -110,7 +112,8 @@ fn resolve_validation(
                 if let Some(eq_val) = &d.eq {
                     let expr = value_or_expr_to_expr(eq_val)?;
                     ValidationRule::Eq(expr)
-                } else if let (Some(min_val), Some(max_val)) = (&d.min, &d.max) {
+                } else if let (Some(min_val), Some(max_val)) = (&d.min, &d.max)
+                {
                     let min_expr = value_or_expr_to_expr(min_val)?;
                     let max_expr = value_or_expr_to_expr(max_val)?;
                     ValidationRule::Range(min_expr, max_expr)
@@ -157,7 +160,9 @@ pub fn resolve_ksy(
     let top_name = vec![top_id.to_string()];
     let top_name_slice: &[String] = &top_name;
     let scopes = [(top_name_slice, ksy)];
-    let mut root_spec = resolve_class_spec(&top_name, None, &top_name, ksy, registry, None, &scopes)?;
+    let mut root_spec = resolve_class_spec(
+        &top_name, None, &top_name, ksy, registry, None, &scopes,
+    )?;
     markup_parent_types(&mut root_spec);
     update_instance_types(&mut root_spec);
 
@@ -198,8 +203,18 @@ pub fn resolve_ksy(
                 let imp_name = vec![stem.to_string()];
                 let imp_slice: &[String] = &imp_name;
                 let imp_scopes = [(imp_slice, imported_ksy)];
-                if let Ok(imported_spec) = resolve_class_spec(&imp_name, None, &imp_name, imported_ksy, Some(reg), None, &imp_scopes) {
-                    root_spec.imported_classes.insert(stem.to_string(), imported_spec);
+                if let Ok(imported_spec) = resolve_class_spec(
+                    &imp_name,
+                    None,
+                    &imp_name,
+                    imported_ksy,
+                    Some(reg),
+                    None,
+                    &imp_scopes,
+                ) {
+                    root_spec
+                        .imported_classes
+                        .insert(stem.to_string(), imported_spec);
                 }
             }
         }
@@ -208,7 +223,10 @@ pub fn resolve_ksy(
     Ok(root_spec)
 }
 
-fn collect_all_external_types_rec(class: &ClassSpec, out: &mut Vec<Vec<String>>) {
+fn collect_all_external_types_rec(
+    class: &ClassSpec,
+    out: &mut Vec<Vec<String>>,
+) {
     for ext in &class.external_types {
         if !out.contains(ext) {
             out.push(ext.clone());
@@ -227,7 +245,9 @@ fn collect_all_external_types_rec(class: &ClassSpec, out: &mut Vec<Vec<String>>)
 
 fn collect_external_from_dt(dt: &DataType, out: &mut Vec<Vec<String>>) {
     match dt {
-        DataType::UserType { names, is_external, .. } => {
+        DataType::UserType {
+            names, is_external, ..
+        } => {
             if *is_external && !out.contains(names) {
                 out.push(names.clone());
             }
@@ -246,7 +266,9 @@ fn collect_external_from_dt(dt: &DataType, out: &mut Vec<Vec<String>>) {
 
 fn collect_used_user_types(dt: &DataType, out: &mut Vec<Vec<String>>) {
     match dt {
-        DataType::UserType { names, is_external, .. } => {
+        DataType::UserType {
+            names, is_external, ..
+        } => {
             if !*is_external {
                 out.push(names.clone());
             }
@@ -263,7 +285,10 @@ fn collect_used_user_types(dt: &DataType, out: &mut Vec<Vec<String>>) {
     }
 }
 
-fn find_class_spec_mut<'a>(root: &'a mut ClassSpec, path: &[String]) -> Option<&'a mut ClassSpec> {
+fn find_class_spec_mut<'a>(
+    root: &'a mut ClassSpec,
+    path: &[String],
+) -> Option<&'a mut ClassSpec> {
     if path.is_empty() {
         return None;
     }
@@ -280,7 +305,10 @@ fn find_class_spec_mut<'a>(root: &'a mut ClassSpec, path: &[String]) -> Option<&
     Some(cur)
 }
 
-fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Option<&'a ClassSpec> {
+fn find_class_spec<'a>(
+    root: &'a ClassSpec,
+    path: &[String],
+) -> Option<&'a ClassSpec> {
     if path.is_empty() {
         return None;
     }
@@ -323,7 +351,11 @@ fn resolve_switch_type(dt: &DataType) -> DataType {
     }
 }
 
-fn infer_attr_type_in_class(root: &ClassSpec, class_name: &[String], attr_name: &str) -> Option<DataType> {
+fn infer_attr_type_in_class(
+    root: &ClassSpec,
+    class_name: &[String],
+    attr_name: &str,
+) -> Option<DataType> {
     let class = find_class_spec(root, class_name)?;
     if let Some(seq_attr) = class.seq.iter().find(|a| a.id == attr_name) {
         return Some(resolve_switch_type(&seq_attr.data_type));
@@ -343,7 +375,9 @@ fn infer_expr_type_with_root(
     root: &ClassSpec,
 ) -> Option<DataType> {
     match expr {
-        Expr::EnumByLabel { enum_name, in_type, .. } => {
+        Expr::EnumByLabel {
+            enum_name, in_type, ..
+        } => {
             let mut curr_opt = Some(curr_class_name);
             while let Some(cls_name) = curr_opt {
                 if let Some(cls) = find_class_spec(root, cls_name) {
@@ -375,7 +409,11 @@ fn infer_expr_type_with_root(
             })
         }
         Expr::Attribute { value, attr } => {
-            if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
+            if attr == "to_i"
+                || attr == "length"
+                || attr == "size"
+                || attr == "pos"
+            {
                 return Some(DataType::CalcIntType);
             }
             if attr == "to_s" || attr == "substring" || attr == "reverse" {
@@ -385,7 +423,8 @@ fn infer_expr_type_with_root(
                 return Some(DataType::CalcBoolType);
             }
             if let Expr::Name(name) = &**value {
-                let target_class_name: Option<Vec<String>> = if name == "_root" {
+                let target_class_name: Option<Vec<String>> = if name == "_root"
+                {
                     let curr = find_class_spec(root, curr_class_name)?;
                     Some(curr.root_name.clone())
                 } else if name == "_parent" {
@@ -397,16 +436,20 @@ fn infer_expr_type_with_root(
                 if let Some(target_class) = target_class_name {
                     if attr == "_parent" {
                         let parent_cls = find_class_spec(root, &target_class)?;
-                        return parent_cls.parent_name.as_ref().map(|pn| DataType::UserType {
-                            names: pn.clone(),
-                            is_external: false,
-                            args: Vec::new(),
+                        return parent_cls.parent_name.as_ref().map(|pn| {
+                            DataType::UserType {
+                                names: pn.clone(),
+                                is_external: false,
+                                args: Vec::new(),
+                            }
                         });
                     }
                     return infer_attr_type_in_class(root, &target_class, attr);
                 }
             }
-            if let Some(DataType::UserType { names, .. }) = infer_expr_type_with_root(value, curr_class_name, root) {
+            if let Some(DataType::UserType { names, .. }) =
+                infer_expr_type_with_root(value, curr_class_name, root)
+            {
                 if attr == "_parent" {
                     if let Some(cls) = find_class_spec(root, &names) {
                         if let Some(pname) = &cls.parent_name {
@@ -442,7 +485,10 @@ fn infer_expr_type_with_root(
                 Some(DataType::CalcBytesType)
             } else if s == "str" {
                 Some(DataType::CalcStrType)
-            } else if matches!(s.as_str(), "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1") {
+            } else if matches!(
+                s.as_str(),
+                "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1"
+            ) {
                 Some(DataType::CalcIntType)
             } else if matches!(s.as_str(), "f4" | "f8") {
                 Some(DataType::CalcFloatType)
@@ -476,7 +522,8 @@ fn infer_expr_type_with_root(
                         });
                     }
                 }
-                let full_parts: Vec<String> = parts.iter().map(|p| (*p).to_string()).collect();
+                let full_parts: Vec<String> =
+                    parts.iter().map(|p| (*p).to_string()).collect();
                 if find_class_spec(root, &full_parts).is_some() {
                     return Some(DataType::UserType {
                         names: full_parts,
@@ -488,7 +535,9 @@ fn infer_expr_type_with_root(
             }
         }
         Expr::Str(_) => Some(DataType::CalcStrType),
-        Expr::IfExp { if_true, if_false, .. } => {
+        Expr::IfExp {
+            if_true, if_false, ..
+        } => {
             let t1 = infer_expr_type_with_root(if_true, curr_class_name, root);
             let t2 = infer_expr_type_with_root(if_false, curr_class_name, root);
             match (t1, t2) {
@@ -503,31 +552,55 @@ fn infer_expr_type_with_root(
             if *x >= i128::from(i32::MIN) && *x <= i128::from(i32::MAX) {
                 Some(DataType::CalcIntType)
             } else if *x >= 0 && *x <= i128::from(u32::MAX) {
-                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 4,
+                    endian: None,
+                })
             } else if *x >= i128::from(i64::MIN) && *x <= i128::from(i64::MAX) {
-                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: true,
+                    width: 8,
+                    endian: None,
+                })
             } else {
-                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 8,
+                    endian: None,
+                })
             }
         }
         Expr::Bool(_) | Expr::Compare { .. } | Expr::BoolOp { .. } => {
             Some(DataType::CalcBoolType)
         }
-        Expr::UnaryOp { op: UnaryOp::Not, .. } => Some(DataType::CalcBoolType),
-        Expr::UnaryOp { operand, .. } => infer_expr_type_with_root(operand, curr_class_name, root),
+        Expr::UnaryOp {
+            op: UnaryOp::Not, ..
+        } => Some(DataType::CalcBoolType),
+        Expr::UnaryOp { operand, .. } => {
+            infer_expr_type_with_root(operand, curr_class_name, root)
+        }
         Expr::BinOp { left, op, right } => {
             let lt = infer_expr_type_with_root(left, curr_class_name, root);
             let rt = infer_expr_type_with_root(right, curr_class_name, root);
             if *op == Operator::Add {
-                if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                    || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                {
+                if matches!(
+                    lt,
+                    Some(DataType::CalcStrType | DataType::Str { .. })
+                ) || matches!(
+                    rt,
+                    Some(DataType::CalcStrType | DataType::Str { .. })
+                ) {
                     return Some(DataType::CalcStrType);
                 }
             }
-            if matches!(lt, Some(DataType::CalcFloatType | DataType::Float { .. }))
-                || matches!(rt, Some(DataType::CalcFloatType | DataType::Float { .. }))
-            {
+            if matches!(
+                lt,
+                Some(DataType::CalcFloatType | DataType::Float { .. })
+            ) || matches!(
+                rt,
+                Some(DataType::CalcFloatType | DataType::Float { .. })
+            ) {
                 return match (lt, rt) {
                     (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
                     (Some(t), None) | (None, Some(t)) => Some(t),
@@ -560,7 +633,9 @@ fn infer_expr_type_with_root(
             }
         }
         Expr::Subscript { value, .. } => {
-            if let Some(target_dt) = infer_expr_type_with_root(value, curr_class_name, root) {
+            if let Some(target_dt) =
+                infer_expr_type_with_root(value, curr_class_name, root)
+            {
                 if let DataType::ArrayType { element, .. } = target_dt {
                     Some(*element)
                 } else {
@@ -588,16 +663,31 @@ fn update_instance_types(root: &mut ClassSpec) {
     for _ in 0..5 {
         let mut updates = Vec::new();
         for class_name in &all_names {
-            let Some(curr) = find_class_spec(root, class_name) else { continue };
+            let Some(curr) = find_class_spec(root, class_name) else {
+                continue;
+            };
             for (inst_id, inst) in &curr.instances {
                 if let Some(val_ex) = &inst.value_expr {
-                    if let Some(inferred) = infer_expr_type_with_root(val_ex, class_name, root) {
+                    if let Some(inferred) =
+                        infer_expr_type_with_root(val_ex, class_name, root)
+                    {
                         if !matches!(inferred, DataType::SwitchType { .. })
                             && (matches!(inst.data_type, DataType::CalcIntType)
-                                || (matches!(inferred, DataType::Float { .. } | DataType::CalcFloatType)
-                                    && !matches!(inst.data_type, DataType::Float { .. } | DataType::CalcFloatType)))
+                                || (matches!(
+                                    inferred,
+                                    DataType::Float { .. }
+                                        | DataType::CalcFloatType
+                                ) && !matches!(
+                                    inst.data_type,
+                                    DataType::Float { .. }
+                                        | DataType::CalcFloatType
+                                )))
                         {
-                            updates.push((class_name.clone(), inst_id.clone(), inferred));
+                            updates.push((
+                                class_name.clone(),
+                                inst_id.clone(),
+                                inferred,
+                            ));
                         }
                     }
                 }
@@ -658,14 +748,20 @@ fn markup_parent_types(root: &mut ClassSpec) {
 
     while let Some(curr_name) = queue.pop_front() {
         let (_p_name, instantiations) = {
-            let Some(curr) = find_class_spec_mut(root, &curr_name) else { continue };
+            let Some(curr) = find_class_spec_mut(root, &curr_name) else {
+                continue;
+            };
             let p_name = curr.parent_name.clone();
             let mut list = Vec::new();
 
             for attr in &curr.seq {
                 let p_target = match &attr.parent_expr {
                     Some(crate::spec::ValueOrExpr::Bool(false)) => None,
-                    Some(crate::spec::ValueOrExpr::Expr(p)) if p == "_parent" => p_name.clone(),
+                    Some(crate::spec::ValueOrExpr::Expr(p))
+                        if p == "_parent" =>
+                    {
+                        p_name.clone()
+                    }
                     _ => Some(curr.name.clone()),
                 };
                 let mut used_types = Vec::new();
@@ -676,10 +772,17 @@ fn markup_parent_types(root: &mut ClassSpec) {
             }
 
             for inst in curr.instances.values() {
-                if inst.pos_expr.is_some() || inst.io_expr.is_some() || inst.value_expr.is_none() {
+                if inst.pos_expr.is_some()
+                    || inst.io_expr.is_some()
+                    || inst.value_expr.is_none()
+                {
                     let p_target = match &inst.parent_expr {
                         Some(crate::spec::ValueOrExpr::Bool(false)) => None,
-                        Some(crate::spec::ValueOrExpr::Expr(p)) if p == "_parent" => p_name.clone(),
+                        Some(crate::spec::ValueOrExpr::Expr(p))
+                            if p == "_parent" =>
+                        {
+                            p_name.clone()
+                        }
                         _ => Some(curr.name.clone()),
                     };
                     let mut used_types = Vec::new();
@@ -706,7 +809,8 @@ fn markup_parent_types(root: &mut ClassSpec) {
                         }
                         Some(existing) if existing == &p_to_set => {}
                         Some(_) => {
-                            target_class.parent_name = Some(vec!["KStructUnit".to_string()]);
+                            target_class.parent_name =
+                                Some(vec!["KStructUnit".to_string()]);
                         }
                     }
                 }
@@ -727,41 +831,43 @@ fn resolve_class_spec(
     scopes: &[(&[String], &KsyFile)],
 ) -> Result<ClassSpec> {
     let is_top_level = parent_name.is_none();
-    let (meta_endian, endian_switch) = match ksy.meta.as_ref().and_then(|m| m.endian.as_ref()) {
-        Some(EndianSpec::Simple(s)) => match s.as_str() {
-            "le" => (Some(Endianness::Little), None),
-            "be" => (Some(Endianness::Big), None),
-            "inherited" => (Some(Endianness::Inherited), None),
-            _ => (None, None),
-        },
-        Some(EndianSpec::Switch(sw)) => {
-            let switch_on = parse_expr(&sw.switch_on)?;
-            let mut cases = IndexMap::new();
-            for (case_key, case_val) in &sw.cases {
-                let e = match case_val.as_str() {
-                    Some("le") => Endianness::Little,
-                    Some("be") => Endianness::Big,
-                    _ => Endianness::Inherited,
-                };
-                cases.insert(case_key.clone(), e);
+    let (meta_endian, endian_switch) =
+        match ksy.meta.as_ref().and_then(|m| m.endian.as_ref()) {
+            Some(EndianSpec::Simple(s)) => match s.as_str() {
+                "le" => (Some(Endianness::Little), None),
+                "be" => (Some(Endianness::Big), None),
+                "inherited" => (Some(Endianness::Inherited), None),
+                _ => (None, None),
+            },
+            Some(EndianSpec::Switch(sw)) => {
+                let switch_on = parse_expr(&sw.switch_on)?;
+                let mut cases = IndexMap::new();
+                for (case_key, case_val) in &sw.cases {
+                    let e = match case_val.as_str() {
+                        Some("le") => Endianness::Little,
+                        Some("be") => Endianness::Big,
+                        _ => Endianness::Inherited,
+                    };
+                    cases.insert(case_key.clone(), e);
+                }
+                (None, Some(EndianSwitch { switch_on, cases }))
             }
-            (None, Some(EndianSwitch { switch_on, cases }))
-        }
-        None => {
-            if let Some((p_endian, p_dynamic)) = parent_endian_info {
-                if p_dynamic {
-                    (Some(Endianness::Inherited), None)
-                } else if let Some(e) = p_endian {
-                    (Some(e), None)
+            None => {
+                if let Some((p_endian, p_dynamic)) = parent_endian_info {
+                    if p_dynamic {
+                        (Some(Endianness::Inherited), None)
+                    } else if let Some(e) = p_endian {
+                        (Some(e), None)
+                    } else {
+                        (None, None)
+                    }
                 } else {
                     (None, None)
                 }
-            } else {
-                (None, None)
             }
-        }
-    };
-    let has_dynamic_endian = endian_switch.is_some() || meta_endian == Some(Endianness::Inherited);
+        };
+    let has_dynamic_endian =
+        endian_switch.is_some() || meta_endian == Some(Endianness::Inherited);
     let meta_license = ksy
         .meta
         .as_ref()
@@ -775,7 +881,10 @@ fn resolve_class_spec(
 
     let doc = ksy.doc.clone();
     // Reason for fallback: absent doc_ref list defaults to empty vector
-    let doc_refs = ksy.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
+    let doc_refs = ksy
+        .doc_ref
+        .as_ref()
+        .map_or_else(Vec::new, |d| d.as_slice().to_vec());
 
     // Resolve enums
     let mut resolved_enums = IndexMap::new();
@@ -786,10 +895,15 @@ fn resolve_class_spec(
         for (raw_key, val_spec) in enum_values {
             // Reason for fallback: parse failure on malformed enum key defaults to 0 value
             let num: i64 = if let Some(stripped) = raw_key.strip_prefix("0x") {
-                u64::from_str_radix(stripped, 16).map_or_else(|_| i64::from_str_radix(stripped, 16).unwrap_or(0), |v| i64::from_le_bytes(v.to_le_bytes()))
+                u64::from_str_radix(stripped, 16).map_or_else(
+                    |_| i64::from_str_radix(stripped, 16).unwrap_or(0),
+                    |v| i64::from_le_bytes(v.to_le_bytes()),
+                )
             } else {
-                raw_key
-                    .parse::<u64>().map_or_else(|_| raw_key.parse::<i64>().unwrap_or(0), |v| i64::from_le_bytes(v.to_le_bytes()))
+                raw_key.parse::<u64>().map_or_else(
+                    |_| raw_key.parse::<i64>().unwrap_or(0),
+                    |v| i64::from_le_bytes(v.to_le_bytes()),
+                )
             };
             let (label, doc, doc_ref) = match val_spec {
                 EnumValueSpec::Simple(s) => (s.clone(), None, None),
@@ -834,7 +948,10 @@ fn resolve_class_spec(
             .id
             .clone()
             .unwrap_or_else(|| format!("unnamed{seq_idx}"));
-        let orig_id = attr.orig_id.as_ref().and_then(|o| o.as_single().map(str::to_string));
+        let orig_id = attr
+            .orig_id
+            .as_ref()
+            .and_then(|o| o.as_single().map(str::to_string));
         let attr_doc = attr.doc.clone();
 
         let if_expr = if let Some(if_str) = &attr.if_expr {
@@ -859,7 +976,10 @@ fn resolve_class_spec(
         }
 
         // Reason for fallback: absent doc_ref list defaults to empty vector
-        let attr_doc_refs = attr.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
+        let attr_doc_refs = attr
+            .doc_ref
+            .as_ref()
+            .map_or_else(Vec::new, |d| d.as_slice().to_vec());
 
         let src_path = if name.len() <= 1 {
             format!("/seq/{seq_idx}")
@@ -927,7 +1047,16 @@ fn resolve_class_spec(
     // Resolve instances
     let mut resolved_instances = IndexMap::new();
     for (inst_id, inst_spec) in &ksy.instances {
-        let (dt, value_expr, pos_expr, size_expr, io_expr, if_expr, is_cached, valid) = resolve_instance(
+        let (
+            dt,
+            value_expr,
+            pos_expr,
+            size_expr,
+            io_expr,
+            if_expr,
+            is_cached,
+            valid,
+        ) = resolve_instance(
             inst_id,
             inst_spec,
             meta_endian,
@@ -935,7 +1064,10 @@ fn resolve_class_spec(
             registry,
         )?;
         // Reason for fallback: absent doc_ref list defaults to empty vector
-        let inst_doc_refs = inst_spec.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
+        let inst_doc_refs = inst_spec
+            .doc_ref
+            .as_ref()
+            .map_or_else(Vec::new, |d| d.as_slice().to_vec());
         resolved_instances.insert(
             inst_id.clone(),
             ResolvedInstance {
@@ -988,13 +1120,7 @@ fn resolve_class_spec(
                 registry,
             )?
         } else if let Some(type_name) = &p.type_spec {
-            resolve_simple_type(
-                type_name,
-                None,
-                meta_endian,
-                scopes,
-                registry,
-            )?
+            resolve_simple_type(type_name, None, meta_endian, scopes, registry)?
         } else {
             (
                 DataType::IntMulti {
@@ -1006,7 +1132,10 @@ fn resolve_class_spec(
             )
         };
         // Reason for fallback: absent doc_ref list defaults to empty vector
-        let param_doc_refs = p.doc_ref.as_ref().map_or_else(Vec::new, |d| d.as_slice().to_vec());
+        let param_doc_refs = p
+            .doc_ref
+            .as_ref()
+            .map_or_else(Vec::new, |d| d.as_slice().to_vec());
         resolved_params.push(ResolvedParam {
             id: p.id.clone(),
             data_type: param_type,
@@ -1121,12 +1250,18 @@ fn resolve_attr_data_type(
                 DataType::Str {
                     size: size_expr,
                     size_eos: attr.size_eos.unwrap_or(false),
-                    encoding: attr.encoding.clone().or_else(|| default_encoding.clone()),
+                    encoding: attr
+                        .encoding
+                        .clone()
+                        .or_else(|| default_encoding.clone()),
                     terminator: if t_name == "strz" {
-                        attr.terminator.as_ref().and_then(|t| match t {
-                            ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
-                            _ => None,
-                        }).or(Some(0))
+                        attr.terminator
+                            .as_ref()
+                            .and_then(|t| match t {
+                                ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
+                                _ => None,
+                            })
+                            .or(Some(0))
                     } else {
                         attr.terminator.as_ref().and_then(|t| match t {
                             ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
@@ -1153,7 +1288,10 @@ fn resolve_attr_data_type(
                     external_types.push(ext_t);
                 }
                 if matches!(dt, DataType::UserType { .. })
-                    && (attr.size.is_some() || attr.size_eos == Some(true) || attr.process.is_some() || attr.terminator.is_some())
+                    && (attr.size.is_some()
+                        || attr.size_eos == Some(true)
+                        || attr.process.is_some()
+                        || attr.terminator.is_some())
                 {
                     raw_id = Some(format!("{attr_id}_raw"));
                     io_id = Some(format!("_t_{attr_id}_raw_io"));
@@ -1184,7 +1322,10 @@ fn resolve_attr_data_type(
                 cases.insert(case_key.clone(), case_dt);
             }
             // Substream reading for switch
-            if attr.size.is_some() || attr.size_eos == Some(true) || attr.process.is_some() {
+            if attr.size.is_some()
+                || attr.size_eos == Some(true)
+                || attr.process.is_some()
+            {
                 if !cases.contains_key("_") {
                     let sw_size = if let Some(s) = &attr.size {
                         Some(match s {
@@ -1237,10 +1378,12 @@ fn resolve_attr_data_type(
                     size: size_expr,
                     size_eos: attr.size_eos.unwrap_or(false),
                     encoding: Some(enc.clone()),
-                    terminator: attr.terminator.as_ref().and_then(|t| match t {
-                        ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
-                        _ => None,
-                    }),
+                    terminator: attr.terminator.as_ref().and_then(
+                        |t| match t {
+                            ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
+                            _ => None,
+                        },
+                    ),
                     consume: attr.consume.unwrap_or(true),
                     include: attr.include.unwrap_or(false),
                     pad_right: attr.pad_right.as_ref().and_then(|p| match p {
@@ -1281,10 +1424,12 @@ fn resolve_attr_data_type(
                 DataType::Bytes {
                     size: size_expr,
                     size_eos: attr.size_eos.unwrap_or(false),
-                    terminator: attr.terminator.as_ref().and_then(|t| match t {
-                        ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
-                        _ => None,
-                    }),
+                    terminator: attr.terminator.as_ref().and_then(
+                        |t| match t {
+                            ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
+                            _ => None,
+                        },
+                    ),
                     consume: attr.consume.unwrap_or(true),
                     include: attr.include.unwrap_or(false),
                     pad_right: attr.pad_right.as_ref().and_then(|p| match p {
@@ -1316,11 +1461,12 @@ fn resolve_enum_info(
 ) -> (Vec<String>, String, Option<Vec<String>>) {
     if ename.contains("::") {
         let parts: Vec<&str> = ename.split("::").collect();
-        let (name, owner_parts) = if let Some((last, prefix)) = parts.split_last() {
-            ((*last).to_string(), prefix.to_vec())
-        } else {
-            (ename.to_string(), Vec::new())
-        };
+        let (name, owner_parts) =
+            if let Some((last, prefix)) = parts.split_last() {
+                ((*last).to_string(), prefix.to_vec())
+            } else {
+                (ename.to_string(), Vec::new())
+            };
         for (scope_name, scope_ksy) in scopes.iter().rev() {
             let mut curr_ksy = *scope_ksy;
             let mut found = true;
@@ -1340,11 +1486,13 @@ fn resolve_enum_info(
                 return (full_owner, name, None);
             }
         }
-        let owner: Vec<String> = owner_parts.iter().map(|s| (*s).to_string()).collect();
+        let owner: Vec<String> =
+            owner_parts.iter().map(|s| (*s).to_string()).collect();
         let mut full_path = owner.clone();
         full_path.push(name.clone());
         // Reason for fallback: if no scope is active, assume external enum reference
-        let is_external = scopes.first().is_none_or(|root| root.0 != &owner[..]);
+        let is_external =
+            scopes.first().is_none_or(|root| root.0 != &owner[..]);
         let ext = if is_external { Some(full_path) } else { None };
         (owner, name, ext)
     } else {
@@ -1367,17 +1515,22 @@ fn resolve_simple_type(
     scopes: &[(&[String], &KsyFile)],
     registry: Option<&SpecRegistry>,
 ) -> Result<(DataType, Option<Vec<String>>)> {
-    let (clean_type_str, type_args, is_array) = if let Ok(parsed_ref) = crate::expr::parser::parse_type_ref(type_str) {
-        (parsed_ref.type_name.names.join("::"), parsed_ref.arguments, parsed_ref.type_name.is_array)
-    } else {
-        let is_arr = type_str.ends_with("[]");
-        let s = if is_arr {
-            type_str.trim_end_matches("[]")
+    let (clean_type_str, type_args, is_array) =
+        if let Ok(parsed_ref) = crate::expr::parser::parse_type_ref(type_str) {
+            (
+                parsed_ref.type_name.names.join("::"),
+                parsed_ref.arguments,
+                parsed_ref.type_name.is_array,
+            )
         } else {
-            type_str
+            let is_arr = type_str.ends_with("[]");
+            let s = if is_arr {
+                type_str.trim_end_matches("[]")
+            } else {
+                type_str
+            };
+            (s.to_string(), Vec::new(), is_arr)
         };
-        (s.to_string(), Vec::new(), is_arr)
-    };
     let is_array = is_array || clean_type_str.ends_with("[]");
     let clean_type_str = if clean_type_str.ends_with("[]") {
         clean_type_str.trim_end_matches("[]").to_string()
@@ -1415,39 +1568,36 @@ fn resolve_simple_type_inner(
     scopes: &[(&[String], &KsyFile)],
     registry: Option<&SpecRegistry>,
 ) -> Result<(DataType, Option<Vec<String>>)> {
-
     // 1. Bit types
     if let Some(bit_str) = clean_str.strip_prefix('b') {
-        let (num_str, bit_endian) = if let Some(stripped) = bit_str.strip_suffix("le") {
-            (stripped, BitEndianness::Little)
-        } else if let Some(stripped) = bit_str.strip_suffix("be") {
-            (stripped, BitEndianness::Big)
-        } else {
-            let default_bit_endian = scopes
-                .iter()
-                .rev()
-                .find_map(|(_, f)| {
-                    f.meta
-                        .as_ref()
-                        .and_then(|m| m.bit_endian.as_deref())
-                        .and_then(|be| match be {
-                            "le" => Some(BitEndianness::Little),
-                            "be" => Some(BitEndianness::Big),
-                            _ => None,
-                        })
-                })
-                // Reason for fallback: unspecified bit endianness defaults to big endian per Kaitai spec
-                .unwrap_or(BitEndianness::Big);
-            (bit_str, default_bit_endian)
-        };
+        let (num_str, bit_endian) =
+            if let Some(stripped) = bit_str.strip_suffix("le") {
+                (stripped, BitEndianness::Little)
+            } else if let Some(stripped) = bit_str.strip_suffix("be") {
+                (stripped, BitEndianness::Big)
+            } else {
+                let default_bit_endian = scopes
+                    .iter()
+                    .rev()
+                    .find_map(|(_, f)| {
+                        f.meta
+                            .as_ref()
+                            .and_then(|m| m.bit_endian.as_deref())
+                            .and_then(|be| match be {
+                                "le" => Some(BitEndianness::Little),
+                                "be" => Some(BitEndianness::Big),
+                                _ => None,
+                            })
+                    })
+                    // Reason for fallback: unspecified bit endianness defaults to big endian per Kaitai spec
+                    .unwrap_or(BitEndianness::Big);
+                (bit_str, default_bit_endian)
+            };
         if let Ok(count) = num_str.parse::<usize>() {
             let underlying = if count == 1 {
                 DataType::Bits1 { bit_endian }
             } else {
-                DataType::Bits {
-                    count,
-                    bit_endian,
-                }
+                DataType::Bits { count, bit_endian }
             };
             if let Some(ename) = enum_name {
                 let (owner, name, ext) = resolve_enum_info(ename, scopes);
@@ -1522,7 +1672,9 @@ fn resolve_simple_type_inner(
                 DataType::EnumType {
                     owner,
                     name,
-                    underlying: Some(Box::new(DataType::Int1 { signed: false })),
+                    underlying: Some(Box::new(DataType::Int1 {
+                        signed: false,
+                    })),
                 },
                 ext,
             ));
@@ -1563,12 +1715,60 @@ fn resolve_simple_type_inner(
         "s8" => (true, 8, default_endian),
         "s8le" => (true, 8, Some(Endianness::Little)),
         "s8be" => (true, 8, Some(Endianness::Big)),
-        "f4" => return Ok((DataType::Float { width: 4, endian: default_endian }, None)),
-        "f4le" => return Ok((DataType::Float { width: 4, endian: Some(Endianness::Little) }, None)),
-        "f4be" => return Ok((DataType::Float { width: 4, endian: Some(Endianness::Big) }, None)),
-        "f8" => return Ok((DataType::Float { width: 8, endian: default_endian }, None)),
-        "f8le" => return Ok((DataType::Float { width: 8, endian: Some(Endianness::Little) }, None)),
-        "f8be" => return Ok((DataType::Float { width: 8, endian: Some(Endianness::Big) }, None)),
+        "f4" => {
+            return Ok((
+                DataType::Float {
+                    width: 4,
+                    endian: default_endian,
+                },
+                None,
+            ));
+        }
+        "f4le" => {
+            return Ok((
+                DataType::Float {
+                    width: 4,
+                    endian: Some(Endianness::Little),
+                },
+                None,
+            ));
+        }
+        "f4be" => {
+            return Ok((
+                DataType::Float {
+                    width: 4,
+                    endian: Some(Endianness::Big),
+                },
+                None,
+            ));
+        }
+        "f8" => {
+            return Ok((
+                DataType::Float {
+                    width: 8,
+                    endian: default_endian,
+                },
+                None,
+            ));
+        }
+        "f8le" => {
+            return Ok((
+                DataType::Float {
+                    width: 8,
+                    endian: Some(Endianness::Little),
+                },
+                None,
+            ));
+        }
+        "f8be" => {
+            return Ok((
+                DataType::Float {
+                    width: 8,
+                    endian: Some(Endianness::Big),
+                },
+                None,
+            ));
+        }
         _ => (false, 0, None),
     };
 
@@ -1579,12 +1779,23 @@ fn resolve_simple_type_inner(
                 DataType::EnumType {
                     owner,
                     name,
-                    underlying: Some(Box::new(DataType::IntMulti { signed, width, endian })),
+                    underlying: Some(Box::new(DataType::IntMulti {
+                        signed,
+                        width,
+                        endian,
+                    })),
                 },
                 ext,
             ));
         }
-        return Ok((DataType::IntMulti { signed, width, endian }, None));
+        return Ok((
+            DataType::IntMulti {
+                signed,
+                width,
+                endian,
+            },
+            None,
+        ));
     }
 
     // 4. Check if it's an enum name defined in any scope (innermost to outermost)
@@ -1661,7 +1872,9 @@ fn resolve_simple_type_inner(
 
     // 6. Check if it's the root class itself or qualified from root
     if let Some((root_name, root_ksy)) = scopes.first() {
-        if parts.len() == 1 && root_name.last().map(String::as_str) == parts.first().copied() {
+        if parts.len() == 1
+            && root_name.last().map(String::as_str) == parts.first().copied()
+        {
             return Ok((
                 DataType::UserType {
                     names: root_name.to_vec(),
@@ -1671,7 +1884,9 @@ fn resolve_simple_type_inner(
                 None,
             ));
         }
-        if parts.len() > 1 && root_name.last().map(String::as_str) == parts.first().copied() {
+        if parts.len() > 1
+            && root_name.last().map(String::as_str) == parts.first().copied()
+        {
             let mut curr_ksy = *root_ksy;
             let mut found = true;
             for part in parts.iter().skip(1) {
@@ -1702,7 +1917,10 @@ fn resolve_simple_type_inner(
     // 6. External user type from imports or registry
     let ext_name = parts.iter().map(ToString::to_string).collect::<Vec<_>>();
     if let Some(reg) = registry {
-        if parts.first().is_some_and(|first| reg.specs.contains_key(*first)) {
+        if parts
+            .first()
+            .is_some_and(|first| reg.specs.contains_key(*first))
+        {
             return Ok((
                 DataType::UserType {
                     names: ext_name.clone(),
@@ -1785,7 +2003,8 @@ fn resolve_instance(
                 count
             }
         };
-        let int_len = i128::try_from(len).context("contents length exceeds i128")?;
+        let int_len =
+            i128::try_from(len).context("contents length exceeds i128")?;
         Some(Expr::IntNum(int_len))
     } else {
         None
@@ -1793,7 +2012,9 @@ fn resolve_instance(
 
     let valid = if let Some(contents) = &inst.contents {
         let bytes: Vec<Expr> = match contents {
-            ContentsSpec::Text(s) => s.bytes().map(|b| Expr::IntNum(i128::from(b))).collect(),
+            ContentsSpec::Text(s) => {
+                s.bytes().map(|b| Expr::IntNum(i128::from(b))).collect()
+            }
             ContentsSpec::Sequence(seq) => {
                 let mut v = Vec::new();
                 for item in seq {
@@ -1822,7 +2043,8 @@ fn resolve_instance(
                 if let Some(eq_val) = &d.eq {
                     let expr = value_or_expr_to_expr(eq_val)?;
                     ValidationRule::Eq(expr)
-                } else if let (Some(min_val), Some(max_val)) = (&d.min, &d.max) {
+                } else if let (Some(min_val), Some(max_val)) = (&d.min, &d.max)
+                {
                     let min_expr = value_or_expr_to_expr(min_val)?;
                     let max_expr = value_or_expr_to_expr(max_val)?;
                     ValidationRule::Expr(Expr::BoolOp {
@@ -1894,20 +2116,28 @@ fn resolve_instance(
                     } else {
                         None
                     };
-                    let default_encoding = scopes
-                        .iter()
-                        .rev()
-                        .find_map(|(_, f)| f.meta.as_ref().and_then(|m| m.encoding.clone()));
+                    let default_encoding =
+                        scopes.iter().rev().find_map(|(_, f)| {
+                            f.meta.as_ref().and_then(|m| m.encoding.clone())
+                        });
                     // Reason for fallback: default string reading settings per Kaitai spec (size_eos=false, consume=true, include=false)
                     DataType::Str {
                         size: size_expr,
                         size_eos: inst.size_eos.unwrap_or(false),
-                        encoding: inst.encoding.clone().or_else(|| default_encoding.clone()),
+                        encoding: inst
+                            .encoding
+                            .clone()
+                            .or_else(|| default_encoding.clone()),
                         terminator: if s == "strz" {
-                            inst.terminator.as_ref().and_then(|t| match t {
-                                ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
-                                _ => None,
-                            }).or(Some(0))
+                            inst.terminator
+                                .as_ref()
+                                .and_then(|t| match t {
+                                    ValueOrExpr::Int(i) => {
+                                        u8::try_from(*i).ok()
+                                    }
+                                    _ => None,
+                                })
+                                .or(Some(0))
                         } else {
                             inst.terminator.as_ref().and_then(|t| match t {
                                 ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
@@ -1916,10 +2146,12 @@ fn resolve_instance(
                         },
                         consume: inst.consume.unwrap_or(true),
                         include: inst.include.unwrap_or(false),
-                        pad_right: inst.pad_right.as_ref().and_then(|p| match p {
-                            ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
-                            _ => None,
-                        }),
+                        pad_right: inst.pad_right.as_ref().and_then(
+                            |p| match p {
+                                ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
+                                _ => None,
+                            },
+                        ),
                         eos_error: inst.eos_error.unwrap_or(true),
                     }
                 } else {
@@ -1950,7 +2182,9 @@ fn resolve_instance(
                     )?;
                     cases.insert(case_key.clone(), case_dt);
                 }
-                if (inst.size.is_some() || inst.size_eos == Some(true) || inst.process.is_some())
+                if (inst.size.is_some()
+                    || inst.size_eos == Some(true)
+                    || inst.process.is_some())
                     && !cases.contains_key("_")
                 {
                     cases.insert(
@@ -1989,7 +2223,10 @@ fn resolve_instance(
             underlying: None,
         }
     // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
-    } else if inst.contents.is_some() || inst.size.is_some() || inst.size_eos.unwrap_or(false) {
+    } else if inst.contents.is_some()
+        || inst.size.is_some()
+        || inst.size_eos.unwrap_or(false)
+    {
         // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
         DataType::Bytes {
             size: size_expr.clone(),
@@ -2003,7 +2240,8 @@ fn resolve_instance(
         }
     } else if let Some(val_ex) = &value_expr {
         // Reason for fallback: uninferrable expression type defaults to integer calculation type
-        infer_expr_type(val_ex, scopes, registry).unwrap_or(DataType::CalcIntType)
+        infer_expr_type(val_ex, scopes, registry)
+            .unwrap_or(DataType::CalcIntType)
     } else {
         DataType::CalcIntType
     };
@@ -2046,7 +2284,9 @@ fn resolve_instance(
         dt
     };
 
-    Ok((dt, value_expr, pos_expr, size_expr, io_expr, if_expr, is_cached, valid))
+    Ok((
+        dt, value_expr, pos_expr, size_expr, io_expr, if_expr, is_cached, valid,
+    ))
 }
 
 fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
@@ -2061,17 +2301,37 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
                 DataType::Int1 { signed: false }
             }
         }
-        (DataType::Int1 { .. }, DataType::IntMulti { signed, width, endian })
-        | (DataType::IntMulti { signed, width, endian }, DataType::Int1 { .. }) => {
-            DataType::IntMulti {
-                signed: *signed,
-                width: *width,
-                endian: *endian,
-            }
-        }
         (
-            DataType::IntMulti { signed: s1, width: w1, endian: e1 },
-            DataType::IntMulti { signed: s2, width: w2, endian: e2 },
+            DataType::Int1 { .. },
+            DataType::IntMulti {
+                signed,
+                width,
+                endian,
+            },
+        )
+        | (
+            DataType::IntMulti {
+                signed,
+                width,
+                endian,
+            },
+            DataType::Int1 { .. },
+        ) => DataType::IntMulti {
+            signed: *signed,
+            width: *width,
+            endian: *endian,
+        },
+        (
+            DataType::IntMulti {
+                signed: s1,
+                width: w1,
+                endian: e1,
+            },
+            DataType::IntMulti {
+                signed: s2,
+                width: w2,
+                endian: e2,
+            },
         ) => {
             if s1 == s2 {
                 DataType::IntMulti {
@@ -2083,40 +2343,62 @@ fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
                 DataType::CalcIntType
             }
         }
-        (DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::CalcIntType,
-         DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::CalcIntType) => {
-            DataType::CalcIntType
-        }
-        (DataType::Float { width: w1, endian: e1 }, DataType::Float { width: w2, endian: e2 }) => {
+        (
+            DataType::Int1 { .. }
+            | DataType::IntMulti { .. }
+            | DataType::CalcIntType,
+            DataType::Int1 { .. }
+            | DataType::IntMulti { .. }
+            | DataType::CalcIntType,
+        ) => DataType::CalcIntType,
+        (
             DataType::Float {
-                width: (*w1).max(*w2),
-                endian: e1.or(*e2),
-            }
-        }
+                width: w1,
+                endian: e1,
+            },
+            DataType::Float {
+                width: w2,
+                endian: e2,
+            },
+        ) => DataType::Float {
+            width: (*w1).max(*w2),
+            endian: e1.or(*e2),
+        },
         (DataType::CalcFloatType, DataType::Float { width, endian })
         | (DataType::Float { width, endian }, DataType::CalcFloatType) => {
             if *width == 4 {
-                DataType::Float { width: 4, endian: *endian }
+                DataType::Float {
+                    width: 4,
+                    endian: *endian,
+                }
             } else {
                 DataType::CalcFloatType
             }
         }
-        (DataType::CalcFloatType, _) | (_, DataType::CalcFloatType) => DataType::CalcFloatType,
-        (DataType::Float { width, endian }, _) | (_, DataType::Float { width, endian }) => {
-            DataType::Float { width: *width, endian: *endian }
+        (DataType::CalcFloatType, _) | (_, DataType::CalcFloatType) => {
+            DataType::CalcFloatType
         }
-        (DataType::Bytes { .. } | DataType::CalcBytesType, DataType::Bytes { .. } | DataType::CalcBytesType) => {
-            DataType::CalcBytesType
-        }
-        (DataType::Str { .. } | DataType::CalcStrType, DataType::Str { .. } | DataType::CalcStrType) => {
-            DataType::CalcStrType
-        }
-        (DataType::CalcBoolType | DataType::Bits1 { .. }, DataType::CalcBoolType | DataType::Bits1 { .. }) => {
-            DataType::CalcBoolType
-        }
-        (DataType::UserType { names: n1, .. }, DataType::UserType { names: n2, .. }) if n1 == n2 => {
-            t1.clone()
-        }
+        (DataType::Float { width, endian }, _)
+        | (_, DataType::Float { width, endian }) => DataType::Float {
+            width: *width,
+            endian: *endian,
+        },
+        (
+            DataType::Bytes { .. } | DataType::CalcBytesType,
+            DataType::Bytes { .. } | DataType::CalcBytesType,
+        ) => DataType::CalcBytesType,
+        (
+            DataType::Str { .. } | DataType::CalcStrType,
+            DataType::Str { .. } | DataType::CalcStrType,
+        ) => DataType::CalcStrType,
+        (
+            DataType::CalcBoolType | DataType::Bits1 { .. },
+            DataType::CalcBoolType | DataType::Bits1 { .. },
+        ) => DataType::CalcBoolType,
+        (
+            DataType::UserType { names: n1, .. },
+            DataType::UserType { names: n2, .. },
+        ) if n1 == n2 => t1.clone(),
         (DataType::UserType { .. }, DataType::UserType { .. }) => {
             DataType::UserType {
                 names: vec!["struct".to_string()],
@@ -2148,11 +2430,23 @@ fn infer_expr_type(
             if *x >= i128::from(i32::MIN) && *x <= i128::from(i32::MAX) {
                 Some(DataType::CalcIntType)
             } else if *x >= 0 && *x <= i128::from(u32::MAX) {
-                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 4,
+                    endian: None,
+                })
             } else if *x >= i128::from(i64::MIN) && *x <= i128::from(i64::MAX) {
-                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: true,
+                    width: 8,
+                    endian: None,
+                })
             } else {
-                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 8,
+                    endian: None,
+                })
             }
         }
         Expr::FloatNum(_) => Some(DataType::CalcFloatType),
@@ -2167,7 +2461,10 @@ fn infer_expr_type(
             }
             // Reason for fallback: empty list or uninferrable element type defaults to integer calculation type
             let mut elem_type = DataType::CalcIntType;
-            if let Some(first) = elements.first().and_then(|e| infer_expr_type(e, scopes, registry)) {
+            if let Some(first) = elements
+                .first()
+                .and_then(|e| infer_expr_type(e, scopes, registry))
+            {
                 elem_type = first;
                 for e in elements.iter().skip(1) {
                     if let Some(t) = infer_expr_type(e, scopes, registry) {
@@ -2178,11 +2475,15 @@ fn infer_expr_type(
             Some(DataType::ArrayType {
                 element: Box::new(elem_type),
                 // Reason for fallback: list length integer conversion overflow defaults to 0
-                repeat: RepeatMode::Expr(Expr::IntNum(i128::try_from(elements.len()).unwrap_or(0))),
+                repeat: RepeatMode::Expr(Expr::IntNum(
+                    i128::try_from(elements.len()).unwrap_or(0),
+                )),
             })
         }
         Expr::Str(_) => Some(DataType::CalcStrType),
-        Expr::IfExp { if_true, if_false, .. } => {
+        Expr::IfExp {
+            if_true, if_false, ..
+        } => {
             let t1 = infer_expr_type(if_true, scopes, registry);
             let t2 = infer_expr_type(if_false, scopes, registry);
             match (t1, t2) {
@@ -2196,15 +2497,23 @@ fn infer_expr_type(
             let lt = infer_expr_type(left, scopes, registry);
             let rt = infer_expr_type(right, scopes, registry);
             if *op == Operator::Add {
-                if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                    || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                {
+                if matches!(
+                    lt,
+                    Some(DataType::CalcStrType | DataType::Str { .. })
+                ) || matches!(
+                    rt,
+                    Some(DataType::CalcStrType | DataType::Str { .. })
+                ) {
                     return Some(DataType::CalcStrType);
                 }
             }
-            if matches!(lt, Some(DataType::CalcFloatType | DataType::Float { .. }))
-                || matches!(rt, Some(DataType::CalcFloatType | DataType::Float { .. }))
-            {
+            if matches!(
+                lt,
+                Some(DataType::CalcFloatType | DataType::Float { .. })
+            ) || matches!(
+                rt,
+                Some(DataType::CalcFloatType | DataType::Float { .. })
+            ) {
                 return match (lt, rt) {
                     (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
                     (Some(t), None) | (None, Some(t)) => Some(t),
@@ -2217,7 +2526,9 @@ fn infer_expr_type(
                 _ => Some(DataType::CalcIntType),
             }
         }
-        Expr::EnumByLabel { enum_name, in_type, .. } => {
+        Expr::EnumByLabel {
+            enum_name, in_type, ..
+        } => {
             for (scope_name, scope_ksy) in scopes.iter().rev() {
                 let target_ksy = if in_type.names.is_empty() {
                     Some(*scope_ksy)
@@ -2253,7 +2564,9 @@ fn infer_expr_type(
                 }
             } else if name == "_parent" {
                 if scopes.len() >= 2 {
-                    if let Some((parent_name, _)) = scopes.get(scopes.len().saturating_sub(2)) {
+                    if let Some((parent_name, _)) =
+                        scopes.get(scopes.len().saturating_sub(2))
+                    {
                         return Some(DataType::UserType {
                             names: parent_name.to_vec(),
                             is_external: false,
@@ -2263,7 +2576,9 @@ fn infer_expr_type(
                 }
             }
             for (scope_name, scope_ksy) in scopes.iter().rev() {
-                if let Some(attr) = scope_ksy.seq.iter().find(|a| a.id.as_deref() == Some(name)) {
+                if let Some(attr) =
+                    scope_ksy.seq.iter().find(|a| a.id.as_deref() == Some(name))
+                {
                     if let Some(enum_name) = &attr.enum_name {
                         let mut owner = scope_name.to_vec();
                         for (s_name, s_ksy) in scopes.iter().rev() {
@@ -2279,7 +2594,9 @@ fn infer_expr_type(
                         });
                     }
                     if let Some(TypeSpec::Simple(s)) = &attr.type_spec {
-                        if let Ok((dt, _)) = resolve_simple_type(s, None, None, scopes, registry) {
+                        if let Ok((dt, _)) =
+                            resolve_simple_type(s, None, None, scopes, registry)
+                        {
                             let final_dt = if attr.repeat.is_some() {
                                 DataType::ArrayType {
                                     element: Box::new(dt),
@@ -2306,7 +2623,9 @@ fn infer_expr_type(
                             ) {
                                 combined = match combined {
                                     None => Some(dt),
-                                    Some(prev) => Some(combine_types(&prev, &dt)),
+                                    Some(prev) => {
+                                        Some(combine_types(&prev, &dt))
+                                    }
                                 };
                             }
                         }
@@ -2340,7 +2659,9 @@ fn infer_expr_type(
                         if let Some(val_ex) = val_ex {
                             let mut new_scopes = scopes.to_vec();
                             new_scopes.push((scope_name, scope_ksy));
-                            if let Some(dt) = infer_expr_type(&val_ex, &new_scopes, registry) {
+                            if let Some(dt) =
+                                infer_expr_type(&val_ex, &new_scopes, registry)
+                            {
                                 return Some(dt);
                             }
                         }
@@ -2350,26 +2671,40 @@ fn infer_expr_type(
             None
         }
         Expr::Subscript { value, .. } => {
-            if let Some(DataType::ArrayType { element, .. }) = infer_expr_type(value, scopes, registry) {
+            if let Some(DataType::ArrayType { element, .. }) =
+                infer_expr_type(value, scopes, registry)
+            {
                 Some(*element)
             } else {
                 None
             }
         }
         Expr::Attribute { value, attr } => {
-            if attr == "first" || attr == "last" || attr == "min" || attr == "max" {
-                if let Some(DataType::ArrayType { element, .. }) = infer_expr_type(value, scopes, registry) {
+            if attr == "first"
+                || attr == "last"
+                || attr == "min"
+                || attr == "max"
+            {
+                if let Some(DataType::ArrayType { element, .. }) =
+                    infer_expr_type(value, scopes, registry)
+                {
                     return Some(*element);
                 }
             }
-            if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
+            if attr == "to_i"
+                || attr == "length"
+                || attr == "size"
+                || attr == "pos"
+            {
                 return Some(DataType::CalcIntType);
             }
             if attr == "to_s" || attr == "substring" || attr == "reverse" {
                 return Some(DataType::CalcStrType);
             }
             if attr == "_parent" {
-                if let Some(DataType::UserType { names, .. }) = infer_expr_type(value, scopes, registry) {
+                if let Some(DataType::UserType { names, .. }) =
+                    infer_expr_type(value, scopes, registry)
+                {
                     if names.len() > 1 {
                         let mut pnames = names.clone();
                         pnames.pop();
@@ -2403,17 +2738,24 @@ fn infer_expr_type(
                 None
             };
 
-            let (target_scope_name, target_scope_ksy): (Vec<String>, &KsyFile) = if let Some((s_name, s_ksy)) = target_ksy {
-                (s_name.to_vec(), s_ksy)
-            } else if let Some(DataType::UserType { names, .. }) = infer_expr_type(value, scopes, registry) {
-                let (_, root_ksy) = scopes.first()?;
-                let ksy = find_ksy_file_by_path(root_ksy, &names)?;
-                (names, ksy)
-            } else {
-                return None;
-            };
+            let (target_scope_name, target_scope_ksy): (Vec<String>, &KsyFile) =
+                if let Some((s_name, s_ksy)) = target_ksy {
+                    (s_name.to_vec(), s_ksy)
+                } else if let Some(DataType::UserType { names, .. }) =
+                    infer_expr_type(value, scopes, registry)
+                {
+                    let (_, root_ksy) = scopes.first()?;
+                    let ksy = find_ksy_file_by_path(root_ksy, &names)?;
+                    (names, ksy)
+                } else {
+                    return None;
+                };
 
-            if let Some(seq_attr) = target_scope_ksy.seq.iter().find(|a| a.id.as_deref() == Some(attr)) {
+            if let Some(seq_attr) = target_scope_ksy
+                .seq
+                .iter()
+                .find(|a| a.id.as_deref() == Some(attr))
+            {
                 if let Some(enum_name) = &seq_attr.enum_name {
                     return Some(DataType::EnumType {
                         owner: target_scope_name.clone(),
@@ -2424,7 +2766,13 @@ fn infer_expr_type(
                 if let Some(TypeSpec::Simple(s)) = &seq_attr.type_spec {
                     let mut new_scopes = scopes.to_vec();
                     new_scopes.push((&target_scope_name, target_scope_ksy));
-                    if let Ok((dt, _)) = resolve_simple_type(s, None, None, &new_scopes, registry) {
+                    if let Ok((dt, _)) = resolve_simple_type(
+                        s,
+                        None,
+                        None,
+                        &new_scopes,
+                        registry,
+                    ) {
                         let final_dt = if seq_attr.repeat.is_some() {
                             DataType::ArrayType {
                                 element: Box::new(dt),
@@ -2448,7 +2796,13 @@ fn infer_expr_type(
                 if let Some(TypeSpec::Simple(s)) = &inst.type_spec {
                     let mut new_scopes = scopes.to_vec();
                     new_scopes.push((&target_scope_name, target_scope_ksy));
-                    if let Ok((dt, _)) = resolve_simple_type(s, None, None, &new_scopes, registry) {
+                    if let Ok((dt, _)) = resolve_simple_type(
+                        s,
+                        None,
+                        None,
+                        &new_scopes,
+                        registry,
+                    ) {
                         let final_dt = if inst.repeat.is_some() {
                             DataType::ArrayType {
                                 element: Box::new(dt),
@@ -2504,17 +2858,43 @@ fn infer_expr_type(
                     "str" => DataType::CalcStrType,
                     "u1" => DataType::Int1 { signed: false },
                     "s1" => DataType::Int1 { signed: true },
-                    "u2" => DataType::IntMulti { signed: false, width: 2, endian: None },
-                    "s2" => DataType::IntMulti { signed: true, width: 2, endian: None },
-                    "u4" => DataType::IntMulti { signed: false, width: 4, endian: None },
-                    "s4" => DataType::IntMulti { signed: true, width: 4, endian: None },
-                    "u8" => DataType::IntMulti { signed: false, width: 8, endian: None },
-                    "s8" => DataType::IntMulti { signed: true, width: 8, endian: None },
+                    "u2" => DataType::IntMulti {
+                        signed: false,
+                        width: 2,
+                        endian: None,
+                    },
+                    "s2" => DataType::IntMulti {
+                        signed: true,
+                        width: 2,
+                        endian: None,
+                    },
+                    "u4" => DataType::IntMulti {
+                        signed: false,
+                        width: 4,
+                        endian: None,
+                    },
+                    "s4" => DataType::IntMulti {
+                        signed: true,
+                        width: 4,
+                        endian: None,
+                    },
+                    "u8" => DataType::IntMulti {
+                        signed: false,
+                        width: 8,
+                        endian: None,
+                    },
+                    "s8" => DataType::IntMulti {
+                        signed: true,
+                        width: 8,
+                        endian: None,
+                    },
                     "f4" | "f8" => DataType::CalcFloatType,
                     // Reason for fallback: unrecognized array base type defaults to integer calculation type
-                    _ => resolve_simple_type(base_str, None, None, scopes, registry)
-                        .map(|(dt, _)| dt)
-                        .unwrap_or(DataType::CalcIntType),
+                    _ => resolve_simple_type(
+                        base_str, None, None, scopes, registry,
+                    )
+                    .map(|(dt, _)| dt)
+                    .unwrap_or(DataType::CalcIntType),
                 };
                 Some(DataType::ArrayType {
                     element: Box::new(elem_dt),
@@ -2524,19 +2904,27 @@ fn infer_expr_type(
                 Some(DataType::CalcBytesType)
             } else if base_str == "str" {
                 Some(DataType::CalcStrType)
-            } else if matches!(base_str, "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1") {
+            } else if matches!(
+                base_str,
+                "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1"
+            ) {
                 Some(DataType::CalcIntType)
             } else if matches!(base_str, "f4" | "f8") {
                 Some(DataType::CalcFloatType)
             } else {
-                resolve_simple_type(base_str, None, None, scopes, registry).ok().map(|(dt, _)| dt)
+                resolve_simple_type(base_str, None, None, scopes, registry)
+                    .ok()
+                    .map(|(dt, _)| dt)
             }
         }
         _ => None,
     }
 }
 
-fn find_ksy_file_by_path<'a>(root_ksy: &'a KsyFile, path: &[String]) -> Option<&'a KsyFile> {
+fn find_ksy_file_by_path<'a>(
+    root_ksy: &'a KsyFile,
+    path: &[String],
+) -> Option<&'a KsyFile> {
     if path.is_empty() {
         return None;
     }
@@ -2547,7 +2935,9 @@ fn find_ksy_file_by_path<'a>(root_ksy: &'a KsyFile, path: &[String]) -> Option<&
     Some(cur)
 }
 
-fn sort_switch_cases(cases: IndexMap<String, DataType>) -> IndexMap<String, DataType> {
+fn sort_switch_cases(
+    cases: IndexMap<String, DataType>,
+) -> IndexMap<String, DataType> {
     let mut entries: Vec<_> = cases.into_iter().collect();
     entries.sort_by(|(k1, _), (k2, _)| {
         if k1 == "_" {

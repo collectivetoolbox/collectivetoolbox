@@ -133,8 +133,10 @@ async fn redirect_ip_subdomains_middleware(
             // Reason for fallback: URI without PathAndQuery component redirects to root path "/"
             let path_and_query =
                 req.uri().path_and_query().map_or("/", |pq| pq.as_str());
-            let redirect_url = format!("//{host_without_prefix}{path_and_query}");
-            return axum::response::Redirect::permanent(&redirect_url).into_response();
+            let redirect_url =
+                format!("//{host_without_prefix}{path_and_query}");
+            return axum::response::Redirect::permanent(&redirect_url)
+                .into_response();
         }
     }
 
@@ -861,8 +863,8 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_redirect_ip_subdomains_middleware() {
-        use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
         use crate::test_helpers::TestApp;
+        use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 
         let test_app = TestApp::new();
 
@@ -883,7 +885,8 @@ mod tests {
             )
             .await;
         assert_eq!(resp.status(), StatusCode::PERMANENT_REDIRECT);
-        let location = resp.headers().get("location").unwrap().to_str().unwrap();
+        let location =
+            resp.headers().get("location").unwrap().to_str().unwrap();
         assert_eq!(location, "//collectivetoolbox.com/robots.txt");
 
         // 2. Non-api path on ipv6. with port should redirect
@@ -903,7 +906,8 @@ mod tests {
             )
             .await;
         assert_eq!(resp.status(), StatusCode::PERMANENT_REDIRECT);
-        let location = resp.headers().get("location").unwrap().to_str().unwrap();
+        let location =
+            resp.headers().get("location").unwrap().to_str().unwrap();
         assert_eq!(location, "//collectivetoolbox.com:8080/robots.txt");
 
         // 3. /api/ip on ipv4. should NOT redirect
@@ -943,7 +947,6 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
     }
 }
-
 
 /*
 Code from axum-extra is used under the following license:

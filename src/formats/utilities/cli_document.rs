@@ -34,7 +34,9 @@ use std::path::Path;
 /// Parses a CLI `--from` value into [`SupportedDcInputFormat`], accepting
 /// short nicknames, Rust `FormatId` names, or `f<N>` shorthands case-insensitively.
 /// On failure, returns a categorized, sorted list of supported formats with descriptions.
-pub fn parse_supported_dc_input_format(s: &str) -> std::result::Result<SupportedDcInputFormat, String> {
+pub fn parse_supported_dc_input_format(
+    s: &str,
+) -> std::result::Result<SupportedDcInputFormat, String> {
     if let Ok(fmt) = s.parse::<SupportedDcInputFormat>() {
         return Ok(fmt);
     }
@@ -47,7 +49,9 @@ pub fn parse_supported_dc_input_format(s: &str) -> std::result::Result<Supported
 /// Parses a CLI `--to` value into [`SupportedDcOutputFormat`], accepting
 /// short nicknames, Rust `FormatId` names, or `f<N>` shorthands case-insensitively.
 /// On failure, returns a categorized, sorted list of supported formats with descriptions.
-pub fn parse_supported_dc_output_format(s: &str) -> std::result::Result<SupportedDcOutputFormat, String> {
+pub fn parse_supported_dc_output_format(
+    s: &str,
+) -> std::result::Result<SupportedDcOutputFormat, String> {
     if let Ok(fmt) = s.parse::<SupportedDcOutputFormat>() {
         return Ok(fmt);
     }

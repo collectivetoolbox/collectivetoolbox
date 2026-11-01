@@ -103,7 +103,8 @@ mod tests {
         let replacement = serde_json::json!({"next": true});
         for writer in [save_raw_json, save::<Value>] {
             writer(&path, &initial)?;
-            let locked = OpenOptions::new().read(true).write(true).open(&path)?;
+            let locked =
+                OpenOptions::new().read(true).write(true).open(&path)?;
             FileExt::lock_exclusive(&locked)?;
             let (started_tx, started_rx) = std::sync::mpsc::channel();
             let (finished_tx, finished_rx) = std::sync::mpsc::channel();
@@ -122,10 +123,15 @@ mod tests {
             );
             let length = locked.metadata()?.len();
             FileExt::unlock(&locked)?;
-            thread.join().map_err(|_| anyhow::anyhow!("JSON writer panicked"))??;
+            thread
+                .join()
+                .map_err(|_| anyhow::anyhow!("JSON writer panicked"))??;
             anyhow::ensure!(waiting, "JSON writer did not wait for the lock");
             anyhow::ensure!(
-                length == u64::try_from(serde_json::to_vec_pretty(&initial)?.len())?,
+                length
+                    == u64::try_from(
+                        serde_json::to_vec_pretty(&initial)?.len()
+                    )?,
                 "waiting JSON writer truncated the locked file"
             );
         }

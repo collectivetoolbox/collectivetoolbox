@@ -27,9 +27,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-use std::path::PathBuf;
 use kaitai::*;
 use rust::formats::opaque_with_param::*;
+use std::path::PathBuf;
 
 #[crate::ctb_test]
 #[allow(
@@ -38,9 +38,12 @@ use rust::formats::opaque_with_param::*;
 )]
 fn test_opaque_with_param() -> KResult<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"))?;
+    let bytes = std::fs::read(
+        manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"),
+    )?;
     let _io = BytesReader::from(bytes);
-    let r: OptRc<OpaqueWithParam> = OpaqueWithParam::read_into(&_io, None, None)?;
+    let r: OptRc<OpaqueWithParam> =
+        OpaqueWithParam::read_into(&_io, None, None)?;
 
     assert_eq!(*r.one().buf(), "foo|b");
     assert_eq!(*r.one().trailer(), 0x61);

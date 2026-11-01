@@ -280,7 +280,11 @@ impl DirEntryItem {
 
     /// Converts this entry to a [`FileEntity`], infallible even if the entry or file is unreadable.
     #[must_use]
-    pub fn to_file_entity_infallible(&self, base_dir: Option<&Path>, compute_hash: bool) -> FileEntity {
+    pub fn to_file_entity_infallible(
+        &self,
+        base_dir: Option<&Path>,
+        compute_hash: bool,
+    ) -> FileEntity {
         self.to_file_entity_infallible_with_apple_options(
             base_dir,
             compute_hash,
@@ -296,7 +300,9 @@ impl DirEntryItem {
         compute_hash: bool,
         apple_options: &AppleReadOptions,
     ) -> FileEntity {
-        let mut entity = if !self.errors.is_empty() && self.symlink_metadata.is_none() {
+        let mut entity = if !self.errors.is_empty()
+            && self.symlink_metadata.is_none()
+        {
             // Reason for fallback: default error message used if errors vector is empty
             let primary_err = self
                 .errors
@@ -325,7 +331,11 @@ impl DirEntryItem {
 
     /// Inspects and captures this item as a complete [`FileEntity`].
     /// Returns `Err` if any errors occurred while discovering or reading the item.
-    pub fn to_file_entity(&self, base_dir: Option<&Path>, compute_hash: bool) -> Result<FileEntity> {
+    pub fn to_file_entity(
+        &self,
+        base_dir: Option<&Path>,
+        compute_hash: bool,
+    ) -> Result<FileEntity> {
         self.to_file_entity_with_apple_options(
             base_dir,
             compute_hash,
@@ -370,8 +380,9 @@ impl DirEntryItem {
 /// and filename verification, not interpreted file discovery.
 pub fn read_dir_raw(dir: impl AsRef<Path>) -> Result<std::fs::ReadDir> {
     let dir = dir.as_ref();
-    std::fs::read_dir(dir)
-        .with_context(|| format!("Failed to enumerate directory: {}", dir.display()))
+    std::fs::read_dir(dir).with_context(|| {
+        format!("Failed to enumerate directory: {}", dir.display())
+    })
 }
 
 /// Safely reads the direct entries of a single directory.
@@ -384,8 +395,9 @@ pub fn read_dir_safe(
     options: &TraversalOptions,
 ) -> Result<Vec<DirEntryItem>> {
     let dir = dir_path.as_ref();
-    let dir_meta = std::fs::symlink_metadata(dir)
-        .with_context(|| format!("Failed to read metadata for directory: {}", dir.display()))?;
+    let dir_meta = std::fs::symlink_metadata(dir).with_context(|| {
+        format!("Failed to read metadata for directory: {}", dir.display())
+    })?;
 
     anyhow::ensure!(
         dir_meta.is_dir(),
@@ -393,10 +405,13 @@ pub fn read_dir_safe(
         dir.display()
     );
 
-    let mut traversal = DirTraverser::new(dir, TraversalOptions {
-        detect_cycles: false,
-        ..options.clone()
-    })?;
+    let mut traversal = DirTraverser::new(
+        dir,
+        TraversalOptions {
+            detect_cycles: false,
+            ..options.clone()
+        },
+    )?;
     traversal.read_children(dir, Path::new(""), 0)
 }
 
@@ -409,9 +424,7 @@ enum DfsFrame {
         depth: usize,
     },
     /// A post-order directory frame awaiting its own yield after children.
-    PostOrderDirectory {
-        item: DirEntryItem,
-    },
+    PostOrderDirectory { item: DirEntryItem },
 }
 
 /// Safe recursive directory iterator.
@@ -454,19 +467,32 @@ impl DirectoryTraverser {
         directory: &DirEntryItem,
         prepare: impl FnOnce(Vec<DirEntryItem>) -> Result<Vec<DirEntryItem>>,
     ) -> Result<Vec<DirEntryItem>> {
-        if self.traversal.options.max_depth.is_some_and(|max| directory.depth >= max) {
+        if self
+            .traversal
+            .options
+            .max_depth
+            .is_some_and(|max| directory.depth >= max)
+        {
             return prepare(Vec::new());
         }
         let metadata = std::fs::symlink_metadata(&directory.path)?;
-        anyhow::ensure!(metadata.is_dir(), "Traversal directory changed type: {}", directory.path.display());
+        anyhow::ensure!(
+            metadata.is_dir(),
+            "Traversal directory changed type: {}",
+            directory.path.display()
+        );
         let children = self.traversal.read_children(
-            &directory.path, &directory.relative_path, directory.depth,
+            &directory.path,
+            &directory.relative_path,
+            directory.depth,
         )?;
         let children = prepare(children)?;
         for child in &children {
             if child.is_dir && child.errors.is_empty() {
                 self.traversal.schedule_directory((
-                    child.path.clone(), child.relative_path.clone(), child.depth,
+                    child.path.clone(),
+                    child.relative_path.clone(),
+                    child.depth,
                 ));
             }
         }
@@ -479,34 +505,74 @@ impl Iterator for DirectoryTraverser {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let (path, relative_path, depth) = match self.traversal.options.order {
-                TraversalOrder::BreadthFirst => self.traversal.bfs_queue.pop_front()?,
-                TraversalOrder::PreOrderDepthFirst => match self.traversal.dfs_stack.pop()? {
-                    DfsFrame::Directory { abs_path, rel_path, depth } => (abs_path, rel_path, depth),
-                    DfsFrame::PostOrderDirectory { .. } => return Some(Err(anyhow::anyhow!("Unexpected post-order directory batch"))),
-                },
-                TraversalOrder::PostOrderDepthFirst => return Some(Err(anyhow::anyhow!("Directory batches require parent-first traversal"))),
-            };
-            let observed = std::fs::symlink_metadata(&path).map_err(anyhow::Error::from).and_then(|metadata| {
-                anyhow::ensure!(metadata.is_dir(), "Traversal directory changed type: {}", path.display());
-                Ok(metadata)
-            });
+            let (path, relative_path, depth) =
+                match self.traversal.options.order {
+                    TraversalOrder::BreadthFirst => {
+                        self.traversal.bfs_queue.pop_front()?
+                    }
+                    TraversalOrder::PreOrderDepthFirst => {
+                        match self.traversal.dfs_stack.pop()? {
+                            DfsFrame::Directory {
+                                abs_path,
+                                rel_path,
+                                depth,
+                            } => (abs_path, rel_path, depth),
+                            DfsFrame::PostOrderDirectory { .. } => {
+                                return Some(Err(anyhow::anyhow!(
+                                    "Unexpected post-order directory batch"
+                                )));
+                            }
+                        }
+                    }
+                    TraversalOrder::PostOrderDepthFirst => {
+                        return Some(Err(anyhow::anyhow!(
+                            "Directory batches require parent-first traversal"
+                        )));
+                    }
+                };
+            let observed = std::fs::symlink_metadata(&path)
+                .map_err(anyhow::Error::from)
+                .and_then(|metadata| {
+                    anyhow::ensure!(
+                        metadata.is_dir(),
+                        "Traversal directory changed type: {}",
+                        path.display()
+                    );
+                    Ok(metadata)
+                });
             let (metadata, errors) = match observed {
                 Ok(metadata) => (Some(metadata), Vec::new()),
                 Err(error) => match self.traversal.options.error_policy {
                     OnTraversalError::Bail => return Some(Err(error)),
                     OnTraversalError::Skip => {
-                        log_fmt!("Failed reading directory {}: {error:#}", path.display());
+                        log_fmt!(
+                            "Failed reading directory {}: {error:#}",
+                            path.display()
+                        );
                         continue;
                     }
-                    OnTraversalError::Capture => (None, vec![format!("Failed reading directory {}: {error:#}", path.display())]),
+                    OnTraversalError::Capture => (
+                        None,
+                        vec![format!(
+                            "Failed reading directory {}: {error:#}",
+                            path.display()
+                        )],
+                    ),
                 },
             };
             // Reason for fallback: root path lacks a file name component and defaults to empty OsString.
-            let file_name = path.file_name().map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
+            let file_name = path
+                .file_name()
+                .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
             return Some(Ok(DirEntryItem {
-                path, relative_path, file_name, symlink_metadata: metadata,
-                is_dir: errors.is_empty(), is_symlink: false, depth, errors,
+                path,
+                relative_path,
+                file_name,
+                symlink_metadata: metadata,
+                is_dir: errors.is_empty(),
+                is_symlink: false,
+                depth,
+                errors,
             }));
         }
     }
@@ -515,8 +581,10 @@ impl Iterator for DirectoryTraverser {
 impl DirTraverser {
     /// Switches to parent-first directory batches, always including the root.
     pub fn directories(self) -> Result<DirectoryTraverser> {
-        anyhow::ensure!(self.options.order != TraversalOrder::PostOrderDepthFirst,
-            "Directory batches require parent-first traversal");
+        anyhow::ensure!(
+            self.options.order != TraversalOrder::PostOrderDepthFirst,
+            "Directory batches require parent-first traversal"
+        );
         Ok(DirectoryTraverser { traversal: self })
     }
 
@@ -526,15 +594,23 @@ impl DirTraverser {
         }
         match self.options.order {
             TraversalOrder::BreadthFirst => self.bfs_queue.push_back(directory),
-            TraversalOrder::PreOrderDepthFirst | TraversalOrder::PostOrderDepthFirst => {
+            TraversalOrder::PreOrderDepthFirst
+            | TraversalOrder::PostOrderDepthFirst => {
                 let (abs_path, rel_path, depth) = directory;
-                self.dfs_stack.push(DfsFrame::Directory { abs_path, rel_path, depth });
+                self.dfs_stack.push(DfsFrame::Directory {
+                    abs_path,
+                    rel_path,
+                    depth,
+                });
             }
         }
     }
 
     /// Creates a new `DirTraverser` anchored at `root` with the provided options.
-    pub fn new(root: impl AsRef<Path>, options: TraversalOptions) -> Result<Self> {
+    pub fn new(
+        root: impl AsRef<Path>,
+        options: TraversalOptions,
+    ) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
         let root_meta = match std::fs::symlink_metadata(&root) {
             Ok(m) => Some(m),
@@ -543,15 +619,23 @@ impl DirTraverser {
                     None
                 } else {
                     return Err(err).with_context(|| {
-                        format!("Failed to read metadata for root: {}", root.display())
+                        format!(
+                            "Failed to read metadata for root: {}",
+                            root.display()
+                        )
                     });
                 }
             }
         };
 
         if let Some(ref meta) = root_meta {
-            if !meta.is_dir() && options.error_policy != OnTraversalError::Capture {
-                anyhow::bail!("Traversal root is not a directory: {}", root.display());
+            if !meta.is_dir()
+                && options.error_policy != OnTraversalError::Capture
+            {
+                anyhow::bail!(
+                    "Traversal root is not a directory: {}",
+                    root.display()
+                );
             }
         }
 
@@ -573,7 +657,8 @@ impl DirTraverser {
             TraversalOrder::BreadthFirst => {
                 bfs_queue.push_back((root.clone(), PathBuf::new(), 0));
             }
-            TraversalOrder::PreOrderDepthFirst | TraversalOrder::PostOrderDepthFirst => {
+            TraversalOrder::PreOrderDepthFirst
+            | TraversalOrder::PostOrderDepthFirst => {
                 dfs_stack.push(DfsFrame::Directory {
                     abs_path: root.clone(),
                     rel_path: PathBuf::new(),
@@ -614,9 +699,10 @@ impl DirTraverser {
             Err(err) => {
                 if self.options.error_policy == OnTraversalError::Capture {
                     // Reason for fallback: path without a file name component defaults to empty OsString
-                    let file_name = dir_abs
-                        .file_name()
-                        .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
+                    let file_name = dir_abs.file_name().map_or_else(
+                        OsString::new,
+                        std::borrow::ToOwned::to_owned,
+                    );
                     return Ok(vec![DirEntryItem {
                         path: dir_abs.to_path_buf(),
                         relative_path: dir_rel.to_path_buf(),
@@ -632,7 +718,10 @@ impl DirTraverser {
                     }]);
                 }
                 if self.options.error_policy == OnTraversalError::Skip {
-                    log_fmt!("Failed to read directory {}: {err}", dir_abs.display());
+                    log_fmt!(
+                        "Failed to read directory {}: {err}",
+                        dir_abs.display()
+                    );
                     return Ok(Vec::new());
                 }
                 return Err(err).with_context(|| {
@@ -672,53 +761,62 @@ impl DirTraverser {
                         continue;
                     }
                     return Err(err).with_context(|| {
-                        format!("Failed reading directory entry in {}", dir_abs.display())
+                        format!(
+                            "Failed reading directory entry in {}",
+                            dir_abs.display()
+                        )
                     });
                 }
             };
 
             let entry_path = entry.path();
-            let (sym_meta, is_symlink, is_dir) = match std::fs::symlink_metadata(&entry_path) {
-                Ok(m) => {
-                    let is_symlink = m.is_symlink();
-                    let is_dir = m.is_dir();
-                    (Some(m), is_symlink, is_dir)
-                }
-                Err(err) => {
-                    if self.options.error_policy == OnTraversalError::Capture {
-                        let file_name = entry.file_name();
-                        let entry_rel = if dir_rel.as_os_str().is_empty() {
-                            PathBuf::from(&file_name)
-                        } else {
-                            dir_rel.join(&file_name)
-                        };
-                        items.push(DirEntryItem {
-                            path: entry_path,
-                            relative_path: entry_rel,
-                            file_name,
-                            symlink_metadata: None,
-                            is_dir: false,
-                            is_symlink: false,
-                            depth: child_depth,
-                            errors: vec![format!(
+            let (sym_meta, is_symlink, is_dir) =
+                match std::fs::symlink_metadata(&entry_path) {
+                    Ok(m) => {
+                        let is_symlink = m.is_symlink();
+                        let is_dir = m.is_dir();
+                        (Some(m), is_symlink, is_dir)
+                    }
+                    Err(err) => {
+                        if self.options.error_policy
+                            == OnTraversalError::Capture
+                        {
+                            let file_name = entry.file_name();
+                            let entry_rel = if dir_rel.as_os_str().is_empty() {
+                                PathBuf::from(&file_name)
+                            } else {
+                                dir_rel.join(&file_name)
+                            };
+                            items.push(DirEntryItem {
+                                path: entry_path,
+                                relative_path: entry_rel,
+                                file_name,
+                                symlink_metadata: None,
+                                is_dir: false,
+                                is_symlink: false,
+                                depth: child_depth,
+                                errors: vec![format!(
+                                    "Failed reading metadata for {}: {err}",
+                                    entry.path().display()
+                                )],
+                            });
+                            continue;
+                        }
+                        if self.options.error_policy == OnTraversalError::Skip {
+                            log_fmt!(
                                 "Failed reading metadata for {}: {err}",
-                                entry.path().display()
-                            )],
+                                entry_path.display()
+                            );
+                            continue;
+                        }
+                        return Err(err).with_context(|| {
+                            format!(
+                                "Failed reading metadata for {}",
+                                entry_path.display()
+                            )
                         });
-                        continue;
                     }
-                    if self.options.error_policy == OnTraversalError::Skip {
-                        log_fmt!(
-                            "Failed reading metadata for {}: {err}",
-                            entry_path.display()
-                        );
-                        continue;
-                    }
-                    return Err(err).with_context(|| {
-                        format!("Failed reading metadata for {}", entry_path.display())
-                    });
-                }
-            };
+                };
 
             if self.options.one_file_system {
                 if let (Some(rdev), Some(meta)) = (self.root_dev, &sym_meta) {
@@ -787,41 +885,47 @@ impl DirTraverser {
     fn maybe_yield_root(&mut self) -> Result<Option<DirEntryItem>> {
         if self.options.yield_root && !self.root_yielded {
             self.root_yielded = true;
-            let (root_meta, is_symlink, is_dir) = match std::fs::symlink_metadata(&self.root) {
-                Ok(m) => {
-                    let is_symlink = m.is_symlink();
-                    let is_dir = m.is_dir();
-                    (Some(m), is_symlink, is_dir)
-                }
-                Err(err) => {
-                    if self.options.error_policy == OnTraversalError::Capture {
-                        // Reason for fallback: root path without a file name component defaults to empty OsString
-                        let file_name = self
-                            .root
-                            .file_name()
-                            .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
-                        return Ok(Some(DirEntryItem {
-                            path: self.root.clone(),
-                            relative_path: PathBuf::new(),
-                            file_name,
-                            symlink_metadata: None,
-                            is_dir: false,
-                            is_symlink: false,
-                            depth: 0,
-                            errors: vec![format!(
-                                "Failed to read metadata for root {}: {err}",
+            let (root_meta, is_symlink, is_dir) =
+                match std::fs::symlink_metadata(&self.root) {
+                    Ok(m) => {
+                        let is_symlink = m.is_symlink();
+                        let is_dir = m.is_dir();
+                        (Some(m), is_symlink, is_dir)
+                    }
+                    Err(err) => {
+                        if self.options.error_policy
+                            == OnTraversalError::Capture
+                        {
+                            // Reason for fallback: root path without a file name component defaults to empty OsString
+                            let file_name = self.root.file_name().map_or_else(
+                                OsString::new,
+                                std::borrow::ToOwned::to_owned,
+                            );
+                            return Ok(Some(DirEntryItem {
+                                path: self.root.clone(),
+                                relative_path: PathBuf::new(),
+                                file_name,
+                                symlink_metadata: None,
+                                is_dir: false,
+                                is_symlink: false,
+                                depth: 0,
+                                errors: vec![format!(
+                                    "Failed to read metadata for root {}: {err}",
+                                    self.root.display()
+                                )],
+                            }));
+                        }
+                        if self.options.error_policy == OnTraversalError::Skip {
+                            return Ok(None);
+                        }
+                        return Err(err).with_context(|| {
+                            format!(
+                                "Failed to read metadata for root: {}",
                                 self.root.display()
-                            )],
-                        }));
+                            )
+                        });
                     }
-                    if self.options.error_policy == OnTraversalError::Skip {
-                        return Ok(None);
-                    }
-                    return Err(err).with_context(|| {
-                        format!("Failed to read metadata for root: {}", self.root.display())
-                    });
-                }
-            };
+                };
             // Reason for fallback: root path without a file name component defaults to empty OsString
             let file_name = self
                 .root
@@ -890,15 +994,17 @@ impl DirTraverser {
                 return Some(Ok(item));
             }
 
-            let (curr_abs, curr_rel, curr_depth) = self.bfs_queue.pop_front()?;
+            let (curr_abs, curr_rel, curr_depth) =
+                self.bfs_queue.pop_front()?;
 
             if self.options.max_depth.is_some_and(|max| curr_depth >= max) {
                 continue;
             }
-            let children = match self.read_children(&curr_abs, &curr_rel, curr_depth) {
-                Ok(c) => c,
-                Err(e) => return Some(Err(e)),
-            };
+            let children =
+                match self.read_children(&curr_abs, &curr_rel, curr_depth) {
+                    Ok(c) => c,
+                    Err(e) => return Some(Err(e)),
+                };
 
             for child in children {
                 self.current_entries.push_back(child);
@@ -910,7 +1016,11 @@ impl DirTraverser {
         loop {
             if let Some(item) = self.current_entries.pop_front() {
                 if item.is_dir && item.errors.is_empty() && !self.skip_current {
-                    self.schedule_directory((item.path.clone(), item.relative_path.clone(), item.depth));
+                    self.schedule_directory((
+                        item.path.clone(),
+                        item.relative_path.clone(),
+                        item.depth,
+                    ));
                 }
                 self.skip_current = false;
                 return Some(Ok(item));
@@ -926,10 +1036,11 @@ impl DirTraverser {
                     if self.options.max_depth.is_some_and(|max| depth >= max) {
                         continue;
                     }
-                    let children = match self.read_children(&abs_path, &rel_path, depth) {
-                        Ok(c) => c,
-                        Err(e) => return Some(Err(e)),
-                    };
+                    let children =
+                        match self.read_children(&abs_path, &rel_path, depth) {
+                            Ok(c) => c,
+                            Err(e) => return Some(Err(e)),
+                        };
                     for child in children {
                         self.current_entries.push_back(child);
                     }
@@ -957,47 +1068,61 @@ impl DirTraverser {
                     rel_path,
                     depth,
                 } => {
-                    let (dir_meta, is_symlink, is_dir) = match std::fs::symlink_metadata(&abs_path) {
-                        Ok(m) => {
-                            let is_symlink = m.is_symlink();
-                            let is_dir = m.is_dir();
-                            (Some(m), is_symlink, is_dir)
-                        }
-                        Err(err) => {
-                            if self.options.error_policy == OnTraversalError::Capture {
-                                // Reason for fallback: path without a file name component defaults to empty OsString
-                                let file_name = abs_path
-                                    .file_name()
-                                    .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
-                                let dir_item = DirEntryItem {
-                                    path: abs_path.clone(),
-                                    relative_path: rel_path.clone(),
-                                    file_name,
-                                    symlink_metadata: None,
-                                    is_dir: false,
-                                    is_symlink: false,
-                                    depth,
-                                    errors: vec![format!(
+                    let (dir_meta, is_symlink, is_dir) =
+                        match std::fs::symlink_metadata(&abs_path) {
+                            Ok(m) => {
+                                let is_symlink = m.is_symlink();
+                                let is_dir = m.is_dir();
+                                (Some(m), is_symlink, is_dir)
+                            }
+                            Err(err) => {
+                                if self.options.error_policy
+                                    == OnTraversalError::Capture
+                                {
+                                    // Reason for fallback: path without a file name component defaults to empty OsString
+                                    let file_name =
+                                        abs_path.file_name().map_or_else(
+                                            OsString::new,
+                                            std::borrow::ToOwned::to_owned,
+                                        );
+                                    let dir_item = DirEntryItem {
+                                        path: abs_path.clone(),
+                                        relative_path: rel_path.clone(),
+                                        file_name,
+                                        symlink_metadata: None,
+                                        is_dir: false,
+                                        is_symlink: false,
+                                        depth,
+                                        errors: vec![format!(
+                                            "Failed reading metadata for {}: {err}",
+                                            abs_path.display()
+                                        )],
+                                    };
+                                    return Some(Ok(dir_item));
+                                }
+                                if self.options.error_policy
+                                    == OnTraversalError::Skip
+                                {
+                                    log_fmt!(
                                         "Failed reading metadata for {}: {err}",
                                         abs_path.display()
-                                    )],
-                                };
-                                return Some(Ok(dir_item));
+                                    );
+                                    continue;
+                                }
+                                return Some(Err(err).with_context(|| {
+                                    format!(
+                                        "Failed reading metadata for {}",
+                                        abs_path.display()
+                                    )
+                                }));
                             }
-                            if self.options.error_policy == OnTraversalError::Skip {
-                                log_fmt!("Failed reading metadata for {}: {err}", abs_path.display());
-                                continue;
-                            }
-                            return Some(Err(err).with_context(|| {
-                                format!("Failed reading metadata for {}", abs_path.display())
-                            }));
-                        }
-                    };
+                        };
 
                     // Reason for fallback: path without a file name component defaults to empty OsString
-                    let file_name = abs_path
-                        .file_name()
-                        .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
+                    let file_name = abs_path.file_name().map_or_else(
+                        OsString::new,
+                        std::borrow::ToOwned::to_owned,
+                    );
 
                     let dir_item = DirEntryItem {
                         path: abs_path.clone(),
@@ -1011,9 +1136,12 @@ impl DirTraverser {
                     };
 
                     // In post-order, push the directory frame to yield AFTER its children
-                    let should_yield_this_dir = depth > 0 || self.options.yield_root;
+                    let should_yield_this_dir =
+                        depth > 0 || self.options.yield_root;
                     if should_yield_this_dir {
-                        self.dfs_stack.push(DfsFrame::PostOrderDirectory { item: dir_item });
+                        self.dfs_stack.push(DfsFrame::PostOrderDirectory {
+                            item: dir_item,
+                        });
                     }
 
                     let within_max_depth = match self.options.max_depth {
@@ -1022,7 +1150,9 @@ impl DirTraverser {
                     };
 
                     if within_max_depth {
-                        let children = match self.read_children(&abs_path, &rel_path, depth) {
+                        let children = match self
+                            .read_children(&abs_path, &rel_path, depth)
+                        {
                             Ok(c) => c,
                             Err(e) => return Some(Err(e)),
                         };
@@ -1083,7 +1213,9 @@ fn should_skip_apple_companion(
 ) -> bool {
     if options.read_windows_ads_alongside && sym_meta.is_file() {
         if let Some((base_bytes, _)) =
-            crate::apple_double::split_windows_ads_companion_bytes(file_name.as_encoded_bytes())
+            crate::apple_double::split_windows_ads_companion_bytes(
+                file_name.as_encoded_bytes(),
+            )
         {
             #[cfg(unix)]
             let base_os = {
@@ -1129,10 +1261,14 @@ fn should_skip_apple_companion(
             if parent_name == ".AppleDouble" {
                 if let Some(grandparent) = dir_path.parent() {
                     if name_str == ".Parent" {
-                        if crate::apple_double::is_apple_double_file(entry_path) {
+                        if crate::apple_double::is_apple_double_file(entry_path)
+                        {
                             return true;
                         }
-                    } else if grandparent.join(name_str).symlink_metadata().is_ok()
+                    } else if grandparent
+                        .join(name_str)
+                        .symlink_metadata()
+                        .is_ok()
                         && crate::apple_double::is_apple_double_file(entry_path)
                     {
                         return true;
@@ -1150,10 +1286,14 @@ fn should_skip_apple_companion(
         } else if dir_path.components().any(|c| c.as_os_str() == "__MACOSX") {
             if let Some(base_name) = name_str.strip_prefix("._") {
                 if !base_name.is_empty() {
-                    if let Some((base_dir, rel_path)) = split_macosx_path(dir_path) {
+                    if let Some((base_dir, rel_path)) =
+                        split_macosx_path(dir_path)
+                    {
                         let target = base_dir.join(rel_path).join(base_name);
                         if target.symlink_metadata().is_ok()
-                            && crate::apple_double::is_apple_double_file(entry_path)
+                            && crate::apple_double::is_apple_double_file(
+                                entry_path,
+                            )
                         {
                             return true;
                         }
@@ -1202,11 +1342,7 @@ fn split_macosx_path(dir_path: &Path) -> Option<(PathBuf, PathBuf)> {
             base.push(component);
         }
     }
-    if found {
-        Some((base, rel))
-    } else {
-        None
-    }
+    if found { Some((base, rel)) } else { None }
 }
 
 fn is_zip_companion_dir(base_dir: &Path, macosx_dir: &Path) -> bool {
@@ -1235,7 +1371,8 @@ fn is_zip_companion_dir(base_dir: &Path, macosx_dir: &Path) -> bool {
                         return false;
                     };
                     // Reason for fallback: root files within __MACOSX directory have no parent directory prefix, defaulting to empty path
-                    let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
+                    let rel_parent =
+                        rel.parent().unwrap_or_else(|| Path::new(""));
                     let target = base_dir.join(rel_parent).join(base_name);
                     if target.symlink_metadata().is_err()
                         || !crate::apple_double::is_apple_double_file(&path)
@@ -1265,8 +1402,12 @@ mod tests {
     use std::fs::{self, File};
 
     #[crate::ctb_test]
-    fn test_physical_inventory_and_filenames_keep_apple_companions() -> Result<()> {
-        use crate::apple_double::{AppleArchive, AppleFormat, VERSION_2_0_BE, write_apple_single_double};
+    fn test_physical_inventory_and_filenames_keep_apple_companions()
+    -> Result<()> {
+        use crate::apple_double::{
+            AppleArchive, AppleFormat, VERSION_2_0_BE,
+            write_apple_single_double,
+        };
 
         let temporary = tempfile::tempdir()?;
         let root = temporary.path();
@@ -1288,23 +1429,39 @@ mod tests {
             entries: Vec::new(),
         };
         fs::write(root.join("._base"), write_apple_single_double(&companion)?)?;
-        let mut names = read_dir_raw(root)?.map(|entry| entry.map(|entry| entry.file_name()))
+        let mut names = read_dir_raw(root)?
+            .map(|entry| entry.map(|entry| entry.file_name()))
             .collect::<std::io::Result<Vec<_>>>()?;
         names.sort();
-        ensure!(names == vec![OsString::from("._base"), OsString::from("base")]);
-        let default_interpreted = read_dir_safe(root, &TraversalOptions::new())?;
+        ensure!(
+            names == vec![OsString::from("._base"), OsString::from("base")]
+        );
+        let default_interpreted =
+            read_dir_safe(root, &TraversalOptions::new())?;
         ensure!(default_interpreted.len() == 2);
-        let alongside_opts = TraversalOptions::new().apple_read_options(AppleReadOptions {
-            read_apple_double_alongside: true,
-            ..Default::default()
-        });
+        let alongside_opts =
+            TraversalOptions::new().apple_read_options(AppleReadOptions {
+                read_apple_double_alongside: true,
+                ..Default::default()
+            });
         let interpreted = read_dir_safe(root, &alongside_opts)?;
-        ensure!(interpreted.len() == 1 && interpreted.first().is_some_and(|entry| entry.file_name == "base"));
+        ensure!(
+            interpreted.len() == 1
+                && interpreted
+                    .first()
+                    .is_some_and(|entry| entry.file_name == "base")
+        );
         crate::materializer::verify_filename_exact_bytes(root, b"._base")?;
-        crate::materializer::verify_directory_filenames_exact(root, &[b"base", b"._base"])?;
+        crate::materializer::verify_directory_filenames_exact(
+            root,
+            &[b"base", b"._base"],
+        )?;
         let snapshot = crate::payload::SourceSnapshot::capture(root, false)?;
         fs::remove_file(root.join("._base"))?;
-        ensure!(snapshot.validate().is_err(), "Physical companion disappeared without invalidating the inventory");
+        ensure!(
+            snapshot.validate().is_err(),
+            "Physical companion disappeared without invalidating the inventory"
+        );
         ensure!(read_dir_raw(root.join("missing")).is_err());
         Ok(())
     }
@@ -1314,27 +1471,43 @@ mod tests {
         let temporary = tempfile::tempdir()?;
         fs::create_dir_all(temporary.path().join("child/nested"))?;
         fs::write(temporary.path().join("child/nested/file"), b"data")?;
-        for order in [TraversalOrder::BreadthFirst, TraversalOrder::PreOrderDepthFirst] {
+        for order in [
+            TraversalOrder::BreadthFirst,
+            TraversalOrder::PreOrderDepthFirst,
+        ] {
             for maximum in [0, 1, 2] {
-                let options = TraversalOptions::new().order(order).max_depth(Some(maximum)).yield_root(true);
-                let entries = traverse_dir(temporary.path(), options.clone())?.collect::<Result<Vec<_>>>()?;
+                let options = TraversalOptions::new()
+                    .order(order)
+                    .max_depth(Some(maximum))
+                    .yield_root(true);
+                let entries = traverse_dir(temporary.path(), options.clone())?
+                    .collect::<Result<Vec<_>>>()?;
                 ensure!(entries.iter().all(|entry| entry.depth <= maximum));
-                let expected: Vec<_> = entries.iter().filter(|entry| entry.is_dir)
-                    .map(|entry| entry.relative_path.clone()).collect();
-                let mut traversal = traverse_dir(temporary.path(), options)?.directories()?;
+                let expected: Vec<_> = entries
+                    .iter()
+                    .filter(|entry| entry.is_dir)
+                    .map(|entry| entry.relative_path.clone())
+                    .collect();
+                let mut traversal =
+                    traverse_dir(temporary.path(), options)?.directories()?;
                 let mut directories = Vec::new();
                 while let Some(directory) = traversal.next() {
                     let directory = directory?;
                     directories.push(directory.relative_path.clone());
                     traversal.read_directory(&directory, Ok)?;
                 }
-                ensure!(directories == expected, "Batch depth differs from entry traversal");
+                ensure!(
+                    directories == expected,
+                    "Batch depth differs from entry traversal"
+                );
             }
         }
         let missing = temporary.path().join("missing");
-        let options = TraversalOptions::new().error_policy(OnTraversalError::Capture);
+        let options =
+            TraversalOptions::new().error_policy(OnTraversalError::Capture);
         let mut traversal = traverse_dir(&missing, options)?.directories()?;
-        let directory = traversal.next().context("Missing captured failure")??;
+        let directory =
+            traversal.next().context("Missing captured failure")??;
         ensure!(directory.path == missing && !directory.errors.is_empty());
         ensure!(traversal.next().is_none());
         Ok(())
@@ -1346,14 +1519,24 @@ mod tests {
         for name in ["first", "second", "rejected"] {
             fs::create_dir_all(temporary.path().join(name).join("nested"))?;
         }
-        for order in [TraversalOrder::BreadthFirst, TraversalOrder::PreOrderDepthFirst] {
-            let mut traversal = traverse_dir(temporary.path(), TraversalOptions::new().order(order))?.directories()?;
+        for order in [
+            TraversalOrder::BreadthFirst,
+            TraversalOrder::PreOrderDepthFirst,
+        ] {
+            let mut traversal = traverse_dir(
+                temporary.path(),
+                TraversalOptions::new().order(order),
+            )?
+            .directories()?;
             let root = traversal.next().context("Missing root")??;
-            let children = traversal.read_directory(&root, |mut children| {
-                children.retain(|child| child.file_name != "rejected");
-                children.sort_by(|first, second| first.file_name.cmp(&second.file_name));
-                Ok(children)
-            })?;
+            let children =
+                traversal.read_directory(&root, |mut children| {
+                    children.retain(|child| child.file_name != "rejected");
+                    children.sort_by(|first, second| {
+                        first.file_name.cmp(&second.file_name)
+                    });
+                    Ok(children)
+                })?;
             ensure!(children.len() == 2);
             let mut visited = Vec::new();
             while let Some(directory) = traversal.next() {
@@ -1364,11 +1547,18 @@ mod tests {
                 }
             }
             ensure!(visited.contains(&PathBuf::from("first/nested")));
-            ensure!(!visited.iter().any(|path| path.starts_with("rejected") || path == Path::new("second/nested")));
+            ensure!(!visited.iter().any(|path| path.starts_with("rejected")
+                || path == Path::new("second/nested")));
         }
-        let mut traversal = traverse_dir(temporary.path(), TraversalOptions::new())?.directories()?;
+        let mut traversal =
+            traverse_dir(temporary.path(), TraversalOptions::new())?
+                .directories()?;
         let root = traversal.next().context("Missing root")??;
-        ensure!(traversal.read_directory(&root, |_| bail!("Rejected directory")).is_err());
+        ensure!(
+            traversal
+                .read_directory(&root, |_| bail!("Rejected directory"))
+                .is_err()
+        );
         ensure!(traversal.next().is_none());
         Ok(())
     }
@@ -1441,11 +1631,17 @@ mod tests {
             .map(|i| i.relative_path.to_string_lossy().replace('\\', "/"))
             .collect();
 
-        let pos_file = rel_paths.iter().position(|r| r == "dir_a/file_a1.txt").unwrap();
+        let pos_file = rel_paths
+            .iter()
+            .position(|r| r == "dir_a/file_a1.txt")
+            .unwrap();
         let pos_dir = rel_paths.iter().position(|r| r == "dir_a").unwrap();
         let pos_root = rel_paths.iter().position(|r| r.is_empty()).unwrap();
 
-        assert!(pos_file < pos_dir, "file must be yielded before its parent directory");
+        assert!(
+            pos_file < pos_dir,
+            "file must be yielded before its parent directory"
+        );
         assert!(pos_dir < pos_root, "dir_a must be yielded before root");
     }
 
@@ -1474,7 +1670,8 @@ mod tests {
             if item.is_dir && item.file_name == "skip_me" {
                 traverser.skip_current_dir();
             }
-            yielded.push(item.relative_path.to_string_lossy().replace('\\', "/"));
+            yielded
+                .push(item.relative_path.to_string_lossy().replace('\\', "/"));
         }
 
         assert!(yielded.contains(&"skip_me".to_string()));
@@ -1498,11 +1695,17 @@ mod tests {
             .expect("collect");
 
         assert_eq!(items.len(), 1);
-        let entity = items[0].to_file_entity(Some(root), true).expect("to_file_entity");
+        let entity = items[0]
+            .to_file_entity(Some(root), true)
+            .expect("to_file_entity");
 
-        assert_eq!(entity.identity.relative_path, Some(PathBuf::from("sample.txt")));
+        assert_eq!(
+            entity.identity.relative_path,
+            Some(PathBuf::from("sample.txt"))
+        );
         assert!(entity.is_regular());
-        if let crate::entity::FileEntityKind::Regular { size, .. } = entity.kind {
+        if let crate::entity::FileEntityKind::Regular { size, .. } = entity.kind
+        {
             assert_eq!(size, 15);
         } else {
             panic!("expected regular file entity");
@@ -1536,16 +1739,18 @@ mod tests {
             .error_policy(OnTraversalError::Capture)
             .yield_root(true);
 
-        let missing_items: Vec<DirEntryItem> = traverse_dir(&missing_root, capture_missing_opts)
-            .expect("traverse missing with capture")
-            .collect::<Result<Vec<_>>>()
-            .expect("collect");
+        let missing_items: Vec<DirEntryItem> =
+            traverse_dir(&missing_root, capture_missing_opts)
+                .expect("traverse missing with capture")
+                .collect::<Result<Vec<_>>>()
+                .expect("collect");
 
         assert!(!missing_items.is_empty());
         assert!(missing_items[0].is_error());
         assert!(!missing_items[0].errors().is_empty());
 
-        let entity = missing_items[0].to_file_entity_infallible(Some(&missing_root), false);
+        let entity = missing_items[0]
+            .to_file_entity_infallible(Some(&missing_root), false);
         assert!(entity.is_inaccessible());
         assert!(entity.is_error());
 

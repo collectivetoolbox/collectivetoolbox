@@ -105,7 +105,11 @@ impl KStruct for ParamsPassArrayStr {
     type Root = ParamsPassArrayStr;
     type Parent = ParamsPassArrayStr;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,15 +124,34 @@ impl KStruct for ParamsPassArrayStr {
         *self_rc.str_array.borrow_mut() = Vec::new();
         let l_str_array = 3_usize;
         for _i in 0_usize..l_str_array {
-            self_rc.str_array.borrow_mut().push(bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?);
+            self_rc
+                .str_array
+                .borrow_mut()
+                .push(bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassArrayStr_WantsStrs| Ok(t.set_params((self_rc.str_array()).clone()));
-        let t = Self::read_into_with_init::<_, ParamsPassArrayStr_WantsStrs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassArrayStr_WantsStrs| {
+            Ok(t.set_params((self_rc.str_array()).clone()))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassArrayStr_WantsStrs>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.pass_str_array.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassArrayStr_WantsStrs| Ok(t.set_params((*self_rc.str_array_calc()?).clone()));
-        let t = Self::read_into_with_init::<_, ParamsPassArrayStr_WantsStrs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassArrayStr_WantsStrs| {
+            Ok(t.set_params((*self_rc.str_array_calc()?).clone()))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassArrayStr_WantsStrs>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.pass_str_array_calc.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -136,16 +159,19 @@ impl KStruct for ParamsPassArrayStr {
     }
 }
 impl ParamsPassArrayStr {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn str_array_calc(
-        &self
-    ) -> KResult<Ref<'_, Vec<String>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn str_array_calc(&self) -> KResult<Ref<'_, Vec<String>>> {
         let _io = self._io.borrow();
         if self.f_str_array_calc.get() {
             return Ok(self.str_array_calc.borrow());
         }
         self.f_str_array_calc.set(true);
-        *self.str_array_calc.borrow_mut() = vec!["aB".to_string(), "Cd".to_string()];
+        *self.str_array_calc.borrow_mut() =
+            vec!["aB".to_string(), "Cd".to_string()];
         Ok(self.str_array_calc.borrow())
     }
 }
@@ -155,12 +181,16 @@ impl ParamsPassArrayStr {
     }
 }
 impl ParamsPassArrayStr {
-    pub fn pass_str_array(&self) -> Ref<'_, OptRc<ParamsPassArrayStr_WantsStrs>> {
+    pub fn pass_str_array(
+        &self,
+    ) -> Ref<'_, OptRc<ParamsPassArrayStr_WantsStrs>> {
         self.pass_str_array.borrow()
     }
 }
 impl ParamsPassArrayStr {
-    pub fn pass_str_array_calc(&self) -> Ref<'_, OptRc<ParamsPassArrayStr_WantsStrs>> {
+    pub fn pass_str_array_calc(
+        &self,
+    ) -> Ref<'_, OptRc<ParamsPassArrayStr_WantsStrs>> {
         self.pass_str_array_calc.borrow()
     }
 }
@@ -189,35 +219,57 @@ pub struct ParamsPassArrayStr_WantsStrs {
     strs: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ParamsPassArrayStr_WantsStrs> for OptRc<ParamsPassArrayStr_WantsStrs> {
+impl TryFrom<&ParamsPassArrayStr_WantsStrs>
+    for OptRc<ParamsPassArrayStr_WantsStrs>
+{
     type Error = KError;
     fn try_from(v: &ParamsPassArrayStr_WantsStrs) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassArrayStr_WantsStrs> for OptRc<ParamsPassArrayStr_WantsStrs> {
+impl TryFrom<&&ParamsPassArrayStr_WantsStrs>
+    for OptRc<ParamsPassArrayStr_WantsStrs>
+{
     type Error = KError;
-    fn try_from(v: &&ParamsPassArrayStr_WantsStrs) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&ParamsPassArrayStr_WantsStrs,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayStr_WantsStrs> for ParamsPassArrayStr_WantsStrs {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
+impl DowncastOptRc<ParamsPassArrayStr_WantsStrs>
+    for ParamsPassArrayStr_WantsStrs
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayStr_WantsStrs> for &ParamsPassArrayStr_WantsStrs {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
+impl DowncastOptRc<ParamsPassArrayStr_WantsStrs>
+    for &ParamsPassArrayStr_WantsStrs
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassArrayStr_WantsStrs> for OptRc<ParamsPassArrayStr_WantsStrs> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
+impl DowncastOptRc<ParamsPassArrayStr_WantsStrs>
+    for OptRc<ParamsPassArrayStr_WantsStrs>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassArrayStr_WantsStrs> for &OptRc<ParamsPassArrayStr_WantsStrs> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
+impl DowncastOptRc<ParamsPassArrayStr_WantsStrs>
+    for &OptRc<ParamsPassArrayStr_WantsStrs>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassArrayStr_WantsStrs>, KError> {
         Ok((*self).clone())
     }
 }
@@ -225,7 +277,11 @@ impl KStruct for ParamsPassArrayStr_WantsStrs {
     type Root = ParamsPassArrayStr;
     type Parent = ParamsPassArrayStr;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -251,8 +307,7 @@ impl ParamsPassArrayStr_WantsStrs {
         *self.strs.borrow_mut() = strs;
     }
 }
-impl ParamsPassArrayStr_WantsStrs {
-}
+impl ParamsPassArrayStr_WantsStrs {}
 impl ParamsPassArrayStr_WantsStrs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

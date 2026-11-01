@@ -52,7 +52,10 @@ pub fn workspace_root_for_cargo_target_exe(exe_path: &Path) -> Option<PathBuf> {
         } else {
             return None;
         }
-    } else if parent.parent().is_some_and(|path| is_named_dir(path, "build")) {
+    } else if parent
+        .parent()
+        .is_some_and(|path| is_named_dir(path, "build"))
+    {
         let profile = parent.parent()?.parent()?;
         if profile.file_name().is_some_and(is_profile_dir) {
             profile

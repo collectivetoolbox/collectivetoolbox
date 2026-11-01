@@ -19,27 +19,33 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Sequential decoding and deserialization for journal archives and records.
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
+)]
 use crate::utilities::*;
 
+use crate::journal::scanner::{self, ReadMode};
 use crate::journal::{
     JournalErrorRecord, JournalSessionRecord, JournalWarningRecord,
 };
-use crate::journal::scanner::{self, ReadMode};
 #[cfg(test)]
 use crate::journal::{JournalErrorRecordPayload, JournalWarningRecordPayload};
 use ctb_formats_checksum::Sha256Stream;
 use ctb_formats_dcdata::dc;
-use ctb_formats_dcstring::{
-    BinaryPayloadRef,
-};
+use ctb_formats_dcstring::BinaryPayloadRef;
 #[cfg(test)]
 use ctb_formats_dcstring::{DcMixedEncode, DcMstring};
-use ctb_io::file::{Extent, FileEntity, FileEntityKind, FileEntityWithPayload, PayloadSource};
+use ctb_io::file::{
+    Extent, FileEntity, FileEntityKind, FileEntityWithPayload, PayloadSource,
+};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use crate::journal::stream::{ARCHIVE_MAGIC, JournalWriter, JournalMagic, ensure_clean_metadata};
+use crate::journal::stream::{
+    ARCHIVE_MAGIC, JournalMagic, JournalWriter, ensure_clean_metadata,
+};
 
 pub struct JournalReader {
     pub(crate) file: File,
@@ -55,31 +61,59 @@ pub struct JournalReader {
 
 impl JournalReader {
     pub fn new(file: File) -> Result<Self> {
-        Self::read(file, ReadMode::Complete, &ctb_formats_dcstring::DcProjectionPolicy::strict())
+        Self::read(
+            file,
+            ReadMode::Complete,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        )
     }
 
     pub(crate) fn recover(file: File) -> Result<Self> {
-        Self::read(file, ReadMode::Recover, &ctb_formats_dcstring::DcProjectionPolicy::strict())
+        Self::read(
+            file,
+            ReadMode::Recover,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        )
     }
 
     /// Continues encoding after the caller verifies and positions the output.
-    pub(crate) fn resume_writer<W: Write>(&self, writer: W) -> Result<JournalWriter<W>> {
-        ensure!(!self.is_legacy, "Cannot resume a legacy CSC archive or journal");
+    pub(crate) fn resume_writer<W: Write>(
+        &self,
+        writer: W,
+    ) -> Result<JournalWriter<W>> {
+        ensure!(
+            !self.is_legacy,
+            "Cannot resume a legacy CSC archive or journal"
+        );
         ensure!(!self.is_completed(), "Cannot resume a completed archive");
-        ensure!(!self.has_diagnostics(), "Cannot resume an archive containing capture diagnostics");
+        ensure!(
+            !self.has_diagnostics(),
+            "Cannot resume an archive containing capture diagnostics"
+        );
         for member in &self.members {
             ensure_clean_metadata(&member.entity)?;
         }
-        JournalWriter::resume_output(writer, &self.session, self.sequence, false)
+        JournalWriter::resume_output(
+            writer,
+            &self.session,
+            self.sequence,
+            false,
+        )
     }
 
     /// Reads either header using the same record grammar and caller policy.
-    pub fn read(mut file: File, mode: ReadMode, policy: &ctb_formats_dcstring::DcProjectionPolicy) -> Result<Self> {
+    pub fn read(
+        mut file: File,
+        mode: ReadMode,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
         file.seek(SeekFrom::Start(0))?;
         let mut magic = [0_u8; 8];
         file.read_exact(&mut magic)?;
         if &magic == crate::journal::JOURNAL_MAGIC_V1 {
-            return crate::journal::legacy::read_legacy_journal_reader(file, mode, policy);
+            return crate::journal::legacy::read_legacy_journal_reader(
+                file, mode, policy,
+            );
         }
         let is_legacy_magic = &magic == crate::journal::ARCHIVE_MAGIC_V1
             || &magic == crate::journal::JOURNAL_MAGIC_V4;
@@ -95,53 +129,108 @@ impl JournalReader {
             "CSC outer magic version does not match inner DcMixed format version"
         );
         Ok(Self {
-            file, session: scanned.session, members: scanned.members, errors: scanned.errors,
-            warnings: scanned.warnings, completed: scanned.completed,
-            sequence: scanned.sequence, valid_length: scanned.valid_length,
+            file,
+            session: scanned.session,
+            members: scanned.members,
+            errors: scanned.errors,
+            warnings: scanned.warnings,
+            completed: scanned.completed,
+            sequence: scanned.sequence,
+            valid_length: scanned.valid_length,
             is_legacy: is_legacy_magic,
         })
     }
 
-    pub fn payload(&self, member: &FileEntityWithPayload) -> Result<JournalPayload> {
-        let FileEntityKind::Regular { size, extents, .. } = &member.entity.kind else {
+    pub fn payload(
+        &self,
+        member: &FileEntityWithPayload,
+    ) -> Result<JournalPayload> {
+        let FileEntityKind::Regular { size, extents, .. } = &member.entity.kind
+        else {
             bail!("Only regular files have primary archive payloads");
         };
-        let (file, resident, start, length) = match member.payload.as_ref().map(|value| &value.0) {
-            Some(BinaryPayloadRef::FileSpan { file_offset, len, .. }) => {
+        let (file, resident, start, length) = match member
+            .payload
+            .as_ref()
+            .map(|value| &value.0)
+        {
+            Some(BinaryPayloadRef::FileSpan {
+                file_offset, len, ..
+            }) => {
                 (Some(self.file.try_clone()?), Vec::new(), *file_offset, *len)
             }
-            Some(payload) => (None, payload.as_resident_bytes().context("Missing resident binary data")?.to_vec(), 0, payload.len()),
+            Some(payload) => (
+                None,
+                payload
+                    .as_resident_bytes()
+                    .context("Missing resident binary data")?
+                    .to_vec(),
+                0,
+                payload.len(),
+            ),
             None => {
                 ensure!(*size == 0, "Nonempty member is missing file data");
                 (None, Vec::new(), 0, 0)
             }
         };
         ensure!(length == *size, "Archive payload size mismatch");
-        ensure!(start.checked_add(length).is_some(), "Archive payload offset overflow");
-        Ok(JournalPayload { file, resident, start, length, position: 0, extents: extents.clone() })
+        ensure!(
+            start.checked_add(length).is_some(),
+            "Archive payload offset overflow"
+        );
+        Ok(JournalPayload {
+            file,
+            resident,
+            start,
+            length,
+            position: 0,
+            extents: extents.clone(),
+        })
     }
 
-    pub fn stream_payload(&self, stream: &ctb_io::file::AttachedStream) -> Result<JournalPayload> {
+    pub fn stream_payload(
+        &self,
+        stream: &ctb_io::file::AttachedStream,
+    ) -> Result<JournalPayload> {
         let FileEntityKind::Regular { size, .. } = &stream.entity.kind else {
             bail!("Only regular streams have payloads");
         };
-        let (file, resident, start, length) = match stream.payload.as_ref().map(|value| &value.0) {
-            Some(BinaryPayloadRef::FileSpan { file_offset, len, .. }) => {
+        let (file, resident, start, length) = match stream
+            .payload
+            .as_ref()
+            .map(|value| &value.0)
+        {
+            Some(BinaryPayloadRef::FileSpan {
+                file_offset, len, ..
+            }) => {
                 (Some(self.file.try_clone()?), Vec::new(), *file_offset, *len)
             }
             Some(payload) => (
                 None,
-                payload.as_resident_bytes().context("Missing resident stream binary data")?.to_vec(),
+                payload
+                    .as_resident_bytes()
+                    .context("Missing resident stream binary data")?
+                    .to_vec(),
                 0,
                 payload.len(),
             ),
-            None => if let Some(bytes) = &stream.data { (None, bytes.clone(), 0, u64::try_from(bytes.len())?) } else {
-                ensure!(*size == 0, "Nonempty stream is missing stream data");
-                (None, Vec::new(), 0, 0)
-            },
+            None => {
+                if let Some(bytes) = &stream.data {
+                    (None, bytes.clone(), 0, u64::try_from(bytes.len())?)
+                } else {
+                    ensure!(
+                        *size == 0,
+                        "Nonempty stream is missing stream data"
+                    );
+                    (None, Vec::new(), 0, 0)
+                }
+            }
         };
         ensure!(length == *size, "Archive stream payload size mismatch");
-        ensure!(start.checked_add(length).is_some(), "Archive stream payload offset overflow");
+        ensure!(
+            start.checked_add(length).is_some(),
+            "Archive stream payload offset overflow"
+        );
         Ok(JournalPayload {
             file,
             resident,
@@ -171,7 +260,10 @@ impl JournalReader {
     fn require_payloads(&self) -> Result<()> {
         for member in &self.members {
             if let FileEntityKind::Regular { size, .. } = member.entity.kind {
-                ensure!(size == 0 || member.payload.is_some(), "Nonempty member is missing file data");
+                ensure!(
+                    size == 0 || member.payload.is_some(),
+                    "Nonempty member is missing file data"
+                );
             }
         }
         Ok(())
@@ -182,8 +274,12 @@ impl JournalReader {
     }
 
     pub fn has_diagnostics(&self) -> bool {
-        !self.errors.is_empty() || !self.warnings.is_empty()
-            || self.members.iter().any(|member| ensure_clean_metadata(&member.entity).is_err())
+        !self.errors.is_empty()
+            || !self.warnings.is_empty()
+            || self
+                .members
+                .iter()
+                .any(|member| ensure_clean_metadata(&member.entity).is_err())
     }
 
     /// Checks completion and structural/payload integrity, not capture success
@@ -203,33 +299,70 @@ impl JournalReader {
         for member in &self.members {
             ensure_clean_metadata(&member.entity)?;
         }
-        ensure!(self.errors.is_empty() && self.warnings.is_empty(),
-            "Journal capture has {} errors and {} warnings", self.errors.len(), self.warnings.len());
+        ensure!(
+            self.errors.is_empty() && self.warnings.is_empty(),
+            "Journal capture has {} errors and {} warnings",
+            self.errors.len(),
+            self.warnings.len()
+        );
         self.verify_payloads()
     }
 
     fn verify_payloads(&self) -> Result<()> {
         for member in &self.members {
-            if let FileEntityKind::Regular { size, sha256, is_sparse, extents } = &member.entity.kind {
+            if let FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse,
+                extents,
+            } = &member.entity.kind
+            {
                 let mut end = 0_u64;
                 for extent in extents {
-                    ensure!(extent.offset() == end && extent.length() > 0, "Invalid archive extent map");
-                    end = end.checked_add(extent.length()).context("Archive extent overflow")?;
+                    ensure!(
+                        extent.offset() == end && extent.length() > 0,
+                        "Invalid archive extent map"
+                    );
+                    end = end
+                        .checked_add(extent.length())
+                        .context("Archive extent overflow")?;
                 }
-                ensure!(end == *size, "Archive extents do not cover the logical file");
-                ensure!(*is_sparse == extents.iter().any(Extent::is_hole), "Archive sparse flag mismatch");
+                ensure!(
+                    end == *size,
+                    "Archive extents do not cover the logical file"
+                );
+                ensure!(
+                    *is_sparse == extents.iter().any(Extent::is_hole),
+                    "Archive sparse flag mismatch"
+                );
                 if member.payload.is_some() || *size == 0 {
-                let mut payload = self.payload(member)?;
-                if let Some(BinaryPayloadRef::FileSpan { checksum: Some(checksum), .. }) = member.payload.as_ref().map(|value| &value.0) {
-                    ensure!(checksum.matches_reader(&mut payload, *size)?, "Archive binary encapsulation checksum mismatch");
-                    payload.seek(SeekFrom::Start(0))?;
-                }
-                let mut digest = Sha256Stream::new();
-                ensure!(std::io::copy(&mut payload, &mut digest)? == *size, "Truncated archive payload");
-                ensure!(digest.finalize() == *sha256, "Archive file checksum mismatch");
+                    let mut payload = self.payload(member)?;
+                    if let Some(BinaryPayloadRef::FileSpan {
+                        checksum: Some(checksum),
+                        ..
+                    }) = member.payload.as_ref().map(|value| &value.0)
+                    {
+                        ensure!(
+                            checksum.matches_reader(&mut payload, *size)?,
+                            "Archive binary encapsulation checksum mismatch"
+                        );
+                        payload.seek(SeekFrom::Start(0))?;
+                    }
+                    let mut digest = Sha256Stream::new();
+                    ensure!(
+                        std::io::copy(&mut payload, &mut digest)? == *size,
+                        "Truncated archive payload"
+                    );
+                    ensure!(
+                        digest.finalize() == *sha256,
+                        "Archive file checksum mismatch"
+                    );
                 }
             } else {
-                ensure!(member.payload.is_none(), "Non-regular member has primary file data");
+                ensure!(
+                    member.payload.is_none(),
+                    "Non-regular member has primary file data"
+                );
             }
             self.verify_streams(&member.entity)?;
         }
@@ -238,14 +371,28 @@ impl JournalReader {
 
     fn verify_streams(&self, entity: &FileEntity) -> Result<()> {
         for stream in &entity.streams {
-            if let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind {
-                if stream.payload.is_some() || stream.data.is_some() || *size == 0 {
+            if let FileEntityKind::Regular { size, sha256, .. } =
+                &stream.entity.kind
+            {
+                if stream.payload.is_some()
+                    || stream.data.is_some()
+                    || *size == 0
+                {
                     let mut payload = self.stream_payload(stream)?;
                     let mut digest = Sha256Stream::new();
-                    ensure!(std::io::copy(&mut payload, &mut digest)? == *size, "Truncated archive stream payload");
-                    ensure!(digest.finalize() == *sha256, "Archive stream checksum mismatch");
+                    ensure!(
+                        std::io::copy(&mut payload, &mut digest)? == *size,
+                        "Truncated archive stream payload"
+                    );
+                    ensure!(
+                        digest.finalize() == *sha256,
+                        "Archive stream checksum mismatch"
+                    );
                 } else {
-                    bail!("Archive is missing attached stream data for {:?}", stream.to_string_lossy());
+                    bail!(
+                        "Archive is missing attached stream data for {:?}",
+                        stream.to_string_lossy()
+                    );
                 }
             }
             self.verify_streams(&stream.entity)?;
@@ -264,29 +411,50 @@ pub struct JournalPayload {
 }
 
 impl ctb_io::file::streams::AttachedStreamSource for JournalReader {
-    fn open<'source>(&'source self, stream: &'source ctb_io::file::AttachedStream) -> Result<Box<dyn Read + Send + 'source>> {
+    fn open<'source>(
+        &'source self,
+        stream: &'source ctb_io::file::AttachedStream,
+    ) -> Result<Box<dyn Read + Send + 'source>> {
         Ok(Box::new(self.stream_payload(stream)?))
     }
 }
 
 impl Read for JournalPayload {
     fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
-        let remaining = self.length.checked_sub(self.position)
-            .ok_or_else(|| std::io::Error::other("Archive reader position out of bounds"))?;
-        let count = usize::try_from(remaining.min(u64::try_from(buffer.len()).map_err(std::io::Error::other)?))
+        let remaining =
+            self.length.checked_sub(self.position).ok_or_else(|| {
+                std::io::Error::other("Archive reader position out of bounds")
+            })?;
+        let count =
+            usize::try_from(remaining.min(
+                u64::try_from(buffer.len()).map_err(std::io::Error::other)?,
+            ))
             .map_err(std::io::Error::other)?;
-        let target = buffer.get_mut(..count).ok_or_else(|| std::io::Error::other("Invalid archive read buffer"))?;
+        let target = buffer.get_mut(..count).ok_or_else(|| {
+            std::io::Error::other("Invalid archive read buffer")
+        })?;
         let read = if let Some(file) = &mut self.file {
-            file.seek(SeekFrom::Start(self.start.checked_add(self.position)
-                .ok_or_else(|| std::io::Error::other("Archive offset overflow"))?))?;
+            file.seek(SeekFrom::Start(
+                self.start.checked_add(self.position).ok_or_else(|| {
+                    std::io::Error::other("Archive offset overflow")
+                })?,
+            ))?;
             file.read(target)?
         } else {
-            let position = usize::try_from(self.position).map_err(std::io::Error::other)?;
-            let mut source = self.resident.get(position..).ok_or_else(|| std::io::Error::other("Archive inline offset out of bounds"))?;
+            let position = usize::try_from(self.position)
+                .map_err(std::io::Error::other)?;
+            let mut source =
+                self.resident.get(position..).ok_or_else(|| {
+                    std::io::Error::other("Archive inline offset out of bounds")
+                })?;
             source.read(target)?
         };
-        self.position = self.position.checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
-            .ok_or_else(|| std::io::Error::other("Archive position overflow"))?;
+        self.position = self
+            .position
+            .checked_add(u64::try_from(read).map_err(std::io::Error::other)?)
+            .ok_or_else(|| {
+                std::io::Error::other("Archive position overflow")
+            })?;
         Ok(read)
     }
 }
@@ -295,18 +463,30 @@ impl Seek for JournalPayload {
     fn seek(&mut self, position: SeekFrom) -> std::io::Result<u64> {
         let next = match position {
             SeekFrom::Start(offset) => Some(offset),
-            SeekFrom::Current(offset) => self.position.checked_add_signed(offset),
+            SeekFrom::Current(offset) => {
+                self.position.checked_add_signed(offset)
+            }
             SeekFrom::End(offset) => self.length.checked_add_signed(offset),
-        }.filter(|offset| *offset <= self.length)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Seek outside archive member"))?;
+        }
+        .filter(|offset| *offset <= self.length)
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Seek outside archive member",
+            )
+        })?;
         self.position = next;
         Ok(next)
     }
 }
 
 impl PayloadSource for JournalPayload {
-    fn total_size(&self) -> u64 { self.length }
-    fn extents(&self) -> &[Extent] { &self.extents }
+    fn total_size(&self) -> u64 {
+        self.length
+    }
+    fn extents(&self) -> &[Extent] {
+        &self.extents
+    }
 }
 
 #[cfg(test)]
@@ -322,56 +502,84 @@ impl PayloadSource for JournalPayload {
 )]
 mod tests {
     #[crate::ctb_test]
-    fn common_reader_verifies_optional_bodies_under_either_magic() -> Result<()> {
+    fn common_reader_verifies_optional_bodies_under_either_magic() -> Result<()>
+    {
         let session = JournalSessionRecord {
-            sources: Vec::new(), destination: "output".into(), origin_platform: 1, environment: None,
+            sources: Vec::new(),
+            destination: "output".into(),
+            origin_platform: 1,
+            environment: None,
         };
         for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             for include_body in [false, true] {
                 let entity = FileEntity::from_vec(b"body".to_vec());
-                let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
+                let mut writer =
+                    JournalWriter::new(Vec::new(), &session, magic)?;
                 if include_body {
-                    let mut source = MemoryPayloadSource::new(b"body".to_vec())?;
+                    let mut source =
+                        MemoryPayloadSource::new(b"body".to_vec())?;
                     writer.write_entity(&entity, Some(&mut source))?;
                 } else {
                     writer.write_entity(&entity, None)?;
                 }
-                let reader = JournalReader::new(archive_file(&writer.finish()?)?)?;
+                let reader =
+                    JournalReader::new(archive_file(&writer.finish()?)?)?;
                 reader.verify()?;
                 ensure!(reader.verify_self_contained().is_ok() == include_body);
             }
             let mut entity = FileEntity::from_vec(b"metadata-only".to_vec());
-            let mut stream = ctb_io::file::AttachedStream::from_data(None,
-                ctb_io::file::StreamKind::infer_from_name(b"stream"), b"original".to_vec())?;
+            let mut stream = ctb_io::file::AttachedStream::from_data(
+                None,
+                ctb_io::file::StreamKind::infer_from_name(b"stream"),
+                b"original".to_vec(),
+            )?;
             stream.data = Some(b"modified".to_vec());
             entity.streams.push(stream);
             let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
             writer.write_batch(&[entity], |_| Ok(()))?;
             let reader = JournalReader::new(archive_file(&writer.finish()?)?)?;
-            ensure!(reader.verify().is_err(), "Metadata-only verification skipped attached stream integrity");
+            ensure!(
+                reader.verify().is_err(),
+                "Metadata-only verification skipped attached stream integrity"
+            );
         }
         Ok(())
     }
 
-        #[crate::ctb_test]
-        fn archive_rejects_truncated_records_after_completion() -> Result<()> {
-            let session = JournalSessionRecord {
-                sources: Vec::new(), destination: "archive.cscarchive".into(),
-                origin_platform: u32::from(crate::journal::current_platform()), environment: None,
-            };
-            let bytes = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?.finish()?;
-            let mut marker = DcMstring::new();
-            marker.push_char(dc::DC_BEGIN_CHECKSUMMED_SECTION);
-            for length in 1..=marker.payload_bytes().len() {
-                let mut file = tempfile::tempfile()?;
-                file.write_all(&bytes)?;
-                file.write_all(marker.payload_bytes().get(..length).context("Invalid test marker prefix")?)?;
-                let recovered = JournalReader::recover(file.try_clone()?)?;
-                ensure!(!recovered.is_completed(), "Recovery presented a partial trailing record as completed");
-                ensure!(JournalReader::new(file).is_err(), "Strict read accepted trailing marker bytes");
-            }
-            Ok(())
+    #[crate::ctb_test]
+    fn archive_rejects_truncated_records_after_completion() -> Result<()> {
+        let session = JournalSessionRecord {
+            sources: Vec::new(),
+            destination: "archive.cscarchive".into(),
+            origin_platform: u32::from(crate::journal::current_platform()),
+            environment: None,
+        };
+        let bytes =
+            JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?
+                .finish()?;
+        let mut marker = DcMstring::new();
+        marker.push_char(dc::DC_BEGIN_CHECKSUMMED_SECTION);
+        for length in 1..=marker.payload_bytes().len() {
+            let mut file = tempfile::tempfile()?;
+            file.write_all(&bytes)?;
+            file.write_all(
+                marker
+                    .payload_bytes()
+                    .get(..length)
+                    .context("Invalid test marker prefix")?,
+            )?;
+            let recovered = JournalReader::recover(file.try_clone()?)?;
+            ensure!(
+                !recovered.is_completed(),
+                "Recovery presented a partial trailing record as completed"
+            );
+            ensure!(
+                JournalReader::new(file).is_err(),
+                "Strict read accepted trailing marker bytes"
+            );
         }
+        Ok(())
+    }
 
     use super::*;
     use crate::journal::stream::{ObservedSink, VerifiedSource};
@@ -387,30 +595,59 @@ mod tests {
         let mut entity = FileEntity::from_vec(Vec::new());
         entity.streams.push(ctb_io::file::AttachedStream::from_file(
             Some(ctb_io::file::StreamName::from_str("user.large")),
-            ctb_io::file::StreamKind::ExtendedAttribute, &source,
+            ctb_io::file::StreamKind::ExtendedAttribute,
+            &source,
         )?);
-        let session = JournalSessionRecord { sources: Vec::new(), destination: archive.clone(), origin_platform: 1, environment: None };
-        let mut writer = JournalWriter::new(File::create(&archive)?, &session, JournalMagic::ArchiveV2)?;
+        let session = JournalSessionRecord {
+            sources: Vec::new(),
+            destination: archive.clone(),
+            origin_platform: 1,
+            environment: None,
+        };
+        let mut writer = JournalWriter::new(
+            File::create(&archive)?,
+            &session,
+            JournalMagic::ArchiveV2,
+        )?;
         writer.write_entity(&entity, None)?;
         drop(writer.finish()?);
         std::fs::remove_file(&source)?;
         let reader = JournalReader::new(File::open(&archive)?)?;
         reader.verify_self_contained()?;
-        let stream = reader.members.first().context("Missing archive member")?.entity.streams.first().context("Missing stream")?;
+        let stream = reader
+            .members
+            .first()
+            .context("Missing archive member")?
+            .entity
+            .streams
+            .first()
+            .context("Missing stream")?;
         ensure!(stream.data.is_none());
-        ensure!(matches!(stream.payload.as_ref().map(|payload| &payload.0), Some(BinaryPayloadRef::FileSpan { .. })));
+        ensure!(matches!(
+            stream.payload.as_ref().map(|payload| &payload.0),
+            Some(BinaryPayloadRef::FileSpan { .. })
+        ));
         let mut payload = reader.stream_payload(stream)?;
         let mut digest = Sha256Stream::new();
-        ensure!(std::io::copy(&mut payload, &mut digest)? == u64::try_from(bytes.len())?);
+        ensure!(
+            std::io::copy(&mut payload, &mut digest)?
+                == u64::try_from(bytes.len())?
+        );
         ensure!(digest.finalize() == ctb_formats_checksum::sha256(&bytes));
         Ok(())
     }
 
     fn diagnostic_writer() -> Result<JournalWriter<Vec<u8>>> {
-        JournalWriter::new(Vec::new(), &JournalSessionRecord {
-            sources: Vec::new(), destination: "-".into(),
-            origin_platform: u32::from(crate::journal::current_platform()), environment: None,
-        }, JournalMagic::ArchiveV2)
+        JournalWriter::new(
+            Vec::new(),
+            &JournalSessionRecord {
+                sources: Vec::new(),
+                destination: "-".into(),
+                origin_platform: u32::from(crate::journal::current_platform()),
+                environment: None,
+            },
+            JournalMagic::ArchiveV2,
+        )
     }
 
     fn archive_file(bytes: &[u8]) -> Result<File> {
@@ -420,7 +657,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_resume_writer_preserves_bytes_and_refuses_completion() -> Result<()> {
+    fn archive_resume_writer_preserves_bytes_and_refuses_completion()
+    -> Result<()> {
         let mut writer = diagnostic_writer()?;
         let entity = FileEntity::from_vec(b"payload".to_vec());
         let mut source = MemoryPayloadSource::new(b"payload".to_vec())?;
@@ -445,25 +683,32 @@ mod tests {
     fn error_record() -> JournalErrorRecord {
         let path = std::path::Path::new("unread").join("source");
         JournalErrorRecord {
-            raw_path: path.as_os_str().as_encoded_bytes().to_vec(), path,
+            raw_path: path.as_os_str().as_encoded_bytes().to_vec(),
+            path,
             stage: crate::journal::JournalErrorStage::PayloadRead,
-            error_message: "injected diagnostic failure".into(), os_error: Some(-5), timestamp_sec: -17,
+            error_message: "injected diagnostic failure".into(),
+            os_error: Some(-5),
+            timestamp_sec: -17,
         }
     }
 
     fn warning_record() -> JournalWarningRecord {
         JournalWarningRecord {
-            code: "capture-caveat".into(), message: "injected warning: retained detail".into(), timestamp_sec: -23,
+            code: "capture-caveat".into(),
+            message: "injected warning: retained detail".into(),
+            timestamp_sec: -23,
         }
     }
 
     #[crate::ctb_test]
-    fn archive_diagnostics_roundtrip_integrity_and_resume_refusal() -> Result<()> {
+    fn archive_diagnostics_roundtrip_integrity_and_resume_refusal() -> Result<()>
+    {
         let mut error = error_record();
         #[cfg(unix)]
         {
             use std::os::unix::ffi::OsStringExt;
-            error.path = std::ffi::OsString::from_vec(b"unread/\xff".to_vec()).into();
+            error.path =
+                std::ffi::OsString::from_vec(b"unread/\xff".to_vec()).into();
             error.raw_path = error.path.as_os_str().as_encoded_bytes().to_vec();
         }
         let warning = warning_record();
@@ -482,7 +727,9 @@ mod tests {
         let bytes = writer.finish()?;
         let archive = JournalReader::new(archive_file(&bytes)?)?;
         ensure!(archive.is_completed() && archive.has_diagnostics());
-        ensure!(archive.errors == vec![error] && archive.warnings == vec![warning]);
+        ensure!(
+            archive.errors == vec![error] && archive.warnings == vec![warning]
+        );
         ensure!(archive.members.len() == 1 && archive.sequence == 1);
         archive.verify_integrity()?;
         ensure!(archive.verify().is_err());
@@ -501,15 +748,24 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_committed_invalid_diagnostic_decode_is_not_recoverable() -> Result<()> {
+    fn archive_committed_invalid_diagnostic_decode_is_not_recoverable()
+    -> Result<()> {
         let mut writer = diagnostic_writer()?;
-        writer.transaction(|output, _| {
-            let payload = JournalErrorRecordPayload::new("source".into(), 256_u64 << 32, "bad stage".into(), 0);
-            let mut record = DcMstring::new();
-            payload.encode_dc_mixed(&mut record)?;
-            output.write_all(record.payload_bytes())?;
-            Ok(())
-        }, |_| Ok(()))?;
+        writer.transaction(
+            |output, _| {
+                let payload = JournalErrorRecordPayload::new(
+                    "source".into(),
+                    256_u64 << 32,
+                    "bad stage".into(),
+                    0,
+                );
+                let mut record = DcMstring::new();
+                payload.encode_dc_mixed(&mut record)?;
+                output.write_all(record.payload_bytes())?;
+                Ok(())
+            },
+            |_| Ok(()),
+        )?;
         let bytes = writer.finish()?;
         ensure!(JournalReader::new(archive_file(&bytes)?).is_err());
         ensure!(JournalReader::recover(archive_file(&bytes)?).is_err());
@@ -517,7 +773,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_legacy_metadata_error_is_capture_failure_not_corruption() -> Result<()> {
+    fn archive_legacy_metadata_error_is_capture_failure_not_corruption()
+    -> Result<()> {
         let mut entity = FileEntity::from_vec(Vec::new());
         entity.metadata.errors.push("unread metadata".into());
         let mut writer = diagnostic_writer()?;
@@ -534,15 +791,25 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn journal_top_level_diagnostics_do_not_claim_authentication() -> Result<()> {
+    fn journal_top_level_diagnostics_do_not_claim_authentication() -> Result<()>
+    {
         let mut writer = diagnostic_writer()?;
         writer.record_error(&error_record())?;
         let mut bytes = writer.finish()?;
-        let position = bytes.windows(b"injected".len()).position(|part| part == b"injected")
+        let position = bytes
+            .windows(b"injected".len())
+            .position(|part| part == b"injected")
             .context("Missing diagnostic message")?;
         *bytes.get_mut(position).context("Missing corruption byte")? = b'X';
         let reader = JournalReader::new(archive_file(&bytes)?)?;
-        ensure!(reader.errors.first().context("Missing diagnostic")?.error_message.starts_with('X'));
+        ensure!(
+            reader
+                .errors
+                .first()
+                .context("Missing diagnostic")?
+                .error_message
+                .starts_with('X')
+        );
         reader.verify_integrity()?;
         ensure!(reader.verify().is_err());
         Ok(())
@@ -552,12 +819,17 @@ mod tests {
     fn journal_non_file_records_inside_batches_are_rejected() -> Result<()> {
         for sequence in [0, 2] {
             let mut writer = diagnostic_writer()?;
-            crate::section::write_section(writer.output_mut(), sequence, |output| {
-                let mut record = DcMstring::new();
-                JournalWarningRecordPayload::from_record(&warning_record()).encode_dc_mixed(&mut record)?;
-                output.write_all(record.payload_bytes())?;
-                Ok(())
-            })?;
+            crate::section::write_section(
+                writer.output_mut(),
+                sequence,
+                |output| {
+                    let mut record = DcMstring::new();
+                    JournalWarningRecordPayload::from_record(&warning_record())
+                        .encode_dc_mixed(&mut record)?;
+                    output.write_all(record.payload_bytes())?;
+                    Ok(())
+                },
+            )?;
             let bytes = writer.finish()?;
             ensure!(JournalReader::new(archive_file(&bytes)?).is_err());
             ensure!(JournalReader::recover(archive_file(&bytes)?).is_err());
@@ -565,12 +837,16 @@ mod tests {
         for extra in [false, true] {
             let mut writer = diagnostic_writer()?;
             let session = JournalSessionRecord {
-                sources: Vec::new(), destination: "-".into(), origin_platform: 1, environment: None,
+                sources: Vec::new(),
+                destination: "-".into(),
+                origin_platform: 1,
+                environment: None,
             };
             writer.write_record(|output, _| {
                 let mut record = DcMstring::new();
                 if extra {
-                    JournalWarningRecordPayload::from_record(&warning_record()).encode_dc_mixed(&mut record)?;
+                    JournalWarningRecordPayload::from_record(&warning_record())
+                        .encode_dc_mixed(&mut record)?;
                 }
                 session.encode_dc_mixed(&mut record)?;
                 output.write_all(record.payload_bytes())?;
@@ -584,23 +860,33 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn journal_preserves_metadata_diagnostics_without_claiming_clean_capture() -> Result<()> {
-        for (nested, is_error) in [(false, false), (true, false), (false, true), (true, true)] {
+    fn journal_preserves_metadata_diagnostics_without_claiming_clean_capture()
+    -> Result<()> {
+        for (nested, is_error) in
+            [(false, false), (true, false), (false, true), (true, true)]
+        {
             let mut warned = FileEntity::from_vec(Vec::new());
             if is_error {
                 warned.metadata.errors.push("unread metadata detail".into());
             } else {
-                warned.metadata.warnings.push("unread metadata detail".into());
+                warned
+                    .metadata
+                    .warnings
+                    .push("unread metadata detail".into());
             }
             let entity = if nested {
                 let mut entity = FileEntity::from_vec(Vec::new());
                 entity.streams.push(ctb_io::file::AttachedStream {
-                    name: None, kind: ctb_io::file::StreamKind::MacOsResourceFork,
-                    entity: Box::new(warned), data: Some(Vec::new()),
+                    name: None,
+                    kind: ctb_io::file::StreamKind::MacOsResourceFork,
+                    entity: Box::new(warned),
+                    data: Some(Vec::new()),
                     payload: None,
                 });
                 entity
-            } else { warned };
+            } else {
+                warned
+            };
             let mut writer = diagnostic_writer()?;
             writer.write_entity(&entity, None)?;
             ensure!(writer.sequence() == 1 && !writer.is_failed());
@@ -624,12 +910,18 @@ mod tests {
         interrupted: bool,
     }
 
-    fn assert_rollback_refused<W: Write>(writer: &mut JournalWriter<W>) -> Result<()> {
+    fn assert_rollback_refused<W: Write>(
+        writer: &mut JournalWriter<W>,
+    ) -> Result<()> {
         let mut called = false;
-        ensure!(writer.rollback_source_failure(|_| {
-            called = true;
-            Ok(())
-        }).is_err());
+        ensure!(
+            writer
+                .rollback_source_failure(|_| {
+                    called = true;
+                    Ok(())
+                })
+                .is_err()
+        );
         ensure!(!called, "Refused rollback invoked its callback");
         Ok(())
     }
@@ -638,21 +930,30 @@ mod tests {
         fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
             if self.interrupted {
                 self.interrupted = false;
-                return Err(std::io::Error::from(std::io::ErrorKind::Interrupted));
+                return Err(std::io::Error::from(
+                    std::io::ErrorKind::Interrupted,
+                ));
             }
             if self.remaining == 0 {
                 if self.zero {
                     return Ok(0);
                 }
-                return Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "injected sink failure"));
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "injected sink failure",
+                ));
             }
             let count = self.remaining.min(bytes.len());
-            self.bytes.extend_from_slice(bytes.get(..count).expect("Bounded test write"));
+            self.bytes.extend_from_slice(
+                bytes.get(..count).expect("Bounded test write"),
+            );
             self.remaining = self.remaining.saturating_sub(count);
             Ok(count)
         }
 
-        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
     }
 
     #[crate::ctb_test]
@@ -660,16 +961,28 @@ mod tests {
         for warning in [false, true] {
             let initial = diagnostic_writer()?;
             let mut writer = initial.map_output(|output| FailingSink {
-                bytes: output, remaining: 9, zero: false, interrupted: false,
+                bytes: output,
+                remaining: 9,
+                zero: false,
+                interrupted: false,
             });
-            let result = if warning { writer.record_warning(&warning_record()) }
-                else { writer.record_error(&error_record()) };
-            ensure!(result.is_err() && writer.is_failed() && writer.sequence() == 0);
+            let result = if warning {
+                writer.record_warning(&warning_record())
+            } else {
+                writer.record_error(&error_record())
+            };
+            ensure!(
+                result.is_err() && writer.is_failed() && writer.sequence() == 0
+            );
             ensure!(!writer.can_rollback_source_failure());
             let before = writer.output_mut().bytes.clone();
             ensure!(writer.record_error(&error_record()).is_err());
             ensure!(writer.record_warning(&warning_record()).is_err());
-            ensure!(writer.write_entity(&FileEntity::from_vec(Vec::new()), None).is_err());
+            ensure!(
+                writer
+                    .write_entity(&FileEntity::from_vec(Vec::new()), None)
+                    .is_err()
+            );
             ensure!(writer.output_mut().bytes == before);
             let recovered = JournalReader::recover(archive_file(&before)?)?;
             ensure!(!recovered.is_completed() && recovered.sequence == 0);
@@ -688,7 +1001,14 @@ mod tests {
     }
 
     #[derive(Clone, Copy)]
-    enum SourceFault { Read, Seek, Finish, Warning, Short, Hash }
+    enum SourceFault {
+        Read,
+        Seek,
+        Finish,
+        Warning,
+        Short,
+        Hash,
+    }
 
     struct FaultySource {
         source: MemoryPayloadSource,
@@ -697,15 +1017,24 @@ mod tests {
 
     impl FaultySource {
         fn new(fault: SourceFault) -> Result<Self> {
-            let data = if matches!(fault, SourceFault::Hash) { b"modified" } else { b"expected" };
-            Ok(Self { source: MemoryPayloadSource::new(data.to_vec())?, fault })
+            let data = if matches!(fault, SourceFault::Hash) {
+                b"modified"
+            } else {
+                b"expected"
+            };
+            Ok(Self {
+                source: MemoryPayloadSource::new(data.to_vec())?,
+                fault,
+            })
         }
     }
 
     impl Read for FaultySource {
         fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
             match self.fault {
-                SourceFault::Read => Err(std::io::Error::other("injected source read failure")),
+                SourceFault::Read => {
+                    Err(std::io::Error::other("injected source read failure"))
+                }
                 SourceFault::Short => Ok(0),
                 _ => self.source.read(buffer),
             }
@@ -715,28 +1044,43 @@ mod tests {
     impl Seek for FaultySource {
         fn seek(&mut self, position: SeekFrom) -> std::io::Result<u64> {
             if matches!(self.fault, SourceFault::Seek) {
-                return Err(std::io::Error::other("injected source seek failure"));
+                return Err(std::io::Error::other(
+                    "injected source seek failure",
+                ));
             }
             self.source.seek(position)
         }
     }
 
     impl PayloadSource for FaultySource {
-        fn total_size(&self) -> u64 { self.source.total_size() }
-        fn extents(&self) -> &[Extent] { self.source.extents() }
+        fn total_size(&self) -> u64 {
+            self.source.total_size()
+        }
+        fn extents(&self) -> &[Extent] {
+            self.source.extents()
+        }
         fn finish(&mut self) -> Result<Vec<String>> {
             match self.fault {
                 SourceFault::Finish => bail!("injected source finish failure"),
-                SourceFault::Warning => Ok(vec!["injected source fidelity warning".into()]),
+                SourceFault::Warning => {
+                    Ok(vec!["injected source fidelity warning".into()])
+                }
                 _ => Ok(Vec::new()),
             }
         }
     }
 
     #[crate::ctb_test]
-    fn archive_source_failures_allow_cursor_rollback_and_continuation() -> Result<()> {
-        for fault in [SourceFault::Read, SourceFault::Seek, SourceFault::Finish,
-            SourceFault::Warning, SourceFault::Short, SourceFault::Hash] {
+    fn archive_source_failures_allow_cursor_rollback_and_continuation()
+    -> Result<()> {
+        for fault in [
+            SourceFault::Read,
+            SourceFault::Seek,
+            SourceFault::Finish,
+            SourceFault::Warning,
+            SourceFault::Short,
+            SourceFault::Hash,
+        ] {
             let initial = diagnostic_writer()?;
             let mut writer = initial.map_output(std::io::Cursor::new);
             writer.output_mut().seek(SeekFrom::End(0))?;
@@ -744,15 +1088,29 @@ mod tests {
             let boundary = writer.output_mut().position();
             let entity = FileEntity::from_vec(b"expected".to_vec());
             let mut source = FaultySource::new(fault)?;
-            let error = writer.write_entity(&entity, Some(&mut source)).expect_err("Source fault accepted");
+            let error = writer
+                .write_entity(&entity, Some(&mut source))
+                .expect_err("Source fault accepted");
             if matches!(fault, SourceFault::Short) {
-                ensure!(error.downcast_ref::<std::io::Error>()
-                    .is_some_and(|error| error.kind() == std::io::ErrorKind::UnexpectedEof));
+                ensure!(
+                    error
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|error| error.kind()
+                            == std::io::ErrorKind::UnexpectedEof)
+                );
             }
-            ensure!(writer.is_failed() && writer.can_rollback_source_failure() && writer.sequence() == 0);
+            ensure!(
+                writer.is_failed()
+                    && writer.can_rollback_source_failure()
+                    && writer.sequence() == 0
+            );
             let partial = writer.output_mut().get_ref().clone();
             let recovered = JournalReader::recover(archive_file(&partial)?)?;
-            ensure!(recovered.sequence == 0 && recovered.members.is_empty() && !recovered.is_completed());
+            ensure!(
+                recovered.sequence == 0
+                    && recovered.members.is_empty()
+                    && !recovered.is_completed()
+            );
             ensure!(JournalReader::new(archive_file(&partial)?).is_err());
             ensure!(writer.record_error(&error_record()).is_err());
             ensure!(writer.can_rollback_source_failure());
@@ -761,26 +1119,42 @@ mod tests {
                 output.set_position(boundary);
                 Ok(())
             })?;
-            ensure!(!writer.is_failed() && !writer.can_rollback_source_failure() && writer.sequence() == 0);
+            ensure!(
+                !writer.is_failed()
+                    && !writer.can_rollback_source_failure()
+                    && writer.sequence() == 0
+            );
             writer.record_error(&error_record())?;
             let mut source = MemoryPayloadSource::new(b"expected".to_vec())?;
             writer.write_entity(&entity, Some(&mut source))?;
             let bytes = writer.finish()?.into_inner();
             let archive = JournalReader::new(archive_file(&bytes)?)?;
             archive.verify_integrity()?;
-            ensure!(archive.sequence == 1 && archive.members.len() == 1 && archive.errors.len() == 1);
+            ensure!(
+                archive.sequence == 1
+                    && archive.members.len() == 1
+                    && archive.errors.len() == 1
+            );
             ensure!(archive.verify().is_err());
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn archive_source_rollback_file_callback_and_failed_callback() -> Result<()> {
+    fn archive_source_rollback_file_callback_and_failed_callback() -> Result<()>
+    {
         let session = JournalSessionRecord {
-            sources: Vec::new(), destination: "-".into(), origin_platform: 1, environment: None,
+            sources: Vec::new(),
+            destination: "-".into(),
+            origin_platform: 1,
+            environment: None,
         };
         for fail_rollback in [false, true] {
-            let mut writer = JournalWriter::new(tempfile::tempfile()?, &session, JournalMagic::ArchiveV2)?;
+            let mut writer = JournalWriter::new(
+                tempfile::tempfile()?,
+                &session,
+                JournalMagic::ArchiveV2,
+            )?;
             let boundary = writer.output_mut().stream_position()?;
             let entity = FileEntity::from_vec(b"expected".to_vec());
             let mut source = FaultySource::new(SourceFault::Finish)?;
@@ -788,55 +1162,92 @@ mod tests {
             ensure!(writer.can_rollback_source_failure());
             let result = writer.rollback_source_failure(|output| {
                 output.set_len(boundary)?;
-                if fail_rollback { bail!("injected rollback failure"); }
+                if fail_rollback {
+                    bail!("injected rollback failure");
+                }
                 output.seek(SeekFrom::Start(boundary))?;
                 Ok(())
             });
             ensure!(writer.sequence() == 0);
             if fail_rollback {
-                ensure!(result.is_err() && writer.is_failed() && !writer.can_rollback_source_failure());
+                ensure!(
+                    result.is_err()
+                        && writer.is_failed()
+                        && !writer.can_rollback_source_failure()
+                );
                 assert_rollback_refused(&mut writer)?;
                 ensure!(writer.record_error(&error_record()).is_err());
                 ensure!(writer.finish().is_err());
             } else {
                 result?;
                 writer.record_error(&error_record())?;
-                let mut source = MemoryPayloadSource::new(b"expected".to_vec())?;
+                let mut source =
+                    MemoryPayloadSource::new(b"expected".to_vec())?;
                 writer.write_entity(&entity, Some(&mut source))?;
                 let archive = JournalReader::new(writer.finish()?)?;
                 archive.verify_integrity()?;
-                ensure!(archive.sequence == 1 && archive.members.len() == 1 && archive.errors.len() == 1);
+                ensure!(
+                    archive.sequence == 1
+                        && archive.members.len() == 1
+                        && archive.errors.len() == 1
+                );
             }
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn archive_sink_failures_at_every_section_byte_forbid_rollback() -> Result<()> {
+    fn archive_sink_failures_at_every_section_byte_forbid_rollback()
+    -> Result<()> {
         let entity = FileEntity::from_vec(b"expected".to_vec());
         let mut complete = diagnostic_writer()?;
         let start = complete.output_mut().len();
         let mut source = MemoryPayloadSource::new(b"expected".to_vec())?;
         complete.write_entity(&entity, Some(&mut source))?;
-        let length = complete.output_mut().len().checked_sub(start).context("Invalid section length")?;
+        let length = complete
+            .output_mut()
+            .len()
+            .checked_sub(start)
+            .context("Invalid section length")?;
         for zero in [false, true] {
             for remaining in 0..length {
                 let initial = diagnostic_writer()?;
-                let mut writer = initial.map_output(|output| FailingSink { bytes: output, remaining, zero, interrupted: true });
-                let mut source = MemoryPayloadSource::new(b"expected".to_vec())?;
-                let error = writer.write_entity(&entity, Some(&mut source)).expect_err("Sink fault accepted");
+                let mut writer = initial.map_output(|output| FailingSink {
+                    bytes: output,
+                    remaining,
+                    zero,
+                    interrupted: true,
+                });
+                let mut source =
+                    MemoryPayloadSource::new(b"expected".to_vec())?;
+                let error = writer
+                    .write_entity(&entity, Some(&mut source))
+                    .expect_err("Sink fault accepted");
                 if zero {
-                    ensure!(error.downcast_ref::<std::io::Error>()
-                        .is_some_and(|error| error.kind() == std::io::ErrorKind::WriteZero));
+                    ensure!(
+                        error
+                            .downcast_ref::<std::io::Error>()
+                            .is_some_and(|error| error.kind()
+                                == std::io::ErrorKind::WriteZero)
+                    );
                 }
-                ensure!(writer.is_failed() && writer.sink_failed() && !writer.can_rollback_source_failure());
+                ensure!(
+                    writer.is_failed()
+                        && writer.sink_failed()
+                        && !writer.can_rollback_source_failure()
+                );
                 ensure!(writer.sequence() == 0);
                 assert_rollback_refused(&mut writer)?;
                 ensure!(writer.finish().is_err());
             }
         }
         let initial = diagnostic_writer()?;
-        let mut writer = initial.map_output(|output| FailingSink { bytes: output, remaining: usize::MAX, zero: false, interrupted: true });
+        let mut writer = initial.map_output(|output| FailingSink {
+            bytes: output,
+            remaining: usize::MAX,
+            zero: false,
+            interrupted: true,
+        });
         let mut source = FaultySource::new(SourceFault::Hash)?;
         ensure!(writer.write_entity(&entity, Some(&mut source)).is_err());
         ensure!(writer.can_rollback_source_failure() && !writer.sink_failed());
@@ -844,49 +1255,81 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_observed_source_and_sink_failures_sink_dominates() -> Result<()> {
+    fn archive_observed_source_and_sink_failures_sink_dominates() -> Result<()>
+    {
         let mut source = FaultySource::new(SourceFault::Read)?;
         let mut source_failed = false;
         let mut source = VerifiedSource {
-            source: &mut source, bytes: 0, size: 8, digest: Sha256Stream::new(), failed: &mut source_failed,
+            source: &mut source,
+            bytes: 0,
+            size: 8,
+            digest: Sha256Stream::new(),
+            failed: &mut source_failed,
         };
         let initial = diagnostic_writer()?;
         let mut writer = initial.map_output(|output| FlushFailure(output));
-        ensure!(writer.write_record(|output, _| {
-            ensure!(source.read(&mut [0_u8; 1]).is_err());
-            output.flush()?;
-            bail!("arbitrary encoder failure")
-        }).is_err());
-        ensure!(source_failed && writer.sink_failed() && !writer.can_rollback_source_failure());
+        ensure!(
+            writer
+                .write_record(|output, _| {
+                    ensure!(source.read(&mut [0_u8; 1]).is_err());
+                    output.flush()?;
+                    bail!("arbitrary encoder failure")
+                })
+                .is_err()
+        );
+        ensure!(
+            source_failed
+                && writer.sink_failed()
+                && !writer.can_rollback_source_failure()
+        );
         assert_rollback_refused(&mut writer)?;
 
         let initial = diagnostic_writer()?;
-        let mut writer = initial.map_output(|output| FailingSink { bytes: output, remaining: usize::MAX, zero: false, interrupted: false });
+        let mut writer = initial.map_output(|output| FailingSink {
+            bytes: output,
+            remaining: usize::MAX,
+            zero: false,
+            interrupted: false,
+        });
         let entity = FileEntity::from_vec(b"expected".to_vec());
         let mut source = FaultySource::new(SourceFault::Hash)?;
         ensure!(writer.write_entity(&entity, Some(&mut source)).is_err());
         ensure!(writer.can_rollback_source_failure());
         writer.output_mut().remaining = 0;
-        ensure!(writer.rollback_source_failure(|output| {
-            output.write_all(b"rollback sink failure")?;
-            Ok(())
-        }).is_err());
-        ensure!(writer.source_failed() && writer.sink_failed() && !writer.can_rollback_source_failure());
+        ensure!(
+            writer
+                .rollback_source_failure(|output| {
+                    output.write_all(b"rollback sink failure")?;
+                    Ok(())
+                })
+                .is_err()
+        );
+        ensure!(
+            writer.source_failed()
+                && writer.sink_failed()
+                && !writer.can_rollback_source_failure()
+        );
         assert_rollback_refused(&mut writer)?;
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn journal_supplied_payload_prevalidation_leaves_writer_ready() -> Result<()> {
+    fn journal_supplied_payload_prevalidation_leaves_writer_ready() -> Result<()>
+    {
         let entity = FileEntity::from_vec(b"expected".to_vec());
         let mut writer = diagnostic_writer()?;
         let before = writer.output_mut().clone();
         let mut source = MemoryPayloadSource::new(Vec::new())?;
         ensure!(writer.write_entity(&entity, Some(&mut source)).is_err());
-        ensure!(*writer.output_mut() == before && !writer.is_failed() && !writer.can_rollback_source_failure());
+        ensure!(
+            *writer.output_mut() == before
+                && !writer.is_failed()
+                && !writer.can_rollback_source_failure()
+        );
         assert_rollback_refused(&mut writer)?;
         writer.record_error(&error_record())?;
-        JournalReader::new(archive_file(&writer.finish()?)?)?.verify_integrity()?;
+        JournalReader::new(archive_file(&writer.finish()?)?)?
+            .verify_integrity()?;
         Ok(())
     }
 
@@ -894,7 +1337,10 @@ mod tests {
     fn archive_boundary_flush_failure_is_sticky() -> Result<()> {
         let mut output = FlushFailure(Vec::new());
         let mut failed = false;
-        let mut observed = ObservedSink { writer: &mut output, failed: &mut failed };
+        let mut observed = ObservedSink {
+            writer: &mut output,
+            failed: &mut failed,
+        };
         ensure!(observed.flush().is_err());
         observed.write_all(b"later successful write")?;
         ensure!(failed);
@@ -904,13 +1350,16 @@ mod tests {
     #[crate::ctb_test]
     fn archive_streaming_roundtrip_and_incomplete_rejection() -> Result<()> {
         let session = JournalSessionRecord {
-            sources: vec!["source".into()], destination: "archive.cscarchive".into(),
-            origin_platform: u32::from(crate::journal::current_platform()), environment: None,
+            sources: vec!["source".into()],
+            destination: "archive.cscarchive".into(),
+            origin_platform: u32::from(crate::journal::current_platform()),
+            environment: None,
         };
         let data = vec![0xA5; 131_072];
         let entity = FileEntity::from_vec(data.clone());
         let mut source = MemoryPayloadSource::new(data.clone())?;
-        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?;
+        let mut writer =
+            JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?;
         writer.write_entity(&entity, Some(&mut source))?;
         let bytes = writer.finish()?;
         let mut file = tempfile::tempfile()?;
@@ -919,14 +1368,23 @@ mod tests {
         archive.verify()?;
         let member = archive.members.first().context("Missing member")?;
         ensure!(member.entity == entity);
-        ensure!(matches!(member.payload.as_ref().map(|payload| &payload.0),
-            Some(BinaryPayloadRef::FileSpan { .. })), "Large body was materialized during reading");
+        ensure!(
+            matches!(
+                member.payload.as_ref().map(|payload| &payload.0),
+                Some(BinaryPayloadRef::FileSpan { .. })
+            ),
+            "Large body was materialized during reading"
+        );
         let mut payload = archive.payload(member)?;
         ensure!(payload.seek(SeekFrom::End(1)).is_err());
         let mut decoded = Vec::new();
         payload.read_to_end(&mut decoded)?;
         ensure!(decoded == data);
-        file.set_len(u64::try_from(bytes.len())?.checked_sub(1).context("Missing completion byte")?)?;
+        file.set_len(
+            u64::try_from(bytes.len())?
+                .checked_sub(1)
+                .context("Missing completion byte")?,
+        )?;
         ensure!(JournalReader::new(file).is_err());
         Ok(())
     }
@@ -934,10 +1392,13 @@ mod tests {
     #[crate::ctb_test]
     fn archive_source_mismatch_cannot_complete() -> Result<()> {
         let session = JournalSessionRecord {
-            sources: Vec::new(), destination: "-".into(),
-            origin_platform: u32::from(crate::journal::current_platform()), environment: None,
+            sources: Vec::new(),
+            destination: "-".into(),
+            origin_platform: u32::from(crate::journal::current_platform()),
+            environment: None,
         };
-        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?;
+        let mut writer =
+            JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV2)?;
         let entity = FileEntity::from_vec(b"expected".to_vec());
         let mut source = MemoryPayloadSource::new(b"modified".to_vec())?;
         ensure!(writer.write_entity(&entity, Some(&mut source)).is_err());
@@ -953,17 +1414,26 @@ mod tests {
             Ok(bytes.len())
         }
         fn flush(&mut self) -> std::io::Result<()> {
-            Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "injected output failure"))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "injected output failure",
+            ))
         }
     }
 
     #[crate::ctb_test]
     fn archive_forward_only_output_flush_failure_is_an_error() -> Result<()> {
         let session = JournalSessionRecord {
-            sources: Vec::new(), destination: "-".into(),
-            origin_platform: u32::from(crate::journal::current_platform()), environment: None,
+            sources: Vec::new(),
+            destination: "-".into(),
+            origin_platform: u32::from(crate::journal::current_platform()),
+            environment: None,
         };
-        let writer = JournalWriter::new(FlushFailure(Vec::new()), &session, JournalMagic::ArchiveV2)?;
+        let writer = JournalWriter::new(
+            FlushFailure(Vec::new()),
+            &session,
+            JournalMagic::ArchiveV2,
+        )?;
         ensure!(writer.finish().is_err(), "Broken stdout reported success");
         Ok(())
     }
@@ -987,7 +1457,11 @@ mod tests {
         let mut encoded_empty = Vec::new();
         write_entity_payload(&mut encoded_empty, &empty_entity, &context)?;
         let mut encoded_nonempty = Vec::new();
-        write_entity_payload(&mut encoded_nonempty, &nonempty_entity, &context)?;
+        write_entity_payload(
+            &mut encoded_nonempty,
+            &nonempty_entity,
+            &context,
+        )?;
 
         let mut batch_hasher = Sha256Stream::new();
         batch_hasher.update(&encoded_empty);
@@ -1018,7 +1492,9 @@ mod tests {
 
         // 1. Complete v1 journal succeeds under JournalReader::new
         let reader = JournalReader::new(archive_file(&journal)?)?;
-        ensure!(reader.is_completed() && reader.is_legacy && reader.sequence == 1);
+        ensure!(
+            reader.is_completed() && reader.is_legacy && reader.sequence == 1
+        );
         ensure!(reader.members.len() == 2);
         reader.verify()?;
         ensure!(
@@ -1058,8 +1534,13 @@ mod tests {
 
         // 2. Incomplete v1 journal is rejected by Complete mode, accepted by Recover mode
         ensure!(JournalReader::new(archive_file(&incomplete_bytes)?).is_err());
-        let recovered = JournalReader::recover(archive_file(&incomplete_bytes)?)?;
-        ensure!(!recovered.is_completed() && recovered.is_legacy && recovered.members.len() == 2);
+        let recovered =
+            JournalReader::recover(archive_file(&incomplete_bytes)?)?;
+        ensure!(
+            !recovered.is_completed()
+                && recovered.is_legacy
+                && recovered.members.len() == 2
+        );
         recovered.verify_recover()?;
         ensure!(recovered.resume_writer(Vec::new()).is_err());
 

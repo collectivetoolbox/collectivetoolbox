@@ -40,7 +40,8 @@ use ctb_formats_dcstring::DcString;
 pub fn to_text(file: &mut File, byte_limit: Option<usize>) -> Result<String> {
     let mut buf = Vec::new();
     if let Some(limit) = byte_limit {
-        let limit_u64 = u64::try_from(limit).context("Byte limit exceeds u64")?;
+        let limit_u64 =
+            u64::try_from(limit).context("Byte limit exceeds u64")?;
         let mut handle = file.take(limit_u64);
         handle.read_to_end(&mut buf)?;
     } else {
@@ -49,7 +50,11 @@ pub fn to_text(file: &mut File, byte_limit: Option<usize>) -> Result<String> {
 
     match std::str::from_utf8(&buf) {
         Ok(s) => Ok(s.to_string()),
-        Err(e) if byte_limit.is_some() && e.error_len().is_none() && e.valid_up_to() > 0 => {
+        Err(e)
+            if byte_limit.is_some()
+                && e.error_len().is_none()
+                && e.valid_up_to() > 0 =>
+        {
             let valid_slice = buf
                 .get(..e.valid_up_to())
                 .context("Index out of bounds for valid UTF-8 prefix")?;
@@ -66,7 +71,10 @@ pub fn to_text(file: &mut File, byte_limit: Option<usize>) -> Result<String> {
 /// Extracts text from a file in Dc format up to an optional byte limit.
 ///
 /// Currently a passthrough wrapper around [`to_text`].
-pub fn to_dcstring(file: &mut File, byte_limit: Option<usize>) -> Result<DcString> {
+pub fn to_dcstring(
+    file: &mut File,
+    byte_limit: Option<usize>,
+) -> Result<DcString> {
     let text = to_text(file, byte_limit)?;
     Ok(DcString::from(text))
 }

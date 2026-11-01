@@ -109,7 +109,11 @@ impl KStruct for ExprIfIntOps {
     type Root = ExprIfIntOps;
     type Parent = ExprIfIntOps;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,7 +132,10 @@ impl KStruct for ExprIfIntOps {
         }
         *self_rc.skip.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.bytes.borrow_mut() = process_xor_one(&_io.read_bytes(8_usize)?, u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?);
+        *self_rc.bytes.borrow_mut() = process_xor_one(
+            &_io.read_bytes(8_usize)?,
+            u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?,
+        );
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = 4_usize;
@@ -141,28 +148,40 @@ impl KStruct for ExprIfIntOps {
     }
 }
 impl ExprIfIntOps {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn bytes_sub_key(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn bytes_sub_key(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_bytes_sub_key.get() {
             return Ok(self.bytes_sub_key.borrow());
         }
         self.f_bytes_sub_key.set(true);
-        *self.bytes_sub_key.borrow_mut() = (*(self.bytes().get(usize::try_from(*self.key())?).ok_or(KError::CastError)?)).try_into()?;
+        *self.bytes_sub_key.borrow_mut() = (*(self
+            .bytes()
+            .get(usize::try_from(*self.key())?)
+            .ok_or(KError::CastError)?))
+        .try_into()?;
         Ok(self.bytes_sub_key.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn items_sub_key(
-        &self
-    ) -> KResult<Ref<'_, i8>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn items_sub_key(&self) -> KResult<Ref<'_, i8>> {
         let _io = self._io.borrow();
         if self.f_items_sub_key.get() {
             return Ok(self.items_sub_key.borrow());
         }
         self.f_items_sub_key.set(true);
-        *self.items_sub_key.borrow_mut() = (*(self.items().get(usize::try_from(*self.key())?).ok_or(KError::CastError)?)).try_into()?;
+        *self.items_sub_key.borrow_mut() = (*(self
+            .items()
+            .get(usize::try_from(*self.key())?)
+            .ok_or(KError::CastError)?))
+        .try_into()?;
         Ok(self.items_sub_key.borrow())
     }
 }

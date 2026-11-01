@@ -25,15 +25,18 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!    untyped equivalent lists, and invalid label indices.
 //! 3. Generative fuzzing harness to ensure error propagation and zero panics.
 
-
-
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 use ctb_utilities::*;
 
 use ctb_formats_apple_single_double::{
-    read_apple_single_double, AppleArchive, AppleFormat, ExtendedFinderInfo,
-    ExtendedFlags, FinderFlags, FinderInfo, FinderLabel, APPLEDOUBLE_MAGIC_BE,
-    APPLEDOUBLE_MAGIC_LE, APPLESINGLE_MAGIC_BE, APPLESINGLE_MAGIC_LE,
+    APPLEDOUBLE_MAGIC_BE, APPLEDOUBLE_MAGIC_LE, APPLESINGLE_MAGIC_BE,
+    APPLESINGLE_MAGIC_LE, AppleArchive, AppleFormat, ExtendedFinderInfo,
+    ExtendedFlags, FinderFlags, FinderInfo, FinderLabel,
+    read_apple_single_double,
 };
 use ctb_formats_dcdata::dc::*;
 use ctb_formats_dcstring::{
@@ -47,7 +50,10 @@ use ctb_formats_dcstring::{
 #[crate::ctb_test]
 fn test_challenge_binary_truncated_headers() -> Result<()> {
     // Empty buffer
-    ensure!(read_apple_single_double(&[]).is_err(), "Empty buffer must error");
+    ensure!(
+        read_apple_single_double(&[]).is_err(),
+        "Empty buffer must error"
+    );
 
     // Sub-header sizes (1..26 bytes)
     for len in 1..26 {
@@ -64,7 +70,13 @@ fn test_challenge_binary_truncated_headers() -> Result<()> {
 fn test_challenge_binary_corrupt_magic() -> Result<()> {
     // 26 bytes with invalid magic
     let mut buf = vec![0u8; 26];
-    for magic in [0x00000000u32, 0xdeadbeef, 0x00051601, 0x00051608, 0xffffffff] {
+    for magic in [
+        0x00000000u32,
+        0xdeadbeef,
+        0x00051601,
+        0x00051608,
+        0xffffffff,
+    ] {
         buf[0..4].copy_from_slice(&magic.to_be_bytes());
         ensure!(
             read_apple_single_double(&buf).is_err(),
@@ -188,12 +200,14 @@ fn test_challenge_binary_generative_fuzzing() -> Result<()> {
         match mutation_type {
             0 => {
                 // Truncation
-                let cut = usize::try_from(r.checked_rem(len_u64).unwrap_or(0)).unwrap_or(0);
+                let cut = usize::try_from(r.checked_rem(len_u64).unwrap_or(0))
+                    .unwrap_or(0);
                 mutated.truncate(cut);
             }
             1 => {
                 // Bit flips
-                let pos = usize::try_from(r.checked_rem(len_u64).unwrap_or(0)).unwrap_or(0);
+                let pos = usize::try_from(r.checked_rem(len_u64).unwrap_or(0))
+                    .unwrap_or(0);
                 let bit = (r >> 8).checked_rem(8).unwrap_or(0);
                 if let Some(byte) = mutated.get_mut(pos) {
                     *byte ^= 1 << bit;
@@ -201,7 +215,8 @@ fn test_challenge_binary_generative_fuzzing() -> Result<()> {
             }
             2 => {
                 // Byte corruption
-                let pos = usize::try_from(r.checked_rem(len_u64).unwrap_or(0)).unwrap_or(0);
+                let pos = usize::try_from(r.checked_rem(len_u64).unwrap_or(0))
+                    .unwrap_or(0);
                 let val = u8::try_from((r >> 16) & 0xff).unwrap_or(0);
                 if let Some(byte) = mutated.get_mut(pos) {
                     *byte = val;
@@ -209,7 +224,9 @@ fn test_challenge_binary_generative_fuzzing() -> Result<()> {
             }
             _ => {
                 // Random buffer append / expansion
-                let extra_len = usize::try_from((r >> 24).checked_rem(100).unwrap_or(0)).unwrap_or(0);
+                let extra_len =
+                    usize::try_from((r >> 24).checked_rem(100).unwrap_or(0))
+                        .unwrap_or(0);
                 mutated.extend(vec![0xaa; extra_len]);
             }
         }
@@ -261,10 +278,16 @@ fn test_challenge_finder_info_strict_vs_forgiving() -> Result<()> {
     finfo.encode_dc_mixed(&mut mst)?;
 
     let decoded_strict: FinderInfo = mst.decode(&strict)?;
-    ensure!(decoded_strict == finfo, "Strict decode failed to match original");
+    ensure!(
+        decoded_strict == finfo,
+        "Strict decode failed to match original"
+    );
 
     let decoded_forgiving: FinderInfo = mst.decode(&forgiving)?;
-    ensure!(decoded_forgiving == finfo, "Forgiving decode failed to match original");
+    ensure!(
+        decoded_forgiving == finfo,
+        "Forgiving decode failed to match original"
+    );
 
     // 2. Corrupt: missing container closer (401 without 402)
     let mut unclosed = DcMstring::new();
@@ -384,9 +407,16 @@ fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
         ..ExtendedFinderInfo::default()
     });
     let archive_scroll = make_archive(finfo_scroll);
-    let written = ctb_formats_apple_single_double::write_apple_single_double(&archive_scroll)?;
-    let parsed = ctb_formats_apple_single_double::read_apple_single_double(&written)?;
-    let parsed_ext = parsed.finder_info.as_ref().and_then(|f| f.extended).context("Missing parsed extended info")?;
+    let written = ctb_formats_apple_single_double::write_apple_single_double(
+        &archive_scroll,
+    )?;
+    let parsed =
+        ctb_formats_apple_single_double::read_apple_single_double(&written)?;
+    let parsed_ext = parsed
+        .finder_info
+        .as_ref()
+        .and_then(|f| f.extended)
+        .context("Missing parsed extended info")?;
     ensure!(parsed_ext.scroll_position == Some((150, 300)));
     ensure!(parsed_ext.icon_id == 0);
 
@@ -400,10 +430,23 @@ fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
         scroll_position: Some((0, 0)),
         ..ExtendedFinderInfo::default()
     });
-    let written_zero = ctb_formats_apple_single_double::write_apple_single_double(&make_archive(finfo_scroll_zero))?;
-    let parsed_zero = ctb_formats_apple_single_double::read_apple_single_double(&written_zero)?;
-    let parsed_ext_zero = parsed_zero.finder_info.as_ref().and_then(|f| f.extended).context("Missing zero scroll extended info")?;
-    ensure!(parsed_ext_zero.scroll_position == Some((0, 0)), "Folder scroll_position (0, 0) must be preserved");
+    let written_zero =
+        ctb_formats_apple_single_double::write_apple_single_double(
+            &make_archive(finfo_scroll_zero),
+        )?;
+    let parsed_zero =
+        ctb_formats_apple_single_double::read_apple_single_double(
+            &written_zero,
+        )?;
+    let parsed_ext_zero = parsed_zero
+        .finder_info
+        .as_ref()
+        .and_then(|f| f.extended)
+        .context("Missing zero scroll extended info")?;
+    ensure!(
+        parsed_ext_zero.scroll_position == Some((0, 0)),
+        "Folder scroll_position (0, 0) must be preserved"
+    );
     ensure!(parsed_ext_zero.icon_id == 0);
 
     // 4. AppleSingle binary roundtrip with custom icon_id (file)
@@ -418,20 +461,35 @@ fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
         ..ExtendedFinderInfo::default()
     });
     let archive_icon = make_archive(finfo_icon);
-    let mut written_icon = ctb_formats_apple_single_double::write_apple_single_double(&archive_icon)?;
+    let mut written_icon =
+        ctb_formats_apple_single_double::write_apple_single_double(
+            &archive_icon,
+        )?;
     // Inject dirty non-zero bytes in file's reserved bytes 18..19 (bytes 18..20 of FinderInfo)
     // to test that a file with non-zero reserved bytes is NOT misclassified as having scroll_position
     if let Some(pos) = written_icon.windows(4).position(|w| w == b"TEXT") {
-        if let (Some(start), Some(end)) = (pos.checked_add(18), pos.checked_add(20)) {
+        if let (Some(start), Some(end)) =
+            (pos.checked_add(18), pos.checked_add(20))
+        {
             if let Some(slot) = written_icon.get_mut(start..end) {
                 slot.copy_from_slice(&[0x12, 0x34]);
             }
         }
     }
-    let parsed_icon = ctb_formats_apple_single_double::read_apple_single_double(&written_icon)?;
-    let parsed_ext_icon = parsed_icon.finder_info.as_ref().and_then(|f| f.extended).context("Missing parsed extended info")?;
+    let parsed_icon =
+        ctb_formats_apple_single_double::read_apple_single_double(
+            &written_icon,
+        )?;
+    let parsed_ext_icon = parsed_icon
+        .finder_info
+        .as_ref()
+        .and_then(|f| f.extended)
+        .context("Missing parsed extended info")?;
     ensure!(parsed_ext_icon.icon_id == -16455);
-    ensure!(parsed_ext_icon.scroll_position.is_none(), "File with non-zero reserved bytes must not emit scroll_position");
+    ensure!(
+        parsed_ext_icon.scroll_position.is_none(),
+        "File with non-zero reserved bytes must not emit scroll_position"
+    );
 
     Ok(())
 }

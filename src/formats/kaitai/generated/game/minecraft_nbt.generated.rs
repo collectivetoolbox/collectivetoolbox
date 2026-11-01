@@ -127,7 +127,11 @@ impl KStruct for MinecraftNbt {
     type Root = MinecraftNbt;
     type Parent = MinecraftNbt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -140,11 +144,19 @@ impl KStruct for MinecraftNbt {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if ({ let _ = *self_rc.root_type()? == MinecraftNbt_Tag::End; false }) {
+        if ({
+            let _ = *self_rc.root_type()? == MinecraftNbt_Tag::End;
+            false
+        }) {
             *self_rc.root_check.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        let t = Self::read_into::<_, MinecraftNbt_NamedTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, MinecraftNbt_NamedTag>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.root.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -152,10 +164,12 @@ impl KStruct for MinecraftNbt {
     }
 }
 impl MinecraftNbt {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn root_type(
-        &self
-    ) -> KResult<Ref<'_, MinecraftNbt_Tag>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn root_type(&self) -> KResult<Ref<'_, MinecraftNbt_Tag>> {
         let _io = self._io.borrow();
         if self.f_root_type.get() {
             return Ok(self.root_type.borrow());
@@ -165,7 +179,10 @@ impl MinecraftNbt {
         _io.seek(0_usize)?;
         *self.root_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if !(*self.root_type.borrow() == MinecraftNbt_Tag::Compound) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/instances/root_type".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/instances/root_type".to_string(),
+            }));
         }
         _io.seek(_pos)?;
         Ok(self.root_type.borrow())
@@ -199,7 +216,6 @@ impl MinecraftNbt {
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MinecraftNbt_Tag {
-
     /**
      * As of KSC 0.9, this enum key causes a syntax error in Lua. See
      * <https://github.com/kaitai-io/kaitai_struct/issues/90#issuecomment-766440975>
@@ -259,15 +275,16 @@ impl From<&MinecraftNbt_Tag> for i64 {
             MinecraftNbt_Tag::Compound => 10,
             MinecraftNbt_Tag::IntArray => 11,
             MinecraftNbt_Tag::LongArray => 12,
-            MinecraftNbt_Tag::Unknown(v) => v
+            MinecraftNbt_Tag::Unknown(v) => v,
         }
     }
 }
 
 impl Default for MinecraftNbt_Tag {
-    fn default() -> Self { MinecraftNbt_Tag::Unknown(0) }
+    fn default() -> Self {
+        MinecraftNbt_Tag::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct MinecraftNbt_NamedTag {
@@ -298,7 +315,9 @@ pub enum MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i8 {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::S1(x) = v {
             return Ok(x.clone());
         }
@@ -307,7 +326,9 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i8 {
 }
 impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i8 {
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -316,28 +337,44 @@ impl From<i8> for MinecraftNbt_NamedTag_Payload {
         Self::S1(v)
     }
 }
-impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagByteArray> {
+impl TryFrom<&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagByteArray>
+{
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagByteArray(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagByteArray> {
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagByteArray>
+{
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagByteArray> for MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagByteArray>
+    for MinecraftNbt_NamedTag_Payload
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         OptRc::<MinecraftNbt_TagByteArray>::try_from(self)
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagByteArray> for &MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagByteArray>
+    for &MinecraftNbt_NamedTag_Payload
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -346,28 +383,42 @@ impl From<OptRc<MinecraftNbt_TagByteArray>> for MinecraftNbt_NamedTag_Payload {
         Self::MinecraftNbt_TagByteArray(v)
     }
 }
-impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagCompound> {
+impl TryFrom<&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagCompound>
+{
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagCompound(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagCompound> {
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagCompound>
+{
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagCompound> for MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         OptRc::<MinecraftNbt_TagCompound>::try_from(self)
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagCompound> for &MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagCompound>
+    for &MinecraftNbt_NamedTag_Payload
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -378,7 +429,9 @@ impl From<OptRc<MinecraftNbt_TagCompound>> for MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for f64 {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::F8(x) = v {
             return Ok(x.clone());
         }
@@ -387,7 +440,9 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for f64 {
 }
 impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for f64 {
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -398,7 +453,9 @@ impl From<f64> for MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for f32 {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::F4(x) = v {
             return Ok(x.clone());
         }
@@ -407,7 +464,9 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for f32 {
 }
 impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for f32 {
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -418,7 +477,9 @@ impl From<f32> for MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i32 {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::S4(x) = v {
             return Ok(x.clone());
         }
@@ -427,7 +488,9 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i32 {
 }
 impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i32 {
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -436,28 +499,42 @@ impl From<i32> for MinecraftNbt_NamedTag_Payload {
         Self::S4(v)
     }
 }
-impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagIntArray> {
+impl TryFrom<&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagIntArray>
+{
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagIntArray(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagIntArray> {
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagIntArray>
+{
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagIntArray> for MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         OptRc::<MinecraftNbt_TagIntArray>::try_from(self)
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagIntArray> for &MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagIntArray>
+    for &MinecraftNbt_NamedTag_Payload
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -468,7 +545,9 @@ impl From<OptRc<MinecraftNbt_TagIntArray>> for MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagList> {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagList(x) = v {
             return Ok(x.clone());
         }
@@ -477,7 +556,9 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagList> {
 }
 impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagList> {
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -498,7 +579,9 @@ impl From<OptRc<MinecraftNbt_TagList>> for MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i64 {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::S8(x) = v {
             return Ok(x.clone());
         }
@@ -507,7 +590,9 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i64 {
 }
 impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i64 {
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -516,28 +601,44 @@ impl From<i64> for MinecraftNbt_NamedTag_Payload {
         Self::S8(v)
     }
 }
-impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagLongArray> {
+impl TryFrom<&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagLongArray>
+{
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagLongArray(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagLongArray> {
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagLongArray>
+{
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagLongArray> for MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagLongArray>
+    for MinecraftNbt_NamedTag_Payload
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         OptRc::<MinecraftNbt_TagLongArray>::try_from(self)
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagLongArray> for &MinecraftNbt_NamedTag_Payload {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagLongArray>
+    for &MinecraftNbt_NamedTag_Payload
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -548,7 +649,9 @@ impl From<OptRc<MinecraftNbt_TagLongArray>> for MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i16 {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::S2(x) = v {
             return Ok(x.clone());
         }
@@ -557,7 +660,9 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i16 {
 }
 impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i16 {
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -568,16 +673,22 @@ impl From<i16> for MinecraftNbt_NamedTag_Payload {
 }
 impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagString> {
     type Error = KError;
-    fn try_from(v: &MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         if let MinecraftNbt_NamedTag_Payload::MinecraftNbt_TagString(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagString> {
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload>
+    for OptRc<MinecraftNbt_TagString>
+{
     type Error = KError;
-    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&MinecraftNbt_NamedTag_Payload,
+    ) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -632,7 +743,11 @@ impl KStruct for MinecraftNbt_NamedTag {
     type Root = MinecraftNbt;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -648,7 +763,12 @@ impl KStruct for MinecraftNbt_NamedTag {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_tag_end()?) {
-            let t = Self::read_into::<_, MinecraftNbt_TagString>(&*_io, Some(self_rc._root.clone()), None)?.into();
+            let t = Self::read_into::<_, MinecraftNbt_TagString>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                None,
+            )?
+            .into();
             *self_rc.name.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -659,42 +779,77 @@ impl KStruct for MinecraftNbt_NamedTag {
                     *self_rc.payload.borrow_mut() = Some(_io.read_s1()?.into());
                 }
                 MinecraftNbt_Tag::ByteArray => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagByteArray>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagByteArray>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     *self_rc.payload.borrow_mut() = Some(t);
                 }
                 MinecraftNbt_Tag::Compound => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagCompound>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagCompound>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     *self_rc.payload.borrow_mut() = Some(t);
                 }
                 MinecraftNbt_Tag::Double => {
-                    *self_rc.payload.borrow_mut() = Some(_io.read_f8be()?.into());
+                    *self_rc.payload.borrow_mut() =
+                        Some(_io.read_f8be()?.into());
                 }
                 MinecraftNbt_Tag::Float => {
-                    *self_rc.payload.borrow_mut() = Some(_io.read_f4be()?.into());
+                    *self_rc.payload.borrow_mut() =
+                        Some(_io.read_f4be()?.into());
                 }
                 MinecraftNbt_Tag::Int => {
-                    *self_rc.payload.borrow_mut() = Some(_io.read_s4be()?.into());
+                    *self_rc.payload.borrow_mut() =
+                        Some(_io.read_s4be()?.into());
                 }
                 MinecraftNbt_Tag::IntArray => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagIntArray>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagIntArray>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     *self_rc.payload.borrow_mut() = Some(t);
                 }
                 MinecraftNbt_Tag::List => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagList>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagList>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     *self_rc.payload.borrow_mut() = Some(t);
                 }
                 MinecraftNbt_Tag::Long => {
-                    *self_rc.payload.borrow_mut() = Some(_io.read_s8be()?.into());
+                    *self_rc.payload.borrow_mut() =
+                        Some(_io.read_s8be()?.into());
                 }
                 MinecraftNbt_Tag::LongArray => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagLongArray>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagLongArray>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     *self_rc.payload.borrow_mut() = Some(t);
                 }
                 MinecraftNbt_Tag::Short => {
-                    *self_rc.payload.borrow_mut() = Some(_io.read_s2be()?.into());
+                    *self_rc.payload.borrow_mut() =
+                        Some(_io.read_s2be()?.into());
                 }
                 MinecraftNbt_Tag::String => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagString>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagString>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     *self_rc.payload.borrow_mut() = Some(t);
                 }
                 _ => {}
@@ -706,16 +861,19 @@ impl KStruct for MinecraftNbt_NamedTag {
     }
 }
 impl MinecraftNbt_NamedTag {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn is_tag_end(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn is_tag_end(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_tag_end.get() {
             return Ok(self.is_tag_end.borrow());
         }
         self.f_is_tag_end.set(true);
-        *self.is_tag_end.borrow_mut() = (*self.r#type() == MinecraftNbt_Tag::End).try_into()?;
+        *self.is_tag_end.borrow_mut() =
+            (*self.r#type() == MinecraftNbt_Tag::End).try_into()?;
         Ok(self.is_tag_end.borrow())
     }
 }
@@ -769,22 +927,34 @@ impl TryFrom<&&MinecraftNbt_TagByteArray> for OptRc<MinecraftNbt_TagByteArray> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagByteArray> for MinecraftNbt_TagByteArray {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagByteArray> for &MinecraftNbt_TagByteArray {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagByteArray> for OptRc<MinecraftNbt_TagByteArray> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagByteArray>
+    for OptRc<MinecraftNbt_TagByteArray>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagByteArray> for &OptRc<MinecraftNbt_TagByteArray> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagByteArray>
+    for &OptRc<MinecraftNbt_TagByteArray>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         Ok((*self).clone())
     }
 }
@@ -792,7 +962,11 @@ impl KStruct for MinecraftNbt_TagByteArray {
     type Root = MinecraftNbt;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -806,14 +980,14 @@ impl KStruct for MinecraftNbt_TagByteArray {
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
+        *self_rc.data.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MinecraftNbt_TagByteArray {
-}
+impl MinecraftNbt_TagByteArray {}
 impl MinecraftNbt_TagByteArray {
     pub fn len_data(&self) -> Ref<'_, i32> {
         self.len_data.borrow()
@@ -864,22 +1038,34 @@ impl TryFrom<&&MinecraftNbt_TagCompound> for OptRc<MinecraftNbt_TagCompound> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagCompound> for MinecraftNbt_TagCompound {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagCompound> for &MinecraftNbt_TagCompound {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagCompound> for OptRc<MinecraftNbt_TagCompound> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagCompound>
+    for OptRc<MinecraftNbt_TagCompound>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagCompound> for &OptRc<MinecraftNbt_TagCompound> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagCompound>
+    for &OptRc<MinecraftNbt_TagCompound>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         Ok((*self).clone())
     }
 }
@@ -887,7 +1073,11 @@ impl KStruct for MinecraftNbt_TagCompound {
     type Root = MinecraftNbt;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -903,12 +1093,21 @@ impl KStruct for MinecraftNbt_TagCompound {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, MinecraftNbt_NamedTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, MinecraftNbt_NamedTag>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    None,
+                )?
+                .into();
                 self_rc.tags.borrow_mut().push(t);
                 let _t_tags = self_rc.tags.borrow();
-                let Some(_tmpa) = _t_tags.last() else { break; };
+                let Some(_tmpa) = _t_tags.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if *_tmpa.is_tag_end()? { break; }
+                if *_tmpa.is_tag_end()? {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -917,16 +1116,32 @@ impl KStruct for MinecraftNbt_TagCompound {
     }
 }
 impl MinecraftNbt_TagCompound {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn dump_num_tags(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn dump_num_tags(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_dump_num_tags.get() {
             return Ok(self.dump_num_tags.borrow());
         }
         self.f_dump_num_tags.set(true);
-        *self.dump_num_tags.borrow_mut() = ((self.tags().len()).saturating_sub(usize::try_from(if  ((self.tags().len() >= 1) && (*self.tags().last().ok_or(KError::EmptyIterator)?.is_tag_end()?))  { 1_i32 } else { 0_i32 })?)).try_into()?;
+        *self.dump_num_tags.borrow_mut() = ((self.tags().len())
+            .saturating_sub(usize::try_from(
+                if ((self.tags().len() >= 1)
+                    && (*self
+                        .tags()
+                        .last()
+                        .ok_or(KError::EmptyIterator)?
+                        .is_tag_end()?))
+                {
+                    1_i32
+                } else {
+                    0_i32
+                },
+            )?))
+        .try_into()?;
         Ok(self.dump_num_tags.borrow())
     }
 }
@@ -971,22 +1186,34 @@ impl TryFrom<&&MinecraftNbt_TagIntArray> for OptRc<MinecraftNbt_TagIntArray> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagIntArray> for MinecraftNbt_TagIntArray {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagIntArray> for &MinecraftNbt_TagIntArray {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagIntArray> for OptRc<MinecraftNbt_TagIntArray> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagIntArray>
+    for OptRc<MinecraftNbt_TagIntArray>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagIntArray> for &OptRc<MinecraftNbt_TagIntArray> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagIntArray>
+    for &OptRc<MinecraftNbt_TagIntArray>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         Ok((*self).clone())
     }
 }
@@ -994,7 +1221,11 @@ impl KStruct for MinecraftNbt_TagIntArray {
     type Root = MinecraftNbt;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1019,10 +1250,12 @@ impl KStruct for MinecraftNbt_TagIntArray {
     }
 }
 impl MinecraftNbt_TagIntArray {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn tags_type(
-        &self
-    ) -> KResult<Ref<'_, MinecraftNbt_Tag>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn tags_type(&self) -> KResult<Ref<'_, MinecraftNbt_Tag>> {
         let _io = self._io.borrow();
         if self.f_tags_type.get() {
             return Ok(self.tags_type.borrow());
@@ -1115,12 +1348,16 @@ impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagByteArray> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagByteArray> for MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         OptRc::<MinecraftNbt_TagByteArray>::try_from(self)
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagByteArray> for &MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1145,12 +1382,16 @@ impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagCompound> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagCompound> for MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         OptRc::<MinecraftNbt_TagCompound>::try_from(self)
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagCompound> for &MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1235,12 +1476,16 @@ impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagIntArray> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagIntArray> for MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         OptRc::<MinecraftNbt_TagIntArray>::try_from(self)
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagIntArray> for &MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1315,12 +1560,16 @@ impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagLongArray> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagLongArray> for MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         OptRc::<MinecraftNbt_TagLongArray>::try_from(self)
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagLongArray> for &MinecraftNbt_TagList_Tags {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -1415,7 +1664,11 @@ impl KStruct for MinecraftNbt_TagList {
     type Root = MinecraftNbt;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1427,7 +1680,8 @@ impl KStruct for MinecraftNbt_TagList {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.tags_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.tags_type.borrow_mut() =
+            i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1439,11 +1693,21 @@ impl KStruct for MinecraftNbt_TagList {
                     self_rc.tags.borrow_mut().push(_io.read_s1()?.into());
                 }
                 MinecraftNbt_Tag::ByteArray => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagByteArray>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagByteArray>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     self_rc.tags.borrow_mut().push(t);
                 }
                 MinecraftNbt_Tag::Compound => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagCompound>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagCompound>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     self_rc.tags.borrow_mut().push(t);
                 }
                 MinecraftNbt_Tag::Double => {
@@ -1456,25 +1720,45 @@ impl KStruct for MinecraftNbt_TagList {
                     self_rc.tags.borrow_mut().push(_io.read_s4be()?.into());
                 }
                 MinecraftNbt_Tag::IntArray => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagIntArray>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagIntArray>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     self_rc.tags.borrow_mut().push(t);
                 }
                 MinecraftNbt_Tag::List => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagList>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagList>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     self_rc.tags.borrow_mut().push(t);
                 }
                 MinecraftNbt_Tag::Long => {
                     self_rc.tags.borrow_mut().push(_io.read_s8be()?.into());
                 }
                 MinecraftNbt_Tag::LongArray => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagLongArray>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagLongArray>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     self_rc.tags.borrow_mut().push(t);
                 }
                 MinecraftNbt_Tag::Short => {
                     self_rc.tags.borrow_mut().push(_io.read_s2be()?.into());
                 }
                 MinecraftNbt_Tag::String => {
-                    let t = Self::read_into::<_, MinecraftNbt_TagString>(&*_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, MinecraftNbt_TagString>(
+                        &*_io,
+                        Some(self_rc._root.clone()),
+                        None,
+                    )?
+                    .into();
                     self_rc.tags.borrow_mut().push(t);
                 }
                 _ => {}
@@ -1485,8 +1769,7 @@ impl KStruct for MinecraftNbt_TagList {
         Ok(())
     }
 }
-impl MinecraftNbt_TagList {
-}
+impl MinecraftNbt_TagList {}
 impl MinecraftNbt_TagList {
     pub fn tags_type(&self) -> Ref<'_, MinecraftNbt_Tag> {
         self.tags_type.borrow()
@@ -1538,22 +1821,34 @@ impl TryFrom<&&MinecraftNbt_TagLongArray> for OptRc<MinecraftNbt_TagLongArray> {
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagLongArray> for MinecraftNbt_TagLongArray {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<MinecraftNbt_TagLongArray> for &MinecraftNbt_TagLongArray {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagLongArray> for OptRc<MinecraftNbt_TagLongArray> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagLongArray>
+    for OptRc<MinecraftNbt_TagLongArray>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<MinecraftNbt_TagLongArray> for &OptRc<MinecraftNbt_TagLongArray> {
-    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+impl DowncastOptRc<MinecraftNbt_TagLongArray>
+    for &OptRc<MinecraftNbt_TagLongArray>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1561,7 +1856,11 @@ impl KStruct for MinecraftNbt_TagLongArray {
     type Root = MinecraftNbt;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1586,10 +1885,12 @@ impl KStruct for MinecraftNbt_TagLongArray {
     }
 }
 impl MinecraftNbt_TagLongArray {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn tags_type(
-        &self
-    ) -> KResult<Ref<'_, MinecraftNbt_Tag>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn tags_type(&self) -> KResult<Ref<'_, MinecraftNbt_Tag>> {
         let _io = self._io.borrow();
         if self.f_tags_type.get() {
             return Ok(self.tags_type.borrow());
@@ -1667,7 +1968,11 @@ impl KStruct for MinecraftNbt_TagString {
     type Root = MinecraftNbt;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1681,14 +1986,16 @@ impl KStruct for MinecraftNbt_TagString {
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_data()))?, "utf-8")?;
+        *self_rc.data.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::from(*self_rc.len_data()))?,
+            "utf-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl MinecraftNbt_TagString {
-}
+impl MinecraftNbt_TagString {}
 
 /**
  * unsigned according to <https://wiki.vg/NBT#Specification>

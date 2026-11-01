@@ -101,7 +101,11 @@ impl KStruct for ParamsPassUsertype {
     type Root = ParamsPassUsertype;
     type Parent = ParamsPassUsertype;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,19 +117,31 @@ impl KStruct for ParamsPassUsertype {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ParamsPassUsertype_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, ParamsPassUsertype_Block>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.first.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassUsertype_ParamType| Ok(t.set_params((self_rc.first()).clone()));
-        let t = Self::read_into_with_init::<_, ParamsPassUsertype_ParamType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassUsertype_ParamType| {
+            Ok(t.set_params((self_rc.first()).clone()))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassUsertype_ParamType>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ParamsPassUsertype {
-}
+impl ParamsPassUsertype {}
 impl ParamsPassUsertype {
     pub fn first(&self) -> Ref<'_, OptRc<ParamsPassUsertype_Block>> {
         self.first.borrow()
@@ -169,22 +185,34 @@ impl TryFrom<&&ParamsPassUsertype_Block> for OptRc<ParamsPassUsertype_Block> {
     }
 }
 impl DowncastOptRc<ParamsPassUsertype_Block> for ParamsPassUsertype_Block {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ParamsPassUsertype_Block> for &ParamsPassUsertype_Block {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassUsertype_Block> for OptRc<ParamsPassUsertype_Block> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
+impl DowncastOptRc<ParamsPassUsertype_Block>
+    for OptRc<ParamsPassUsertype_Block>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassUsertype_Block> for &OptRc<ParamsPassUsertype_Block> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
+impl DowncastOptRc<ParamsPassUsertype_Block>
+    for &OptRc<ParamsPassUsertype_Block>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_Block>, KError> {
         Ok((*self).clone())
     }
 }
@@ -192,7 +220,11 @@ impl KStruct for ParamsPassUsertype_Block {
     type Root = ParamsPassUsertype;
     type Parent = ParamsPassUsertype;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,8 +242,7 @@ impl KStruct for ParamsPassUsertype_Block {
         Ok(())
     }
 }
-impl ParamsPassUsertype_Block {
-}
+impl ParamsPassUsertype_Block {}
 impl ParamsPassUsertype_Block {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()
@@ -239,35 +270,57 @@ pub struct ParamsPassUsertype_ParamType {
     _io: RefCell<BytesReader>,
     buf_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ParamsPassUsertype_ParamType> for OptRc<ParamsPassUsertype_ParamType> {
+impl TryFrom<&ParamsPassUsertype_ParamType>
+    for OptRc<ParamsPassUsertype_ParamType>
+{
     type Error = KError;
     fn try_from(v: &ParamsPassUsertype_ParamType) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassUsertype_ParamType> for OptRc<ParamsPassUsertype_ParamType> {
+impl TryFrom<&&ParamsPassUsertype_ParamType>
+    for OptRc<ParamsPassUsertype_ParamType>
+{
     type Error = KError;
-    fn try_from(v: &&ParamsPassUsertype_ParamType) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&ParamsPassUsertype_ParamType,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassUsertype_ParamType> for ParamsPassUsertype_ParamType {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassUsertype_ParamType>
+    for ParamsPassUsertype_ParamType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsPassUsertype_ParamType> for &ParamsPassUsertype_ParamType {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassUsertype_ParamType>
+    for &ParamsPassUsertype_ParamType
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassUsertype_ParamType> for OptRc<ParamsPassUsertype_ParamType> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassUsertype_ParamType>
+    for OptRc<ParamsPassUsertype_ParamType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassUsertype_ParamType> for &OptRc<ParamsPassUsertype_ParamType> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
+impl DowncastOptRc<ParamsPassUsertype_ParamType>
+    for &OptRc<ParamsPassUsertype_ParamType>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassUsertype_ParamType>, KError> {
         Ok((*self).clone())
     }
 }
@@ -275,7 +328,11 @@ impl KStruct for ParamsPassUsertype_ParamType {
     type Root = ParamsPassUsertype;
     type Parent = ParamsPassUsertype;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -287,7 +344,8 @@ impl KStruct for ParamsPassUsertype_ParamType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf.borrow_mut() = _io.read_bytes(usize::from(*self_rc.foo().foo()))?;
+        *self_rc.buf.borrow_mut() =
+            _io.read_bytes(usize::from(*self_rc.foo().foo()))?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -303,8 +361,7 @@ impl ParamsPassUsertype_ParamType {
         *self.foo.borrow_mut() = foo;
     }
 }
-impl ParamsPassUsertype_ParamType {
-}
+impl ParamsPassUsertype_ParamType {}
 impl ParamsPassUsertype_ParamType {
     pub fn buf(&self) -> Ref<'_, Vec<u8>> {
         self.buf.borrow()

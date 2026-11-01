@@ -67,7 +67,9 @@ pub fn dcil_to_dcmstring_with_options(
     )?;
     if !permissive && raw_log.has_errors() {
         let errs = raw_log.get_errors().join("; ");
-        bail!("Input does not conform to valid DcIntegerList (.dcil) format: {errs}");
+        bail!(
+            "Input does not conform to valid DcIntegerList (.dcil) format: {errs}"
+        );
     }
     let mut log = if permissive && raw_log.has_errors() {
         let mut downgraded = FormatLog::default();
@@ -88,7 +90,8 @@ pub fn dcil_to_dcmstring_with_options(
 /// Converts a `DcMstring` to `DcIntegerList` document bytes (`.dcil`).
 pub fn dcmstring_to_dcil(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
     let (dca, log) = dcmstring_to_dca(doc)?;
-    let bytes = ctb_formats_eite::formats::integer_list::dca_to_integer_list(&dca);
+    let bytes =
+        ctb_formats_eite::formats::integer_list::dca_to_integer_list(&dca);
     Ok((bytes, log))
 }
 
@@ -143,20 +146,24 @@ pub fn dcmstring_to_html(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
 }
 
 /// Converts a `DcMstring` to an HTML fragment (`.htmfrag`).
-pub fn dcmstring_to_html_fragment(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_html_fragment(
+    doc: &DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let (dca, mut log) = dcmstring_to_dca(doc)?;
-    let (bytes, html_log) = ctb_formats_eite::formats::html::dca_to_html_fragment(&dca)?;
+    let (bytes, html_log) =
+        ctb_formats_eite::formats::html::dca_to_html_fragment(&dca)?;
     log.merge(&html_log);
     Ok((bytes, log))
 }
 
 /// Converts a `DcMstring` to a color-coded HTML integer list document.
-pub fn dcmstring_to_eite_colorcoded(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_eite_colorcoded(
+    doc: &DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let (dca, log) = dcmstring_to_dca(doc)?;
     let bytes = ctb_formats_eite::formats::html::dca_to_colorcoded(&dca)?;
     Ok((bytes, log))
 }
-
 
 pub use crate::converters::ascii::{
     ascii_safe_subset_to_dcmstring, ascii_to_dcmstring, dcmstring_to_ascii,
@@ -184,7 +191,10 @@ mod tests {
         let (utf, _) = crate::converters::utf8::dcmstring_to_dcutf(&doc)?;
         let (restored, _) = crate::converters::utf8::dcutf_to_dcmstring(&utf)?;
         let (output, _) = dcmstring_to_dcil(&restored)?;
-        assert_eq!(std::str::from_utf8(&output)?.trim(), std::str::from_utf8(input)?);
+        assert_eq!(
+            std::str::from_utf8(&output)?.trim(),
+            std::str::from_utf8(input)?
+        );
         Ok(())
     }
 
@@ -195,9 +205,12 @@ mod tests {
         assert_eq!(
             doc.to_dc_string().unwrap().to_dclist(),
             vec![
-                ctb_formats_dcdata::dc::SHORT_DC_REGION_START.saturating_add(65),
-                ctb_formats_dcdata::dc::SHORT_DC_REGION_START.saturating_add(66),
-                ctb_formats_dcdata::dc::SHORT_DC_REGION_START.saturating_add(67),
+                ctb_formats_dcdata::dc::SHORT_DC_REGION_START
+                    .saturating_add(65),
+                ctb_formats_dcdata::dc::SHORT_DC_REGION_START
+                    .saturating_add(66),
+                ctb_formats_dcdata::dc::SHORT_DC_REGION_START
+                    .saturating_add(67),
             ]
         );
 

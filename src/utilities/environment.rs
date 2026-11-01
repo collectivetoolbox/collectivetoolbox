@@ -19,14 +19,23 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Minimal runtime and OS environment helpers needed by utilities foundation.
 
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use crate::bin2hex;
 use crate::pc_settings::{self, PcSettingBoolKey, get_bool_setting};
 
 /// Process role classification for execution contexts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[repr(u8)]
 pub enum ProcessRole {
     /// Uninitialized or test runner context.
@@ -74,7 +83,9 @@ pub fn get_process_role() -> ProcessRole {
             if is_in_test() {
                 ProcessRole::Unknown
             } else {
-                eprintln!("Error: Process role was accessed before being initialized");
+                eprintln!(
+                    "Error: Process role was accessed before being initialized"
+                );
                 std::process::exit(1);
             }
         }
@@ -88,7 +99,8 @@ pub fn ctb_version() -> &'static str {
 
 pub fn ctb_version_semver() -> semver::Version {
     // Reason for fallback: unparseable version string falls back to 0.0.0 semver
-    semver::Version::parse(ctb_version()).unwrap_or_else(|_| semver::Version::new(0, 0, 0))
+    semver::Version::parse(ctb_version())
+        .unwrap_or_else(|_| semver::Version::new(0, 0, 0))
 }
 
 pub fn is_debug_build() -> bool {
@@ -143,8 +155,6 @@ pub fn is_public_website() -> bool {
 pub fn is_official_public_website() -> bool {
     is_public_website() && pc_settings::get_settings().is_official_ctb_domain()
 }
-
-
 
 static OFFICIAL_SIGNATURE_CACHE: OnceLock<bool> = OnceLock::new();
 
@@ -241,12 +251,15 @@ fn verify_official_signature_in_thread() -> bool {
         public_key: String,
         key_id: String,
     }
-    let Ok(pubkey_resp) = serde_json::from_slice::<PublicKeyResponse>(&pubkey_bytes) else {
+    let Ok(pubkey_resp) =
+        serde_json::from_slice::<PublicKeyResponse>(&pubkey_bytes)
+    else {
         return false;
     };
 
     use base64::Engine;
-    let Ok(pubkey_raw) = base64::engine::general_purpose::STANDARD.decode(&pubkey_resp.public_key)
+    let Ok(pubkey_raw) = base64::engine::general_purpose::STANDARD
+        .decode(&pubkey_resp.public_key)
     else {
         return false;
     };
@@ -260,7 +273,8 @@ fn verify_official_signature_in_thread() -> bool {
 
     let platform = current_platform_str();
     let version = ctb_version();
-    let manifest_url = format!("https://{official_domain}/releases/{platform}/{version}.json");
+    let manifest_url =
+        format!("https://{official_domain}/releases/{platform}/{version}.json");
     let Ok(manifest_bytes) = client
         .get(&manifest_url)
         .and_then(super::https::BlockingResponse::bytes)
@@ -304,14 +318,18 @@ fn verify_official_signature_in_thread() -> bool {
         compressed_size: Option<u64>,
     }
 
-    let Ok(manifest) = serde_json::from_slice::<ManifestParsed>(&manifest_bytes) else {
+    let Ok(manifest) =
+        serde_json::from_slice::<ManifestParsed>(&manifest_bytes)
+    else {
         return false;
     };
 
     let Some(sig_b64) = &manifest.signature else {
         return false;
     };
-    let Ok(sig_bytes) = base64::engine::general_purpose::STANDARD.decode(sig_b64) else {
+    let Ok(sig_bytes) =
+        base64::engine::general_purpose::STANDARD.decode(sig_b64)
+    else {
         return false;
     };
     let Ok(sig_arr) = <[u8; 64]>::try_from(sig_bytes) else {

@@ -21,7 +21,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use anyhow::Result;
 use cargo_metadata::MetadataCommand;
-use vergen_gix::{BuildBuilder, CargoBuilder, Emitter, GixBuilder, RustcBuilder};
+use vergen_gix::{
+    BuildBuilder, CargoBuilder, Emitter, GixBuilder, RustcBuilder,
+};
 
 fn main() -> Result<()> {
     let metadata = MetadataCommand::new().exec()?;

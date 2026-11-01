@@ -78,7 +78,9 @@ fn parse_comma_short_dcs(
                 // Reason for fallback: diagnostic token index saturates at u64::MAX if usize exceeds 64 bits.
                 log.import_error(
                     u64::try_from(idx).unwrap_or(u64::MAX),
-                    &format!("Invalid short Dc ID token '{piece}' in dceutils stream"),
+                    &format!(
+                        "Invalid short Dc ID token '{piece}' in dceutils stream"
+                    ),
                 );
             }
         }
@@ -93,9 +95,7 @@ fn finalize_import_log(
 ) -> Result<FormatLog> {
     if !permissive && raw_log.has_errors() {
         let errs = raw_log.get_errors().join("; ");
-        bail!(
-            "Input does not conform to valid {format_name} format: {errs}"
-        );
+        bail!("Input does not conform to valid {format_name} format: {errs}");
     }
     if permissive && raw_log.has_errors() {
         let mut downgraded = FormatLog::default();
@@ -151,11 +151,10 @@ pub fn dceutils_to_dcmstring_with_options(
         | "dce_3_0a_raw" | "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex"
         | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
         | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
-        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw"
-        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a"
-        | "3_02a_raw" | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex"
-        | "dce_3_02a_hex" | "hex_3_02a_raw" | "3_02a_raw_hex"
-        | "dce_3_02a_raw_hex" => {
+        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw" | "3_01a_raw_hex"
+        | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
+        | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
+        | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
             ctb_formats_dceutils::converter::decode_dce_preserving_controls(
                 bytes,
                 format_code,
@@ -353,11 +352,10 @@ pub fn dcmstring_to_dceutils(
         | "dce_3_0a_raw" | "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex"
         | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
         | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
-        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw"
-        | "3_01a_raw_hex" | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a"
-        | "3_02a_raw" | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex"
-        | "dce_3_02a_hex" | "hex_3_02a_raw" | "3_02a_raw_hex"
-        | "dce_3_02a_raw_hex" => {
+        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw" | "3_01a_raw_hex"
+        | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
+        | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
+        | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
             let bytes =
                 ctb_formats_dceutils::converter::encode_dce_preserving_controls(
                     &short_dcs,

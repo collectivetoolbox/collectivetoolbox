@@ -41,9 +41,9 @@ See full license information at the end of this file.
 )]
 use crate::utilities::*;
 
-use std::borrow::Cow;
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::borrow::Cow;
 
 #[path = "spec/kst.rs"]
 pub mod kst;
@@ -211,7 +211,10 @@ pub enum TypeSpec {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeSwitch {
     /// Expression to switch on.
-    #[serde(rename = "switch-on", deserialize_with = "deserialize_string_or_number")]
+    #[serde(
+        rename = "switch-on",
+        deserialize_with = "deserialize_string_or_number"
+    )]
     pub switch_on: String,
     /// Cases mapping condition expression or enum to type name.
     #[serde(default, deserialize_with = "deserialize_string_keyed_map")]
@@ -501,12 +504,17 @@ pub struct KsyFile {
 /// Deserializer for nested enum maps with numeric or string keys.
 fn deserialize_enums_map<'de, D>(
     deserializer: D,
-) -> std::result::Result<IndexMap<String, IndexMap<String, EnumValueSpec>>, D::Error>
+) -> std::result::Result<
+    IndexMap<String, IndexMap<String, EnumValueSpec>>,
+    D::Error,
+>
 where
     D: Deserializer<'de>,
 {
-    let raw_enums: IndexMap<String, IndexMap<serde_yaml::Value, EnumValueSpec>> =
-        IndexMap::deserialize(deserializer)?;
+    let raw_enums: IndexMap<
+        String,
+        IndexMap<serde_yaml::Value, EnumValueSpec>,
+    > = IndexMap::deserialize(deserializer)?;
     let mut out = IndexMap::with_capacity(raw_enums.len());
     for (enum_name, values) in raw_enums {
         let mut enum_values = IndexMap::with_capacity(values.len());
@@ -523,7 +531,6 @@ where
     }
     Ok(out)
 }
-
 
 /* License information for parts derived from Kaitai Struct:
 

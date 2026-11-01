@@ -28,9 +28,9 @@ use crate::utilities::*;
 
 use anyhow::{Context, Result, ensure};
 use ctb_storage_minimal::global_graph_layout::{
-    SHORT_DC_REGION_END, SHORT_DC_REGION_START, FORMAT_REGION_END, FORMAT_REGION_START,
-    UNICODE_REGION_END, dc_to_gid, format_to_gid, get_block_name_for_id,
-    gid_to_short,
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
+    SHORT_DC_REGION_START, UNICODE_REGION_END, dc_to_gid, format_to_gid,
+    get_block_name_for_id, gid_to_short,
 };
 
 /// Arguments for the `short-dc` CLI command.
@@ -141,9 +141,8 @@ pub fn describe_gid_metadata(gid: u128) -> Result<String> {
         let desc = crate::character_description::describe_dc(dc_id)?;
         Ok(format!("{desc}\n"))
     } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
-        let fmt_id =
-            usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
-                .context("Invalid Format ID range")?;
+        let fmt_id = usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
+            .context("Invalid Format ID range")?;
         let desc = ctb_formats_utilities::describe_format(fmt_id)?;
         Ok(format!("{desc}\n"))
     } else {
@@ -246,7 +245,9 @@ mod tests {
             info: true,
         })
         .expect("short-dc -i f80");
-        assert!(out_fmt_info.starts_with("2228304\nString\n\nCategory: semantic"));
+        assert!(
+            out_fmt_info.starts_with("2228304\nString\n\nCategory: semantic")
+        );
 
         // Shorthand unicode u12a
         let out_uni = execute_cli_short_dc(&ShortDcArgs {
@@ -379,7 +380,8 @@ mod tests {
             short: true,
             info: false,
         };
-        let res_gid_short = execute_cli_gid(&cmd_gid_short).expect("Run gid --s");
+        let res_gid_short =
+            execute_cli_gid(&cmd_gid_short).expect("Run gid --s");
         assert_eq!(res_gid_short, "dc:296\n");
 
         let cmd_gid_info = GidArgs {
@@ -388,8 +390,10 @@ mod tests {
             info: true,
         };
         let res_gid_info = execute_cli_gid(&cmd_gid_info).expect("Run gid -i");
-        assert!(res_gid_info.starts_with(
-            "1114408\nNext number is a Dc-equivalent reference"
-        ));
+        assert!(
+            res_gid_info.starts_with(
+                "1114408\nNext number is a Dc-equivalent reference"
+            )
+        );
     }
 }

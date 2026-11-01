@@ -112,7 +112,9 @@ pub fn ascii_to_dcmstring_with_settings(
                     idx_u64,
                     &format!("Replaced non-ASCII byte 0x{b:02X} with replacement character"),
                 );
-                sanitized.extend_from_slice(ctb_formats_utf8::UTF8_REPLACEMENT_CHARACTER);
+                sanitized.extend_from_slice(
+                    ctb_formats_utf8::UTF8_REPLACEMENT_CHARACTER,
+                );
             }
         }
         let (doc, utf8_log) =
@@ -145,8 +147,7 @@ pub fn dcmstring_to_ascii_with_settings(
 
     match settings.unmappable_policy {
         AsciiUnmappablePolicy::Transliterate => {
-            let transliterated =
-                ctb_formats_utf8::to_ascii_translit(utf8_text);
+            let transliterated = ctb_formats_utf8::to_ascii_translit(utf8_text);
             let mut out = Vec::with_capacity(transliterated.len());
             for (idx, ch) in transliterated.chars().enumerate() {
                 if ch.is_ascii() {
@@ -173,8 +174,7 @@ pub fn dcmstring_to_ascii_with_settings(
         AsciiUnmappablePolicy::TransformationPipeline => {
             // TODO: Hook into generalized Dc transformation pipeline defined
             // via transformations.csv. For now, fallback to transliteration.
-            let transliterated =
-                ctb_formats_utf8::to_ascii_translit(utf8_text);
+            let transliterated = ctb_formats_utf8::to_ascii_translit(utf8_text);
             let mut out = Vec::with_capacity(transliterated.len());
             for ch in transliterated.chars() {
                 if ch.is_ascii() {
@@ -264,7 +264,10 @@ pub fn is_ascii_safe_subset_char(b: u8) -> bool {
 pub fn ascii_safe_subset_to_dcmstring(
     bytes: &[u8],
 ) -> Result<(DcMstring, FormatLog)> {
-    ascii_safe_subset_to_dcmstring_with_settings(bytes, &AsciiSettings::default())
+    ascii_safe_subset_to_dcmstring_with_settings(
+        bytes,
+        &AsciiSettings::default(),
+    )
 }
 
 /// Converts an ASCII Safe Subset text document to `DcMstring` with custom settings.
@@ -280,12 +283,11 @@ pub fn ascii_safe_subset_to_dcmstring_with_settings(
         let Some(&b) = bytes.get(i) else { break };
         if !is_ascii_safe_subset_char(b) {
             if settings.strict_import {
-                bail!(
-                    "Invalid ASCII Safe Subset byte: 0x{b:02X} at index {i}"
-                );
+                bail!("Invalid ASCII Safe Subset byte: 0x{b:02X} at index {i}");
             }
             log.import_warning(
-                u64::try_from(i).map_err(|e| anyhow!("Index conversion overflow: {e}"))?,
+                u64::try_from(i)
+                    .map_err(|e| anyhow!("Index conversion overflow: {e}"))?,
                 &format!("Invalid ASCII Safe Subset byte: 0x{b:02X}"),
             );
             match settings.unmappable_policy {
@@ -312,7 +314,8 @@ pub fn ascii_safe_subset_to_dcmstring_with_settings(
         i = i.saturating_add(1);
     }
 
-    let (doc, inner_log) = ascii_to_dcmstring_with_settings(&normalized, settings)?;
+    let (doc, inner_log) =
+        ascii_to_dcmstring_with_settings(&normalized, settings)?;
     log.merge(&inner_log);
     Ok((doc, log))
 }
@@ -387,7 +390,8 @@ mod tests {
         assert!(log.has_no_warnings_or_errors());
         assert_eq!(doc, "Hello, World!\nTesting ASCII 123.");
 
-        let (bytes, export_log) = dcmstring_to_ascii(&doc).expect("export ascii");
+        let (bytes, export_log) =
+            dcmstring_to_ascii(&doc).expect("export ascii");
         assert!(export_log.has_no_warnings_or_errors());
         assert_eq!(bytes, input);
     }
@@ -407,14 +411,15 @@ mod tests {
             unmappable_policy: AsciiUnmappablePolicy::Skip,
             strict_import: false,
         };
-        let (doc, log) =
-            ascii_to_dcmstring_with_settings(invalid, &settings).expect("parse");
+        let (doc, log) = ascii_to_dcmstring_with_settings(invalid, &settings)
+            .expect("parse");
         assert!(log.has_warnings());
         assert_eq!(doc, "Hello \u{FFFD} World");
 
         let byte_test = b"a\xffb";
         let (doc2, log2) =
-            ascii_to_dcmstring_with_settings(byte_test, &settings).expect("parse");
+            ascii_to_dcmstring_with_settings(byte_test, &settings)
+                .expect("parse");
         assert!(log2.has_warnings());
         assert_eq!(doc2, "a\u{FFFD}b");
     }
@@ -483,14 +488,14 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_ascii_safe_subset_export_normalizes_crlf_and_filters_controls() {
-        let (doc, _) =
-            crate::converters::utf8::utf8_to_dcmstring("Line 1\twith tab\nLine 2".as_bytes())
-                .expect("parse utf8");
+        let (doc, _) = crate::converters::utf8::utf8_to_dcmstring(
+            "Line 1\twith tab\nLine 2".as_bytes(),
+        )
+        .expect("parse utf8");
         let (out, log) =
             dcmstring_to_ascii_safe_subset(&doc).expect("export safe subset");
         // Tab was filtered out with a warning, newline became CRLF
         assert_eq!(out, b"Line 1with tab\r\nLine 2");
         assert!(log.has_warnings());
     }
-
 }

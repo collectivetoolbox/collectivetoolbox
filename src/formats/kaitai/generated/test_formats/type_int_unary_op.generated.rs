@@ -105,7 +105,11 @@ impl KStruct for TypeIntUnaryOp {
     type Root = TypeIntUnaryOp;
     type Parent = TypeIntUnaryOp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,28 +130,34 @@ impl KStruct for TypeIntUnaryOp {
     }
 }
 impl TypeIntUnaryOp {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn unary_s2(
-        &self
-    ) -> KResult<Ref<'_, i16>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn unary_s2(&self) -> KResult<Ref<'_, i16>> {
         let _io = self._io.borrow();
         if self.f_unary_s2.get() {
             return Ok(self.unary_s2.borrow());
         }
         self.f_unary_s2.set(true);
-        *self.unary_s2.borrow_mut() = ((0_i32).saturating_sub(to_i32(*self.value_s2()))).try_into()?;
+        *self.unary_s2.borrow_mut() =
+            ((0_i32).saturating_sub(to_i32(*self.value_s2()))).try_into()?;
         Ok(self.unary_s2.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn unary_s8(
-        &self
-    ) -> KResult<Ref<'_, i64>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn unary_s8(&self) -> KResult<Ref<'_, i64>> {
         let _io = self._io.borrow();
         if self.f_unary_s8.get() {
             return Ok(self.unary_s8.borrow());
         }
         self.f_unary_s8.set(true);
-        *self.unary_s8.borrow_mut() = ((0_i64).saturating_sub(*self.value_s8())).try_into()?;
+        *self.unary_s8.borrow_mut() =
+            ((0_i64).saturating_sub(*self.value_s8())).try_into()?;
         Ok(self.unary_s8.borrow())
     }
 }

@@ -33,11 +33,11 @@ use serde_json::{Map, Value};
 use crate::controllers::base::redirect_temporary;
 use crate::error::{WebErr, WebError, WebResult};
 use crate::extractors::request_state::RequestState;
-use ctb_build_info::build_info;
 use crate::utilities::password::{Password, hash, verify};
 use crate::utilities::*;
 use crate::{AppState, error_400, error_403, respond_page};
 use crate::{debug_fmt, json_value};
+use ctb_build_info::build_info;
 use ctb_formats_ipaddr::get_regex_ipv4_ipv6_exact;
 use ctb_storage::user::UserPublicInfo;
 

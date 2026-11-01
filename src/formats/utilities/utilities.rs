@@ -19,8 +19,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! File format detection, magic number lookup, and extension mapping tools.
 
-pub mod platform;
 pub mod extension_rule;
+pub mod platform;
 pub use extension_rule::{CaseSensitivity, ExtensionRule};
 
 pub mod detection {
@@ -35,20 +35,20 @@ pub mod encoding;
 pub mod extension_data;
 pub mod format_info;
 
-pub use ctb_utilities::format_id;
 pub use ctb_utilities::FormatId;
+pub use ctb_utilities::format_id;
 pub use format_info::{
     FormatInfo, FormatInfoOptionExt, describe_format,
     format_categorized_help_table, format_help_table, get_format_info,
     get_format_info_by_id, infer_decompressed_path, strip_format_extension,
 };
-pub mod cli_io;
 pub mod cli_document;
-pub use cli_io::{CliInputSourceArgs, CliOutputDestArgs};
+pub mod cli_io;
 pub use cli_document::{
     CliAutoDocumentInputArgs, CliDocumentInputArgs,
     parse_supported_dc_input_format, parse_supported_dc_output_format,
 };
+pub use cli_io::{CliInputSourceArgs, CliOutputDestArgs};
 
 #[expect(
     unused_imports,
@@ -56,7 +56,6 @@ pub use cli_document::{
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
-
 
 // Trait to extend char with a as_utf8_bytes() convenience method
 pub trait CharUtfBytesExt {
@@ -73,7 +72,6 @@ impl CharUtfBytesExt for char {
 }
 
 pub use ctb_formats_dcdata::describe_general_category;
-
 
 /// Output wrapper for format conversion operations, returning the converted result
 /// alongside any accumulated conversion log warnings/errors.

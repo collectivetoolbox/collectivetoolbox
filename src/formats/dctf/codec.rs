@@ -341,7 +341,8 @@ pub fn decode_utf_8e_128(bytes: &[u8]) -> Option<(u128, usize)> {
     } else {
         // Reason for fallback: truncated prefix at EOF consumes remaining bytes as one U+FFFD
         // when determine_utf_8e_128_error_len returns None for lossy decoding.
-        let err_len = determine_utf_8e_128_error_len(bytes).unwrap_or(bytes.len());
+        let err_len =
+            determine_utf_8e_128_error_len(bytes).unwrap_or(bytes.len());
         Some((0xFFFD, err_len))
     }
 }
@@ -412,7 +413,11 @@ pub fn determine_utf_8e_128_error_len(slice: &[u8]) -> Option<usize> {
                 if (5..=21).contains(&l) && b < 0x81 {
                     return Some(2);
                 }
-            } else if i == 3 && l == 4 && slice.get(2).copied() == Some(0x84) && b < 0x90 {
+            } else if i == 3
+                && l == 4
+                && slice.get(2).copied() == Some(0x84)
+                && b < 0x90
+            {
                 return Some(3);
             }
         }
@@ -632,7 +637,8 @@ pub fn decode_dctf_buf(bytes: &[u8]) -> Option<(u128, usize)> {
         return Some((value, total_len));
     }
 
-    let (len, min_val, lead_mask): (usize, u128, u8) = if (first & 0xE0) == 0xC0 {
+    let (len, min_val, lead_mask): (usize, u128, u8) = if (first & 0xE0) == 0xC0
+    {
         (2, 1u128 << 7, 0x1F)
     } else if (first & 0xF0) == 0xE0 {
         (3, 1u128 << 11, 0x0F)
@@ -769,4 +775,3 @@ pub fn decode_dctf(bytes: &[u8]) -> Option<(u128, usize)> {
         Some((0xFFFD, err_len))
     }
 }
-

@@ -26,11 +26,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use crate::syntax::SyntaxRuleResolver;
 use ctb_formats_dctf::{
     encode_dctf, encode_dctf_buf, len_dctf, len_utf_8e_128,
 };
 pub use ctb_utilities::dc_char::DcChar;
-use crate::syntax::SyntaxRuleResolver;
 
 /// Returns whether the given token (u128 character code) represents a type
 /// token in Document Character syntax.
@@ -120,7 +120,9 @@ impl DcCharExt for DcChar {
         } else {
             let mut out = Vec::new();
             out.push(long_dc);
-            out.extend(crate::dc_number_minimal::u128_to_dc_number_short(self.0));
+            out.extend(crate::dc_number_minimal::u128_to_dc_number_short(
+                self.0,
+            ));
             out
         }
     }
@@ -254,49 +256,151 @@ mod tests {
         use crate::syntax::DcRole;
 
         // TypeToken: .EL Types and format IDs match, routines do not
-        assert!(DcRole::TypeToken.matches_canonical(DcChar::from_short(278).to_u128()));
-        assert!(DcRole::TypeToken.matches_canonical(DcChar::from_short(280).to_u128()));
-        assert!(DcRole::TypeToken.matches_canonical(DcChar::from_short(306).to_u128()));
-        assert!(!DcRole::TypeToken.matches_canonical(DcChar::from_short(265).to_u128()));
-        assert!(!DcRole::TypeToken.matches_canonical(DcChar::from_short(266).to_u128()));
-        assert!(!DcRole::TypeToken.matches_canonical(DcChar::from_short(267).to_u128()));
+        assert!(
+            DcRole::TypeToken
+                .matches_canonical(DcChar::from_short(278).to_u128())
+        );
+        assert!(
+            DcRole::TypeToken
+                .matches_canonical(DcChar::from_short(280).to_u128())
+        );
+        assert!(
+            DcRole::TypeToken
+                .matches_canonical(DcChar::from_short(306).to_u128())
+        );
+        assert!(
+            !DcRole::TypeToken
+                .matches_canonical(DcChar::from_short(265).to_u128())
+        );
+        assert!(
+            !DcRole::TypeToken
+                .matches_canonical(DcChar::from_short(266).to_u128())
+        );
+        assert!(
+            !DcRole::TypeToken
+                .matches_canonical(DcChar::from_short(267).to_u128())
+        );
 
         // IntegerFormatIndicator: Format 199 matches, short Dc 8 does not
-        assert!(DcRole::IntegerFormatIndicator.matches_canonical(DcChar::from_format(199).to_u128()));
-        assert!(!DcRole::IntegerFormatIndicator.matches_canonical(DcChar::from_short(8).to_u128()));
+        assert!(
+            DcRole::IntegerFormatIndicator
+                .matches_canonical(DcChar::from_format(199).to_u128())
+        );
+        assert!(
+            !DcRole::IntegerFormatIndicator
+                .matches_canonical(DcChar::from_short(8).to_u128())
+        );
 
         // Base64Digit: 127..=190
-        assert!(DcRole::Base64Digit.matches_canonical(DcChar::from_short(127).to_u128()));
-        assert!(DcRole::Base64Digit.matches_canonical(DcChar::from_short(190).to_u128()));
-        assert!(!DcRole::Base64Digit.matches_canonical(DcChar::from_short(191).to_u128()));
-        assert!(!DcRole::Base64Digit.matches_canonical(DcChar::from_short(195).to_u128()));
+        assert!(
+            DcRole::Base64Digit
+                .matches_canonical(DcChar::from_short(127).to_u128())
+        );
+        assert!(
+            DcRole::Base64Digit
+                .matches_canonical(DcChar::from_short(190).to_u128())
+        );
+        assert!(
+            !DcRole::Base64Digit
+                .matches_canonical(DcChar::from_short(191).to_u128())
+        );
+        assert!(
+            !DcRole::Base64Digit
+                .matches_canonical(DcChar::from_short(195).to_u128())
+        );
 
         // DomainValueAtom: stream kinds, finder labels, file path delimiter, booleans, optional absent
-        assert!(DcRole::DomainValueAtom.matches_canonical(DcChar::from_short(379).to_u128()));
-        assert!(DcRole::DomainValueAtom.matches_canonical(DcChar::from_short(384).to_u128()));
-        assert!(DcRole::DomainValueAtom.matches_canonical(DcChar::from_short(482).to_u128()));
-        assert!(DcRole::DomainValueAtom.matches_canonical(DcChar::from_short(489).to_u128()));
-        assert!(DcRole::DomainValueAtom.matches_canonical(DcChar::from_short(513).to_u128()));
-        assert!(DcRole::DomainValueAtom.matches_canonical(DcChar::from_short(316).to_u128()));
-        assert!(!DcRole::DomainValueAtom.matches_canonical(DcChar::from_short(405).to_u128()));
+        assert!(
+            DcRole::DomainValueAtom
+                .matches_canonical(DcChar::from_short(379).to_u128())
+        );
+        assert!(
+            DcRole::DomainValueAtom
+                .matches_canonical(DcChar::from_short(384).to_u128())
+        );
+        assert!(
+            DcRole::DomainValueAtom
+                .matches_canonical(DcChar::from_short(482).to_u128())
+        );
+        assert!(
+            DcRole::DomainValueAtom
+                .matches_canonical(DcChar::from_short(489).to_u128())
+        );
+        assert!(
+            DcRole::DomainValueAtom
+                .matches_canonical(DcChar::from_short(513).to_u128())
+        );
+        assert!(
+            DcRole::DomainValueAtom
+                .matches_canonical(DcChar::from_short(316).to_u128())
+        );
+        assert!(
+            !DcRole::DomainValueAtom
+                .matches_canonical(DcChar::from_short(405).to_u128())
+        );
 
         // EvaluableExpressionStarter: .EL Routines and reference/invocation starters
-        assert!(DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(256).to_u128()));
-        assert!(DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(265).to_u128()));
-        assert!(DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(276).to_u128()));
-        assert!(DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(279).to_u128()));
-        assert!(DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(540).to_u128()));
-        assert!(DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(397).to_u128()));
-        assert!(DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(561).to_u128()));
-        assert!(!DcRole::EvaluableExpressionStarter.matches_canonical(DcChar::from_short(6).to_u128()));
+        assert!(
+            DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(256).to_u128())
+        );
+        assert!(
+            DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(265).to_u128())
+        );
+        assert!(
+            DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(276).to_u128())
+        );
+        assert!(
+            DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(279).to_u128())
+        );
+        assert!(
+            DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(540).to_u128())
+        );
+        assert!(
+            DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(397).to_u128())
+        );
+        assert!(
+            DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(561).to_u128())
+        );
+        assert!(
+            !DcRole::EvaluableExpressionStarter
+                .matches_canonical(DcChar::from_short(6).to_u128())
+        );
 
         // StructuralSeparator: newlines, paragraphs, list element separator
-        assert!(DcRole::StructuralSeparator.matches_canonical(DcChar::from_short(119).to_u128()));
-        assert!(DcRole::StructuralSeparator.matches_canonical(DcChar::from_short(120).to_u128()));
-        assert!(DcRole::StructuralSeparator.matches_canonical(DcChar::from_short(121).to_u128()));
-        assert!(DcRole::StructuralSeparator.matches_canonical(DcChar::from_short(294).to_u128()));
-        assert!(DcRole::StructuralSeparator.matches_canonical(DcChar::from_short(295).to_u128()));
-        assert!(DcRole::StructuralSeparator.matches_canonical(DcChar::from_short(312).to_u128()));
-        assert!(!DcRole::StructuralSeparator.matches_canonical(DcChar::from_short(239).to_u128()));
+        assert!(
+            DcRole::StructuralSeparator
+                .matches_canonical(DcChar::from_short(119).to_u128())
+        );
+        assert!(
+            DcRole::StructuralSeparator
+                .matches_canonical(DcChar::from_short(120).to_u128())
+        );
+        assert!(
+            DcRole::StructuralSeparator
+                .matches_canonical(DcChar::from_short(121).to_u128())
+        );
+        assert!(
+            DcRole::StructuralSeparator
+                .matches_canonical(DcChar::from_short(294).to_u128())
+        );
+        assert!(
+            DcRole::StructuralSeparator
+                .matches_canonical(DcChar::from_short(295).to_u128())
+        );
+        assert!(
+            DcRole::StructuralSeparator
+                .matches_canonical(DcChar::from_short(312).to_u128())
+        );
+        assert!(
+            !DcRole::StructuralSeparator
+                .matches_canonical(DcChar::from_short(239).to_u128())
+        );
     }
 }

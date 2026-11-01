@@ -101,7 +101,11 @@ impl KStruct for FixedStruct {
     type Root = FixedStruct;
     type Parent = FixedStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,17 +122,24 @@ impl KStruct for FixedStruct {
     }
 }
 impl FixedStruct {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn hdr(
-        &self
-    ) -> KResult<Ref<'_, OptRc<FixedStruct_Header>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn hdr(&self) -> KResult<Ref<'_, OptRc<FixedStruct_Header>>> {
         let _io = self._io.borrow();
         if self.f_hdr.get() {
             return Ok(self.hdr.borrow());
         }
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        let t = Self::read_into::<_, FixedStruct_Header>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, FixedStruct_Header>(
+            &*_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.hdr.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.hdr.borrow())
@@ -216,7 +227,11 @@ impl KStruct for FixedStruct_Header {
     type Root = FixedStruct;
     type Parent = FixedStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -229,8 +244,13 @@ impl KStruct for FixedStruct_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic1.borrow_mut() = _io.read_bytes(6_usize)?;
-        if !(*self_rc.magic1() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x31u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
+        if !(*self_rc.magic1()
+            == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x31u8])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint8.borrow_mut() = _io.read_u1()?;
@@ -238,8 +258,16 @@ impl KStruct for FixedStruct_Header {
         *self_rc.sint8.borrow_mut() = _io.read_s1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_uint.borrow_mut() = _io.read_bytes(10_usize)?;
-        if !(*self_rc.magic_uint() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x44u8, 0x45u8, 0x46u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/3".to_string() }));
+        if !(*self_rc.magic_uint()
+            == vec![
+                0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x44u8,
+                0x45u8, 0x46u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/3".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint16.borrow_mut() = _io.read_u2le()?;
@@ -249,8 +277,16 @@ impl KStruct for FixedStruct_Header {
         *self_rc.uint64.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_sint.borrow_mut() = _io.read_bytes(10_usize)?;
-        if !(*self_rc.magic_sint() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x44u8, 0x45u8, 0x46u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/7".to_string() }));
+        if !(*self_rc.magic_sint()
+            == vec![
+                0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x44u8,
+                0x45u8, 0x46u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/7".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint16.borrow_mut() = _io.read_s2le()?;
@@ -260,8 +296,16 @@ impl KStruct for FixedStruct_Header {
         *self_rc.sint64.borrow_mut() = _io.read_s8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_uint_le.borrow_mut() = _io.read_bytes(9_usize)?;
-        if !(*self_rc.magic_uint_le() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x4cu8, 0x45u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/11".to_string() }));
+        if !(*self_rc.magic_uint_le()
+            == vec![
+                0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x4cu8,
+                0x45u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/11".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint16le.borrow_mut() = _io.read_u2le()?;
@@ -271,8 +315,16 @@ impl KStruct for FixedStruct_Header {
         *self_rc.uint64le.borrow_mut() = _io.read_u8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_sint_le.borrow_mut() = _io.read_bytes(9_usize)?;
-        if !(*self_rc.magic_sint_le() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x4cu8, 0x45u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/15".to_string() }));
+        if !(*self_rc.magic_sint_le()
+            == vec![
+                0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x4cu8,
+                0x45u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/15".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint16le.borrow_mut() = _io.read_s2le()?;
@@ -282,8 +334,16 @@ impl KStruct for FixedStruct_Header {
         *self_rc.sint64le.borrow_mut() = _io.read_s8le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_uint_be.borrow_mut() = _io.read_bytes(9_usize)?;
-        if !(*self_rc.magic_uint_be() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x42u8, 0x45u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/19".to_string() }));
+        if !(*self_rc.magic_uint_be()
+            == vec![
+                0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x42u8,
+                0x45u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/19".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint16be.borrow_mut() = _io.read_u2be()?;
@@ -293,8 +353,16 @@ impl KStruct for FixedStruct_Header {
         *self_rc.uint64be.borrow_mut() = _io.read_u8be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_sint_be.borrow_mut() = _io.read_bytes(9_usize)?;
-        if !(*self_rc.magic_sint_be() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x42u8, 0x45u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/23".to_string() }));
+        if !(*self_rc.magic_sint_be()
+            == vec![
+                0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x42u8,
+                0x45u8,
+            ])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/23".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint16be.borrow_mut() = _io.read_s2be()?;
@@ -307,8 +375,7 @@ impl KStruct for FixedStruct_Header {
         Ok(())
     }
 }
-impl FixedStruct_Header {
-}
+impl FixedStruct_Header {}
 impl FixedStruct_Header {
     pub fn magic1(&self) -> Ref<'_, Vec<u8>> {
         self.magic1.borrow()

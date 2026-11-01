@@ -101,7 +101,11 @@ impl KStruct for NavParent {
     type Root = NavParent;
     type Parent = NavParent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,18 +117,27 @@ impl KStruct for NavParent {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, NavParent_HeaderObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, NavParent_HeaderObj>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NavParent_IndexObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, NavParent_IndexObj>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.index.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParent {
-}
+impl NavParent {}
 impl NavParent {
     pub fn header(&self) -> Ref<'_, OptRc<NavParent_HeaderObj>> {
         self.header.borrow()
@@ -192,7 +205,11 @@ impl KStruct for NavParent_Entry {
     type Root = NavParent;
     type Parent = NavParent_IndexObj;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -204,14 +221,32 @@ impl KStruct for NavParent_Entry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header().filename_len())?)?, "UTF-8")?;
+        *self_rc.filename.borrow_mut() = bytes_to_str(
+            &_io.read_bytes(usize::try_from(
+                *self_rc
+                    ._parent
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingParent)?
+                    ._parent
+                    .get_value()
+                    .borrow()
+                    .upgrade()
+                    .as_ref()
+                    .ok_or(KError::MissingParent)?
+                    .header()
+                    .filename_len(),
+            )?)?,
+            "UTF-8",
+        )?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NavParent_Entry {
-}
+impl NavParent_Entry {}
 impl NavParent_Entry {
     pub fn filename(&self) -> Ref<'_, String> {
         self.filename.borrow()
@@ -279,7 +314,11 @@ impl KStruct for NavParent_HeaderObj {
     type Root = NavParent;
     type Parent = NavParent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -299,8 +338,7 @@ impl KStruct for NavParent_HeaderObj {
         Ok(())
     }
 }
-impl NavParent_HeaderObj {
-}
+impl NavParent_HeaderObj {}
 impl NavParent_HeaderObj {
     pub fn qty_entries(&self) -> Ref<'_, u32> {
         self.qty_entries.borrow()
@@ -369,7 +407,11 @@ impl KStruct for NavParent_IndexObj {
     type Root = NavParent;
     type Parent = NavParent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -384,9 +426,24 @@ impl KStruct for NavParent_IndexObj {
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.entries.borrow_mut() = Vec::new();
-        let l_entries = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header().qty_entries())?;
+        let l_entries = usize::try_from(
+            *self_rc
+                ._parent
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingParent)?
+                .header()
+                .qty_entries(),
+        )?;
         for _i in 0_usize..l_entries {
-            let t = Self::read_into::<_, NavParent_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t = Self::read_into::<_, NavParent_Entry>(
+                &*_io,
+                Some(self_rc._root.clone()),
+                Some(self_rc._self_shared.clone()),
+            )?
+            .into();
             self_rc.entries.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -394,8 +451,7 @@ impl KStruct for NavParent_IndexObj {
         Ok(())
     }
 }
-impl NavParent_IndexObj {
-}
+impl NavParent_IndexObj {}
 impl NavParent_IndexObj {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

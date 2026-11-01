@@ -27,9 +27,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-use std::path::PathBuf;
 use kaitai::*;
 use rust::formats::params_def::*;
+use std::path::PathBuf;
 
 #[crate::ctb_test]
 #[allow(
@@ -38,10 +38,13 @@ use rust::formats::params_def::*;
 )]
 fn test_params_def() -> KResult<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"))?;
+    let bytes = std::fs::read(
+        manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"),
+    )?;
     let _io = BytesReader::from(bytes);
     let f = |t: &mut ParamsDef| Ok(t.set_params(5, true));
-    let r: OptRc<ParamsDef> = ParamsDef::read_into_with_init(&_io, None, None, &f)?;
+    let r: OptRc<ParamsDef> =
+        ParamsDef::read_into_with_init(&_io, None, None, &f)?;
 
     assert_eq!(*r.buf(), "foo|b");
     assert_eq!(*r.trailer(), 0x61);

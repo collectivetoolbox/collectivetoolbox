@@ -68,14 +68,14 @@ pub use resolver::resolve_ksy;
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
-    use super::*;
     use super::hierarchy::*;
     use super::imports::*;
     use super::resolver::*;
     use super::types::*;
     use super::validator::*;
-    use crate::parser::parse_ksy_slice;
+    use super::*;
     use crate::get_kaitai_data;
+    use crate::parser::parse_ksy_slice;
 
     #[crate::ctb_test]
     fn test_resolve_windows_systemtime() -> anyhow::Result<()> {

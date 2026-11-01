@@ -20,10 +20,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Controller for general web pages outside of the app UI itself.
 
 use axum::{extract::State, response::Response};
+use ctb_io_environment;
 use ctb_utilities::branding::newsletter_url;
 use ctb_utilities::ipc::service_traits::storage::UserDto;
 use ctb_utilities::{__ctb_ipc_ctx, __ctb_ipcb_get, ipcb};
-use ctb_io_environment;
 
 // for `oneshot`
 
@@ -542,9 +542,9 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_get_client_ip() {
-        use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
-        use crate::test_helpers::TestApp;
         use super::ClientIpResponse;
+        use crate::test_helpers::TestApp;
+        use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 
         let test_app = TestApp::new();
 
@@ -561,8 +561,8 @@ mod tests {
             .await;
         assert_eq!(resp.status(), StatusCode::OK);
         let body = crate::test_helpers::body_to_text(resp).await;
-        let parsed: ClientIpResponse =
-            serde_json::from_str(&body).expect("Failed to parse ClientIpResponse");
+        let parsed: ClientIpResponse = serde_json::from_str(&body)
+            .expect("Failed to parse ClientIpResponse");
         assert!(!parsed.ip.is_empty());
         assert!(parsed.server_time_nanos > 0);
 
@@ -584,8 +584,8 @@ mod tests {
             .await;
         assert_eq!(resp.status(), StatusCode::OK);
         let body = crate::test_helpers::body_to_text(resp).await;
-        let parsed: ClientIpResponse =
-            serde_json::from_str(&body).expect("Failed to parse ClientIpResponse");
+        let parsed: ClientIpResponse = serde_json::from_str(&body)
+            .expect("Failed to parse ClientIpResponse");
         assert_eq!(parsed.ip, "198.51.100.25");
 
         // 3. X-Forwarded-For header
@@ -606,9 +606,8 @@ mod tests {
             .await;
         assert_eq!(resp.status(), StatusCode::OK);
         let body = crate::test_helpers::body_to_text(resp).await;
-        let parsed: ClientIpResponse =
-            serde_json::from_str(&body).expect("Failed to parse ClientIpResponse");
+        let parsed: ClientIpResponse = serde_json::from_str(&body)
+            .expect("Failed to parse ClientIpResponse");
         assert_eq!(parsed.ip, "203.0.113.50");
     }
 }
-

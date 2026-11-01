@@ -134,7 +134,10 @@ pub struct FlagMapping {
     pub settability: FlagSettability,
 }
 
-fn parse_flags_from_map(raw_val: u32, map: &[FlagMapping]) -> (Vec<FileFlag>, bool) {
+fn parse_flags_from_map(
+    raw_val: u32,
+    map: &[FlagMapping],
+) -> (Vec<FileFlag>, bool) {
     let mut flags = Vec::new();
     let mut mapped_mask: u32 = 0;
     for entry in map {
@@ -242,17 +245,7 @@ macro_rules! define_platform_flags {
     };
 }
 
-
-
-
-
-
 //DRAGONFLY/////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
 /* From DragonFly BSD sys/sys/stat.h:
 
@@ -324,19 +317,10 @@ define_platform_flags! {
 }
 
 /// Mask of settable flags on `DragonFly` BSD (`UF_SETTABLE | SF_SETTABLE`).
-pub const DRAGONFLY_SETTABLE_MASK: u32 = DRAGONFLY_UF_SETTABLE | DRAGONFLY_SF_SETTABLE;
-
-
-
-
-
+pub const DRAGONFLY_SETTABLE_MASK: u32 =
+    DRAGONFLY_UF_SETTABLE | DRAGONFLY_SF_SETTABLE;
 
 //FREEBSD///////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
 /* From FreeBSD stat.h:
 
@@ -427,17 +411,7 @@ define_platform_flags! {
 pub const FREEBSD_SETTABLE_MASK: u32 =
     (FREEBSD_UF_SETTABLE | FREEBSD_SF_SETTABLE) & !FREEBSD_SF_SNAPSHOT;
 
-
-
-
-
-
 //OPENBSD///////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
 /* From OpenBSD stat.h:
 
@@ -486,19 +460,10 @@ define_platform_flags! {
 }
 
 /// Mask of settable flags on OpenBSD (`UF_SETTABLE | SF_SETTABLE`).
-pub const OPENBSD_SETTABLE_MASK: u32 = OPENBSD_UF_SETTABLE | OPENBSD_SF_SETTABLE;
-
-
-
-
-
+pub const OPENBSD_SETTABLE_MASK: u32 =
+    OPENBSD_UF_SETTABLE | OPENBSD_SF_SETTABLE;
 
 //DARWIN////////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
 /* From Python - https://github.com/python/cpython/blob/f8f8c30ed4e20208e8badbc9e2fc3822e8db8e49/Modules/_stat.c -
 
@@ -619,7 +584,6 @@ SF_SYNTHETIC: mask of read-only synthetic flags\n\
 
 */
 
-
 // Darwin file flag constants from Darwin <sys/stat.h>
 define_platform_flags! {
     map: DARWIN_FLAG_MAP,
@@ -657,17 +621,7 @@ define_platform_flags! {
 /// (`UF_SETTABLE | SF_SETTABLE`).
 pub const DARWIN_SETTABLE_MASK: u32 = DARWIN_UF_SETTABLE | DARWIN_SF_SETTABLE;
 
-
-
-
-
-
 //NETBSD////////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
 /* From NetBSD sys/sys/stat.h:
  *
@@ -722,19 +676,10 @@ define_platform_flags! {
 
 /// Mask of settable flags on NetBSD (`UF_SETTABLE | SF_SETTABLE`, excluding
 /// system-maintained flags).
-pub const NETBSD_SETTABLE_MASK: u32 =
-    (NETBSD_UF_SETTABLE | NETBSD_SF_SETTABLE)
-        & !(NETBSD_SF_SNAPSHOT | NETBSD_SF_LOG | NETBSD_SF_SNAPINVAL);
-
-
-
-
-
+pub const NETBSD_SETTABLE_MASK: u32 = (NETBSD_UF_SETTABLE | NETBSD_SF_SETTABLE)
+    & !(NETBSD_SF_SNAPSHOT | NETBSD_SF_LOG | NETBSD_SF_SNAPINVAL);
 
 //LINUX/////////////////////////////////////////////////////////////////////////
-
-
-
 
 // No nice documentation for these as it's GPL-2-only and can't be included here.
 
@@ -801,17 +746,7 @@ pub const LINUX_USER_SETTABLE_MASK: u32 = LINUX_FS_NODUMP_FL
     | LINUX_FS_TOPDIR_FL
     | LINUX_FS_NOCOW_FL;
 
-
-
-
-
-
 //WINDOWS///////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
 /* From Win32 fileapi.h / WinBase.h:
  *
@@ -868,7 +803,10 @@ pub const fn flag_settability(flag: FileFlag, os: OsFamily) -> FlagSettability {
 /// Returns the list of parsed [`FileFlag`]s and a boolean indicating whether any
 /// unparsed bits remain.
 #[must_use]
-pub fn parse_platform_flags(raw_val: u64, os: OsFamily) -> (Vec<FileFlag>, bool) {
+pub fn parse_platform_flags(
+    raw_val: u64,
+    os: OsFamily,
+) -> (Vec<FileFlag>, bool) {
     let Ok(raw_u32) = u32::try_from(raw_val) else {
         return (Vec::new(), true);
     };
@@ -884,17 +822,7 @@ pub fn parse_platform_flags(raw_val: u64, os: OsFamily) -> (Vec<FileFlag>, bool)
     }
 }
 
-
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
 
 /// Reads OS-specific flags from `path`.
 #[cfg_attr(
@@ -928,14 +856,25 @@ pub fn query_file_flags(
         let f = std::fs::OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_NONBLOCK)
-            .open(path).with_context(|| format!("Failed to open {} for file flag capture", path.display()))?;
+            .open(path)
+            .with_context(|| {
+                format!(
+                    "Failed to open {} for file flag capture",
+                    path.display()
+                )
+            })?;
 
         let iflags = match ioctl_getflags(&f) {
             Ok(flags) => flags,
-            Err(error) if error == rustix::io::Errno::NOTTY || error == rustix::io::Errno::OPNOTSUPP => {
+            Err(error)
+                if error == rustix::io::Errno::NOTTY
+                    || error == rustix::io::Errno::OPNOTSUPP =>
+            {
                 return Ok((Vec::new(), None));
             }
-            Err(error) => return Err(error).context("Failed to read file flags"),
+            Err(error) => {
+                return Err(error).context("Failed to read file flags");
+            }
         };
 
         let (flags, _has_unparsed) = parse_linux_flags(iflags.bits());
@@ -979,7 +918,8 @@ pub fn query_file_flags(
 
         let c_path = CString::new(path.as_os_str().as_bytes())?;
         let mut stat_buf = MaybeUninit::<libc::stat>::uninit();
-        let res = unsafe { libc::lstat(c_path.as_ptr(), stat_buf.as_mut_ptr()) };
+        let res =
+            unsafe { libc::lstat(c_path.as_ptr(), stat_buf.as_mut_ptr()) };
         if res != 0 {
             let err = std::io::Error::last_os_error();
             anyhow::bail!("lstat failed for {}: {err}", path.display());
@@ -1002,7 +942,8 @@ pub fn query_file_flags(
 
         let c_path = CString::new(path.as_os_str().as_bytes())?;
         let mut stat_buf = MaybeUninit::<libc::stat>::uninit();
-        let res = unsafe { libc::lstat(c_path.as_ptr(), stat_buf.as_mut_ptr()) };
+        let res =
+            unsafe { libc::lstat(c_path.as_ptr(), stat_buf.as_mut_ptr()) };
         if res != 0 {
             let err = std::io::Error::last_os_error();
             anyhow::bail!("lstat failed for {}: {err}", path.display());
@@ -1033,7 +974,11 @@ pub fn query_file_flags(
 /// Compares raw flags for equality, allowing kernel-managed (non-settable)
 /// flags to differ when comparing within the specified OS.
 #[must_use]
-pub fn raw_flags_match(expected: &PlatformRawFlags, actual: &PlatformRawFlags, os: OsFamily) -> bool {
+pub fn raw_flags_match(
+    expected: &PlatformRawFlags,
+    actual: &PlatformRawFlags,
+    os: OsFamily,
+) -> bool {
     if expected == actual {
         return true;
     }
@@ -1072,7 +1017,13 @@ pub fn apply_file_flags(
     raw: Option<&PlatformRawFlags>,
     strict_lossless: bool,
 ) -> Result<()> {
-    apply_file_flags_with_source(path, flags, raw, OsFamily::CURRENT, strict_lossless)
+    apply_file_flags_with_source(
+        path,
+        flags,
+        raw,
+        OsFamily::CURRENT,
+        strict_lossless,
+    )
 }
 
 /// Applies file flags to `path` with a known source operating system.
@@ -1103,18 +1054,25 @@ pub fn apply_file_flags_with_source(
     let (actual, actual_raw) = query_file_flags(path, is_symlink)?;
     let semantic_match = flags.iter().all(|flag| actual.contains(flag))
         && actual.iter().all(|flag| {
-            flags.contains(flag) || !flag.settability(OsFamily::CURRENT).is_settable()
+            flags.contains(flag)
+                || !flag.settability(OsFamily::CURRENT).is_settable()
         });
     let raw_match = raw.is_none_or(|expected| {
-        actual_raw
-            .as_ref()
-            .is_some_and(|actual_val| raw_flags_match(expected, actual_val, source_os))
+        actual_raw.as_ref().is_some_and(|actual_val| {
+            raw_flags_match(expected, actual_val, source_os)
+        })
     });
     if !semantic_match || !raw_match {
         if strict_lossless {
-            anyhow::bail!("File flags could not be reproduced on {}: expected {flags:?}/{raw:?}, got {actual:?}/{actual_raw:?}", path.display());
+            anyhow::bail!(
+                "File flags could not be reproduced on {}: expected {flags:?}/{raw:?}, got {actual:?}/{actual_raw:?}",
+                path.display()
+            );
         }
-        warn_fmt!("File flags could not be reproduced on {}: expected {flags:?}/{raw:?}, got {actual:?}/{actual_raw:?}; retain the journal", path.display());
+        warn_fmt!(
+            "File flags could not be reproduced on {}: expected {flags:?}/{raw:?}, got {actual:?}/{actual_raw:?}; retain the journal",
+            path.display()
+        );
     }
     Ok(())
 }
@@ -1126,7 +1084,10 @@ pub fn apply_file_flags_with_source(
         target_os = "openbsd",
         target_os = "dragonfly"
     ),
-    expect(unsafe_code, reason = "Invoking BSD chflags system calls requires unsafe C FFI")
+    expect(
+        unsafe_code,
+        reason = "Invoking BSD chflags system calls requires unsafe C FFI"
+    )
 )]
 fn apply_file_flags_native(
     path: &Path,
@@ -1136,7 +1097,9 @@ fn apply_file_flags_native(
     strict_lossless: bool,
 ) -> Result<()> {
     if let Some(raw_info) = raw {
-        if raw_info.has_unparsed_flags(source_os) && source_os != OsFamily::CURRENT {
+        if raw_info.has_unparsed_flags(source_os)
+            && source_os != OsFamily::CURRENT
+        {
             if strict_lossless {
                 anyhow::bail!(
                     "Cannot losslessly restore unparsed file flags from {} on target {}: {}",
@@ -1173,12 +1136,10 @@ fn apply_file_flags_native(
             .open(path)
         {
             Ok(file) => file,
-            Err(_) => {
-                OpenOptions::new()
-                    .read(true)
-                    .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW)
-                    .open(path)?
-            }
+            Err(_) => OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW)
+                .open(path)?,
         };
 
         let mut target_mask: u32 = 0;
@@ -1186,20 +1147,29 @@ fn apply_file_flags_native(
 
         if let Some(raw_info) = raw {
             if source_os == OsFamily::Linux {
-                let bits = u32::try_from(raw_info.raw_value).context("Invalid Linux file flag width")?;
+                let bits = u32::try_from(raw_info.raw_value)
+                    .context("Invalid Linux file flag width")?;
                 target_mask = bits & LINUX_SETTABLE_MASK;
                 has_linux_raw = true;
             }
         }
 
         if !has_linux_raw {
-            target_mask = linux_flags_to_mask(flags, strict_lossless, path)? & LINUX_SETTABLE_MASK;
+            target_mask = linux_flags_to_mask(flags, strict_lossless, path)?
+                & LINUX_SETTABLE_MASK;
         }
 
         let current = match ioctl_getflags(&f) {
             Ok(current) => current.bits(),
-            Err(error) if error == rustix::io::Errno::NOTTY || error == rustix::io::Errno::OPNOTSUPP => return Ok(()),
-            Err(error) => return Err(error).context("Failed to read destination flags"),
+            Err(error)
+                if error == rustix::io::Errno::NOTTY
+                    || error == rustix::io::Errno::OPNOTSUPP =>
+            {
+                return Ok(());
+            }
+            Err(error) => {
+                return Err(error).context("Failed to read destination flags");
+            }
         };
         let target_bits = target_mask | (current & !LINUX_SETTABLE_MASK);
         if current != target_bits {
@@ -1222,13 +1192,15 @@ fn apply_file_flags_native(
                     if current_accum != target_bits {
                         // Crucial: test immutable and append last to prevent lockout
                         let is_lockout = |b: u32| {
-                            b == LINUX_FS_IMMUTABLE_FL || b == LINUX_FS_APPEND_FL
+                            b == LINUX_FS_IMMUTABLE_FL
+                                || b == LINUX_FS_APPEND_FL
                         };
 
                         let mut diff_bits = Vec::new();
                         for i in 0u8..32 {
                             if let Some(bit) = 1u32.checked_shl(u32::from(i)) {
-                                if (target_bits & bit) != (current_accum & bit) {
+                                if (target_bits & bit) != (current_accum & bit)
+                                {
                                     diff_bits.push(bit);
                                 }
                             }
@@ -1236,9 +1208,11 @@ fn apply_file_flags_native(
                         diff_bits.sort_by_key(|&b| is_lockout(b));
 
                         for bit in diff_bits {
-                            let candidate = (current_accum & !bit) | (target_bits & bit);
+                            let candidate =
+                                (current_accum & !bit) | (target_bits & bit);
                             if candidate != current_accum {
-                                let cand_target = IFlags::from_bits_retain(candidate);
+                                let cand_target =
+                                    IFlags::from_bits_retain(candidate);
                                 if ioctl_setflags(&f, cand_target).is_ok() {
                                     current_accum = candidate;
                                 }
@@ -1254,7 +1228,8 @@ fn apply_file_flags_native(
                             path.display()
                         );
                         return Ok(());
-                    } else if (e == rustix::io::Errno::PERM || e == rustix::io::Errno::ACCESS)
+                    } else if (e == rustix::io::Errno::PERM
+                        || e == rustix::io::Errno::ACCESS)
                         && (target_bits & !LINUX_USER_SETTABLE_MASK) != 0
                     {
                         warn_fmt!(
@@ -1297,7 +1272,8 @@ fn apply_file_flags_native(
 
         if let Some(raw_info) = raw {
             if source_os == OsFamily::CURRENT {
-                target_mask = u32::try_from(raw_info.raw_value).context("Invalid BSD file flag width")?;
+                target_mask = u32::try_from(raw_info.raw_value)
+                    .context("Invalid BSD file flag width")?;
                 has_bsd_raw = true;
             }
         }
@@ -1305,19 +1281,23 @@ fn apply_file_flags_native(
         if !has_bsd_raw {
             #[cfg(target_vendor = "apple")]
             {
-                target_mask = darwin_flags_to_mask(flags, strict_lossless, path)?;
+                target_mask =
+                    darwin_flags_to_mask(flags, strict_lossless, path)?;
             }
             #[cfg(target_os = "freebsd")]
             {
-                target_mask = freebsd_flags_to_mask(flags, strict_lossless, path)?;
+                target_mask =
+                    freebsd_flags_to_mask(flags, strict_lossless, path)?;
             }
             #[cfg(target_os = "openbsd")]
             {
-                target_mask = openbsd_flags_to_mask(flags, strict_lossless, path)?;
+                target_mask =
+                    openbsd_flags_to_mask(flags, strict_lossless, path)?;
             }
             #[cfg(target_os = "dragonfly")]
             {
-                target_mask = dragonfly_flags_to_mask(flags, strict_lossless, path)?;
+                target_mask =
+                    dragonfly_flags_to_mask(flags, strict_lossless, path)?;
             }
         }
 
@@ -1325,20 +1305,27 @@ fn apply_file_flags_native(
             return Ok(());
         }
         let (_, current) = query_file_flags(path, false)?;
-        if current.as_ref().is_none_or(|record| record.raw_value != u64::from(target_mask)) {
+        if current
+            .as_ref()
+            .is_none_or(|record| record.raw_value != u64::from(target_mask))
+        {
             let c_path = CString::new(path.as_os_str().as_bytes())?;
             #[cfg(target_vendor = "apple")]
             // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
             #[cfg(target_os = "freebsd")]
             // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
-            let res = unsafe { libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask)) };
+            let res = unsafe {
+                libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask))
+            };
             #[cfg(target_os = "openbsd")]
             // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };
             #[cfg(target_os = "dragonfly")]
             // SAFETY: `c_path` is a live NUL-terminated CString and `target_mask` is a plain integer bitmask.
-            let res = unsafe { libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask)) };
+            let res = unsafe {
+                libc::chflags(c_path.as_ptr(), libc::c_ulong::from(target_mask))
+            };
 
             if res != 0 {
                 // In best-effort mode, if setting all flags failed (e.g. due to
@@ -1358,21 +1345,29 @@ fn apply_file_flags_native(
                     if settable_mask != target_mask && settable_mask != 0 {
                         #[cfg(target_vendor = "apple")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
-                        let retry_res =
-                            unsafe { libc::chflags(c_path.as_ptr(), settable_mask) };
+                        let retry_res = unsafe {
+                            libc::chflags(c_path.as_ptr(), settable_mask)
+                        };
                         #[cfg(target_os = "freebsd")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
                         let retry_res = unsafe {
-                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(settable_mask))
+                            libc::chflags(
+                                c_path.as_ptr(),
+                                libc::c_ulong::from(settable_mask),
+                            )
                         };
                         #[cfg(target_os = "openbsd")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
-                        let retry_res =
-                            unsafe { libc::chflags(c_path.as_ptr(), settable_mask) };
+                        let retry_res = unsafe {
+                            libc::chflags(c_path.as_ptr(), settable_mask)
+                        };
                         #[cfg(target_os = "dragonfly")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `settable_mask` is a plain integer bitmask.
                         let retry_res = unsafe {
-                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(settable_mask))
+                            libc::chflags(
+                                c_path.as_ptr(),
+                                libc::c_ulong::from(settable_mask),
+                            )
                         };
 
                         if retry_res == 0 {
@@ -1399,21 +1394,29 @@ fn apply_file_flags_native(
                     if user_mask != settable_mask && user_mask != 0 {
                         #[cfg(target_vendor = "apple")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
-                        let user_retry =
-                            unsafe { libc::chflags(c_path.as_ptr(), user_mask) };
+                        let user_retry = unsafe {
+                            libc::chflags(c_path.as_ptr(), user_mask)
+                        };
                         #[cfg(target_os = "freebsd")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
                         let user_retry = unsafe {
-                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(user_mask))
+                            libc::chflags(
+                                c_path.as_ptr(),
+                                libc::c_ulong::from(user_mask),
+                            )
                         };
                         #[cfg(target_os = "openbsd")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
-                        let user_retry =
-                            unsafe { libc::chflags(c_path.as_ptr(), user_mask) };
+                        let user_retry = unsafe {
+                            libc::chflags(c_path.as_ptr(), user_mask)
+                        };
                         #[cfg(target_os = "dragonfly")]
                         // SAFETY: `c_path` is a live NUL-terminated CString and `user_mask` is a plain integer bitmask.
                         let user_retry = unsafe {
-                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(user_mask))
+                            libc::chflags(
+                                c_path.as_ptr(),
+                                libc::c_ulong::from(user_mask),
+                            )
                         };
 
                         if user_retry == 0 {
@@ -1475,23 +1478,34 @@ fn apply_file_flags_native(
                     diff_bits.sort_by_key(|&b| is_lockout(b));
 
                     for bit in diff_bits {
-                        let candidate = (current_mask & !bit) | (target_mask & bit);
+                        let candidate =
+                            (current_mask & !bit) | (target_mask & bit);
                         if candidate != current_mask {
                             #[cfg(target_vendor = "apple")]
                             // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
-                            let b_res = unsafe { libc::chflags(c_path.as_ptr(), candidate) };
+                            let b_res = unsafe {
+                                libc::chflags(c_path.as_ptr(), candidate)
+                            };
                             #[cfg(target_os = "freebsd")]
                             // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
                             let b_res = unsafe {
-                                libc::chflags(c_path.as_ptr(), libc::c_ulong::from(candidate))
+                                libc::chflags(
+                                    c_path.as_ptr(),
+                                    libc::c_ulong::from(candidate),
+                                )
                             };
                             #[cfg(target_os = "openbsd")]
                             // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
-                            let b_res = unsafe { libc::chflags(c_path.as_ptr(), candidate) };
+                            let b_res = unsafe {
+                                libc::chflags(c_path.as_ptr(), candidate)
+                            };
                             #[cfg(target_os = "dragonfly")]
                             // SAFETY: `c_path` is a live NUL-terminated CString and `candidate` is a plain integer bitmask.
                             let b_res = unsafe {
-                                libc::chflags(c_path.as_ptr(), libc::c_ulong::from(candidate))
+                                libc::chflags(
+                                    c_path.as_ptr(),
+                                    libc::c_ulong::from(candidate),
+                                )
                             };
 
                             if b_res == 0 {
@@ -1640,7 +1654,9 @@ mod tests {
             assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = darwin_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            let mask =
+                darwin_flags_to_mask(&[entry.flag], true, Path::new("test"))
+                    .unwrap();
             assert_eq!(mask, entry.mask);
 
             combined_mask |= entry.mask;
@@ -1651,7 +1667,8 @@ mod tests {
         assert_eq!(parsed_all.len(), DARWIN_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
-        let encoded_all = darwin_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        let encoded_all =
+            darwin_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
         assert_eq!(encoded_all, combined_mask);
 
         // Unknown bit sets has_unparsed
@@ -1661,11 +1678,21 @@ mod tests {
         for unsupported in ALL_FLAGS {
             if !DARWIN_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
                 assert!(
-                    darwin_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    darwin_flags_to_mask(
+                        &[unsupported],
+                        true,
+                        Path::new("test")
+                    )
+                    .is_err(),
                     "Flag {unsupported:?} should be rejected on Darwin in strict_lossless mode"
                 );
                 assert_eq!(
-                    darwin_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    darwin_flags_to_mask(
+                        &[unsupported],
+                        false,
+                        Path::new("test")
+                    )
+                    .unwrap(),
                     0
                 );
             }
@@ -1681,7 +1708,9 @@ mod tests {
             assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = freebsd_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            let mask =
+                freebsd_flags_to_mask(&[entry.flag], true, Path::new("test"))
+                    .unwrap();
             assert_eq!(mask, entry.mask);
 
             combined_mask |= entry.mask;
@@ -1692,7 +1721,8 @@ mod tests {
         assert_eq!(parsed_all.len(), FREEBSD_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
-        let encoded_all = freebsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        let encoded_all =
+            freebsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
         assert_eq!(encoded_all, combined_mask);
 
         // Unknown bit sets has_unparsed
@@ -1702,11 +1732,21 @@ mod tests {
         for unsupported in ALL_FLAGS {
             if !FREEBSD_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
                 assert!(
-                    freebsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    freebsd_flags_to_mask(
+                        &[unsupported],
+                        true,
+                        Path::new("test")
+                    )
+                    .is_err(),
                     "Flag {unsupported:?} should be rejected on FreeBSD in strict_lossless mode"
                 );
                 assert_eq!(
-                    freebsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    freebsd_flags_to_mask(
+                        &[unsupported],
+                        false,
+                        Path::new("test")
+                    )
+                    .unwrap(),
                     0
                 );
             }
@@ -1722,7 +1762,9 @@ mod tests {
             assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = openbsd_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            let mask =
+                openbsd_flags_to_mask(&[entry.flag], true, Path::new("test"))
+                    .unwrap();
             assert_eq!(mask, entry.mask);
 
             combined_mask |= entry.mask;
@@ -1733,7 +1775,8 @@ mod tests {
         assert_eq!(parsed_all.len(), OPENBSD_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
-        let encoded_all = openbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        let encoded_all =
+            openbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
         assert_eq!(encoded_all, combined_mask);
 
         // Unknown bit (such as 0x10 UF_NOUNLINK which is not supported on OpenBSD) sets has_unparsed
@@ -1743,11 +1786,21 @@ mod tests {
         for unsupported in ALL_FLAGS {
             if !OPENBSD_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
                 assert!(
-                    openbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    openbsd_flags_to_mask(
+                        &[unsupported],
+                        true,
+                        Path::new("test")
+                    )
+                    .is_err(),
                     "Flag {unsupported:?} should be rejected on OpenBSD in strict_lossless mode"
                 );
                 assert_eq!(
-                    openbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    openbsd_flags_to_mask(
+                        &[unsupported],
+                        false,
+                        Path::new("test")
+                    )
+                    .unwrap(),
                     0
                 );
             }
@@ -1763,33 +1816,48 @@ mod tests {
             assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = dragonfly_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            let mask =
+                dragonfly_flags_to_mask(&[entry.flag], true, Path::new("test"))
+                    .unwrap();
             assert_eq!(mask, entry.mask);
 
             combined_mask |= entry.mask;
             all_flags.push(entry.flag);
         }
 
-        let (parsed_all, has_unparsed_all) = parse_dragonfly_flags(combined_mask);
+        let (parsed_all, has_unparsed_all) =
+            parse_dragonfly_flags(combined_mask);
         assert_eq!(parsed_all.len(), DRAGONFLY_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
         let encoded_all =
-            dragonfly_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+            dragonfly_flags_to_mask(&all_flags, true, Path::new("test"))
+                .unwrap();
         assert_eq!(encoded_all, combined_mask);
 
         // Unknown bit (such as DRAGONFLY_UF_UNUSED5) sets has_unparsed
-        let (_, unparsed) = parse_dragonfly_flags(combined_mask | DRAGONFLY_UF_UNUSED5);
+        let (_, unparsed) =
+            parse_dragonfly_flags(combined_mask | DRAGONFLY_UF_UNUSED5);
         assert!(unparsed);
 
         for unsupported in ALL_FLAGS {
             if !DRAGONFLY_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
                 assert!(
-                    dragonfly_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    dragonfly_flags_to_mask(
+                        &[unsupported],
+                        true,
+                        Path::new("test")
+                    )
+                    .is_err(),
                     "Flag {unsupported:?} should be rejected on DragonFly BSD in strict_lossless mode"
                 );
                 assert_eq!(
-                    dragonfly_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    dragonfly_flags_to_mask(
+                        &[unsupported],
+                        false,
+                        Path::new("test")
+                    )
+                    .unwrap(),
                     0
                 );
             }
@@ -1805,7 +1873,9 @@ mod tests {
             assert_eq!(parsed, vec![entry.flag]);
             assert!(!has_unparsed);
 
-            let mask = netbsd_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            let mask =
+                netbsd_flags_to_mask(&[entry.flag], true, Path::new("test"))
+                    .unwrap();
             assert_eq!(mask, entry.mask);
 
             combined_mask |= entry.mask;
@@ -1816,7 +1886,8 @@ mod tests {
         assert_eq!(parsed_all.len(), NETBSD_FLAG_MAP.len());
         assert!(!has_unparsed_all);
 
-        let encoded_all = netbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        let encoded_all =
+            netbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
         assert_eq!(encoded_all, combined_mask);
 
         // Unknown bit sets has_unparsed
@@ -1826,11 +1897,21 @@ mod tests {
         for unsupported in ALL_FLAGS {
             if !NETBSD_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
                 assert!(
-                    netbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    netbsd_flags_to_mask(
+                        &[unsupported],
+                        true,
+                        Path::new("test")
+                    )
+                    .is_err(),
                     "Flag {unsupported:?} should be rejected on NetBSD in strict_lossless mode"
                 );
                 assert_eq!(
-                    netbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    netbsd_flags_to_mask(
+                        &[unsupported],
+                        false,
+                        Path::new("test")
+                    )
+                    .unwrap(),
                     0
                 );
             }
@@ -1844,7 +1925,9 @@ mod tests {
             assert!(!has_unparsed);
             assert!(!parsed.is_empty());
 
-            let mask = linux_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            let mask =
+                linux_flags_to_mask(&[entry.flag], true, Path::new("test"))
+                    .unwrap();
             assert_eq!(mask, entry.mask);
         }
 
@@ -1860,11 +1943,21 @@ mod tests {
         for unsupported in ALL_FLAGS {
             if !LINUX_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
                 assert!(
-                    linux_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    linux_flags_to_mask(
+                        &[unsupported],
+                        true,
+                        Path::new("test")
+                    )
+                    .is_err(),
                     "Flag {unsupported:?} should be rejected on Linux in strict_lossless mode"
                 );
                 assert_eq!(
-                    linux_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    linux_flags_to_mask(
+                        &[unsupported],
+                        false,
+                        Path::new("test")
+                    )
+                    .unwrap(),
                     0
                 );
             }
@@ -1878,7 +1971,9 @@ mod tests {
             assert!(!has_unparsed);
             assert!(!parsed.is_empty());
 
-            let mask = windows_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            let mask =
+                windows_flags_to_mask(&[entry.flag], true, Path::new("test"))
+                    .unwrap();
             assert_eq!(mask, entry.mask);
         }
 
@@ -1892,11 +1987,21 @@ mod tests {
         for unsupported in ALL_FLAGS {
             if !WINDOWS_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
                 assert!(
-                    windows_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    windows_flags_to_mask(
+                        &[unsupported],
+                        true,
+                        Path::new("test")
+                    )
+                    .is_err(),
                     "Flag {unsupported:?} should be rejected on Windows in strict_lossless mode"
                 );
                 assert_eq!(
-                    windows_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    windows_flags_to_mask(
+                        &[unsupported],
+                        false,
+                        Path::new("test")
+                    )
+                    .unwrap(),
                     0
                 );
             }
@@ -1905,8 +2010,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_flag_settability_invariants() {
-
-        type PlatformSpec<'a> = (OsFamily, &'a [FlagMapping], Option<(u32, u32)>);
+        type PlatformSpec<'a> =
+            (OsFamily, &'a [FlagMapping], Option<(u32, u32)>);
         let platforms: [PlatformSpec<'_>; 7] = [
             (
                 OsFamily::Darwin,
@@ -2011,7 +2116,10 @@ mod tests {
 
         // Check OsFamily::Other
         for flag in ALL_FLAGS {
-            assert_eq!(flag.settability(OsFamily::Other), FlagSettability::Unsupported);
+            assert_eq!(
+                flag.settability(OsFamily::Other),
+                FlagSettability::Unsupported
+            );
         }
 
         // Test FlagSettability helper methods
@@ -2056,7 +2164,11 @@ mod tests {
 
         // Settable bits match even when kernel-managed extent bit differs
         let raw_nodump_extent = PlatformRawFlags::from_raw(0x40 | 524288);
-        assert!(raw_flags_match(&raw_nodump, &raw_nodump_extent, OsFamily::Linux));
+        assert!(raw_flags_match(
+            &raw_nodump,
+            &raw_nodump_extent,
+            OsFamily::Linux
+        ));
 
         // Differing unparsed flags flag must not match
         let raw_unparsed = PlatformRawFlags::from_raw(0x0100_0000);
@@ -2065,7 +2177,6 @@ mod tests {
         assert!(!raw_flags_match(&raw_zero, &raw_unparsed, OsFamily::Linux));
     }
 }
-
 
 /*
 
@@ -2285,7 +2396,6 @@ License for parts derived from Swift:
 
 */
 
-
 /* License for parts derived from DragonFly BSD:
  *-
  * Copyright (c) 1982, 1986, 1989, 1993
@@ -2398,7 +2508,6 @@ License for parts derived from Swift:
  *	@(#)stat.h	8.9 (Berkeley) 8/17/94
  */
 
-
 /*License for parts derived from NetBSD:
  *-
  * Copyright (c) 1982, 1986, 1989, 1993
@@ -2436,7 +2545,7 @@ License for parts derived from Swift:
  *	@(#)stat.h	8.12 (Berkeley) 8/17/94
  */
 
- /* Full license details for parts derived from Python:
+/* Full license details for parts derived from Python:
 
  A. HISTORY OF THE SOFTWARE
 ==========================

@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Command-line interface runner and reporting for file format detection.
 
 #[expect(
@@ -463,8 +462,8 @@ use crate::chain::{
     guess_format_chains_bounded,
 };
 use crate::decompression::{
-    format_chain_directive, format_chain_layer_annotation,
-    DEFAULT_MAX_DECOMPRESSION_DEPTH,
+    DEFAULT_MAX_DECOMPRESSION_DEPTH, format_chain_directive,
+    format_chain_layer_annotation,
 };
 use crate::detection::{
     guess_and_report_path, guess_and_report_path_with_hint,
@@ -599,7 +598,10 @@ pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
                     if args.brief {
                         let _ = writeln!(output, "cannot open (Error: {e:#})");
                     } else {
-                        let _ = writeln!(output, "{display_name}: cannot open (Error: {e:#})");
+                        let _ = writeln!(
+                            output,
+                            "{display_name}: cannot open (Error: {e:#})"
+                        );
                     }
                 } else {
                     let _ = writeln!(output, "=== {display_name} ===");
@@ -729,7 +731,8 @@ fn render_rich_output(
         let _ = writeln!(output, "\nTop Detection:");
         // Chain candidates merge layer details into the Format block instead of
         // a separate Description line.
-        let is_chain_candidate = top.format_id.is_none() && top.chain_layers.is_some();
+        let is_chain_candidate =
+            top.format_id.is_none() && top.chain_layers.is_some();
         if let Some(fid) = top.format_id {
             let _ = writeln!(
                 output,
@@ -745,9 +748,11 @@ fn render_rich_output(
             for (layer_idx, layer) in layers.iter().enumerate() {
                 let annotation = format_chain_layer_annotation(*layer);
                 if layer_idx == 0 {
-                    let _ = writeln!(output, "                  ≡ {annotation}");
+                    let _ =
+                        writeln!(output, "                  ≡ {annotation}");
                 } else {
-                    let _ = writeln!(output, "                    > {annotation}");
+                    let _ =
+                        writeln!(output, "                    > {annotation}");
                 }
             }
         } else {
@@ -796,7 +801,8 @@ fn render_rich_output(
             if !cand.evidence.is_empty() {
                 let _ = writeln!(output, "     Evidence:");
                 for ev in &cand.evidence {
-                    let _ = writeln!(output, "       • {}", format_evidence(ev));
+                    let _ =
+                        writeln!(output, "       • {}", format_evidence(ev));
                 }
             }
         }
@@ -863,7 +869,9 @@ fn render_rich_output(
 fn format_evidence(ev: &DetectionEvidence) -> String {
     match ev {
         DetectionEvidence::FileMagic { description, score } => {
-            format!("FileMagic (upstream Magdir): {description} (score: {score})")
+            format!(
+                "FileMagic (upstream Magdir): {description} (score: {score})"
+            )
         }
         DetectionEvidence::CtbMagic { description, score } => {
             format!("CtbMagic (ctoolbox.magic): {description} (score: {score})")
@@ -876,9 +884,7 @@ fn format_evidence(ev: &DetectionEvidence) -> String {
             is_primary,
             score,
         } => {
-            format!(
-                "Extension: .{ext} (primary: {is_primary}, score: {score})"
-            )
+            format!("Extension: .{ext} (primary: {is_primary}, score: {score})")
         }
         DetectionEvidence::PlatformPrior { platform, score } => {
             format!("PlatformPrior: {platform:?} (score: {score})")
@@ -914,7 +920,9 @@ fn format_evidence(ev: &DetectionEvidence) -> String {
             eof_offset,
             score,
         } => {
-            format!("DualAnchored: BOF={bof_offset}, EOF={eof_offset:?} (score: {score})")
+            format!(
+                "DualAnchored: BOF={bof_offset}, EOF={eof_offset:?} (score: {score})"
+            )
         }
         DetectionEvidence::ByteRange {
             start,
@@ -939,14 +947,18 @@ fn format_evidence(ev: &DetectionEvidence) -> String {
             detail,
             score,
         } => {
-            format!("AttachedStream: {stream_kind_name} ({detail}, score: {score})")
+            format!(
+                "AttachedStream: {stream_kind_name} ({detail}, score: {score})"
+            )
         }
         DetectionEvidence::SubsumedAncestor {
             parent_id,
             parent_mime,
             score,
         } => {
-            format!("SubsumedAncestor: parent_id={parent_id:?}, mime={parent_mime:?} (score: {score})")
+            format!(
+                "SubsumedAncestor: parent_id={parent_id:?}, mime={parent_mime:?} (score: {score})"
+            )
         }
     }
 }
@@ -989,8 +1001,12 @@ mod tests {
         match res {
             ToolResult::Immediate { stdout, .. } => {
                 let out_str = String::from_utf8(stdout).unwrap();
-                assert!(out_str.contains("ASCII text") || out_str.contains("text"));
-                assert!(out_str.starts_with(&file.path().display().to_string()));
+                assert!(
+                    out_str.contains("ASCII text") || out_str.contains("text")
+                );
+                assert!(
+                    out_str.starts_with(&file.path().display().to_string())
+                );
             }
             _ => panic!("Expected ToolResult::Immediate"),
         }
@@ -1026,7 +1042,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_cli_rich_output() {
         let mut file = NamedTempFile::new().unwrap();
-        file.write_all(b"{\"name\": \"test\", \"value\": 42}").unwrap();
+        file.write_all(b"{\"name\": \"test\", \"value\": 42}")
+            .unwrap();
 
         let args = FileDetectionArgs {
             files: vec![file.path().to_path_buf()],
@@ -1057,7 +1074,8 @@ mod tests {
             format_id: None,
             dc_id: None,
             mime: Some(
-                "application/gzip compressed-encoding=application/gzip".to_string(),
+                "application/gzip compressed-encoding=application/gzip"
+                    .to_string(),
             ),
             description: crate::decompression::format_chain_pretty(&[
                 FormatId::CscJournal4,
@@ -1115,10 +1133,9 @@ mod tests {
                 .contains("                  ≡ [f632 CscJournal4 \"Collective Toolbox csc journal, version 4\"]\n")
         );
         // Subsequent layer annotation indented 2 further spaces with a > prefix
-        assert!(
-            output
-                .contains("                    > [f35 Gzip \"GNU gzip format (RFC 1952)\"]\n")
-        );
+        assert!(output.contains(
+            "                    > [f35 Gzip \"GNU gzip format (RFC 1952)\"]\n"
+        ));
         // The merged Format block replaces the Description line for chain candidates
         let top_block = output
             .split("Candidates Ranked by Likelihood:")
@@ -1146,9 +1163,13 @@ mod tests {
             &args,
         );
         assert!(plain_output.contains("  Format:         Gzip [f35]\n"));
-        assert!(plain_output.contains("  Description:    gzip compressed data"));
+        assert!(
+            plain_output.contains("  Description:    gzip compressed data")
+        );
         // The chain candidate in the list uses the compact directive label
-        assert!(plain_output.contains("2. @chain(f632 > f35) (Confidence: Strong"));
+        assert!(
+            plain_output.contains("2. @chain(f632 > f35) (Confidence: Strong")
+        );
     }
 
     #[crate::ctb_test]

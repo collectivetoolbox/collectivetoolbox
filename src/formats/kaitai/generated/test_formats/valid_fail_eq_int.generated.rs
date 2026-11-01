@@ -100,7 +100,11 @@ impl KStruct for ValidFailEqInt {
     type Root = ValidFailEqInt;
     type Parent = ValidFailEqInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,15 +119,17 @@ impl KStruct for ValidFailEqInt {
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (123).try_into()?;
         if !(*self_rc.foo() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailEqInt {
-}
+impl ValidFailEqInt {}
 impl ValidFailEqInt {
     pub fn foo(&self) -> Ref<'_, u8> {
         self.foo.borrow()

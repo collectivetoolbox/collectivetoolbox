@@ -102,7 +102,11 @@ impl KStruct for PositionAbs {
     type Root = PositionAbs;
     type Parent = PositionAbs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,17 +125,24 @@ impl KStruct for PositionAbs {
     }
 }
 impl PositionAbs {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn index(
-        &self
-    ) -> KResult<Ref<'_, OptRc<PositionAbs_IndexObj>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn index(&self) -> KResult<Ref<'_, OptRc<PositionAbs_IndexObj>>> {
         let _io = self._io.borrow();
         if self.f_index.get() {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.index_offset())?)?;
-        let t = Self::read_into::<_, PositionAbs_IndexObj>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, PositionAbs_IndexObj>(
+            &*_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.index.borrow())
@@ -198,7 +209,11 @@ impl KStruct for PositionAbs_IndexObj {
     type Root = PositionAbs;
     type Parent = PositionAbs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,14 +225,14 @@ impl KStruct for PositionAbs_IndexObj {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.entry.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.entry.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PositionAbs_IndexObj {
-}
+impl PositionAbs_IndexObj {}
 impl PositionAbs_IndexObj {
     pub fn entry(&self) -> Ref<'_, String> {
         self.entry.borrow()

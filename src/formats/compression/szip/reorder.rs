@@ -46,7 +46,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 /// Interleaves multi-channel stream bytes by channel order.
-pub fn reorder(input: &[u8], output: &mut [u8], record_size: usize) -> Result<()> {
+pub fn reorder(
+    input: &[u8],
+    output: &mut [u8],
+    record_size: usize,
+) -> Result<()> {
     if record_size <= 1 || input.is_empty() {
         output.copy_from_slice(input);
         return Ok(());
@@ -73,7 +77,11 @@ pub fn reorder(input: &[u8], output: &mut [u8], record_size: usize) -> Result<()
 }
 
 /// Inverts channel reordering, restoring sequential record layout.
-pub fn unreorder(input: &[u8], output: &mut [u8], record_size: usize) -> Result<()> {
+pub fn unreorder(
+    input: &[u8],
+    output: &mut [u8],
+    record_size: usize,
+) -> Result<()> {
     if record_size <= 1 || input.is_empty() {
         output.copy_from_slice(input);
         return Ok(());

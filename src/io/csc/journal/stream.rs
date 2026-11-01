@@ -42,7 +42,11 @@ pub const ARCHIVE_MAGIC: &[u8; 8] = ARCHIVE_MAGIC_V2;
 
 pub(crate) fn ensure_clean_metadata(entity: &FileEntity) -> Result<()> {
     entity.check_ok()?;
-    ensure!(entity.metadata.warnings.is_empty(), "Archive member has semantic metadata warnings: {}", entity.metadata.warnings.join("; "));
+    ensure!(
+        entity.metadata.warnings.is_empty(),
+        "Archive member has semantic metadata warnings: {}",
+        entity.metadata.warnings.join("; ")
+    );
     for stream in &entity.streams {
         ensure_clean_metadata(&stream.entity)?;
     }
@@ -168,7 +172,10 @@ impl<W: Write> JournalWriter<W> {
                             )?;
                     }
                     entity.encode_record_to_writer_with_policy(
-                        writer, None, ctb_io::file::encoding::BodyPolicy::Omit, context,
+                        writer,
+                        None,
+                        ctb_io::file::encoding::BodyPolicy::Omit,
+                        context,
                     )?;
                 }
                 Ok(())
@@ -182,7 +189,12 @@ impl<W: Write> JournalWriter<W> {
         entity: &FileEntity,
         payload: Option<&mut dyn PayloadSource>,
     ) -> Result<()> {
-        self.write_entity_checked(entity, payload, ctb_io::file::encoding::BodyPolicy::Include, || Ok(()))
+        self.write_entity_checked(
+            entity,
+            payload,
+            ctb_io::file::encoding::BodyPolicy::Include,
+            || Ok(()),
+        )
     }
 
     pub fn write_entity_checked(
@@ -195,7 +207,10 @@ impl<W: Write> JournalWriter<W> {
         self.ensure_ready()?;
         if let FileEntityKind::Regular { size, .. } = &entity.kind {
             if let Some(source) = payload.as_ref() {
-                ensure!(source.total_size() == *size, "Source size differs from record metadata");
+                ensure!(
+                    source.total_size() == *size,
+                    "Source size differs from record metadata"
+                );
             }
         } else {
             ensure!(
@@ -205,7 +220,11 @@ impl<W: Write> JournalWriter<W> {
         }
         let mut source_failed = false;
         let result = self.write_record(|mut writer, context| {
-            if let (FileEntityKind::Regular { size, sha256, .. }, Some(source)) = (&entity.kind, payload) {
+            if let (
+                FileEntityKind::Regular { size, sha256, .. },
+                Some(source),
+            ) = (&entity.kind, payload)
+            {
                 let mut source = VerifiedSource {
                     source,
                     digest: Sha256Stream::new(),
@@ -231,7 +250,12 @@ impl<W: Write> JournalWriter<W> {
                     bail!("Source fidelity warnings: {}", warnings.join("; "));
                 }
             } else {
-                entity.encode_record_to_writer_with_policy(&mut writer, None, bodies, context)?;
+                entity.encode_record_to_writer_with_policy(
+                    &mut writer,
+                    None,
+                    bodies,
+                    context,
+                )?;
             }
             if let Err(error) = precommit() {
                 source_failed = true;
@@ -240,7 +264,8 @@ impl<W: Write> JournalWriter<W> {
             Ok(())
         });
         self.source_failed = result.as_ref().err().is_some_and(|error| {
-            source_failed || error.is::<ctb_formats_dcstring::DcBinarySourceError>()
+            source_failed
+                || error.is::<ctb_formats_dcstring::DcBinarySourceError>()
         });
         result
     }
@@ -582,8 +607,11 @@ mod tests {
     fn magic_does_not_select_record_grammar() -> Result<()> {
         let session = session();
         let entity = FileEntity::from_vec(b"body".to_vec());
-        let error = JournalErrorRecord::from_error(std::path::Path::new("source"),
-            super::super::JournalErrorStage::PayloadRead, &anyhow::anyhow!("capture failure"));
+        let error = JournalErrorRecord::from_error(
+            std::path::Path::new("source"),
+            super::super::JournalErrorStage::PayloadRead,
+            &anyhow::anyhow!("capture failure"),
+        );
         let mut encodings = Vec::new();
         for magic in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
             let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
@@ -593,15 +621,18 @@ mod tests {
             writer.write_entity(&entity, None)?;
             writer.record_error(&error)?;
             let bytes = writer.finish()?;
-            encodings.push(bytes.get(8..).context("Missing format magic")?.to_vec());
+            encodings
+                .push(bytes.get(8..).context("Missing format magic")?.to_vec());
         }
-        ensure!(encodings.first() == encodings.get(1), "Magic changed the record grammar");
+        ensure!(
+            encodings.first() == encodings.get(1),
+            "Magic changed the record grammar"
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn either_magic_uses_journal_layout_with_short_output()
-    -> Result<()> {
+    fn either_magic_uses_journal_layout_with_short_output() -> Result<()> {
         let session = session();
         let context = session_context(&session)?;
         let entities = [
@@ -622,11 +653,8 @@ mod tests {
             timestamp_sec: 13,
         };
         for profile in [JournalMagic::JournalV5, JournalMagic::ArchiveV2] {
-            let mut writer = JournalWriter::new(
-                ShortOutput(Vec::new()),
-                &session,
-                profile,
-            )?;
+            let mut writer =
+                JournalWriter::new(ShortOutput(Vec::new()), &session, profile)?;
             let mut header = DcMstring::new();
             session.encode_dc_mixed(&mut header)?;
             let mut expected = match profile {
@@ -643,12 +671,25 @@ mod tests {
             reference_section(&mut expected, 1, body.payload_bytes())?;
             writer.write_batch(&entities, |_| Ok(()))?;
             for (index, entity) in entities.iter().enumerate() {
-                let data = if index == 0 { b"first".to_vec() } else { Vec::new() };
+                let data = if index == 0 {
+                    b"first".to_vec()
+                } else {
+                    Vec::new()
+                };
                 let mut source = MemoryPayloadSource::new(data.clone())?;
                 let mut body = Vec::new();
-                entity.encode_record_to_writer_with_payload_and_context(&mut body, &mut source, &context)?;
-                reference_section(&mut expected, u64::try_from(index)?.checked_add(2)
-                    .context("Test sequence overflow")?, &body)?;
+                entity.encode_record_to_writer_with_payload_and_context(
+                    &mut body,
+                    &mut source,
+                    &context,
+                )?;
+                reference_section(
+                    &mut expected,
+                    u64::try_from(index)?
+                        .checked_add(2)
+                        .context("Test sequence overflow")?,
+                    &body,
+                )?;
                 let mut source = MemoryPayloadSource::new(data)?;
                 writer.write_entity(entity, Some(&mut source))?;
             }
@@ -697,12 +738,18 @@ mod tests {
         let mut called = false;
         ensure!(
             writer
-            .write_batch(&[entity], |_| { called = true; Ok(()) })
+                .write_batch(&[entity], |_| {
+                    called = true;
+                    Ok(())
+                })
                 .is_err()
         );
         ensure!(
             writer
-            .complete(|_| { called = true; Ok(()) })
+                .complete(|_| {
+                    called = true;
+                    Ok(())
+                })
                 .is_err()
         );
         ensure!(!called, "Refused operation invoked durability");
@@ -711,36 +758,93 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn capture_metadata_precommit_failure_has_no_footer_and_can_rollback() -> Result<()> {
-        let mut writer = JournalWriter::new(Vec::new(), &session(), JournalMagic::ArchiveV2)?;
+    fn capture_metadata_precommit_failure_has_no_footer_and_can_rollback()
+    -> Result<()> {
+        let mut writer = JournalWriter::new(
+            Vec::new(),
+            &session(),
+            JournalMagic::ArchiveV2,
+        )?;
         let checkpoint = writer.output_mut().len();
         let mut entity = FileEntity::from_vec(Vec::new());
         entity.kind = FileEntityKind::Directory;
-        ensure!(writer.write_entity_checked(&entity, None, ctb_io::file::encoding::BodyPolicy::Include, || bail!("injected source change after encode")).is_err());
-        ensure!(writer.sequence() == 0 && writer.source_failed() && !writer.sink_failed());
+        ensure!(
+            writer
+                .write_entity_checked(
+                    &entity,
+                    None,
+                    ctb_io::file::encoding::BodyPolicy::Include,
+                    || bail!("injected source change after encode")
+                )
+                .is_err()
+        );
+        ensure!(
+            writer.sequence() == 0
+                && writer.source_failed()
+                && !writer.sink_failed()
+        );
         ensure!(writer.can_rollback_source_failure());
         let bytes = writer.output_mut();
         let mut footer = DcMstring::new();
         footer.push_char(dc::DC_END_CHECKSUMMED_SECTION);
         ensure!(!bytes.ends_with(footer.payload_bytes()));
-        writer.rollback_source_failure(|output| { output.truncate(checkpoint); Ok(()) })?;
-        writer.write_entity_checked(&entity, None, ctb_io::file::encoding::BodyPolicy::Include, || Ok(()))?;
+        writer.rollback_source_failure(|output| {
+            output.truncate(checkpoint);
+            Ok(())
+        })?;
+        writer.write_entity_checked(
+            &entity,
+            None,
+            ctb_io::file::encoding::BodyPolicy::Include,
+            || Ok(()),
+        )?;
         ensure!(writer.sequence() == 1);
         Ok(())
     }
 
     #[crate::ctb_test]
     fn journal_completion_durability_failure_poisoned() -> Result<()> {
-        let mut writer = JournalWriter::new(Vec::new(), &session(), JournalMagic::JournalV5)?;
-        let result = writer.complete(|_| bail!("injected completion sync failure"));
+        let mut writer = JournalWriter::new(
+            Vec::new(),
+            &session(),
+            JournalMagic::JournalV5,
+        )?;
+        let result =
+            writer.complete(|_| bail!("injected completion sync failure"));
         ensure!(result.is_err() && writer.is_failed());
         ensure!(!writer.completed && !writer.can_rollback_source_failure());
         let bytes = writer.output_mut().clone();
         let mut called = false;
-        ensure!(writer.complete(|_| { called = true; Ok(()) }).is_err());
-        ensure!(writer.write_batch(&[], |_| { called = true; Ok(()) }).is_err());
-        ensure!(writer.transaction(|_, _| { called = true; Ok(()) }, |_| Ok(())).is_err());
-        ensure!(!called && *writer.output_mut() == bytes && writer.sequence() == 0);
+        ensure!(
+            writer
+                .complete(|_| {
+                    called = true;
+                    Ok(())
+                })
+                .is_err()
+        );
+        ensure!(
+            writer
+                .write_batch(&[], |_| {
+                    called = true;
+                    Ok(())
+                })
+                .is_err()
+        );
+        ensure!(
+            writer
+                .transaction(
+                    |_, _| {
+                        called = true;
+                        Ok(())
+                    },
+                    |_| Ok(())
+                )
+                .is_err()
+        );
+        ensure!(
+            !called && *writer.output_mut() == bytes && writer.sequence() == 0
+        );
         Ok(())
     }
 
@@ -754,11 +858,19 @@ mod tests {
             let before = writer.output_mut().clone();
             let mut called = false;
             ensure!(
-                writer.complete(|_| { called = true; Ok(()) }).is_err()
+                writer
+                    .complete(|_| {
+                        called = true;
+                        Ok(())
+                    })
+                    .is_err()
             );
             ensure!(
                 writer
-                    .write_batch(&[], |_| { called = true; Ok(()) })
+                    .write_batch(&[], |_| {
+                        called = true;
+                        Ok(())
+                    })
                     .is_err()
             );
             ensure!(

@@ -34,9 +34,7 @@ use crate::utilities::*;
 use anyhow::{Result, bail, ensure};
 use ctb_storage_minimal::shorthand::DcShorthand;
 
-use super::ast::{
-    FormatExpr, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES,
-};
+use super::ast::{FormatExpr, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES};
 
 /// Set of registered stable named types defined in `README-named-types.csv`.
 pub const REGISTERED_NAMED_TYPES: &[&str] = &[
@@ -103,7 +101,8 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
                 "Unregistered named type '{name}' in format specification; only stable types from README-named-types.csv are permitted"
             );
         }
-        FormatExpr::Convert(left, right) | FormatExpr::Transmute(left, right) => {
+        FormatExpr::Convert(left, right)
+        | FormatExpr::Transmute(left, right) => {
             validate_node_recursive(left)?;
             validate_node_recursive(right)?;
         }
@@ -125,7 +124,9 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
             ensure!(
                 matches!(
                     target.as_ref(),
-                    FormatExpr::Dc(DcShorthand::Format(_) | DcShorthand::Short(9))
+                    FormatExpr::Dc(
+                        DcShorthand::Format(_) | DcShorthand::Short(9)
+                    )
                 ),
                 "Application target must be a format Dc shorthand (e.g. 'f350'), found '{target}'"
             );
@@ -159,7 +160,9 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
                                 "Radix parameter must be greater than 0, found {r}"
                             );
                         }
-                        super::ast::ParamValue::Dc(DcShorthand::Format(fmt_id)) => {
+                        super::ast::ParamValue::Dc(DcShorthand::Format(
+                            fmt_id,
+                        )) => {
                             ensure!(
                                 *fmt_id == 354,
                                 "Radix parameter format reference must be f354 (Base), found f{fmt_id}"

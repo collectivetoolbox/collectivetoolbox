@@ -80,8 +80,11 @@ impl DcShorthand {
                     .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
                 "Invalid Unicode shorthand '{trimmed}': prefix 'u' must be followed by lowercase hex digits [0-9a-f]+"
             );
-            let cp = u32::from_str_radix(hex_part, 16)
-                .map_err(|e| anyhow::anyhow!("Invalid hex in Unicode shorthand '{trimmed}': {e}"))?;
+            let cp = u32::from_str_radix(hex_part, 16).map_err(|e| {
+                anyhow::anyhow!(
+                    "Invalid hex in Unicode shorthand '{trimmed}': {e}"
+                )
+            })?;
             ensure!(
                 u128::from(cp) <= UNICODE_REGION_END,
                 "Unicode codepoint 0x{cp:X} exceeds maximum 0x10FFFF"
@@ -94,9 +97,11 @@ impl DcShorthand {
                 !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()),
                 "Invalid format shorthand '{trimmed}': prefix 'f' must be followed by decimal digits [0-9]+"
             );
-            let fmt_id = rest
-                .parse::<usize>()
-                .map_err(|e| anyhow::anyhow!("Invalid format ID in shorthand '{trimmed}': {e}"))?;
+            let fmt_id = rest.parse::<usize>().map_err(|e| {
+                anyhow::anyhow!(
+                    "Invalid format ID in shorthand '{trimmed}': {e}"
+                )
+            })?;
             ensure!(
                 fmt_id <= MAX_FORMAT_ID,
                 "Format ID {fmt_id} exceeds maximum {MAX_FORMAT_ID}"
@@ -109,9 +114,9 @@ impl DcShorthand {
                 !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()),
                 "Invalid long Dc shorthand '{trimmed}': prefix 'l' must be followed by decimal digits [0-9]+"
             );
-            let val = rest
-                .parse::<u128>()
-                .map_err(|e| anyhow::anyhow!("Invalid long Dc in shorthand '{trimmed}': {e}"))?;
+            let val = rest.parse::<u128>().map_err(|e| {
+                anyhow::anyhow!("Invalid long Dc in shorthand '{trimmed}': {e}")
+            })?;
             return Ok(Self::Long(val));
         }
 
@@ -120,16 +125,18 @@ impl DcShorthand {
                 !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()),
                 "Invalid local graph ID shorthand '{trimmed}': prefix 'L' must be followed by decimal digits [0-9]+"
             );
-            let val = rest
-                .parse::<u128>()
-                .map_err(|e| anyhow::anyhow!("Invalid local graph ID in shorthand '{trimmed}': {e}"))?;
+            let val = rest.parse::<u128>().map_err(|e| {
+                anyhow::anyhow!(
+                    "Invalid local graph ID in shorthand '{trimmed}': {e}"
+                )
+            })?;
             return Ok(Self::Local(val));
         }
 
         if trimmed.chars().all(|c| c.is_ascii_digit()) {
-            let val = trimmed
-                .parse::<u32>()
-                .map_err(|e| anyhow::anyhow!("Invalid short Dc shorthand '{trimmed}': {e}"))?;
+            let val = trimmed.parse::<u32>().map_err(|e| {
+                anyhow::anyhow!("Invalid short Dc shorthand '{trimmed}': {e}")
+            })?;
             ensure!(
                 val <= MAX_SHORT_DC,
                 "Short Dc {val} exceeds maximum {MAX_SHORT_DC}"
@@ -171,11 +178,15 @@ impl DcShorthand {
                 return Self::Unicode(cp);
             }
         } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
-            if let Ok(short) = u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START)) {
+            if let Ok(short) =
+                u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
+            {
                 return Self::Short(short);
             }
         } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
-            if let Ok(fmt) = usize::try_from(gid.saturating_sub(FORMAT_REGION_START)) {
+            if let Ok(fmt) =
+                usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
+            {
                 return Self::Format(fmt);
             }
         }
@@ -229,25 +240,28 @@ pub fn parse_format_shorthand(s: &str) -> Result<usize> {
             !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()),
             "Invalid format ID '{trimmed}': prefix 'f' must be followed by decimal digits"
         );
-        let id = rest
-            .parse::<usize>()
-            .map_err(|e| anyhow::anyhow!("Invalid format ID integer '{trimmed}': {e}"))?;
+        let id = rest.parse::<usize>().map_err(|e| {
+            anyhow::anyhow!("Invalid format ID integer '{trimmed}': {e}")
+        })?;
         ensure!(
             id <= MAX_FORMAT_ID,
             "Format ID {id} exceeds maximum {MAX_FORMAT_ID}"
         );
         Ok(id)
-    } else if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_ascii_digit()) {
-        let id = trimmed
-            .parse::<usize>()
-            .map_err(|e| anyhow::anyhow!("Invalid format ID integer '{trimmed}': {e}"))?;
+    } else if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_ascii_digit())
+    {
+        let id = trimmed.parse::<usize>().map_err(|e| {
+            anyhow::anyhow!("Invalid format ID integer '{trimmed}': {e}")
+        })?;
         ensure!(
             id <= MAX_FORMAT_ID,
             "Format ID {id} exceeds maximum {MAX_FORMAT_ID}"
         );
         Ok(id)
     } else {
-        bail!("Invalid format shorthand '{trimmed}': must be 'f<digits>' or non-negative integer");
+        bail!(
+            "Invalid format shorthand '{trimmed}': must be 'f<digits>' or non-negative integer"
+        );
     }
 }
 
@@ -261,7 +275,9 @@ pub fn parse_format_shorthand(s: &str) -> Result<usize> {
 pub fn parse_unicode_shorthand(s: &str) -> Result<u32> {
     let trimmed = s.trim();
     let Some(hex_part) = trimmed.strip_prefix('u') else {
-        bail!("Invalid Unicode shorthand '{trimmed}': must start with lowercase 'u'");
+        bail!(
+            "Invalid Unicode shorthand '{trimmed}': must start with lowercase 'u'"
+        );
     };
     ensure!(
         !hex_part.is_empty() && hex_part.len() <= 6,
@@ -273,12 +289,12 @@ pub fn parse_unicode_shorthand(s: &str) -> Result<u32> {
             .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
         "Unicode shorthand '{trimmed}' must contain only lowercase hex digits [0-9a-f]"
     );
-    let cp = u32::from_str_radix(hex_part, 16)
-        .map_err(|e| anyhow::anyhow!("Invalid hex codepoint in '{trimmed}': {e}"))?;
+    let cp = u32::from_str_radix(hex_part, 16).map_err(|e| {
+        anyhow::anyhow!("Invalid hex codepoint in '{trimmed}': {e}")
+    })?;
     ensure!(
         u128::from(cp) <= UNICODE_REGION_END,
         "Unicode codepoint 0x{cp:X} exceeds maximum 0x10FFFF"
     );
     Ok(cp)
 }
-

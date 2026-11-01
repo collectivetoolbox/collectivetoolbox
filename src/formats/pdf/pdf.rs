@@ -30,7 +30,6 @@ pub(crate) use ctb_utilities::*;
 use anyhow::Result;
 #[cfg(test)]
 // use unpdf::render::{RenderOptions, JsonFormat, to_text, to_json, to_markdown};
-
 #[cfg(test)]
 pub(crate) fn get_pdf_data(key: &str) -> Option<Vec<u8>> {
     ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)

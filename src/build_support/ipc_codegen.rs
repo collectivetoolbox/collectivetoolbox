@@ -1272,7 +1272,8 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         let file_type = entry.file_type()?;
 
         if file_type.is_dir() {
-            let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            let file_name =
+                path.file_name().and_then(|s| s.to_str()).unwrap_or("");
             if file_name.starts_with('.')
                 || file_name == "vendor"
                 || file_name == "target"
@@ -1286,7 +1287,8 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
             }
 
             let is_data_dir = path.file_name() == Some(OsStr::new("data"));
-            let is_generated_dir = path.file_name() == Some(OsStr::new("generated"));
+            let is_generated_dir =
+                path.file_name() == Some(OsStr::new("generated"));
 
             if is_data_dir || is_generated_dir {
                 continue;

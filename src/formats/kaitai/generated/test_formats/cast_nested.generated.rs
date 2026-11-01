@@ -108,7 +108,11 @@ impl KStruct for CastNested {
     type Root = CastNested;
     type Parent = CastNested;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,7 +128,12 @@ impl KStruct for CastNested {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, CastNested_Opcode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, CastNested_Opcode>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.opcodes.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -135,50 +144,98 @@ impl KStruct for CastNested {
     }
 }
 impl CastNested {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn opcodes_0_str(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<CastNested_Opcode_Strval>>> {
         let _io = self._io.borrow();
         if self.f_opcodes_0_str.get() {
             return Ok(self.opcodes_0_str.borrow());
         }
-        *self.opcodes_0_str.borrow_mut() = OptRc::<CastNested_Opcode_Strval>::try_from(&*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
+        *self.opcodes_0_str.borrow_mut() =
+            OptRc::<CastNested_Opcode_Strval>::try_from(
+                &*((self
+                    .opcodes()
+                    .get(0_usize)
+                    .ok_or(KError::CastError)?
+                    .body())
+                .as_ref()
+                .ok_or(KError::CastError)?),
+            )?
+            .clone();
         Ok(self.opcodes_0_str.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn opcodes_0_str_value(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn opcodes_0_str_value(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_opcodes_0_str_value.get() {
             return Ok(self.opcodes_0_str_value.borrow());
         }
         self.f_opcodes_0_str_value.set(true);
-        *self.opcodes_0_str_value.borrow_mut() = OptRc::<CastNested_Opcode_Strval>::try_from(&*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.value().to_string();
+        *self.opcodes_0_str_value.borrow_mut() = OptRc::<
+            CastNested_Opcode_Strval,
+        >::try_from(
+            &*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body())
+                .as_ref()
+                .ok_or(KError::CastError)?),
+        )?
+        .value()
+        .to_string();
         Ok(self.opcodes_0_str_value.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn opcodes_1_int(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<CastNested_Opcode_Intval>>> {
         let _io = self._io.borrow();
         if self.f_opcodes_1_int.get() {
             return Ok(self.opcodes_1_int.borrow());
         }
-        *self.opcodes_1_int.borrow_mut() = OptRc::<CastNested_Opcode_Intval>::try_from(&*((self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
+        *self.opcodes_1_int.borrow_mut() =
+            OptRc::<CastNested_Opcode_Intval>::try_from(
+                &*((self
+                    .opcodes()
+                    .get(1_usize)
+                    .ok_or(KError::CastError)?
+                    .body())
+                .as_ref()
+                .ok_or(KError::CastError)?),
+            )?
+            .clone();
         Ok(self.opcodes_1_int.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn opcodes_1_int_value(
-        &self
-    ) -> KResult<Ref<'_, u8>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn opcodes_1_int_value(&self) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_opcodes_1_int_value.get() {
             return Ok(self.opcodes_1_int_value.borrow());
         }
         self.f_opcodes_1_int_value.set(true);
-        *self.opcodes_1_int_value.borrow_mut() = (*OptRc::<CastNested_Opcode_Intval>::try_from(&*((self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.value()).try_into()?;
+        *self.opcodes_1_int_value.borrow_mut() = (*OptRc::<
+            CastNested_Opcode_Intval,
+        >::try_from(
+            &*((self.opcodes().get(1_usize).ok_or(KError::CastError)?.body())
+                .as_ref()
+                .ok_or(KError::CastError)?),
+        )?
+        .value())
+        .try_into()?;
         Ok(self.opcodes_1_int_value.borrow())
     }
 }
@@ -229,12 +286,16 @@ impl TryFrom<&&CastNested_Opcode_Body> for OptRc<CastNested_Opcode_Intval> {
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Intval> for CastNested_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
         OptRc::<CastNested_Opcode_Intval>::try_from(self)
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Intval> for &CastNested_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -259,12 +320,16 @@ impl TryFrom<&&CastNested_Opcode_Body> for OptRc<CastNested_Opcode_Strval> {
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Strval> for CastNested_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
         OptRc::<CastNested_Opcode_Strval>::try_from(self)
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Strval> for &CastNested_Opcode_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -309,7 +374,11 @@ impl KStruct for CastNested_Opcode {
     type Root = CastNested;
     type Parent = CastNested;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -325,11 +394,21 @@ impl KStruct for CastNested_Opcode {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             73 => {
-                let t = Self::read_into::<_, CastNested_Opcode_Intval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, CastNested_Opcode_Intval>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             83 => {
-                let t = Self::read_into::<_, CastNested_Opcode_Strval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, CastNested_Opcode_Strval>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -339,8 +418,7 @@ impl KStruct for CastNested_Opcode {
         Ok(())
     }
 }
-impl CastNested_Opcode {
-}
+impl CastNested_Opcode {}
 impl CastNested_Opcode {
     pub fn code(&self) -> Ref<'_, u8> {
         self.code.borrow()
@@ -384,22 +462,34 @@ impl TryFrom<&&CastNested_Opcode_Intval> for OptRc<CastNested_Opcode_Intval> {
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Intval> for CastNested_Opcode_Intval {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Intval> for &CastNested_Opcode_Intval {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<CastNested_Opcode_Intval> for OptRc<CastNested_Opcode_Intval> {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+impl DowncastOptRc<CastNested_Opcode_Intval>
+    for OptRc<CastNested_Opcode_Intval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<CastNested_Opcode_Intval> for &OptRc<CastNested_Opcode_Intval> {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+impl DowncastOptRc<CastNested_Opcode_Intval>
+    for &OptRc<CastNested_Opcode_Intval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
         Ok((*self).clone())
     }
 }
@@ -407,7 +497,11 @@ impl KStruct for CastNested_Opcode_Intval {
     type Root = CastNested;
     type Parent = CastNested_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -425,8 +519,7 @@ impl KStruct for CastNested_Opcode_Intval {
         Ok(())
     }
 }
-impl CastNested_Opcode_Intval {
-}
+impl CastNested_Opcode_Intval {}
 impl CastNested_Opcode_Intval {
     pub fn value(&self) -> Ref<'_, u8> {
         self.value.borrow()
@@ -465,22 +558,34 @@ impl TryFrom<&&CastNested_Opcode_Strval> for OptRc<CastNested_Opcode_Strval> {
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Strval> for CastNested_Opcode_Strval {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<CastNested_Opcode_Strval> for &CastNested_Opcode_Strval {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<CastNested_Opcode_Strval> for OptRc<CastNested_Opcode_Strval> {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+impl DowncastOptRc<CastNested_Opcode_Strval>
+    for OptRc<CastNested_Opcode_Strval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<CastNested_Opcode_Strval> for &OptRc<CastNested_Opcode_Strval> {
-    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+impl DowncastOptRc<CastNested_Opcode_Strval>
+    for &OptRc<CastNested_Opcode_Strval>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
         Ok((*self).clone())
     }
 }
@@ -488,7 +593,11 @@ impl KStruct for CastNested_Opcode_Strval {
     type Root = CastNested;
     type Parent = CastNested_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -500,14 +609,14 @@ impl KStruct for CastNested_Opcode_Strval {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.value.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl CastNested_Opcode_Strval {
-}
+impl CastNested_Opcode_Strval {}
 impl CastNested_Opcode_Strval {
     pub fn value(&self) -> Ref<'_, String> {
         self.value.borrow()

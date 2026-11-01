@@ -38,13 +38,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Implementation of the `szip` 1.11+ compression format (Michael Schindler, 1997-2000).
 
+use anyhow::anyhow;
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
-use anyhow::anyhow;
 use std::io::{Read, Write};
 
 pub mod bit_model;
@@ -57,7 +57,9 @@ pub mod sort_transform;
 use model::SzModel;
 use range_coder::{RangeDecoder, RangeEncoder};
 use reorder::{forward_delta, inverse_delta, reorder, unreorder};
-use sort_transform::{sort_bwt, sort_general, sort_order4, unsort_bwt, unsort_general};
+use sort_transform::{
+    sort_bwt, sort_general, sort_order4, unsort_bwt, unsort_general,
+};
 
 /// Global header magic bytes (`"SZ\n\x04"`).
 pub const SZIP_GLOBAL_MAGIC: [u8; 4] = [0x53, 0x5A, 0x0A, 0x04];
@@ -164,7 +166,8 @@ pub fn compress_stream_options(
         }
 
         total_uncompressed = total_uncompressed.saturating_add(
-            u64::try_from(bytes_read).map_err(|e| anyhow!("Length conversion: {e}"))?,
+            u64::try_from(bytes_read)
+                .map_err(|e| anyhow!("Length conversion: {e}"))?,
         );
 
         let Some(cur_slice) = block_buf.get_mut(..bytes_read) else {
@@ -183,7 +186,8 @@ pub fn compress_stream_options(
             // Stored uncompressed block
             writer.write_all(&[0x00])?;
             writer.write_all(cur_slice)?;
-            let trailer_len = dir_size.saturating_add(4).saturating_add(buflen_u32);
+            let trailer_len =
+                dir_size.saturating_add(4).saturating_add(buflen_u32);
             write_u24(writer, trailer_len)?;
         } else {
             // Szip compressed block
@@ -223,9 +227,9 @@ pub fn compress_stream_options(
             let mut pos = 0usize;
             let mut is_first_run = true;
             while pos < bytes_read {
-                let sym = *cur_slice
-                    .get(pos)
-                    .ok_or_else(|| anyhow!("Compression buffer position out of bounds"))?;
+                let sym = *cur_slice.get(pos).ok_or_else(|| {
+                    anyhow!("Compression buffer position out of bounds")
+                })?;
                 let mut run_len = 1u32;
                 pos = pos.saturating_add(1);
                 while pos < bytes_read && cur_slice.get(pos) == Some(&sym) {
@@ -257,7 +261,8 @@ fn decompress_stored_block(
         .read_exact(&mut buf)
         .context("Failed reading stored block payload")?;
     let stored_trailer = read_u24(reader)?;
-    let expected_trailer = dir_size.saturating_add(4).saturating_add(buflen_u32);
+    let expected_trailer =
+        dir_size.saturating_add(4).saturating_add(buflen_u32);
     if stored_trailer != expected_trailer {
         bail!("Stored block trailer size mismatch");
     }
@@ -277,7 +282,9 @@ fn decompress_szip_block(
         .context("Failed reading block order")?;
     let [order] = order_buf;
 
-    let Some((mut range_dec, record_byte)) = RangeDecoder::new(reader.by_ref())? else {
+    let Some((mut range_dec, record_byte)) =
+        RangeDecoder::new(reader.by_ref())?
+    else {
         bail!("Unexpected EOF in range coder stream");
     };
 
@@ -317,7 +324,12 @@ fn decompress_szip_block(
     if order == 0 {
         unsort_bwt(&decoded_buf, &mut transformed, indexlast)?;
     } else if order >= 3 {
-        unsort_general(&decoded_buf, &mut transformed, indexlast, usize::from(order))?;
+        unsort_general(
+            &decoded_buf,
+            &mut transformed,
+            indexlast,
+            usize::from(order),
+        )?;
     } else {
         bail!("Unsupported context order in block: {order}");
     }
@@ -374,7 +386,9 @@ pub fn decompress_stream(
                 bail!("Unsupported future szip version {vmay}.{vmin}");
             }
             if vmay == 1 && vmin == 10 {
-                bail!("szip 1.10 (alpha) format is unsupported due to encoder bugs");
+                bail!(
+                    "szip 1.10 (alpha) format is unsupported due to encoder bugs"
+                );
             }
 
             let mut next_buf = [0u8; 1];
@@ -419,7 +433,9 @@ pub fn decompress_stream(
         let [block_type] = type_buf;
 
         if block_type == 0 {
-            let n = decompress_stored_block(reader, writer, buflen, dir_size, buflen_u32)?;
+            let n = decompress_stored_block(
+                reader, writer, buflen, dir_size, buflen_u32,
+            )?;
             total_decompressed = total_decompressed.saturating_add(n);
         } else if block_type == 1 {
             let n = decompress_szip_block(reader, writer, buflen)?;
@@ -500,7 +516,12 @@ mod tests {
                     };
                     let input = b"Test multi-block options roundtrip with varied pattern! 1234567890".repeat(50);
                     let mut compressed = Vec::new();
-                    compress_stream_options(&mut input.as_slice(), &mut compressed, &options).unwrap();
+                    compress_stream_options(
+                        &mut input.as_slice(),
+                        &mut compressed,
+                        &options,
+                    )
+                    .unwrap();
                     let decompressed = decompress(&compressed).unwrap();
                     assert_eq!(decompressed, input);
                 }

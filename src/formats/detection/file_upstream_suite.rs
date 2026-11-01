@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Upstream `file` test suite evaluation and live differential testing harness.
 //!
 //! Provides automated discovery, loading, and evaluation of the canonical
@@ -556,7 +555,9 @@ pub fn locate_upstream_tests_dir() -> Result<PathBuf> {
         manifest_dir.join("fixtures/magic/tests"),
         manifest_dir.join("src/formats/detection/fixtures/magic/tests"),
         PathBuf::from("src/formats/detection/fixtures/magic/tests"),
-        PathBuf::from("/workspaces/ctoolbox/src/formats/detection/fixtures/magic/tests"),
+        PathBuf::from(
+            "/workspaces/ctoolbox/src/formats/detection/fixtures/magic/tests",
+        ),
     ];
 
     if let Ok(win_root) = std::env::var("CTB_WIN_TEST_ROOT") {
@@ -568,7 +569,8 @@ pub fn locate_upstream_tests_dir() -> Result<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         let mut cur = exe.as_path();
         while let Some(parent) = cur.parent() {
-            let candidate = parent.join("src/formats/detection/fixtures/magic/tests");
+            let candidate =
+                parent.join("src/formats/detection/fixtures/magic/tests");
             if candidate.is_dir() {
                 candidates.push(candidate);
                 break;
@@ -589,8 +591,9 @@ pub fn locate_upstream_tests_dir() -> Result<PathBuf> {
 /// Discovers and loads all test cases from the upstream tests directory.
 pub fn load_upstream_test_suite() -> Result<Vec<UpstreamTestCase>> {
     let test_dir = locate_upstream_tests_dir()?;
-    let entries = fs::read_dir(&test_dir)
-        .with_context(|| format!("Failed to read directory: {}", test_dir.display()))?;
+    let entries = fs::read_dir(&test_dir).with_context(|| {
+        format!("Failed to read directory: {}", test_dir.display())
+    })?;
 
     let mut cases = Vec::new();
 
@@ -599,18 +602,26 @@ pub fn load_upstream_test_suite() -> Result<Vec<UpstreamTestCase>> {
         let path = entry.path();
         if path.is_file() {
             // Reason for fallback: file without a valid UTF-8 name cannot match a .testfile suffix
-            let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let file_name =
+                path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if let Some(base_name) = file_name.strip_suffix(".testfile") {
                 let result_path = test_dir.join(format!("{base_name}.result"));
                 if result_path.is_file() {
-                    let expected_raw = fs::read_to_string(&result_path).with_context(|| {
-                        format!("Failed to read result file: {}", result_path.display())
-                    })?;
+                    let expected_raw = fs::read_to_string(&result_path)
+                        .with_context(|| {
+                            format!(
+                                "Failed to read result file: {}",
+                                result_path.display()
+                            )
+                        })?;
                     let expected_description = expected_raw.trim().to_string();
 
-                    let flags_path = test_dir.join(format!("{base_name}.flags"));
+                    let flags_path =
+                        test_dir.join(format!("{base_name}.flags"));
                     let flags = if flags_path.is_file() {
-                        fs::read_to_string(&flags_path).ok().map(|s| s.trim().to_string())
+                        fs::read_to_string(&flags_path)
+                            .ok()
+                            .map(|s| s.trim().to_string())
                     } else {
                         None
                     };
@@ -619,8 +630,12 @@ pub fn load_upstream_test_suite() -> Result<Vec<UpstreamTestCase>> {
                     if let Ok(dir_entries) = fs::read_dir(&test_dir) {
                         for e in dir_entries.flatten() {
                             let ep = e.path();
-                            if let Some(ename) = ep.file_name().and_then(|n| n.to_str()) {
-                                if ename.starts_with(base_name) && ename.ends_with(".magic") {
+                            if let Some(ename) =
+                                ep.file_name().and_then(|n| n.to_str())
+                            {
+                                if ename.starts_with(base_name)
+                                    && ename.ends_with(".magic")
+                                {
                                     custom_magic_paths.push(ep);
                                 }
                             }
@@ -647,8 +662,6 @@ pub fn load_upstream_test_suite() -> Result<Vec<UpstreamTestCase>> {
     Ok(cases)
 }
 
-
-
 /// Classifies an upstream test result into a `ParityCategory`.
 pub fn classify_upstream_test(
     name: &str,
@@ -664,15 +677,22 @@ pub fn classify_upstream_test(
 
         let desc_match = desc_lower.contains(&exp_lower)
             || exp_lower.contains(&desc_lower)
-            || (exp_lower.contains("zstandard") && cand.format_id == Some(FormatId::Zstd))
-            || (exp_lower.contains("ascii text") && desc_lower.contains("ascii text"))
-            || (exp_lower.contains("unicode text, utf-16") && desc_lower.contains("utf-16"))
+            || (exp_lower.contains("zstandard")
+                && cand.format_id == Some(FormatId::Zstd))
+            || (exp_lower.contains("ascii text")
+                && desc_lower.contains("ascii text"))
+            || (exp_lower.contains("unicode text, utf-16")
+                && desc_lower.contains("utf-16"))
             || (exp_lower.contains("script") && desc_lower.contains("script"))
             || (exp_lower.contains("netpbm") && desc_lower.contains("netpbm"))
-            || (exp_lower.contains("hangul word processor") && desc_lower.contains("hangul word processor"))
-            || (exp_lower.contains("microsoft word") && desc_lower.contains("microsoft word"))
-            || (exp_lower.contains("microsoft excel") && desc_lower.contains("microsoft excel"))
-            || (exp_lower.contains("adaptive multi-rate") && desc_lower.contains("adaptive multi-rate"));
+            || (exp_lower.contains("hangul word processor")
+                && desc_lower.contains("hangul word processor"))
+            || (exp_lower.contains("microsoft word")
+                && desc_lower.contains("microsoft word"))
+            || (exp_lower.contains("microsoft excel")
+                && desc_lower.contains("microsoft excel"))
+            || (exp_lower.contains("adaptive multi-rate")
+                && desc_lower.contains("adaptive multi-rate"));
 
         if desc_match {
             return ParityCategory::Passing;
@@ -704,14 +724,20 @@ pub fn classify_upstream_test(
         );
     }
 
-    if name.contains("docx") || name.contains("xlsx") || name.contains("hwp") || name == "escapevel" {
+    if name.contains("docx")
+        || name.contains("xlsx")
+        || name.contains("hwp")
+        || name == "escapevel"
+    {
         return ParityCategory::PendingSubPhase5D(
             "Sub-Phase 5D/5F: OLE2 CDF or ZIP container deep inspection without unpacking".to_string(),
         );
     }
 
-
-    if name == "searchbug" || name == "regex-eol" || name.starts_with("multiple") {
+    if name == "searchbug"
+        || name == "regex-eol"
+        || name.starts_with("multiple")
+    {
         return ParityCategory::PendingSubPhase5C(
             "Sub-Phase 5C: Per-test custom magic compilation (`.magic`) and regex matching".to_string(),
         );
@@ -767,8 +793,12 @@ pub fn classify_upstream_test(
 pub fn evaluate_upstream_case(
     test_case: &UpstreamTestCase,
 ) -> Result<UpstreamTestResult> {
-    let data = fs::read(&test_case.testfile_path)
-        .with_context(|| format!("Failed to read testfile: {}", test_case.testfile_path.display()))?;
+    let data = fs::read(&test_case.testfile_path).with_context(|| {
+        format!(
+            "Failed to read testfile: {}",
+            test_case.testfile_path.display()
+        )
+    })?;
 
     let mut slice: &[u8] = &data;
     let mut report = guess_format_report(&mut slice, None)?;
@@ -789,11 +819,13 @@ pub fn evaluate_upstream_case(
             let mut matches = Vec::new();
             for rule in &custom_rules {
                 let mut test_slice: &[u8] = &data;
-                if let Some(res) = crate::detection::magic::evaluate_rule_with_templates(
-                    rule,
-                    &mut test_slice,
-                    &custom_templates,
-                ) {
+                if let Some(res) =
+                    crate::detection::magic::evaluate_rule_with_templates(
+                        rule,
+                        &mut test_slice,
+                        &custom_templates,
+                    )
+                {
                     if !res.description.is_empty() {
                         matches.push(res.description);
                     }
@@ -824,14 +856,18 @@ pub fn evaluate_upstream_case(
                 );
             }
         } else {
-            let mut best_match: Option<crate::detection::magic::RuleMatchResult> = None;
+            let mut best_match: Option<
+                crate::detection::magic::RuleMatchResult,
+            > = None;
             for rule in &custom_rules {
                 let mut test_slice: &[u8] = &data;
-                if let Some(res) = crate::detection::magic::evaluate_rule_with_templates(
-                    rule,
-                    &mut test_slice,
-                    &custom_templates,
-                ) {
+                if let Some(res) =
+                    crate::detection::magic::evaluate_rule_with_templates(
+                        rule,
+                        &mut test_slice,
+                        &custom_templates,
+                    )
+                {
                     if let Some(current_best) = &best_match {
                         if res.score > current_best.score {
                             best_match = Some(res);
@@ -860,12 +896,17 @@ pub fn evaluate_upstream_case(
         }
     }
 
-    let status = classify_upstream_test(&test_case.name, &test_case.expected_description, &report);
+    let status = classify_upstream_test(
+        &test_case.name,
+        &test_case.expected_description,
+        &report,
+    );
     let top_cand = report.candidates.first();
     let top_format_id = top_cand.and_then(|c| c.format_id);
     let top_mime = top_cand.and_then(|c| c.mime.clone());
     // Reason for fallback: default to empty description if no candidate was detected
-    let top_description = top_cand.map(|c| c.description.clone()).unwrap_or_default();
+    let top_description =
+        top_cand.map(|c| c.description.clone()).unwrap_or_default();
     let confidence = top_cand.map(|c| c.confidence);
 
     Ok(UpstreamTestResult {
@@ -976,7 +1017,12 @@ mod tests {
             if res.status != ParityCategory::Passing {
                 println!(
                     "NON-PASSING: name={}, status={:?}\n  expected: {:?}\n  got desc: {:?}, mime: {:?}, format_id: {:?}",
-                    res.name, res.status, res.expected, res.top_description, res.top_mime, res.top_format_id
+                    res.name,
+                    res.status,
+                    res.expected,
+                    res.top_description,
+                    res.top_mime,
+                    res.top_format_id
                 );
             }
         }
@@ -991,7 +1037,8 @@ mod tests {
             "All non-passing tests should be categorized into a pending roadmap phase: {mismatches:?}"
         );
         assert_eq!(
-            summary.passing_count, summary.total_cases,
+            summary.passing_count,
+            summary.total_cases,
             "All {} upstream test cases must pass (passing: {}, pending 5C: {}, 5D: {}, 5E: {}, 5F: {})",
             summary.total_cases,
             summary.passing_count,
@@ -1007,7 +1054,8 @@ mod tests {
         // CVE-2014-1943 tests recursion limits on indirect Apple driver maps.
         // It must evaluate without hanging or stack overflowing and correctly identify Apple Driver Map.
         let cases = load_upstream_test_suite().unwrap();
-        let cve_case = cases.iter().find(|c| c.name == "CVE-2014-1943").unwrap();
+        let cve_case =
+            cases.iter().find(|c| c.name == "CVE-2014-1943").unwrap();
         let res = evaluate_upstream_case(cve_case).unwrap();
         assert_eq!(res.status, ParityCategory::Passing);
     }
@@ -1021,7 +1069,12 @@ mod tests {
         for name in zstd_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
             let res = evaluate_upstream_case(case).unwrap();
-            assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
+            assert_eq!(
+                res.status,
+                ParityCategory::Passing,
+                "Case {} should pass",
+                name
+            );
             assert_eq!(res.top_format_id, Some(FormatId::Zstd));
         }
 
@@ -1030,7 +1083,12 @@ mod tests {
         for name in script_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
             let res = evaluate_upstream_case(case).unwrap();
-            assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
+            assert_eq!(
+                res.status,
+                ParityCategory::Passing,
+                "Case {} should pass",
+                name
+            );
             assert!(res.top_description.contains("script"));
         }
 
@@ -1039,21 +1097,44 @@ mod tests {
         for name in text_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
             let res = evaluate_upstream_case(case).unwrap();
-            assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
+            assert_eq!(
+                res.status,
+                ParityCategory::Passing,
+                "Case {} should pass",
+                name
+            );
         }
 
         // 4. JSON and New Line Delimited JSON cases (Sub-Phase 5D)
         let json_cases = [
-            "json1", "json2", "json3", "json4", "json5", "json6", "json7", "json8", "jsonlines1",
+            "json1",
+            "json2",
+            "json3",
+            "json4",
+            "json5",
+            "json6",
+            "json7",
+            "json8",
+            "jsonlines1",
         ];
         for name in json_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
             let res = evaluate_upstream_case(case).unwrap();
-            assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
+            assert_eq!(
+                res.status,
+                ParityCategory::Passing,
+                "Case {} should pass",
+                name
+            );
         }
 
         // 5. Specialized container cases: OLE2 CDF and ZIP OpenXML / HWPX (Sub-Phase 5D)
-        let container_cases = ["HWP2016.hwp", "HWP2016.hwpx.zip", "issue311docx", "issue359xlsx"];
+        let container_cases = [
+            "HWP2016.hwp",
+            "HWP2016.hwpx.zip",
+            "issue311docx",
+            "issue359xlsx",
+        ];
         for name in container_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
             let res = evaluate_upstream_case(case).unwrap();

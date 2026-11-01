@@ -71,10 +71,7 @@ impl DcString {
     /// # Safety
     /// The caller must ensure that `bytes` contains valid DcTF data.
     #[must_use]
-    #[expect(
-        unsafe_code,
-        reason = "Caller guarantees bytes are valid DcTF"
-    )]
+    #[expect(unsafe_code, reason = "Caller guarantees bytes are valid DcTF")]
     pub const unsafe fn from_dctf_unchecked(bytes: Vec<u8>) -> Self {
         Self { inner: bytes }
     }
@@ -377,7 +374,10 @@ mod tests {
         assert!(!c_short.is_unicode());
         assert!(c_short.is_short_dc());
         assert_eq!(c_short.to_short_dc(), Some(42));
-        assert_eq!(format!("{c_short}"), format!("@{}@", SHORT_DC_REGION_START + 42));
+        assert_eq!(
+            format!("{c_short}"),
+            format!("@{}@", SHORT_DC_REGION_START + 42)
+        );
 
         // Surrogate codepoint (allowed in DcUtf as a Unicode codepoint, but not a scalar char)
         let c_surrogate = DcChar(0xDBFF);
@@ -394,10 +394,7 @@ mod tests {
         s.push_str(" ");
         s.push(DcChar(SHORT_DC_REGION_START));
 
-        assert_eq!(
-            s.len(),
-            3 + DcChar(SHORT_DC_REGION_START).len_dctf()
-        );
+        assert_eq!(s.len(), 3 + DcChar(SHORT_DC_REGION_START).len_dctf());
         assert!(!s.is_empty());
         assert!(s.is_char_boundary(0));
         assert!(s.is_char_boundary(1));

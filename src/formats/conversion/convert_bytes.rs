@@ -31,8 +31,10 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 use ctb_formats_dcstring::DcMstring;
 use ctb_formats_utilities::FormatLog;
-use ctb_utilities::format_support::{SupportedDcInputFormat, SupportedDcOutputFormat};
 use ctb_utilities::FormatId;
+use ctb_utilities::format_support::{
+    SupportedDcInputFormat, SupportedDcOutputFormat,
+};
 
 pub use ctb_io_csc::journal::convert_cscjournal_to_dcmstring;
 
@@ -108,7 +110,9 @@ fn single_byte_encoding_to_dcmstring(
     bytes: &[u8],
 ) -> Result<(DcMstring, FormatLog)> {
     let enc = ctb_formats_encoding::CharEncoding::from_format_id(id)
-        .ok_or_else(|| anyhow::anyhow!("Unsupported single-byte encoding: {id:?}"))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!("Unsupported single-byte encoding: {id:?}")
+        })?;
     let text = ctb_formats_encoding::decode(enc, bytes)?;
     let mut doc = DcMstring::with_capacity(text.len());
     doc.push_str(&text);
@@ -120,8 +124,11 @@ fn dcmstring_to_single_byte_encoding(
     doc: &DcMstring,
 ) -> Result<(Vec<u8>, FormatLog)> {
     let enc = ctb_formats_encoding::CharEncoding::from_format_id(id)
-        .ok_or_else(|| anyhow::anyhow!("Unsupported single-byte encoding: {id:?}"))?;
-    let (utf8_bytes, log) = ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8(doc)?;
+        .ok_or_else(|| {
+            anyhow::anyhow!("Unsupported single-byte encoding: {id:?}")
+        })?;
+    let (utf8_bytes, log) =
+        ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8(doc)?;
     let text = std::str::from_utf8(&utf8_bytes)
         .context("Internal UTF-8 conversion produced invalid UTF-8")?;
     let bytes = ctb_formats_encoding::encode(enc, text)?;
@@ -155,7 +162,8 @@ pub fn convert_bytes_to_dcmstring(
     let resolved_format: SupportedDcInputFormat = match options.format {
         FormatSpec::Format(fmt) => fmt,
         FormatSpec::FormatId(id) => {
-            if let Some(supported) = SupportedDcInputFormat::from_format_id(id) {
+            if let Some(supported) = SupportedDcInputFormat::from_format_id(id)
+            {
                 supported
             } else {
                 bail!(
@@ -605,7 +613,9 @@ mod tests {
             input,
             Some("legacy.dcil"),
             &DcConversionOptions {
-                format: FormatSpec::Format(SupportedDcInputFormat::DcIntegerList),
+                format: FormatSpec::Format(
+                    SupportedDcInputFormat::DcIntegerList,
+                ),
                 allow_binary_encapsulation: false,
                 ..Default::default()
             },
@@ -629,15 +639,23 @@ mod tests {
             SupportedDcOutputFormat::DcIntegerList,
             &DcExportOptions::default(),
         )?;
-        assert_eq!(std::str::from_utf8(&output.bytes)?.trim(), std::str::from_utf8(input)?);
+        assert_eq!(
+            std::str::from_utf8(&output.bytes)?.trim(),
+            std::str::from_utf8(input)?
+        );
         let mut checksummed = DcMstring::new();
-        checksummed.push_binary_with_sha256(b"preserve metadata").unwrap();
+        checksummed
+            .push_binary_with_sha256(b"preserve metadata")
+            .unwrap();
         let exported = convert_dcmstring_to_bytes(
             &checksummed,
             SupportedDcOutputFormat::DcUtf,
             &DcExportOptions::default(),
         )?;
-        let (restored, _) = ctb_formats_dcstring::converters::utf8::dcutf_to_dcmstring(&exported.bytes)?;
+        let (restored, _) =
+            ctb_formats_dcstring::converters::utf8::dcutf_to_dcmstring(
+                &exported.bytes,
+            )?;
         assert_eq!(restored.as_bytes(), checksummed.as_bytes());
         let unchanged = convert_dcmstring_to_bytes(
             &checksummed,
@@ -658,10 +676,7 @@ mod tests {
         )
         .expect("convert utf8");
         assert_eq!(res.detected_format, FormatId::Utf8);
-        assert_eq!(
-            res.document,
-            "Hello, world!"
-        );
+        assert_eq!(res.document, "Hello, world!");
 
         let export = convert_dcmstring_to_bytes(
             &res.document,
@@ -682,10 +697,7 @@ mod tests {
         )
         .expect("autodetect single byte ascii");
         assert_eq!(res.detected_format, FormatId::Ascii);
-        assert_eq!(
-            res.document,
-            "A"
-        );
+        assert_eq!(res.document, "A");
     }
 
     #[crate::ctb_test]
@@ -698,10 +710,7 @@ mod tests {
         )
         .expect("convert dcal");
         assert_eq!(res.detected_format, FormatId::Dcal);
-        assert_eq!(
-            res.document,
-            "ABC"
-        );
+        assert_eq!(res.document, "ABC");
 
         let export = convert_dcmstring_to_bytes(
             &res.document,
@@ -722,10 +731,7 @@ mod tests {
         )
         .expect("convert dctext");
         assert_eq!(res.detected_format, FormatId::DcText);
-        assert_eq!(
-            res.document,
-            "Hello A!"
-        );
+        assert_eq!(res.document, "Hello A!");
 
         let export = convert_dcmstring_to_bytes(
             &res.document,
@@ -743,10 +749,7 @@ mod tests {
         )
         .expect("autodetect dctext without filename");
         assert_eq!(res_no_hint.detected_format, FormatId::DcText);
-        assert_eq!(
-            res_no_hint.document,
-            "Hello A!"
-        );
+        assert_eq!(res_no_hint.document, "Hello A!");
     }
 
     #[crate::ctb_test]
@@ -788,10 +791,7 @@ mod tests {
         )
         .expect("convert ascii");
         assert_eq!(res.detected_format, FormatId::Ascii);
-        assert_eq!(
-            res.document,
-            "Hello, ASCII world!\n"
-        );
+        assert_eq!(res.document, "Hello, ASCII world!\n");
 
         let export = convert_dcmstring_to_bytes(
             &res.document,
@@ -818,10 +818,7 @@ mod tests {
         )
         .expect("convert ascii safe subset");
         assert_eq!(res.detected_format, FormatId::AsciiSafeSubset);
-        assert_eq!(
-            res.document,
-            "Safe Line 1\nSafe Line 2\n"
-        );
+        assert_eq!(res.document, "Safe Line 1\nSafe Line 2\n");
 
         let export = convert_dcmstring_to_bytes(
             &res.document,
@@ -859,7 +856,9 @@ mod tests {
                 &bytes,
                 Some(filename),
                 &DcConversionOptions {
-                    format: FormatSpec::Format(SupportedDcInputFormat::CscJournal),
+                    format: FormatSpec::Format(
+                        SupportedDcInputFormat::CscJournal,
+                    ),
                     allow_binary_encapsulation: false,
                     ..Default::default()
                 },
@@ -867,7 +866,8 @@ mod tests {
             .expect("convert cscjournal explicit");
             assert_eq!(res_explicit.detected_format, FormatId::CscJournal);
             assert!(
-                res_explicit.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
+                res_explicit.document.len()
+                    > ctb_formats_dcstring::DCMM_HEADER_LEN,
                 "{filename}: DcMstring must contain payload beyond 21-byte header"
             );
 
@@ -887,7 +887,9 @@ mod tests {
             )
             .expect("convert cscjournal by FormatId");
             assert_eq!(res_fid.detected_format, FormatId::CscJournal);
-            assert!(res_fid.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
+            assert!(
+                res_fid.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN
+            );
 
             // 3. Autodetection with filename hint
             let res_auto_hint = convert_bytes_to_dcmstring(
@@ -897,7 +899,10 @@ mod tests {
             )
             .expect("autodetect cscjournal with filename");
             assert_eq!(res_auto_hint.detected_format, FormatId::CscJournal);
-            assert!(res_auto_hint.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
+            assert!(
+                res_auto_hint.document.len()
+                    > ctb_formats_dcstring::DCMM_HEADER_LEN
+            );
 
             // 4. Autodetection from magic bytes alone (no filename hint)
             let res_auto_magic = convert_bytes_to_dcmstring(
@@ -907,7 +912,10 @@ mod tests {
             )
             .expect("autodetect cscjournal from magic alone");
             assert_eq!(res_auto_magic.detected_format, FormatId::CscJournal);
-            assert!(res_auto_magic.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
+            assert!(
+                res_auto_magic.document.len()
+                    > ctb_formats_dcstring::DCMM_HEADER_LEN
+            );
 
             // 5. File conversion API (convert_file_to_dcmstring)
             let res_file = convert_file_to_dcmstring(
@@ -916,7 +924,10 @@ mod tests {
             )
             .expect("convert file cscjournal");
             assert_eq!(res_file.detected_format, FormatId::CscJournal);
-            assert_eq!(res_file.document.as_bytes(), res_explicit.document.as_bytes());
+            assert_eq!(
+                res_file.document.as_bytes(),
+                res_explicit.document.as_bytes()
+            );
         }
     }
 
@@ -959,7 +970,10 @@ mod tests {
             &DcConversionOptions::default(),
         )
         .expect("reimport .ctbnodes");
-        assert_eq!(reimported.document.as_bytes(), nodes_res.document.as_bytes());
+        assert_eq!(
+            reimported.document.as_bytes(),
+            nodes_res.document.as_bytes()
+        );
     }
 
     #[crate::ctb_test]
@@ -984,7 +998,9 @@ mod tests {
             },
         )
         .unwrap_err();
-        assert!(format!("{strict_err:#}").contains("Invalid DcMixed magic header"));
+        assert!(
+            format!("{strict_err:#}").contains("Invalid DcMixed magic header")
+        );
 
         // Permissive mode must recover the embedded DcMixed2 document with warnings
         let permissive_res = convert_bytes_to_dcmstring(
@@ -998,7 +1014,8 @@ mod tests {
         )
         .expect("permissive dcmm decode");
         assert!(permissive_res.log.has_warnings());
-        let dclist = permissive_res.document.to_dc_string().unwrap().to_dclist();
+        let dclist =
+            permissive_res.document.to_dc_string().unwrap().to_dclist();
         assert!(
             dclist.contains(&1_114_729) && dclist.contains(&1_114_730),
             "Decoded dclist must contain the embedded Dc 617 .. Dc 618 statements"
@@ -1055,7 +1072,10 @@ mod tests {
         )
         .expect("ctbnode-incoming autodetect import");
         assert_eq!(incoming_res.detected_format, FormatId::CtbNodeIncoming);
-        assert_eq!(incoming_res.document.as_bytes(), dcsh_res.document.as_bytes());
+        assert_eq!(
+            incoming_res.document.as_bytes(),
+            dcsh_res.document.as_bytes()
+        );
 
         // Strict CtbNodeIncoming rejects missing # @provenance header, while permissive mode recovers tokens
         let missing_prov = b"# @comment: Missing provenance\nu41 296 f80\n";
@@ -1064,7 +1084,9 @@ mod tests {
                 missing_prov,
                 Some("bad.ctbnode-incoming"),
                 &DcConversionOptions {
-                    format: FormatSpec::Format(SupportedDcInputFormat::CtbNodeIncoming),
+                    format: FormatSpec::Format(
+                        SupportedDcInputFormat::CtbNodeIncoming
+                    ),
                     permissive: false,
                     ..Default::default()
                 },
@@ -1075,14 +1097,19 @@ mod tests {
             missing_prov,
             Some("bad.ctbnode-incoming"),
             &DcConversionOptions {
-                format: FormatSpec::Format(SupportedDcInputFormat::CtbNodeIncoming),
+                format: FormatSpec::Format(
+                    SupportedDcInputFormat::CtbNodeIncoming,
+                ),
                 permissive: true,
                 ..Default::default()
             },
         )
         .expect("permissive ctbnode-incoming import");
         assert!(perm_incoming.log.has_warnings());
-        assert_eq!(perm_incoming.document.as_bytes(), dcsh_res.document.as_bytes());
+        assert_eq!(
+            perm_incoming.document.as_bytes(),
+            dcsh_res.document.as_bytes()
+        );
 
         // 3. CscArchive roundtrip
         let arch_out = convert_dcmstring_to_bytes(
@@ -1132,15 +1159,21 @@ mod tests {
             ),
             (
                 "dce_number_format.legacy_cdce",
-                include_bytes!("../weave/fixtures/dce_number_format.legacy_cdce"),
+                include_bytes!(
+                    "../weave/fixtures/dce_number_format.legacy_cdce"
+                ),
             ),
             (
                 "dce_separator_level_1.legacy_cdce",
-                include_bytes!("../weave/fixtures/dce_separator_level_1.legacy_cdce"),
+                include_bytes!(
+                    "../weave/fixtures/dce_separator_level_1.legacy_cdce"
+                ),
             ),
             (
                 "dce_separator_level_2.legacy_cdce",
-                include_bytes!("../weave/fixtures/dce_separator_level_2.legacy_cdce"),
+                include_bytes!(
+                    "../weave/fixtures/dce_separator_level_2.legacy_cdce"
+                ),
             ),
         ];
 
@@ -1163,14 +1196,18 @@ mod tests {
             .expect("export back to .legacy_cdce");
             assert!(!exported.log.has_errors());
             assert!(!exported.log.has_warnings());
-            assert_eq!(exported.bytes, raw_bytes, "roundtrip mismatch for {filename}");
+            assert_eq!(
+                exported.bytes, raw_bytes,
+                "roundtrip mismatch for {filename}"
+            );
         }
 
         // 2. Convert datetime_string.legacy_cdce -> DCE 3.01a -> DcMstring -> legacy_cdce
         // Verify DCE stateful-encoding control characters (Dc 15, Dc 16, Dc 194, Dc 13, Dc 114,
         // Dc 197, Dc 115, Dc 113) are preserved in DcMstring, ignored when exporting to legacy_cdce,
         // and roundtrip back to DCE 3.01a.
-        let dt_bytes = include_bytes!("../weave/fixtures/datetime_string.legacy_cdce");
+        let dt_bytes =
+            include_bytes!("../weave/fixtures/datetime_string.legacy_cdce");
         let dt_doc = convert_bytes_to_dcmstring(
             dt_bytes,
             Some("datetime_string.legacy_cdce"),

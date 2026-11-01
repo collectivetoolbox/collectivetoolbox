@@ -76,9 +76,8 @@ pub fn to_screaming_snake_case(ident: &str) -> String {
         if i > 0 && ch.is_ascii_uppercase() {
             let prev = chars.get(i.saturating_sub(1)).copied();
             let next = chars.get(i.saturating_add(1)).copied();
-            let prev_is_lower_or_digit = prev.is_some_and(|p| {
-                p.is_ascii_lowercase() || p.is_ascii_digit()
-            });
+            let prev_is_lower_or_digit = prev
+                .is_some_and(|p| p.is_ascii_lowercase() || p.is_ascii_digit());
             let prev_is_upper = prev.is_some_and(|p| p.is_ascii_uppercase());
             let next_is_lower = next.is_some_and(|n| n.is_ascii_lowercase());
 
@@ -206,8 +205,7 @@ fn collect_pending_csv_dc_const_records(
             if !is_valid_rust_ident(&ident) {
                 continue;
             }
-            let const_name =
-                format!("DC_{}", to_screaming_snake_case(&ident));
+            let const_name = format!("DC_{}", to_screaming_snake_case(&ident));
             if !seen_idents.insert(const_name) {
                 continue;
             }
@@ -294,9 +292,7 @@ fn format_dc_code_from_records(records: &[DcConstRecord]) -> String {
 ///
 /// # Errors
 /// Returns an error if the graph is missing required ontology Dcs or contains invalid identifiers.
-pub fn generate_dc_code_from_index(
-    index: &BuildGraphIndex,
-) -> Result<String> {
+pub fn generate_dc_code_from_index(index: &BuildGraphIndex) -> Result<String> {
     let records = collect_dc_const_records(index)?;
     Ok(format_dc_code_from_records(&records))
 }
@@ -347,9 +343,8 @@ pub fn generate_dc_file(base_dir: &Path) -> Result<bool> {
         }
     }
 
-    fs::write(&out_file, code).with_context(|| {
-        format!("Failed to write {}", out_file.display())
-    })?;
+    fs::write(&out_file, code)
+        .with_context(|| format!("Failed to write {}", out_file.display()))?;
     Ok(true)
 }
 
@@ -443,13 +438,12 @@ pub fn generate_role_code_from_index(
 
     let mut primitive_atoms: BTreeSet<u32> = BTreeSet::new();
     primitive_atoms.insert(require_short("OptionalAbsent")?);
-    if let Some(bool_seed_id) = index.seed_node_id(
-        &BuildSeedEntity::NamedConstruct("boolean".to_string()),
-    ) {
-        if let Some(DcShorthand::Long(rule_node_id)) = index.single_property(
-            DcShorthand::Long(bool_seed_id),
-            sh_syntax_rule,
-        ) {
+    if let Some(bool_seed_id) = index
+        .seed_node_id(&BuildSeedEntity::NamedConstruct("boolean".to_string()))
+    {
+        if let Some(DcShorthand::Long(rule_node_id)) = index
+            .single_property(DcShorthand::Long(bool_seed_id), sh_syntax_rule)
+        {
             if let Some(tokens) = index.node_tokens(rule_node_id) {
                 for &tok in tokens {
                     if tok != sh_pat_alt
@@ -478,8 +472,7 @@ pub fn generate_role_code_from_index(
         if index.subject_script(subj) == Some(".Semantic") {
             let has_rule =
                 index.single_property(subj, sh_syntax_rule).is_some();
-            let has_closes =
-                !index.direct_objects(sh_closes, subj).is_empty();
+            let has_closes = !index.direct_objects(sh_closes, subj).is_empty();
             if !has_rule && !has_closes {
                 if let Some(name) = index.single_property_string(subj, sh_name)
                 {
@@ -503,13 +496,12 @@ pub fn generate_role_code_from_index(
             evaluable_starters.insert(short_id);
         }
     }
-    if let Some(val_seed_id) = index.seed_node_id(
-        &BuildSeedEntity::NamedConstruct("value".to_string()),
-    ) {
-        if let Some(DcShorthand::Long(rule_node_id)) = index.single_property(
-            DcShorthand::Long(val_seed_id),
-            sh_syntax_rule,
-        ) {
+    if let Some(val_seed_id) = index
+        .seed_node_id(&BuildSeedEntity::NamedConstruct("value".to_string()))
+    {
+        if let Some(DcShorthand::Long(rule_node_id)) = index
+            .single_property(DcShorthand::Long(val_seed_id), sh_syntax_rule)
+        {
             if let Some(tokens) = index.node_tokens(rule_node_id) {
                 for window in tokens.windows(2) {
                     if let &[op, DcShorthand::Short(sid)] = window {
@@ -560,8 +552,7 @@ pub fn generate_role_code_from_index(
     let type_tokens_pat = format_short_id_pattern(&type_tokens);
     let primitive_atoms_pat = format_short_id_pattern(&primitive_atoms);
     let domain_atoms_pat = format_short_id_pattern(&domain_atoms);
-    let evaluable_starters_pat =
-        format_short_id_pattern(&evaluable_starters);
+    let evaluable_starters_pat = format_short_id_pattern(&evaluable_starters);
     let structural_seps_pat = format_short_id_pattern(&structural_seps);
 
     let mut out = String::new();
@@ -735,9 +726,8 @@ pub fn generate_role_file(base_dir: &Path) -> Result<bool> {
         }
     }
 
-    fs::write(&out_file, code).with_context(|| {
-        format!("Failed to write {}", out_file.display())
-    })?;
+    fs::write(&out_file, code)
+        .with_context(|| format!("Failed to write {}", out_file.display()))?;
     Ok(true)
 }
 
@@ -785,11 +775,13 @@ mod tests {
 
         let code = generate_dc_code(&graph_dir).unwrap();
         assert!(
-            code.contains("pub const DC_RANGE: DcChar = DcChar::from_short(4);")
+            code.contains(
+                "pub const DC_RANGE: DcChar = DcChar::from_short(4);"
+            )
         );
-        assert!(
-            code.contains("pub const DC_LONG_DC: DcChar = DcChar::from_short(308);")
-        );
+        assert!(code.contains(
+            "pub const DC_LONG_DC: DcChar = DcChar::from_short(308);"
+        ));
         assert!(code.contains("pub fn short_to_long_dc("));
         assert!(code.contains("pub fn long_to_short_dc("));
     }
@@ -807,10 +799,14 @@ mod tests {
         assert!(code.contains("TypeToken,"));
         assert!(code.contains("EvaluableExpressionStarter,"));
         assert!(
-            code.contains("pub fn matches_canonical(self, token: u128) -> bool")
+            code.contains(
+                "pub fn matches_canonical(self, token: u128) -> bool"
+            )
         );
         assert!(
-            code.contains("pub fn base64_digit_value(token: u128) -> Option<u8>")
+            code.contains(
+                "pub fn base64_digit_value(token: u128) -> Option<u8>"
+            )
         );
     }
 

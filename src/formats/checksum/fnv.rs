@@ -86,7 +86,9 @@ impl<const BYTES: usize> FnvWord<BYTES> {
     /// Creates a zero-initialized word.
     #[must_use]
     pub const fn zero() -> Self {
-        Self { bytes: [0_u8; BYTES] }
+        Self {
+            bytes: [0_u8; BYTES],
+        }
     }
 
     /// Creates a word initialized from a little-endian byte array.
@@ -206,7 +208,9 @@ impl<const BYTES: usize> FnvWord<BYTES> {
                     let low_part = *low_byte >> bit_shift;
                     let mut high_part = 0_u8;
                     if bit_shift > 0 {
-                        if let Some(high_byte) = self.bytes.get(src_idx.saturating_add(1)) {
+                        if let Some(high_byte) =
+                            self.bytes.get(src_idx.saturating_add(1))
+                        {
                             let shift_up = 8_usize.saturating_sub(bit_shift);
                             if let Ok(shl_val) = u8::try_from(
                                 (u16::from(*high_byte) << shift_up) & 0xff,
@@ -252,7 +256,8 @@ impl<const BYTES: usize> FnvWord<BYTES> {
     /// Returns the big-endian representation of the lowest `num_bytes` bytes.
     #[must_use]
     pub fn to_trimmed_be_bytes(self, num_bytes: usize) -> Vec<u8> {
-        let mut slice: Vec<u8> = self.bytes.into_iter().take(num_bytes).collect();
+        let mut slice: Vec<u8> =
+            self.bytes.into_iter().take(num_bytes).collect();
         slice.reverse();
         slice
     }
@@ -268,7 +273,9 @@ impl FnvWord<4> {
     /// Converts a native `u32` to a 4-byte word.
     #[must_use]
     pub fn from_u32(val: u32) -> Self {
-        Self { bytes: val.to_le_bytes() }
+        Self {
+            bytes: val.to_le_bytes(),
+        }
     }
 }
 
@@ -282,7 +289,9 @@ impl FnvWord<8> {
     /// Converts a native `u64` to an 8-byte word.
     #[must_use]
     pub fn from_u64(val: u64) -> Self {
-        Self { bytes: val.to_le_bytes() }
+        Self {
+            bytes: val.to_le_bytes(),
+        }
     }
 }
 
@@ -296,7 +305,9 @@ impl FnvWord<16> {
     /// Converts a native `u128` to a 16-byte word.
     #[must_use]
     pub fn from_u128(val: u128) -> Self {
-        Self { bytes: val.to_le_bytes() }
+        Self {
+            bytes: val.to_le_bytes(),
+        }
     }
 }
 
@@ -352,7 +363,10 @@ pub fn fnv1a_update_word<const BYTES: usize>(
 /// Computes the offset basis for an n-bit FNV hash by running FNV-0 over the
 /// 32-octet Landon Curt Noll signature string, per RFC 9923 Section 2.2.
 #[must_use]
-pub fn compute_offset_basis<const BYTES: usize>(k: usize, b: u8) -> FnvWord<BYTES> {
+pub fn compute_offset_basis<const BYTES: usize>(
+    k: usize,
+    b: u8,
+) -> FnvWord<BYTES> {
     fnv0_update_word(FnvWord::zero(), k, b, FNV_BASIS_STRING)
 }
 
@@ -408,7 +422,8 @@ impl<const BYTES: usize> FnvStream<BYTES> {
                 self.state = fnv1_update_word(self.state, self.k, self.b, data);
             }
             FnvVariant::Fnv1a => {
-                self.state = fnv1a_update_word(self.state, self.k, self.b, data);
+                self.state =
+                    fnv1a_update_word(self.state, self.k, self.b, data);
             }
         }
     }
@@ -764,7 +779,9 @@ pub fn fnv_xor_fold(
 
     if k_bits < 32 {
         let h = match variant {
-            FnvVariant::Fnv0 => fnv0_update_word(FnvWord::<4>::zero(), K_32, B_32, data),
+            FnvVariant::Fnv0 => {
+                fnv0_update_word(FnvWord::<4>::zero(), K_32, B_32, data)
+            }
             FnvVariant::Fnv1 | FnvVariant::Fnv1a => {
                 let basis = compute_offset_basis::<4>(K_32, B_32);
                 if variant == FnvVariant::Fnv1 {
@@ -780,7 +797,9 @@ pub fn fnv_xor_fold(
     }
     if k_bits < 64 {
         let h = match variant {
-            FnvVariant::Fnv0 => fnv0_update_word(FnvWord::<8>::zero(), K_64, B_64, data),
+            FnvVariant::Fnv0 => {
+                fnv0_update_word(FnvWord::<8>::zero(), K_64, B_64, data)
+            }
             FnvVariant::Fnv1 | FnvVariant::Fnv1a => {
                 let basis = compute_offset_basis::<8>(K_64, B_64);
                 if variant == FnvVariant::Fnv1 {
@@ -796,7 +815,9 @@ pub fn fnv_xor_fold(
     }
     if k_bits < 128 {
         let h = match variant {
-            FnvVariant::Fnv0 => fnv0_update_word(FnvWord::<16>::zero(), K_128, B_128, data),
+            FnvVariant::Fnv0 => {
+                fnv0_update_word(FnvWord::<16>::zero(), K_128, B_128, data)
+            }
             FnvVariant::Fnv1 | FnvVariant::Fnv1a => {
                 let basis = compute_offset_basis::<16>(K_128, B_128);
                 if variant == FnvVariant::Fnv1 {
@@ -812,7 +833,9 @@ pub fn fnv_xor_fold(
     }
     if k_bits < 256 {
         let h = match variant {
-            FnvVariant::Fnv0 => fnv0_update_word(FnvWord::<32>::zero(), K_256, B_256, data),
+            FnvVariant::Fnv0 => {
+                fnv0_update_word(FnvWord::<32>::zero(), K_256, B_256, data)
+            }
             FnvVariant::Fnv1 | FnvVariant::Fnv1a => {
                 let basis = compute_offset_basis::<32>(K_256, B_256);
                 if variant == FnvVariant::Fnv1 {
@@ -828,7 +851,9 @@ pub fn fnv_xor_fold(
     }
     if k_bits < 512 {
         let h = match variant {
-            FnvVariant::Fnv0 => fnv0_update_word(FnvWord::<64>::zero(), K_512, B_512, data),
+            FnvVariant::Fnv0 => {
+                fnv0_update_word(FnvWord::<64>::zero(), K_512, B_512, data)
+            }
             FnvVariant::Fnv1 | FnvVariant::Fnv1a => {
                 let basis = compute_offset_basis::<64>(K_512, B_512);
                 if variant == FnvVariant::Fnv1 {
@@ -844,7 +869,9 @@ pub fn fnv_xor_fold(
     }
 
     let h = match variant {
-        FnvVariant::Fnv0 => fnv0_update_word(FnvWord::<128>::zero(), K_1024, B_1024, data),
+        FnvVariant::Fnv0 => {
+            fnv0_update_word(FnvWord::<128>::zero(), K_1024, B_1024, data)
+        }
         FnvVariant::Fnv1 | FnvVariant::Fnv1a => {
             let basis = compute_offset_basis::<128>(K_1024, B_1024);
             if variant == FnvVariant::Fnv1 {
@@ -946,12 +973,12 @@ pub fn fnv1a_range_u64(max: u64, data: &[u8]) -> u64 {
     // S = 64, so 2^S - 1 = u64::MAX per RFC 9923 Section 3 formula:
     // X = int((2**S - 1) / (max + 1)) * (max + 1)
     let two_to_s_minus_1 = u128::from(u64::MAX);
-    let quotient = two_to_s_minus_1
-        .checked_div(max_plus_1)
-        .expect("max_plus_1 is checked to be >= 2 so division cannot divide by zero");
+    let quotient = two_to_s_minus_1.checked_div(max_plus_1).expect(
+        "max_plus_1 is checked to be >= 2 so division cannot divide by zero",
+    );
     let x_limit = quotient.wrapping_mul(max_plus_1);
-    let x_limit_u64 =
-        u64::try_from(x_limit).expect("x_limit <= 2^64 - 1 is guaranteed to fit in u64");
+    let x_limit_u64 = u64::try_from(x_limit)
+        .expect("x_limit <= 2^64 - 1 is guaranteed to fit in u64");
     let mut h = fnv1a_64(data);
     let offset = compute_offset_basis::<8>(K_64, B_64).as_u64();
     let prime: u64 = 0x0100_0000_01b3;
@@ -982,12 +1009,12 @@ pub fn fnv1a_range_u32(max: u32, data: &[u8]) -> u32 {
     // S = 32, so 2^S - 1 = u32::MAX per RFC 9923 Section 3 formula:
     // X = int((2**S - 1) / (max + 1)) * (max + 1)
     let two_to_s_minus_1 = u64::from(u32::MAX);
-    let quotient = two_to_s_minus_1
-        .checked_div(max_plus_1)
-        .expect("max_plus_1 is checked to be >= 2 so division cannot divide by zero");
+    let quotient = two_to_s_minus_1.checked_div(max_plus_1).expect(
+        "max_plus_1 is checked to be >= 2 so division cannot divide by zero",
+    );
     let x_limit = quotient.wrapping_mul(max_plus_1);
-    let x_limit_u32 =
-        u32::try_from(x_limit).expect("x_limit <= 2^32 - 1 is guaranteed to fit in u32");
+    let x_limit_u32 = u32::try_from(x_limit)
+        .expect("x_limit <= 2^32 - 1 is guaranteed to fit in u32");
     let mut h = fnv1a_32(data);
     let offset = compute_offset_basis::<4>(K_32, B_32).as_u32();
     let prime: u32 = 0x0100_0193;
@@ -1021,7 +1048,9 @@ pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
     let k = (5_usize.saturating_add(1_usize << s)) / 12_usize;
     let m: u64 = (1_u64 << 40).wrapping_sub(1_u64 << 24).wrapping_sub(1);
     ensure!(m > 0, "Modulo m must be non-zero");
-    let bound: u64 = (1_u64 << 24).wrapping_add(1_u64 << 8).wrapping_add(1_u64 << 7);
+    let bound: u64 = (1_u64 << 24)
+        .wrapping_add(1_u64 << 8)
+        .wrapping_add(1_u64 << 7);
     let m_u128 = u128::from(m);
 
     // Compute 256^k mod M using u128 wrapping arithmetic
@@ -1032,7 +1061,9 @@ pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
     while exp > 0 {
         if exp & 1 == 1 {
             let prod = u128::from(pow_256_k).wrapping_mul(u128::from(cur_base));
-            let rem = prod.checked_rem(m_u128).context("Modulo division by zero")?;
+            let rem = prod
+                .checked_rem(m_u128)
+                .context("Modulo division by zero")?;
             pow_256_k = u64::try_from(rem)?;
         }
         let sq = u128::from(cur_base).wrapping_mul(u128::from(cur_base));
@@ -1042,7 +1073,8 @@ pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
     }
 
     let k_bits = u32::try_from(k.saturating_mul(8))?;
-    let base_nat = (Natural::from(1_u32) << k_bits) + (Natural::from(1_u32) << 8_u32);
+    let base_nat =
+        (Natural::from(1_u32) << k_bits) + (Natural::from(1_u32) << 8_u32);
 
     for b in 1_u8..=255_u8 {
         let ones = b.count_ones();
@@ -1050,7 +1082,8 @@ pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
             continue;
         }
         let sum_val = pow_256_k.wrapping_add(256).wrapping_add(u64::from(b));
-        let p_mod_m = sum_val.checked_rem(m).context("Modulo division by zero")?;
+        let p_mod_m =
+            sum_val.checked_rem(m).context("Modulo division by zero")?;
         if p_mod_m <= bound {
             continue;
         }
@@ -1127,10 +1160,7 @@ mod tests {
         assert_eq!(basis64, 0xcbf2_9ce4_8422_2325);
 
         let basis128 = compute_offset_basis::<16>(K_128, B_128).as_u128();
-        assert_eq!(
-            basis128,
-            0x6c62_272e_07bb_0142_62b8_2175_6295_c58d
-        );
+        assert_eq!(basis128, 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d);
 
         let basis256_hex = compute_offset_basis::<32>(K_256, B_256).to_hex();
         assert_eq!(
@@ -1145,7 +1175,8 @@ mod tests {
              e948f68a34c192f62ea79bc942dbe7ce182036415f56e34bac982aac4afe9fd9"
         );
 
-        let basis1024_hex = compute_offset_basis::<128>(K_1024, B_1024).to_hex();
+        let basis1024_hex =
+            compute_offset_basis::<128>(K_1024, B_1024).to_hex();
         assert_eq!(
             basis1024_hex,
             "0000000000000000005f7a76758ecc4d32e56d5a591028b74b29fc4223fdada1\

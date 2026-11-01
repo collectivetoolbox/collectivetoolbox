@@ -71,20 +71,29 @@ pub fn collect_declared_crate_paths(root_table: &Table) -> BTreeSet<PathBuf> {
 
     // Standard dependencies tables
     for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
-        if let Some(deps_table) = root_table.get(section).and_then(Value::as_table) {
+        if let Some(deps_table) =
+            root_table.get(section).and_then(Value::as_table)
+        {
             collect_paths_from_deps_table(deps_table, &mut declared_paths);
         }
     }
 
     // Target-specific dependencies tables
-    if let Some(target_table) = root_table.get("target").and_then(Value::as_table) {
+    if let Some(target_table) =
+        root_table.get("target").and_then(Value::as_table)
+    {
         for (_target_cfg, target_val) in target_table {
             if let Some(target_cfg_table) = target_val.as_table() {
-                for section in ["dependencies", "dev-dependencies", "build-dependencies"] {
+                for section in
+                    ["dependencies", "dev-dependencies", "build-dependencies"]
+                {
                     if let Some(deps_table) =
                         target_cfg_table.get(section).and_then(Value::as_table)
                     {
-                        collect_paths_from_deps_table(deps_table, &mut declared_paths);
+                        collect_paths_from_deps_table(
+                            deps_table,
+                            &mut declared_paths,
+                        );
                     }
                 }
             }
@@ -92,12 +101,14 @@ pub fn collect_declared_crate_paths(root_table: &Table) -> BTreeSet<PathBuf> {
     }
 
     // Explicit workspace members (if any are defined)
-    if let Some(ws_table) = root_table.get("workspace").and_then(Value::as_table)
+    if let Some(ws_table) =
+        root_table.get("workspace").and_then(Value::as_table)
         && let Some(members) = ws_table.get("members").and_then(Value::as_array)
     {
         for m in members {
             if let Some(member_str) = m.as_str() {
-                declared_paths.insert(normalize_rel_path(Path::new(member_str)));
+                declared_paths
+                    .insert(normalize_rel_path(Path::new(member_str)));
             }
         }
     }
@@ -108,12 +119,15 @@ pub fn collect_declared_crate_paths(root_table: &Table) -> BTreeSet<PathBuf> {
 /// Extracts exclusion paths declared under `[workspace.exclude]`.
 pub fn collect_excluded_paths(root_table: &Table) -> BTreeSet<PathBuf> {
     let mut excluded_paths = BTreeSet::new();
-    if let Some(ws_table) = root_table.get("workspace").and_then(Value::as_table)
-        && let Some(excludes) = ws_table.get("exclude").and_then(Value::as_array)
+    if let Some(ws_table) =
+        root_table.get("workspace").and_then(Value::as_table)
+        && let Some(excludes) =
+            ws_table.get("exclude").and_then(Value::as_array)
     {
         for e in excludes {
             if let Some(exclude_str) = e.as_str() {
-                excluded_paths.insert(normalize_rel_path(Path::new(exclude_str)));
+                excluded_paths
+                    .insert(normalize_rel_path(Path::new(exclude_str)));
             }
         }
     }
@@ -122,15 +136,18 @@ pub fn collect_excluded_paths(root_table: &Table) -> BTreeSet<PathBuf> {
 
 /// Extracts the package name from a crate's `Cargo.toml`.
 fn extract_package_name(manifest_path: &Path) -> Result<String> {
-    let text = fs::read_to_string(manifest_path)
-        .with_context(|| format!("failed to read {}", manifest_path.display()))?;
-    let table: Table = text
-        .parse()
-        .with_context(|| format!("failed to parse {}", manifest_path.display()))?;
-    let Some(package_table) = table.get("package").and_then(Value::as_table) else {
+    let text = fs::read_to_string(manifest_path).with_context(|| {
+        format!("failed to read {}", manifest_path.display())
+    })?;
+    let table: Table = text.parse().with_context(|| {
+        format!("failed to parse {}", manifest_path.display())
+    })?;
+    let Some(package_table) = table.get("package").and_then(Value::as_table)
+    else {
         return Ok(String::from("<unknown>"));
     };
-    let Some(name_val) = package_table.get("name").and_then(Value::as_str) else {
+    let Some(name_val) = package_table.get("name").and_then(Value::as_str)
+    else {
         return Ok(String::from("<unknown>"));
     };
     Ok(name_val.to_string())
@@ -149,9 +166,9 @@ pub fn scan_src_crates(
         return Ok(());
     }
 
-    for entry in fs::read_dir(current_dir)
-        .with_context(|| format!("failed to read dir {}", current_dir.display()))?
-    {
+    for entry in fs::read_dir(current_dir).with_context(|| {
+        format!("failed to read dir {}", current_dir.display())
+    })? {
         let entry = entry?;
         let path = entry.path();
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
@@ -175,7 +192,8 @@ pub fn scan_src_crates(
             }
 
             let rel_path = path
-                .strip_prefix(workspace_root).map_or_else(|_| normalize_rel_path(&path), normalize_rel_path);
+                .strip_prefix(workspace_root)
+                .map_or_else(|_| normalize_rel_path(&path), normalize_rel_path);
 
             // Skip paths matching workspace.exclude
             if excluded_paths.contains(&rel_path) {
@@ -214,8 +232,10 @@ pub fn check_workspace_crates(
     workspace_root: &Path,
 ) -> Result<Vec<WorkspaceCrateViolation>> {
     let root_manifest_path = workspace_root.join("Cargo.toml");
-    let content = fs::read_to_string(&root_manifest_path)
-        .with_context(|| format!("failed to read {}", root_manifest_path.display()))?;
+    let content =
+        fs::read_to_string(&root_manifest_path).with_context(|| {
+            format!("failed to read {}", root_manifest_path.display())
+        })?;
     let root_table: Table = content
         .parse()
         .with_context(|| "failed to parse root Cargo.toml")?;

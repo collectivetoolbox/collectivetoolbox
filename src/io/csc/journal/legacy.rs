@@ -33,6 +33,7 @@ use ctb_formats_dcstring::{
     DcMixedEncode, DcMstring, DcProjectionPolicy, SharedJson,
     SharedValueContext,
 };
+use ctb_io::file::Natural;
 use ctb_io::file::entity::{FileEntity, FileEntityKind, FileEntityWithPayload};
 use ctb_io::file::identity::{
     FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os,
@@ -40,7 +41,6 @@ use ctb_io::file::identity::{
 use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
-use ctb_io::file::Natural;
 use ctb_io_environment::EnvDescription;
 use std::collections::HashMap;
 use std::fs::File;
@@ -50,9 +50,9 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use super::{
-    JournalErrorRecord, JournalErrorRecordPayload, JournalReader,
-    JournalSessionRecord, JournalSnapshot, JournalWarningRecord,
-    JournalWarningRecordPayload, ReadMode, JOURNAL_MAGIC, PLATFORM_WINDOWS,
+    JOURNAL_MAGIC, JournalErrorRecord, JournalErrorRecordPayload,
+    JournalReader, JournalSessionRecord, JournalSnapshot, JournalWarningRecord,
+    JournalWarningRecordPayload, PLATFORM_WINDOWS, ReadMode,
     SESSION_ENVIRONMENT_BINDING,
 };
 
@@ -74,7 +74,9 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
 ) -> Result<JournalSnapshot> {
     if reader.stream_position()? == 0 {
         let mut magic = [0_u8; 8];
-        reader.read_exact(&mut magic).context("Incomplete journal magic")?;
+        reader
+            .read_exact(&mut magic)
+            .context("Incomplete journal magic")?;
         anyhow::ensure!(
             &magic == JOURNAL_MAGIC_V1,
             "Expected legacy journal magic CTBCSCJ\\x01"
@@ -262,7 +264,9 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
     let desc_path = journal_path.with_extension("cscdesc");
     let noatime_used = if desc_path.exists() {
         if let Ok(desc_content) = std::fs::read_to_string(&desc_path) {
-            desc_content.lines().any(|l| l.trim() == "NoatimeUsed: true")
+            desc_content
+                .lines()
+                .any(|l| l.trim() == "NoatimeUsed: true")
         } else {
             false
         }
@@ -296,7 +300,8 @@ pub(crate) fn read_legacy_journal_reader(
     file.seek(SeekFrom::Start(0))?;
     let file_len = file.metadata()?.len();
     let mut reader = BufReader::new(file.try_clone()?);
-    let snapshot = read_legacy_journal_snapshot(&mut reader, Path::new(""), policy)?;
+    let snapshot =
+        read_legacy_journal_snapshot(&mut reader, Path::new(""), policy)?;
     if mode == ReadMode::Complete {
         ensure!(
             snapshot.is_completed && snapshot.valid_length == file_len,
@@ -341,7 +346,11 @@ pub fn convert_legacy_journal<R: Read + Seek, W: Write>(
     reader: &mut BufReader<R>,
     writer: &mut W,
 ) -> Result<()> {
-    convert_legacy_journal_with_policy(reader, writer, &DcProjectionPolicy::strict())
+    convert_legacy_journal_with_policy(
+        reader,
+        writer,
+        &DcProjectionPolicy::strict(),
+    )
 }
 
 /// Converts a legacy journal with an explicit embedded Dc projection policy.
@@ -353,7 +362,9 @@ pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
     // If the reader is at the start of the stream, consume and verify legacy magic
     if reader.stream_position()? == 0 {
         let mut magic = [0_u8; 8];
-        reader.read_exact(&mut magic).context("Incomplete journal magic")?;
+        reader
+            .read_exact(&mut magic)
+            .context("Incomplete journal magic")?;
         anyhow::ensure!(
             &magic == JOURNAL_MAGIC_V1,
             "Expected legacy journal magic CTBCSCJ\\x01"
@@ -419,14 +430,18 @@ pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
                     let _ = reader.read_exact(&mut env_tag);
                     if let Ok(env_bytes) = read_bytes(reader) {
                         if let Ok(json_str) = std::str::from_utf8(&env_bytes) {
-                            if let Ok(env_desc) = EnvDescription::from_json(json_str) {
+                            if let Ok(env_desc) =
+                                EnvDescription::from_json(json_str)
+                            {
                                 let definition = Arc::new(env_desc);
                                 let _ = shared_context.insert(
                                     SESSION_ENVIRONMENT_BINDING,
                                     Arc::clone(&definition),
                                 );
-                                let _ = shared_context
-                                    .insert("environment", Arc::clone(&definition));
+                                let _ = shared_context.insert(
+                                    "environment",
+                                    Arc::clone(&definition),
+                                );
                                 environment = Some(definition);
                             }
                         }
@@ -516,11 +531,14 @@ pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
                 let mut mst = DcMstring::new();
                 for entity in &pending_entities {
                     if let Some(read_time) = entity.metadata.read_time {
-                        read_time
-                            .duration_since(UNIX_EPOCH)
-                            .context("Read time timestamp is before Unix epoch")?;
+                        read_time.duration_since(UNIX_EPOCH).context(
+                            "Read time timestamp is before Unix epoch",
+                        )?;
                     }
-                    entity.encode_dc_mixed_with_context(&mut mst, &shared_context)?;
+                    entity.encode_dc_mixed_with_context(
+                        &mut mst,
+                        &shared_context,
+                    )?;
                 }
 
                 crate::section::write_section(writer, batch_id, |output| {
@@ -553,7 +571,9 @@ pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
                                     error_code != 0,
                                     "Zero OS error code cannot be distinguished from an absent error in this journal format"
                                 );
-                                u64::from(u32::from_le_bytes(error_code.to_le_bytes()))
+                                u64::from(u32::from_le_bytes(
+                                    error_code.to_le_bytes(),
+                                ))
                             }
                             None => 0_u64,
                         };
@@ -602,7 +622,10 @@ pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
 
 /// Converts in-memory legacy journal bytes to current `DcMixed` journal bytes (`CSCJRNL5`).
 pub fn convert_legacy_journal_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
-    convert_legacy_journal_bytes_with_policy(bytes, &DcProjectionPolicy::strict())
+    convert_legacy_journal_bytes_with_policy(
+        bytes,
+        &DcProjectionPolicy::strict(),
+    )
 }
 
 /// Converts legacy journal bytes using an explicit embedded Dc projection policy.
@@ -809,7 +832,10 @@ pub(crate) fn write_entity_payload(
         w.write_all(&hash)?;
     }
     match &entity.identity.origin {
-        FileOrigin::Filesystem { key, canonical_path } => {
+        FileOrigin::Filesystem {
+            key,
+            canonical_path,
+        } => {
             w.write_all(&[1])?;
             write_u64(w, key.device_id)?;
             write_natural(w, &key.inode)?;
@@ -927,7 +953,10 @@ pub fn read_entity_payload(
         3 => {
             let target_relative_path = read_bytes(&mut r)?;
             FileEntityKind::Hardlink {
-                target_relative_path: LinkPath::from_bytes(&target_relative_path, is_windows),
+                target_relative_path: LinkPath::from_bytes(
+                    &target_relative_path,
+                    is_windows,
+                ),
             }
         }
         4 => FileEntityKind::Fifo,
@@ -1088,7 +1117,9 @@ pub fn read_entity_payload(
         let mut magic = [0_u8; 8];
         r.read_exact(&mut magic)?;
         anyhow::ensure!(
-            &magic == b"CTBMETA1" || &magic == b"CTBMETA2" || &magic == b"CTBMETA3",
+            &magic == b"CTBMETA1"
+                || &magic == b"CTBMETA2"
+                || &magic == b"CTBMETA3",
             "Unknown preservation record version"
         );
         legacy = &magic == b"CTBMETA1";
@@ -1138,7 +1169,8 @@ pub fn read_entity_payload(
         if let FileEntityKind::Regular { extents, .. } = &mut entity.kind {
             *extents = record.extents;
         }
-        for (stream, preserved) in entity.streams.iter_mut().zip(record.streams) {
+        for (stream, preserved) in entity.streams.iter_mut().zip(record.streams)
+        {
             stream.name = preserved.name;
             stream.kind = preserved.kind;
             *stream.entity = read_entity_payload(

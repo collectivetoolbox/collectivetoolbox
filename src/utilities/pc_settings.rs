@@ -35,13 +35,13 @@ use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::PathBuf;
 
+use crate::json;
 use crate::json::maybe_value::{MaybeField, MaybeOption, MaybeValue};
 use crate::json::patch::{
     apply_bool, apply_serde, apply_string, apply_u16, apply_u32, apply_u64_vec,
 };
 use crate::storage::get_storage_dir;
 use crate::{branding, official_domain};
-use crate::json;
 
 #[derive(
     Eq, PartialEq, Debug, Clone, Copy, Deserialize, Serialize, SmartDefault,
@@ -697,7 +697,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_save_and_load_settings() -> Result<()> {
-        let _guard = TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _guard = TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let old_settings = PcSettings::load()?;
         let settings = PcSettings {
             show_users: MaybeValue::Value(false),
@@ -722,7 +724,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apply_patch_preserves_nulls() -> Result<()> {
-        let _guard = TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _guard = TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let old_settings = PcSettings::load()?;
 
         let settings = PcSettings {
@@ -747,7 +751,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_domain_name_sanitization() -> Result<()> {
-        let _guard = TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _guard = TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let old_settings = PcSettings::load()?;
         let settings = PcSettings {
             domain_name: MaybeOption::Value(

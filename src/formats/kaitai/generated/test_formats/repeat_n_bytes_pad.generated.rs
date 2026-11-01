@@ -101,7 +101,11 @@ impl KStruct for RepeatNBytesPad {
     type Root = RepeatNBytesPad;
     type Parent = RepeatNBytesPad;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,15 +120,19 @@ impl KStruct for RepeatNBytesPad {
         *self_rc.records.borrow_mut() = Vec::new();
         let l_records = 3_usize;
         for _i in 0_usize..l_records {
-            self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, None, false, Some(170)));
+            self_rc.records.borrow_mut().push(bytes_terminate_pad(
+                &_io.read_bytes(5_usize)?,
+                None,
+                false,
+                Some(170),
+            ));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl RepeatNBytesPad {
-}
+impl RepeatNBytesPad {}
 impl RepeatNBytesPad {
     pub fn records(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records.borrow()

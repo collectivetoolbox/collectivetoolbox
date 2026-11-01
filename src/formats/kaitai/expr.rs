@@ -63,9 +63,9 @@ pub use parser::parse_expr;
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
-    use super::*;
     use super::ast::*;
     use super::parser::*;
+    use super::*;
 
     #[crate::ctb_test]
     fn test_parse_arithmetic() -> anyhow::Result<()> {

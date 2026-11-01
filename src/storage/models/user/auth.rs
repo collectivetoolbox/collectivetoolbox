@@ -25,10 +25,10 @@ use crate::utilities::*;
 use crate::utilities::password::Password;
 use anyhow::Result;
 use argon2::Argon2;
-use argon2::password_hash::rand_core::OsRng;
 #[cfg(any(debug_assertions, test))]
 use argon2::password_hash::PasswordHash;
 use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
 use serde::{Deserialize, Serialize};
 use zeroize::ZeroizeOnDrop;
 
@@ -135,8 +135,9 @@ pub fn derive_kek_with_params(
     #[cfg(any(debug_assertions, test))]
     {
         if password.password == crate::user::TEST_USER_PASS.as_bytes() {
-            let parsed = PasswordHash::new(crate::utilities::password::TEST_USER_PHC)
-                .map_err(|e| anyhow::anyhow!("Failed to parse PHC: {e}"))?;
+            let parsed =
+                PasswordHash::new(crate::utilities::password::TEST_USER_PHC)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse PHC: {e}"))?;
             let hash = parsed
                 .hash
                 .ok_or_else(|| anyhow::anyhow!("Missing hash in PHC"))?;

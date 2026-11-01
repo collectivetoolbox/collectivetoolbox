@@ -28,20 +28,20 @@ use crate::utilities::*;
 
 use crate::identity::{FileIdentity, FileOrigin, InodeKey};
 use crate::link_path::LinkPath;
-use malachite::Natural;
 use crate::materializer::{MaterializeOptions, MaterializeReceipt};
 use crate::metadata::{FileMetadata, FileTimestamps};
 use crate::payload::{Extent, PayloadSource, get_file_extents};
 use crate::sandboxable_dir::SandboxableDir;
 use crate::streams::{AttachedStream, read_and_hash_streams};
 use crate::sys_flags::query_file_flags;
-use filetime::FileTime;
-use serde::{Deserialize, Serialize};
 use ctb_formats_dcstring::DcMixedEncode;
-use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use filetime::FileTime;
+use malachite::Natural;
+use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 fn capture_file_extents(
     result: Result<Vec<Extent>>,
@@ -57,14 +57,25 @@ fn capture_file_extents(
             if size == 0 {
                 Vec::new()
             } else {
-                vec![Extent::Data { offset: 0, length: size }]
+                vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }]
             }
         }
     }
 }
 
 /// The concrete filesystem or archive kind of a file entity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 325, end = 326)]
 pub enum FileEntityKind {
     /// A regular file with size, extents, and payload digest.
@@ -187,7 +198,6 @@ pub enum FileEntityType {
 }
 
 impl FileEntityType {
-
     /// Returns the canonical string representation matching the SQLite `kind` column.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -273,13 +283,20 @@ impl FileEntityKind {
     }
 }
 
-
 /// Canonical type alias for `FileEntity`.
 pub type File = FileEntity;
 
 /// A complete, self-describing file entity holding identity, metadata, streams,
 /// and payload descriptor.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 317, end = 318)]
 pub struct FileEntity {
     /// Multifaceted identity and origin.
@@ -318,7 +335,12 @@ pub struct FileReadError {
 
 impl std::fmt::Display for FileReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.entity.identity.display_path(), self.source)
+        write!(
+            f,
+            "{}: {}",
+            self.entity.identity.display_path(),
+            self.source
+        )
     }
 }
 
@@ -340,7 +362,9 @@ impl FileEntity {
         let err_msg = error.into();
         let relative_path = if let Some(base) = base_dir {
             match path.strip_prefix(base) {
-                Ok(rel) if !rel.as_os_str().is_empty() => Some(rel.to_path_buf()),
+                Ok(rel) if !rel.as_os_str().is_empty() => {
+                    Some(rel.to_path_buf())
+                }
                 _ => path.file_name().map(PathBuf::from),
             }
         } else {
@@ -376,7 +400,10 @@ impl FileEntity {
 
     /// Infallible read: inspects path, returning a `FileEntity` even if the file is inaccessible
     /// or unreadable, capturing any error on `metadata.errors`.
-    pub fn from_filesystem_infallible(path: &Path, base_dir: Option<&Path>) -> Self {
+    pub fn from_filesystem_infallible(
+        path: &Path,
+        base_dir: Option<&Path>,
+    ) -> Self {
         Self::from_filesystem_infallible_with_apple_options(
             path,
             base_dir,
@@ -390,7 +417,11 @@ impl FileEntity {
         base_dir: Option<&Path>,
         apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Self {
-        match Self::from_filesystem_with_apple_options(path, base_dir, apple_options) {
+        match Self::from_filesystem_with_apple_options(
+            path,
+            base_dir,
+            apple_options,
+        ) {
             Ok(entity) => entity,
             Err(err) => {
                 if let Some(read_err) = err.downcast_ref::<FileReadError>() {
@@ -420,7 +451,11 @@ impl FileEntity {
         base_dir: Option<&Path>,
         apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Self {
-        match Self::from_filesystem_metadata_only_with_apple_options(path, base_dir, apple_options) {
+        match Self::from_filesystem_metadata_only_with_apple_options(
+            path,
+            base_dir,
+            apple_options,
+        ) {
             Ok(entity) => entity,
             Err(err) => {
                 if let Some(read_err) = err.downcast_ref::<FileReadError>() {
@@ -435,7 +470,8 @@ impl FileEntity {
     /// Returns `true` if this entity was read without errors and is accessible.
     #[must_use]
     pub fn is_ok(&self) -> bool {
-        self.metadata.errors.is_empty() && !matches!(self.kind, FileEntityKind::Inaccessible)
+        self.metadata.errors.is_empty()
+            && !matches!(self.kind, FileEntityKind::Inaccessible)
     }
 
     /// Returns `true` if this entity contains recorded errors or is inaccessible.
@@ -565,7 +601,11 @@ impl FileEntity {
         mst: &mut ctb_formats_dcstring::DcMstring,
         source: &mut dyn crate::payload::PayloadSource,
     ) -> Result<()> {
-        self.encode_with_payload_and_context(mst, source, &ctb_formats_dcstring::SharedValueContext::default())
+        self.encode_with_payload_and_context(
+            mst,
+            source,
+            &ctb_formats_dcstring::SharedValueContext::default(),
+        )
     }
 
     /// Streams a payload using definitions provided by an explicit context.
@@ -575,7 +615,11 @@ impl FileEntity {
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        self.encode_record_to_writer_with_payload_and_context(&mut mst.writer(), source, context)
+        self.encode_record_to_writer_with_payload_and_context(
+            &mut mst.writer(),
+            source,
+            context,
+        )
     }
 
     /// Serializes this `FileEntity` along with its file payload data (`Dc 392`)
@@ -586,7 +630,11 @@ impl FileEntity {
         writer: &mut W,
         source: &mut dyn crate::payload::PayloadSource,
     ) -> Result<()> {
-        self.encode_to_writer_with_payload_and_context(writer, source, &ctb_formats_dcstring::SharedValueContext::default())
+        self.encode_to_writer_with_payload_and_context(
+            writer,
+            source,
+            &ctb_formats_dcstring::SharedValueContext::default(),
+        )
     }
 
     /// Streams a document and payload with explicit shared definitions.
@@ -597,17 +645,26 @@ impl FileEntity {
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
         writer.write_all(ctb_formats_dcstring::DcMstring::new().as_bytes())?;
-        self.encode_record_to_writer_with_payload_and_context(writer, source, context)
+        self.encode_record_to_writer_with_payload_and_context(
+            writer, source, context,
+        )
     }
 
     /// Streams a file record without a document header into a containing document.
-    pub fn encode_record_to_writer_with_payload_and_context<W: std::io::Write>(
+    pub fn encode_record_to_writer_with_payload_and_context<
+        W: std::io::Write,
+    >(
         &self,
         writer: &mut W,
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        self.encode_record_to_writer_with_policy(writer, Some(source), crate::encoding::BodyPolicy::Include, context)
+        self.encode_record_to_writer_with_policy(
+            writer,
+            Some(source),
+            crate::encoding::BodyPolicy::Include,
+            context,
+        )
     }
 
     /// Streams metadata and attached bodies without a primary file body.
@@ -616,7 +673,12 @@ impl FileEntity {
         writer: &mut W,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        self.encode_record_to_writer_with_policy(writer, None, crate::encoding::BodyPolicy::Include, context)
+        self.encode_record_to_writer_with_policy(
+            writer,
+            None,
+            crate::encoding::BodyPolicy::Include,
+            context,
+        )
     }
 
     pub fn encode_record_to_writer_with_policy(
@@ -626,7 +688,14 @@ impl FileEntity {
         bodies: crate::encoding::BodyPolicy,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        crate::encoding::encode_entity(self, writer, source, &crate::streams::FilesystemStreamSource, bodies, context)
+        crate::encoding::encode_entity(
+            self,
+            writer,
+            source,
+            &crate::streams::FilesystemStreamSource,
+            bodies,
+            context,
+        )
     }
 
     /// Materializes this entity onto the filesystem within a [`SandboxableDir`].
@@ -636,7 +705,9 @@ impl FileEntity {
         dest_dir: &SandboxableDir,
         options: &MaterializeOptions,
     ) -> Result<MaterializeReceipt> {
-        crate::materializer::materialize_entity(self, payload, dest_dir, options)
+        crate::materializer::materialize_entity(
+            self, payload, dest_dir, options,
+        )
     }
 
     /// Materializes this entity onto the filesystem given a destination root path.
@@ -646,14 +717,19 @@ impl FileEntity {
         dest_root: &Path,
         options: &MaterializeOptions,
     ) -> Result<MaterializeReceipt> {
-        crate::materializer::materialize_entity_at_path(self, payload, dest_root, options)
+        crate::materializer::materialize_entity_at_path(
+            self, payload, dest_root, options,
+        )
     }
 
     /// Inspects an existing filesystem entry at `path` and builds a full `FileEntity`.
     ///
     /// If `base_dir` is provided, `identity.relative_path` is calculated relative
     /// to `base_dir`. Otherwise, it uses the entry's filename.
-    pub fn from_filesystem(path: &Path, base_dir: Option<&Path>) -> Result<Self> {
+    pub fn from_filesystem(
+        path: &Path,
+        base_dir: Option<&Path>,
+    ) -> Result<Self> {
         Self::from_filesystem_with_apple_options(
             path,
             base_dir,
@@ -668,7 +744,8 @@ impl FileEntity {
         base_dir: Option<&Path>,
         apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Result<Self> {
-        let mut entity = Self::from_filesystem_internal(path, base_dir, true, None)?;
+        let mut entity =
+            Self::from_filesystem_internal(path, base_dir, true, None)?;
         crate::apple_double::join_apple_double_or_single(
             &mut entity,
             path,
@@ -681,7 +758,10 @@ impl FileEntity {
     /// Inspects an existing filesystem entry at `path` and builds a `FileEntity`
     /// without reading or hashing the main file payload. Attached metadata and
     /// streams are still read and hashed in full.
-    pub fn from_filesystem_metadata_only(path: &Path, base_dir: Option<&Path>) -> Result<Self> {
+    pub fn from_filesystem_metadata_only(
+        path: &Path,
+        base_dir: Option<&Path>,
+    ) -> Result<Self> {
         Self::from_filesystem_metadata_only_with_apple_options(
             path,
             base_dir,
@@ -696,7 +776,12 @@ impl FileEntity {
         base_dir: Option<&Path>,
         apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Result<Self> {
-        Self::from_filesystem_metadata_only_captured(path, base_dir, apple_options, None)
+        Self::from_filesystem_metadata_only_captured(
+            path,
+            base_dir,
+            apple_options,
+            None,
+        )
     }
 
     /// Captures metadata with an optional physical source lifecycle binding.
@@ -706,7 +791,8 @@ impl FileEntity {
         apple_options: &crate::apple_double::AppleReadOptions,
         snapshot: Option<&crate::payload::SourceSnapshot>,
     ) -> Result<Self> {
-        let mut entity = Self::from_filesystem_internal(path, base_dir, false, snapshot)?;
+        let mut entity =
+            Self::from_filesystem_internal(path, base_dir, false, snapshot)?;
         crate::apple_double::join_apple_double_or_single_captured(
             &mut entity,
             path,
@@ -724,7 +810,10 @@ impl FileEntity {
         _compute_hash: bool,
         _snapshot: Option<&crate::payload::SourceSnapshot>,
     ) -> Result<Self> {
-        anyhow::bail!("Lossless filesystem capture (native identity, security metadata, and streams) is not implemented on this platform: {}", path.display())
+        anyhow::bail!(
+            "Lossless filesystem capture (native identity, security metadata, and streams) is not implemented on this platform: {}",
+            path.display()
+        )
     }
 
     #[cfg(windows)]
@@ -742,10 +831,17 @@ impl FileEntity {
         let sym_meta = match std::fs::symlink_metadata(path) {
             Ok(m) => m,
             Err(err) => {
-                let entity = Self::inaccessible(path, base_dir, format!("Failed to read metadata: {err}"));
+                let entity = Self::inaccessible(
+                    path,
+                    base_dir,
+                    format!("Failed to read metadata: {err}"),
+                );
                 return Err(anyhow::Error::new(FileReadError {
                     entity: Box::new(entity),
-                    source: anyhow::Error::new(err).context(format!("Failed to read metadata for {}", path.display())),
+                    source: anyhow::Error::new(err).context(format!(
+                        "Failed to read metadata for {}",
+                        path.display()
+                    )),
                 }));
             }
         };
@@ -755,7 +851,8 @@ impl FileEntity {
         let is_reparse = (file_attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
         let is_symlink = file_type.is_symlink() || is_reparse;
 
-        let native_metadata = crate::metadata::capture_native_metadata(path, &sym_meta)?;
+        let native_metadata =
+            crate::metadata::capture_native_metadata(path, &sym_meta)?;
         let mut warnings = Vec::new();
 
         let (dev, ino) = match crate::identity::query_file_identity(path) {
@@ -768,8 +865,9 @@ impl FileEntity {
             }
         };
 
-        let nlink = if let Some(crate::metadata::NativeMetadataValue::Unsigned(links)) =
-            native_metadata.values.get("link_count")
+        let nlink = if let Some(
+            crate::metadata::NativeMetadataValue::Unsigned(links),
+        ) = native_metadata.values.get("link_count")
         {
             *links
         } else {
@@ -780,10 +878,17 @@ impl FileEntity {
         let (mtime_sec, mtime_nsec) = system_time_to_unix(sym_meta.modified());
         let (btime_sec, btime_nsec) = system_time_to_unix(sym_meta.created());
         let Some(crate::metadata::NativeMetadataValue::Signed(change_time)) =
-            native_metadata.values.get("change_time") else {
-                anyhow::bail!("Windows capture omitted native change time for {}", path.display());
-            };
-        let change_time = crate::metadata::windows::filetime_from_windows_ticks(*change_time)?;
+            native_metadata.values.get("change_time")
+        else {
+            anyhow::bail!(
+                "Windows capture omitted native change time for {}",
+                path.display()
+            );
+        };
+        let change_time =
+            crate::metadata::windows::filetime_from_windows_ticks(
+                *change_time,
+            )?;
 
         let fs_info = crate::filesystem::query_filesystem_info(path, &sym_meta);
 
@@ -857,12 +962,20 @@ impl FileEntity {
         let kind = if is_symlink {
             let target_bytes = if let Ok(target) = std::fs::read_link(path) {
                 target.as_os_str().as_encoded_bytes().to_vec()
-            } else if let Some(crate::metadata::NativeMetadataValue::Bytes(print_name)) =
-                metadata.native.as_ref().and_then(|n| n.values.get("reparse.print_name"))
+            } else if let Some(crate::metadata::NativeMetadataValue::Bytes(
+                print_name,
+            )) = metadata
+                .native
+                .as_ref()
+                .and_then(|n| n.values.get("reparse.print_name"))
             {
                 print_name.clone()
-            } else if let Some(crate::metadata::NativeMetadataValue::Bytes(sub_name)) =
-                metadata.native.as_ref().and_then(|n| n.values.get("reparse.substitute_name"))
+            } else if let Some(crate::metadata::NativeMetadataValue::Bytes(
+                sub_name,
+            )) = metadata
+                .native
+                .as_ref()
+                .and_then(|n| n.values.get("reparse.substitute_name"))
             {
                 sub_name.clone()
             } else {
@@ -878,8 +991,13 @@ impl FileEntity {
             let native_sparse = file_attrs & FILE_ATTRIBUTE_SPARSE_FILE != 0;
             let (extents, is_sparse, sha256) = match std::fs::File::open(path) {
                 Ok(mut file) => {
-                    let extents = capture_file_extents(get_file_extents(&file, size), size, &mut metadata);
-                    let is_sparse = native_sparse || extents.iter().any(Extent::is_hole);
+                    let extents = capture_file_extents(
+                        get_file_extents(&file, size),
+                        size,
+                        &mut metadata,
+                    );
+                    let is_sparse =
+                        native_sparse || extents.iter().any(Extent::is_hole);
                     if native_sparse {
                         let has_sub_64k = extents.iter().any(|e| match e {
                             Extent::Hole { length, .. } => *length < 65_536,
@@ -892,10 +1010,14 @@ impl FileEntity {
                         }
                     }
                     let sha256 = if compute_hash {
-                        match crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path) {
+                        match crate::payload::hash_payload_stream(
+                            &mut file, &extents, is_sparse, path,
+                        ) {
                             Ok(hash) => hash,
                             Err(e) => {
-                                metadata.push_error(format!("Failed to read/hash payload: {e}"));
+                                metadata.push_error(format!(
+                                    "Failed to read/hash payload: {e}"
+                                ));
                                 [0_u8; 32]
                             }
                         }
@@ -905,8 +1027,17 @@ impl FileEntity {
                     (extents, is_sparse, sha256)
                 }
                 Err(err) => {
-                    metadata.push_error(format!("Failed to open file for hashing: {err}"));
-                    (vec![Extent::Data { offset: 0, length: size }], native_sparse, [0_u8; 32])
+                    metadata.push_error(format!(
+                        "Failed to open file for hashing: {err}"
+                    ));
+                    (
+                        vec![Extent::Data {
+                            offset: 0,
+                            length: size,
+                        }],
+                        native_sparse,
+                        [0_u8; 32],
+                    )
                 }
             };
 
@@ -921,7 +1052,9 @@ impl FileEntity {
         let streams = match read_and_hash_streams(path) {
             Ok(s) => s,
             Err(e) => {
-                metadata.push_warning(format!("Failed to read attached streams: {e:#}"));
+                metadata.push_warning(format!(
+                    "Failed to read attached streams: {e:#}"
+                ));
                 Vec::new()
             }
         };
@@ -935,12 +1068,10 @@ impl FileEntity {
 
         if entity.is_error() {
             // Reason for fallback: generic error description when entity is inaccessible without recorded message strings
-            let first_err = entity
-                .metadata
-                .errors
-                .first()
-                .cloned()
-                .unwrap_or_else(|| "File entity is inaccessible".to_string());
+            let first_err =
+                entity.metadata.errors.first().cloned().unwrap_or_else(|| {
+                    "File entity is inaccessible".to_string()
+                });
             return Err(anyhow::Error::new(FileReadError {
                 entity: Box::new(entity),
                 source: anyhow::anyhow!("{first_err}"),
@@ -960,24 +1091,35 @@ impl FileEntity {
         let sym_meta = match std::fs::symlink_metadata(path) {
             Ok(m) => m,
             Err(err) => {
-                let entity = Self::inaccessible(path, base_dir, format!("Failed to read metadata: {err}"));
+                let entity = Self::inaccessible(
+                    path,
+                    base_dir,
+                    format!("Failed to read metadata: {err}"),
+                );
                 return Err(anyhow::Error::new(FileReadError {
                     entity: Box::new(entity),
-                    source: anyhow::Error::new(err).context(format!("Failed to read metadata for {}", path.display())),
+                    source: anyhow::Error::new(err).context(format!(
+                        "Failed to read metadata for {}",
+                        path.display()
+                    )),
                 }));
             }
         };
 
-        let native_metadata = crate::metadata::capture_native_metadata(path, &sym_meta)?;
+        let native_metadata =
+            crate::metadata::capture_native_metadata(path, &sym_meta)?;
 
         let mut warnings = Vec::new();
         let is_symlink = sym_meta.file_type().is_symlink();
         let symlink_target = if is_symlink {
-            let target_result = std::fs::read_link(path)
-                .with_context(|| format!("Failed to read symlink target for {}", path.display()));
+            let target_result = std::fs::read_link(path).with_context(|| {
+                format!("Failed to read symlink target for {}", path.display())
+            });
             if let Some(snapshot) = snapshot {
                 snapshot.restore_symlink_access_time(&sym_meta)?;
-            } else if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
+            } else if let Err(error) =
+                crate::metadata::restore_symlink_access_time(path, &sym_meta)
+            {
                 warnings.push(format!("Failed to restore source symlink timestamps after reading {}: {error:#}; inspection may have changed source metadata", path.display()));
             }
             let target = target_result?;
@@ -1028,19 +1170,17 @@ impl FileEntity {
             )
         };
 
-        if let Some(birthtime) = crate::metadata::capture_birthtime(&sym_meta)? {
+        if let Some(birthtime) = crate::metadata::capture_birthtime(&sym_meta)?
+        {
             timestamps.birthtime_sec = Some(birthtime.unix_seconds());
             timestamps.birthtime_nsec = Some(birthtime.nanoseconds());
         }
         #[cfg(target_os = "linux")]
         if is_symlink && timestamps.birthtime_sec.is_none() {
             use rustix::fs::{AtFlags, CWD, StatxFlags, statx};
-            if let Ok(stat) = statx(
-                CWD,
-                path,
-                AtFlags::SYMLINK_NOFOLLOW,
-                StatxFlags::BTIME,
-            ) {
+            if let Ok(stat) =
+                statx(CWD, path, AtFlags::SYMLINK_NOFOLLOW, StatxFlags::BTIME)
+            {
                 if (stat.stx_mask & StatxFlags::BTIME.bits()) != 0 {
                     timestamps.birthtime_sec = Some(stat.stx_btime.tv_sec);
                     timestamps.birthtime_nsec = Some(stat.stx_btime.tv_nsec);
@@ -1067,7 +1207,6 @@ impl FileEntity {
 
         let canonical = canonicalize_entity_path(path, is_symlink);
 
-
         let enclosing_path = match base_dir {
             Some(base) => Some(base.to_path_buf()),
             None => path.parent().map(Path::to_path_buf),
@@ -1084,7 +1223,11 @@ impl FileEntity {
             relative_path: Some(relative_path),
             enclosing_path,
             nlink,
-            hardlink_group: if nlink > 1 { Some(Natural::from(ino)) } else { None },
+            hardlink_group: if nlink > 1 {
+                Some(Natural::from(ino))
+            } else {
+                None
+            },
         };
 
         let mut metadata = FileMetadata {
@@ -1130,7 +1273,8 @@ impl FileEntity {
                 // Reason for fallback: package without an extension defaults to generic "bundle" type
                 let bundle_type = path
                     .extension()
-                    .and_then(|s| s.to_str()).map_or_else(|| "bundle".to_string(), str::to_lowercase);
+                    .and_then(|s| s.to_str())
+                    .map_or_else(|| "bundle".to_string(), str::to_lowercase);
                 FileEntityKind::Bundle { bundle_type }
             } else {
                 FileEntityKind::Directory
@@ -1159,14 +1303,22 @@ impl FileEntity {
 
             let (extents, is_sparse, sha256) = match open_res {
                 Ok((mut file, opened_with_noatime)) => {
-                    let extents = capture_file_extents(get_file_extents(&file, size), size, &mut metadata);
+                    let extents = capture_file_extents(
+                        get_file_extents(&file, size),
+                        size,
+                        &mut metadata,
+                    );
                     let is_sparse = extents.iter().any(Extent::is_hole);
 
                     let sha256 = if compute_hash {
-                        match crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path) {
+                        match crate::payload::hash_payload_stream(
+                            &mut file, &extents, is_sparse, path,
+                        ) {
                             Ok(hash) => hash,
                             Err(e) => {
-                                metadata.push_error(format!("Failed to read/hash payload: {e}"));
+                                metadata.push_error(format!(
+                                    "Failed to read/hash payload: {e}"
+                                ));
                                 [0_u8; 32]
                             }
                         }
@@ -1220,8 +1372,17 @@ impl FileEntity {
                     (extents, is_sparse, sha256)
                 }
                 Err(err) => {
-                    metadata.push_error(format!("Failed to open file for hashing: {err}"));
-                    (vec![Extent::Data { offset: 0, length: size }], false, [0_u8; 32])
+                    metadata.push_error(format!(
+                        "Failed to open file for hashing: {err}"
+                    ));
+                    (
+                        vec![Extent::Data {
+                            offset: 0,
+                            length: size,
+                        }],
+                        false,
+                        [0_u8; 32],
+                    )
                 }
             };
 
@@ -1236,7 +1397,9 @@ impl FileEntity {
         let streams = match read_and_hash_streams(path) {
             Ok(s) => s,
             Err(e) => {
-                metadata.push_warning(format!("Failed to read attached streams: {e}"));
+                metadata.push_warning(format!(
+                    "Failed to read attached streams: {e}"
+                ));
                 Vec::new()
             }
         };
@@ -1245,7 +1408,9 @@ impl FileEntity {
         if is_symlink {
             if let Some(snapshot) = snapshot {
                 snapshot.restore_symlink_access_time(&sym_meta)?;
-            } else if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
+            } else if let Err(error) =
+                crate::metadata::restore_symlink_access_time(path, &sym_meta)
+            {
                 metadata.push_warning(format!("Failed to restore source symlink timestamps after reading streams on {}: {error:#}; inspection may have changed source metadata", path.display()));
             }
         }
@@ -1259,12 +1424,10 @@ impl FileEntity {
 
         if entity.is_error() {
             // Reason for fallback: generic error description when entity is inaccessible without recorded message strings
-            let first_err = entity
-                .metadata
-                .errors
-                .first()
-                .cloned()
-                .unwrap_or_else(|| "File entity is inaccessible".to_string());
+            let first_err =
+                entity.metadata.errors.first().cloned().unwrap_or_else(|| {
+                    "File entity is inaccessible".to_string()
+                });
             return Err(anyhow::Error::new(FileReadError {
                 entity: Box::new(entity),
                 source: anyhow::anyhow!("{first_err}"),
@@ -1359,8 +1522,10 @@ fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
                 std::fs::canonicalize(p)
                     .map(|can_p| {
                         // Reason for fallback: retain canonicalized parent when path has no file_name
-                        path.file_name()
-                            .map_or_else(|| can_p.clone(), |name| can_p.join(name))
+                        path.file_name().map_or_else(
+                            || can_p.clone(),
+                            |name| can_p.join(name),
+                        )
                     })
                     .unwrap_or_else(|_| path.to_path_buf())
             }
@@ -1369,8 +1534,10 @@ fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
                 std::fs::canonicalize(".")
                     .map(|can_p| {
                         // Reason for fallback: retain canonicalized parent when path has no file_name
-                        path.file_name()
-                            .map_or_else(|| can_p.clone(), |name| can_p.join(name))
+                        path.file_name().map_or_else(
+                            || can_p.clone(),
+                            |name| can_p.join(name),
+                        )
                     })
                     .unwrap_or_else(|_| path.to_path_buf())
             }
@@ -1497,7 +1664,7 @@ mod macos_bundle {
 mod tests {
     use super::*;
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
 
     #[crate::ctb_test]
     fn test_from_filesystem_enclosing_path_and_read_time() {
@@ -1512,8 +1679,9 @@ mod tests {
         let before = std::time::SystemTime::now();
 
         // 1. With base_dir
-        let entity_with_base = FileEntity::from_filesystem(&file_path, Some(&base))
-            .expect("read from filesystem with base_dir");
+        let entity_with_base =
+            FileEntity::from_filesystem(&file_path, Some(&base))
+                .expect("read from filesystem with base_dir");
         assert_eq!(entity_with_base.enclosing_path(), Some(base.as_path()));
         assert_eq!(
             entity_with_base.identity.relative_path,
@@ -1555,8 +1723,21 @@ mod tests {
         let fs_type = entity.metadata.filesystem_type.as_ref().unwrap();
         assert!(!fs_type.is_empty());
 
-        assert!(entity.metadata.timestamps.as_ref().and_then(|t| t.resolution_nsec).is_some());
-        let res = entity.metadata.timestamps.as_ref().unwrap().resolution_nsec.unwrap();
+        assert!(
+            entity
+                .metadata
+                .timestamps
+                .as_ref()
+                .and_then(|t| t.resolution_nsec)
+                .is_some()
+        );
+        let res = entity
+            .metadata
+            .timestamps
+            .as_ref()
+            .unwrap()
+            .resolution_nsec
+            .unwrap();
         assert!(res > 0);
     }
 
@@ -1584,7 +1765,10 @@ mod tests {
             let post_meta = std::fs::symlink_metadata(&link).unwrap();
             let post_atime = FileTime::from_last_access_time(&post_meta);
             assert_eq!(post_atime.unix_seconds(), 1_700_000_000);
-            assert_eq!(entity.metadata.timestamps.as_ref().map(|t| t.mtime_sec), Some(1_700_000_100));
+            assert_eq!(
+                entity.metadata.timestamps.as_ref().map(|t| t.mtime_sec),
+                Some(1_700_000_100)
+            );
         }
     }
 
@@ -1596,24 +1780,55 @@ mod tests {
         fs::write(&path, b"payload").unwrap();
         xattr::set(&path, "user.metadata", b"opaque bytes\xff").unwrap();
         let before = fs::symlink_metadata(&path).unwrap();
-        let entity = FileEntity::from_filesystem_metadata_only(&path, None).unwrap();
+        let entity =
+            FileEntity::from_filesystem_metadata_only(&path, None).unwrap();
         let after = fs::symlink_metadata(&path).unwrap();
-        assert_eq!((after.ctime(), after.ctime_nsec()), (before.ctime(), before.ctime_nsec()),
-            "Metadata-only capture must not rewrite unchanged source timestamps");
+        assert_eq!(
+            (after.ctime(), after.ctime_nsec()),
+            (before.ctime(), before.ctime_nsec()),
+            "Metadata-only capture must not rewrite unchanged source timestamps"
+        );
         assert!(entity.metadata.native.is_some());
-        let FileEntityKind::Regular { sha256, extents, .. } = &entity.kind else {
+        let FileEntityKind::Regular {
+            sha256, extents, ..
+        } = &entity.kind
+        else {
             panic!("Expected a regular file");
         };
         assert_eq!(*sha256, [0; 32]);
         assert!(!extents.is_empty());
-        assert_eq!(entity.streams[0].data.as_deref(), Some(b"opaque bytes\xff".as_slice()));
+        assert_eq!(
+            entity.streams[0].data.as_deref(),
+            Some(b"opaque bytes\xff".as_slice())
+        );
         if let Ok(created) = fs::symlink_metadata(&path).unwrap().created() {
             let time = filetime::FileTime::from_system_time(created);
-            assert_eq!(entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec), Some(time.unix_seconds()));
-            assert_eq!(entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_nsec), Some(time.nanoseconds()));
+            assert_eq!(
+                entity
+                    .metadata
+                    .timestamps
+                    .as_ref()
+                    .and_then(|t| t.birthtime_sec),
+                Some(time.unix_seconds())
+            );
+            assert_eq!(
+                entity
+                    .metadata
+                    .timestamps
+                    .as_ref()
+                    .and_then(|t| t.birthtime_nsec),
+                Some(time.nanoseconds())
+            );
         }
         #[cfg(target_os = "linux")]
-        assert!(entity.metadata.native.unwrap().values.contains_key("statx.attributes_mask"));
+        assert!(
+            entity
+                .metadata
+                .native
+                .unwrap()
+                .values
+                .contains_key("statx.attributes_mask")
+        );
     }
 
     #[crate::ctb_test]
@@ -1644,21 +1859,29 @@ mod tests {
         // Clear in-memory / platform-specific skipped fields for pure canonical comparison
         entity.metadata.environment = None;
         entity.metadata.native = None;
-        entity.metadata.platform_raw_flags = Some(crate::PlatformRawFlags::from_raw(0x42));
+        entity.metadata.platform_raw_flags =
+            Some(crate::PlatformRawFlags::from_raw(0x42));
 
         // Include AppleMetadata with FinderInfo and ExtendedFinderInfo to test Mac metadata roundtrip
         entity.metadata.apple = Some(crate::AppleMetadata {
             finder_info: Some(crate::FinderInfo {
                 file_type: "TEXT".to_string(),
                 file_creator: "ttxt".to_string(),
-                label: ctb_formats_apple_single_double::FinderLabel::from_index(6),
-                flags: ctb_formats_apple_single_double::FinderFlags::from_raw_u16(0x450D),
+                label: ctb_formats_apple_single_double::FinderLabel::from_index(
+                    6,
+                ),
+                flags:
+                    ctb_formats_apple_single_double::FinderFlags::from_raw_u16(
+                        0x450D,
+                    ),
                 location: (10, 20),
                 folder_id: 0,
                 extended: Some(crate::ExtendedFinderInfo {
                     icon_id: -16455,
                     script: 1,
-                    xflags: ctb_formats_apple_single_double::ExtendedFlags::default(),
+                    xflags:
+                        ctb_formats_apple_single_double::ExtendedFlags::default(
+                        ),
                     comment: 10,
                     put_away: 999,
                     scroll_position: None,
@@ -1674,7 +1897,11 @@ mod tests {
         // Add a semantic flag and an attached stream to test full representation
         let mut stream_entity = entity.clone();
         stream_entity.metadata.apple = None;
-        entity.metadata.flags.get_or_insert_with(Vec::new).push(crate::FileFlag::Hidden);
+        entity
+            .metadata
+            .flags
+            .get_or_insert_with(Vec::new)
+            .push(crate::FileFlag::Hidden);
         entity.streams.push(crate::AttachedStream {
             name: Some(crate::StreamName::from_bytes(b"user.comment")),
             kind: crate::StreamKind::ExtendedAttribute,
@@ -1683,15 +1910,19 @@ mod tests {
             payload: None,
         });
 
-        ctb_formats_dcstring::assert_dc_roundtrip(&entity).expect("FileEntity DcMixed roundtrip failed");
-        ctb_formats_dcstring::assert_dc_document_roundtrip(&crate::AppleMetadata {
-            real_name: Some("regular_file.txt".to_owned()),
-            finder_info: Some(crate::FinderInfo {
-                window_bounds: Some([50, 60, 400, 500]),
-                ..crate::FinderInfo::default()
-            }),
-            ..crate::AppleMetadata::default()
-        }).expect("Apple filename and rectangle syntax validation failed");
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity)
+            .expect("FileEntity DcMixed roundtrip failed");
+        ctb_formats_dcstring::assert_dc_document_roundtrip(
+            &crate::AppleMetadata {
+                real_name: Some("regular_file.txt".to_owned()),
+                finder_info: Some(crate::FinderInfo {
+                    window_bounds: Some([50, 60, 400, 500]),
+                    ..crate::FinderInfo::default()
+                }),
+                ..crate::AppleMetadata::default()
+            },
+        )
+        .expect("Apple filename and rectangle syntax validation failed");
     }
 
     #[crate::ctb_test]
@@ -1713,14 +1944,16 @@ mod tests {
             panic!("Expected regular file kind");
         }
 
-        let dcs = ctb_formats_dcstring::DcString::from_dcutf(b"test".to_vec()).unwrap();
+        let dcs = ctb_formats_dcstring::DcString::from_dcutf(b"test".to_vec())
+            .unwrap();
         let f_dcs = FileEntity::from_dcs(&dcs);
         assert_eq!(f_dcs.identity.origin, FileOrigin::Synthetic);
     }
 
     #[crate::ctb_test]
     fn test_inaccessible_file_entity_handling() {
-        let non_existent = PathBuf::from("/nonexistent/path/to/missing_file.txt");
+        let non_existent =
+            PathBuf::from("/nonexistent/path/to/missing_file.txt");
         let res = FileEntity::from_filesystem(&non_existent, None);
         assert!(res.is_err());
         let err = res.unwrap_err();
@@ -1732,7 +1965,8 @@ mod tests {
         assert!(!read_err.entity.is_ok());
         assert!(!read_err.entity.metadata.errors.is_empty());
 
-        let infallible = FileEntity::from_filesystem_infallible(&non_existent, None);
+        let infallible =
+            FileEntity::from_filesystem_infallible(&non_existent, None);
         assert!(infallible.is_inaccessible());
         assert!(infallible.is_error());
         assert!(!infallible.is_ok());
@@ -1743,7 +1977,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_file_entity_errors_and_warnings_dc_roundtrip() {
         let path = PathBuf::from("test/error_item.dat");
-        let mut entity = FileEntity::inaccessible(&path, None, "File cannot be accessed");
+        let mut entity =
+            FileEntity::inaccessible(&path, None, "File cannot be accessed");
         entity
             .metadata
             .push_warning("Fidelity warning: extended attributes missing");
@@ -1764,35 +1999,59 @@ mod tests {
     fn test_extent_capture_fallback_retains_semantic_warning() {
         let mut entity = FileEntity::from_vec(b"payload".to_vec());
         let error = std::io::Error::from(std::io::ErrorKind::Unsupported);
-        let extents = capture_file_extents(Err(error.into()), 7, &mut entity.metadata);
-        assert_eq!(extents, vec![Extent::Data { offset: 0, length: 7 }]);
+        let extents =
+            capture_file_extents(Err(error.into()), 7, &mut entity.metadata);
+        assert_eq!(
+            extents,
+            vec![Extent::Data {
+                offset: 0,
+                length: 7
+            }]
+        );
         assert_eq!(entity.metadata.warnings.len(), 1);
-        assert!(entity.metadata.warnings[0].contains("sparse layout fidelity is unknown"));
+        assert!(
+            entity.metadata.warnings[0]
+                .contains("sparse layout fidelity is unknown")
+        );
         assert!(entity.metadata.errors.is_empty());
         ctb_formats_dcstring::assert_dc_roundtrip(&entity).unwrap();
         let count = entity.metadata.warnings.len();
-        assert_eq!(capture_file_extents(Ok(extents.clone()), 7, &mut entity.metadata), extents);
+        assert_eq!(
+            capture_file_extents(Ok(extents.clone()), 7, &mut entity.metadata),
+            extents
+        );
         assert_eq!(entity.metadata.warnings.len(), count);
     }
 
     #[cfg(windows)]
     #[crate::ctb_test]
-    #[expect(unsafe_code, reason = "DeviceIoControl uses a live file handle and live output count with no data buffers")]
+    #[expect(
+        unsafe_code,
+        reason = "DeviceIoControl uses a live file handle and live output count with no data buffers"
+    )]
     fn test_windows_sparse_capture_records_extent_limit() {
         use std::os::windows::fs::MetadataExt;
         use std::os::windows::io::AsRawHandle;
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("sparse");
         let file = std::fs::OpenOptions::new()
-            .read(true).write(true).create_new(true).open(&path).unwrap();
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .unwrap();
         let mut returned = 0;
         // SAFETY: file is a live open handle, returned is a valid stack buffer, and FSCTL_SET_SPARSE requires no input or output data buffers.
         let success = unsafe {
             windows_sys::Win32::System::IO::DeviceIoControl(
                 file.as_raw_handle(),
                 windows_sys::Win32::System::Ioctl::FSCTL_SET_SPARSE,
-                std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                &mut returned, std::ptr::null_mut(),
+                std::ptr::null(),
+                0,
+                std::ptr::null_mut(),
+                0,
+                &mut returned,
+                std::ptr::null_mut(),
             )
         };
         assert_ne!(success, 0, "{}", std::io::Error::last_os_error());
@@ -1802,25 +2061,57 @@ mod tests {
         let native_sparse = std::fs::metadata(&path).unwrap().file_attributes()
             & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
         if native_sparse {
-            assert!(matches!(entity.kind, FileEntityKind::Regular { is_sparse: true, .. }));
-            assert!(matches!(&entity.kind, FileEntityKind::Regular { extents, .. }
-                if extents == &vec![Extent::Hole { offset: 0, length: 4096 }]));
-            assert!(!entity.metadata.warnings.iter()
-                .any(|warning| warning.contains("Failed to query file extents")));
-            assert!(entity.metadata.warnings.iter()
-                .any(|warning| warning.contains("64KB granularity")));
+            assert!(matches!(
+                entity.kind,
+                FileEntityKind::Regular {
+                    is_sparse: true,
+                    ..
+                }
+            ));
+            assert!(
+                matches!(&entity.kind, FileEntityKind::Regular { extents, .. }
+                if extents == &vec![Extent::Hole { offset: 0, length: 4096 }])
+            );
+            assert!(!entity.metadata.warnings.iter().any(|warning| {
+                warning.contains("Failed to query file extents")
+            }));
+            assert!(
+                entity
+                    .metadata
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.contains("64KB granularity"))
+            );
         } else {
-            assert!(ctb_io_environment::is_wine(), "Native sparse control did not retain its attribute");
-            assert!(matches!(entity.kind, FileEntityKind::Regular { is_sparse: false, .. }));
+            assert!(
+                ctb_io_environment::is_wine(),
+                "Native sparse control did not retain its attribute"
+            );
+            assert!(matches!(
+                entity.kind,
+                FileEntityKind::Regular {
+                    is_sparse: false,
+                    ..
+                }
+            ));
             let mut requested = FileEntity::from_vec(vec![0; 4096]);
-            requested.identity.relative_path = Some(PathBuf::from("requested_sparse"));
-            if let FileEntityKind::Regular { ref mut is_sparse, .. } = requested.kind {
+            requested.identity.relative_path =
+                Some(PathBuf::from("requested_sparse"));
+            if let FileEntityKind::Regular {
+                ref mut is_sparse, ..
+            } = requested.kind
+            {
                 *is_sparse = true;
             }
-            let mut payload = crate::MemoryPayloadSource::new(vec![0; 4096]).unwrap();
-            let failure = requested.materialize_at_path(
-                Some(&mut payload), directory.path(), &crate::MaterializeOptions::default(),
-            ).unwrap_err();
+            let mut payload =
+                crate::MemoryPayloadSource::new(vec![0; 4096]).unwrap();
+            let failure = requested
+                .materialize_at_path(
+                    Some(&mut payload),
+                    directory.path(),
+                    &crate::MaterializeOptions::default(),
+                )
+                .unwrap_err();
             assert!(format!("{failure:#}").contains("sparse"));
             assert!(!directory.path().join("requested_sparse").exists());
             ctb_formats_dcstring::assert_dc_roundtrip(&requested).unwrap();
@@ -1847,14 +2138,23 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("sparse_semantics");
         let mut file = std::fs::OpenOptions::new()
-            .read(true).write(true).create_new(true).open(&path).unwrap();
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .unwrap();
         let mut returned = 0;
         // SAFETY: file is a live open handle, returned is a valid stack buffer, and FSCTL_SET_SPARSE requires no input or output data buffers.
         let success = unsafe {
             DeviceIoControl(
-                file.as_raw_handle(), FSCTL_SET_SPARSE,
-                std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                &mut returned, std::ptr::null_mut(),
+                file.as_raw_handle(),
+                FSCTL_SET_SPARSE,
+                std::ptr::null(),
+                0,
+                std::ptr::null_mut(),
+                0,
+                &mut returned,
+                std::ptr::null_mut(),
             )
         };
         assert_ne!(success, 0);
@@ -1877,14 +2177,22 @@ mod tests {
             (131_072_i64, 196_608_i64),
             (262_144_i64, 327_680_i64),
         ] {
-            let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
+            let zero_info = FILE_ZERO_DATA_INFORMATION {
+                FileOffset: start,
+                BeyondFinalZero: end,
+            };
             let mut ret = 0;
             // SAFETY: file is a live open handle, zero_info points to a valid initialized FILE_ZERO_DATA_INFORMATION buffer of the specified size, and ret is a valid stack buffer.
             unsafe {
                 DeviceIoControl(
-                    file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
-                    (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
-                    std::ptr::null_mut(), 0, &mut ret, std::ptr::null_mut(),
+                    file.as_raw_handle(),
+                    FSCTL_SET_ZERO_DATA,
+                    (&raw const zero_info).cast(),
+                    u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
+                    std::ptr::null_mut(),
+                    0,
+                    &mut ret,
+                    std::ptr::null_mut(),
                 );
             }
         }
@@ -1893,24 +2201,46 @@ mod tests {
         let file2 = std::fs::File::open(&path).unwrap();
         let extents = get_file_extents(&file2, total_size).unwrap();
         let native_sparse = std::fs::metadata(&path).unwrap().file_attributes()
-            & FILE_ATTRIBUTE_SPARSE_FILE != 0;
+            & FILE_ATTRIBUTE_SPARSE_FILE
+            != 0;
 
         if native_sparse {
             // On native Windows NTFS, 64KB-aligned zeroed ranges persist as holes
             assert_eq!(
                 extents,
                 vec![
-                    Extent::Hole { offset: 0, length: 65_536 },
-                    Extent::Data { offset: 65_536, length: 65_536 },
-                    Extent::Hole { offset: 131_072, length: 65_536 },
-                    Extent::Data { offset: 196_608, length: 65_536 },
-                    Extent::Hole { offset: 262_144, length: 65_536 },
+                    Extent::Hole {
+                        offset: 0,
+                        length: 65_536
+                    },
+                    Extent::Data {
+                        offset: 65_536,
+                        length: 65_536
+                    },
+                    Extent::Hole {
+                        offset: 131_072,
+                        length: 65_536
+                    },
+                    Extent::Data {
+                        offset: 196_608,
+                        length: 65_536
+                    },
+                    Extent::Hole {
+                        offset: 262_144,
+                        length: 65_536
+                    },
                 ]
             );
         } else {
             // On WINE, the sparse file attribute is not retained and files remain dense
             assert!(ctb_io_environment::is_wine());
-            assert_eq!(extents, vec![Extent::Data { offset: 0, length: total_size }]);
+            assert_eq!(
+                extents,
+                vec![Extent::Data {
+                    offset: 0,
+                    length: total_size
+                }]
+            );
         }
     }
 
@@ -1920,13 +2250,15 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let test_file = temp_dir.path().join("unreadable.bin");
-        std::fs::write(&test_file, b"Confidential content").expect("write test file");
+        std::fs::write(&test_file, b"Confidential content")
+            .expect("write test file");
 
         // Make file unreadable
         let perms = std::fs::Permissions::from_mode(0o000);
         std::fs::set_permissions(&test_file, perms).expect("chmod 000");
 
-        let infallible = FileEntity::from_filesystem_infallible(&test_file, None);
+        let infallible =
+            FileEntity::from_filesystem_infallible(&test_file, None);
         // Reset permissions so temp_dir cleanup succeeds
         let reset_perms = std::fs::Permissions::from_mode(0o644);
         let _ = std::fs::set_permissions(&test_file, reset_perms);
@@ -1934,7 +2266,10 @@ mod tests {
         // In root/container environments, open might succeed even with 000;
         // if unreadable, it captures payload failure while preserving Regular kind!
         if infallible.is_error() {
-            assert!(matches!(infallible.kind, FileEntityKind::Regular { size: 20, .. }));
+            assert!(matches!(
+                infallible.kind,
+                FileEntityKind::Regular { size: 20, .. }
+            ));
             assert!(!infallible.metadata.errors.is_empty());
         }
     }

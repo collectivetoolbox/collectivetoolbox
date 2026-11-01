@@ -434,15 +434,21 @@ mod tests {
         let mut prev_val: Option<u128> = None;
         let mut prev_bytes: Option<Vec<u8>> = None;
         for (val, expected_len) in boundaries {
-            assert_eq!(len_dctf(val), expected_len, "len_dctf mismatch for {val:#x}");
+            assert_eq!(
+                len_dctf(val),
+                expected_len,
+                "len_dctf mismatch for {val:#x}"
+            );
             let encoded = encode_dctf(val);
             assert_eq!(
                 encoded.len(),
                 expected_len,
                 "encode_dctf length mismatch for {val:#x}"
             );
-            let (decoded, consumed) = decode_dctf_buf(&encoded)
-                .unwrap_or_else(|| panic!("decode_dctf_buf failed for {val:#x}"));
+            let (decoded, consumed) =
+                decode_dctf_buf(&encoded).unwrap_or_else(|| {
+                    panic!("decode_dctf_buf failed for {val:#x}")
+                });
             assert_eq!(decoded, val);
             assert_eq!(consumed, expected_len);
 
@@ -472,11 +478,19 @@ mod tests {
         // 5B overlong: 0x1F_FFFF
         assert!(decode_dctf_buf(&[0xF8, 0x87, 0xBF, 0xBF, 0xBF]).is_none());
         // 6B overlong: 0x3FF_FFFF
-        assert!(decode_dctf_buf(&[0xFC, 0x83, 0xBF, 0xBF, 0xBF, 0xBF]).is_none());
+        assert!(
+            decode_dctf_buf(&[0xFC, 0x83, 0xBF, 0xBF, 0xBF, 0xBF]).is_none()
+        );
         // 7B overlong: 0x7FFF_FFFF
-        assert!(decode_dctf_buf(&[0xFE, 0x81, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF]).is_none());
+        assert!(
+            decode_dctf_buf(&[0xFE, 0x81, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF])
+                .is_none()
+        );
         // 8B (k=0) overlong: 2^36 - 1 (0xFF, 0x80, 0xBF x 6)
-        assert!(decode_dctf_buf(&[0xFF, 0x80, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF]).is_none());
+        assert!(
+            decode_dctf_buf(&[0xFF, 0x80, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF, 0xBF])
+                .is_none()
+        );
         // 8B (k=0) min valid: 2^36 (0xFF, 0x81, 0x80 x 6)
         assert_eq!(
             decode_dctf_buf(&[0xFF, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]),
@@ -526,14 +540,29 @@ mod tests {
 
         // 1. E1 80 41 -> (FFFD, 2), ('A', 1) (must not swallow ASCII 'A'!)
         assert_eq!(determine_dctf_error_len(&[0xE1, 0x80, 0x41]), Some(2));
-        assert_eq!(determine_utf_8e_128_error_len(&[0xE1, 0x80, 0x41]), Some(2));
-        assert_eq!(lossy_dctf_stream(&[0xE1, 0x80, 0x41]), vec![(0xFFFD, 2), (0x41, 1)]);
-        assert_eq!(lossy_dcutf_stream(&[0xE1, 0x80, 0x41]), vec![(0xFFFD, 2), (0x41, 1)]);
+        assert_eq!(
+            determine_utf_8e_128_error_len(&[0xE1, 0x80, 0x41]),
+            Some(2)
+        );
+        assert_eq!(
+            lossy_dctf_stream(&[0xE1, 0x80, 0x41]),
+            vec![(0xFFFD, 2), (0x41, 1)]
+        );
+        assert_eq!(
+            lossy_dcutf_stream(&[0xE1, 0x80, 0x41]),
+            vec![(0xFFFD, 2), (0x41, 1)]
+        );
 
         // 2. C0 80 -> two 1-byte errors
         assert_eq!(determine_dctf_error_len(&[0xC0, 0x80]), Some(1));
-        assert_eq!(lossy_dctf_stream(&[0xC0, 0x80]), vec![(0xFFFD, 1), (0xFFFD, 1)]);
-        assert_eq!(lossy_dcutf_stream(&[0xC0, 0x80]), vec![(0xFFFD, 1), (0xFFFD, 1)]);
+        assert_eq!(
+            lossy_dctf_stream(&[0xC0, 0x80]),
+            vec![(0xFFFD, 1), (0xFFFD, 1)]
+        );
+        assert_eq!(
+            lossy_dcutf_stream(&[0xC0, 0x80]),
+            vec![(0xFFFD, 1), (0xFFFD, 1)]
+        );
 
         // 3. E0 80 80 -> three 1-byte errors
         assert_eq!(determine_dctf_error_len(&[0xE0, 0x80, 0x80]), Some(1));
@@ -547,14 +576,20 @@ mod tests {
         );
 
         // 4. F0 80 80 80 -> four 1-byte errors
-        assert_eq!(determine_dctf_error_len(&[0xF0, 0x80, 0x80, 0x80]), Some(1));
+        assert_eq!(
+            determine_dctf_error_len(&[0xF0, 0x80, 0x80, 0x80]),
+            Some(1)
+        );
         assert_eq!(
             lossy_dctf_stream(&[0xF0, 0x80, 0x80, 0x80]),
             vec![(0xFFFD, 1); 4]
         );
 
         // 5. F8 80 80 80 80 -> five 1-byte errors in DcTF (and in DcUtf since F8 is invalid start)
-        assert_eq!(determine_dctf_error_len(&[0xF8, 0x80, 0x80, 0x80, 0x80]), Some(1));
+        assert_eq!(
+            determine_dctf_error_len(&[0xF8, 0x80, 0x80, 0x80, 0x80]),
+            Some(1)
+        );
         assert_eq!(
             lossy_dctf_stream(&[0xF8, 0x80, 0x80, 0x80, 0x80]),
             vec![(0xFFFD, 1); 5]
@@ -578,18 +613,24 @@ mod tests {
 
         // 8. FF 80 80 80 80 80 80 80 -> eight 1-byte errors in DcTF (0xFF 0x80 cannot reach 2^36)
         assert_eq!(
-            lossy_dctf_stream(&[0xFF, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]),
+            lossy_dctf_stream(&[
+                0xFF, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+            ]),
             vec![(0xFFFD, 1); 8]
         );
 
         // 9. FF 84 80 80 80 80 80 80 80 -> in DcTF (k=1, bb=00), [0xFF, 0x84] is a valid 2-byte
         // prefix, but byte 2 (0x80 < 0x84) cannot continue it -> 1 two-byte error + 7 one-byte errors!
         assert_eq!(
-            determine_dctf_error_len(&[0xFF, 0x84, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]),
+            determine_dctf_error_len(&[
+                0xFF, 0x84, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+            ]),
             Some(2)
         );
         assert_eq!(
-            lossy_dctf_stream(&[0xFF, 0x84, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]),
+            lossy_dctf_stream(&[
+                0xFF, 0x84, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+            ]),
             vec![
                 (0xFFFD, 2),
                 (0xFFFD, 1),
@@ -614,7 +655,9 @@ mod tests {
         // Must preserve 'A' and never consume it into the replacement span.
         // DcTF: 0xFF 0x81 (k=0, expects 8 bytes) truncated after 3 bytes by 'A':
         assert_eq!(
-            determine_dctf_error_len(&[0xFF, 0x81, 0x80, 0x41, 0x80, 0x80, 0x80, 0x80]),
+            determine_dctf_error_len(&[
+                0xFF, 0x81, 0x80, 0x41, 0x80, 0x80, 0x80, 0x80
+            ]),
             Some(3)
         );
         assert_eq!(
@@ -623,7 +666,9 @@ mod tests {
         );
         // DcUtf: 0xFF 0x84 (L=4, expects 6 bytes) with canonical byte 2 (0x84) truncated by 'A':
         assert_eq!(
-            determine_utf_8e_128_error_len(&[0xFF, 0x84, 0x84, 0x41, 0x80, 0x80]),
+            determine_utf_8e_128_error_len(&[
+                0xFF, 0x84, 0x84, 0x41, 0x80, 0x80
+            ]),
             Some(3)
         );
         assert_eq!(
@@ -635,7 +680,10 @@ mod tests {
         // Valid in both DcUtf (2^36 = 68,719,476,736) and DcTF (13_262_859_010_048).
         let overlap = [0xFF, 0x87, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80];
         assert_eq!(decode_utf_8e_128_buf(&overlap), Some((1u128 << 36, 9)));
-        assert_eq!(decode_dctf_buf(&overlap), Some((13_262_859_010_048u128, 9)));
+        assert_eq!(
+            decode_dctf_buf(&overlap),
+            Some((13_262_859_010_048u128, 9))
+        );
     }
 
     #[crate::ctb_test]

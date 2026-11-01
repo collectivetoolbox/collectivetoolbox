@@ -87,7 +87,8 @@ pub fn query_block_device_size(file: &File) -> Result<u64> {
 
     let mut block_size = MaybeUninit::<u32>::uninit();
     // SAFETY: DKIOCGETBLOCKSIZE writes a u32 into a stack-allocated buffer.
-    let rc = unsafe { libc::ioctl(fd, DKIOCGETBLOCKSIZE, block_size.as_mut_ptr()) };
+    let rc =
+        unsafe { libc::ioctl(fd, DKIOCGETBLOCKSIZE, block_size.as_mut_ptr()) };
     if rc != 0 {
         return Err(std::io::Error::last_os_error())
             .context("DKIOCGETBLOCKSIZE ioctl failed");
@@ -97,7 +98,9 @@ pub fn query_block_device_size(file: &File) -> Result<u64> {
 
     let mut block_count = MaybeUninit::<u64>::uninit();
     // SAFETY: DKIOCGETBLOCKCOUNT writes a u64 into a stack-allocated buffer.
-    let rc = unsafe { libc::ioctl(fd, DKIOCGETBLOCKCOUNT, block_count.as_mut_ptr()) };
+    let rc = unsafe {
+        libc::ioctl(fd, DKIOCGETBLOCKCOUNT, block_count.as_mut_ptr())
+    };
     if rc != 0 {
         return Err(std::io::Error::last_os_error())
             .context("DKIOCGETBLOCKCOUNT ioctl failed");
@@ -136,7 +139,8 @@ pub fn query_block_device_size(file: &File) -> Result<u64> {
 
     let mut media_size = MaybeUninit::<libc::off_t>::uninit();
     // SAFETY: DIOCGMEDIASIZE writes an off_t into a stack-allocated buffer.
-    let rc = unsafe { libc::ioctl(fd, DIOCGMEDIASIZE, media_size.as_mut_ptr()) };
+    let rc =
+        unsafe { libc::ioctl(fd, DIOCGMEDIASIZE, media_size.as_mut_ptr()) };
     if rc != 0 {
         return Err(std::io::Error::last_os_error())
             .context("DIOCGMEDIASIZE ioctl failed");
@@ -144,7 +148,8 @@ pub fn query_block_device_size(file: &File) -> Result<u64> {
     // SAFETY: ioctl returned 0 (success), so media_size was initialized.
     let media_size = unsafe { media_size.assume_init() };
 
-    let bytes = u64::try_from(media_size).context("negative media size returned")?;
+    let bytes =
+        u64::try_from(media_size).context("negative media size returned")?;
     if bytes == 0 {
         bail!("DIOCGMEDIASIZE returned 0 bytes");
     }
@@ -297,9 +302,9 @@ pub(crate) mod openbsd {
             512
         };
 
-        let bytes = sectors
-            .checked_mul(secsize)
-            .context("block device sector count * sector size overflowed u64")?;
+        let bytes = sectors.checked_mul(secsize).context(
+            "block device sector count * sector size overflowed u64",
+        )?;
 
         if bytes == 0 {
             bail!("OpenBSD block device ioctl returned 0 bytes");
@@ -341,7 +346,10 @@ mod tests {
         assert_eq!(core::mem::align_of::<openbsd::Disklabel>(), 4);
         assert_eq!(core::mem::offset_of!(openbsd::Disklabel, d_secsize), 40);
         assert_eq!(core::mem::offset_of!(openbsd::Disklabel, d_secperunit), 60);
-        assert_eq!(core::mem::offset_of!(openbsd::Disklabel, d_secperunith), 112);
+        assert_eq!(
+            core::mem::offset_of!(openbsd::Disklabel, d_secperunith),
+            112
+        );
     }
 
     #[crate::ctb_test]

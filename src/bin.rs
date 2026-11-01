@@ -43,7 +43,9 @@ pub(crate) use ctb_utilities::Result;
 use ctb_utilities::anyhow;
 
 #[cfg(unix)]
-use nix::libc::{MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit};
+use nix::libc::{
+    MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit,
+};
 
 /// Helper to check if an error represents an OS Error 2 (ENOENT / Not Found).
 fn is_not_found_error(err: &anyhow::Error) -> bool {

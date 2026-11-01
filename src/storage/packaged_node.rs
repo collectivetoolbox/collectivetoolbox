@@ -171,7 +171,8 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
                 u128::from_le_bytes(original_graph_id_bytes);
 
             // 8. Body (v1 statements/system bodies used DcUtf; transcode to DcTF)
-            let raw_body = bytes.get(97..).context("Missing body bytes")?.to_vec();
+            let raw_body =
+                bytes.get(97..).context("Missing body bytes")?.to_vec();
             let actual_raw_checksum = compute_sha256(&raw_body);
             anyhow::ensure!(
                 actual_raw_checksum == checksum,
@@ -182,7 +183,9 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
                 {
                     let dc_string =
                         ctb_formats_dcstring::DcString::from_dcutf(raw_body)
-                            .context("Invalid DcUtf in v1 packaged node body")?;
+                            .context(
+                                "Invalid DcUtf in v1 packaged node body",
+                            )?;
                     let body = dc_string.into_bytes();
                     let new_checksum = compute_sha256(&body);
                     (body, new_checksum)
@@ -250,7 +253,8 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
                 u128::from_le_bytes(original_graph_id_bytes);
 
             // 8. Body (v2 statements/system bodies used DcUtf; transcode to DcTF)
-            let raw_body = bytes.get(105..).context("Missing body bytes")?.to_vec();
+            let raw_body =
+                bytes.get(105..).context("Missing body bytes")?.to_vec();
             let actual_raw_checksum = compute_sha256(&raw_body);
             anyhow::ensure!(
                 actual_raw_checksum == checksum,
@@ -338,7 +342,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_packaged_node_legacy_v1_v2_migration_recomputes_checksum() -> Result<()> {
+    fn test_packaged_node_legacy_v1_v2_migration_recomputes_checksum()
+    -> Result<()> {
         let mut dc_string = ctb_formats_dcstring::DcString::new();
         dc_string.push(DcChar::from_short(5));
         dc_string.push(DcChar::from_short(7));
@@ -364,7 +369,9 @@ mod tests {
             if version == 1 {
                 pkg.extend_from_slice(&1_700_000_000_u64.to_le_bytes());
             } else {
-                pkg.extend_from_slice(&1_700_000_000_000_000_u128.to_le_bytes());
+                pkg.extend_from_slice(
+                    &1_700_000_000_000_000_u128.to_le_bytes(),
+                );
             }
             pkg.extend_from_slice(&dcutf_checksum);
             pkg.extend_from_slice(&42_u128.to_le_bytes());
@@ -375,8 +382,7 @@ mod tests {
             assert_eq!(deserialized.node_type, node_type);
             assert_eq!(deserialized.body, dctf_body);
             assert_eq!(
-                deserialized.checksum,
-                dctf_checksum,
+                deserialized.checksum, dctf_checksum,
                 "v{version} {node_type:?} migration must update checksum to match transcoded DcTF body"
             );
             assert_eq!(

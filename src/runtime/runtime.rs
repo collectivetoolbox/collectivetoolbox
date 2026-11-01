@@ -145,8 +145,8 @@ pub async fn test_prepend(document: String, prepend: String) -> String {
     format!("{prepend}{document}")
 }
 
-use std::collections::HashMap;
 use ctb_formats_dcstring::DcString;
+use std::collections::HashMap;
 
 /// Native Document Character runtime value.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -224,7 +224,10 @@ impl ExecutionContext {
     /// Evaluates a permission request, strongly steering toward mocking or
     /// denying if `has_errors` is true.
     #[must_use]
-    pub fn request_permission(&self, privilege: &Privilege) -> PermissionDecision {
+    pub fn request_permission(
+        &self,
+        privilege: &Privilege,
+    ) -> PermissionDecision {
         if matches!(privilege, Privilege::ExcessiveCompute) {
             // For compute exhaustion, default to offering breakout to resume
             // execution/printing on the next Dc.
@@ -245,7 +248,8 @@ impl ExecutionContext {
     pub fn step(&mut self) -> Result<PermissionDecision, anyhow::Error> {
         self.compute_steps = self.compute_steps.saturating_add(1);
         if self.compute_steps > self.max_compute_steps {
-            let decision = self.request_permission(&Privilege::ExcessiveCompute);
+            let decision =
+                self.request_permission(&Privilege::ExcessiveCompute);
             if decision == PermissionDecision::BreakOutResumeNext {
                 // Reset or allow caller to break out and resume at the next Dc
                 return Ok(PermissionDecision::BreakOutResumeNext);

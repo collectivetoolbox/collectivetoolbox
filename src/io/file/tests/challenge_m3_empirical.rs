@@ -27,11 +27,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! 4. `AppleMetadata`: container framing, unknown fields, FinderInfo, real name,
 //!    comment, backup timestamp.
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 pub use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
-use std::collections::BTreeMap;
 use ctb_formats_apple_single_double::{FinderFlags, FinderInfo, FinderLabel};
 use ctb_formats_dcstring::dc::{DC_BEGIN_LIST, DC_END_LIST, DC_TYPE_ANY};
 use ctb_formats_dcstring::{
@@ -43,6 +46,7 @@ use ctb_io_file::metadata::{
     AppleMetadata, FileMetadata, FileTimestamps, NativeMetadata,
     NativeMetadataValue, OsFamily, PlatformRawFlags,
 };
+use std::collections::BTreeMap;
 
 // ============================================================================
 // 1. FILE TIMESTAMPS: MULTI-ROOT & ISOLATED MAP DECODING
@@ -73,13 +77,23 @@ fn test_challenge_file_timestamps_multi_root_decode() -> Result<()> {
 
     // Notice: FileTimestamps encodes as multiple root statements (330, 329, 332, 331, 378).
     let roots = arena.roots();
-    ensure!(roots.len() >= 4, "Expected at least 4 root statements for FileTimestamps");
+    ensure!(
+        roots.len() >= 4,
+        "Expected at least 4 root statements for FileTimestamps"
+    );
 
     // Document projection explicitly receives the complete root sequence.
     let mut ctx = DcProjectionContext::new(&arena, &strict);
-    let (decoded, consumed) = FileTimestamps::decode_dc_document(&mut ctx, roots)?;
-    ensure!(consumed == roots.len(), "FileTimestamps must consume every timestamp root");
-    ensure!(decoded == original, "Multi-root FileTimestamps decode mismatch");
+    let (decoded, consumed) =
+        FileTimestamps::decode_dc_document(&mut ctx, roots)?;
+    ensure!(
+        consumed == roots.len(),
+        "FileTimestamps must consume every timestamp root"
+    );
+    ensure!(
+        decoded == original,
+        "Multi-root FileTimestamps decode mismatch"
+    );
 
     // Also verify decode when wrapped in FileMetadata (single root container 321..322).
     let meta = FileMetadata {
@@ -124,7 +138,10 @@ fn test_challenge_file_timestamps_isolated_map_decoding() -> Result<()> {
     // Projecting FileTimestamps by passing the container node ID:
     let mut ctx = DcProjectionContext::new(&arena, &strict);
     let decoded = FileTimestamps::decode_dc_node(&mut ctx, roots[0])?;
-    ensure!(decoded == ts, "Isolated container FileTimestamps decode mismatch");
+    ensure!(
+        decoded == ts,
+        "Isolated container FileTimestamps decode mismatch"
+    );
 
     Ok(())
 }
@@ -154,7 +171,10 @@ fn test_challenge_file_timestamps_standalone_decode_behavior() -> Result<()> {
     // Under forgiving policy, it succeeds as well:
     let forgiving = DcProjectionPolicy::forgiving();
     let decoded_forgiving = mst.decode::<FileTimestamps>(&forgiving)?;
-    ensure!(decoded_forgiving == ts, "Forgiving standalone decode mismatch");
+    ensure!(
+        decoded_forgiving == ts,
+        "Forgiving standalone decode mismatch"
+    );
 
     Ok(())
 }
@@ -212,10 +232,16 @@ fn test_challenge_file_timestamps_invalid_nanoseconds_rejected() -> Result<()> {
         birthtime_nsec: None,
         resolution_nsec: None,
     };
-    ensure!(invalid_ts.validate().is_err(), "validate() must reject atime_nsec >= 1e9");
+    ensure!(
+        invalid_ts.validate().is_err(),
+        "validate() must reject atime_nsec >= 1e9"
+    );
 
     let mut mst = DcMstring::new();
-    ensure!(invalid_ts.encode_dc_mixed(&mut mst).is_err(), "encode must reject invalid nanoseconds");
+    ensure!(
+        invalid_ts.encode_dc_mixed(&mut mst).is_err(),
+        "encode must reject invalid nanoseconds"
+    );
 
     Ok(())
 }
@@ -230,7 +256,9 @@ fn test_challenge_file_timestamps_out_of_range_epoch() -> Result<()> {
     mst.push_char(DcChar::from_short(390));
     mst.push_char(DcChar::from_format(487));
     // Number larger than i64::MAX * 1_000_000_000:
-    let huge_nanos: i128 = i128::from(i64::MAX).checked_mul(2_000_000_000).context("overflow")?;
+    let huge_nanos: i128 = i128::from(i64::MAX)
+        .checked_mul(2_000_000_000)
+        .context("overflow")?;
     huge_nanos.encode_dc_mixed(&mut mst)?;
     mst.push_char(DcChar::from_short(391));
     mst.push_char(DcChar::from_short(322));
@@ -263,8 +291,12 @@ fn test_challenge_platform_raw_flags_payload_widths() -> Result<()> {
     let mut arena8 = DcSyntaxArena::new();
     nav8.parse_document_into_arena(&mut arena8, &strict)?;
     let mut ctx8 = DcProjectionContext::new(&arena8, &strict);
-    let decoded8 = PlatformRawFlags::decode_dc_node(&mut ctx8, arena8.roots()[0])?;
-    ensure!(decoded8.raw_value() == 0x1234_5678_9ABC_DEF0, "8-byte raw flags mismatch");
+    let decoded8 =
+        PlatformRawFlags::decode_dc_node(&mut ctx8, arena8.roots()[0])?;
+    ensure!(
+        decoded8.raw_value() == 0x1234_5678_9ABC_DEF0,
+        "8-byte raw flags mismatch"
+    );
 
     // Valid: 4 bytes via binary payload
     let mut mst4 = DcMstring::new();
@@ -273,8 +305,12 @@ fn test_challenge_platform_raw_flags_payload_widths() -> Result<()> {
     let mut arena4 = DcSyntaxArena::new();
     nav4.parse_document_into_arena(&mut arena4, &strict)?;
     let mut ctx4 = DcProjectionContext::new(&arena4, &strict);
-    let decoded4 = PlatformRawFlags::decode_dc_node(&mut ctx4, arena4.roots()[0])?;
-    ensure!(decoded4.raw_value() == 0x1234_5678, "4-byte raw flags mismatch");
+    let decoded4 =
+        PlatformRawFlags::decode_dc_node(&mut ctx4, arena4.roots()[0])?;
+    ensure!(
+        decoded4.raw_value() == 0x1234_5678,
+        "4-byte raw flags mismatch"
+    );
 
     // Invalid widths: 0, 1, 2, 3, 5, 6, 7, 9 bytes
     for bad_len in [0, 1, 2, 3, 5, 6, 7, 9, 16] {
@@ -286,8 +322,14 @@ fn test_challenge_platform_raw_flags_payload_widths() -> Result<()> {
         let mut arena_bad = DcSyntaxArena::new();
         nav_bad.parse_document_into_arena(&mut arena_bad, &strict)?;
         let mut ctx_bad = DcProjectionContext::new(&arena_bad, &strict);
-        let res = PlatformRawFlags::decode_dc_node(&mut ctx_bad, arena_bad.roots()[0]);
-        ensure!(res.is_err(), "PlatformRawFlags must reject invalid payload width {bad_len}");
+        let res = PlatformRawFlags::decode_dc_node(
+            &mut ctx_bad,
+            arena_bad.roots()[0],
+        );
+        ensure!(
+            res.is_err(),
+            "PlatformRawFlags must reject invalid payload width {bad_len}"
+        );
     }
 
     // Invalid node type: String node instead of binary
@@ -297,8 +339,12 @@ fn test_challenge_platform_raw_flags_payload_widths() -> Result<()> {
     let mut arena_str = DcSyntaxArena::new();
     nav_str.parse_document_into_arena(&mut arena_str, &strict)?;
     let mut ctx_str = DcProjectionContext::new(&arena_str, &strict);
-    let res = PlatformRawFlags::decode_dc_node(&mut ctx_str, arena_str.roots()[0]);
-    ensure!(res.is_err(), "PlatformRawFlags must reject non-binary/list string node");
+    let res =
+        PlatformRawFlags::decode_dc_node(&mut ctx_str, arena_str.roots()[0]);
+    ensure!(
+        res.is_err(),
+        "PlatformRawFlags must reject non-binary/list string node"
+    );
 
     Ok(())
 }
@@ -312,7 +358,10 @@ fn test_challenge_native_metadata_pairs_roundtrip() -> Result<()> {
     let mut values = BTreeMap::new();
     values.insert("inode".to_string(), NativeMetadataValue::Unsigned(12345));
     values.insert("offset".to_string(), NativeMetadataValue::Signed(-99));
-    values.insert("acl_bytes".to_string(), NativeMetadataValue::Bytes(vec![0xDE, 0xAD, 0xBE, 0xEF]));
+    values.insert(
+        "acl_bytes".to_string(),
+        NativeMetadataValue::Bytes(vec![0xDE, 0xAD, 0xBE, 0xEF]),
+    );
 
     let native = NativeMetadata {
         source_os: OsFamily::Linux,
@@ -360,8 +409,12 @@ fn test_challenge_native_metadata_legacy_map_and_diagnostics() -> Result<()> {
     let strict = DcProjectionPolicy::strict();
     nav.parse_document_into_arena(&mut arena, &strict)?;
     let mut ctx_strict = DcProjectionContext::new(&arena, &strict);
-    let decoded = NativeMetadata::decode_dc_node(&mut ctx_strict, arena.roots()[0])?;
-    ensure!(decoded.source_os == OsFamily::FreeBSD, "Source OS mismatch in legacy map");
+    let decoded =
+        NativeMetadata::decode_dc_node(&mut ctx_strict, arena.roots()[0])?;
+    ensure!(
+        decoded.source_os == OsFamily::FreeBSD,
+        "Source OS mismatch in legacy map"
+    );
     ensure!(decoded.values.is_empty(), "Values should be empty");
 
     // Under policy with deprecated_syntax = DiagnosticAction::Error, it must reject:
@@ -371,8 +424,12 @@ fn test_challenge_native_metadata_legacy_map_and_diagnostics() -> Result<()> {
     };
     let mut nav_err = DcDocumentNavigator::from_mstr(&mst);
     let mut arena_err = DcSyntaxArena::new();
-    let res_err = nav_err.parse_document_into_arena(&mut arena_err, &deprecated_error_policy);
-    ensure!(res_err.is_err(), "Policy with deprecated_syntax=Error must reject Dc 313 map");
+    let res_err = nav_err
+        .parse_document_into_arena(&mut arena_err, &deprecated_error_policy);
+    ensure!(
+        res_err.is_err(),
+        "Policy with deprecated_syntax=Error must reject Dc 313 map"
+    );
 
     // Malformed legacy map with uneven number of elements must be rejected:
     let mut mst_uneven = DcMstring::new();
@@ -387,7 +444,9 @@ fn test_challenge_native_metadata_legacy_map_and_diagnostics() -> Result<()> {
     let mut nav_uneven = DcDocumentNavigator::from_mstr(&mst_uneven);
     let mut arena_uneven = DcSyntaxArena::new();
     ensure!(
-        nav_uneven.parse_document_into_arena(&mut arena_uneven, &strict).is_err(),
+        nav_uneven
+            .parse_document_into_arena(&mut arena_uneven, &strict)
+            .is_err(),
         "Legacy map with uneven item count must be rejected"
     );
 
@@ -415,14 +474,16 @@ fn test_challenge_native_metadata_missing_fields_policy() -> Result<()> {
     // Strict must error on missing required field
     let mut ctx_strict = DcProjectionContext::new(&arena, &strict);
     ensure!(
-        NativeMetadata::decode_dc_node(&mut ctx_strict, arena.roots()[0]).is_err(),
+        NativeMetadata::decode_dc_node(&mut ctx_strict, arena.roots()[0])
+            .is_err(),
         "Strict policy must reject missing 'values' field"
     );
 
     // Forgiving should supply forgiving default (empty map)
     let forgiving = DcProjectionPolicy::forgiving();
     let mut ctx_forgiving = DcProjectionContext::new(&arena, &forgiving);
-    let decoded = NativeMetadata::decode_dc_node(&mut ctx_forgiving, arena.roots()[0])?;
+    let decoded =
+        NativeMetadata::decode_dc_node(&mut ctx_forgiving, arena.roots()[0])?;
     ensure!(decoded.source_os == OsFamily::Windows);
     ensure!(decoded.values.is_empty());
 
@@ -447,7 +508,8 @@ fn test_challenge_native_metadata_missing_fields_policy() -> Result<()> {
     nav_dup.parse_document_into_arena(&mut arena_dup, &strict)?;
     let mut ctx_dup = DcProjectionContext::new(&arena_dup, &strict);
     ensure!(
-        NativeMetadata::decode_dc_node(&mut ctx_dup, arena_dup.roots()[0]).is_err(),
+        NativeMetadata::decode_dc_node(&mut ctx_dup, arena_dup.roots()[0])
+            .is_err(),
         "Duplicate map keys must be rejected"
     );
 
@@ -483,11 +545,20 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     let mut ctx = DcProjectionContext::new(&arena, &strict);
     let decoded = AppleMetadata::decode_dc_node(&mut ctx, arena.roots()[0])?;
 
-    ensure!(decoded.finder_info == apple.finder_info, "FinderInfo mismatch");
+    ensure!(
+        decoded.finder_info == apple.finder_info,
+        "FinderInfo mismatch"
+    );
     ensure!(decoded.real_name == apple.real_name, "Real name mismatch");
     ensure!(decoded.comment == apple.comment, "Comment mismatch");
-    ensure!(decoded.backup_timestamp_sec == apple.backup_timestamp_sec, "Backup timestamp mismatch");
-    ensure!(decoded == apple, "Nonempty AppleMetadata roundtrip mismatch");
+    ensure!(
+        decoded.backup_timestamp_sec == apple.backup_timestamp_sec,
+        "Backup timestamp mismatch"
+    );
+    ensure!(
+        decoded == apple,
+        "Nonempty AppleMetadata roundtrip mismatch"
+    );
     assert_dc_roundtrip(&apple)?;
 
     let empty = AppleMetadata::default().to_dc_mixed()?;
@@ -495,7 +566,8 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     let mut arena_empty = DcSyntaxArena::new();
     nav_empty.parse_document_into_arena(&mut arena_empty, &strict)?;
     let mut ctx_empty = DcProjectionContext::new(&arena_empty, &strict);
-    let decoded_empty = AppleMetadata::decode_dc_node(&mut ctx_empty, arena_empty.roots()[0])?;
+    let decoded_empty =
+        AppleMetadata::decode_dc_node(&mut ctx_empty, arena_empty.roots()[0])?;
     ensure!(
         decoded_empty == AppleMetadata::default(),
         "Empty AppleMetadata container roundtrip mismatch"
@@ -512,7 +584,8 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     let mut arena_sdf = DcSyntaxArena::new();
     nav_sdf.parse_document_into_arena(&mut arena_sdf, &strict)?;
     let mut ctx_sdf = DcProjectionContext::new(&arena_sdf, &strict);
-    let decoded_sdf = AppleMetadata::decode_dc_node(&mut ctx_sdf, arena_sdf.roots()[0])?;
+    let decoded_sdf =
+        AppleMetadata::decode_dc_node(&mut ctx_sdf, arena_sdf.roots()[0])?;
     ensure!(
         decoded_sdf == some_default_finder,
         "Some(FinderInfo::default()) roundtrip mismatch"
@@ -529,7 +602,8 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     nav_bad.parse_document_into_arena(&mut arena_bad, &strict)?;
     let mut ctx_bad = DcProjectionContext::new(&arena_bad, &strict);
     ensure!(
-        AppleMetadata::decode_dc_node(&mut ctx_bad, arena_bad.roots()[0]).is_err(),
+        AppleMetadata::decode_dc_node(&mut ctx_bad, arena_bad.roots()[0])
+            .is_err(),
         "AppleMetadata must reject non-401 container"
     );
 
@@ -545,15 +619,26 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     nav_unknown.parse_document_into_arena(&mut arena_unknown, &strict)?;
     let mut ctx_unknown = DcProjectionContext::new(&arena_unknown, &strict);
     ensure!(
-        AppleMetadata::decode_dc_node(&mut ctx_unknown, arena_unknown.roots()[0]).is_err(),
+        AppleMetadata::decode_dc_node(
+            &mut ctx_unknown,
+            arena_unknown.roots()[0]
+        )
+        .is_err(),
         "AppleMetadata must reject unknown tag under strict policy"
     );
 
     // Under forgiving policy, unknown tag should be ignored
     let forgiving = DcProjectionPolicy::forgiving();
-    let mut ctx_forgiving = DcProjectionContext::new(&arena_unknown, &forgiving);
-    let decoded_forgiving = AppleMetadata::decode_dc_node(&mut ctx_forgiving, arena_unknown.roots()[0])?;
-    ensure!(decoded_forgiving.is_empty(), "AppleMetadata with unknown tags must decode as default/empty under forgiving policy");
+    let mut ctx_forgiving =
+        DcProjectionContext::new(&arena_unknown, &forgiving);
+    let decoded_forgiving = AppleMetadata::decode_dc_node(
+        &mut ctx_forgiving,
+        arena_unknown.roots()[0],
+    )?;
+    ensure!(
+        decoded_forgiving.is_empty(),
+        "AppleMetadata with unknown tags must decode as default/empty under forgiving policy"
+    );
 
     Ok(())
 }
@@ -572,7 +657,10 @@ fn test_challenge_equivalent_list_strict_312_separation() -> Result<()> {
 
     // Verify valid equivalent list roundtrips strictly:
     let decoded: FinderInfo = encoded.decode(&DcProjectionPolicy::strict())?;
-    ensure!(decoded == finfo, "Valid equivalent list must decode to identical FinderInfo");
+    ensure!(
+        decoded == finfo,
+        "Valid equivalent list must decode to identical FinderInfo"
+    );
 
     // Construct malformed equivalent lists where Dc 312 separator is omitted:
     // Pattern: 401 (record), 405 (label tag), 397 (equiv tag), 310 (list open),
@@ -584,7 +672,8 @@ fn test_challenge_equivalent_list_strict_312_separation() -> Result<()> {
         mst_malformed.push_char(DcChar::from_short(tok));
     }
 
-    let strict_err = mst_malformed.decode::<FinderInfo>(&DcProjectionPolicy::strict());
+    let strict_err =
+        mst_malformed.decode::<FinderInfo>(&DcProjectionPolicy::strict());
     ensure!(
         strict_err.is_err(),
         "Equivalent list with missing Dc 312 must fail strict decoding"
@@ -596,7 +685,8 @@ fn test_challenge_equivalent_list_strict_312_separation() -> Result<()> {
     );
 
     // Verify that forgiving policy recovers the primary item even without 312:
-    let forgiving_decoded = mst_malformed.decode::<FinderInfo>(&DcProjectionPolicy::forgiving())?;
+    let forgiving_decoded =
+        mst_malformed.decode::<FinderInfo>(&DcProjectionPolicy::forgiving())?;
     ensure!(
         forgiving_decoded.label == FinderLabel::InProgress,
         "Forgiving policy must recover primary equivalent element"
@@ -609,7 +699,8 @@ fn test_challenge_equivalent_list_strict_312_separation() -> Result<()> {
     for &tok in &valid_with_sep {
         mst_valid.push_char(DcChar::from_short(tok));
     }
-    let valid_decoded = mst_valid.decode::<FinderInfo>(&DcProjectionPolicy::strict())?;
+    let valid_decoded =
+        mst_valid.decode::<FinderInfo>(&DcProjectionPolicy::strict())?;
     ensure!(
         valid_decoded.label == FinderLabel::InProgress,
         "Valid equivalent list with Dc 312 must pass strict decoding"
@@ -624,7 +715,8 @@ fn test_challenge_equivalent_list_strict_312_separation() -> Result<()> {
 #[crate::ctb_test]
 fn test_challenge_equivalent_list_multi_element_separation() -> Result<()> {
     // Three elements: el1, 312, el2, el3 (missing separator before el3)
-    let missing_second_sep = vec![401, 405, 397, 310, 275, 487, 312, 486, 485, 311, 402];
+    let missing_second_sep =
+        vec![401, 405, 397, 310, 275, 487, 312, 486, 485, 311, 402];
     let mut mst = DcMstring::new();
     for &tok in &missing_second_sep {
         mst.push_char(DcChar::from_short(tok));
@@ -636,7 +728,8 @@ fn test_challenge_equivalent_list_multi_element_separation() -> Result<()> {
     );
 
     // Three elements: el1, 312, el2, 312, el3 (all separated)
-    let all_separated = vec![401, 405, 397, 310, 275, 487, 312, 486, 312, 485, 311, 402];
+    let all_separated =
+        vec![401, 405, 397, 310, 275, 487, 312, 486, 312, 485, 311, 402];
     let mut mst_all = DcMstring::new();
     for &tok in &all_separated {
         mst_all.push_char(DcChar::from_short(tok));
@@ -655,11 +748,14 @@ fn test_challenge_equivalent_list_multi_element_separation() -> Result<()> {
     }
     // Strict policy must fail decoding:
     ensure!(
-        mst_empty.decode::<FinderInfo>(&DcProjectionPolicy::strict()).is_err(),
+        mst_empty
+            .decode::<FinderInfo>(&DcProjectionPolicy::strict())
+            .is_err(),
         "Empty equivalent list must fail strict decoding"
     );
     // Forgiving policy handles the malformed field and falls back to default label:
-    let forgiving_empty = mst_empty.decode::<FinderInfo>(&DcProjectionPolicy::forgiving())?;
+    let forgiving_empty =
+        mst_empty.decode::<FinderInfo>(&DcProjectionPolicy::forgiving())?;
     ensure!(
         forgiving_empty.label == FinderLabel::None,
         "Forgiving policy falls back to default on empty equivalent list"
@@ -708,7 +804,8 @@ fn test_challenge_partially_equivalent_561_separation() -> Result<()> {
     for &tok in &with_sep_561 {
         mst_with_sep.push_char(DcChar::from_short(tok));
     }
-    let res_ok = mst_with_sep.decode::<FinderInfo>(&DcProjectionPolicy::strict())?;
+    let res_ok =
+        mst_with_sep.decode::<FinderInfo>(&DcProjectionPolicy::strict())?;
     ensure!(
         res_ok.label == FinderLabel::InProgress,
         "Dc 561 list with Dc 312 must pass strict decoding"
@@ -725,7 +822,8 @@ fn test_challenge_partially_equivalent_561_separation() -> Result<()> {
 /// configurations using direct `assert_dc_roundtrip(&ts)`.
 
 #[crate::ctb_test]
-fn test_challenge_standalone_file_timestamps_varied_configurations() -> Result<()> {
+fn test_challenge_standalone_file_timestamps_varied_configurations()
+-> Result<()> {
     // Varied timestamp test cases:
     // (atime_sec, atime_nsec, mtime_sec, mtime_nsec, ctime_sec, ctime_nsec,
     //  birthtime_sec, birthtime_nsec, resolution_nsec)
@@ -737,55 +835,131 @@ fn test_challenge_standalone_file_timestamps_varied_configurations() -> Result<(
         // 3. Epoch with 1ns resolution
         (0i64, 0u32, 0i64, 0u32, 0i64, 0u32, None, None, Some(1u32)),
         // 4. Positive seconds, zero nanoseconds
-        (1_700_000_000i64, 0u32, 1_700_000_100i64, 0u32, 1_700_000_200i64, 0u32, None, None, None),
+        (
+            1_700_000_000i64,
+            0u32,
+            1_700_000_100i64,
+            0u32,
+            1_700_000_200i64,
+            0u32,
+            None,
+            None,
+            None,
+        ),
         // 5. Positive seconds with subsecond nanoseconds (arbitrary & max)
         (
-            1_700_000_000i64, 123_456_789u32,
-            1_700_000_001i64, 999_999_999u32,
-            1_700_000_002i64, 1u32,
-            Some(1_699_999_999i64), Some(500_000_000u32),
+            1_700_000_000i64,
+            123_456_789u32,
+            1_700_000_001i64,
+            999_999_999u32,
+            1_700_000_002i64,
+            1u32,
+            Some(1_699_999_999i64),
+            Some(500_000_000u32),
             Some(100u32),
         ),
         // 6. Pre-epoch negative 1 second with 0 nanos
         (-1i64, 0u32, -1i64, 0u32, -1i64, 0u32, None, None, None),
         // 7. Pre-epoch negative 1 second with fractional nanos (500_000_000)
-        (-1i64, 500_000_000u32, -1i64, 500_000_000u32, -1i64, 500_000_000u32, None, None, None),
+        (
+            -1i64,
+            500_000_000u32,
+            -1i64,
+            500_000_000u32,
+            -1i64,
+            500_000_000u32,
+            None,
+            None,
+            None,
+        ),
         // 8. Pre-epoch negative 1 second with max nanos (999_999_999)
-        (-1i64, 999_999_999u32, -1i64, 999_999_999u32, -1i64, 999_999_999u32, None, None, None),
+        (
+            -1i64,
+            999_999_999u32,
+            -1i64,
+            999_999_999u32,
+            -1i64,
+            999_999_999u32,
+            None,
+            None,
+            None,
+        ),
         // 9. Pre-epoch negative 1 second with 1 nano
         (-1i64, 1u32, -1i64, 1u32, -1i64, 1u32, None, None, None),
         // 10. Large negative seconds (1 day before epoch = -86400)
-        (-86_400i64, 0u32, -86_400i64, 123_456u32, -86_400i64, 789_012u32, None, None, Some(1000u32)),
+        (
+            -86_400i64,
+            0u32,
+            -86_400i64,
+            123_456u32,
+            -86_400i64,
+            789_012u32,
+            None,
+            None,
+            Some(1000u32),
+        ),
         // 11. 1 year before epoch (-31_536_000)
-        (-31_536_000i64, 42u32, -31_536_000i64, 42u32, -31_536_000i64, 42u32, None, None, None),
+        (
+            -31_536_000i64,
+            42u32,
+            -31_536_000i64,
+            42u32,
+            -31_536_000i64,
+            42u32,
+            None,
+            None,
+            None,
+        ),
         // 12. Windows epoch 1601-01-01 (-11_644_473_600 seconds)
         (
-            -11_644_473_600i64, 100u32,
-            -11_644_473_600i64, 200u32,
-            -11_644_473_600i64, 300u32,
-            Some(-11_644_473_600i64), Some(100u32),
+            -11_644_473_600i64,
+            100u32,
+            -11_644_473_600i64,
+            200u32,
+            -11_644_473_600i64,
+            300u32,
+            Some(-11_644_473_600i64),
+            Some(100u32),
             Some(100u32),
         ),
         // 13. Asymmetric positive and negative timestamps across fields
         (
-            -500i64, 123_456_789u32,
-            1_000i64, 987_654_321u32,
-            0i64, 0u32,
-            Some(-10_000i64), Some(111_222_333u32),
+            -500i64,
+            123_456_789u32,
+            1_000i64,
+            987_654_321u32,
+            0i64,
+            0u32,
+            Some(-10_000i64),
+            Some(111_222_333u32),
             Some(50u32),
         ),
         // 14. Large future seconds (year ~2286: 10_000_000_000)
         (
-            10_000_000_000i64, 999_999_999u32,
-            10_000_000_001i64, 0u32,
-            10_000_000_002i64, 500_000_000u32,
-            Some(10_000_000_000i64), Some(1u32),
+            10_000_000_000i64,
+            999_999_999u32,
+            10_000_000_001i64,
+            0u32,
+            10_000_000_002i64,
+            500_000_000u32,
+            Some(10_000_000_000i64),
+            Some(1u32),
             Some(1u32),
         ),
     ];
 
-    for (atime_sec, atime_nsec, mtime_sec, mtime_nsec, ctime_sec, ctime_nsec,
-         birthtime_sec, birthtime_nsec, resolution_nsec) in test_matrix {
+    for (
+        atime_sec,
+        atime_nsec,
+        mtime_sec,
+        mtime_nsec,
+        ctime_sec,
+        ctime_nsec,
+        birthtime_sec,
+        birthtime_nsec,
+        resolution_nsec,
+    ) in test_matrix
+    {
         let ts = FileTimestamps {
             atime_sec,
             atime_nsec,
@@ -802,8 +976,9 @@ fn test_challenge_standalone_file_timestamps_varied_configurations() -> Result<(
         ts.validate()?;
 
         // Perform strict standalone assert_dc_roundtrip:
-        assert_dc_roundtrip(&ts)
-            .with_context(|| format!("Standalone roundtrip failed for ts: {ts:?}"))?;
+        assert_dc_roundtrip(&ts).with_context(|| {
+            format!("Standalone roundtrip failed for ts: {ts:?}")
+        })?;
 
         // Also test direct decode via mst.decode::<FileTimestamps>(&strict):
         let mut mst = DcMstring::new();
@@ -835,9 +1010,15 @@ fn test_challenge_standalone_file_timestamps_rejections() -> Result<()> {
         birthtime_nsec: None,
         resolution_nsec: None,
     };
-    ensure!(bad_nanos.validate().is_err(), "atime_nsec >= 1e9 must fail validate()");
+    ensure!(
+        bad_nanos.validate().is_err(),
+        "atime_nsec >= 1e9 must fail validate()"
+    );
     let mut mst = DcMstring::new();
-    ensure!(bad_nanos.encode_dc_mixed(&mut mst).is_err(), "atime_nsec >= 1e9 must fail encode()");
+    ensure!(
+        bad_nanos.encode_dc_mixed(&mut mst).is_err(),
+        "atime_nsec >= 1e9 must fail encode()"
+    );
 
     // Birthtime seconds present but nanoseconds missing:
     let bad_birthtime = FileTimestamps {
@@ -851,7 +1032,10 @@ fn test_challenge_standalone_file_timestamps_rejections() -> Result<()> {
         birthtime_nsec: None,
         resolution_nsec: None,
     };
-    ensure!(bad_birthtime.validate().is_err(), "birthtime without nanos must fail validate()");
+    ensure!(
+        bad_birthtime.validate().is_err(),
+        "birthtime without nanos must fail validate()"
+    );
 
     // Resolution = 0:
     let bad_res = FileTimestamps {
@@ -865,7 +1049,10 @@ fn test_challenge_standalone_file_timestamps_rejections() -> Result<()> {
         birthtime_nsec: None,
         resolution_nsec: Some(0),
     };
-    ensure!(bad_res.validate().is_err(), "resolution = 0 must fail validate()");
+    ensure!(
+        bad_res.validate().is_err(),
+        "resolution = 0 must fail validate()"
+    );
 
     Ok(())
 }
@@ -897,12 +1084,21 @@ fn test_platform_raw_flags_valid_payloads_and_endianness() -> Result<()> {
     );
 
     // Case 1B: Boundary values for 8-byte
-    for &boundary in &[0u64, 1u64, u64::MAX, 0x8000_0000_0000_0000u64, 0xAAAA_5555_AAAA_5555u64] {
+    for &boundary in &[
+        0u64,
+        1u64,
+        u64::MAX,
+        0x8000_0000_0000_0000u64,
+        0xAAAA_5555_AAAA_5555u64,
+    ] {
         let f = PlatformRawFlags::from_raw(boundary);
         let mut m = DcMstring::new();
         f.encode_dc_mixed(&mut m)?;
         let d: PlatformRawFlags = m.decode(&strict)?;
-        ensure!(d.raw_value == boundary, "Boundary {boundary:#x} roundtrip failed");
+        ensure!(
+            d.raw_value == boundary,
+            "Boundary {boundary:#x} roundtrip failed"
+        );
     }
 
     // Case 1C: 4-byte valid binary payload (legacy BSD 32-bit chflags)
@@ -992,7 +1188,8 @@ fn test_platform_raw_flags_invalid_lengths_rejection() -> Result<()> {
             res_list_strict.is_err(),
             "PlatformRawFlags under strict policy MUST reject {len}-element list, but succeeded"
         );
-        let res_list_forgiving = mst_list.decode::<PlatformRawFlags>(&forgiving);
+        let res_list_forgiving =
+            mst_list.decode::<PlatformRawFlags>(&forgiving);
         ensure!(
             res_list_forgiving.is_err(),
             "PlatformRawFlags under forgiving policy MUST reject {len}-element list, but succeeded"
@@ -1032,7 +1229,10 @@ fn test_platform_raw_flags_tagged_and_malformed_nodes() -> Result<()> {
     mst_tag8.push_char(DcChar::from_short(539));
     mst_tag8.push_binary_with_sha256(&val8.to_le_bytes())?;
     let dec_tag8: PlatformRawFlags = mst_tag8.decode(&strict)?;
-    ensure!(dec_tag8.raw_value == val8, "Tagged Dc 539 8-byte payload mismatch");
+    ensure!(
+        dec_tag8.raw_value == val8,
+        "Tagged Dc 539 8-byte payload mismatch"
+    );
 
     // 2. Dc 539 tag wrapping 4-byte payload
     let val4 = 0xAABB_CCDDu32;
@@ -1040,7 +1240,10 @@ fn test_platform_raw_flags_tagged_and_malformed_nodes() -> Result<()> {
     mst_tag4.push_char(DcChar::from_short(539));
     mst_tag4.push_binary_with_sha256(&val4.to_le_bytes())?;
     let dec_tag4: PlatformRawFlags = mst_tag4.decode(&strict)?;
-    ensure!(dec_tag4.raw_value == u64::from(val4), "Tagged Dc 539 4-byte payload mismatch");
+    ensure!(
+        dec_tag4.raw_value == u64::from(val4),
+        "Tagged Dc 539 4-byte payload mismatch"
+    );
 
     // 3. Dc 539 tag wrapping invalid 3-byte payload
     let mut mst_tag_bad = DcMstring::new();

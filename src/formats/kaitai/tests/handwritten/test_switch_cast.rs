@@ -27,16 +27,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-use std::path::PathBuf;
 use kaitai::*;
 use rust::formats::switch_cast::*;
+use std::path::PathBuf;
 
 #[crate::ctb_test]
 fn test_switch_cast() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/switch_opcodes.bin")).expect("read fixture");
+    let bytes = std::fs::read(
+        manifest_dir.join("kaitai_struct_tests/src/switch_opcodes.bin"),
+    )
+    .expect("read fixture");
     let _io = BytesReader::from(bytes);
-    let r: OptRc<SwitchCast> = SwitchCast::read_into(&_io, None, None).expect("read switch cast");
+    let r: OptRc<SwitchCast> =
+        SwitchCast::read_into(&_io, None, None).expect("read switch cast");
 
     assert_eq!("foobar", *r.first_obj().expect("first_obj").value());
     assert_eq!(0x42, *r.second_val().expect("second_val"));

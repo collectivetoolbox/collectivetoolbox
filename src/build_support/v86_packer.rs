@@ -636,7 +636,10 @@ fn find_profile_store_path(json: &str) -> Result<String> {
                 if let (Some(p0), Some(p1), Some(p2)) =
                     (parts.first(), parts.get(1), parts.get(2))
                 {
-                    if *p0 == "gnu" && *p1 == "store" && p2.ends_with("-profile") {
+                    if *p0 == "gnu"
+                        && *p1 == "store"
+                        && p2.ends_with("-profile")
+                    {
                         return Ok(format!("{p0}/{p1}/{p2}"));
                     }
                 }

@@ -32,10 +32,13 @@ use serde::{Deserialize, Deserializer, Serializer};
 
 /// Serde helper for `[u8; 32]` SHA-256 digests.
 pub mod hex_sha256 {
-    use super::{Deserialize, Serializer, Result, Deserializer};
+    use super::{Deserialize, Deserializer, Result, Serializer};
 
     /// Serializes a 32-byte digest into a 64-character lowercase hexadecimal string.
-    pub fn serialize<S>(val: &[u8; 32], serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(
+        val: &[u8; 32],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -105,7 +108,9 @@ pub mod hex_sha256 {
 
 /// Serde helper for optional Base64 byte payloads (`Option<Vec<u8>>`).
 pub mod opt_base64 {
-    use super::{Deserialize, Serializer, Result, Engine, BASE64_STANDARD, Deserializer};
+    use super::{
+        BASE64_STANDARD, Deserialize, Deserializer, Engine, Result, Serializer,
+    };
 
     /// Serializes optional bytes as a Base64 string or none.
     pub fn serialize<S>(
@@ -153,7 +158,7 @@ pub mod opt_base64 {
 
 /// Serde helper for byte sequences that prefer UTF-8 strings when losslessly encodable.
 pub mod text_or_bytes {
-    use super::{Deserialize, Serializer, Result, Deserializer};
+    use super::{Deserialize, Deserializer, Result, Serializer};
 
     /// Serializes bytes as a UTF-8 string if valid, otherwise as a byte sequence.
     pub fn serialize<S>(val: &[u8], serializer: S) -> Result<S::Ok, S::Error>
@@ -188,10 +193,15 @@ pub mod text_or_bytes {
 
 /// Serde helper for optional byte sequences (`Option<Vec<u8>>`) that prefer UTF-8 strings when losslessly encodable.
 pub mod opt_text_or_base64 {
-    use super::{Deserialize, Serializer, Result, Engine, BASE64_STANDARD, Deserializer};
+    use super::{
+        BASE64_STANDARD, Deserialize, Deserializer, Engine, Result, Serializer,
+    };
 
     /// Serializes optional bytes as a UTF-8 string, Base64, or none.
-    pub fn serialize<S>(val: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(
+        val: &Option<Vec<u8>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -208,7 +218,9 @@ pub mod opt_text_or_base64 {
     }
 
     /// Deserializes optional bytes from a UTF-8 string, byte array, or null.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<Vec<u8>>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -233,7 +245,7 @@ pub mod opt_text_or_base64 {
 /// Serializes as integer if fitting in `u64`, otherwise as decimal string.
 /// Deserializes from `u64`, `u128`, `i64`, or decimal `String`.
 pub mod natural_flexible {
-    use super::{Deserialize, Serializer, Result, Deserializer};
+    use super::{Deserialize, Deserializer, Result, Serializer};
     use malachite::Natural;
     use std::str::FromStr;
 
@@ -286,12 +298,17 @@ pub mod natural_flexible {
 
 /// Serde helper for `Option<malachite::Natural>`.
 pub mod opt_natural_flexible {
-    use super::{Deserialize, Serializer, Result, natural_flexible, Deserializer};
+    use super::{
+        Deserialize, Deserializer, Result, Serializer, natural_flexible,
+    };
     use malachite::Natural;
     use std::str::FromStr;
 
     /// Serializes an optional [`Natural`].
-    pub fn serialize<S>(val: &Option<Natural>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(
+        val: &Option<Natural>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -302,7 +319,9 @@ pub mod opt_natural_flexible {
     }
 
     /// Deserializes an optional [`Natural`].
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Natural>, D::Error>
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<Natural>, D::Error>
     where
         D: Deserializer<'de>,
     {

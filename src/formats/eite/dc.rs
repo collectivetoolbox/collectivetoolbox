@@ -37,6 +37,7 @@ use ctb_formats_base64::{
     standard_base64_to_bytes, standard_base64_to_decimal,
 };
 
+use ctb_formats_dcdata::DcCharExt;
 pub use ctb_formats_dcdata::dc::{
     DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START,
     DC_END_ENCAPSULATION_BINARY, DC_END_ENCAPSULATION_UTF8, DC_ESCAPE,
@@ -44,7 +45,6 @@ pub use ctb_formats_dcdata::dc::{
     DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8, DcChar,
 };
 pub use ctb_formats_dcdata::dc_number_minimal::is_dc_base64_encapsulation_char;
-use ctb_formats_dcdata::DcCharExt;
 
 /* ===== Dc classification & queries ===== */
 
@@ -241,7 +241,9 @@ pub fn bytes_to_dc_encapsulated_binary(input: &[u8]) -> Result<Vec<u32>> {
     let mut out: Vec<u32> = Vec::new();
 
     out.push(DC_START_ENCAPSULATION_BINARY.to_short()?);
-    for ch in ctb_formats_dcdata::dc_number_minimal::u128_to_dc_number_chars(u128::try_from(input.len())?) {
+    for ch in ctb_formats_dcdata::dc_number_minimal::u128_to_dc_number_chars(
+        u128::try_from(input.len())?,
+    ) {
         out.extend(ch.to_short_vec());
     }
     let mut raw = bytes_to_dc_encapsulated_raw(input)?;
@@ -428,7 +430,9 @@ mod tests {
         //          28 38 49 36 8 16
         //          64 64
         let mut expected = vec![203];
-        for ch in ctb_formats_dcdata::dc_number_minimal::u128_to_dc_number_chars(13) {
+        for ch in
+            ctb_formats_dcdata::dc_number_minimal::u128_to_dc_number_chars(13)
+        {
             expected.extend(ch.to_short_vec());
         }
         expected.extend([

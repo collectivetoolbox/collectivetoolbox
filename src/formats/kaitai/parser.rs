@@ -71,8 +71,9 @@ pub fn parse_ksy_slice(bytes: &[u8]) -> Result<KsyFile> {
 /// # Errors
 /// Returns an error if the file cannot be read or its content is invalid YAML.
 pub fn parse_ksy_file(path: &Path) -> Result<KsyFile> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read .ksy file from {}", path.display()))?;
+    let content = fs::read_to_string(path).with_context(|| {
+        format!("Failed to read .ksy file from {}", path.display())
+    })?;
     parse_ksy_str(&content)
         .with_context(|| format!("Error in .ksy file {}", path.display()))
 }

@@ -106,7 +106,11 @@ impl KStruct for ProcessRotate {
     type Root = ProcessRotate;
     type Parent = ProcessRotate;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,20 +122,24 @@ impl KStruct for ProcessRotate {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf1.borrow_mut() = process_rotate_left(&_io.read_bytes(5_usize)?, i64::try_from(3)?);
+        *self_rc.buf1.borrow_mut() =
+            process_rotate_left(&_io.read_bytes(5_usize)?, i64::try_from(3)?);
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.buf2.borrow_mut() = process_rotate_right(&_io.read_bytes(5_usize)?, i64::try_from(3)?);
+        *self_rc.buf2.borrow_mut() =
+            process_rotate_right(&_io.read_bytes(5_usize)?, i64::try_from(3)?);
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.key.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.buf3.borrow_mut() = process_rotate_left(&_io.read_bytes(5_usize)?, i64::try_from(*self_rc.key())?);
+        *self_rc.buf3.borrow_mut() = process_rotate_left(
+            &_io.read_bytes(5_usize)?,
+            i64::try_from(*self_rc.key())?,
+        );
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessRotate {
-}
+impl ProcessRotate {}
 impl ProcessRotate {
     pub fn buf1(&self) -> Ref<'_, Vec<u8>> {
         self.buf1.borrow()

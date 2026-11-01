@@ -53,7 +53,16 @@ where
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -64,8 +73,9 @@ mod tests {
         std::fs::write(&temp_file_path, b"(Hello <tag> World)")
             .expect("Write temp file");
 
-        let parser_result = super::wfparser(&temp_file_path, |p| Ok(std::fs::read(p)?))
-            .expect("Run parser command");
+        let parser_result =
+            super::wfparser(&temp_file_path, |p| Ok(std::fs::read(p)?))
+                .expect("Run parser command");
         match parser_result {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(
@@ -76,8 +86,9 @@ mod tests {
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        let scan_result = super::wfscan(&temp_file_path, |p| Ok(std::fs::read(p)?))
-            .expect("Run scan command");
+        let scan_result =
+            super::wfscan(&temp_file_path, |p| Ok(std::fs::read(p)?))
+                .expect("Run scan command");
         match scan_result {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), " hello world \n");

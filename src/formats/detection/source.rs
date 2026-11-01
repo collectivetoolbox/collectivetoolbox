@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Streamed and buffered payload abstractions for format detection.
 
 #[expect(
@@ -594,7 +593,9 @@ impl DetectionSource for ctb_io_file::MemoryPayloadSource {
     }
 }
 
-impl<R: std::io::Read + Send> DetectionSource for ctb_io_file::ReaderPayloadSource<R> {
+impl<R: std::io::Read + Send> DetectionSource
+    for ctb_io_file::ReaderPayloadSource<R>
+{
     fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
         self.read_at(offset, buf)
     }

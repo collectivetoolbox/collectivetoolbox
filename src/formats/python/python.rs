@@ -52,7 +52,10 @@ pub fn create_interpreter() -> Interpreter {
 }
 
 /// Helper to convert a Python exception into an `anyhow::Error`.
-fn py_err_to_anyhow(vm: &VirtualMachine, exc: PyBaseExceptionRef) -> anyhow::Error {
+fn py_err_to_anyhow(
+    vm: &VirtualMachine,
+    exc: PyBaseExceptionRef,
+) -> anyhow::Error {
     let mut buf = String::new();
     let _ = vm.write_exception(&mut buf, &exc);
     if buf.is_empty() {
@@ -80,9 +83,7 @@ pub fn eval_python_expression(expr: &str) -> Result<String> {
         let result = vm
             .run_block_expr(scope, expr)
             .map_err(|exc| py_err_to_anyhow(vm, exc))?;
-        let repr = result
-            .str(vm)
-            .map_err(|exc| py_err_to_anyhow(vm, exc))?;
+        let repr = result.str(vm).map_err(|exc| py_err_to_anyhow(vm, exc))?;
         Ok(repr.to_string_lossy().into_owned())
     })
 }
@@ -189,4 +190,3 @@ assert lzma.is_check_supported(lzma.CHECK_SHA256)
         handle.join().expect("Thread panicked")
     }
 }
-

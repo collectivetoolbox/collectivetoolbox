@@ -56,11 +56,14 @@ and Mark Adler for the decompression code. */
 //! Specification reference: `data/docs/compress-ncompress.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzw.c`
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 use std::collections::HashMap;
 use std::io::{Read, Write};
-
 
 /// Magic header bytes for `.Z` LZW compress format (`0x1F`, `0x9D`).
 pub const LZW_MAGIC: [u8; 2] = [0x1F, 0x9D];
@@ -269,9 +272,7 @@ pub fn compress_lzw_stream(
     };
 
     // 1. Header writing
-    if format != FormatId::CompressLzw1
-        && format != FormatId::CompressLzw16
-    {
+    if format != FormatId::CompressLzw1 && format != FormatId::CompressLzw16 {
         let mode_byte = if block_mode {
             BLOCK_MODE | u8::try_from(maxbits)?
         } else {
@@ -299,7 +300,7 @@ pub fn compress_lzw_stream(
         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
     .saturating_sub(1);
     if format == FormatId::CompressLzw16 {
-      maxcode = FIRST_FREE_NONBLOCK;
+        maxcode = FIRST_FREE_NONBLOCK;
     }
 
     let mut total_in = 0u64;
@@ -404,9 +405,7 @@ pub fn decompress_lzw_stream(
     let block_mode;
     let maxbits;
 
-    if format == FormatId::CompressLzw1
-        || format == FormatId::CompressLzw16
-    {
+    if format == FormatId::CompressLzw1 || format == FormatId::CompressLzw16 {
         block_mode = false;
         maxbits = MAX_BITS;
     } else if format == FormatId::CompressLzw
@@ -479,7 +478,7 @@ pub fn decompress_lzw_stream(
         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
     .saturating_sub(1);
     if format == FormatId::CompressLzw16 {
-      maxcode = FIRST_FREE_NONBLOCK;
+        maxcode = FIRST_FREE_NONBLOCK;
     }
 
     let mut oldcode: i32 = -1;
@@ -618,25 +617,25 @@ pub fn decompress_lzw_stream(
 mod tests {
     use super::*;
 
-  #[crate::ctb_test]
-  fn test_compress16_initial_width_transition() -> Result<()> {
-    let input = b"ABC";
-    let mut compressed = Vec::new();
-    compress_lzw_stream(
-      &mut input.as_slice(),
-      &mut compressed,
-      FormatId::CompressLzw16,
-    )?;
-    assert_eq!(compressed, [0x41, 0x84, 0, 0, 0, 0, 0, 0, 0, 0x43, 0]);
-    let mut decompressed = Vec::new();
-    decompress_lzw_stream(
-      &mut compressed.as_slice(),
-      &mut decompressed,
-      FormatId::CompressLzw16,
-    )?;
-    assert_eq!(decompressed, input);
-    Ok(())
-  }
+    #[crate::ctb_test]
+    fn test_compress16_initial_width_transition() -> Result<()> {
+        let input = b"ABC";
+        let mut compressed = Vec::new();
+        compress_lzw_stream(
+            &mut input.as_slice(),
+            &mut compressed,
+            FormatId::CompressLzw16,
+        )?;
+        assert_eq!(compressed, [0x41, 0x84, 0, 0, 0, 0, 0, 0, 0, 0x43, 0]);
+        let mut decompressed = Vec::new();
+        decompress_lzw_stream(
+            &mut compressed.as_slice(),
+            &mut decompressed,
+            FormatId::CompressLzw16,
+        )?;
+        assert_eq!(decompressed, input);
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_compress_lzw_roundtrip() {

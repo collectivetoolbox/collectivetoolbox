@@ -85,7 +85,11 @@ impl KStruct for DosDatetime {
     type Root = DosDatetime;
     type Parent = DosDatetime;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -97,18 +101,27 @@ impl KStruct for DosDatetime {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, DosDatetime_Time>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, DosDatetime_Time>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.time.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, DosDatetime_Date>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, DosDatetime_Date>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.date.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl DosDatetime {
-}
+impl DosDatetime {}
 impl DosDatetime {
     pub fn time(&self) -> Ref<'_, OptRc<DosDatetime_Time>> {
         self.time.borrow()
@@ -185,7 +198,11 @@ impl KStruct for DosDatetime_Date {
     type Root = DosDatetime;
     type Parent = DosDatetime;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -200,17 +217,26 @@ impl KStruct for DosDatetime_Date {
         *self_rc.day.borrow_mut() = _io.read_bits_int_le(5)?;
         let min_val: u64 = (1).try_into()?;
         if !(*self_rc.day() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/date/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::LessThan,
+                src_path: "/types/date/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.month.borrow_mut() = _io.read_bits_int_le(4)?;
         let min_val: u64 = (1).try_into()?;
         let max_val: u64 = (12).try_into()?;
         if !(*self_rc.month() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/date/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::LessThan,
+                src_path: "/types/date/seq/1".to_string(),
+            }));
         }
         if !(*self_rc.month() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/date/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/types/date/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.year_minus_1980.borrow_mut() = _io.read_bits_int_le(7)?;
@@ -220,56 +246,110 @@ impl KStruct for DosDatetime_Date {
     }
 }
 impl DosDatetime_Date {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn padded_day(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn padded_day(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_padded_day.get() {
             return Ok(self.padded_day.borrow());
         }
         self.f_padded_day.set(true);
-        *self.padded_day.borrow_mut() = format!("{}{}", if ((to_i128(*self.day())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.day().to_string()).to_string();
+        *self.padded_day.borrow_mut() = format!(
+            "{}{}",
+            if ((to_i128(*self.day())) <= (to_i128(9))) {
+                "0".to_string()
+            } else {
+                "".to_string()
+            },
+            self.day().to_string()
+        )
+        .to_string();
         Ok(self.padded_day.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn padded_month(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn padded_month(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_padded_month.get() {
             return Ok(self.padded_month.borrow());
         }
         self.f_padded_month.set(true);
-        *self.padded_month.borrow_mut() = format!("{}{}", if ((to_i128(*self.month())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.month().to_string()).to_string();
+        *self.padded_month.borrow_mut() = format!(
+            "{}{}",
+            if ((to_i128(*self.month())) <= (to_i128(9))) {
+                "0".to_string()
+            } else {
+                "".to_string()
+            },
+            self.month().to_string()
+        )
+        .to_string();
         Ok(self.padded_month.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn padded_year(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn padded_year(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_padded_year.get() {
             return Ok(self.padded_year.borrow());
         }
         self.f_padded_year.set(true);
-        *self.padded_year.borrow_mut() = format!("{}{}", if *self.year()? <= 999 { format!("{}{}", "0", if *self.year()? <= 99 { format!("{}{}", "0", if *self.year()? <= 9 { "0".to_string() } else { "".to_string() }).to_string() } else { "".to_string() }).to_string() } else { "".to_string() }, self.year()?.to_string()).to_string();
+        *self.padded_year.borrow_mut() = format!(
+            "{}{}",
+            if *self.year()? <= 999 {
+                format!(
+                    "{}{}",
+                    "0",
+                    if *self.year()? <= 99 {
+                        format!(
+                            "{}{}",
+                            "0",
+                            if *self.year()? <= 9 {
+                                "0".to_string()
+                            } else {
+                                "".to_string()
+                            }
+                        )
+                        .to_string()
+                    } else {
+                        "".to_string()
+                    }
+                )
+                .to_string()
+            } else {
+                "".to_string()
+            },
+            self.year()?.to_string()
+        )
+        .to_string();
         Ok(self.padded_year.borrow())
     }
 
     /**
      * only years from 1980 to 2107 (1980 + 127) can be represented
      */
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn year(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn year(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_year.get() {
             return Ok(self.year.borrow());
         }
         self.f_year.set(true);
-        *self.year.borrow_mut() = ((1980_u64).saturating_add(*self.year_minus_1980())).try_into()?;
+        *self.year.borrow_mut() =
+            ((1980_u64).saturating_add(*self.year_minus_1980())).try_into()?;
         Ok(self.year.borrow())
     }
 }
@@ -354,7 +434,11 @@ impl KStruct for DosDatetime_Time {
     type Root = DosDatetime;
     type Parent = DosDatetime;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -369,19 +453,28 @@ impl KStruct for DosDatetime_Time {
         *self_rc.second_div_2.borrow_mut() = _io.read_bits_int_le(5)?;
         let max_val: u64 = (29).try_into()?;
         if !(*self_rc.second_div_2() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/time/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/types/time/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minute.borrow_mut() = _io.read_bits_int_le(6)?;
         let max_val: u64 = (59).try_into()?;
         if !(*self_rc.minute() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/time/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/types/time/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hour.borrow_mut() = _io.read_bits_int_le(5)?;
         let max_val: u64 = (23).try_into()?;
         if !(*self_rc.hour() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/time/seq/2".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/types/time/seq/2".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -389,52 +482,88 @@ impl KStruct for DosDatetime_Time {
     }
 }
 impl DosDatetime_Time {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn padded_hour(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn padded_hour(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_padded_hour.get() {
             return Ok(self.padded_hour.borrow());
         }
         self.f_padded_hour.set(true);
-        *self.padded_hour.borrow_mut() = format!("{}{}", if ((to_i128(*self.hour())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.hour().to_string()).to_string();
+        *self.padded_hour.borrow_mut() = format!(
+            "{}{}",
+            if ((to_i128(*self.hour())) <= (to_i128(9))) {
+                "0".to_string()
+            } else {
+                "".to_string()
+            },
+            self.hour().to_string()
+        )
+        .to_string();
         Ok(self.padded_hour.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn padded_minute(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn padded_minute(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_padded_minute.get() {
             return Ok(self.padded_minute.borrow());
         }
         self.f_padded_minute.set(true);
-        *self.padded_minute.borrow_mut() = format!("{}{}", if ((to_i128(*self.minute())) <= (to_i128(9))) { "0".to_string() } else { "".to_string() }, self.minute().to_string()).to_string();
+        *self.padded_minute.borrow_mut() = format!(
+            "{}{}",
+            if ((to_i128(*self.minute())) <= (to_i128(9))) {
+                "0".to_string()
+            } else {
+                "".to_string()
+            },
+            self.minute().to_string()
+        )
+        .to_string();
         Ok(self.padded_minute.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn padded_second(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn padded_second(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_padded_second.get() {
             return Ok(self.padded_second.borrow());
         }
         self.f_padded_second.set(true);
-        *self.padded_second.borrow_mut() = format!("{}{}", if *self.second()? <= 9 { "0".to_string() } else { "".to_string() }, self.second()?.to_string()).to_string();
+        *self.padded_second.borrow_mut() = format!(
+            "{}{}",
+            if *self.second()? <= 9 {
+                "0".to_string()
+            } else {
+                "".to_string()
+            },
+            self.second()?.to_string()
+        )
+        .to_string();
         Ok(self.padded_second.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn second(
-        &self
-    ) -> KResult<Ref<'_, i32>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn second(&self) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_second.get() {
             return Ok(self.second.borrow());
         }
         self.f_second.set(true);
-        *self.second.borrow_mut() = ((2_u64).saturating_mul(*self.second_div_2())).try_into()?;
+        *self.second.borrow_mut() =
+            ((2_u64).saturating_mul(*self.second_div_2())).try_into()?;
         Ok(self.second.borrow())
     }
 }

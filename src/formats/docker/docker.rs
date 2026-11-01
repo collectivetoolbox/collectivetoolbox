@@ -193,7 +193,9 @@ fn process_metadata_entry<R: Read>(
                     referenced_blobs.insert(layer_hash.to_ascii_lowercase());
                 }
             }
-            report.validated_metadata.insert("manifest.json".to_string());
+            report
+                .validated_metadata
+                .insert("manifest.json".to_string());
             Ok(true)
         }
         _ => Ok(false),
@@ -325,13 +327,13 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_validate_hello_world_fixture() {
-        let fixture_bytes = get_docker_data(
-            "fixtures/docker-hello-world/hello-world.tar",
-        )
-        .expect("Load hello-world.tar fixture");
+        let fixture_bytes =
+            get_docker_data("fixtures/docker-hello-world/hello-world.tar")
+                .expect("Load hello-world.tar fixture");
 
-        let report = validate_docker_archive(Cursor::new(&fixture_bytes), false)
-            .expect("Validate hello-world.tar");
+        let report =
+            validate_docker_archive(Cursor::new(&fixture_bytes), false)
+                .expect("Validate hello-world.tar");
 
         assert!(report.validated_metadata.contains("manifest.json"));
         assert!(report.validated_metadata.contains("index.json"));
@@ -366,12 +368,10 @@ mod tests {
             .unwrap();
 
         let layer_content = b"fake layer content 123";
-        let layer_hash =
-            ctb_formats_checksum::sha256_hex(layer_content);
+        let layer_hash = ctb_formats_checksum::sha256_hex(layer_content);
 
         let config_content = b"{\"architecture\":\"amd64\"}";
-        let config_hash =
-            ctb_formats_checksum::sha256_hex(config_content);
+        let config_hash = ctb_formats_checksum::sha256_hex(config_content);
 
         let manifest_json = format!(
             "[{{\"Config\":\"blobs/sha256/{config_hash}\",\"Layers\":[\"blobs/sha256/{layer_hash}\"]}}]"
@@ -381,11 +381,7 @@ mod tests {
         header.set_mode(0o644);
         header.set_cksum();
         builder
-            .append_data(
-                &mut header,
-                "manifest.json",
-                manifest_json.as_bytes(),
-            )
+            .append_data(&mut header, "manifest.json", manifest_json.as_bytes())
             .unwrap();
 
         let mut header = tar::Header::new_gnu();
@@ -437,11 +433,7 @@ mod tests {
         header.set_mode(0o644);
         header.set_cksum();
         builder
-            .append_data(
-                &mut header,
-                "manifest.json",
-                manifest_json.as_bytes(),
-            )
+            .append_data(&mut header, "manifest.json", manifest_json.as_bytes())
             .unwrap();
 
         let corrupt_content = b"not matching hash";
@@ -463,10 +455,7 @@ mod tests {
 
         assert!(!report.is_success(false));
         assert_eq!(report.checksum_mismatches.len(), 1);
-        assert_eq!(
-            report.checksum_mismatches[0].expected_hash,
-            fake_hash
-        );
+        assert_eq!(report.checksum_mismatches[0].expected_hash, fake_hash);
     }
 
     #[crate::ctb_test]
@@ -483,11 +472,7 @@ mod tests {
         header.set_mode(0o644);
         header.set_cksum();
         builder
-            .append_data(
-                &mut header,
-                "manifest.json",
-                manifest_json.as_bytes(),
-            )
+            .append_data(&mut header, "manifest.json", manifest_json.as_bytes())
             .unwrap();
 
         let tar_bytes = builder.into_inner().unwrap();
@@ -501,17 +486,14 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_validate_strict_mode() {
-        let fixture_bytes = get_docker_data(
-            "fixtures/docker-hello-world/hello-world.tar",
-        )
-        .expect("Load hello-world.tar fixture");
+        let fixture_bytes =
+            get_docker_data("fixtures/docker-hello-world/hello-world.tar")
+                .expect("Load hello-world.tar fixture");
 
         // Without strict: passes even with unreferenced blob
-        let report_non_strict = validate_docker_archive(
-            Cursor::new(&fixture_bytes),
-            false,
-        )
-        .expect("Validate without strict");
+        let report_non_strict =
+            validate_docker_archive(Cursor::new(&fixture_bytes), false)
+                .expect("Validate without strict");
         assert!(report_non_strict.is_success(false));
         assert_eq!(report_non_strict.unreferenced_blobs.len(), 1);
 
@@ -547,7 +529,9 @@ mod tests {
             .expect("Run CLI validation");
 
         match res {
-            ToolResult::Immediate { exit_code, stdout, .. } => {
+            ToolResult::Immediate {
+                exit_code, stdout, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let text = String::from_utf8_lossy(&stdout);
                 assert!(text.contains("Docker image validation successful:"));
@@ -562,14 +546,17 @@ mod tests {
             cli::run_validate_docker_image(Some(&fixture_path), true)
                 .expect("Run CLI validation strict");
         match res_strict {
-            ToolResult::Immediate { exit_code, stderr, .. } => {
+            ToolResult::Immediate {
+                exit_code, stderr, ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let text = String::from_utf8_lossy(&stderr);
                 assert!(text.contains("Docker image validation failed:"));
-                assert!(text.contains("unreferenced blob(s) found (strict mode)"));
+                assert!(
+                    text.contains("unreferenced blob(s) found (strict mode)")
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
     }
 }
-

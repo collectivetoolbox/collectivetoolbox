@@ -28,36 +28,54 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscArgs, MvArgs, SourceChangePolicy};
-use crate::copy_engine::{compute_journal_relative_path, execute_copy_pipeline};
+use crate::copy_engine::{
+    compute_journal_relative_path, execute_copy_pipeline,
+};
 use crate::journal::{
-    MoveSourceDisposition, MoveSourceRecord, StateJournal, read_journal_snapshot,
-    resolve_journal_path,
+    MoveSourceDisposition, MoveSourceRecord, StateJournal,
+    read_journal_snapshot, resolve_journal_path,
 };
 use crate::path_resolution::{ResolvedCopyTask, resolve_tasks};
 use ctb_io::file::{
-    FileEntity, FileEntityKind, FileOrigin, TraversalOptions, is_cross_device_error,
-    traverse_dir, verify_materialized_entity,
+    FileEntity, FileEntityKind, FileOrigin, TraversalOptions,
+    is_cross_device_error, traverse_dir, verify_materialized_entity,
 };
 use ctb_utilities::cli::ToolResult;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-fn rename_with_policy(source: &Path, destination: &Path, policy: ctb_io::file::ExistingEntryPolicy) -> Result<()> {
-    let source_parent = match source.parent().filter(|path| !path.as_os_str().is_empty()) {
+fn rename_with_policy(
+    source: &Path,
+    destination: &Path,
+    policy: ctb_io::file::ExistingEntryPolicy,
+) -> Result<()> {
+    let source_parent =
+        match source.parent().filter(|path| !path.as_os_str().is_empty()) {
+            Some(parent) => parent,
+            None => Path::new("."),
+        };
+    let destination_parent = match destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+    {
         Some(parent) => parent,
         None => Path::new("."),
     };
-    let destination_parent = match destination.parent().filter(|path| !path.as_os_str().is_empty()) {
-        Some(parent) => parent,
-        None => Path::new("."),
-    };
-    let source_name = source.file_name().context("Missing source entry name")?;
-    let destination_name = destination.file_name().context("Missing destination entry name")?;
+    let source_name =
+        source.file_name().context("Missing source entry name")?;
+    let destination_name = destination
+        .file_name()
+        .context("Missing destination entry name")?;
     let source_dir = ctb_io::file::SandboxableDir::open(source_parent)?;
-    let destination_dir = ctb_io::file::SandboxableDir::open(destination_parent)?;
+    let destination_dir =
+        ctb_io::file::SandboxableDir::open(destination_parent)?;
     destination_dir.rename_from_parent(
-        &source_dir.root_fd(), source_name, &destination_dir.root_fd(), destination_name, policy,
+        &source_dir.root_fd(),
+        source_name,
+        &destination_dir.root_fd(),
+        destination_name,
+        policy,
     )
 }
 
@@ -87,9 +105,13 @@ fn open_or_create_move_journal(
     initial_task_records: &[MoveSourceRecord],
 ) -> Result<StateJournal> {
     let mut journal = if let Some(ref custom_jp) = args.journal_path {
-        let journal_path = if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+        let journal_path = if custom_jp.extension().and_then(|e| e.to_str())
+            == Some("cscdesc")
+        {
             custom_jp.with_extension("cscjournal")
-        } else if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+        } else if custom_jp.extension().and_then(|e| e.to_str())
+            == Some("cscjournal")
+        {
             custom_jp.clone()
         } else {
             custom_jp.with_extension("cscjournal")
@@ -100,12 +122,18 @@ fn open_or_create_move_journal(
             "Journal file already exists at {}: will not overwrite existing file (pass --resume to resume an interrupted move)",
             journal_path.display()
         );
-        StateJournal::create_at_path(&journal_path, &desc_path, sources, dest_path)?
+        StateJournal::create_at_path(
+            &journal_path,
+            &desc_path,
+            sources,
+            dest_path,
+        )?
     } else if let Some(ref custom_dir) = args.state_dir {
         StateJournal::create_new(custom_dir, sources, dest_path)?
     } else {
-        let mut dir = tempfile::tempdir()
-            .context("Failed to create temporary directory for move state journal")?;
+        let mut dir = tempfile::tempdir().context(
+            "Failed to create temporary directory for move state journal",
+        )?;
         let jw = StateJournal::create_new(dir.path(), sources, dest_path)?;
         dir.disable_cleanup(true);
         *temp_state_dir = Some(dir);
@@ -113,7 +141,9 @@ fn open_or_create_move_journal(
     };
     journal.set_defer_completion(true);
     if !initial_task_records.is_empty() {
-        journal.record_move_sources_durable(initial_task_records.iter().cloned())?;
+        journal.record_move_sources_durable(
+            initial_task_records.iter().cloned(),
+        )?;
     }
     Ok(journal)
 }
@@ -124,12 +154,13 @@ fn discover_task_source_inventory(
     journal: &mut StateJournal,
 ) -> Result<()> {
     let norm_root = normalize_move_source_path(&task.source_root);
-    let src_meta = std::fs::symlink_metadata(&task.source_root).with_context(|| {
-        format!(
-            "Source path does not exist before cross-device move: {}",
-            task.source_root.display()
-        )
-    })?;
+    let src_meta =
+        std::fs::symlink_metadata(&task.source_root).with_context(|| {
+            format!(
+                "Source path does not exist before cross-device move: {}",
+                task.source_root.display()
+            )
+        })?;
     let mut discovered = Vec::new();
     if src_meta.is_dir() {
         let traversal_options = TraversalOptions::new()
@@ -154,9 +185,13 @@ fn discover_task_source_inventory(
             } else {
                 task.target_root.join(&entry.relative_path)
             };
-            let source_identity = ctb_io::file::identity::query_file_identity(&norm_src).ok();
-            let committed_relative_path =
-                compute_journal_relative_path(journal.destination(), &dest_path).ok();
+            let source_identity =
+                ctb_io::file::identity::query_file_identity(&norm_src).ok();
+            let committed_relative_path = compute_journal_relative_path(
+                journal.destination(),
+                &dest_path,
+            )
+            .ok();
             if let Some(existing) = journal.move_sources().get(&norm_src) {
                 if let (Some(expected_id), Some(actual_id)) =
                     (&existing.source_identity, &source_identity)
@@ -193,9 +228,13 @@ fn discover_task_source_inventory(
             }
         }
     } else {
-        let source_identity = ctb_io::file::identity::query_file_identity(&norm_root).ok();
-        let committed_relative_path =
-            compute_journal_relative_path(journal.destination(), &task.target_root).ok();
+        let source_identity =
+            ctb_io::file::identity::query_file_identity(&norm_root).ok();
+        let committed_relative_path = compute_journal_relative_path(
+            journal.destination(),
+            &task.target_root,
+        )
+        .ok();
         if let Some(existing) = journal.move_sources().get(&norm_root) {
             if let (Some(expected_id), Some(actual_id)) =
                 (&existing.source_identity, &source_identity)
@@ -274,7 +313,11 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     })
                     .collect::<Vec<_>>()
             };
-            let mut jw = StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
+            let mut jw = StateJournal::open_for_resume(
+                &journal_path,
+                &desc_path,
+                &snap,
+            )?;
             jw.set_defer_completion(true);
             (
                 resolved_tasks,
@@ -291,9 +334,13 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             let (resolved_tasks, resolved_dest) = resolve_tasks(&args.paths)?;
             if !args.best_effort_metadata && !args.allow_unknown_fs {
                 for task in &resolved_tasks {
-                    if let Ok(src_meta) = std::fs::symlink_metadata(&task.source_root) {
-                        let src_fs =
-                            ctb_io::file::query_filesystem_info(&task.source_root, &src_meta);
+                    if let Ok(src_meta) =
+                        std::fs::symlink_metadata(&task.source_root)
+                    {
+                        let src_fs = ctb_io::file::query_filesystem_info(
+                            &task.source_root,
+                            &src_meta,
+                        );
                         if src_fs.fs_type == "unknown" {
                             anyhow::bail!(
                                 "Cannot detect filesystem type for source '{}'. Pass --best-effort-metadata or --allow-unknown-fs to proceed.",
@@ -304,13 +351,20 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     let tgt_existing = if task.target_root.exists() {
                         task.target_root.clone()
                     } else {
-                        match ctb_io::file::resolve_existing_ancestors(&task.target_root) {
+                        match ctb_io::file::resolve_existing_ancestors(
+                            &task.target_root,
+                        ) {
                             Ok(ancestor) => ancestor,
                             Err(_) => PathBuf::from("."),
                         }
                     };
-                    if let Ok(tgt_meta) = std::fs::symlink_metadata(&tgt_existing) {
-                        let tgt_fs = ctb_io::file::query_filesystem_info(&tgt_existing, &tgt_meta);
+                    if let Ok(tgt_meta) =
+                        std::fs::symlink_metadata(&tgt_existing)
+                    {
+                        let tgt_fs = ctb_io::file::query_filesystem_info(
+                            &tgt_existing,
+                            &tgt_meta,
+                        );
                         if tgt_fs.fs_type == "unknown" {
                             anyhow::bail!(
                                 "Cannot detect filesystem type for destination '{}'. Pass --best-effort-metadata or --allow-unknown-fs to proceed.",
@@ -328,9 +382,13 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             for task in &resolved_tasks {
                 let norm_src = normalize_move_source_path(&task.source_root);
                 let meta = std::fs::symlink_metadata(&task.source_root)?;
-                let source_identity = ctb_io::file::identity::query_file_identity(&norm_src).ok();
-                let committed_rel =
-                    compute_journal_relative_path(&resolved_dest, &task.target_root).ok();
+                let source_identity =
+                    ctb_io::file::identity::query_file_identity(&norm_src).ok();
+                let committed_rel = compute_journal_relative_path(
+                    &resolved_dest,
+                    &task.target_root,
+                )
+                .ok();
                 root_records.push(MoveSourceRecord {
                     source_path: norm_src,
                     destination_path: task.target_root.clone(),
@@ -355,7 +413,13 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             } else {
                 None
             };
-            (resolved_tasks, task_sources, resolved_dest, root_records, jw)
+            (
+                resolved_tasks,
+                task_sources,
+                resolved_dest,
+                root_records,
+                jw,
+            )
         };
 
     let mut moved_renamed: u64 = 0;
@@ -382,16 +446,17 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             .map(|jw| {
                 jw.move_sources()
                     .values()
-                    .filter(|r| is_within_task_source(&r.source_path, &norm_task_src))
+                    .filter(|r| {
+                        is_within_task_source(&r.source_path, &norm_task_src)
+                    })
                     .cloned()
                     .collect()
             })
             .unwrap_or_default();
 
-        if existing_task_records
-            .iter()
-            .any(|r| r.is_task_root && r.disposition == MoveSourceDisposition::Renamed)
-        {
+        if existing_task_records.iter().any(|r| {
+            r.is_task_root && r.disposition == MoveSourceDisposition::Renamed
+        }) {
             let root_rec = existing_task_records
                 .iter()
                 .find(|r| r.is_task_root)
@@ -404,7 +469,9 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             })?;
             if let Some(ref expected_id) = root_rec.source_identity {
                 if let Ok(actual_id) =
-                    ctb_io::file::identity::query_file_identity(&root_rec.destination_path)
+                    ctb_io::file::identity::query_file_identity(
+                        &root_rec.destination_path,
+                    )
                 {
                     anyhow::ensure!(
                         actual_id == *expected_id,
@@ -428,14 +495,17 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             });
 
         if task_in_deletion_or_done {
-            let jw = journal
-                .as_mut()
-                .context("Journal must be open when resuming move source deletion")?;
+            let jw = journal.as_mut().context(
+                "Journal must be open when resuming move source deletion",
+            )?;
             let j_path = jw.journal_path().to_path_buf();
-            if let Err(error) =
-                execute_journaled_source_deletion(jw, &norm_task_src, strict_lossless)
-            {
-                if let Err(record_error) = jw.mark_failed(&format!("{error:#}")) {
+            if let Err(error) = execute_journaled_source_deletion(
+                jw,
+                &norm_task_src,
+                strict_lossless,
+            ) {
+                if let Err(record_error) = jw.mark_failed(&format!("{error:#}"))
+                {
                     return Err(error).context(format!(
                         "Move journal retained at {}; recording failure also failed: {record_error:#}",
                         j_path.display()
@@ -462,8 +532,9 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 !jw.committed_entities().is_empty()
                     && existing_task_records.iter().any(|r| {
                         r.committed_relative_path.as_ref().is_some_and(|rel| {
-                            jw.committed_entities()
-                                .contains_key(rel.as_os_str().as_encoded_bytes())
+                            jw.committed_entities().contains_key(
+                                rel.as_os_str().as_encoded_bytes(),
+                            )
                         })
                     })
             });
@@ -473,7 +544,10 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             if let Some(parent) = task.target_root.parent() {
                 if !parent.as_os_str().is_empty() && !parent.exists() {
                     std::fs::create_dir_all(parent).with_context(|| {
-                        format!("Failed to create destination directory: {}", parent.display())
+                        format!(
+                            "Failed to create destination directory: {}",
+                            parent.display()
+                        )
                     })?;
                 }
             }
@@ -513,14 +587,21 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     ));
                 }
             }
-            Err(err) if err.downcast_ref::<std::io::Error>().is_some_and(is_cross_device_error) => {
+            Err(err)
+                if err
+                    .downcast_ref::<std::io::Error>()
+                    .is_some_and(is_cross_device_error) =>
+            {
                 progress.message(&format!(
                     "Cross-device move detected for {}: copying with verification...",
                     task.source_root.display()
                 ));
 
                 let csc_args = CscArgs {
-                    paths: vec![task.source_root.clone(), task.target_root.clone()],
+                    paths: vec![
+                        task.source_root.clone(),
+                        task.target_root.clone(),
+                    ],
                     state_dir: None,
                     resume: None,
                     journal_path: None,
@@ -578,7 +659,9 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                         &initial_task_records,
                     )?);
                 }
-                let jw = journal.as_mut().context("Move journal must be initialized")?;
+                let jw = journal
+                    .as_mut()
+                    .context("Move journal must be initialized")?;
                 let j_path = jw.journal_path().to_path_buf();
 
                 let copy_result = (|| {
@@ -610,7 +693,9 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 let copy_stats = match copy_result {
                     Ok(stats) => stats,
                     Err(error) => {
-                        if let Err(record_error) = jw.mark_failed(&format!("{error:#}")) {
+                        if let Err(record_error) =
+                            jw.mark_failed(&format!("{error:#}"))
+                        {
                             return Err(error).context(format!(
                                 "Move journal retained at {}; recording failure also failed: {record_error:#}",
                                 j_path.display()
@@ -626,7 +711,8 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 moved_copied = moved_copied
                     .saturating_add(copy_stats.files_copied)
                     .saturating_add(copy_stats.files_skipped_identical);
-                bytes_copied = bytes_copied.saturating_add(copy_stats.bytes_copied);
+                bytes_copied =
+                    bytes_copied.saturating_add(copy_stats.bytes_copied);
             }
             Err(err) => {
                 if journal.is_none() && moved_renamed > 0 {
@@ -659,7 +745,8 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
         let j_path = jw.journal_path().to_path_buf();
         warning_count = warning_count.saturating_add(jw.warnings().len());
         for warning in jw.warnings() {
-            progress.message(&format!("[{}] {}", warning.code, warning.message));
+            progress
+                .message(&format!("[{}] {}", warning.code, warning.message));
         }
         let retain_metadata = !jw.warnings().is_empty()
             || jw
@@ -671,12 +758,18 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
             || args.resume.is_some();
         drop(jw);
         if retain_metadata {
-            progress.message(&format!("Original metadata retained in {}", j_path.display()));
+            progress.message(&format!(
+                "Original metadata retained in {}",
+                j_path.display()
+            ));
             retained_journals.push(j_path);
         } else if !explicit_journal_location {
             if let Some(dir) = temp_state_dir.take() {
                 dir.close().with_context(|| {
-                    format!("Failed to remove completed move journal {}", j_path.display())
+                    format!(
+                        "Failed to remove completed move journal {}",
+                        j_path.display()
+                    )
                 })?;
             }
         }
@@ -692,12 +785,22 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     }
     writeln!(summary, "Duration:                        {elapsed:.2}s")?;
     for journal in retained_journals {
-        writeln!(summary, "Original metadata journal:       {}", journal.display())?;
+        writeln!(
+            summary,
+            "Original metadata journal:       {}",
+            journal.display()
+        )?;
     }
     if warning_count > 0 {
-        writeln!(summary, "Status:                          Move completed with {warning_count} warning record(s); fidelity limitations are retained in the journal.")?;
+        writeln!(
+            summary,
+            "Status:                          Move completed with {warning_count} warning record(s); fidelity limitations are retained in the journal."
+        )?;
     } else {
-        writeln!(summary, "Status:                          Move completed successfully.")?;
+        writeln!(
+            summary,
+            "Status:                          Move completed successfully."
+        )?;
     }
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
@@ -709,12 +812,16 @@ pub(crate) fn remove_copied_sources(
     contents_only: bool,
     strict_lossless: bool,
 ) -> Result<()> {
-    let temp_dir = tempfile::tempdir()
-        .context("Failed to create temporary directory for move source deletion journal")?;
+    let temp_dir = tempfile::tempdir().context(
+        "Failed to create temporary directory for move source deletion journal",
+    )?;
     // Reason for fallback: when entries slice is empty, destination root for temporary move journal defaults to current directory
     let dest_root = entries
         .iter()
-        .find(|(src, _, _)| normalize_move_source_path(src) == normalize_move_source_path(source_root))
+        .find(|(src, _, _)| {
+            normalize_move_source_path(src)
+                == normalize_move_source_path(source_root)
+        })
         .map(|(_, dst, _)| dst.clone())
         .or_else(|| entries.first().map(|(_, dst, _)| dst.clone()))
         .unwrap_or_else(|| PathBuf::from("."));
@@ -740,7 +847,12 @@ pub(crate) fn remove_copied_sources_with_journal(
     strict_lossless: bool,
     journal: &mut StateJournal,
 ) -> Result<()> {
-    record_verified_copied_sources_in_journal(entries, source_root, contents_only, journal)?;
+    record_verified_copied_sources_in_journal(
+        entries,
+        source_root,
+        contents_only,
+        journal,
+    )?;
     execute_journaled_source_deletion(journal, source_root, strict_lossless)
 }
 
@@ -754,7 +866,8 @@ fn record_verified_copied_sources_in_journal(
     let mut records = Vec::with_capacity(entries.len());
     for (source, destination, entity) in entries {
         let norm_src = normalize_move_source_path(source);
-        let rel = compute_journal_relative_path(journal.destination(), destination)?;
+        let rel =
+            compute_journal_relative_path(journal.destination(), destination)?;
         if !journal
             .committed_entities()
             .contains_key(rel.as_os_str().as_encoded_bytes())
@@ -798,7 +911,10 @@ fn record_verified_copied_sources_in_journal(
     Ok(())
 }
 
-fn has_deleted_descendant(dir_path: &Path, records: &[MoveSourceRecord]) -> bool {
+fn has_deleted_descendant(
+    dir_path: &Path,
+    records: &[MoveSourceRecord],
+) -> bool {
     records.iter().any(|r| {
         r.source_path != dir_path
             && r.source_path.starts_with(dir_path)
@@ -831,12 +947,14 @@ pub(crate) fn execute_journaled_source_deletion(
             record.source_path.display()
         );
         if record.disposition == MoveSourceDisposition::Renamed {
-            std::fs::symlink_metadata(&record.destination_path).with_context(|| {
-                format!(
-                    "Renamed destination missing: {}",
-                    record.destination_path.display()
-                )
-            })?;
+            std::fs::symlink_metadata(&record.destination_path).with_context(
+                || {
+                    format!(
+                        "Renamed destination missing: {}",
+                        record.destination_path.display()
+                    )
+                },
+            )?;
             continue;
         }
         let committed_entity = journal
@@ -848,11 +966,20 @@ pub(crate) fn execute_journaled_source_deletion(
                 )
             })?
             .clone();
-        verify_materialized_entity(&record.destination_path, &committed_entity, strict_lossless)?;
+        verify_materialized_entity(
+            &record.destination_path,
+            &committed_entity,
+            strict_lossless,
+        )?;
         match record.disposition {
             MoveSourceDisposition::CopiedVerified => {
                 verify_source_identity(&record.source_path, &committed_entity)?;
-                if !record.is_dir || !has_deleted_descendant(&record.source_path, &task_records) {
+                if !record.is_dir
+                    || !has_deleted_descendant(
+                        &record.source_path,
+                        &task_records,
+                    )
+                {
                     verify_materialized_entity(
                         &record.source_path,
                         &committed_entity,
@@ -860,10 +987,11 @@ pub(crate) fn execute_journaled_source_deletion(
                     )?;
                 }
             }
-            MoveSourceDisposition::Deleted => match std::fs::symlink_metadata(&record.source_path) {
-                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-                Ok(_) => {
-                    verify_source_identity(&record.source_path, &committed_entity).with_context(
+            MoveSourceDisposition::Deleted => {
+                match std::fs::symlink_metadata(&record.source_path) {
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+                    Ok(_) => {
+                        verify_source_identity(&record.source_path, &committed_entity).with_context(
                         || {
                             format!(
                                 "Source path was recreated with a different identity after deletion: {}",
@@ -871,13 +999,15 @@ pub(crate) fn execute_journaled_source_deletion(
                             )
                         },
                     )?;
+                    }
+                    Err(err) => return Err(err.into()),
                 }
-                Err(err) => return Err(err.into()),
-            },
+            }
             MoveSourceDisposition::RetainedRoot => {
                 verify_source_identity(&record.source_path, &committed_entity)?;
             }
-            MoveSourceDisposition::Pending | MoveSourceDisposition::Renamed => {}
+            MoveSourceDisposition::Pending | MoveSourceDisposition::Renamed => {
+            }
         }
     }
 
@@ -890,7 +1020,8 @@ pub(crate) fn execute_journaled_source_deletion(
     for record in task_records {
         if matches!(
             record.disposition,
-            MoveSourceDisposition::Renamed | MoveSourceDisposition::RetainedRoot
+            MoveSourceDisposition::Renamed
+                | MoveSourceDisposition::RetainedRoot
         ) {
             continue;
         }
@@ -929,7 +1060,11 @@ pub(crate) fn execute_journaled_source_deletion(
                 )?;
             }
         } else {
-            verify_materialized_entity(&record.source_path, &committed_entity, strict_lossless)?;
+            verify_materialized_entity(
+                &record.source_path,
+                &committed_entity,
+                strict_lossless,
+            )?;
             verify_materialized_entity(
                 &record.destination_path,
                 &committed_entity,
@@ -953,10 +1088,24 @@ pub(crate) fn execute_journaled_source_deletion(
 fn verify_source_identity(source: &Path, expected: &FileEntity) -> Result<()> {
     let actual = FileEntity::from_filesystem_metadata_only(source, None)?;
     match (&actual.identity.origin, &expected.identity.origin) {
-        (FileOrigin::Filesystem { key: actual_key, .. }, FileOrigin::Filesystem { key: expected_key, .. }) => {
-            anyhow::ensure!(actual_key == expected_key, "Source entry was replaced: {}", source.display());
+        (
+            FileOrigin::Filesystem {
+                key: actual_key, ..
+            },
+            FileOrigin::Filesystem {
+                key: expected_key, ..
+            },
+        ) => {
+            anyhow::ensure!(
+                actual_key == expected_key,
+                "Source entry was replaced: {}",
+                source.display()
+            );
         }
-        _ => anyhow::bail!("Source identity is unavailable: {}", source.display()),
+        _ => anyhow::bail!(
+            "Source identity is unavailable: {}",
+            source.display()
+        ),
     }
     Ok(())
 }
@@ -973,7 +1122,7 @@ fn verify_source_identity(source: &Path, expected: &FileEntity) -> Result<()> {
 )]
 mod tests {
     use super::*;
-    use crate::args::{MvArgs};
+    use crate::args::MvArgs;
     use crate::move_engine::run_mv;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
@@ -986,12 +1135,15 @@ mod tests {
         fs::create_dir(temporary.path().join("source-parent"))?;
         fs::create_dir(temporary.path().join("destination-parent"))?;
         let source = temporary.path().join("source-parent/source");
-        let destination = temporary.path().join("destination-parent/destination");
+        let destination =
+            temporary.path().join("destination-parent/destination");
         fs::write(&source, b"source payload")?;
         fs::write(&destination, b"destination payload")?;
         let args = MvArgs::try_parse_from([
-            std::ffi::OsStr::new("mv"), std::ffi::OsStr::new("--best-effort-metadata"),
-            source.as_os_str(), destination.as_os_str(),
+            std::ffi::OsStr::new("mv"),
+            std::ffi::OsStr::new("--best-effort-metadata"),
+            source.as_os_str(),
+            destination.as_os_str(),
         ])?;
         assert!(run_mv(args.clone()).is_err());
         assert_eq!(fs::read(&source)?, b"source payload");
@@ -1012,7 +1164,14 @@ mod tests {
         let destination = temporary.path().join("destination");
         fs::write(&source, b"source payload")?;
         std::os::unix::fs::symlink("missing", &destination)?;
-        assert!(rename_with_policy(&source, &destination, ctb_io::file::ExistingEntryPolicy::Refuse).is_err());
+        assert!(
+            rename_with_policy(
+                &source,
+                &destination,
+                ctb_io::file::ExistingEntryPolicy::Refuse
+            )
+            .is_err()
+        );
         assert_eq!(fs::read(&source)?, b"source payload");
         assert_eq!(fs::read_link(&destination)?, Path::new("missing"));
         Ok(())
@@ -1027,7 +1186,8 @@ mod tests {
         fs::create_dir_all(&src).expect("create src dir");
 
         let file_path = src.join("move_me.txt");
-        fs::write(&file_path, b"Move this file atomically").expect("write file");
+        fs::write(&file_path, b"Move this file atomically")
+            .expect("write file");
 
         let target_file = dest.join("move_me.txt");
         let args = MvArgs {
@@ -1071,8 +1231,10 @@ mod tests {
         let dest_dir = temp.path().join("mv_dir_dest");
         fs::create_dir_all(src_dir.join("subdir")).expect("create src tree");
 
-        fs::write(src_dir.join("file1.txt"), b"Content 1").expect("write file1");
-        fs::write(src_dir.join("subdir").join("file2.txt"), b"Content 2").expect("write file2");
+        fs::write(src_dir.join("file1.txt"), b"Content 1")
+            .expect("write file1");
+        fs::write(src_dir.join("subdir").join("file2.txt"), b"Content 2")
+            .expect("write file2");
 
         let args = MvArgs {
             paths: vec![src_dir.clone(), dest_dir.clone()],
@@ -1113,10 +1275,25 @@ mod tests {
         fs::create_dir(&source).unwrap();
         fs::create_dir(&destination).unwrap();
         fs::write(source.join("new-data"), b"not copied").unwrap();
-        let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
-        ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, false, cfg!(windows)).unwrap();
+        let entity =
+            ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        ctb_io::file::apply_entity_metadata(
+            &destination,
+            None,
+            &entity.metadata,
+            false,
+            true,
+            false,
+            cfg!(windows),
+        )
+        .unwrap();
         let entries = vec![(source.clone(), destination, entity)];
-        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false, true).is_err());
+        assert!(
+            crate::move_engine::remove_copied_sources(
+                &entries, &source, false, true
+            )
+            .is_err()
+        );
         assert_eq!(fs::read(source.join("new-data")).unwrap(), b"not copied");
     }
 
@@ -1126,11 +1303,17 @@ mod tests {
         let source = temp.path().join("source");
         let destination = temp.path().join("destination");
         fs::write(&source, b"original").unwrap();
-        let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        let entity =
+            ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
         fs::copy(&source, &destination).unwrap();
         fs::write(&source, b"new data").unwrap();
         let entries = vec![(source.clone(), destination, entity)];
-        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false, true).is_err());
+        assert!(
+            crate::move_engine::remove_copied_sources(
+                &entries, &source, false, true
+            )
+            .is_err()
+        );
         assert_eq!(fs::read(source).unwrap(), b"new data");
     }
 
@@ -1147,25 +1330,42 @@ mod tests {
             resume: None,
             journal_path: None,
             state_dir: None,
-            verbose: false, progress: false, no_progress: true,
-            verify_after: false, no_verify_after: true,
-            best_effort_metadata: false, allow_unknown_fs: true, force: false, dry_run: false,
+            verbose: false,
+            progress: false,
+            no_progress: true,
+            verify_after: false,
+            no_verify_after: true,
+            best_effort_metadata: false,
+            allow_unknown_fs: true,
+            force: false,
+            dry_run: false,
             full_provenance: false,
         });
         let journal_path = match result {
             Ok(ToolResult::Immediate { stdout, .. }) => {
-                assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+                assert_eq!(
+                    fs::read(destination.join("sub/data")).unwrap(),
+                    b"move payload"
+                );
                 assert_eq!(fs::read_dir(&source).unwrap().count(), 0);
                 let summary = String::from_utf8(stdout).unwrap();
-                let journal_path = summary.lines().find_map(|line|
-                    line.strip_prefix("Original metadata journal:").map(str::trim)
-                ).expect("Move must retain original native metadata");
+                let journal_path = summary
+                    .lines()
+                    .find_map(|line| {
+                        line.strip_prefix("Original metadata journal:")
+                            .map(str::trim)
+                    })
+                    .expect("Move must retain original native metadata");
                 let journal_path = PathBuf::from(journal_path);
-                let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
+                let snapshot =
+                    crate::journal::read_journal_snapshot(&journal_path)
+                        .unwrap();
                 assert!(snapshot.is_completed);
                 assert!(snapshot.errors.is_empty());
                 if !snapshot.warnings.is_empty() {
-                    assert!(summary.contains("fidelity limitations are retained in the journal"));
+                    assert!(summary.contains(
+                        "fidelity limitations are retained in the journal"
+                    ));
                 }
                 journal_path
             }
@@ -1174,22 +1374,41 @@ mod tests {
                 // FreeBSD cannot assign the source birth time. Strict cleanup
                 // must refuse data deletion even after best-effort copying.
                 let diagnostic = format!("{error:#}");
-                assert!(diagnostic.contains("Birthtime mismatch"), "{diagnostic}");
-                assert_eq!(fs::read(source.join("sub/data")).unwrap(), b"move payload");
-                assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+                assert!(
+                    diagnostic.contains("Birthtime mismatch"),
+                    "{diagnostic}"
+                );
+                assert_eq!(
+                    fs::read(source.join("sub/data")).unwrap(),
+                    b"move payload"
+                );
+                assert_eq!(
+                    fs::read(destination.join("sub/data")).unwrap(),
+                    b"move payload"
+                );
                 let message = error.to_string();
                 let journal_path = PathBuf::from(
-                    message.strip_prefix("Move journal retained at ").expect("Retained move journal")
+                    message
+                        .strip_prefix("Move journal retained at ")
+                        .expect("Retained move journal"),
                 );
-                let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
+                let snapshot =
+                    crate::journal::read_journal_snapshot(&journal_path)
+                        .unwrap();
                 assert!(!snapshot.warnings.is_empty());
-                assert!(snapshot.committed_entities.values().any(|entity|
-                    entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
-                ));
+                assert!(snapshot.committed_entities.values().any(|entity| {
+                    entity
+                        .metadata
+                        .timestamps
+                        .as_ref()
+                        .and_then(|ts| ts.birthtime_sec)
+                        .is_some()
+                }));
                 journal_path
             }
         };
-        let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
+        let snapshot =
+            crate::journal::read_journal_snapshot(&journal_path).unwrap();
         assert!(!snapshot.committed_entities.is_empty());
         let journal_path = journal_path.as_path();
         fs::remove_file(journal_path).unwrap();
@@ -1204,26 +1423,41 @@ mod tests {
         let source = temp.path().join("source");
         let destination = temp.path().join("destination");
         fs::create_dir_all(source.join("sub")).unwrap();
-        fs::write(source.join("sub/data"), b"must survive failed move").unwrap();
+        fs::write(source.join("sub/data"), b"must survive failed move")
+            .unwrap();
         fs::create_dir_all(destination.join("sub/data")).unwrap();
         let error = run_mv(MvArgs {
             paths: vec![source.join(""), destination.clone()],
             resume: None,
             journal_path: None,
             state_dir: None,
-            verbose: false, progress: false, no_progress: true,
-            verify_after: false, no_verify_after: true,
-            best_effort_metadata: false, allow_unknown_fs: true, force: true, dry_run: false,
+            verbose: false,
+            progress: false,
+            no_progress: true,
+            verify_after: false,
+            no_verify_after: true,
+            best_effort_metadata: false,
+            allow_unknown_fs: true,
+            force: true,
+            dry_run: false,
             full_provenance: false,
-        }).err().expect("Conflicting destination must refuse the move");
+        })
+        .err()
+        .expect("Conflicting destination must refuse the move");
         let message = error.to_string();
         let journal_path = Path::new(
-            message.strip_prefix("Move journal retained at ").expect("Retained journal diagnostic")
+            message
+                .strip_prefix("Move journal retained at ")
+                .expect("Retained journal diagnostic"),
         );
-        let snapshot = crate::journal::read_journal_snapshot(journal_path).unwrap();
+        let snapshot =
+            crate::journal::read_journal_snapshot(journal_path).unwrap();
         assert!(!snapshot.is_completed);
         assert!(!snapshot.errors.is_empty() || !snapshot.warnings.is_empty());
-        assert_eq!(fs::read(source.join("sub/data")).unwrap(), b"must survive failed move");
+        assert_eq!(
+            fs::read(source.join("sub/data")).unwrap(),
+            b"must survive failed move"
+        );
         fs::remove_file(journal_path).unwrap();
         fs::remove_file(journal_path.with_extension("cscdesc")).unwrap();
         fs::remove_dir(journal_path.parent().unwrap()).unwrap();
@@ -1237,15 +1471,20 @@ mod tests {
         let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
         entity.metadata = ctb_io::file::FileMetadata::default();
         assert!(!crate::journal::entity_requires_metadata_retention(&entity));
-        entity.metadata.push_warning("Captured fidelity limitation".to_string());
+        entity
+            .metadata
+            .push_warning("Captured fidelity limitation".to_string());
         assert!(crate::journal::entity_requires_metadata_retention(&entity));
         entity.metadata.warnings.clear();
-        entity.metadata.push_error("Captured metadata error".to_string());
+        entity
+            .metadata
+            .push_error("Captured metadata error".to_string());
         assert!(crate::journal::entity_requires_metadata_retention(&entity));
     }
 
     #[crate::ctb_test]
-    fn test_mv_durable_source_inventory_and_interrupted_deletion_recovery() -> Result<()> {
+    fn test_mv_durable_source_inventory_and_interrupted_deletion_recovery()
+    -> Result<()> {
         let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir()?;
         let src_rename = temp.path().join("src_rename.txt");
@@ -1271,7 +1510,8 @@ mod tests {
         let later_dest = dest_root.join("src_later.txt");
 
         // Perform the rename of task 1 (`src_rename -> rename_dest`)
-        let rename_id = ctb_io::file::identity::query_file_identity(&src_rename).ok();
+        let rename_id =
+            ctb_io::file::identity::query_file_identity(&src_rename).ok();
         fs::rename(&src_rename, &rename_dest)?;
 
         // Copy `src_dir` to `cross_dest` using execute_copy_pipeline and record verified sources
@@ -1285,7 +1525,8 @@ mod tests {
         )?;
         journal.set_defer_completion(true);
 
-        let later_id = ctb_io::file::identity::query_file_identity(&src_later).ok();
+        let later_id =
+            ctb_io::file::identity::query_file_identity(&src_later).ok();
         journal.record_move_sources_durable([
             MoveSourceRecord {
                 source_path: normalize_move_source_path(&src_rename),
@@ -1301,7 +1542,10 @@ mod tests {
                 source_path: normalize_move_source_path(&src_dir),
                 destination_path: cross_dest.clone(),
                 committed_relative_path: Some(PathBuf::from("cross_out")),
-                source_identity: ctb_io::file::identity::query_file_identity(&src_dir).ok(),
+                source_identity: ctb_io::file::identity::query_file_identity(
+                    &src_dir,
+                )
+                .ok(),
                 is_dir: true,
                 is_task_root: true,
                 contents_only_root: false,
@@ -1357,11 +1601,21 @@ mod tests {
         // before resume, recovery must detect the identity mismatch and refuse to delete it!
         fs::write(&file1, b"unrelated replacement file")?;
         let bad_snap = read_journal_snapshot(&journal_path)?;
-        let mut bad_journal = StateJournal::open_for_resume(&journal_path, &desc_path, &bad_snap)?;
-        let err = execute_journaled_source_deletion(&mut bad_journal, &src_dir, false)
-            .expect_err("Recreated source with different identity must be refused");
+        let mut bad_journal = StateJournal::open_for_resume(
+            &journal_path,
+            &desc_path,
+            &bad_snap,
+        )?;
+        let err = execute_journaled_source_deletion(
+            &mut bad_journal,
+            &src_dir,
+            false,
+        )
+        .expect_err("Recreated source with different identity must be refused");
         assert!(
-            format!("{err:#}").contains("Source path was recreated with a different identity"),
+            format!("{err:#}").contains(
+                "Source path was recreated with a different identity"
+            ),
             "Unexpected error: {err:#}"
         );
         assert_eq!(fs::read(&file1)?, b"unrelated replacement file");
@@ -1392,8 +1646,14 @@ mod tests {
         assert!(!src_dir.exists());
         assert!(!src_later.exists());
         assert_eq!(fs::read(&rename_dest)?, b"renamed task payload");
-        assert_eq!(fs::read(cross_dest.join("nested/alpha.txt"))?, b"alpha payload");
-        assert_eq!(fs::read(cross_dest.join("nested/beta.txt"))?, b"beta payload");
+        assert_eq!(
+            fs::read(cross_dest.join("nested/alpha.txt"))?,
+            b"alpha payload"
+        );
+        assert_eq!(
+            fs::read(cross_dest.join("nested/beta.txt"))?,
+            b"beta payload"
+        );
         assert_eq!(fs::read(&later_dest)?, b"later task payload");
 
         let final_snap = read_journal_snapshot(&journal_path)?;

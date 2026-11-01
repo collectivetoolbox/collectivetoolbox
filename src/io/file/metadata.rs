@@ -30,8 +30,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
 
+use ctb_formats_dcstring::{
+    DcChar, DcForgivingDefault, DcMixedDecode, DcMixedEncode, DcMstring,
+    DcProjectionContext, NodeId,
+};
 use ctb_io_environment::EnvDescription;
-use ctb_formats_dcstring::{DcChar, DcForgivingDefault, DcMixedDecode, DcMixedEncode, DcMstring, DcProjectionContext, NodeId};
 
 /// Restores observed symlink atime without writing mtime or following the link.
 /// Detected replacement or modification is an error. The identity check and
@@ -42,26 +45,40 @@ pub fn restore_symlink_access_time(
     path: &std::path::Path,
     observed: &std::fs::Metadata,
 ) -> Result<()> {
-    use std::os::unix::fs::MetadataExt;
     use nix::sys::stat::{UtimensatFlags, utimensat};
     use nix::sys::time::TimeSpec;
+    use std::os::unix::fs::MetadataExt;
 
     let current = std::fs::symlink_metadata(path)?;
     anyhow::ensure!(
-        observed.is_symlink() && current.is_symlink()
-            && observed.dev() == current.dev() && observed.ino() == current.ino()
+        observed.is_symlink()
+            && current.is_symlink()
+            && observed.dev() == current.dev()
+            && observed.ino() == current.ino()
             && observed.mtime() == current.mtime()
             && observed.mtime_nsec() == current.mtime_nsec(),
-        "Symlink changed during inspection: {}", path.display()
+        "Symlink changed during inspection: {}",
+        path.display()
     );
-    if current.atime() != observed.atime() || current.atime_nsec() != observed.atime_nsec() {
+    if current.atime() != observed.atime()
+        || current.atime_nsec() != observed.atime_nsec()
+    {
         utimensat(
             nix::fcntl::AT_FDCWD,
             path,
-            &TimeSpec::new(observed.atime().try_into()?, observed.atime_nsec().try_into()?),
+            &TimeSpec::new(
+                observed.atime().try_into()?,
+                observed.atime_nsec().try_into()?,
+            ),
             &TimeSpec::UTIME_OMIT,
             UtimensatFlags::NoFollowSymlink,
-        ).with_context(|| format!("Failed to restore symlink access time on {}", path.display()))?;
+        )
+        .with_context(|| {
+            format!(
+                "Failed to restore symlink access time on {}",
+                path.display()
+            )
+        })?;
     }
     Ok(())
 }
@@ -72,13 +89,16 @@ pub fn read_symlink_target(
     path: &std::path::Path,
     observed: &std::fs::Metadata,
 ) -> Result<std::path::PathBuf> {
-    let result = std::fs::read_link(path)
-        .with_context(|| format!("Failed to read symlink target on {}", path.display()));
+    let result = std::fs::read_link(path).with_context(|| {
+        format!("Failed to read symlink target on {}", path.display())
+    });
     #[cfg(unix)]
     if let Err(cleanup) = restore_symlink_access_time(path, observed) {
         return match result {
             Ok(_) => Err(cleanup),
-            Err(error) => Err(error).context(format!("Symlink read cleanup also failed: {cleanup:#}")),
+            Err(error) => Err(error).context(format!(
+                "Symlink read cleanup also failed: {cleanup:#}"
+            )),
         };
     }
     #[cfg(not(unix))]
@@ -565,9 +585,11 @@ pub struct PlatformRawFlags {
     bytes: [u8; 8],
 }
 
-
 impl Serialize for PlatformRawFlags {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -644,7 +666,10 @@ impl TryFrom<&[u8]> for PlatformRawFlags {
 }
 
 impl ctb_formats_dcstring::LosslessWithContext for PlatformRawFlags {
-    fn is_lossless(&self, context: &ctb_formats_dcstring::SharedValueContext) -> bool {
+    fn is_lossless(
+        &self,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> bool {
         // Reason for fallback: absent environment context defaults to compile-target OS family
         let os = context
             .resolve::<EnvDescription>("environment")
@@ -689,7 +714,6 @@ pub struct FileTimestamps {
     #[serde(default)]
     pub resolution_nsec: Option<u32>,
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
 #[dc(flatten)]
@@ -737,19 +761,25 @@ fn system_time_from_sec_nsec(sec: i64, nsec: u32) -> Result<SystemTime> {
 fn sec_nsec_from_system_time(time: SystemTime) -> Result<(i64, u32)> {
     match time.duration_since(SystemTime::UNIX_EPOCH) {
         Ok(dur) => {
-            let sec = i64::try_from(dur.as_secs()).context("Timestamp seconds overflow i64")?;
+            let sec = i64::try_from(dur.as_secs())
+                .context("Timestamp seconds overflow i64")?;
             let nsec = dur.subsec_nanos();
             Ok((sec, nsec))
         }
         Err(err) => {
             let dur = err.duration();
             let subsec = dur.subsec_nanos();
-            let s = i64::try_from(dur.as_secs()).context("Timestamp seconds overflow i64")?;
-            let neg_s = s.checked_neg().context("Timestamp seconds negation overflow")?;
+            let s = i64::try_from(dur.as_secs())
+                .context("Timestamp seconds overflow i64")?;
+            let neg_s = s
+                .checked_neg()
+                .context("Timestamp seconds negation overflow")?;
             if subsec == 0 {
                 Ok((neg_s, 0))
             } else {
-                let sec = neg_s.checked_sub(1).context("Timestamp seconds underflow")?;
+                let sec = neg_s
+                    .checked_sub(1)
+                    .context("Timestamp seconds underflow")?;
                 let nsec = 1_000_000_000u32
                     .checked_sub(subsec)
                     .context("Nanoseconds underflow")?;
@@ -764,11 +794,16 @@ impl TryFrom<&FileTimestamps> for FileTimestampsDc {
 
     fn try_from(value: &FileTimestamps) -> Result<Self> {
         value.validate()?;
-        let atime = system_time_from_sec_nsec(value.atime_sec, value.atime_nsec)?;
-        let mtime = system_time_from_sec_nsec(value.mtime_sec, value.mtime_nsec)?;
-        let ctime = system_time_from_sec_nsec(value.ctime_sec, value.ctime_nsec)?;
+        let atime =
+            system_time_from_sec_nsec(value.atime_sec, value.atime_nsec)?;
+        let mtime =
+            system_time_from_sec_nsec(value.mtime_sec, value.mtime_nsec)?;
+        let ctime =
+            system_time_from_sec_nsec(value.ctime_sec, value.ctime_nsec)?;
         let birthtime = match (value.birthtime_sec, value.birthtime_nsec) {
-            (Some(sec), Some(nsec)) => Some(system_time_from_sec_nsec(sec, nsec)?),
+            (Some(sec), Some(nsec)) => {
+                Some(system_time_from_sec_nsec(sec, nsec)?)
+            }
             _ => None,
         };
         let resolution = value
@@ -807,7 +842,10 @@ impl TryFrom<FileTimestampsDc> for FileTimestamps {
             None => (None, None),
         };
         let resolution_nsec = match dc.resolution {
-            Some(d) => Some(u32::try_from(d.as_nanos()).context("Resolution nanos overflow u32")?),
+            Some(d) => Some(
+                u32::try_from(d.as_nanos())
+                    .context("Resolution nanos overflow u32")?,
+            ),
             None => None,
         };
         let ts = Self {
@@ -840,34 +878,57 @@ impl FileTimestamps {
             "Birth time requires both seconds and nanoseconds"
         );
         if let Some(nanos) = self.birthtime_nsec {
-            anyhow::ensure!(nanos < 1_000_000_000, "Invalid birth time nanoseconds");
+            anyhow::ensure!(
+                nanos < 1_000_000_000,
+                "Invalid birth time nanoseconds"
+            );
         }
         if let Some(resolution) = self.resolution_nsec {
-            anyhow::ensure!(resolution > 0, "Timestamp resolution must be nonzero");
+            anyhow::ensure!(
+                resolution > 0,
+                "Timestamp resolution must be nonzero"
+            );
         }
         Ok(())
     }
 }
 
-pub(crate) fn checked_file_time(seconds: i64, nanos: u32) -> Result<filetime::FileTime> {
+pub(crate) fn checked_file_time(
+    seconds: i64,
+    nanos: u32,
+) -> Result<filetime::FileTime> {
     use std::time::Duration;
     anyhow::ensure!(nanos < 1_000_000_000, "Invalid timestamp nanoseconds");
-    anyhow::ensure!(seconds != i64::MIN, "Timestamp is outside native conversion range");
+    anyhow::ensure!(
+        seconds != i64::MIN,
+        "Timestamp is outside native conversion range"
+    );
     #[cfg(windows)]
-    seconds.checked_add(11_644_473_600).context("Timestamp overflows Windows epoch conversion")?;
+    seconds
+        .checked_add(11_644_473_600)
+        .context("Timestamp overflows Windows epoch conversion")?;
     let duration = Duration::from_secs(seconds.unsigned_abs());
     let base = if seconds < 0 {
         SystemTime::UNIX_EPOCH.checked_sub(duration)
     } else {
         SystemTime::UNIX_EPOCH.checked_add(duration)
-    }.context("Timestamp is outside native system time range")?;
+    }
+    .context("Timestamp is outside native system time range")?;
     base.checked_add(Duration::from_nanos(u64::from(nanos)))
         .context("Timestamp nanoseconds exceed native system time range")?;
     Ok(filetime::FileTime::from_unix_time(seconds, nanos))
 }
 
 /// Complete file metadata, combining POSIX attributes, timestamps, and flags.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 321, end = 322)]
 pub struct FileMetadata {
     /// Native observations retained even when a target cannot reproduce them.
@@ -953,7 +1014,16 @@ impl From<UnixSecondsDc> for i64 {
 
 /// Specific Apple / Mac OS metadata preserved from AppleSingle, AppleDouble,
 /// or macOS extended attributes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Default,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 401, end = 402)]
 pub struct AppleMetadata {
     /// Decoded 32-byte Macintosh Finder information (type, creator, flags, coordinates, FXInfo).
@@ -970,7 +1040,10 @@ pub struct AppleMetadata {
     pub backup_timestamp_sec: Option<i64>,
     /// Preserved unrecognized entries from AppleSingle or AppleDouble archive.
     #[serde(default)]
-    #[dc(skip, reason = "Unrecognized AppleSingle/AppleDouble raw entries are not serialized in Dc 401..402")]
+    #[dc(
+        skip,
+        reason = "Unrecognized AppleSingle/AppleDouble raw entries are not serialized in Dc 401..402"
+    )]
     pub unrecognized_entries: Vec<AppleRawEntry>,
 }
 
@@ -1221,7 +1294,15 @@ impl Default for FileMetadata {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(key_value)]
 pub struct NativeMetadata {
     #[dc(key = "source_os")]
@@ -1231,13 +1312,23 @@ pub struct NativeMetadata {
 }
 
 impl ctb_formats_dcstring::LosslessWithContext for NativeMetadata {
-    fn is_lossless(&self, _context: &ctb_formats_dcstring::SharedValueContext) -> bool {
+    fn is_lossless(
+        &self,
+        _context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> bool {
         true
     }
 }
 
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(names, begin = 310, end = 311)]
 pub enum NativeMetadataValue {
     #[dc(name = "unsigned")]
@@ -1260,12 +1351,12 @@ pub fn capture_birthtime(
     }
 }
 
+pub mod acl;
 #[cfg(target_os = "linux")]
 mod linux;
 pub mod reparse;
 #[cfg(windows)]
 pub mod windows;
-pub mod acl;
 
 pub fn capture_native_metadata(
     path: &std::path::Path,
@@ -1366,9 +1457,8 @@ pub fn check_metadata_replication(
     let mut warnings = Vec::new();
     if let Some(ref ts) = metadata.timestamps {
         if let Some(seconds) = ts.birthtime_sec {
-            let nanos = ts
-                .birthtime_nsec
-                .context("Birth time has no nanoseconds")?;
+            let nanos =
+                ts.birthtime_nsec.context("Birth time has no nanoseconds")?;
             anyhow::ensure!(
                 nanos < 1_000_000_000,
                 "Invalid birth time nanoseconds"
@@ -1397,8 +1487,12 @@ pub fn check_metadata_replication(
             );
         }
     }
-    let differences =
-        native_metadata_differences(destination, metadata, ignore_flags, strict)?;
+    let differences = native_metadata_differences(
+        destination,
+        metadata,
+        ignore_flags,
+        strict,
+    )?;
     if !differences.is_empty() {
         if strict {
             anyhow::bail!(
@@ -1497,13 +1591,17 @@ pub fn native_metadata_differences(
             {
                 #[cfg(windows)]
                 if !strict && name.as_str() == "security.sddl" {
-                    if let (Some(NativeMetadataValue::Bytes(exp_b)), Some(NativeMetadataValue::Bytes(act_b))) =
-                        (Some(value), actual.values.get(name))
+                    if let (
+                        Some(NativeMetadataValue::Bytes(exp_b)),
+                        Some(NativeMetadataValue::Bytes(act_b)),
+                    ) = (Some(value), actual.values.get(name))
                     {
                         let exp_s = String::from_utf8_lossy(exp_b);
                         let act_s = String::from_utf8_lossy(act_b);
                         if act_s.starts_with(exp_s.as_ref())
-                            && act_s.get(exp_s.len()..).is_some_and(|rem| rem.trim() == "S:NO_ACCESS_CONTROL")
+                            && act_s.get(exp_s.len()..).is_some_and(|rem| {
+                                rem.trim() == "S:NO_ACCESS_CONTROL"
+                            })
                         {
                             warn_fmt!(
                                 "Windows 11 default SACL inherited on {}: S:NO_ACCESS_CONTROL",
@@ -1514,14 +1612,25 @@ pub fn native_metadata_differences(
                     }
                 }
                 #[cfg(windows)]
-                if !strict && matches!(name.as_str(), "security.descriptor" | "security.info_flags") {
-                    if let (Some(NativeMetadataValue::Bytes(exp_sddl)), Some(NativeMetadataValue::Bytes(act_sddl))) =
-                        (native.values.get("security.sddl"), actual.values.get("security.sddl"))
-                    {
+                if !strict
+                    && matches!(
+                        name.as_str(),
+                        "security.descriptor" | "security.info_flags"
+                    )
+                {
+                    if let (
+                        Some(NativeMetadataValue::Bytes(exp_sddl)),
+                        Some(NativeMetadataValue::Bytes(act_sddl)),
+                    ) = (
+                        native.values.get("security.sddl"),
+                        actual.values.get("security.sddl"),
+                    ) {
                         let exp_s = String::from_utf8_lossy(exp_sddl);
                         let act_s = String::from_utf8_lossy(act_sddl);
                         if act_s.starts_with(exp_s.as_ref())
-                            && act_s.get(exp_s.len()..).is_some_and(|rem| rem.trim() == "S:NO_ACCESS_CONTROL")
+                            && act_s.get(exp_s.len()..).is_some_and(|rem| {
+                                rem.trim() == "S:NO_ACCESS_CONTROL"
+                            })
                         {
                             continue;
                         }
@@ -1558,7 +1667,10 @@ mod tests {
         let path = temp.path().join("file");
         fs::write(&path, b"payload").unwrap();
         let timestamps = crate::FileEntity::from_filesystem(&path, None)
-            .unwrap().metadata.timestamps.unwrap();
+            .unwrap()
+            .metadata
+            .timestamps
+            .unwrap();
         let mut invalid_nanos = timestamps;
         invalid_nanos.mtime_nsec = 1_000_000_000;
         let mut partial_birth = timestamps;
@@ -1569,7 +1681,12 @@ mod tests {
         orphan_birth_nanos.birthtime_nsec = Some(0);
         let mut zero_resolution = timestamps;
         zero_resolution.resolution_nsec = Some(0);
-        for invalid in [invalid_nanos, partial_birth, orphan_birth_nanos, zero_resolution] {
+        for invalid in [
+            invalid_nanos,
+            partial_birth,
+            orphan_birth_nanos,
+            zero_resolution,
+        ] {
             assert!(invalid.validate().is_err());
             let mut encoded = DcMstring::new();
             assert!(invalid.encode_dc_mixed(&mut encoded).is_err());
@@ -1588,17 +1705,37 @@ mod tests {
         let path = temp.path().join("file");
         fs::write(&path, b"payload").unwrap();
         let mut timestamps = crate::FileEntity::from_filesystem(&path, None)
-            .unwrap().metadata.timestamps.unwrap();
+            .unwrap()
+            .metadata
+            .timestamps
+            .unwrap();
         timestamps.atime_sec = i64::MIN;
-        let metadata = FileMetadata { timestamps: Some(timestamps), ..FileMetadata::default() };
-        let warnings = crate::apply_entity_metadata(&path, None, &metadata, false, false, false, true).unwrap();
-        assert!(warnings.iter().any(|warning| warning.contains("native conversion range")));
-        assert!(crate::apply_entity_metadata(&path, None, &metadata, false, false, true, true).is_err());
+        let metadata = FileMetadata {
+            timestamps: Some(timestamps),
+            ..FileMetadata::default()
+        };
+        let warnings = crate::apply_entity_metadata(
+            &path, None, &metadata, false, false, false, true,
+        )
+        .unwrap();
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("native conversion range"))
+        );
+        assert!(
+            crate::apply_entity_metadata(
+                &path, None, &metadata, false, false, true, true
+            )
+            .is_err()
+        );
     }
 
     #[crate::ctb_test]
     fn test_file_environment_serialization_context() -> Result<()> {
-        use ctb_formats_dcstring::{DcProjectionPolicy, SharedJson, SharedValueContext};
+        use ctb_formats_dcstring::{
+            DcProjectionPolicy, SharedJson, SharedValueContext,
+        };
         let environment = Arc::new(EnvDescription {
             os: "original-observation".to_owned(),
             ..EnvDescription::default()
@@ -1607,54 +1744,126 @@ mod tests {
         entity.metadata.environment = Some(Arc::clone(&environment));
         ctb_formats_dcstring::assert_dc_roundtrip(&entity)?;
         let json = serde_json::to_value(&entity)?;
-        assert_eq!(json.pointer("/metadata/environment/os").and_then(serde_json::Value::as_str), Some("original-observation"));
+        assert_eq!(
+            json.pointer("/metadata/environment/os")
+                .and_then(serde_json::Value::as_str),
+            Some("original-observation")
+        );
         assert_eq!(serde_json::from_value::<FileEntity>(json)?, entity);
         let mut context = SharedValueContext::default();
         context.insert("source.environment", Arc::clone(&environment))?;
         let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        let decoded = encoded.decode_with_context::<FileEntity>(&context, &DcProjectionPolicy::strict())?;
-        assert!(decoded.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
-        assert!(encoded.decode::<FileEntity>(&DcProjectionPolicy::strict()).is_err());
+        let decoded = encoded.decode_with_context::<FileEntity>(
+            &context,
+            &DcProjectionPolicy::strict(),
+        )?;
+        assert!(
+            decoded
+                .metadata
+                .environment
+                .as_ref()
+                .is_some_and(|value| Arc::ptr_eq(value, &environment))
+        );
+        assert!(
+            encoded
+                .decode::<FileEntity>(&DcProjectionPolicy::strict())
+                .is_err()
+        );
         let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
         let mut streamed = DcMstring::new();
-        ensure!(entity.encode_with_payload_and_context(&mut streamed, &mut source, &context).is_err());
+        ensure!(
+            entity
+                .encode_with_payload_and_context(
+                    &mut streamed,
+                    &mut source,
+                    &context
+                )
+                .is_err()
+        );
         let mut streamed = DcMstring::new();
-        entity.encode_record_to_writer_with_policy(&mut streamed.writer(), None, crate::encoding::BodyPolicy::Omit, &context)?;
+        entity.encode_record_to_writer_with_policy(
+            &mut streamed.writer(),
+            None,
+            crate::encoding::BodyPolicy::Omit,
+            &context,
+        )?;
         assert_eq!(streamed, encoded);
         let mut written = DcMstring::new().into_bytes();
-        entity.encode_record_to_writer_with_policy(&mut written, None, crate::encoding::BodyPolicy::Omit, &context)?;
+        entity.encode_record_to_writer_with_policy(
+            &mut written,
+            None,
+            crate::encoding::BodyPolicy::Omit,
+            &context,
+        )?;
         assert_eq!(written, encoded.as_bytes());
-        let mut source = crate::payload::MemoryPayloadSource::new(b"environment".to_vec())?;
+        let mut source =
+            crate::payload::MemoryPayloadSource::new(b"environment".to_vec())?;
         let mut streamed = DcMstring::new();
-        entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
+        entity.encode_with_payload_and_context(
+            &mut streamed,
+            &mut source,
+            &context,
+        )?;
         let mut written = Vec::new();
-        entity.encode_to_writer_with_payload_and_context(&mut written, &mut source, &context)?;
+        entity.encode_to_writer_with_payload_and_context(
+            &mut written,
+            &mut source,
+            &context,
+        )?;
         assert_eq!(written, streamed.as_bytes());
         DcMstring::from_bytes(written)?;
         let json = entity.metadata.encode_json_with_context(&context)?;
         let decoded = FileMetadata::decode_json_with_context(json, &context)?;
-        assert!(decoded.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
-        entity.metadata.environment = Some(Arc::new(EnvDescription { os: "different-observation".to_owned(), ..EnvDescription::default() }));
+        assert!(
+            decoded
+                .environment
+                .as_ref()
+                .is_some_and(|value| Arc::ptr_eq(value, &environment))
+        );
+        entity.metadata.environment = Some(Arc::new(EnvDescription {
+            os: "different-observation".to_owned(),
+            ..EnvDescription::default()
+        }));
         let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        assert_eq!(encoded.decode::<FileEntity>(&DcProjectionPolicy::strict())?, entity);
+        assert_eq!(
+            encoded.decode::<FileEntity>(&DcProjectionPolicy::strict())?,
+            entity
+        );
         let empty = FileMetadata::empty();
-        assert_eq!(FileMetadata::decode_json_with_context(empty.encode_json_with_context(&context)?, &context)?, empty);
+        assert_eq!(
+            FileMetadata::decode_json_with_context(
+                empty.encode_json_with_context(&context)?,
+                &context
+            )?,
+            empty
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_metadata_source_preserving_environment_edit() -> Result<()> {
-        use ctb_formats_dcstring::{DcMixedFields, DcProjectionPolicy, SharedValueContext};
-        let original_environment = Arc::new(EnvDescription { os: "original".to_owned(), ..EnvDescription::default() });
-        let revised_environment = Arc::new(EnvDescription { os: "revised".to_owned(), ..EnvDescription::default() });
+        use ctb_formats_dcstring::{
+            DcMixedFields, DcProjectionPolicy, SharedValueContext,
+        };
+        let original_environment = Arc::new(EnvDescription {
+            os: "original".to_owned(),
+            ..EnvDescription::default()
+        });
+        let revised_environment = Arc::new(EnvDescription {
+            os: "revised".to_owned(),
+            ..EnvDescription::default()
+        });
         let mut original = FileMetadata::empty();
         original.environment = Some(Arc::clone(&original_environment));
         let mut updated = original.clone();
         updated.environment = Some(Arc::clone(&revised_environment));
         let mut context = SharedValueContext::default();
-        context.insert("original.environment", Arc::clone(&original_environment))?;
+        context.insert(
+            "original.environment",
+            Arc::clone(&original_environment),
+        )?;
         let mut source = DcMstring::new();
         source.push_char(DcChar::from_short(321));
         original.encode_dc_field("environment", &mut source)?;
@@ -1666,46 +1875,92 @@ mod tests {
         assert!(view.diagnostic().is_some());
         let revised = view.replace_field("environment", &updated)?;
         let revised_view = revised.inspect::<FileMetadata>();
-        let field = revised_view.fields().iter().find(|field| field.depth() == 1 && field.field() == "environment").context("Missing environment annotation")?;
-        assert_eq!(revised.as_bytes().get(field.range().end..), source.as_bytes().get(suffix_start..));
+        let field = revised_view
+            .fields()
+            .iter()
+            .find(|field| field.depth() == 1 && field.field() == "environment")
+            .context("Missing environment annotation")?;
+        assert_eq!(
+            revised.as_bytes().get(field.range().end..),
+            source.as_bytes().get(suffix_start..)
+        );
         let mut source = DcMstring::new();
         original.encode_dc_mixed_with_context(&mut source, &context)?;
-        let revised = source.inspect_with_context::<FileMetadata>(&context).replace_field("environment", &updated)?;
-        assert_eq!(revised.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, updated);
-        assert!(Arc::ptr_eq(&context.resolve::<EnvDescription>("original.environment")?, &original_environment));
+        let revised = source
+            .inspect_with_context::<FileMetadata>(&context)
+            .replace_field("environment", &updated)?;
+        assert_eq!(
+            revised.decode::<FileMetadata>(&DcProjectionPolicy::strict())?,
+            updated
+        );
+        assert!(Arc::ptr_eq(
+            &context.resolve::<EnvDescription>("original.environment")?,
+            &original_environment
+        ));
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_native_metadata_and_raw_flags_dc_roundtrip() {
-        ctb_formats_dcstring::assert_dc_roundtrip(&FileMetadata::empty()).unwrap();
+        ctb_formats_dcstring::assert_dc_roundtrip(&FileMetadata::empty())
+            .unwrap();
         for source_os in [
-            OsFamily::Darwin, OsFamily::FreeBSD, OsFamily::OpenBSD,
-            OsFamily::NetBSD, OsFamily::DragonFly, OsFamily::Linux,
-            OsFamily::Windows, OsFamily::Other,
+            OsFamily::Darwin,
+            OsFamily::FreeBSD,
+            OsFamily::OpenBSD,
+            OsFamily::NetBSD,
+            OsFamily::DragonFly,
+            OsFamily::Linux,
+            OsFamily::Windows,
+            OsFamily::Other,
         ] {
             let mut metadata = FileMetadata::empty();
             metadata.native = Some(NativeMetadata {
                 source_os,
                 values: std::collections::BTreeMap::from([
-                    ("unsigned.maximum".to_string(), NativeMetadataValue::Unsigned(u64::MAX)),
-                    ("signed.minimum".to_string(), NativeMetadataValue::Signed(i64::MIN)),
-                    ("signed.positive".to_string(), NativeMetadataValue::Signed(1)),
-                    ("security.bytes".to_string(), NativeMetadataValue::Bytes(vec![0, 255, 128, 1])),
-                    ("empty.bytes".to_string(), NativeMetadataValue::Bytes(Vec::new())),
+                    (
+                        "unsigned.maximum".to_string(),
+                        NativeMetadataValue::Unsigned(u64::MAX),
+                    ),
+                    (
+                        "signed.minimum".to_string(),
+                        NativeMetadataValue::Signed(i64::MIN),
+                    ),
+                    (
+                        "signed.positive".to_string(),
+                        NativeMetadataValue::Signed(1),
+                    ),
+                    (
+                        "security.bytes".to_string(),
+                        NativeMetadataValue::Bytes(vec![0, 255, 128, 1]),
+                    ),
+                    (
+                        "empty.bytes".to_string(),
+                        NativeMetadataValue::Bytes(Vec::new()),
+                    ),
                 ]),
             });
-            metadata.platform_raw_flags = Some(PlatformRawFlags::from_raw(u64::MAX));
+            metadata.platform_raw_flags =
+                Some(PlatformRawFlags::from_raw(u64::MAX));
             metadata.push_warning("Native metadata could not be reproduced");
             ctb_formats_dcstring::assert_dc_roundtrip(&metadata).unwrap();
             let mut encoded = DcMstring::new();
             metadata.encode_dc_mixed(&mut encoded).unwrap();
             let tokens = encoded.to_dc_tokens().unwrap();
-            assert_eq!(tokens.get(0..2), Some(&[DcChar::from_short(321).to_u128(), DcChar::from_short(559).to_u128()][..]));
-            let decoded = encoded.decode::<FileMetadata>(
-                &ctb_formats_dcstring::DcProjectionPolicy::strict(),
-            )
-            .unwrap();
+            assert_eq!(
+                tokens.get(0..2),
+                Some(
+                    &[
+                        DcChar::from_short(321).to_u128(),
+                        DcChar::from_short(559).to_u128()
+                    ][..]
+                )
+            );
+            let decoded = encoded
+                .decode::<FileMetadata>(
+                    &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+                )
+                .unwrap();
             assert_eq!(decoded.native.unwrap(), metadata.native.unwrap());
         }
     }
@@ -1732,7 +1987,10 @@ mod tests {
             source_os: OsFamily::Other,
             values: std::collections::BTreeMap::new(),
         });
-        assert_eq!(source.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, expected);
+        assert_eq!(
+            source.decode::<FileMetadata>(&DcProjectionPolicy::strict())?,
+            expected
+        );
         let inspection = source.inspect::<FileMetadata>();
         assert!(
             !inspection.diagnostics().is_empty()
@@ -1744,18 +2002,43 @@ mod tests {
             inspection.diagnostics()
         );
         let updated = inspection.replace_field("native", &expected)?;
-        assert_eq!(updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, expected);
+        assert_eq!(
+            updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?,
+            expected
+        );
         assert_eq!(updated.as_bytes(), source.as_bytes());
         let tokens = updated.to_dc_tokens()?;
-        assert_eq!(tokens.get(0..2), Some(&[DcChar::from_short(321).to_u128(), DcChar::from_short(313).to_u128()][..]));
-        let mut changed = expected;
-        changed.native.as_mut().context("Missing native metadata")?.values.insert(
-            "added".to_owned(), NativeMetadataValue::Unsigned(42),
+        assert_eq!(
+            tokens.get(0..2),
+            Some(
+                &[
+                    DcChar::from_short(321).to_u128(),
+                    DcChar::from_short(313).to_u128()
+                ][..]
+            )
         );
+        let mut changed = expected;
+        changed
+            .native
+            .as_mut()
+            .context("Missing native metadata")?
+            .values
+            .insert("added".to_owned(), NativeMetadataValue::Unsigned(42));
         let updated = inspection.replace_field("native", &changed)?;
-        assert_eq!(updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, changed);
+        assert_eq!(
+            updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?,
+            changed
+        );
         let tokens = updated.to_dc_tokens()?;
-        assert_eq!(tokens.get(0..2), Some(&[DcChar::from_short(321).to_u128(), DcChar::from_short(313).to_u128()][..]));
+        assert_eq!(
+            tokens.get(0..2),
+            Some(
+                &[
+                    DcChar::from_short(321).to_u128(),
+                    DcChar::from_short(313).to_u128()
+                ][..]
+            )
+        );
         assert!(!tokens.contains(&DcChar::from_short(559).0));
         Ok(())
     }
@@ -1795,10 +2078,7 @@ mod tests {
             FlagSettability::Unsupported
         );
 
-        assert_eq!(
-            FileFlag::from_name("uchg"),
-            Some(FileFlag::UserImmutable)
-        );
+        assert_eq!(FileFlag::from_name("uchg"), Some(FileFlag::UserImmutable));
         assert_eq!(FileFlag::from_name("nodump"), Some(FileFlag::NoDump));
         assert_eq!(FileFlag::SystemLog.name(), "slog");
         assert_eq!(FileFlag::SnapshotInvalid.name(), "snapinval");
@@ -1838,8 +2118,14 @@ mod tests {
     #[crate::ctb_test]
     fn test_optional_semantic_flags_roundtrip() -> Result<()> {
         for flags in [None, Some(Vec::new()), Some(vec![FileFlag::ReadOnly])] {
-            for platform_raw_flags in [None, Some(PlatformRawFlags::from_raw(0))] {
-                let metadata = FileMetadata { flags: flags.clone(), platform_raw_flags, ..Default::default() };
+            for platform_raw_flags in
+                [None, Some(PlatformRawFlags::from_raw(0))]
+            {
+                let metadata = FileMetadata {
+                    flags: flags.clone(),
+                    platform_raw_flags,
+                    ..Default::default()
+                };
                 ctb_formats_dcstring::assert_dc_roundtrip(&metadata)?;
             }
         }
@@ -1852,28 +2138,67 @@ mod tests {
         let path = temp.path().join("file");
         fs::write(&path, b"data").unwrap();
         let mut metadata = FileMetadata {
-            native: None, mode: Some(0o600), uid: Some(0), gid: Some(0),
+            native: None,
+            mode: Some(0o600),
+            uid: Some(0),
+            gid: Some(0),
             timestamps: Some(FileTimestamps {
-                atime_sec: 0, atime_nsec: 0, mtime_sec: 0, mtime_nsec: 0,
-                ctime_sec: 0, ctime_nsec: 0, birthtime_sec: Some(-1), birthtime_nsec: Some(123),
+                atime_sec: 0,
+                atime_nsec: 0,
+                mtime_sec: 0,
+                mtime_nsec: 0,
+                ctime_sec: 0,
+                ctime_nsec: 0,
+                birthtime_sec: Some(-1),
+                birthtime_nsec: Some(123),
                 resolution_nsec: None,
             }),
-            flags: Some(Vec::new()), platform_raw_flags: None, read_time: None, filesystem_type: None,
-            environment: None, apple: None, warnings: Vec::new(), errors: Vec::new(),
+            flags: Some(Vec::new()),
+            platform_raw_flags: None,
+            read_time: None,
+            filesystem_type: None,
+            environment: None,
+            apple: None,
+            warnings: Vec::new(),
+            errors: Vec::new(),
         };
-        assert!(metadata::check_metadata_replication(&path, &metadata, true, false, true).is_err());
-        assert!(metadata::check_metadata_replication(&path, &metadata, false, false, true).is_ok());
+        assert!(
+            metadata::check_metadata_replication(
+                &path, &metadata, true, false, true
+            )
+            .is_err()
+        );
+        assert!(
+            metadata::check_metadata_replication(
+                &path, &metadata, false, false, true
+            )
+            .is_ok()
+        );
         if let Some(ref mut ts) = metadata.timestamps {
             ts.birthtime_sec = None;
         }
-        assert!(metadata::check_metadata_replication(&path, &metadata, false, false, true).is_err());
+        assert!(
+            metadata::check_metadata_replication(
+                &path, &metadata, false, false, true
+            )
+            .is_err()
+        );
     }
 
     #[crate::ctb_test]
     fn test_apple_backup_timestamp_signed_seconds() -> Result<()> {
-        use ctb_formats_dcstring::{DcChar, DcMixedEncode, DcMstring, DcProjectionPolicy};
+        use ctb_formats_dcstring::{
+            DcChar, DcMixedEncode, DcMstring, DcProjectionPolicy,
+        };
 
-        for seconds in [None, Some(i64::MIN), Some(-1), Some(0), Some(1), Some(i64::MAX)] {
+        for seconds in [
+            None,
+            Some(i64::MIN),
+            Some(-1),
+            Some(0),
+            Some(1),
+            Some(i64::MAX),
+        ] {
             let apple = AppleMetadata {
                 real_name: Some("backup".to_owned()),
                 backup_timestamp_sec: seconds,
@@ -1890,14 +2215,22 @@ mod tests {
             source.push_char(DcChar::from_short(399));
             if framed {
                 source.push_char(DcChar::from_short(390));
-                source.push_char(DcChar::from_u128(FormatId::NsSinceEpoch.dc_id().context("Missing date format")?));
+                source.push_char(DcChar::from_u128(
+                    FormatId::NsSinceEpoch
+                        .dc_id()
+                        .context("Missing date format")?,
+                ));
             }
             (-1_i64).encode_dc_mixed(&mut source)?;
             if framed {
                 source.push_char(DcChar::from_short(391));
             }
             source.push_char(DcChar::from_short(402));
-            assert!(source.decode::<AppleMetadata>(&DcProjectionPolicy::strict()).is_err());
+            assert!(
+                source
+                    .decode::<AppleMetadata>(&DcProjectionPolicy::strict())
+                    .is_err()
+            );
         }
         Ok(())
     }
@@ -1935,14 +2268,25 @@ mod tests {
         let mut missing_ctime = DcMstring::new();
         missing_ctime.push_char(DcChar::from_short(321));
         missing_ctime.push_char(DcChar::from_short(330));
-        SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(10)).unwrap().encode_dc_mixed(&mut missing_ctime).unwrap();
+        SystemTime::UNIX_EPOCH
+            .checked_add(std::time::Duration::from_secs(10))
+            .unwrap()
+            .encode_dc_mixed(&mut missing_ctime)
+            .unwrap();
         missing_ctime.push_char(DcChar::from_short(329));
-        SystemTime::UNIX_EPOCH.checked_add(std::time::Duration::from_secs(20)).unwrap().encode_dc_mixed(&mut missing_ctime).unwrap();
+        SystemTime::UNIX_EPOCH
+            .checked_add(std::time::Duration::from_secs(20))
+            .unwrap()
+            .encode_dc_mixed(&mut missing_ctime)
+            .unwrap();
         missing_ctime.push_char(DcChar::from_short(322));
         assert!(missing_ctime.decode::<FileMetadata>(&strict).is_err());
         let view = missing_ctime.inspect_with_policy::<FileMetadata>(&quiet);
         assert!(view.diagnostic().is_some());
-        let recovered_ts = view.value().and_then(|m| m.timestamps.as_ref()).expect("Forgiving timestamps");
+        let recovered_ts = view
+            .value()
+            .and_then(|m| m.timestamps.as_ref())
+            .expect("Forgiving timestamps");
         assert_eq!(recovered_ts.atime_sec, 10);
         assert_eq!(recovered_ts.mtime_sec, 20);
         assert_eq!(recovered_ts.ctime_sec, 0);
@@ -1950,16 +2294,26 @@ mod tests {
         let mut env_unknown = DcMstring::new();
         env_unknown.push_char(DcChar::from_short(340));
         env_unknown.push_char(DcChar::from_short(342));
-        "linux".to_owned().encode_dc_mixed(&mut env_unknown).unwrap();
+        "linux"
+            .to_owned()
+            .encode_dc_mixed(&mut env_unknown)
+            .unwrap();
         env_unknown.push_char(DcChar::from_short(344));
         64_u8.encode_dc_mixed(&mut env_unknown).unwrap();
         env_unknown.push_char(DcChar::from_short(343));
-        "0.1.0".to_owned().encode_dc_mixed(&mut env_unknown).unwrap();
+        "0.1.0"
+            .to_owned()
+            .encode_dc_mixed(&mut env_unknown)
+            .unwrap();
         env_unknown.push_char(DcChar::from_short(600));
-        "future-env-field".to_owned().encode_dc_mixed(&mut env_unknown).unwrap();
+        "future-env-field"
+            .to_owned()
+            .encode_dc_mixed(&mut env_unknown)
+            .unwrap();
         env_unknown.push_char(DcChar::from_short(341));
         assert!(env_unknown.decode::<EnvDescription>(&strict).is_err());
-        let env_view = env_unknown.inspect_with_policy::<EnvDescription>(&quiet);
+        let env_view =
+            env_unknown.inspect_with_policy::<EnvDescription>(&quiet);
         assert!(env_view.diagnostic().is_some());
     }
 
@@ -1969,16 +2323,35 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("file");
         fs::write(&path, b"data").unwrap();
-        let (mut baseline_flags, _) = crate::sys_flags::query_file_flags(&path, false).unwrap();
+        let (mut baseline_flags, _) =
+            crate::sys_flags::query_file_flags(&path, false).unwrap();
         baseline_flags.retain(|flag| *flag != FileFlag::NoDump);
         let mut flags_with_nodump = baseline_flags.clone();
         flags_with_nodump.push(FileFlag::NoDump);
-        crate::sys_flags::apply_file_flags(&path, &flags_with_nodump, None, true).unwrap();
-        assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.contains(&FileFlag::NoDump));
-        crate::sys_flags::apply_file_flags(&path, &baseline_flags, None, true).unwrap();
-        assert_eq!(crate::sys_flags::query_file_flags(&path, false).unwrap().0, baseline_flags);
+        crate::sys_flags::apply_file_flags(
+            &path,
+            &flags_with_nodump,
+            None,
+            true,
+        )
+        .unwrap();
+        assert!(
+            crate::sys_flags::query_file_flags(&path, false)
+                .unwrap()
+                .0
+                .contains(&FileFlag::NoDump)
+        );
+        crate::sys_flags::apply_file_flags(&path, &baseline_flags, None, true)
+            .unwrap();
+        assert_eq!(
+            crate::sys_flags::query_file_flags(&path, false).unwrap().0,
+            baseline_flags
+        );
         let raw = PlatformRawFlags::from_raw(u64::MAX);
-        assert!(crate::sys_flags::apply_file_flags(&path, &[], Some(&raw), false).is_err());
+        assert!(
+            crate::sys_flags::apply_file_flags(&path, &[], Some(&raw), false)
+                .is_err()
+        );
     }
 
     #[cfg(not(any(unix, windows)))]
@@ -1989,9 +2362,21 @@ mod tests {
         fs::write(&path, b"original").unwrap();
         assert!(FileEntity::from_filesystem(&path, None).is_err());
         assert!(read_and_hash_streams(&path).is_err());
-        assert!(StreamName::from_bytes(b"invalid\xff").to_os_string().is_err());
+        assert!(
+            StreamName::from_bytes(b"invalid\xff")
+                .to_os_string()
+                .is_err()
+        );
         let root = SandboxableDir::open(temp.path()).unwrap();
-        assert!(root.commit_atomic_file(&root.root_fd(), "missing-temp", "source", crate::ExistingEntryPolicy::Replace).is_err());
+        assert!(
+            root.commit_atomic_file(
+                &root.root_fd(),
+                "missing-temp",
+                "source",
+                crate::ExistingEntryPolicy::Replace
+            )
+            .is_err()
+        );
         assert_eq!(fs::read(path).unwrap(), b"original");
     }
 
@@ -2002,29 +2387,67 @@ mod tests {
         fs::write(&path, b"data").unwrap();
         let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
         entity.metadata.native.as_mut().unwrap().values.insert(
-            "future.attribute".to_owned(), metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
+            "future.attribute".to_owned(),
+            metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
         );
-        assert!(metadata::check_metadata_replication(&path, &entity.metadata, true, false, true).is_err());
-        let warnings = metadata::check_metadata_replication(&path, &entity.metadata, false, false, true).unwrap();
-        assert!(warnings.iter().any(|warning| warning.contains("future.attribute")));
+        assert!(
+            metadata::check_metadata_replication(
+                &path,
+                &entity.metadata,
+                true,
+                false,
+                true
+            )
+            .is_err()
+        );
+        let warnings = metadata::check_metadata_replication(
+            &path,
+            &entity.metadata,
+            false,
+            false,
+            true,
+        )
+        .unwrap();
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.contains("future.attribute"))
+        );
         entity.identity.relative_path = Some(std::path::PathBuf::from("file"));
         let destination = tempfile::tempdir().unwrap();
         let root = SandboxableDir::open(destination.path()).unwrap();
         let options = crate::materializer::MaterializeOptions {
             strict_lossless: false,
-            existing_entry_policy: crate::sandboxable_dir::ExistingEntryPolicy::Replace,
+            existing_entry_policy:
+                crate::sandboxable_dir::ExistingEntryPolicy::Replace,
             ..Default::default()
         };
-        let mut payload = crate::MemoryPayloadSource::new(b"data".to_vec()).unwrap();
-        let receipt = entity.materialize(Some(&mut payload), &root, &options).unwrap();
-        assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
+        let mut payload =
+            crate::MemoryPayloadSource::new(b"data".to_vec()).unwrap();
+        let receipt = entity
+            .materialize(Some(&mut payload), &root, &options)
+            .unwrap();
+        assert!(
+            receipt
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("future.attribute"))
+        );
         assert_eq!(fs::read(&receipt.destination_path).unwrap(), b"data");
         entity.metadata.warnings.extend(receipt.warnings);
         ctb_formats_dcstring::assert_dc_roundtrip(&entity.metadata).unwrap();
-        let mut payload = crate::MemoryPayloadSource::new(b"data".to_vec()).unwrap();
-        let receipt = entity.materialize(Some(&mut payload), &root, &options).unwrap();
+        let mut payload =
+            crate::MemoryPayloadSource::new(b"data".to_vec()).unwrap();
+        let receipt = entity
+            .materialize(Some(&mut payload), &root, &options)
+            .unwrap();
         assert_eq!(receipt.skipped_identical, cfg!(unix));
-        assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
+        assert!(
+            receipt
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("future.attribute"))
+        );
         let mut requested = entity.metadata.clone();
         requested.native = None;
         if let Some(timestamps) = requested.timestamps.as_mut() {
@@ -2034,25 +2457,56 @@ mod tests {
         let missing = destination.path().join("missing");
         let warnings = crate::materializer::apply_entity_metadata(
             &missing, None, &requested, false, false, false, true,
-        ).unwrap();
-        assert!(warnings.iter().any(|warning| warning.contains("Failed to set file timestamps")));
-        assert!(crate::materializer::apply_entity_metadata(
-            &missing, None, &requested, false, false, true, true,
-        ).is_err());
+        )
+        .unwrap();
+        assert!(
+            warnings.iter().any(
+                |warning| warning.contains("Failed to set file timestamps")
+            )
+        );
+        assert!(
+            crate::materializer::apply_entity_metadata(
+                &missing, None, &requested, false, false, true, true,
+            )
+            .is_err()
+        );
         #[cfg(windows)]
         {
             requested.mode = Some(0o444);
             let warnings = crate::materializer::apply_entity_metadata(
                 &missing, None, &requested, false, false, false, true,
-            ).unwrap();
-            assert!(warnings.iter().any(|warning| warning.contains("read-only permissions")));
-            assert!(crate::materializer::apply_entity_metadata(
-                &missing, None, &requested, false, false, true, true,
-            ).unwrap_err().to_string().contains("read-only permissions"));
+            )
+            .unwrap();
+            assert!(
+                warnings
+                    .iter()
+                    .any(|warning| warning.contains("read-only permissions"))
+            );
+            assert!(
+                crate::materializer::apply_entity_metadata(
+                    &missing, None, &requested, false, false, true, true,
+                )
+                .unwrap_err()
+                .to_string()
+                .contains("read-only permissions")
+            );
         }
-        assert!(metadata::check_metadata_replication(&temp.path().join("missing"), &entity.metadata, false, false, true).is_err());
-        let options = EntityAuditOptions { best_effort: false, ..Default::default() };
-        assert!(audit_entity(&path, &entity, &options).unwrap().iter().any(|diff|
-            matches!(diff, DiffKind::NativeMetadataMismatch { .. })));
+        assert!(
+            metadata::check_metadata_replication(
+                &temp.path().join("missing"),
+                &entity.metadata,
+                false,
+                false,
+                true
+            )
+            .is_err()
+        );
+        let options = EntityAuditOptions {
+            best_effort: false,
+            ..Default::default()
+        };
+        assert!(audit_entity(&path, &entity, &options).unwrap().iter().any(
+            |diff| matches!(diff, DiffKind::NativeMetadataMismatch { .. })
+        ));
     }
 }

@@ -166,7 +166,11 @@ impl KStruct for RecursiveOne {
     type Root = RecursiveOne;
     type Parent = RecursiveOne;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -182,19 +186,39 @@ impl KStruct for RecursiveOne {
         *self_rc._io.borrow_mut() = _io.clone();
         match ((i32::from(*self_rc.one())) & (3_i32)) {
             0 => {
-                let t = Self::read_into::<_, RecursiveOne>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             1 => {
-                let t = Self::read_into::<_, RecursiveOne>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             2 => {
-                let t = Self::read_into::<_, RecursiveOne>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             3 => {
-                let t = Self::read_into::<_, RecursiveOne_Fini>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne_Fini>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             _ => {}
@@ -204,8 +228,7 @@ impl KStruct for RecursiveOne {
         Ok(())
     }
 }
-impl RecursiveOne {
-}
+impl RecursiveOne {}
 impl RecursiveOne {
     pub fn one(&self) -> Ref<'_, u8> {
         self.one.borrow()
@@ -272,7 +295,11 @@ impl KStruct for RecursiveOne_Fini {
     type Root = RecursiveOne;
     type Parent = RecursiveOne;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -290,8 +317,7 @@ impl KStruct for RecursiveOne_Fini {
         Ok(())
     }
 }
-impl RecursiveOne_Fini {
-}
+impl RecursiveOne_Fini {}
 impl RecursiveOne_Fini {
     pub fn finisher(&self) -> Ref<'_, u16> {
         self.finisher.borrow()

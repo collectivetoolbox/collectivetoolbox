@@ -162,28 +162,108 @@ impl StreamingHasher {
     pub fn new(algo: HashAlgorithm) -> Self {
         match algo {
             HashAlgorithm::Sha256 => Self::Sha256(Sha256Stream::new()),
-            HashAlgorithm::XxHash32 => Self::XxHash32(twox_hash::XxHash32::with_seed(0)),
-            HashAlgorithm::XxHash64 => Self::XxHash64(twox_hash::XxHash64::with_seed(0)),
-            HashAlgorithm::XxHash3_64 => Self::XxHash3_64(twox_hash::XxHash3_64::new()),
-            HashAlgorithm::XxHash3_128 => Self::XxHash3_128(twox_hash::XxHash3_128::new()),
-            HashAlgorithm::Fnv0_32 => Self::Fnv0_32(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_32, fnv::B_32)),
-            HashAlgorithm::Fnv0_64 => Self::Fnv0_64(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_64, fnv::B_64)),
-            HashAlgorithm::Fnv0_128 => Self::Fnv0_128(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_128, fnv::B_128)),
-            HashAlgorithm::Fnv0_256 => Self::Fnv0_256(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_256, fnv::B_256)),
-            HashAlgorithm::Fnv0_512 => Self::Fnv0_512(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_512, fnv::B_512)),
-            HashAlgorithm::Fnv0_1024 => Self::Fnv0_1024(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_1024, fnv::B_1024)),
-            HashAlgorithm::Fnv1_32 => Self::Fnv1_32(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_32, fnv::B_32)),
-            HashAlgorithm::Fnv1_64 => Self::Fnv1_64(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_64, fnv::B_64)),
-            HashAlgorithm::Fnv1_128 => Self::Fnv1_128(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_128, fnv::B_128)),
-            HashAlgorithm::Fnv1_256 => Self::Fnv1_256(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_256, fnv::B_256)),
-            HashAlgorithm::Fnv1_512 => Self::Fnv1_512(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_512, fnv::B_512)),
-            HashAlgorithm::Fnv1_1024 => Self::Fnv1_1024(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_1024, fnv::B_1024)),
-            HashAlgorithm::Fnv1a_32 => Self::Fnv1a_32(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_32, fnv::B_32)),
-            HashAlgorithm::Fnv1a_64 => Self::Fnv1a_64(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_64, fnv::B_64)),
-            HashAlgorithm::Fnv1a_128 => Self::Fnv1a_128(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_128, fnv::B_128)),
-            HashAlgorithm::Fnv1a_256 => Self::Fnv1a_256(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_256, fnv::B_256)),
-            HashAlgorithm::Fnv1a_512 => Self::Fnv1a_512(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_512, fnv::B_512)),
-            HashAlgorithm::Fnv1a_1024 => Self::Fnv1a_1024(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_1024, fnv::B_1024)),
+            HashAlgorithm::XxHash32 => {
+                Self::XxHash32(twox_hash::XxHash32::with_seed(0))
+            }
+            HashAlgorithm::XxHash64 => {
+                Self::XxHash64(twox_hash::XxHash64::with_seed(0))
+            }
+            HashAlgorithm::XxHash3_64 => {
+                Self::XxHash3_64(twox_hash::XxHash3_64::new())
+            }
+            HashAlgorithm::XxHash3_128 => {
+                Self::XxHash3_128(twox_hash::XxHash3_128::new())
+            }
+            HashAlgorithm::Fnv0_32 => Self::Fnv0_32(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv0,
+                fnv::K_32,
+                fnv::B_32,
+            )),
+            HashAlgorithm::Fnv0_64 => Self::Fnv0_64(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv0,
+                fnv::K_64,
+                fnv::B_64,
+            )),
+            HashAlgorithm::Fnv0_128 => Self::Fnv0_128(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv0,
+                fnv::K_128,
+                fnv::B_128,
+            )),
+            HashAlgorithm::Fnv0_256 => Self::Fnv0_256(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv0,
+                fnv::K_256,
+                fnv::B_256,
+            )),
+            HashAlgorithm::Fnv0_512 => Self::Fnv0_512(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv0,
+                fnv::K_512,
+                fnv::B_512,
+            )),
+            HashAlgorithm::Fnv0_1024 => Self::Fnv0_1024(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv0,
+                fnv::K_1024,
+                fnv::B_1024,
+            )),
+            HashAlgorithm::Fnv1_32 => Self::Fnv1_32(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1,
+                fnv::K_32,
+                fnv::B_32,
+            )),
+            HashAlgorithm::Fnv1_64 => Self::Fnv1_64(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1,
+                fnv::K_64,
+                fnv::B_64,
+            )),
+            HashAlgorithm::Fnv1_128 => Self::Fnv1_128(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1,
+                fnv::K_128,
+                fnv::B_128,
+            )),
+            HashAlgorithm::Fnv1_256 => Self::Fnv1_256(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1,
+                fnv::K_256,
+                fnv::B_256,
+            )),
+            HashAlgorithm::Fnv1_512 => Self::Fnv1_512(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1,
+                fnv::K_512,
+                fnv::B_512,
+            )),
+            HashAlgorithm::Fnv1_1024 => Self::Fnv1_1024(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1,
+                fnv::K_1024,
+                fnv::B_1024,
+            )),
+            HashAlgorithm::Fnv1a_32 => Self::Fnv1a_32(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1a,
+                fnv::K_32,
+                fnv::B_32,
+            )),
+            HashAlgorithm::Fnv1a_64 => Self::Fnv1a_64(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1a,
+                fnv::K_64,
+                fnv::B_64,
+            )),
+            HashAlgorithm::Fnv1a_128 => Self::Fnv1a_128(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1a,
+                fnv::K_128,
+                fnv::B_128,
+            )),
+            HashAlgorithm::Fnv1a_256 => Self::Fnv1a_256(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1a,
+                fnv::K_256,
+                fnv::B_256,
+            )),
+            HashAlgorithm::Fnv1a_512 => Self::Fnv1a_512(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1a,
+                fnv::K_512,
+                fnv::B_512,
+            )),
+            HashAlgorithm::Fnv1a_1024 => Self::Fnv1a_1024(fnv::FnvStream::new(
+                fnv::FnvVariant::Fnv1a,
+                fnv::K_1024,
+                fnv::B_1024,
+            )),
         }
     }
 
@@ -196,12 +276,24 @@ impl StreamingHasher {
             Self::XxHash64(h) => h.write(data),
             Self::XxHash3_64(h) => h.write(data),
             Self::XxHash3_128(h) => h.write(data),
-            Self::Fnv0_32(s) | Self::Fnv1_32(s) | Self::Fnv1a_32(s) => s.update(data),
-            Self::Fnv0_64(s) | Self::Fnv1_64(s) | Self::Fnv1a_64(s) => s.update(data),
-            Self::Fnv0_128(s) | Self::Fnv1_128(s) | Self::Fnv1a_128(s) => s.update(data),
-            Self::Fnv0_256(s) | Self::Fnv1_256(s) | Self::Fnv1a_256(s) => s.update(data),
-            Self::Fnv0_512(s) | Self::Fnv1_512(s) | Self::Fnv1a_512(s) => s.update(data),
-            Self::Fnv0_1024(s) | Self::Fnv1_1024(s) | Self::Fnv1a_1024(s) => s.update(data),
+            Self::Fnv0_32(s) | Self::Fnv1_32(s) | Self::Fnv1a_32(s) => {
+                s.update(data)
+            }
+            Self::Fnv0_64(s) | Self::Fnv1_64(s) | Self::Fnv1a_64(s) => {
+                s.update(data)
+            }
+            Self::Fnv0_128(s) | Self::Fnv1_128(s) | Self::Fnv1a_128(s) => {
+                s.update(data)
+            }
+            Self::Fnv0_256(s) | Self::Fnv1_256(s) | Self::Fnv1a_256(s) => {
+                s.update(data)
+            }
+            Self::Fnv0_512(s) | Self::Fnv1_512(s) | Self::Fnv1a_512(s) => {
+                s.update(data)
+            }
+            Self::Fnv0_1024(s) | Self::Fnv1_1024(s) | Self::Fnv1a_1024(s) => {
+                s.update(data)
+            }
         }
     }
 
@@ -215,12 +307,24 @@ impl StreamingHasher {
             Self::XxHash64(h) => h.finish().to_be_bytes().to_vec(),
             Self::XxHash3_64(h) => h.finish().to_be_bytes().to_vec(),
             Self::XxHash3_128(h) => h.finish_128().to_be_bytes().to_vec(),
-            Self::Fnv0_32(s) | Self::Fnv1_32(s) | Self::Fnv1a_32(s) => s.finalize().to_be_bytes().to_vec(),
-            Self::Fnv0_64(s) | Self::Fnv1_64(s) | Self::Fnv1a_64(s) => s.finalize().to_be_bytes().to_vec(),
-            Self::Fnv0_128(s) | Self::Fnv1_128(s) | Self::Fnv1a_128(s) => s.finalize().to_be_bytes().to_vec(),
-            Self::Fnv0_256(s) | Self::Fnv1_256(s) | Self::Fnv1a_256(s) => s.finalize().to_be_bytes().to_vec(),
-            Self::Fnv0_512(s) | Self::Fnv1_512(s) | Self::Fnv1a_512(s) => s.finalize().to_be_bytes().to_vec(),
-            Self::Fnv0_1024(s) | Self::Fnv1_1024(s) | Self::Fnv1a_1024(s) => s.finalize().to_be_bytes().to_vec(),
+            Self::Fnv0_32(s) | Self::Fnv1_32(s) | Self::Fnv1a_32(s) => {
+                s.finalize().to_be_bytes().to_vec()
+            }
+            Self::Fnv0_64(s) | Self::Fnv1_64(s) | Self::Fnv1a_64(s) => {
+                s.finalize().to_be_bytes().to_vec()
+            }
+            Self::Fnv0_128(s) | Self::Fnv1_128(s) | Self::Fnv1a_128(s) => {
+                s.finalize().to_be_bytes().to_vec()
+            }
+            Self::Fnv0_256(s) | Self::Fnv1_256(s) | Self::Fnv1a_256(s) => {
+                s.finalize().to_be_bytes().to_vec()
+            }
+            Self::Fnv0_512(s) | Self::Fnv1_512(s) | Self::Fnv1a_512(s) => {
+                s.finalize().to_be_bytes().to_vec()
+            }
+            Self::Fnv0_1024(s) | Self::Fnv1_1024(s) | Self::Fnv1a_1024(s) => {
+                s.finalize().to_be_bytes().to_vec()
+            }
         }
     }
 }
@@ -331,10 +435,14 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
             .map(|l| l.to_ascii_lowercase());
 
         let all_coreutils = !manifest_lines.is_empty()
-            && manifest_lines.iter().all(|l| parse_coreutils_line(l).is_some());
+            && manifest_lines
+                .iter()
+                .all(|l| parse_coreutils_line(l).is_some());
         if all_coreutils {
             // Reason for fallback: empty line fallback safely fails parse_coreutils_line if lines is empty
-            if let Some((first_digest, _)) = parse_coreutils_line(manifest_lines.first().unwrap_or(&"")) {
+            if let Some((first_digest, _)) =
+                parse_coreutils_line(manifest_lines.first().unwrap_or(&""))
+            {
                 let dlen = first_digest.len();
                 let (mut fmt, candidates, name) = match dlen {
                     8 => (
@@ -416,7 +524,9 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                             256 => fmt = FormatId::Fnv1a_1024,
                             _ => {}
                         }
-                    } else if comment.contains("fnv1") || comment.contains("fnv-1") {
+                    } else if comment.contains("fnv1")
+                        || comment.contains("fnv-1")
+                    {
                         match dlen {
                             8 => fmt = FormatId::Fnv1_32,
                             16 => fmt = FormatId::Fnv1_64,
@@ -426,7 +536,9 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                             256 => fmt = FormatId::Fnv1_1024,
                             _ => {}
                         }
-                    } else if comment.contains("fnv0") || comment.contains("fnv-0") {
+                    } else if comment.contains("fnv0")
+                        || comment.contains("fnv-0")
+                    {
                         match dlen {
                             8 => fmt = FormatId::Fnv0_32,
                             16 => fmt = FormatId::Fnv0_64,
@@ -452,7 +564,9 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
         let all_bsd = lines.iter().all(|l| parse_bsd_line(l).is_some());
         if all_bsd {
             // Reason for fallback: empty line fallback safely fails parse_bsd_line if lines is empty
-            if let Some((algo, _, digest)) = parse_bsd_line(lines.first().unwrap_or(&"")) {
+            if let Some((algo, _, digest)) =
+                parse_bsd_line(lines.first().unwrap_or(&""))
+            {
                 let algo_clean = algo.to_ascii_lowercase();
                 let fmt = match algo_clean.as_str() {
                     "md5" => FormatId::Md5,
@@ -481,14 +595,20 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
     // 2. Standalone single hex digest
     if !trimmed.contains('\n') && !trimmed.contains(' ') {
         // Reason for fallback: if no hex prefix is present, trimmed string is already raw candidate digest
-        let clean = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")).unwrap_or(trimmed);
+        let clean = trimmed
+            .strip_prefix("0x")
+            .or_else(|| trimmed.strip_prefix("0X"))
+            .unwrap_or(trimmed);
         if !clean.is_empty() && clean.bytes().all(|b| b.is_ascii_hexdigit()) {
             let len = clean.len();
             match len {
                 64 => {
                     return Some(ChecksumDetection {
                         format_id: FormatId::Sha256,
-                        candidate_algorithms: vec![FormatId::Sha256, FormatId::Blake3],
+                        candidate_algorithms: vec![
+                            FormatId::Sha256,
+                            FormatId::Blake3,
+                        ],
                         is_manifest: false,
                         digest_len: 64,
                         description: "SHA-256 (256-bit hex digest)".to_string(),
@@ -497,7 +617,10 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                 32 => {
                     return Some(ChecksumDetection {
                         format_id: FormatId::Md5,
-                        candidate_algorithms: vec![FormatId::Md5, FormatId::XxHash3_128],
+                        candidate_algorithms: vec![
+                            FormatId::Md5,
+                            FormatId::XxHash3_128,
+                        ],
                         is_manifest: false,
                         digest_len: 32,
                         description: "MD5 (128-bit hex digest)".to_string(),
@@ -549,7 +672,8 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                         ],
                         is_manifest: false,
                         digest_len: 16,
-                        description: "xxHash64 / 64-bit hex checksum".to_string(),
+                        description: "xxHash64 / 64-bit hex checksum"
+                            .to_string(),
                     });
                 }
                 _ => {}
@@ -688,7 +812,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_detect_checksum_cases() {
         // SHA-256
-        let sha256_hex = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let sha256_hex =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let det = detect_checksum(sha256_hex).unwrap();
         assert_eq!(det.format_id, FormatId::Sha256);
         assert!(!det.is_manifest);
@@ -752,4 +877,3 @@ mod tests {
         assert!(detect_checksum("not-a-hash").is_none());
     }
 }
-

@@ -89,12 +89,9 @@ pub fn parse_reparse_buffer(
         );
 
         let path_buffer_start = 20_usize;
-        if let Some(sub_name) = extract_utf16_str(
-            buffer,
-            path_buffer_start,
-            sub_offset,
-            sub_len,
-        )? {
+        if let Some(sub_name) =
+            extract_utf16_str(buffer, path_buffer_start, sub_offset, sub_len)?
+        {
             values.insert(
                 "reparse.substitute_name".to_owned(),
                 NativeMetadataValue::Bytes(sub_name.into_bytes()),
@@ -118,12 +115,9 @@ pub fn parse_reparse_buffer(
         let print_len = read_u16_le(buffer, 14)?;
 
         let path_buffer_start = 16_usize;
-        if let Some(sub_name) = extract_utf16_str(
-            buffer,
-            path_buffer_start,
-            sub_offset,
-            sub_len,
-        )? {
+        if let Some(sub_name) =
+            extract_utf16_str(buffer, path_buffer_start, sub_offset, sub_len)?
+        {
             values.insert(
                 "reparse.substitute_name".to_owned(),
                 NativeMetadataValue::Bytes(sub_name.into_bytes()),
@@ -227,7 +221,9 @@ pub fn build_mount_point_reparse_buffer(
     )?;
 
     let sub_offset = 0_u16;
-    let print_offset = sub_len.checked_add(2).context("Print name offset overflow")?;
+    let print_offset = sub_len
+        .checked_add(2)
+        .context("Print name offset overflow")?;
     let path_buffer_len = print_offset
         .checked_add(print_len)
         .and_then(|length| length.checked_add(2))
@@ -261,14 +257,18 @@ pub fn build_mount_point_reparse_buffer(
 }
 
 fn read_u16_le(buffer: &[u8], offset: usize) -> Result<u16> {
-    let end = offset.checked_add(2).context("Offset calculation overflow")?;
+    let end = offset
+        .checked_add(2)
+        .context("Offset calculation overflow")?;
     let slice = buffer.get(offset..end).context("Buffer bounds exceeded")?;
     let bytes: [u8; 2] = slice.try_into().context("Slice conversion error")?;
     Ok(u16::from_le_bytes(bytes))
 }
 
 fn read_u32_le(buffer: &[u8], offset: usize) -> Result<u32> {
-    let end = offset.checked_add(4).context("Offset calculation overflow")?;
+    let end = offset
+        .checked_add(4)
+        .context("Offset calculation overflow")?;
     let slice = buffer.get(offset..end).context("Buffer bounds exceeded")?;
     let bytes: [u8; 4] = slice.try_into().context("Slice conversion error")?;
     Ok(u32::from_le_bytes(bytes))
@@ -331,26 +331,35 @@ mod tests {
 
         let sub_name = "target\\subfolder\\file.txt";
         let print_name = "target\\subfolder\\file.txt";
-        let buf = build_symlink_reparse_buffer(sub_name, print_name, true).unwrap();
+        let buf =
+            build_symlink_reparse_buffer(sub_name, print_name, true).unwrap();
 
         let mut values = BTreeMap::new();
         let tag = parse_reparse_buffer(&buf, &mut values).unwrap();
         assert_eq!(tag, Some(IO_REPARSE_TAG_SYMLINK));
         assert_eq!(
             values.get("reparse.tag"),
-            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(IO_REPARSE_TAG_SYMLINK)))
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(
+                IO_REPARSE_TAG_SYMLINK
+            )))
         );
         assert_eq!(
             values.get("reparse.symlink.flags"),
-            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(SYMLINK_FLAG_RELATIVE)))
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(
+                SYMLINK_FLAG_RELATIVE
+            )))
         );
         assert_eq!(
             values.get("reparse.substitute_name"),
-            Some(&metadata::NativeMetadataValue::Bytes(sub_name.as_bytes().to_vec()))
+            Some(&metadata::NativeMetadataValue::Bytes(
+                sub_name.as_bytes().to_vec()
+            ))
         );
         assert_eq!(
             values.get("reparse.print_name"),
-            Some(&metadata::NativeMetadataValue::Bytes(print_name.as_bytes().to_vec()))
+            Some(&metadata::NativeMetadataValue::Bytes(
+                print_name.as_bytes().to_vec()
+            ))
         );
     }
 
@@ -364,7 +373,8 @@ mod tests {
 
         let sub_name = "\\??\\C:\\Volume{1234}\\junction";
         let print_name = "C:\\junction";
-        let buf = build_mount_point_reparse_buffer(sub_name, print_name).unwrap();
+        let buf =
+            build_mount_point_reparse_buffer(sub_name, print_name).unwrap();
 
         let sub_len = sub_name.encode_utf16().count() * 2;
         let print_len = print_name.encode_utf16().count() * 2;
@@ -382,16 +392,21 @@ mod tests {
         assert_eq!(tag, Some(IO_REPARSE_TAG_MOUNT_POINT));
         assert_eq!(
             values.get("reparse.tag"),
-            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(IO_REPARSE_TAG_MOUNT_POINT)))
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(
+                IO_REPARSE_TAG_MOUNT_POINT
+            )))
         );
         assert_eq!(
             values.get("reparse.substitute_name"),
-            Some(&metadata::NativeMetadataValue::Bytes(sub_name.as_bytes().to_vec()))
+            Some(&metadata::NativeMetadataValue::Bytes(
+                sub_name.as_bytes().to_vec()
+            ))
         );
         assert_eq!(
             values.get("reparse.print_name"),
-            Some(&metadata::NativeMetadataValue::Bytes(print_name.as_bytes().to_vec()))
+            Some(&metadata::NativeMetadataValue::Bytes(
+                print_name.as_bytes().to_vec()
+            ))
         );
     }
 }
-

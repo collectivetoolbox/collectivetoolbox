@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Build-time and runtime derivation of MIME type and extension mappings to
 //! authoritative Document Characters (Dcs) and Format IDs.
 
@@ -530,7 +529,10 @@ impl FormatInheritanceGraph {
     pub fn add_ident_parent(&mut self, child: &str, parent: &str) {
         let child_norm = child.trim().to_ascii_lowercase();
         let parent_norm = parent.trim().to_ascii_lowercase();
-        if child_norm.is_empty() || parent_norm.is_empty() || child_norm == parent_norm {
+        if child_norm.is_empty()
+            || parent_norm.is_empty()
+            || child_norm == parent_norm
+        {
             return;
         }
         let entry = self.parents_by_ident.entry(child_norm).or_default();
@@ -543,7 +545,10 @@ impl FormatInheritanceGraph {
     pub fn add_mime_parent(&mut self, child_mime: String, parent_mime: String) {
         let child_norm = child_mime.trim().to_ascii_lowercase();
         let parent_norm = parent_mime.trim().to_ascii_lowercase();
-        if child_norm.is_empty() || parent_norm.is_empty() || child_norm == parent_norm {
+        if child_norm.is_empty()
+            || parent_norm.is_empty()
+            || child_norm == parent_norm
+        {
             return;
         }
         let entry = self.parents_by_mime.entry(child_norm).or_default();
@@ -615,7 +620,11 @@ impl FormatInheritanceGraph {
     /// Checks whether `child_mime` is a subclass of `parent_mime`
     /// (either directly or transitively).
     #[must_use]
-    pub fn is_mime_subclass_of(&self, child_mime: &str, parent_mime: &str) -> bool {
+    pub fn is_mime_subclass_of(
+        &self,
+        child_mime: &str,
+        parent_mime: &str,
+    ) -> bool {
         let child_norm = child_mime.trim().to_ascii_lowercase();
         let parent_norm = parent_mime.trim().to_ascii_lowercase();
         if child_norm == parent_norm {
@@ -644,7 +653,9 @@ impl FormatInheritanceGraph {
                 dynamic_parents.push("text/plain".to_string());
             }
             if (current.ends_with("+zip")
-                || current.starts_with("application/vnd.openxmlformats-officedocument.")
+                || current.starts_with(
+                    "application/vnd.openxmlformats-officedocument.",
+                )
                 || current.starts_with("application/vnd.oasis.opendocument.")
                 || current == "application/java-archive"
                 || current == "application/vnd.android.package-archive")
@@ -655,7 +666,8 @@ impl FormatInheritanceGraph {
             if current.ends_with("+json") && current != "application/json" {
                 dynamic_parents.push("application/json".to_string());
             }
-            if (current == "application/vnd.gentoo.gpkg" || current.ends_with("+tar"))
+            if (current == "application/vnd.gentoo.gpkg"
+                || current.ends_with("+tar"))
                 && current != "application/x-tar"
             {
                 dynamic_parents.push("application/x-tar".to_string());
@@ -788,11 +800,7 @@ impl FormatCatalog {
 
             let mime_types: Vec<String> = mime_field
                 .split(',')
-                .map(|s| {
-                    s.trim()
-                        .trim_matches('"')
-                        .to_ascii_lowercase()
-                })
+                .map(|s| s.trim().trim_matches('"').to_ascii_lowercase())
                 .filter(|s| !s.is_empty())
                 .collect();
 
@@ -840,8 +848,7 @@ impl FormatCatalog {
             let apple_type_codes: Vec<[u8; 4]> = apple_type_field
                 .split(',')
                 .filter_map(|s| {
-                    let trimmed =
-                        s.trim().trim_matches('"').trim_matches('\'');
+                    let trimmed = s.trim().trim_matches('"').trim_matches('\'');
                     let bytes = trimmed.as_bytes();
                     if bytes.len() == 4 {
                         let mut arr = [0u8; 4];
@@ -909,7 +916,10 @@ impl FormatCatalog {
             }
 
             for mime in mime_types {
-                catalog.by_mime.entry(mime).or_insert_with(|| mapping.clone());
+                catalog
+                    .by_mime
+                    .entry(mime)
+                    .or_insert_with(|| mapping.clone());
             }
 
             for ext in extensions {
@@ -943,10 +953,14 @@ impl FormatCatalog {
         // Apache HTTPD MIME database via ctb-formats-mime.
         if let Some(httpd_bytes) = ctb_formats_mime::get_httpd_mime_types() {
             if let Ok(content) = std::str::from_utf8(httpd_bytes) {
-                for (mime_lower, exts) in ctb_formats_mime::parse_apache_mime_types(content) {
+                for (mime_lower, exts) in
+                    ctb_formats_mime::parse_apache_mime_types(content)
+                {
                     if !catalog.by_mime.contains_key(&mime_lower) {
                         for ext in &exts {
-                            if let Some(candidates) = catalog.by_extension.get(ext) {
+                            if let Some(candidates) =
+                                catalog.by_extension.get(ext)
+                            {
                                 if let Some(m) = candidates.first() {
                                     catalog
                                         .by_mime
@@ -974,32 +988,45 @@ impl FormatCatalog {
             }
             if let Some(child_mime) = mapping.mime_types.first() {
                 for &parent_id in &mapping.parent_formats {
-                    if let Some(parent_mapping) = catalog.by_format_id.get(&parent_id) {
-                        if let Some(parent_mime) = parent_mapping.mime_types.first() {
-                            catalog
-                                .inheritance
-                                .add_mime_parent(child_mime.clone(), parent_mime.clone());
+                    if let Some(parent_mapping) =
+                        catalog.by_format_id.get(&parent_id)
+                    {
+                        if let Some(parent_mime) =
+                            parent_mapping.mime_types.first()
+                        {
+                            catalog.inheritance.add_mime_parent(
+                                child_mime.clone(),
+                                parent_mime.clone(),
+                            );
                         }
                     }
                 }
-                if child_mime.ends_with("+xml") && child_mime != "application/xml" {
-                    catalog
-                        .inheritance
-                        .add_mime_parent(child_mime.clone(), "application/xml".to_string());
+                if child_mime.ends_with("+xml")
+                    && child_mime != "application/xml"
+                {
+                    catalog.inheritance.add_mime_parent(
+                        child_mime.clone(),
+                        "application/xml".to_string(),
+                    );
                 }
                 if child_mime == "application/xml"
                     || child_mime == "text/xml"
-                    || (child_mime.starts_with("text/") && child_mime != "text/plain")
+                    || (child_mime.starts_with("text/")
+                        && child_mime != "text/plain")
                     || child_mime.ends_with("+json")
                 {
-                    catalog
-                        .inheritance
-                        .add_mime_parent(child_mime.clone(), "text/plain".to_string());
+                    catalog.inheritance.add_mime_parent(
+                        child_mime.clone(),
+                        "text/plain".to_string(),
+                    );
                 }
-                if child_mime.ends_with("+zip") && child_mime != "application/zip" {
-                    catalog
-                        .inheritance
-                        .add_mime_parent(child_mime.clone(), "application/zip".to_string());
+                if child_mime.ends_with("+zip")
+                    && child_mime != "application/zip"
+                {
+                    catalog.inheritance.add_mime_parent(
+                        child_mime.clone(),
+                        "application/zip".to_string(),
+                    );
                 }
             }
         }
@@ -1017,7 +1044,10 @@ impl FormatCatalog {
 
     /// Looks up a format mapping by 4-byte Apple Type / `OSType` code.
     #[must_use]
-    pub fn lookup_apple_type_code(&self, code: &[u8; 4]) -> Option<&FormatMapping> {
+    pub fn lookup_apple_type_code(
+        &self,
+        code: &[u8; 4],
+    ) -> Option<&FormatMapping> {
         self.by_apple_type.get(code)
     }
 
@@ -1029,7 +1059,10 @@ impl FormatCatalog {
 
     /// Looks up a format mapping by its authoritative `FormatId`.
     #[must_use]
-    pub fn lookup_format_id(&self, format_id: FormatId) -> Option<&FormatMapping> {
+    pub fn lookup_format_id(
+        &self,
+        format_id: FormatId,
+    ) -> Option<&FormatMapping> {
         self.by_format_id.get(&format_id)
     }
 
@@ -1054,8 +1087,15 @@ impl FormatCatalog {
 
     /// Checks whether `child_mime` is a subclass of `parent_mime`.
     #[must_use]
-    pub fn is_mime_subclass_of(&self, child_mime: &str, parent_mime: &str) -> bool {
-        if self.inheritance.is_mime_subclass_of(child_mime, parent_mime) {
+    pub fn is_mime_subclass_of(
+        &self,
+        child_mime: &str,
+        parent_mime: &str,
+    ) -> bool {
+        if self
+            .inheritance
+            .is_mime_subclass_of(child_mime, parent_mime)
+        {
             return true;
         }
         if let (Some(c_fmt), Some(p_fmt)) = (
@@ -1081,7 +1121,10 @@ impl FormatCatalog {
 
     /// Looks up a format mapping by libmagic description string (exact match or longest prefix match).
     #[must_use]
-    pub fn lookup_magic_name(&self, description: &str) -> Option<&FormatMapping> {
+    pub fn lookup_magic_name(
+        &self,
+        description: &str,
+    ) -> Option<&FormatMapping> {
         let trimmed = description.trim();
         if trimmed.is_empty() {
             return None;
@@ -1097,8 +1140,17 @@ impl FormatCatalog {
                 if normalized.len() == prefix.len() {
                     return Some(mapping);
                 }
-                if let Some(next_char) = normalized.get(prefix.len()..).and_then(|s| s.chars().next()) {
-                    if next_char.is_whitespace() || next_char == ',' || next_char == ':' || next_char == ';' || next_char == '-' || next_char == '(' {
+                if let Some(next_char) = normalized
+                    .get(prefix.len()..)
+                    .and_then(|s| s.chars().next())
+                {
+                    if next_char.is_whitespace()
+                        || next_char == ','
+                        || next_char == ':'
+                        || next_char == ';'
+                        || next_char == '-'
+                        || next_char == '('
+                    {
                         return Some(mapping);
                     }
                 }
@@ -1108,7 +1160,10 @@ impl FormatCatalog {
     }
 
     /// Looks up a format mapping by format identifier name or exact nickname.
-    pub fn lookup_description_or_ident(&self, text: &str) -> Option<&FormatMapping> {
+    pub fn lookup_description_or_ident(
+        &self,
+        text: &str,
+    ) -> Option<&FormatMapping> {
         let trimmed = text.trim();
         if trimmed.is_empty() {
             return None;

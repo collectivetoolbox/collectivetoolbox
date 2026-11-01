@@ -116,7 +116,12 @@ impl<W: Write> RangeEncoder<W> {
     }
 
     /// Encodes a symbol interval using explicit frequency totals.
-    pub fn encode_freq(&mut self, sy_f: u32, lt_f: u32, tot_f: u32) -> Result<()> {
+    pub fn encode_freq(
+        &mut self,
+        sy_f: u32,
+        lt_f: u32,
+        tot_f: u32,
+    ) -> Result<()> {
         self.normalize()?;
         if tot_f == 0 {
             bail!("Range encoder total frequency cannot be zero");
@@ -132,7 +137,12 @@ impl<W: Write> RangeEncoder<W> {
     }
 
     /// Encodes a symbol interval where the total frequency is a power-of-two shift.
-    pub fn encode_shift(&mut self, sy_f: u32, lt_f: u32, shift: u32) -> Result<()> {
+    pub fn encode_shift(
+        &mut self,
+        sy_f: u32,
+        lt_f: u32,
+        shift: u32,
+    ) -> Result<()> {
         self.normalize()?;
         let r = self.range >> shift;
         let tmp = r.saturating_mul(lt_f);
@@ -188,7 +198,9 @@ impl<W: Write> RangeEncoder<W> {
         self.writer
             .write_all(&[tmp_u8, bc_high, bc_mid, bc_low])
             .context("Failed to write range coder block trailer")?;
-        self.writer.flush().context("Failed to flush range encoder")?;
+        self.writer
+            .flush()
+            .context("Failed to flush range encoder")?;
         Ok(self.bytecount)
     }
 }

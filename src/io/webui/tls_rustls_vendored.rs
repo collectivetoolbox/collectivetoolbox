@@ -194,8 +194,11 @@ mod tests {
     fn fixtures() -> anyhow::Result<tempfile::TempDir> {
         let dir = tempfile::TempDir::new()?;
         for filename in ["cert.pem", "key.pem"] {
-            let bytes = get_tls_rustls_vendored_data(&format!("fixtures/{filename}"))
-                .ok_or_else(|| anyhow::anyhow!("Missing embedded TLS fixture: {filename}"))?;
+            let bytes =
+                get_tls_rustls_vendored_data(&format!("fixtures/{filename}"))
+                    .ok_or_else(|| {
+                    anyhow::anyhow!("Missing embedded TLS fixture: {filename}")
+                })?;
             std::fs::write(dir.path().join(filename), bytes)?;
         }
         Ok(dir)
@@ -205,30 +208,28 @@ mod tests {
     async fn from_pem_file_not_found() -> anyhow::Result<()> {
         let dir = fixtures()?;
         let missing = dir.path().join("missing.pem");
-        let err = RustlsConfig::from_pem_file(
-            &missing,
-            dir.path().join("key.pem"),
-        )
-        .await
-        .unwrap_err();
+        let err =
+            RustlsConfig::from_pem_file(&missing, dir.path().join("key.pem"))
+                .await
+                .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string()
-                .replace('\\', "/")
-                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
+            err.to_string().replace('\\', "/").starts_with(
+                &format!("failed to read from file `{}`", missing.display())
+                    .replace('\\', "/")
+            )
         );
 
-        let err = RustlsConfig::from_pem_file(
-            dir.path().join("cert.pem"),
-            &missing,
-        )
-        .await
-        .unwrap_err();
+        let err =
+            RustlsConfig::from_pem_file(dir.path().join("cert.pem"), &missing)
+                .await
+                .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string()
-                .replace('\\', "/")
-                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
+            err.to_string().replace('\\', "/").starts_with(
+                &format!("failed to read from file `{}`", missing.display())
+                    .replace('\\', "/")
+            )
         );
         Ok(())
     }
@@ -245,9 +246,10 @@ mod tests {
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string()
-                .replace('\\', "/")
-                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
+            err.to_string().replace('\\', "/").starts_with(
+                &format!("failed to read from file `{}`", missing.display())
+                    .replace('\\', "/")
+            )
         );
 
         let err = RustlsConfig::from_pem_chain_file(
@@ -258,9 +260,10 @@ mod tests {
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string()
-                .replace('\\', "/")
-                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
+            err.to_string().replace('\\', "/").starts_with(
+                &format!("failed to read from file `{}`", missing.display())
+                    .replace('\\', "/")
+            )
         );
         Ok(())
     }

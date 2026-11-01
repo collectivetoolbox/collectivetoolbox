@@ -189,8 +189,7 @@ fn emit_supported_enum(
 
     let _ = writeln!(out, "pub enum {enum_name} {{");
     let mut used_value_names: HashSet<String> = HashSet::new();
-    let mut row_value_names: Vec<Vec<String>> =
-        Vec::with_capacity(rows.len());
+    let mut row_value_names: Vec<Vec<String>> = Vec::with_capacity(rows.len());
 
     if use_clap {
         for row in rows {
@@ -309,15 +308,14 @@ fn emit_supported_enum(
         "    /// Returns the primary CLI identifier for this format.\n",
     );
     out.push_str("    #[must_use]\n");
-    out.push_str("    pub const fn primary_cli_name(&self) -> &'static str {\n");
+    out.push_str(
+        "    pub const fn primary_cli_name(&self) -> &'static str {\n",
+    );
     out.push_str("        match self {\n");
     for row in rows {
         let primary = row.primary_cli_name();
-        let _ = writeln!(
-            out,
-            "            Self::{} => \"{primary}\",",
-            row.ident
-        );
+        let _ =
+            writeln!(out, "            Self::{} => \"{primary}\",", row.ident);
     }
     out.push_str("        }\n");
     out.push_str("    }\n\n");
@@ -712,8 +710,7 @@ pub fn generate_format_support_file(base_dir: &Path) -> Result<bool> {
         }
     }
 
-    fs::write(&out_file, code).with_context(|| {
-        format!("Failed to write {}", out_file.display())
-    })?;
+    fs::write(&out_file, code)
+        .with_context(|| format!("Failed to write {}", out_file.display()))?;
     Ok(true)
 }

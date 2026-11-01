@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Centralized registry of magic header signatures across format types.
 
 #[expect(
@@ -455,7 +454,9 @@ use crate::utilities::*;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use super::magic_parser::{HierarchicalMagicRule, parse_magic_content_with_templates};
+use super::magic_parser::{
+    HierarchicalMagicRule, parse_magic_content_with_templates,
+};
 
 /// Global compiled hierarchical magic database loaded from in-repo custom definitions (`ctoolbox.magic`)
 /// and upstream Magdir rule files.
@@ -469,7 +470,9 @@ pub static COMPILED_MAGIC_DATABASE: LazyLock<(
     let mut all_templates = HashMap::new();
 
     // 1. In-repo custom rules (ctoolbox.magic)
-    if let Some(bytes) = ctb_formats_dcdata::get_dc_data_file("magic/ctoolbox.magic") {
+    if let Some(bytes) =
+        ctb_formats_dcdata::get_dc_data_file("magic/ctoolbox.magic")
+    {
         if let Ok(content) = std::str::from_utf8(&bytes) {
             let (rules, tpls) = parse_magic_content_with_templates(content);
             ctb_rules.extend(rules);
@@ -498,15 +501,17 @@ pub static COMPILED_FILE_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> =
     LazyLock::new(|| COMPILED_MAGIC_DATABASE.1.clone());
 
 /// Global compiled named template subroutines.
-pub static COMPILED_MAGIC_TEMPLATES: LazyLock<HashMap<String, HierarchicalMagicRule>> =
-    LazyLock::new(|| COMPILED_MAGIC_DATABASE.2.clone());
+pub static COMPILED_MAGIC_TEMPLATES: LazyLock<
+    HashMap<String, HierarchicalMagicRule>,
+> = LazyLock::new(|| COMPILED_MAGIC_DATABASE.2.clone());
 
 /// Legacy alias providing all rules combined.
-pub static COMPILED_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> = LazyLock::new(|| {
-    let mut combined = COMPILED_CTB_MAGIC_RULES.clone();
-    combined.extend(COMPILED_FILE_MAGIC_RULES.clone());
-    combined
-});
+pub static COMPILED_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> =
+    LazyLock::new(|| {
+        let mut combined = COMPILED_CTB_MAGIC_RULES.clone();
+        combined.extend(COMPILED_FILE_MAGIC_RULES.clone());
+        combined
+    });
 /*
 /*
  * Adapted from: apptype.c, Written by Eberhard Mattes and put into the

@@ -121,9 +121,7 @@ impl<S: Session + 'static> DefaultRpcClient<S> {
         let client = std::sync::Arc::new(Self {
             session: session.clone(),
             connection_id,
-            correlation: tokio::sync::Mutex::new(
-                RpcCorrelationState::default(),
-            ),
+            correlation: tokio::sync::Mutex::new(RpcCorrelationState::default()),
             events_tx,
             events_rx: std::sync::Mutex::new(Some(events_rx)),
             streams: Arc::new(tokio::sync::Mutex::new(HashMap::new())),

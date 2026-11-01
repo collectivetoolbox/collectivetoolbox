@@ -93,7 +93,11 @@ impl KStruct for Dtb {
     type Root = Dtb;
     type Parent = Dtb;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -107,7 +111,10 @@ impl KStruct for Dtb {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0xd0u8, 0xdu8, 0xfeu8, 0xedu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.total_size.borrow_mut() = _io.read_u4be()?;
@@ -123,7 +130,10 @@ impl KStruct for Dtb {
         *self_rc.min_compatible_version.borrow_mut() = _io.read_u4be()?;
         let max_val: u32 = (*self_rc.version()).try_into()?;
         if !(*self_rc.min_compatible_version() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/6".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::GreaterThan,
+                src_path: "/seq/6".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_cpuid_phys.borrow_mut() = _io.read_u4be()?;
@@ -137,9 +147,13 @@ impl KStruct for Dtb {
     }
 }
 impl Dtb {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
     pub fn memory_reservation_block(
-        &self
+        &self,
     ) -> KResult<Ref<'_, OptRc<Dtb_MemoryBlock>>> {
         let _io = self._io.borrow();
         if self.f_memory_reservation_block.get() {
@@ -147,46 +161,78 @@ impl Dtb {
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_memory_reservation_block())?)?;
-        *self.memory_reservation_block_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self.ofs_structure_block()).saturating_sub(*self.ofs_memory_reservation_block()))?)?.into();
-        let memory_reservation_block_raw = self.memory_reservation_block_raw.borrow();
-        let _t_memory_reservation_block_raw_io = BytesReader::from(memory_reservation_block_raw.clone());
-        let t = Self::read_into::<BytesReader, Dtb_MemoryBlock>(&_t_memory_reservation_block_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        *self.memory_reservation_block_raw.borrow_mut() = _io
+            .read_bytes(usize::try_from(
+                (*self.ofs_structure_block())
+                    .saturating_sub(*self.ofs_memory_reservation_block()),
+            )?)?
+            .into();
+        let memory_reservation_block_raw =
+            self.memory_reservation_block_raw.borrow();
+        let _t_memory_reservation_block_raw_io =
+            BytesReader::from(memory_reservation_block_raw.clone());
+        let t = Self::read_into::<BytesReader, Dtb_MemoryBlock>(
+            &_t_memory_reservation_block_raw_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.memory_reservation_block.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.memory_reservation_block.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn strings_block(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Dtb_Strings>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn strings_block(&self) -> KResult<Ref<'_, OptRc<Dtb_Strings>>> {
         let _io = self._io.borrow();
         if self.f_strings_block.get() {
             return Ok(self.strings_block.borrow());
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_strings_block())?)?;
-        *self.strings_block_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_strings_block())?)?.into();
+        *self.strings_block_raw.borrow_mut() = _io
+            .read_bytes(usize::try_from(*self.len_strings_block())?)?
+            .into();
         let strings_block_raw = self.strings_block_raw.borrow();
-        let _t_strings_block_raw_io = BytesReader::from(strings_block_raw.clone());
-        let t = Self::read_into::<BytesReader, Dtb_Strings>(&_t_strings_block_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let _t_strings_block_raw_io =
+            BytesReader::from(strings_block_raw.clone());
+        let t = Self::read_into::<BytesReader, Dtb_Strings>(
+            &_t_strings_block_raw_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.strings_block.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.strings_block.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn structure_block(
-        &self
-    ) -> KResult<Ref<'_, OptRc<Dtb_FdtBlock>>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn structure_block(&self) -> KResult<Ref<'_, OptRc<Dtb_FdtBlock>>> {
         let _io = self._io.borrow();
         if self.f_structure_block.get() {
             return Ok(self.structure_block.borrow());
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_structure_block())?)?;
-        *self.structure_block_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_structure_block())?)?.into();
+        *self.structure_block_raw.borrow_mut() = _io
+            .read_bytes(usize::try_from(*self.len_structure_block())?)?
+            .into();
         let structure_block_raw = self.structure_block_raw.borrow();
-        let _t_structure_block_raw_io = BytesReader::from(structure_block_raw.clone());
-        let t = Self::read_into::<BytesReader, Dtb_FdtBlock>(&_t_structure_block_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+        let _t_structure_block_raw_io =
+            BytesReader::from(structure_block_raw.clone());
+        let t = Self::read_into::<BytesReader, Dtb_FdtBlock>(
+            &_t_structure_block_raw_io,
+            Some(self._root.clone()),
+            Some(self._self_shared.clone()),
+        )?
+        .into();
         *self.structure_block.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.structure_block.borrow())
@@ -300,15 +346,16 @@ impl From<&Dtb_Fdt> for i64 {
             Dtb_Fdt::Prop => 3,
             Dtb_Fdt::Nop => 4,
             Dtb_Fdt::End => 9,
-            Dtb_Fdt::Unknown(v) => v
+            Dtb_Fdt::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Dtb_Fdt {
-    fn default() -> Self { Dtb_Fdt::Unknown(0) }
+    fn default() -> Self {
+        Dtb_Fdt::Unknown(0)
+    }
 }
-
 
 #[derive(Default, Debug, Clone)]
 pub struct Dtb_FdtBeginNode {
@@ -356,7 +403,11 @@ impl KStruct for Dtb_FdtBeginNode {
     type Root = Dtb;
     type Parent = Dtb_FdtNode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -368,16 +419,18 @@ impl KStruct for Dtb_FdtBeginNode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.name.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(
+            modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64),
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Dtb_FdtBeginNode {
-}
+impl Dtb_FdtBeginNode {}
 impl Dtb_FdtBeginNode {
     pub fn name(&self) -> Ref<'_, String> {
         self.name.borrow()
@@ -449,7 +502,11 @@ impl KStruct for Dtb_FdtBlock {
     type Root = Dtb;
     type Parent = Dtb;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -465,12 +522,21 @@ impl KStruct for Dtb_FdtBlock {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Dtb_FdtNode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Dtb_FdtNode>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.nodes.borrow_mut().push(t);
                 let _t_nodes = self_rc.nodes.borrow();
-                let Some(_tmpa) = _t_nodes.last() else { break; };
+                let Some(_tmpa) = _t_nodes.last() else {
+                    break;
+                };
                 _i = _i.saturating_add(1);
-                if *_tmpa.r#type() == Dtb_Fdt::End { break; }
+                if *_tmpa.r#type() == Dtb_Fdt::End {
+                    break;
+                }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -478,8 +544,7 @@ impl KStruct for Dtb_FdtBlock {
         Ok(())
     }
 }
-impl Dtb_FdtBlock {
-}
+impl Dtb_FdtBlock {}
 impl Dtb_FdtBlock {
     pub fn nodes(&self) -> Ref<'_, Vec<OptRc<Dtb_FdtNode>>> {
         self.nodes.borrow()
@@ -607,7 +672,11 @@ impl KStruct for Dtb_FdtNode {
     type Root = Dtb;
     type Parent = Dtb_FdtBlock;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -619,15 +688,26 @@ impl KStruct for Dtb_FdtNode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.r#type.borrow_mut() =
+            i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             Dtb_Fdt::BeginNode => {
-                let t = Self::read_into::<_, Dtb_FdtBeginNode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Dtb_FdtBeginNode>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Dtb_Fdt::Prop => {
-                let t = Self::read_into::<_, Dtb_FdtProp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Dtb_FdtProp>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -637,8 +717,7 @@ impl KStruct for Dtb_FdtNode {
         Ok(())
     }
 }
-impl Dtb_FdtNode {
-}
+impl Dtb_FdtNode {}
 impl Dtb_FdtNode {
     pub fn r#type(&self) -> Ref<'_, Dtb_Fdt> {
         self.r#type.borrow()
@@ -712,7 +791,11 @@ impl KStruct for Dtb_FdtProp {
     type Root = Dtb;
     type Parent = Dtb_FdtNode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -728,28 +811,44 @@ impl KStruct for Dtb_FdtProp {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_name.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.property.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_property())?)?;
+        *self_rc.property.borrow_mut() =
+            _io.read_bytes(usize::try_from(*self_rc.len_property())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(
+            modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64),
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Dtb_FdtProp {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn name(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn name(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_name.get() {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.strings_block()?._io());
+        let io = KStream::clone(
+            &*self
+                ._root
+                .get_value()
+                .borrow()
+                .upgrade()
+                .as_ref()
+                .ok_or(KError::MissingRoot)?
+                .strings_block()?
+                ._io(),
+        );
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs_name())?)?;
-        *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self.name.borrow_mut() =
+            bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         io.seek(_pos)?;
         Ok(self.name.borrow())
     }
@@ -840,7 +939,11 @@ impl KStruct for Dtb_MemoryBlock {
     type Root = Dtb;
     type Parent = Dtb;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -856,7 +959,12 @@ impl KStruct for Dtb_MemoryBlock {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Dtb_MemoryBlockEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Dtb_MemoryBlockEntry>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -866,8 +974,7 @@ impl KStruct for Dtb_MemoryBlock {
         Ok(())
     }
 }
-impl Dtb_MemoryBlock {
-}
+impl Dtb_MemoryBlock {}
 impl Dtb_MemoryBlock {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Dtb_MemoryBlockEntry>>> {
         self.entries.borrow()
@@ -930,7 +1037,11 @@ impl KStruct for Dtb_MemoryBlockEntry {
     type Root = Dtb;
     type Parent = Dtb_MemoryBlock;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -950,8 +1061,7 @@ impl KStruct for Dtb_MemoryBlockEntry {
         Ok(())
     }
 }
-impl Dtb_MemoryBlockEntry {
-}
+impl Dtb_MemoryBlockEntry {}
 
 /**
  * physical address of a reserved memory region
@@ -1026,7 +1136,11 @@ impl KStruct for Dtb_Strings {
     type Root = Dtb;
     type Parent = Dtb;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1042,7 +1156,10 @@ impl KStruct for Dtb_Strings {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.strings.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?);
+                self_rc.strings.borrow_mut().push(bytes_to_str(
+                    &_io.read_bytes_term(0, false, true, true)?,
+                    "ASCII",
+                )?);
                 _i = _i.saturating_add(1);
             }
         }
@@ -1051,8 +1168,7 @@ impl KStruct for Dtb_Strings {
         Ok(())
     }
 }
-impl Dtb_Strings {
-}
+impl Dtb_Strings {}
 impl Dtb_Strings {
     pub fn strings(&self) -> Ref<'_, Vec<String>> {
         self.strings.borrow()

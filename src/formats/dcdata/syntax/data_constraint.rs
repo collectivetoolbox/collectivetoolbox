@@ -27,7 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 /// Parses an optional format and decoded byte count for a data construct.
-pub fn parse_data_constraint(subtype: &str) -> anyhow::Result<(Option<&str>, Option<usize>)> {
+pub fn parse_data_constraint(
+    subtype: &str,
+) -> anyhow::Result<(Option<&str>, Option<usize>)> {
     let (format, length) = if subtype.starts_with("bytes=") {
         (None, Some(subtype))
     } else if let Some((format, length)) = subtype.split_once(';') {
@@ -35,11 +37,19 @@ pub fn parse_data_constraint(subtype: &str) -> anyhow::Result<(Option<&str>, Opt
     } else {
         (Some(subtype.trim()), None)
     };
-    anyhow::ensure!(format.is_none_or(|format| !format.is_empty()), "Missing data format");
+    anyhow::ensure!(
+        format.is_none_or(|format| !format.is_empty()),
+        "Missing data format"
+    );
     let bytes = if let Some(length) = length {
-        let digits = length.strip_prefix("bytes=").ok_or_else(|| anyhow::anyhow!("Expected bytes=N data constraint"))?;
-        anyhow::ensure!(!digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()),
-            "Data byte count must be a nonnegative integer");
+        let digits = length.strip_prefix("bytes=").ok_or_else(|| {
+            anyhow::anyhow!("Expected bytes=N data constraint")
+        })?;
+        anyhow::ensure!(
+            !digits.is_empty()
+                && digits.bytes().all(|byte| byte.is_ascii_digit()),
+            "Data byte count must be a nonnegative integer"
+        );
         Some(digits.parse::<usize>()?)
     } else {
         None

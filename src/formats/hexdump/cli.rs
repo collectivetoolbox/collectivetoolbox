@@ -26,9 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+pub use crate as ctb_formats_hexdump;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-pub use crate as ctb_formats_hexdump;
 
 /// Execution arguments for the hex2bin CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
@@ -570,7 +570,8 @@ mod tests {
             file: None,
             output: None,
         };
-        let out = execute_cli_hex2bin(args, |p| Ok(std::fs::read(p)?)).expect("Run hex2bin");
+        let out = execute_cli_hex2bin(args, |p| Ok(std::fs::read(p)?))
+            .expect("Run hex2bin");
         assert_eq!(out, Some(b"Hello".to_vec()));
 
         let args2 = Bin2HexArgs {
@@ -581,7 +582,8 @@ mod tests {
             hf: false,
             xxd: false,
         };
-        let out2 = execute_cli_bin2hex(args2, |p| Ok(std::fs::read(p)?)).expect("Run bin2hex");
+        let out2 = execute_cli_bin2hex(args2, |p| Ok(std::fs::read(p)?))
+            .expect("Run bin2hex");
         assert_eq!(out2, Some(b"48656c6c6f".to_vec()));
 
         let args_hd = HexDumpArgs {
@@ -591,7 +593,8 @@ mod tests {
             plain: false,
             xxd: false,
         };
-        let out_hd = execute_cli_hexdump(args_hd, |p| Ok(std::fs::read(p)?)).expect("Run hexdump");
+        let out_hd = execute_cli_hexdump(args_hd, |p| Ok(std::fs::read(p)?))
+            .expect("Run hexdump");
         assert_eq!(
             out_hd,
             Some(ctb_formats_hexdump::to_fancy_hex_dump(b"Hello").into_bytes())
@@ -604,7 +607,9 @@ mod tests {
             plain: true,
             xxd: false,
         };
-        let out_hd_plain = execute_cli_hexdump(args_hd_plain, |p| Ok(std::fs::read(p)?)).expect("Run hexdump --plain");
+        let out_hd_plain =
+            execute_cli_hexdump(args_hd_plain, |p| Ok(std::fs::read(p)?))
+                .expect("Run hexdump --plain");
         assert_eq!(
             out_hd_plain,
             Some(ctb_formats_hexdump::to_hex_dump(b"Hello").into_bytes())
@@ -617,7 +622,9 @@ mod tests {
             plain: false,
             xxd: true,
         };
-        let out_hd_xxd = execute_cli_hexdump(args_hd_xxd, |p| Ok(std::fs::read(p)?)).expect("Run hexdump --xxd");
+        let out_hd_xxd =
+            execute_cli_hexdump(args_hd_xxd, |p| Ok(std::fs::read(p)?))
+                .expect("Run hexdump --xxd");
         assert_eq!(
             out_hd_xxd,
             Some(ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes())
@@ -630,7 +637,8 @@ mod tests {
             plain: false,
             fancy: false,
         };
-        let out_xxd = execute_cli_xxd(args_xxd, |p| Ok(std::fs::read(p)?)).expect("Run xxd");
+        let out_xxd = execute_cli_xxd(args_xxd, |p| Ok(std::fs::read(p)?))
+            .expect("Run xxd");
         assert_eq!(
             out_xxd,
             Some(ctb_formats_hexdump::to_xxd_hex_dump(b"Hello").into_bytes())

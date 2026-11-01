@@ -48,10 +48,7 @@ fn line_ending_kind_metadata(
 ) -> Result<(&'static str, &'static str)> {
     match kind_variant {
         "Lf" => Ok(("\"\\n\"", "POSIX / Unix newline (`\\n`, LF, 0x0A).")),
-        "Cr" => Ok((
-            "\"\\r\"",
-            "Classic Macintosh newline (`\\r`, CR, 0x0D).",
-        )),
+        "Cr" => Ok(("\"\\r\"", "Classic Macintosh newline (`\\r`, CR, 0x0D).")),
         "CrLf" => Ok((
             "\"\\r\\n\"",
             "Windows / DOS newline (`\\r\\n`, CRLF, 0x0D 0x0A).",
@@ -611,10 +608,7 @@ LineEndingKind::Rs => match self {\n",
         .map(|v| format!("Self::{v}"))
         .collect::<Vec<_>>()
         .join(" | ");
-    let _ = writeln!(
-        out,
-        "                        {joined_simple} => true,"
-    );
+    let _ = writeln!(out, "                        {joined_simple} => true,");
     out.push_str(
         "                        Self::Cp437 { low_area, .. } | Self::Neo { low_area, .. } => {\n\
 matches!(low_area, LowArea::Control)\n\
@@ -670,8 +664,7 @@ pub fn generate_encoding_file(base_dir: &Path) -> Result<bool> {
         }
     }
 
-    fs::write(&out_file, code).with_context(|| {
-        format!("Failed to write {}", out_file.display())
-    })?;
+    fs::write(&out_file, code)
+        .with_context(|| format!("Failed to write {}", out_file.display()))?;
     Ok(true)
 }

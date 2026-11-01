@@ -101,7 +101,8 @@ impl QsModel {
         };
 
         let rescale = i32::try_from(num_symbols >> 4)
-            .map_err(|e| anyhow!("Rescale conversion: {e}"))? | 2;
+            .map_err(|e| anyhow!("Rescale conversion: {e}"))?
+            | 2;
 
         let mut model = Self {
             num_symbols,
@@ -123,7 +124,8 @@ impl QsModel {
     /// Resets model state with uniform probability distribution.
     fn reset_uniform(&mut self) -> Result<()> {
         self.rescale = i32::try_from(self.num_symbols >> 4)
-            .map_err(|e| anyhow!("Rescale conversion: {e}"))? | 2;
+            .map_err(|e| anyhow!("Rescale conversion: {e}"))?
+            | 2;
         self.next_left = 0;
         let tot = *self
             .cf
@@ -174,7 +176,8 @@ impl QsModel {
         }
 
         // Reason for fallback: cumulative frequency total lookup defaults to 0
-        let mut cf_val = i32::from(self.cf.get(self.num_symbols).copied().unwrap_or(0));
+        let mut cf_val =
+            i32::from(self.cf.get(self.num_symbols).copied().unwrap_or(0));
         let mut missing = cf_val;
 
         let mut i = self.num_symbols.saturating_sub(1);
@@ -238,7 +241,8 @@ impl QsModel {
                     clippy::expect_used,
                     reason = "sym_idx <= num_symbols which fits in u16 by construction"
                 )]
-                let sym_u16 = u16::try_from(sym_idx).expect("sym_idx fits in u16");
+                let sym_u16 =
+                    u16::try_from(sym_idx).expect("sym_idx fits in u16");
                 while start <= end {
                     if let Some(slot) = search_tbl.get_mut(usize::from(start)) {
                         *slot = sym_u16;
@@ -255,10 +259,7 @@ impl QsModel {
         let lt_f = u32::from(self.cf.get(sym).copied().unwrap_or(0));
         let next_cf = u32::from(
             // Reason for fallback: cumulative frequency next lookup defaults to 0
-            self.cf
-                .get(sym.saturating_add(1))
-                .copied()
-                .unwrap_or(0),
+            self.cf.get(sym.saturating_add(1)).copied().unwrap_or(0),
         );
         let sy_f = next_cf.saturating_sub(lt_f);
         (sy_f, lt_f)
@@ -273,10 +274,7 @@ impl QsModel {
             let s_lo = usize::from(search_tbl.get(idx).copied().unwrap_or(0));
             let s_hi = usize::from(
                 // Reason for fallback: search table next lookup defaults to 0
-                search_tbl
-                    .get(idx.saturating_add(1))
-                    .copied()
-                    .unwrap_or(0),
+                search_tbl.get(idx.saturating_add(1)).copied().unwrap_or(0),
             )
             .saturating_add(1);
             (s_lo, s_hi)
@@ -310,7 +308,8 @@ impl QsModel {
                 clippy::expect_used,
                 reason = "incr is non-negative and bounded by total cumulative frequency fitting in u16"
             )]
-            let incr_u16 = u16::try_from(self.incr.max(0)).expect("incr fits in u16");
+            let incr_u16 =
+                u16::try_from(self.incr.max(0)).expect("incr fits in u16");
             *slot = slot.saturating_add(incr_u16);
         }
     }

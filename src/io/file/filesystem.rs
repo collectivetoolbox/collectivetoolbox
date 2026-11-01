@@ -49,10 +49,11 @@ impl FilesystemInfo {
     #[must_use]
     pub fn supports_sparse(&self) -> Option<bool> {
         match self.fs_type.as_str() {
-            "ext4" | "xfs" | "btrfs" | "zfs" | "f2fs" | "tmpfs" | "apfs" | "ntfs" | "refs" => {
-                Some(true)
+            "ext4" | "xfs" | "btrfs" | "zfs" | "f2fs" | "tmpfs" | "apfs"
+            | "ntfs" | "refs" => Some(true),
+            "vfat" | "exfat" | "iso9660" | "udf" | "hfsplus" | "ramfs" => {
+                Some(false)
             }
-            "vfat" | "exfat" | "iso9660" | "udf" | "hfsplus" | "ramfs" => Some(false),
             _ => None,
         }
     }
@@ -62,7 +63,8 @@ static FS_CACHE: LazyLock<RwLock<HashMap<u64, FilesystemInfo>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
 /// Global test lock for synchronizing tests that mutate `FS_CACHE`.
-pub static FS_CACHE_TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub static FS_CACHE_TEST_MUTEX: std::sync::Mutex<()> =
+    std::sync::Mutex::new(());
 
 /// Queries filesystem type and timestamp resolution for a path and metadata.
 ///
@@ -171,7 +173,9 @@ fn detect_filesystem(path: &Path) -> FilesystemInfo {
         if let Some(parent) = path.parent() {
             if let Ok(c_parent) = CString::new(parent.as_os_str().as_bytes()) {
                 // SAFETY: statfs initializes the statfs struct upon successful return.
-                let rc2 = unsafe { libc::statfs(c_parent.as_ptr(), stat.as_mut_ptr()) };
+                let rc2 = unsafe {
+                    libc::statfs(c_parent.as_ptr(), stat.as_mut_ptr())
+                };
                 if rc2 == 0 {
                     // SAFETY: libc::statfs succeeded, so struct is initialized.
                     let stat = unsafe { stat.assume_init() };
@@ -213,7 +217,9 @@ impl StatfsFType for u32 {
 impl StatfsFType for i64 {
     fn to_u64(self) -> u64 {
         let raw = u64::from_le_bytes(self.to_le_bytes());
-        if raw > 0xFFFF_FFFF && (raw & 0xFFFF_FFFF_0000_0000 == 0xFFFF_FFFF_0000_0000) {
+        if raw > 0xFFFF_FFFF
+            && (raw & 0xFFFF_FFFF_0000_0000 == 0xFFFF_FFFF_0000_0000)
+        {
             raw & 0xFFFF_FFFF
         } else {
             raw
@@ -224,7 +230,9 @@ impl StatfsFType for i64 {
 #[cfg(target_os = "linux")]
 impl StatfsFType for u64 {
     fn to_u64(self) -> u64 {
-        if self > 0xFFFF_FFFF && (self & 0xFFFF_FFFF_0000_0000 == 0xFFFF_FFFF_0000_0000) {
+        if self > 0xFFFF_FFFF
+            && (self & 0xFFFF_FFFF_0000_0000 == 0xFFFF_FFFF_0000_0000)
+        {
             self & 0xFFFF_FFFF
         } else {
             self
@@ -431,7 +439,8 @@ fn detect_filesystem(path: &Path) -> FilesystemInfo {
     use std::iter::once;
     use std::os::windows::ffi::OsStrExt;
 
-    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(once(0)).collect();
+    let wide: Vec<u16> =
+        path.as_os_str().encode_wide().chain(once(0)).collect();
     let mut volume_path = vec![0u16; 261];
     // SAFETY: GetVolumePathNameW receives valid wide buffer of length 261.
     let ok = unsafe {
@@ -470,7 +479,10 @@ fn detect_filesystem(path: &Path) -> FilesystemInfo {
     }
 
     // Reason for fallback: Windows volume buffer lacking null terminator uses full buffer length
-    let len = fs_name_buf.iter().position(|&c| c == 0).unwrap_or(fs_name_buf.len());
+    let len = fs_name_buf
+        .iter()
+        .position(|&c| c == 0)
+        .unwrap_or(fs_name_buf.len());
     fs_name_buf.truncate(len);
     let fs_name = String::from_utf16_lossy(&fs_name_buf);
     map_windows_fstype(&fs_name)
@@ -559,7 +571,10 @@ mod tests {
             assert_eq!(map_linux_magic(0x4d44).fs_type, "vfat");
             assert_eq!(map_linux_magic(0x4d44).resolution_nsec, 2_000_000_000);
             assert_eq!(map_linux_magic(0x2011_bab0).fs_type, "exfat");
-            assert_eq!(map_linux_magic(0x2011_bab0).resolution_nsec, 10_000_000);
+            assert_eq!(
+                map_linux_magic(0x2011_bab0).resolution_nsec,
+                10_000_000
+            );
             assert_eq!(map_linux_magic(0xff53_4d42).fs_type, "cifs");
             assert_eq!(map_linux_magic(0xff53_4d42).resolution_nsec, 100);
         }

@@ -111,7 +111,11 @@ impl KStruct for ParamsPassBool {
     type Root = ParamsPassBool;
     type Parent = ParamsPassBool;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,28 +132,72 @@ impl KStruct for ParamsPassBool {
         *self_rc.s_true.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
-        let f = |t : &mut ParamsPassBool_ParamTypeB1| Ok(t.set_params(*self_rc.s_true()));
-        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassBool_ParamTypeB1| {
+            Ok(t.set_params(*self_rc.s_true()))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.seq_b1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassBool_ParamTypeBool| Ok(t.set_params(*self_rc.s_false()));
-        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassBool_ParamTypeBool| {
+            Ok(t.set_params(*self_rc.s_false()))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.seq_bool.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassBool_ParamTypeB1| Ok(t.set_params(false));
-        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassBool_ParamTypeB1| Ok(t.set_params(false));
+        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.literal_b1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassBool_ParamTypeBool| Ok(t.set_params(true));
-        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassBool_ParamTypeBool| Ok(t.set_params(true));
+        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.literal_bool.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassBool_ParamTypeB1| Ok(t.set_params(*self_rc.v_true()?));
-        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassBool_ParamTypeB1| {
+            Ok(t.set_params(*self_rc.v_true()?))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.inst_b1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ParamsPassBool_ParamTypeBool| Ok(t.set_params(*self_rc.v_false()?));
-        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let f = |t: &mut ParamsPassBool_ParamTypeBool| {
+            Ok(t.set_params(*self_rc.v_false()?))
+        };
+        let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.inst_bool.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -157,10 +205,12 @@ impl KStruct for ParamsPassBool {
     }
 }
 impl ParamsPassBool {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn v_false(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn v_false(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_v_false.get() {
             return Ok(self.v_false.borrow());
@@ -169,10 +219,12 @@ impl ParamsPassBool {
         *self.v_false.borrow_mut() = (false).try_into()?;
         Ok(self.v_false.borrow())
     }
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn v_true(
-        &self
-    ) -> KResult<Ref<'_, bool>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn v_true(&self) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_v_true.get() {
             return Ok(self.v_true.borrow());
@@ -244,35 +296,51 @@ pub struct ParamsPassBool_ParamTypeB1 {
     _io: RefCell<BytesReader>,
     foo_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ParamsPassBool_ParamTypeB1> for OptRc<ParamsPassBool_ParamTypeB1> {
+impl TryFrom<&ParamsPassBool_ParamTypeB1>
+    for OptRc<ParamsPassBool_ParamTypeB1>
+{
     type Error = KError;
     fn try_from(v: &ParamsPassBool_ParamTypeB1) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassBool_ParamTypeB1> for OptRc<ParamsPassBool_ParamTypeB1> {
+impl TryFrom<&&ParamsPassBool_ParamTypeB1>
+    for OptRc<ParamsPassBool_ParamTypeB1>
+{
     type Error = KError;
     fn try_from(v: &&ParamsPassBool_ParamTypeB1) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<ParamsPassBool_ParamTypeB1> for ParamsPassBool_ParamTypeB1 {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ParamsPassBool_ParamTypeB1> for &ParamsPassBool_ParamTypeB1 {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassBool_ParamTypeB1> for OptRc<ParamsPassBool_ParamTypeB1> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
+impl DowncastOptRc<ParamsPassBool_ParamTypeB1>
+    for OptRc<ParamsPassBool_ParamTypeB1>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassBool_ParamTypeB1> for &OptRc<ParamsPassBool_ParamTypeB1> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
+impl DowncastOptRc<ParamsPassBool_ParamTypeB1>
+    for &OptRc<ParamsPassBool_ParamTypeB1>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeB1>, KError> {
         Ok((*self).clone())
     }
 }
@@ -280,7 +348,11 @@ impl KStruct for ParamsPassBool_ParamTypeB1 {
     type Root = ParamsPassBool;
     type Parent = ParamsPassBool;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -292,7 +364,12 @@ impl KStruct for ParamsPassBool_ParamTypeB1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.foo.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.arg() { 1_i32 } else { 2_i32 })?)?;
+        *self_rc.foo.borrow_mut() =
+            _io.read_bytes(usize::try_from(if *self_rc.arg() {
+                1_i32
+            } else {
+                2_i32
+            })?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -308,8 +385,7 @@ impl ParamsPassBool_ParamTypeB1 {
         *self.arg.borrow_mut() = arg;
     }
 }
-impl ParamsPassBool_ParamTypeB1 {
-}
+impl ParamsPassBool_ParamTypeB1 {}
 impl ParamsPassBool_ParamTypeB1 {
     pub fn foo(&self) -> Ref<'_, Vec<u8>> {
         self.foo.borrow()
@@ -342,35 +418,57 @@ pub struct ParamsPassBool_ParamTypeBool {
     _io: RefCell<BytesReader>,
     foo_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ParamsPassBool_ParamTypeBool> for OptRc<ParamsPassBool_ParamTypeBool> {
+impl TryFrom<&ParamsPassBool_ParamTypeBool>
+    for OptRc<ParamsPassBool_ParamTypeBool>
+{
     type Error = KError;
     fn try_from(v: &ParamsPassBool_ParamTypeBool) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ParamsPassBool_ParamTypeBool> for OptRc<ParamsPassBool_ParamTypeBool> {
+impl TryFrom<&&ParamsPassBool_ParamTypeBool>
+    for OptRc<ParamsPassBool_ParamTypeBool>
+{
     type Error = KError;
-    fn try_from(v: &&ParamsPassBool_ParamTypeBool) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&ParamsPassBool_ParamTypeBool,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassBool_ParamTypeBool> for ParamsPassBool_ParamTypeBool {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
+impl DowncastOptRc<ParamsPassBool_ParamTypeBool>
+    for ParamsPassBool_ParamTypeBool
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ParamsPassBool_ParamTypeBool> for &ParamsPassBool_ParamTypeBool {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
+impl DowncastOptRc<ParamsPassBool_ParamTypeBool>
+    for &ParamsPassBool_ParamTypeBool
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ParamsPassBool_ParamTypeBool> for OptRc<ParamsPassBool_ParamTypeBool> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
+impl DowncastOptRc<ParamsPassBool_ParamTypeBool>
+    for OptRc<ParamsPassBool_ParamTypeBool>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ParamsPassBool_ParamTypeBool> for &OptRc<ParamsPassBool_ParamTypeBool> {
-    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
+impl DowncastOptRc<ParamsPassBool_ParamTypeBool>
+    for &OptRc<ParamsPassBool_ParamTypeBool>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ParamsPassBool_ParamTypeBool>, KError> {
         Ok((*self).clone())
     }
 }
@@ -378,7 +476,11 @@ impl KStruct for ParamsPassBool_ParamTypeBool {
     type Root = ParamsPassBool;
     type Parent = ParamsPassBool;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -390,7 +492,12 @@ impl KStruct for ParamsPassBool_ParamTypeBool {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.foo.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.arg() { 1_i32 } else { 2_i32 })?)?;
+        *self_rc.foo.borrow_mut() =
+            _io.read_bytes(usize::try_from(if *self_rc.arg() {
+                1_i32
+            } else {
+                2_i32
+            })?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -406,8 +513,7 @@ impl ParamsPassBool_ParamTypeBool {
         *self.arg.borrow_mut() = arg;
     }
 }
-impl ParamsPassBool_ParamTypeBool {
-}
+impl ParamsPassBool_ParamTypeBool {}
 impl ParamsPassBool_ParamTypeBool {
     pub fn foo(&self) -> Ref<'_, Vec<u8>> {
         self.foo.borrow()

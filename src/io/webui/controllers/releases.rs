@@ -1068,10 +1068,11 @@ pub async fn get_latest_manifest_sig(
     if !sig_path.exists() {
         let manifest_path =
             releases_dir.join(format!("ctb-{platform}-latest.json"));
-        let resolved_manifest = match files::symlink_is_in_dir(&manifest_path, &releases_dir) {
-            Ok(path) => path,
-            Err(error) => return error_400(&state, &req, error),
-        };
+        let resolved_manifest =
+            match files::symlink_is_in_dir(&manifest_path, &releases_dir) {
+                Ok(path) => path,
+                Err(error) => return error_400(&state, &req, error),
+            };
         if resolved_manifest != manifest_path {
             let mut sig_file = resolved_manifest.clone();
             if let Some(ext) = resolved_manifest.extension() {
@@ -1088,17 +1089,30 @@ pub async fn get_latest_manifest_sig(
                 Ok(bytes) => bytes,
                 Err(error) => return error_400(&state, &req, anyhow!(error)),
             };
-            let manifest: ReleaseManifest = match serde_json::from_slice(&latest_bytes) {
-                Ok(manifest) => manifest,
-                Err(error) => return error_400(&state, &req, anyhow!(error)),
-            };
+            let manifest: ReleaseManifest =
+                match serde_json::from_slice(&latest_bytes) {
+                    Ok(manifest) => manifest,
+                    Err(error) => {
+                        return error_400(&state, &req, anyhow!(error));
+                    }
+                };
             if manifest.platform.to_string() != platform {
-                return error_400(&state, &req, anyhow!("Latest manifest platform does not match the requested platform"));
+                return error_400(
+                    &state,
+                    &req,
+                    anyhow!(
+                        "Latest manifest platform does not match the requested platform"
+                    ),
+                );
             }
             let versioned_path = releases_dir.join(format!(
-                "ctb-{platform}-{}.json", manifest.date.format("%Y%m%d-%H%M%S")
+                "ctb-{platform}-{}.json",
+                manifest.date.format("%Y%m%d-%H%M%S")
             ));
-            let versioned_path = match files::symlink_is_in_dir(&versioned_path, &releases_dir) {
+            let versioned_path = match files::symlink_is_in_dir(
+                &versioned_path,
+                &releases_dir,
+            ) {
                 Ok(path) => path,
                 Err(error) => return error_400(&state, &req, error),
             };
@@ -1107,7 +1121,13 @@ pub async fn get_latest_manifest_sig(
                 Err(error) => return error_400(&state, &req, anyhow!(error)),
             };
             if latest_bytes != versioned_bytes {
-                return error_400(&state, &req, anyhow!("Copied latest manifest differs from its versioned manifest"));
+                return error_400(
+                    &state,
+                    &req,
+                    anyhow!(
+                        "Copied latest manifest differs from its versioned manifest"
+                    ),
+                );
             }
             sig_path = versioned_path.with_extension("json.sig");
         }
@@ -1415,7 +1435,8 @@ mod tests {
             "revoked_key_ids": [],
             "files": [],
         });
-        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap()).unwrap();
+        fs::write(&manifest_path, serde_json::to_vec(&manifest).unwrap())
+            .unwrap();
 
         // Create the corresponding signature file
         let sig_filename = "ctb-linux-x64-20260617-120000.json.sig";
@@ -1444,22 +1465,51 @@ mod tests {
         let body = crate::test_helpers::body_to_text(resp).await;
         assert_eq!(body, "signature-bytes");
 
-        fs::write(&latest_manifest_path, format!("{} ", serde_json::to_string(&manifest).unwrap())).unwrap();
-        let resp = test_app.request_get_response::<()>(
-            Method::GET, "/releases/linux-x64/latest.json.sig", None, None, None, None,
-        ).await;
+        fs::write(
+            &latest_manifest_path,
+            format!("{} ", serde_json::to_string(&manifest).unwrap()),
+        )
+        .unwrap();
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/releases/linux-x64/latest.json.sig",
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-        assert!(crate::test_helpers::body_to_text(resp).await.contains("differs from its versioned manifest"));
+        assert!(
+            crate::test_helpers::body_to_text(resp)
+                .await
+                .contains("differs from its versioned manifest")
+        );
 
         #[cfg(unix)]
         {
             fs::remove_file(&latest_manifest_path).unwrap();
-            std::os::unix::fs::symlink(manifest_filename, &latest_manifest_path).unwrap();
-            let resp = test_app.request_get_response::<()>(
-                Method::GET, "/releases/linux-x64/latest.json.sig", None, None, None, None,
-            ).await;
+            std::os::unix::fs::symlink(
+                manifest_filename,
+                &latest_manifest_path,
+            )
+            .unwrap();
+            let resp = test_app
+                .request_get_response::<()>(
+                    Method::GET,
+                    "/releases/linux-x64/latest.json.sig",
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
             assert_eq!(resp.status(), StatusCode::OK);
-            assert_eq!(crate::test_helpers::body_to_text(resp).await, "signature-bytes");
+            assert_eq!(
+                crate::test_helpers::body_to_text(resp).await,
+                "signature-bytes"
+            );
         }
     }
 

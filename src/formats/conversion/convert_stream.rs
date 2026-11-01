@@ -42,8 +42,10 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 use ctb_formats_dcstring::{DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcMstring};
 use ctb_formats_utilities::FormatLog;
-use ctb_utilities::format_support::{SupportedDcInputFormat, SupportedDcOutputFormat};
 use ctb_utilities::FormatId;
+use ctb_utilities::format_support::{
+    SupportedDcInputFormat, SupportedDcOutputFormat,
+};
 
 use crate::convert_bytes::{
     DcConversionOptions, DcExportOptions, FormatSpec,
@@ -87,11 +89,21 @@ pub fn stream_file_to_dcmwriter<W: Write>(
         stream_reader_to_dcmwriter(&mut stdin, writer, None, options)
     } else {
         let file = File::open(input_path).with_context(|| {
-            format!("Failed to open input file for streaming: {}", input_path.display())
+            format!(
+                "Failed to open input file for streaming: {}",
+                input_path.display()
+            )
         })?;
-        let filename = input_path.file_name().map(|n| n.to_string_lossy().into_owned());
+        let filename = input_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned());
         let mut reader = BufReader::new(file);
-        stream_reader_to_dcmwriter(&mut reader, writer, filename.as_deref(), options)
+        stream_reader_to_dcmwriter(
+            &mut reader,
+            writer,
+            filename.as_deref(),
+            options,
+        )
     }
 }
 
@@ -111,7 +123,8 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
     let resolved_format: SupportedDcInputFormat = match options.format {
         FormatSpec::Format(fmt) => fmt,
         FormatSpec::FormatId(id) => {
-            if let Some(supported) = SupportedDcInputFormat::from_format_id(id) {
+            if let Some(supported) = SupportedDcInputFormat::from_format_id(id)
+            {
                 supported
             } else {
                 bail!(
@@ -177,7 +190,8 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
         && peek_bytes.get(5..21) == Some(&ctb_formats_dcstring::DCMM_UUID_V1);
 
     if resolved_format == SupportedDcInputFormat::DcMixed2
-        || (resolved_format == SupportedDcInputFormat::DcMixed && !is_dcmm1_header)
+        || (resolved_format == SupportedDcInputFormat::DcMixed
+            && !is_dcmm1_header)
     {
         let (bytes_written, log) =
             ctb_formats_dcstring::validate_and_copy_dcmm_stream_with_options(
@@ -222,34 +236,45 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                         Ok(text) => {
                             writer.write_all(text.as_bytes())?;
                             let written_len = u64::try_from(text.len())?;
-                            bytes_written = bytes_written.saturating_add(written_len);
+                            bytes_written =
+                                bytes_written.saturating_add(written_len);
                             break;
                         }
                         Err(e) => {
                             let valid_up_to = e.valid_up_to();
                             if valid_up_to > 0 {
-                                if let Some(valid_slice) = cursor.get(..valid_up_to) {
+                                if let Some(valid_slice) =
+                                    cursor.get(..valid_up_to)
+                                {
                                     writer.write_all(valid_slice)?;
-                                    let written_len = u64::try_from(valid_slice.len())?;
-                                    bytes_written = bytes_written.saturating_add(written_len);
+                                    let written_len =
+                                        u64::try_from(valid_slice.len())?;
+                                    bytes_written = bytes_written
+                                        .saturating_add(written_len);
                                 }
                             }
                             if let Some(error_len) = e.error_len() {
                                 if !options.permissive {
-                                    bail!("Encountered invalid UTF-8 sequence at offset {valid_up_to}");
+                                    bail!(
+                                        "Encountered invalid UTF-8 sequence at offset {valid_up_to}"
+                                    );
                                 }
                                 log.warn("Invalid UTF-8 byte sequence replaced with U+FFFD in permissive mode");
                                 let rep = "\u{FFFD}".as_bytes();
                                 writer.write_all(rep)?;
-                                bytes_written = bytes_written.saturating_add(u64::try_from(rep.len())?);
-                                let next = valid_up_to.saturating_add(error_len);
+                                bytes_written = bytes_written
+                                    .saturating_add(u64::try_from(rep.len())?);
+                                let next =
+                                    valid_up_to.saturating_add(error_len);
                                 if let Some(rest) = cursor.get(next..) {
                                     cursor = rest;
                                 } else {
                                     break;
                                 }
                             } else {
-                                if let Some(rem_slice) = cursor.get(valid_up_to..) {
+                                if let Some(rem_slice) =
+                                    cursor.get(valid_up_to..)
+                                {
                                     remainder.extend_from_slice(rem_slice);
                                 }
                                 break;
@@ -266,7 +291,8 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 log.warn("Incomplete UTF-8 sequence at end of stream replaced with U+FFFD in permissive mode");
                 let rep = "\u{FFFD}".as_bytes();
                 writer.write_all(rep)?;
-                bytes_written = bytes_written.saturating_add(u64::try_from(rep.len())?);
+                bytes_written =
+                    bytes_written.saturating_add(u64::try_from(rep.len())?);
             }
         }
         SupportedDcInputFormat::DcMixed2 => unreachable!(),
@@ -279,7 +305,8 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 filename_hint,
                 &DcConversionOptions {
                     format: FormatSpec::Format(resolved_format),
-                    allow_binary_encapsulation: options.allow_binary_encapsulation,
+                    allow_binary_encapsulation: options
+                        .allow_binary_encapsulation,
                     permissive: options.permissive,
                 },
             )?;
@@ -328,17 +355,21 @@ pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
 
     let mut buf_reader = BufReader::new(reader);
     let mut header = [0u8; DCMM_HEADER_LEN];
-    buf_reader.read_exact(&mut header).context("Reading DcMixed header")?;
+    buf_reader
+        .read_exact(&mut header)
+        .context("Reading DcMixed header")?;
 
     let mut payload = Vec::new();
     buf_reader.read_to_end(&mut payload)?;
 
-    let mut dcmm_bytes = Vec::with_capacity(header.len().saturating_add(payload.len()));
+    let mut dcmm_bytes =
+        Vec::with_capacity(header.len().saturating_add(payload.len()));
     dcmm_bytes.extend_from_slice(&header);
     dcmm_bytes.extend_from_slice(&payload);
 
-    let (doc, mut log) = ctb_formats_dcstring::dcmm_to_dcmstring(&dcmm_bytes)
-        .context("Parsing DcMixed stream payload into DcMstring")?;
+    let (doc, mut log) =
+        ctb_formats_dcstring::dcmm_to_dcmstring(&dcmm_bytes)
+            .context("Parsing DcMixed stream payload into DcMstring")?;
 
     let export = convert_dcmstring_to_bytes(&doc, format, options)?;
     log.merge(&export.log);
@@ -364,7 +395,10 @@ pub fn stream_dcmfile_to_writer<W: Write>(
         stream_dcmreader_to_writer(&mut stdin, writer, format, options)
     } else {
         let file = File::open(input_path).with_context(|| {
-            format!("Failed to open input file for export streaming: {}", input_path.display())
+            format!(
+                "Failed to open input file for export streaming: {}",
+                input_path.display()
+            )
         })?;
         let mut reader = BufReader::new(file);
         stream_dcmreader_to_writer(&mut reader, writer, format, options)
@@ -403,10 +437,7 @@ mod tests {
         assert_eq!(receipt.bytes_written, u64::try_from(out.len()).unwrap());
 
         let dcmm = DcMstring::from_bytes(out).expect("validate dcmm");
-        assert_eq!(
-            dcmm,
-            "Streaming UTF-8 text document"
-        );
+        assert_eq!(dcmm, "Streaming UTF-8 text document");
     }
 
     #[crate::ctb_test]
@@ -457,7 +488,10 @@ mod tests {
         .expect("stream dcmm passthrough");
 
         assert_eq!(receipt.detected_format, FormatId::DcMixed2);
-        assert_eq!(receipt.bytes_written, u64::try_from(input_bytes.len()).unwrap());
+        assert_eq!(
+            receipt.bytes_written,
+            u64::try_from(input_bytes.len()).unwrap()
+        );
         assert_eq!(dcmm_out, input_bytes);
 
         // Test stream_dcmreader_to_writer with SupportedDcOutputFormat::DcMixed
@@ -473,7 +507,10 @@ mod tests {
         .expect("stream dcmm export passthrough");
 
         assert_eq!(export_receipt.target_format, FormatId::DcMixed);
-        assert_eq!(export_receipt.bytes_written, u64::try_from(input_bytes.len()).unwrap());
+        assert_eq!(
+            export_receipt.bytes_written,
+            u64::try_from(input_bytes.len()).unwrap()
+        );
         assert_eq!(export_out, input_bytes);
     }
 
@@ -483,7 +520,8 @@ mod tests {
         doc.push_str("Legacy DcMixed1 stream ");
         doc.push_char(ctb_formats_dcstring::DcChar(1_114_112));
         doc.push_binary(b"\x00\x01\x02");
-        let (dcmm1_bytes, _) = ctb_formats_dcstring::dcmstring_to_dcmm1(&doc).unwrap();
+        let (dcmm1_bytes, _) =
+            ctb_formats_dcstring::dcmstring_to_dcmm1(&doc).unwrap();
 
         // 1. Export DcMixed1 stream to DcMixed2
         let mut cursor_v1 = std::io::Cursor::new(&dcmm1_bytes);

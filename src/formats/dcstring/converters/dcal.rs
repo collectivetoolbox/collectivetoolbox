@@ -78,7 +78,9 @@ pub fn dclist_to_dcal(dclist: &[u128]) -> Vec<u8> {
 }
 
 /// Converts a Dcal document to `DcMstring`.
-pub fn dcal_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn dcal_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     dcal_to_dcmstring_with_options(bytes, false)
 }
 
@@ -95,9 +97,9 @@ pub fn dcal_to_dcmstring_with_options(
             if !token.bytes().all(|b| b.is_ascii_digit()) {
                 bail!("Invalid non-integer Dcal token '{token}'");
             }
-            let id = token
-                .parse::<u128>()
-                .with_context(|| format!("Failed to parse Dcal integer '{token}'"))?;
+            let id = token.parse::<u128>().with_context(|| {
+                format!("Failed to parse Dcal integer '{token}'")
+            })?;
             list.push(id);
         }
         let dctf_bytes = super::dctext::dclist_to_dctf(&list);
@@ -116,7 +118,9 @@ pub fn dcal_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` to Dcal bytes.
-pub fn dcmstring_to_dcal(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_dcal(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     let dclist = dc_string.to_dclist();
     let bytes = dclist_to_dcal(&dclist);
@@ -124,7 +128,9 @@ pub fn dcmstring_to_dcal(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
 }
 
 /// Converts a Csdl (Format 344: comma-separated Dc list of long Dcs) document to `DcMstring`.
-pub fn csdl_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn csdl_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     csdl_to_dcmstring_with_options(bytes, false)
 }
 
@@ -185,7 +191,9 @@ pub fn csdl_to_dcmstring_with_options(
                             format!("Failed to parse Csdl integer '{tok}'")
                         });
                     }
-                    log.warn(&format!("Failed to parse Csdl integer '{tok}': {e}"));
+                    log.warn(&format!(
+                        "Failed to parse Csdl integer '{tok}': {e}"
+                    ));
                 }
             }
         }
@@ -199,7 +207,9 @@ pub fn csdl_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` to Csdl (comma-separated long Dcs) bytes.
-pub fn dcmstring_to_csdl(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_csdl(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     let dclist = dc_string.to_dclist();
     let mut output = String::new();
@@ -224,7 +234,8 @@ fn push_shorthand_token_to_dcmstring(
     match shorthand {
         DcShorthand::Local(int_val) => {
             let malachite_val = malachite::Integer::from(int_val);
-            match crate::dc_number::integer_to_dc_number_global(&malachite_val) {
+            match crate::dc_number::integer_to_dc_number_global(&malachite_val)
+            {
                 Ok(dc_num_gids) => {
                     doc.push_char(crate::DcChar(1_114_408u128));
                     for gid in dc_num_gids {
@@ -261,7 +272,9 @@ fn push_shorthand_token_to_dcmstring(
 }
 
 /// Converts a Dcsh (Format 635: Dc shorthand ASCII list) document to `DcMstring`.
-pub fn dcsh_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn dcsh_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     dcsh_to_dcmstring_with_options(bytes, false)
 }
 
@@ -300,7 +313,9 @@ pub fn dcsh_to_dcmstring_with_options(
         for tok in code_part.split_ascii_whitespace() {
             match DcShorthand::parse(tok) {
                 Ok(shorthand) => {
-                    push_shorthand_token_to_dcmstring(&mut doc, &mut log, shorthand, tok, permissive)?;
+                    push_shorthand_token_to_dcmstring(
+                        &mut doc, &mut log, shorthand, tok, permissive,
+                    )?;
                 }
                 Err(e) => {
                     if !permissive {
@@ -308,7 +323,9 @@ pub fn dcsh_to_dcmstring_with_options(
                             format!("Invalid Dc shorthand token '{tok}' in Dcsh input")
                         });
                     }
-                    log.warn(&format!("Skipping invalid Dcsh token '{tok}': {e}"));
+                    log.warn(&format!(
+                        "Skipping invalid Dcsh token '{tok}': {e}"
+                    ));
                 }
             }
         }
@@ -338,13 +355,16 @@ pub fn ctbnode_incoming_to_dcmstring_with_options(
         match std::str::from_utf8(bytes) {
             Ok(s) => std::borrow::Cow::Borrowed(s),
             Err(e) => {
-                log.warn(&format!("Invalid UTF-8 in .ctbnode-incoming input: {e}"));
+                log.warn(&format!(
+                    "Invalid UTF-8 in .ctbnode-incoming input: {e}"
+                ));
                 String::from_utf8_lossy(bytes)
             }
         }
     } else {
-        let s = std::str::from_utf8(bytes)
-            .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in .ctbnode-incoming input: {e}"))?;
+        let s = std::str::from_utf8(bytes).map_err(|e| {
+            anyhow::anyhow!("Invalid UTF-8 in .ctbnode-incoming input: {e}")
+        })?;
         std::borrow::Cow::Borrowed(s)
     };
 
@@ -354,11 +374,7 @@ pub fn ctbnode_incoming_to_dcmstring_with_options(
             for sh_tok in parsed.tokens {
                 let raw_str = sh_tok.to_string();
                 push_shorthand_token_to_dcmstring(
-                    &mut doc,
-                    &mut log,
-                    sh_tok,
-                    &raw_str,
-                    permissive,
+                    &mut doc, &mut log, sh_tok, &raw_str, permissive,
                 )?;
             }
             Ok((doc, log))
@@ -380,11 +396,7 @@ pub fn ctbnode_incoming_to_dcmstring_with_options(
                     match DcShorthand::parse(tok) {
                         Ok(shorthand) => {
                             push_shorthand_token_to_dcmstring(
-                                &mut doc,
-                                &mut log,
-                                shorthand,
-                                tok,
-                                true,
+                                &mut doc, &mut log, shorthand, tok, true,
                             )?;
                         }
                         Err(err) => {
@@ -401,7 +413,9 @@ pub fn ctbnode_incoming_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` to Dcsh (Dc shorthand ASCII list) bytes.
-pub fn dcmstring_to_dcsh(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_dcsh(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     use ctb_storage_minimal::shorthand::DcShorthand;
 
     let dc_string = super::document_dc_string(doc)?;
@@ -418,7 +432,9 @@ pub fn dcmstring_to_dcsh(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
 
 /// Converts a `.ctbnodes` (Format 639: Collective Toolbox graph nodes shorthand text)
 /// document into its corresponding `DcMstring` (`Dc 617 .. Dc 618` node definitions).
-pub fn ctbnodes_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn ctbnodes_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     ctbnodes_to_dcmstring_with_options(bytes, false)
 }
 
@@ -429,7 +445,8 @@ pub fn ctbnodes_to_dcmstring_with_options(
     permissive: bool,
 ) -> Result<(crate::DcMstring, FormatLog)> {
     use ctb_formats_dcdata::graph_ledger::{
-        LedgerNode, default_ctbnbdl_framing_dcs, encode_node_definition_tokens_with,
+        LedgerNode, default_ctbnbdl_framing_dcs,
+        encode_node_definition_tokens_with,
     };
 
     let mut log = FormatLog::default();
@@ -442,8 +459,9 @@ pub fn ctbnodes_to_dcmstring_with_options(
             }
         }
     } else {
-        let s = std::str::from_utf8(bytes)
-            .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in .ctbnodes input: {e}"))?;
+        let s = std::str::from_utf8(bytes).map_err(|e| {
+            anyhow::anyhow!("Invalid UTF-8 in .ctbnodes input: {e}")
+        })?;
         std::borrow::Cow::Borrowed(s)
     };
 
@@ -470,7 +488,9 @@ pub fn ctbnodes_to_dcmstring_with_options(
                 if !permissive {
                     return Err(e);
                 }
-                log.warn(&format!("Skipping malformed .ctbnodes line {line_no}: {e:#}"));
+                log.warn(&format!(
+                    "Skipping malformed .ctbnodes line {line_no}: {e:#}"
+                ));
             }
         }
     }
@@ -479,16 +499,22 @@ pub fn ctbnodes_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` containing `Dc 617 .. Dc 618` node definitions to `.ctbnodes` text bytes.
-pub fn dcmstring_to_ctbnodes(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_ctbnodes(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     use ctb_formats_dcdata::graph_ledger::{
-        CTBNBDL_MAGIC, decode_nodes_from_ctbnbdl_bytes_with, default_ctbnbdl_framing_dcs,
+        CTBNBDL_MAGIC, decode_nodes_from_ctbnbdl_bytes_with,
+        default_ctbnbdl_framing_dcs,
     };
 
-    let mut bundle_bytes = Vec::with_capacity(CTBNBDL_MAGIC.len().saturating_add(doc.len()));
+    let mut bundle_bytes =
+        Vec::with_capacity(CTBNBDL_MAGIC.len().saturating_add(doc.len()));
     bundle_bytes.extend_from_slice(&CTBNBDL_MAGIC);
     bundle_bytes.extend_from_slice(doc.as_bytes());
-    let nodes =
-        decode_nodes_from_ctbnbdl_bytes_with(&bundle_bytes, default_ctbnbdl_framing_dcs())?;
+    let nodes = decode_nodes_from_ctbnbdl_bytes_with(
+        &bundle_bytes,
+        default_ctbnbdl_framing_dcs(),
+    )?;
     let mut out = String::new();
     for node in &nodes {
         out.push_str(&node.format_line());
@@ -501,7 +527,9 @@ const CTBNBDL_MAGIC_V1: [u8; 8] = *b"CTBNBDL\x01";
 const CTBNBDL_MAGIC_V2: [u8; 8] = *b"CTBNBDL\x02";
 
 /// Converts a `.ctbnbdl` (Format 640: Collective Toolbox Node Bundle, v1 or v2) to `DcMstring`.
-pub fn ctbnbdl_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn ctbnbdl_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     ctbnbdl_to_dcmstring_with_options(bytes, false)
 }
 
@@ -520,7 +548,9 @@ pub fn ctbnbdl_to_dcmstring_with_options(
         return crate::dcmm1_to_dcmstring_with_options(payload, &opts);
     }
     if !permissive {
-        bail!("Input bytes do not start with valid CTBNBDL\\x01 or CTBNBDL\\x02 magic header");
+        bail!(
+            "Input bytes do not start with valid CTBNBDL\\x01 or CTBNBDL\\x02 magic header"
+        );
     }
     let (doc, mut log) = crate::dcmm_to_dcmstring_with_options(bytes, &opts)?;
     log.warn("Missing or invalid CTBNBDL magic header; decoded payload in permissive mode");
@@ -543,7 +573,8 @@ pub fn ctbnbdl1_to_dcmstring_with_options(
     }
     // Reason for fallback: in permissive mode, if the input has a v2 magic header instead of v1, strip it; otherwise decode the raw bytes as payload.
     let payload = bytes.strip_prefix(&CTBNBDL_MAGIC_V2).unwrap_or(bytes);
-    let (doc, mut log) = crate::dcmm1_to_dcmstring_with_options(payload, &opts)?;
+    let (doc, mut log) =
+        crate::dcmm1_to_dcmstring_with_options(payload, &opts)?;
     log.warn("Missing or mismatched CTBNBDL\\x01 magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }
@@ -564,28 +595,37 @@ pub fn ctbnbdl2_to_dcmstring_with_options(
     }
     // Reason for fallback: in permissive mode, if the input has a v1 magic header instead of v2, strip it; otherwise decode the raw bytes as payload.
     let payload = bytes.strip_prefix(&CTBNBDL_MAGIC_V1).unwrap_or(bytes);
-    let (doc, mut log) = crate::dcmm2_to_dcmstring_with_options(payload, &opts)?;
+    let (doc, mut log) =
+        crate::dcmm2_to_dcmstring_with_options(payload, &opts)?;
     log.warn("Missing or mismatched CTBNBDL\\x02 magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }
 
 /// Converts a `DcMstring` to `.ctbnbdl` (version 2) bytes.
-pub fn dcmstring_to_ctbnbdl(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_ctbnbdl(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     dcmstring_to_ctbnbdl2(doc)
 }
 
 /// Converts a `DcMstring` to `.ctbnbdl` version 1 (`CTBNBDL\x01` + `DcMixed1`) bytes.
-pub fn dcmstring_to_ctbnbdl1(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_ctbnbdl1(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let (dcmm1, log) = crate::dcmstring_to_dcmm1(doc)?;
-    let mut out = Vec::with_capacity(CTBNBDL_MAGIC_V1.len().saturating_add(dcmm1.len()));
+    let mut out =
+        Vec::with_capacity(CTBNBDL_MAGIC_V1.len().saturating_add(dcmm1.len()));
     out.extend_from_slice(&CTBNBDL_MAGIC_V1);
     out.extend_from_slice(&dcmm1);
     Ok((out, log))
 }
 
 /// Converts a `DcMstring` to `.ctbnbdl` version 2 (`CTBNBDL\x02` + `DcMixed2`) bytes.
-pub fn dcmstring_to_ctbnbdl2(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let mut out = Vec::with_capacity(CTBNBDL_MAGIC_V2.len().saturating_add(doc.len()));
+pub fn dcmstring_to_ctbnbdl2(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
+    let mut out =
+        Vec::with_capacity(CTBNBDL_MAGIC_V2.len().saturating_add(doc.len()));
     out.extend_from_slice(&CTBNBDL_MAGIC_V2);
     out.extend_from_slice(doc.as_bytes());
     Ok((out, FormatLog::default()))

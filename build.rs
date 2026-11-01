@@ -83,8 +83,9 @@ fn main() -> Result<()> {
         println!("cargo:rustc-link-arg-bin=ctoolbox=-Wl,--stack,8388608");
 
         let mut res = winresource::WindowsResource::new();
-        let is_branding =
-            env::var("CTB_BRANDING").map(|v| v == "true").unwrap_or(false);
+        let is_branding = env::var("CTB_BRANDING")
+            .map(|v| v == "true")
+            .unwrap_or(false);
         let official_icon =
             manifest_path.join("assets/web/official-branding/favicon.ico");
         let generic_icon =
@@ -103,7 +104,8 @@ fn main() -> Result<()> {
         if target.contains("win7") {
             let out_dir = env::var("OUT_DIR")?;
             let shim_o = Path::new(&out_dir).join("combase_shim.o");
-            let shim_c = manifest_path.join("src/build_support/windows/combase_shim.c");
+            let shim_c =
+                manifest_path.join("src/build_support/windows/combase_shim.c");
             println!("cargo:rerun-if-changed={}", shim_c.display());
             let cc = env::var("CC_x86_64_win7_windows_gnu")
                 .or_else(|_| env::var("CC"))

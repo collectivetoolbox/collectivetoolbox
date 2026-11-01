@@ -260,8 +260,10 @@ impl DarwinAcl {
                 "Invalid Darwin ACL entry format: {trimmed}"
             );
 
-            let tag = parts.first().context("Missing tag")?.trim().to_lowercase();
-            let (qualifier, is_allow, perms_str, flags_str) = if parts.len() >= 5
+            let tag =
+                parts.first().context("Missing tag")?.trim().to_lowercase();
+            let (qualifier, is_allow, perms_str, flags_str) = if parts.len()
+                >= 5
                 && (parts.get(3).copied() == Some("allow")
                     || parts.get(3).copied() == Some("deny"))
             {
@@ -280,7 +282,8 @@ impl DarwinAcl {
                 (qual, allow, *perms, *flags)
             } else {
                 // Format: tag:qualifier:allow/deny:permissions[:flags]
-                let qual = (*parts.get(1).context("Missing qualifier")?).to_owned();
+                let qual =
+                    (*parts.get(1).context("Missing qualifier")?).to_owned();
                 let allow = parts.get(2).copied() == Some("allow");
                 // Reason for fallback: missing permission field in Darwin ACL entry defaults to empty string
                 let perms = parts.get(3).unwrap_or(&"");
@@ -289,7 +292,8 @@ impl DarwinAcl {
                 (qual, allow, *perms, *flags)
             };
 
-            let permissions = DarwinPermissions::from_permission_list(perms_str);
+            let permissions =
+                DarwinPermissions::from_permission_list(perms_str);
             let flags = DarwinInheritanceFlags::from_flag_list(flags_str);
 
             entries.push(DarwinAclEntry {
@@ -425,7 +429,9 @@ impl Posix1eAcl {
                 Posix1eTag::UserObj => has_user_obj = true,
                 Posix1eTag::GroupObj => has_group_obj = true,
                 Posix1eTag::Other => has_other = true,
-                Posix1eTag::User(_) | Posix1eTag::Group(_) | Posix1eTag::Mask => {
+                Posix1eTag::User(_)
+                | Posix1eTag::Group(_)
+                | Posix1eTag::Mask => {
                     return false;
                 }
             }
@@ -491,7 +497,8 @@ impl Nfs4Acl {
                 "Invalid FreeBSD NFSv4 ACL entry: {trimmed}"
             );
             let tag = (*parts.first().context("Missing tag")?).to_owned();
-            let perms = (*parts.get(1).context("Missing permissions")?).to_owned();
+            let perms =
+                (*parts.get(1).context("Missing permissions")?).to_owned();
             let flags = (*parts.get(2).context("Missing flags")?).to_owned();
             let is_allow = parts.get(3).copied() == Some("allow");
             entries.push(Nfs4AclEntry {
@@ -660,7 +667,8 @@ pub(crate) fn capture_bsd_acl_metadata(
 ) -> Result<()> {
     let c_path = CString::new(path.as_os_str().as_bytes())?;
     // SAFETY: c_path is a valid null-terminated C string.
-    let acl_ptr = unsafe { acl_get_link_np(c_path.as_ptr(), ACL_TYPE_EXTENDED) };
+    let acl_ptr =
+        unsafe { acl_get_link_np(c_path.as_ptr(), ACL_TYPE_EXTENDED) };
     if acl_ptr.is_null() {
         return Ok(());
     }
@@ -673,11 +681,11 @@ pub(crate) fn capture_bsd_acl_metadata(
         let usize_len = usize::try_from(size).context("Invalid ACL size")?;
         let mut buf = vec![0_u8; usize_len];
         // SAFETY: buf is allocated with length matching size, safe_acl.0 is valid.
-        let copied = unsafe {
-            acl_copy_ext(buf.as_mut_ptr().cast(), safe_acl.0, size)
-        };
+        let copied =
+            unsafe { acl_copy_ext(buf.as_mut_ptr().cast(), safe_acl.0, size) };
         if copied > 0 {
-            let actual_len = usize::try_from(copied).context("Invalid copied length")?;
+            let actual_len =
+                usize::try_from(copied).context("Invalid copied length")?;
             buf.truncate(actual_len);
             values.insert(
                 "acl.darwin.raw".to_owned(),
@@ -767,12 +775,7 @@ pub(crate) fn capture_bsd_acl_metadata(
         let _ = unsafe { acl_is_trivial_np(safe_access.0, &raw mut trivial) };
 
         if trivial == 0 {
-            record_freebsd_acl(
-                safe_access.0,
-                "acl.bsd.access",
-                false,
-                values,
-            )?;
+            record_freebsd_acl(safe_access.0, "acl.bsd.access", false, values)?;
             values.insert(
                 "acl.model".to_owned(),
                 NativeMetadataValue::Bytes(b"posix1e".to_vec()),
@@ -787,12 +790,7 @@ pub(crate) fn capture_bsd_acl_metadata(
             unsafe { acl_get_link_np(c_path.as_ptr(), ACL_TYPE_DEFAULT) };
         if !def_ptr.is_null() {
             let safe_def = SafeAcl(def_ptr);
-            record_freebsd_acl(
-                safe_def.0,
-                "acl.bsd.default",
-                false,
-                values,
-            )?;
+            record_freebsd_acl(safe_def.0, "acl.bsd.default", false, values)?;
         }
     }
 
@@ -889,7 +887,8 @@ pub(crate) fn capture_bsd_acl_metadata(
             let safe_def = SafeAcl(def_ptr);
             let mut text_len: libc::ssize_t = 0;
             // SAFETY: safe_def.0 is valid, text_len pointer is valid.
-            let text_ptr = unsafe { acl_to_text(safe_def.0, &raw mut text_len) };
+            let text_ptr =
+                unsafe { acl_to_text(safe_def.0, &raw mut text_len) };
             if !text_ptr.is_null() {
                 // SAFETY: text_ptr is a valid null-terminated C string.
                 let text = unsafe { std::ffi::CStr::from_ptr(text_ptr) }
@@ -967,7 +966,11 @@ pub fn apply_bsd_acl_metadata(
             if unsafe { acl_valid(safe_acl.0) } == 0 {
                 // SAFETY: c_path and safe_acl.0 are valid.
                 let res = unsafe {
-                    acl_set_link_np(c_path.as_ptr(), ACL_TYPE_EXTENDED, safe_acl.0)
+                    acl_set_link_np(
+                        c_path.as_ptr(),
+                        ACL_TYPE_EXTENDED,
+                        safe_acl.0,
+                    )
                 };
                 if res == 0 {
                     applied = true;
@@ -1040,7 +1043,13 @@ pub fn apply_bsd_acl_metadata(
 
     // Apply NFSv4 if recorded
     if let Some(raw_val) = native.values.get("acl.freebsd.nfs4.raw") {
-        apply_single_acl(&c_path, ACL_TYPE_NFS4, raw_val, dest, strict_lossless)?;
+        apply_single_acl(
+            &c_path,
+            ACL_TYPE_NFS4,
+            raw_val,
+            dest,
+            strict_lossless,
+        )?;
         return Ok(());
     }
     if let Some(text_val) = native.values.get("acl.freebsd.nfs4.text") {
@@ -1215,7 +1224,11 @@ pub fn apply_bsd_acl_metadata(
                 let safe_acl = SafeAcl(acl_ptr);
                 // SAFETY: safe_acl.0 is valid.
                 let res = unsafe {
-                    acl_set_link_np(c_path.as_ptr(), ACL_TYPE_ACCESS, safe_acl.0)
+                    acl_set_link_np(
+                        c_path.as_ptr(),
+                        ACL_TYPE_ACCESS,
+                        safe_acl.0,
+                    )
                 };
                 if res != 0 {
                     let err = std::io::Error::last_os_error();
@@ -1244,7 +1257,11 @@ pub fn apply_bsd_acl_metadata(
                 let safe_acl = SafeAcl(acl_ptr);
                 // SAFETY: safe_acl.0 is valid.
                 let res = unsafe {
-                    acl_set_link_np(c_path.as_ptr(), ACL_TYPE_DEFAULT, safe_acl.0)
+                    acl_set_link_np(
+                        c_path.as_ptr(),
+                        ACL_TYPE_DEFAULT,
+                        safe_acl.0,
+                    )
                 };
                 if res != 0 {
                     let err = std::io::Error::last_os_error();
@@ -1327,7 +1344,10 @@ mod tests {
         let entry0 = &parsed.entries[0];
         assert!(entry0.is_allow);
         assert_eq!(entry0.tag, "user");
-        assert_eq!(entry0.qualifier, "FFFFEEEE-DDDD-CCCC-BBBB-AAAA00000000:john");
+        assert_eq!(
+            entry0.qualifier,
+            "FFFFEEEE-DDDD-CCCC-BBBB-AAAA00000000:john"
+        );
         assert!(entry0.permissions.read_data);
         assert!(entry0.permissions.write_data);
         assert!(!entry0.permissions.delete);
@@ -1335,7 +1355,10 @@ mod tests {
         let entry1 = &parsed.entries[1];
         assert!(!entry1.is_allow);
         assert_eq!(entry1.tag, "group");
-        assert_eq!(entry1.qualifier, "ABCDEF00-1111-2222-3333-444444444444:staff");
+        assert_eq!(
+            entry1.qualifier,
+            "ABCDEF00-1111-2222-3333-444444444444:staff"
+        );
         assert!(entry1.permissions.delete);
         assert!(entry1.flags.inherited);
         assert!(entry1.flags.file_inherit);
@@ -1355,7 +1378,8 @@ mod tests {
         assert_eq!(trivial_acl.entries.len(), 3);
         assert!(trivial_acl.is_trivial());
 
-        let extended_text = "user::rwx\nuser:1001:r--\ngroup::r-x\nmask::r-x\nother::r--\n";
+        let extended_text =
+            "user::rwx\nuser:1001:r--\ngroup::r-x\nmask::r-x\nother::r--\n";
         let extended_acl = Posix1eAcl::parse_text(extended_text).unwrap();
         assert_eq!(extended_acl.entries.len(), 5);
         assert!(!extended_acl.is_trivial());
@@ -1395,7 +1419,9 @@ mod tests {
         );
         values.insert(
             "acl.darwin.text".to_owned(),
-            metadata::NativeMetadataValue::Bytes(b"!#acl 1\nuser:john:allow:read,write\n".to_vec()),
+            metadata::NativeMetadataValue::Bytes(
+                b"!#acl 1\nuser:john:allow:read,write\n".to_vec(),
+            ),
         );
         values.insert(
             "acl.darwin.entry_count".to_owned(),
@@ -1435,7 +1461,8 @@ mod tests {
             errors: Vec::new(),
         };
         let serialized = serde_json::to_string(&meta).unwrap();
-        let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
+        let deserialized: FileMetadata =
+            serde_json::from_str(&serialized).unwrap();
         let native_vals = &deserialized.native.as_ref().unwrap().values;
         assert_eq!(
             native_vals.get("acl.darwin.raw"),
@@ -1443,7 +1470,9 @@ mod tests {
         );
         assert_eq!(
             native_vals.get("acl.darwin.text"),
-            Some(&metadata::NativeMetadataValue::Bytes(b"!#acl 1\nuser:john:allow:read,write\n".to_vec()))
+            Some(&metadata::NativeMetadataValue::Bytes(
+                b"!#acl 1\nuser:john:allow:read,write\n".to_vec()
+            ))
         );
         assert_eq!(
             native_vals.get("acl.darwin.entry_count"),
@@ -1460,7 +1489,9 @@ mod tests {
         let mut values = std::collections::BTreeMap::new();
         values.insert(
             "acl.darwin.text".to_owned(),
-            metadata::NativeMetadataValue::Bytes(b"!#acl 1\nuser:john:allow:read\n".to_vec()),
+            metadata::NativeMetadataValue::Bytes(
+                b"!#acl 1\nuser:john:allow:read\n".to_vec(),
+            ),
         );
         let native = metadata::NativeMetadata {
             source_os: OsFamily::Darwin,
@@ -1483,7 +1514,9 @@ mod tests {
             );
             assert!(res.is_err());
             let err_msg = res.unwrap_err().to_string();
-            assert!(err_msg.contains("Cannot reproduce BSD/macOS ACL metadata"));
+            assert!(
+                err_msg.contains("Cannot reproduce BSD/macOS ACL metadata")
+            );
 
             // Best-effort mode (strict_lossless = false) succeeds with journal retention warning
             let res_lax = metadata::acl::apply_bsd_acl_metadata(
@@ -1496,4 +1529,3 @@ mod tests {
         }
     }
 }
-

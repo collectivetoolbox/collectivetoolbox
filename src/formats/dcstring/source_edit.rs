@@ -27,7 +27,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::navigator::{
-    DcByteSpan, DcDocumentNavigator, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode, NodeId,
+    DcByteSpan, DcDocumentNavigator, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
+    NodeId,
 };
 use crate::{DcChar, DcMstring};
 use ctb_formats_dcdata::dc::{
@@ -35,7 +36,7 @@ use ctb_formats_dcdata::dc::{
     DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LITERAL, DC_END_KV_MAP, DC_END_KV_PAIR,
     DC_LIST_ELEMENT_SEPARATOR,
 };
-use ctb_formats_dcdata::syntax::{default_syntax_resolver, SyntaxRuleResolver};
+use ctb_formats_dcdata::syntax::{SyntaxRuleResolver, default_syntax_resolver};
 use ctb_formats_dctf::encode_dctf_buf;
 
 fn append_dc(target: &mut Vec<u8>, ch: DcChar) {
@@ -91,8 +92,13 @@ impl<'a> SourceView<'a> {
     fn is_map(&self, id: NodeId) -> bool {
         self.node(id).is_ok_and(|n| match &n.kind {
             DcSyntaxKind::Container { opener, .. } => {
-                self.resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginKvMap)
-                    || self.resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap)
+                self.resolver.token_fills_role(
+                    opener.to_u128(),
+                    ctb_formats_dcdata::syntax::DcRole::BeginKvMap,
+                ) || self.resolver.token_fills_role(
+                    opener.to_u128(),
+                    ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap,
+                )
             }
             _ => false,
         })
@@ -102,17 +108,25 @@ impl<'a> SourceView<'a> {
         if self.is_map(id) {
             Some(DC_BEGIN_KV_MAP)
         } else if let Ok(n) = self.node(id) {
-            let canon = |ch: DcChar| DcChar::from_u128(self.resolver.canonical_token(ch.to_u128()));
+            let canon = |ch: DcChar| {
+                DcChar::from_u128(self.resolver.canonical_token(ch.to_u128()))
+            };
             match &n.kind {
                 DcSyntaxKind::Container { opener, .. } => Some(canon(*opener)),
                 DcSyntaxKind::Tagged { tag, .. } => Some(canon(*tag)),
                 DcSyntaxKind::Assignment { .. } => Some(DC_ASSIGN),
                 DcSyntaxKind::Literal { .. } => Some(DC_BEGIN_LITERAL),
                 DcSyntaxKind::Identifier { .. } => Some(DC_BEGIN_IDENTIFIER),
-                DcSyntaxKind::Number { .. } => Some(crate::dc_number::DC_BEGIN_NUMBER),
-                DcSyntaxKind::Binary { .. } => Some(ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY),
+                DcSyntaxKind::Number { .. } => {
+                    Some(crate::dc_number::DC_BEGIN_NUMBER)
+                }
+                DcSyntaxKind::Binary { .. } => {
+                    Some(ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY)
+                }
                 DcSyntaxKind::Atom(ch) => Some(canon(*ch)),
-                DcSyntaxKind::Malformed { raw_tokens, .. } => raw_tokens.first().copied().map(canon),
+                DcSyntaxKind::Malformed { raw_tokens, .. } => {
+                    raw_tokens.first().copied().map(canon)
+                }
             }
         } else {
             None
@@ -120,7 +134,8 @@ impl<'a> SourceView<'a> {
     }
 
     fn is_frame(&self, id: NodeId) -> bool {
-        self.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Container { .. }))
+        self.node(id)
+            .is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Container { .. }))
     }
 
     fn contains_map(&self, id: NodeId) -> bool {
@@ -136,9 +151,16 @@ impl<'a> SourceView<'a> {
         }
     }
 
-    fn extract_map_entries(&self, id: NodeId) -> Result<(Vec<NodeId>, Vec<NodeEntry>)> {
+    fn extract_map_entries(
+        &self,
+        id: NodeId,
+    ) -> Result<(Vec<NodeId>, Vec<NodeEntry>)> {
         let (_opener, header, entries) =
-            self.arena.extract_kv_map_operand_entries_with_resolver(id, true, self.resolver)?;
+            self.arena.extract_kv_map_operand_entries_with_resolver(
+                id,
+                true,
+                self.resolver,
+            )?;
         Ok((header, entries))
     }
 
@@ -162,13 +184,18 @@ impl<'a> SourceView<'a> {
                 append_dc(target, DC_END_KV_PAIR);
             }
             append_dc(target, DC_END_KV_MAP);
-        } else if let DcSyntaxKind::Binary { data_type, payload, .. } = &node.kind {
+        } else if let DcSyntaxKind::Binary {
+            data_type, payload, ..
+        } = &node.kind
+        {
             let mut canonical = DcMstring::new();
             let bytes = payload.materialize_bytes()?;
             if let Some(dtype) = data_type {
                 let mut metadata = crate::DcString::new();
                 for ch in dtype.chars() {
-                    metadata.push(DcChar::from_u128(self.resolver.canonical_token(ch.to_u128())));
+                    metadata.push(DcChar::from_u128(
+                        self.resolver.canonical_token(ch.to_u128()),
+                    ));
                 }
                 canonical.push_binary_with_metadata(&bytes, &metadata)?;
             } else {
@@ -204,24 +231,43 @@ impl<'a> SourceView<'a> {
 
     fn container_delimiters(&self, id: NodeId) -> Result<(&'a [u8], &'a [u8])> {
         let node = self.node(id)?;
-        let DcSyntaxKind::Container { opener, closer, children, .. } = &node.kind else {
+        let DcSyntaxKind::Container {
+            opener,
+            closer,
+            children,
+            ..
+        } = &node.kind
+        else {
             bail!("Not a container");
         };
         let outer_start = usize::try_from(node.span.start)?;
         let outer_end = usize::try_from(node.span.end)?;
-        if let (Some(&first), Some(&last)) = (children.first(), children.last()) {
+        if let (Some(&first), Some(&last)) = (children.first(), children.last())
+        {
             let first_start = usize::try_from(self.node(first)?.span.start)?;
             let last_end = usize::try_from(self.node(last)?.span.end)?;
-            let opening = self.source.get(outer_start..first_start).context("Invalid opening span")?;
-            let closing = self.source.get(last_end..outer_end).context("Invalid closing span")?;
+            let opening = self
+                .source
+                .get(outer_start..first_start)
+                .context("Invalid opening span")?;
+            let closing = self
+                .source
+                .get(last_end..outer_end)
+                .context("Invalid closing span")?;
             Ok((opening, closing))
         } else {
             let op_len = dc_char_len(opener);
             let cl_len = dc_char_len(closer);
             let op_end = outer_start.saturating_add(op_len).min(outer_end);
             let cl_start = outer_end.saturating_sub(cl_len).max(op_end);
-            let opening = self.source.get(outer_start..op_end).context("Invalid opening")?;
-            let closing = self.source.get(cl_start..outer_end).context("Invalid closing")?;
+            let opening = self
+                .source
+                .get(outer_start..op_end)
+                .context("Invalid opening")?;
+            let closing = self
+                .source
+                .get(cl_start..outer_end)
+                .context("Invalid closing")?;
             Ok((opening, closing))
         }
     }
@@ -234,7 +280,9 @@ fn write_sequence(
     new_nodes: &[NodeId],
     target: &mut Vec<u8>,
 ) -> Result<()> {
-    if old_view.semantic_sequence(old_nodes)? == new_view.semantic_sequence(new_nodes)? {
+    if old_view.semantic_sequence(old_nodes)?
+        == new_view.semantic_sequence(new_nodes)?
+    {
         for &id in old_nodes {
             target.extend_from_slice(old_view.bytes(id)?);
         }
@@ -247,11 +295,17 @@ fn write_sequence(
         .collect::<Result<_>>()?;
     for &new_id in new_nodes {
         let semantic = new_view.semantic_bytes(new_id)?;
-        let exact = old_nodes.iter().copied().enumerate().find(|(index, old_id)| {
-            used.get(*index) == Some(&false)
-                && old_view.identity(*old_id) == new_view.identity(new_id)
-                && old_semantics.get(*index) == Some(&semantic)
-        });
+        let exact =
+            old_nodes
+                .iter()
+                .copied()
+                .enumerate()
+                .find(|(index, old_id)| {
+                    used.get(*index) == Some(&false)
+                        && old_view.identity(*old_id)
+                            == new_view.identity(new_id)
+                        && old_semantics.get(*index) == Some(&semantic)
+                });
         let matched = if exact.is_some() {
             exact
         } else {
@@ -283,20 +337,31 @@ fn write_sequence(
                 .enumerate()
                 .filter(|(index, old_id)| {
                     used.get(*index) == Some(&false)
-                        && old_view.identity(*old_id) == new_view.identity(new_id)
-                        && old_view.is_frame(*old_id) == new_view.is_frame(new_id)
+                        && old_view.identity(*old_id)
+                            == new_view.identity(new_id)
+                        && old_view.is_frame(*old_id)
+                            == new_view.is_frame(new_id)
                 })
                 .collect();
             ensure!(
                 candidates.len() <= 1
-                    || !candidates.iter().copied().any(|(_, old_id)| old_view.contains_map(old_id)),
+                    || !candidates
+                        .iter()
+                        .copied()
+                        .any(|(_, old_id)| old_view.contains_map(old_id)),
                 "Ambiguous nested map correspondence; edit the nested field or an explicit source range"
             );
-            old_nodes.iter().copied().enumerate().find(|(index, old_id)| {
-                used.get(*index) == Some(&false)
-                    && old_view.identity(*old_id) == new_view.identity(new_id)
-                    && old_view.is_frame(*old_id) == new_view.is_frame(new_id)
-            })
+            old_nodes
+                .iter()
+                .copied()
+                .enumerate()
+                .find(|(index, old_id)| {
+                    used.get(*index) == Some(&false)
+                        && old_view.identity(*old_id)
+                            == new_view.identity(new_id)
+                        && old_view.is_frame(*old_id)
+                            == new_view.is_frame(new_id)
+                })
         };
         if let Some((index, old_id)) = matched {
             *used.get_mut(index).context("Invalid source match index")? = true;
@@ -346,7 +411,10 @@ fn write_node(
         };
         let opener = *opener;
         let resolver = old_view.resolver;
-        let encoding = if resolver.token_fills_role(opener.to_u128(), ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap) {
+        let encoding = if resolver.token_fills_role(
+            opener.to_u128(),
+            ctb_formats_dcdata::syntax::DcRole::BeginLegacyKvMap,
+        ) {
             crate::DcKvMapEncoding::Legacy
         } else {
             crate::DcKvMapEncoding::Pairs
@@ -359,7 +427,9 @@ fn write_node(
         let mut first = true;
         let mut written = vec![false; new_entries.len()];
         for ((key, value), identity) in old_entries.iter().zip(&old_keys) {
-            if let Some(index) = new_keys.iter().position(|candidate| candidate == identity) {
+            if let Some(index) =
+                new_keys.iter().position(|candidate| candidate == identity)
+            {
                 let (new_key, new_value) = new_entries
                     .get(index)
                     .context("Missing replacement entry")?;
@@ -386,7 +456,8 @@ fn write_node(
         }
         target.extend_from_slice(closing);
     } else if old_view.is_frame(old_id) && new_view.is_frame(new_id) {
-        let (original_opening, original_closing) = old_view.container_delimiters(old_id)?;
+        let (original_opening, original_closing) =
+            old_view.container_delimiters(old_id)?;
         let old_children = match old_view.node(old_id).map(|n| &n.kind) {
             Ok(DcSyntaxKind::Container { children, .. }) => children.as_slice(),
             _ => &[],
@@ -404,10 +475,7 @@ fn write_node(
     Ok(())
 }
 
-pub fn preserve_source(
-    old: &DcMstring,
-    new: &DcMstring,
-) -> Result<DcMstring> {
+pub fn preserve_source(old: &DcMstring, new: &DcMstring) -> Result<DcMstring> {
     preserve_source_with_policy_and_resolver(
         old,
         new,
@@ -465,7 +533,13 @@ pub fn preserve_source_with_policy_and_resolver(
     };
 
     let mut result = DcMstring::new().into_bytes();
-    write_sequence(&old_view, old_arena.roots(), &new_view, new_arena.roots(), &mut result)?;
+    write_sequence(
+        &old_view,
+        old_arena.roots(),
+        &new_view,
+        new_arena.roots(),
+        &mut result,
+    )?;
     Ok(DcMstring::from_bytes(result)?)
 }
 
@@ -530,7 +604,13 @@ pub fn preserve_text_with_policy_and_resolver(
     };
 
     let mut result = Vec::new();
-    write_sequence(&old_view, old_arena.roots(), &new_view, new_arena.roots(), &mut result)?;
+    write_sequence(
+        &old_view,
+        old_arena.roots(),
+        &new_view,
+        new_arena.roots(),
+        &mut result,
+    )?;
     Ok(crate::DcString::from_dctf(result)?)
 }
 
@@ -676,7 +756,8 @@ mod tests {
         let revised = preserve_text(&old, &new.to_dc_string()?)
             .context("Reconciling textual source map")?;
         assert_eq!(
-            revised.decode::<BTreeMap<String, crate::BinaryPayload>>(&strict)?,
+            revised
+                .decode::<BTreeMap<String, crate::BinaryPayload>>(&strict)?,
             updated
         );
         assert!(
@@ -759,14 +840,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_source_binary_edit_is_type_sensitive() -> Result<()> {
         let payload = [0xAB_u8; 32];
-        let sha256_fmt = ctb_utilities::format_id::FormatId::from_shorthand("f245")
-            .context("Missing f245 format")?
-            .dc_char()
-            .context("Missing f245 format Dc")?;
-        let alt_fmt = ctb_utilities::format_id::FormatId::from_shorthand("f246")
-            .context("Missing f246 format")?
-            .dc_char()
-            .context("Missing f246 format Dc")?;
+        let sha256_fmt =
+            ctb_utilities::format_id::FormatId::from_shorthand("f245")
+                .context("Missing f245 format")?
+                .dc_char()
+                .context("Missing f245 format Dc")?;
+        let alt_fmt =
+            ctb_utilities::format_id::FormatId::from_shorthand("f246")
+                .context("Missing f246 format")?
+                .dc_char()
+                .context("Missing f246 format Dc")?;
 
         let mut old = DcMstring::new();
         old.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);

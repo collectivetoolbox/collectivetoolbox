@@ -58,7 +58,9 @@ pub use core::{
 )]
 mod tests {
     use super::*;
-    use crate::global_graph_layout::{FORMAT_REGION_START, SHORT_DC_REGION_START};
+    use crate::global_graph_layout::{
+        FORMAT_REGION_START, SHORT_DC_REGION_START,
+    };
 
     #[crate::ctb_test]
     fn test_valid_shorthands() -> Result<()> {
@@ -85,7 +87,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_to_global_id() -> Result<()> {
-        assert_eq!(DcShorthand::parse("0")?.to_global_id()?, SHORT_DC_REGION_START);
+        assert_eq!(
+            DcShorthand::parse("0")?.to_global_id()?,
+            SHORT_DC_REGION_START
+        );
         assert_eq!(
             DcShorthand::parse("10")?.to_global_id()?,
             SHORT_DC_REGION_START.saturating_add(10)

@@ -177,18 +177,21 @@ impl FormatInfoOptionExt for Option<&'static FormatInfo> {
     }
 }
 
-static FORMATS_BY_FORMAT_ID: LazyLock<HashMap<ctb_utilities::FormatId, FormatInfo>> =
-    LazyLock::new(|| {
-        let mut map = HashMap::new();
-        for info in FORMATS_BY_ID.values() {
-            if let Some(fid) = ctb_utilities::FormatId::from_ident(&info.ident) {
-                map.insert(fid, info.clone());
-            } else if let Some(fid) = ctb_utilities::FormatId::from_shorthand(&format!("f{}", info.id)) {
-                map.insert(fid, info.clone());
-            }
+static FORMATS_BY_FORMAT_ID: LazyLock<
+    HashMap<ctb_utilities::FormatId, FormatInfo>,
+> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    for info in FORMATS_BY_ID.values() {
+        if let Some(fid) = ctb_utilities::FormatId::from_ident(&info.ident) {
+            map.insert(fid, info.clone());
+        } else if let Some(fid) =
+            ctb_utilities::FormatId::from_shorthand(&format!("f{}", info.id))
+        {
+            map.insert(fid, info.clone());
         }
-        map
-    });
+    }
+    map
+});
 
 /// Look up a `FormatInfo` record by short Format ID.
 pub fn get_format_info(fmt_id: usize) -> Option<&'static FormatInfo> {
@@ -220,7 +223,8 @@ pub fn format_help_table(
                 aliases.join(", ")
             };
             let sort_key = alias_str.to_ascii_lowercase();
-            entries.push((sort_key, format!("  {}: {}", alias_str, info.label)));
+            entries
+                .push((sort_key, format!("  {}: {}", alias_str, info.label)));
         }
     }
     entries.sort_by(|a, b| a.0.cmp(&b.0));
@@ -250,8 +254,10 @@ pub fn format_categorized_help_table(
         ("hash", "Hash formats:"),
     ];
 
-    let mut by_category: std::collections::BTreeMap<String, Vec<(String, String)>> =
-        std::collections::BTreeMap::new();
+    let mut by_category: std::collections::BTreeMap<
+        String,
+        Vec<(String, String)>,
+    > = std::collections::BTreeMap::new();
 
     for &fid in formats {
         if let Some(info) = get_format_info_by_id(fid) {
@@ -262,8 +268,10 @@ pub fn format_categorized_help_table(
                 .filter(|s| !s.is_empty())
                 .collect();
             // Reason for fallback: formats without short CLI nicknames sort by their lowercased canonical FormatId identifier.
-            let primary_key = nicks
-                .first().map_or_else(|| info.ident.to_ascii_lowercase(), |s| s.to_ascii_lowercase());
+            let primary_key = nicks.first().map_or_else(
+                || info.ident.to_ascii_lowercase(),
+                |s| s.to_ascii_lowercase(),
+            );
             let name_display = if nicks.is_empty() {
                 format!("{} ({})", info.ident.to_ascii_lowercase(), info.ident)
             } else {
@@ -488,8 +496,14 @@ mod tests {
         assert!(desc.contains("Ident: Utf8"));
         assert!(desc.contains("Category: encoding"));
         assert!(desc.contains("Extensions: .txt, .utf8"));
-        assert!(desc.contains("Import support: 3 (fully implemented) [Dc: 1 (WIP)]"));
-        assert!(desc.contains("Export support: 3 (fully implemented) [Dc: 2 (mostly / partial)]"));
+        assert!(
+            desc.contains(
+                "Import support: 3 (fully implemented) [Dc: 1 (WIP)]"
+            )
+        );
+        assert!(desc.contains(
+            "Export support: 3 (fully implemented) [Dc: 2 (mostly / partial)]"
+        ));
         assert!(desc.contains("Tests: 1 (WIP) [Dc: 1 (WIP)]"));
     }
 

@@ -148,18 +148,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_parse_time_spec_iso_and_rfc3339() {
-        assert_eq!(
-            parse_time_spec("1970-01-01T00:00:00Z").unwrap(),
-            0
-        );
-        assert_eq!(
-            parse_time_spec("1970-01-01").unwrap(),
-            0
-        );
-        assert_eq!(
-            parse_time_spec("1970-01-02T00:00:00Z").unwrap(),
-            86400
-        );
+        assert_eq!(parse_time_spec("1970-01-01T00:00:00Z").unwrap(), 0);
+        assert_eq!(parse_time_spec("1970-01-01").unwrap(), 0);
+        assert_eq!(parse_time_spec("1970-01-02T00:00:00Z").unwrap(), 86400);
     }
 
     #[crate::ctb_test]

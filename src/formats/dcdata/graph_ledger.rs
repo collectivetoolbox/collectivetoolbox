@@ -56,20 +56,21 @@ pub use crate::ctbnbdl::{
     compile_inactive_ctbnodes_dir_to_ctbnbdl,
     compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits,
     compute_nodes_slice_ledger_sha256, consume_atom_dc_with,
-    decode_nodes_from_ctbnbdl_bytes_with, encode_for_each_statement_tokens_with,
-    encode_node_definition_tokens_with,
+    decode_nodes_from_ctbnbdl_bytes_with,
+    encode_for_each_statement_tokens_with, encode_node_definition_tokens_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits,
     encode_nodes_to_ctbnbdl_bytes_with, ensure_ledger_journal_clean,
     execute_durable_ledger_transaction_with_planner,
-    format_chunk_bundle_filename, format_chunk_filename, inspect_ledger_journal,
-    is_relationship_verb_with, list_chunk_files, load_ledger_nodes_from_dir,
-    load_ledger_nodes_from_file, load_ledger_nodes_from_str,
-    parse_chunk_bundle_filename_start_id, parse_chunk_filename_start_id,
-    parse_for_each_statement_tokens_with, parse_statement_tokens_with,
-    partition_active_and_inactive_nodes_with, push_atom_dc_with,
-    sanitize_comment, sha256_bytes_hex, sync_highwater_shadow_ledgers,
-    verify_nodes_append_only_against_baseline, verify_repo_graph_append_only,
-    write_chunk_file_append_only, write_ledger_nodes_to_dir,
+    format_chunk_bundle_filename, format_chunk_filename,
+    inspect_ledger_journal, is_relationship_verb_with, list_chunk_files,
+    load_ledger_nodes_from_dir, load_ledger_nodes_from_file,
+    load_ledger_nodes_from_str, parse_chunk_bundle_filename_start_id,
+    parse_chunk_filename_start_id, parse_for_each_statement_tokens_with,
+    parse_statement_tokens_with, partition_active_and_inactive_nodes_with,
+    push_atom_dc_with, sanitize_comment, sha256_bytes_hex,
+    sync_highwater_shadow_ledgers, verify_nodes_append_only_against_baseline,
+    verify_repo_graph_append_only, write_chunk_file_append_only,
+    write_ledger_nodes_to_dir,
 };
 
 pub mod inbox;
@@ -97,24 +98,26 @@ use crate::dc::{
     DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
     DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_LIST_ELEMENT_SEPARATOR,
     DC_MAGIC_SIGNATURE, DC_MANUAL_ENTRY, DC_NEGATED_PATTERN, DC_NICKNAME,
-    DC_PATTERN_ALTERNATION,
-    DC_PATTERN_CAPTURE, DC_PATTERN_REPLACEMENT, DC_PATTERN_REPETITION,
-    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
+    DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION,
+    DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
     DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
     DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
     DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
     DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
     DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
-    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_UNICODE_SCRIPT, DcChar,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_UNICODE_SCRIPT,
+    DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
-use crate::format_spec::{DcToken, FormatExpr, encode_dc_stream, parse_format_expr};
+use crate::format_spec::{
+    DcToken, FormatExpr, encode_dc_stream, parse_format_expr,
+};
 use crate::report::ValidationReport;
 use crate::shared::SupportLevel;
 use crate::syntax::ast::{
-    ActionArg, DcSyntaxRule, Quantifier, SyntaxAction,
-    SyntaxElement, SyntaxPattern, SyntaxTerm,
+    ActionArg, DcSyntaxRule, Quantifier, SyntaxAction, SyntaxElement,
+    SyntaxPattern, SyntaxTerm,
 };
 use crate::syntax::parse_dc_syntax;
 
@@ -152,7 +155,10 @@ pub fn default_ctbnbdl_framing_dcs() -> CtbnbdlFramingDcs {
 pub fn partition_active_and_inactive_nodes(
     nodes: &[LedgerNode],
 ) -> (Vec<LedgerNode>, Vec<LedgerNode>) {
-    partition_active_and_inactive_nodes_with(nodes, default_ctbnbdl_framing_dcs())
+    partition_active_and_inactive_nodes_with(
+        nodes,
+        default_ctbnbdl_framing_dcs(),
+    )
 }
 
 /// Statistics returned by a ledger update operation.
@@ -243,7 +249,8 @@ struct DesiredDatasetState {
     /// Named syntax construct rules keyed by construct name.
     named_construct_rules: BTreeMap<String, (SyntaxPattern, String)>,
     /// Single-valued properties: `(subject, prop_token) -> (value_spec, comment)`.
-    single_properties: BTreeMap<(DcShorthand, DcShorthand), (ValueSpec, String)>,
+    single_properties:
+        BTreeMap<(DcShorthand, DcShorthand), (ValueSpec, String)>,
     /// Multi-valued properties: `(subject, prop_token, value_spec) -> comment`.
     multi_properties: BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
     /// Multi-valued property entries qualified with `Dc 570` (`Preferred`) as the primary choice:
@@ -356,10 +363,7 @@ pub fn decode_string_value_tokens(tokens: &[DcShorthand]) -> Option<String> {
 /// `6 f199 <base64 digit Dcs 127..=190...> 7`.
 #[must_use]
 pub fn encode_integer_value_tokens(value: u128) -> Vec<DcShorthand> {
-    u128_to_dc_number_chars(value)
-        .into_iter()
-        .map(sh)
-        .collect()
+    u128_to_dc_number_chars(value).into_iter().map(sh).collect()
 }
 
 /// Decodes a canonical base64 integer value node token sequence (`6 f199 <base64 digits> 7`)
@@ -397,9 +401,7 @@ pub fn decode_integer_value_tokens(tokens: &[DcShorthand]) -> Option<u128> {
         if offset >= 64 {
             return None;
         }
-        val = val
-            .checked_mul(64)?
-            .checked_add(u128::from(offset))?;
+        val = val.checked_mul(64)?.checked_add(u128::from(offset))?;
     }
     Some(val)
 }
@@ -435,8 +437,9 @@ fn build_initial_token_labels(
     dc_defns: &[DcDefn],
     format_defns: &[DcDefn],
 ) -> HashMap<DcShorthand, String> {
-    let mut map =
-        HashMap::with_capacity(dc_defns.len().saturating_add(format_defns.len()));
+    let mut map = HashMap::with_capacity(
+        dc_defns.len().saturating_add(format_defns.len()),
+    );
     for defn in dc_defns.iter().chain(format_defns.iter()) {
         if !defn.name.is_empty() {
             map.insert(
@@ -550,7 +553,10 @@ fn build_initial_token_labels(
         (DC_SUPPORT_WORK_IN_PROGRESS, "Work-in-progress support"),
         (DC_SUPPORT_PARTIAL, "Partial or basic dialect support"),
         (DC_SUPPORT_COMPLETE, "Complete implementation"),
-        (DC_SUPPORT_LOSSLESS_ROUNDTRIP, "Can be losslessly roundtripped"),
+        (
+            DC_SUPPORT_LOSSLESS_ROUNDTRIP,
+            "Can be losslessly roundtripped",
+        ),
         (
             DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
             "Lossless roundtripping with strict validation",
@@ -612,7 +618,9 @@ pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Result<Vec<u8>> {
 
 /// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer back into a list of `LedgerNode` entries
 /// (with empty comments, as `.ctbnbdl` stores only the semantic Dc stream).
-pub fn decode_nodes_from_ctbnbdl_bytes(bytes: &[u8]) -> Result<Vec<LedgerNode>> {
+pub fn decode_nodes_from_ctbnbdl_bytes(
+    bytes: &[u8],
+) -> Result<Vec<LedgerNode>> {
     decode_nodes_from_ctbnbdl_bytes_with(bytes, default_ctbnbdl_framing_dcs())
 }
 
@@ -664,7 +672,8 @@ struct LedgerBuilder {
     preferred_all_by_subj_val:
         BTreeMap<(DcShorthand, DcShorthand), Vec<(u128, u128, u128)>>,
     /// Active direct binary statements: `(verb, subject, object) -> stmt_id`.
-    active_direct_stmts: BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128>,
+    active_direct_stmts:
+        BTreeMap<(DcShorthand, DcShorthand, DcShorthand), u128>,
     /// All active direct binary statement node IDs per `(verb, subject, object)` in ascending `stmt_id` order.
     direct_stmts_all:
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), Vec<u128>>,
@@ -725,10 +734,11 @@ impl LedgerBuilder {
         provenance_map: NodeProvenanceMap,
     ) -> Self {
         let mut token_labels = initial_token_labels;
-        let index = crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
-            existing,
-            single_valued_props,
-        );
+        let index =
+            crate::seed_graph::SeedGraphIndex::from_nodes_with_single_props(
+                existing,
+                single_valued_props,
+            );
         let initial_node_count = index.nodes.len();
         let had_initial_in_graph_provenance = index.has_in_graph_provenance();
 
@@ -770,16 +780,10 @@ impl LedgerBuilder {
             );
         }
         for (&node_id, val) in &index.integer_by_node_id {
-            token_labels.insert(
-                DcShorthand::Long(node_id),
-                val.to_string(),
-            );
+            token_labels.insert(DcShorthand::Long(node_id), val.to_string());
         }
         for (seed_key, &seed_id) in &index.seed_entity_ids {
-            token_labels.insert(
-                DcShorthand::Long(seed_id),
-                seed_key.comment(),
-            );
+            token_labels.insert(DcShorthand::Long(seed_id), seed_key.comment());
         }
         for node in &index.nodes {
             token_labels
@@ -1057,10 +1061,7 @@ impl LedgerBuilder {
         Ok(entity_id)
     }
 
-    fn resolve_value_spec(
-        &mut self,
-        spec: &ValueSpec,
-    ) -> Result<DcShorthand> {
+    fn resolve_value_spec(&mut self, spec: &ValueSpec) -> Result<DcShorthand> {
         match spec {
             ValueSpec::Direct(shorthand) => Ok(*shorthand),
             ValueSpec::SeedEntity(key) => {
@@ -1068,8 +1069,10 @@ impl LedgerBuilder {
                 Ok(DcShorthand::Long(id))
             }
             ValueSpec::ValueNode { tokens, comment } => {
-                let id = self
-                    .get_or_insert_value_node(tokens.clone(), comment.clone())?;
+                let id = self.get_or_insert_value_node(
+                    tokens.clone(),
+                    comment.clone(),
+                )?;
                 Ok(DcShorthand::Long(id))
             }
             ValueSpec::PatternNode { rule, comment } => {
@@ -1085,8 +1088,8 @@ impl LedgerBuilder {
                         return Ok(single);
                     }
                 }
-                let id = self
-                    .get_or_insert_value_node(tokens, raw_comment.clone())?;
+                let id =
+                    self.get_or_insert_value_node(tokens, raw_comment.clone())?;
                 Ok(DcShorthand::Long(id))
             }
         }
@@ -1549,15 +1552,11 @@ impl LedgerBuilder {
         for ((subj, prop, val_spec), comment) in &desired.multi_properties {
             let val_tok = self.resolve_value_spec(val_spec)?;
             let raw_source = match val_spec {
-                ValueSpec::PatternNode { rule, .. } => {
-                    Some(rule.raw.clone())
-                }
+                ValueSpec::PatternNode { rule, .. } => Some(rule.raw.clone()),
                 _ => None,
             };
-            resolved_multi.insert(
-                (*subj, *prop, val_tok),
-                (raw_source, comment.clone()),
-            );
+            resolved_multi
+                .insert((*subj, *prop, val_tok), (raw_source, comment.clone()));
         }
 
         let mut resolved_multi_pref: BTreeSet<(
@@ -1640,14 +1639,14 @@ impl LedgerBuilder {
                         {
                             retract_targets.insert(pref_id);
                         }
-                        let dup_qual_keys: Vec<(DcShorthand, DcShorthand)> = self
-                            .single_props_by_subj_prop
-                            .keys()
-                            .filter(|&&(s, _)| {
-                                s == DcShorthand::Long(cand.has_a_id)
-                            })
-                            .copied()
-                            .collect();
+                        let dup_qual_keys: Vec<(DcShorthand, DcShorthand)> =
+                            self.single_props_by_subj_prop
+                                .keys()
+                                .filter(|&&(s, _)| {
+                                    s == DcShorthand::Long(cand.has_a_id)
+                                })
+                                .copied()
+                                .collect();
                         for qk in dup_qual_keys {
                             self.active_single_props.remove(&qk);
                             if let Some(q_cands) =
@@ -1732,13 +1731,13 @@ impl LedgerBuilder {
             // Sort by `has_a_id` so superseding preserves original statement order
             removed.sort_by_key(|&(_, has_a_id, _)| has_a_id);
             // Reason for fallback: (subj, prop) may exist only in removed_by_subj_prop, defaulting added list to empty.
-            let mut added = added_by_subj_prop
-                .remove(&(subj, prop))
-                .unwrap_or_default();
+            let mut added =
+                added_by_subj_prop.remove(&(subj, prop)).unwrap_or_default();
 
-            let mut superseded_pairs: Vec<
-                ((u128, u128), (DcShorthand, DcShorthand)),
-            > = Vec::new();
+            let mut superseded_pairs: Vec<(
+                (u128, u128),
+                (DcShorthand, DcShorthand),
+            )> = Vec::new();
 
             // First pass: pair removed string value nodes whose text matches a new pattern's raw source
             let mut rem_idx = 0usize;
@@ -1748,21 +1747,20 @@ impl LedgerBuilder {
                 else {
                     break;
                 };
-                let matched_add_idx = if let DcShorthand::Long(old_node_id) =
-                    old_val_tok
-                {
-                    if let Some(old_str) =
-                        self.string_by_node_id.get(&old_node_id)
-                    {
-                        added.iter().position(|(_, raw_opt)| {
-                            raw_opt.as_deref() == Some(old_str.as_str())
-                        })
+                let matched_add_idx =
+                    if let DcShorthand::Long(old_node_id) = old_val_tok {
+                        if let Some(old_str) =
+                            self.string_by_node_id.get(&old_node_id)
+                        {
+                            added.iter().position(|(_, raw_opt)| {
+                                raw_opt.as_deref() == Some(old_str.as_str())
+                            })
+                        } else {
+                            None
+                        }
                     } else {
                         None
-                    }
-                } else {
-                    None
-                };
+                    };
 
                 if let Some(add_idx) = matched_add_idx {
                     let (new_val_tok, _) = added.remove(add_idx);
@@ -1796,9 +1794,11 @@ impl LedgerBuilder {
                     new_val_tok,
                 )?;
                 self.supersede_node(new_has_val_id, old_has_val_id)?;
-                if let Some(pref_id) =
-                    self.active_multi_preferred.remove(&(subj, prop, old_val_tok))
-                {
+                if let Some(pref_id) = self.active_multi_preferred.remove(&(
+                    subj,
+                    prop,
+                    old_val_tok,
+                )) {
                     self.active_multi_preferred
                         .insert((subj, prop, new_val_tok), pref_id);
                 }
@@ -1908,7 +1908,8 @@ impl LedgerBuilder {
         for ((multi_key, qual_prop), (qual_val_tok, comment)) in
             desired_multi_quals
         {
-            if let Some(&(has_a_id, _)) = self.active_multi_props.get(&multi_key)
+            if let Some(&(has_a_id, _)) =
+                self.active_multi_props.get(&multi_key)
             {
                 resolved_qual_single.insert(
                     (DcShorthand::Long(has_a_id), qual_prop),
@@ -1973,7 +1974,7 @@ impl LedgerBuilder {
                         }
                     }
                 }
-                if let Some(&( kept_has_a_id, old_has_val_id, old_val_tok)) =
+                if let Some(&(kept_has_a_id, old_has_val_id, old_val_tok)) =
                     cands.get(keep_idx)
                 {
                     let has_a_id = kept_has_a_id;
@@ -2019,7 +2020,8 @@ impl LedgerBuilder {
         }
 
         // 4. Resolve and diff `<prefer>` replacements (`569` + `570`).
-        for (key, triples) in std::mem::take(&mut self.preferred_all_by_subj_val)
+        for (key, triples) in
+            std::mem::take(&mut self.preferred_all_by_subj_val)
         {
             if let Some(&first) = triples.first() {
                 self.active_preferred.insert(key, first);
@@ -2098,8 +2100,10 @@ impl LedgerBuilder {
             if let Some(&last_id) = stmt_ids.last() {
                 self.active_direct_stmts.insert(key, last_id);
             }
-            for &dup_stmt_id in
-                stmt_ids.get(..stmt_ids.len().saturating_sub(1)).into_iter().flatten()
+            for &dup_stmt_id in stmt_ids
+                .get(..stmt_ids.len().saturating_sub(1))
+                .into_iter()
+                .flatten()
             {
                 if !self.is_manual_node(dup_stmt_id) {
                     retract_targets.insert(dup_stmt_id);
@@ -2393,13 +2397,10 @@ fn compile_desired_dataset_state(
                         );
                         if !state.named_construct_rules.contains_key(&type_name)
                         {
-                            let (pattern, raw_syntax) = if let Some(imp) = defn
-                                .implies
-                                .iter()
-                                .map(|s| s.trim())
-                                .find(|s| {
-                                    s.starts_with('[') && s.ends_with(']')
-                                }) {
+                            let (pattern, raw_syntax) = if let Some(imp) =
+                                defn.implies.iter().map(|s| s.trim()).find(
+                                    |s| s.starts_with('[') && s.ends_with(']'),
+                                ) {
                                 let raw = format!(":{imp}");
                                 let parsed =
                                     parse_dc_syntax(&raw).with_context(|| {
@@ -2643,11 +2644,7 @@ fn compile_defn_statements(
         let trimmed = os_raw.trim();
         if let Ok(os_sh) = DcShorthand::parse(trimmed) {
             state.direct_statements.insert(
-                (
-                    sh(DC_IS_ASSOCIATED_WITH),
-                    subj,
-                    ValueSpec::Direct(os_sh),
-                ),
+                (sh(DC_IS_ASSOCIATED_WITH), subj, ValueSpec::Direct(os_sh)),
                 format!("Is associated with OS ({subj}, {os_sh})"),
             );
         }
@@ -2668,9 +2665,11 @@ fn compile_defn_statements(
     for (idx, &alias) in non_empty_aliases.iter().enumerate() {
         let spec = make_string_value_spec(alias);
         if defn.format.is_some() && non_empty_aliases.len() > 1 && idx == 0 {
-            state
-                .preferred_multi_properties
-                .insert((subj, alias_prop, spec.clone()));
+            state.preferred_multi_properties.insert((
+                subj,
+                alias_prop,
+                spec.clone(),
+            ));
         }
         state.multi_properties.insert(
             (subj, alias_prop, spec),
@@ -2935,15 +2934,15 @@ fn compile_defn_statements(
                 for (cap_dc, lvl) in
                     [(gen_cap_dc, parsed.general), (dc_cap_dc, parsed.dc)]
                 {
-                        if let Some(lvl_dc) = support_level_to_dc(lvl) {
-                            let ctb_subj = sh(DC_COLLECTIVE_TOOLBOX);
-                            let cap_sh = sh(cap_dc);
-                            let fmt_val = ValueSpec::Direct(subj);
-                            state.multi_properties.insert(
-                                (ctb_subj, cap_sh, fmt_val.clone()),
-                                format!("{ctb_subj} {cap_sh} {subj}"),
-                            );
-                            state.multi_property_single_qualifiers.insert(
+                    if let Some(lvl_dc) = support_level_to_dc(lvl) {
+                        let ctb_subj = sh(DC_COLLECTIVE_TOOLBOX);
+                        let cap_sh = sh(cap_dc);
+                        let fmt_val = ValueSpec::Direct(subj);
+                        state.multi_properties.insert(
+                            (ctb_subj, cap_sh, fmt_val.clone()),
+                            format!("{ctb_subj} {cap_sh} {subj}"),
+                        );
+                        state.multi_property_single_qualifiers.insert(
                                 (
                                     (ctb_subj, cap_sh, fmt_val),
                                     sh(DC_IMPLEMENTATION_SUPPORT_LEVEL),
@@ -2956,9 +2955,9 @@ fn compile_defn_statements(
                                     ),
                                 ),
                             );
-                        }
                     }
                 }
+            }
         }
 
         // Format variation nickname (`Dc 634`): `@vary_as`
@@ -3055,8 +3054,9 @@ fn collect_named_constructs_from_pattern(
             for elem in elements {
                 match &elem.term {
                     SyntaxTerm::NamedConstruct { name, .. } => {
-                        seed_entities
-                            .insert(SeedEntityKey::NamedConstruct(name.clone()));
+                        seed_entities.insert(SeedEntityKey::NamedConstruct(
+                            name.clone(),
+                        ));
                     }
                     SyntaxTerm::Group(inner) => {
                         collect_named_constructs_from_pattern(
@@ -3357,7 +3357,9 @@ pub fn plan_csv_reconciliation_manifest(
 
 /// Loads the CSV dataset from `repo_root` and updates `assets/data/graph/*.ctbnodes`
 /// using the append-only revision ledger algorithm inside a durable journaled transaction.
-pub fn update_system_graph_ledger(repo_root: &Path) -> Result<LedgerUpdateStats> {
+pub fn update_system_graph_ledger(
+    repo_root: &Path,
+) -> Result<LedgerUpdateStats> {
     update_system_graph_ledger_with_options(repo_root, None, false, None)
 }
 
@@ -3459,16 +3461,26 @@ mod tests {
         let defn = sample_dc_defn(900, "Test character", "Initial description");
         let scripts = BTreeSet::from([".Semantic".to_string()]);
 
-        let (nodes1, stats1) =
-            update_ledger_in_memory(Vec::new(), &[defn.clone()], &[], &scripts, None)?;
+        let (nodes1, stats1) = update_ledger_in_memory(
+            Vec::new(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
         assert!(stats1.total_nodes > 0);
         assert_eq!(stats1.nodes_appended, stats1.total_nodes);
         assert_eq!(stats1.nodes_superseded, 0);
         assert_eq!(stats1.nodes_retracted, 0);
 
         // Second run with identical inputs must be a no-op
-        let (nodes2, stats2) =
-            update_ledger_in_memory(nodes1.clone(), &[defn], &[], &scripts, None)?;
+        let (nodes2, stats2) = update_ledger_in_memory(
+            nodes1.clone(),
+            &[defn],
+            &[],
+            &scripts,
+            None,
+        )?;
         assert_eq!(stats2.nodes_appended, 0);
         assert_eq!(stats2.nodes_superseded, 0);
         assert_eq!(stats2.nodes_retracted, 0);
@@ -3482,14 +3494,24 @@ mod tests {
             sample_dc_defn(900, "Original name", "Original description");
         let scripts = BTreeSet::from([".Semantic".to_string()]);
 
-        let (nodes1, _) =
-            update_ledger_in_memory(Vec::new(), &[defn.clone()], &[], &scripts, None)?;
+        let (nodes1, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
         let initial_len = nodes1.len();
 
         // Modify the single-valued Canonical name (`572`)
         defn.name = "Updated name".to_string();
-        let (nodes2, stats2) =
-            update_ledger_in_memory(nodes1.clone(), &[defn.clone()], &[], &scripts, None)?;
+        let (nodes2, stats2) = update_ledger_in_memory(
+            nodes1.clone(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
 
         // Existing prefix of nodes must be byte-for-byte identical
         assert_eq!(&nodes2[..initial_len], &nodes1[..]);
@@ -3509,7 +3531,8 @@ mod tests {
             nodes2.last().unwrap().tokens.first(),
             Some(&sh(DC_HAS_VALUE))
         );
-        let index = crate::seed_graph::SeedGraphIndex::from_nodes(nodes2.clone());
+        let index =
+            crate::seed_graph::SeedGraphIndex::from_nodes(nodes2.clone());
         assert_eq!(
             index.get_single_property_string(
                 DcShorthand::Short(900),
@@ -3517,8 +3540,13 @@ mod tests {
             ),
             Some("Updated name"),
         );
-        let (nodes3, stats3) =
-            update_ledger_in_memory(nodes2.clone(), &[defn], &[], &scripts, None)?;
+        let (nodes3, stats3) = update_ledger_in_memory(
+            nodes2.clone(),
+            &[defn],
+            &[],
+            &scripts,
+            None,
+        )?;
         assert_eq!(stats3.nodes_appended, 0);
         assert_eq!(stats3.nodes_superseded, 0);
         assert_eq!(stats3.nodes_retracted, 0);
@@ -3532,15 +3560,25 @@ mod tests {
             sample_dc_defn(900, "Test character", "Description text");
         let scripts = BTreeSet::from([".Semantic".to_string()]);
 
-        let (nodes1, _) =
-            update_ledger_in_memory(Vec::new(), &[defn.clone()], &[], &scripts, None)?;
+        let (nodes1, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
         let initial_len = nodes1.len();
 
         // Remove `@implies(571)` (`587`) and informal alias (`576`)
         defn.implies.clear();
         defn.aliases.clear();
-        let (nodes2, stats2) =
-            update_ledger_in_memory(nodes1.clone(), &[defn.clone()], &[], &scripts, None)?;
+        let (nodes2, stats2) = update_ledger_in_memory(
+            nodes1.clone(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
 
         assert_eq!(&nodes2[..initial_len], &nodes1[..]);
         // Retracted: 1 direct `587` statement + 2 nodes (`584` and `610`) for the multi-valued alias = 3
@@ -3559,18 +3597,28 @@ mod tests {
             nodes2[initial_len + 4].tokens.first(),
             Some(&sh(DC_HAS_VALUE))
         );
-        let index = crate::seed_graph::SeedGraphIndex::from_nodes(nodes2.clone());
+        let index =
+            crate::seed_graph::SeedGraphIndex::from_nodes(nodes2.clone());
         assert!(!index.has_direct_statement(
             DcShorthand::Short(587),
             DcShorthand::Short(900),
             DcShorthand::Short(571),
         ));
-        assert!(index.get_multi_properties(
-            DcShorthand::Short(900),
-            DcShorthand::Short(576),
-        ).is_empty());
-        let (nodes3, stats3) =
-            update_ledger_in_memory(nodes2.clone(), &[defn], &[], &scripts, None)?;
+        assert!(
+            index
+                .get_multi_properties(
+                    DcShorthand::Short(900),
+                    DcShorthand::Short(576),
+                )
+                .is_empty()
+        );
+        let (nodes3, stats3) = update_ledger_in_memory(
+            nodes2.clone(),
+            &[defn],
+            &[],
+            &scripts,
+            None,
+        )?;
         assert_eq!(stats3.nodes_appended, 0);
         assert_eq!(stats3.nodes_superseded, 0);
         assert_eq!(stats3.nodes_retracted, 0);
@@ -3728,14 +3776,16 @@ mod tests {
                     sh(DC_END_GRAPH_NODE_DEFINITION),
                     sh(DC_CANONICAL_NAME),
                 ],
-                comment: "Node containing Dc 255 and Dc 618 in body".to_string(),
+                comment: "Node containing Dc 255 and Dc 618 in body"
+                    .to_string(),
             },
         ];
 
         let bundle_bytes = encode_nodes_to_ctbnbdl_bytes(&nodes)?;
         assert!(bundle_bytes.starts_with(&CTBNBDL_MAGIC));
         assert_eq!(
-            &bundle_bytes[CTBNBDL_MAGIC.len()..CTBNBDL_MAGIC.len() + DCMM_HEADER.len()],
+            &bundle_bytes
+                [CTBNBDL_MAGIC.len()..CTBNBDL_MAGIC.len() + DCMM_HEADER.len()],
             &DCMM_HEADER
         );
 
@@ -3749,7 +3799,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_compile_ctbnodes_dir_to_ctbnbdl_and_framing_resolution() -> Result<()> {
+    fn test_compile_ctbnodes_dir_to_ctbnbdl_and_framing_resolution()
+    -> Result<()> {
         let repo_root = crate::updater::find_repository_root()?;
         let graph_dir = repo_root.join("assets/data/graph");
         let resolved_framing =
@@ -3943,7 +3994,8 @@ mod tests {
         // Compiling in-place (src_dir == dst_dir) should produce the active .ctbnbdl file
         // in `src_dir` and the inactive .ctbnbdl file in `src_dir/system/` without deleting
         // the source .ctbnodes files.
-        let src_chunk_file = src_dir.join(format_chunk_filename(SYSTEM_REGION_START));
+        let src_chunk_file =
+            src_dir.join(format_chunk_filename(SYSTEM_REGION_START));
         assert!(src_chunk_file.is_file());
         let in_place_compiled = compile_ctbnodes_dir_to_ctbnbdl(
             &src_dir,
@@ -3955,7 +4007,8 @@ mod tests {
             src_chunk_file.is_file(),
             "Source .ctbnodes file must be preserved when compiling in-place"
         );
-        let in_place_bundle = src_dir.join(format_chunk_bundle_filename(SYSTEM_REGION_START));
+        let in_place_bundle =
+            src_dir.join(format_chunk_bundle_filename(SYSTEM_REGION_START));
         assert!(in_place_bundle.is_file());
         assert_eq!(std::fs::read(&in_place_bundle)?, bundle_bytes);
 
@@ -3967,9 +4020,11 @@ mod tests {
             "Expected inactive history bundle at {}",
             history_bundle.display()
         );
-        let decoded_history = decode_nodes_from_ctbnbdl_bytes(&std::fs::read(&history_bundle)?)?;
+        let decoded_history =
+            decode_nodes_from_ctbnbdl_bytes(&std::fs::read(&history_bundle)?)?;
         assert_eq!(decoded_history.len(), expected_inactive.len());
-        for (orig, dec) in expected_inactive.iter().zip(decoded_history.iter()) {
+        for (orig, dec) in expected_inactive.iter().zip(decoded_history.iter())
+        {
             assert_eq!(orig.id, dec.id);
             assert_eq!(orig.tokens, dec.tokens);
         }
@@ -4030,8 +4085,8 @@ mod tests {
         assert_eq!(
             start_ids,
             vec![
-                SYSTEM_REGION_START,       // bucket 0, part 1 (60 nodes: 0..60)
-                SYSTEM_REGION_START + 60,  // bucket 0, part 2 (shortened to 40 nodes: 60..100)
+                SYSTEM_REGION_START, // bucket 0, part 1 (60 nodes: 0..60)
+                SYSTEM_REGION_START + 60, // bucket 0, part 2 (shortened to 40 nodes: 60..100)
                 SYSTEM_REGION_START + 100, // bucket 1, part 1 (realigned at 100: 100..160)
                 SYSTEM_REGION_START + 160, // bucket 1, part 2 (shortened to 40 nodes: 160..200)
                 SYSTEM_REGION_START + 200, // bucket 2 (realigned at 200: 200..250)
@@ -4041,7 +4096,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_extension_regex_pattern_compilation_and_superseding() -> Result<()> {
+    fn test_extension_regex_pattern_compilation_and_superseding() -> Result<()>
+    {
         use crate::dc_def::FormatDetails;
 
         let mut fmt_defn =
@@ -4075,13 +4131,8 @@ mod tests {
         // without retracting the `584 f192 f264` (`Has a`) statement node.
         fmt_defn.format.as_mut().unwrap().extensions =
             Some(".xml, ~^_meta\\.xml$~".to_string());
-        let (nodes2, stats2) = update_ledger_in_memory(
-            nodes1,
-            &[],
-            &[fmt_defn],
-            &scripts,
-            None,
-        )?;
+        let (nodes2, stats2) =
+            update_ledger_in_memory(nodes1, &[], &[fmt_defn], &scripts, None)?;
         assert_eq!(stats2.nodes_superseded, 1);
         assert_eq!(stats2.nodes_retracted, 0);
         assert_eq!(
@@ -4104,15 +4155,27 @@ mod tests {
         let single_props = single_valued_property_set();
         let mut labels = HashMap::new();
         labels.insert(sh(DC_WILDCARD_PATTERN), "Wildcard pattern".to_string());
-        labels.insert(sh(DC_BEGIN_ASSOCIATIVITY_GROUP), "Begin associativity group".to_string());
-        labels.insert(sh(DC_PATTERN_REPETITION), "Pattern repetition".to_string());
+        labels.insert(
+            sh(DC_BEGIN_ASSOCIATIVITY_GROUP),
+            "Begin associativity group".to_string(),
+        );
+        labels.insert(
+            sh(DC_PATTERN_REPETITION),
+            "Pattern repetition".to_string(),
+        );
         labels.insert(sh(DC_RANGE), "Range".to_string());
-        labels.insert(sh(DC_END_ASSOCIATIVITY_GROUP), "End associativity group".to_string());
+        labels.insert(
+            sh(DC_END_ASSOCIATIVITY_GROUP),
+            "End associativity group".to_string(),
+        );
         labels.insert(sh(DC_HAS_VALUE), "Has value".to_string());
         labels.insert(DcShorthand::Long(8589934942), "0".to_string());
 
-        let builder =
-            LedgerBuilder::from_existing(Vec::new(), &single_props, labels.clone());
+        let builder = LedgerBuilder::from_existing(
+            Vec::new(),
+            &single_props,
+            labels.clone(),
+        );
 
         // 1. Literal string in a pattern rule
         let pattern_tokens = vec![
@@ -4178,7 +4241,8 @@ mod tests {
             DcShorthand::Long(8589937467),
             DcShorthand::Unicode(0x25),
         );
-        let nested_comment = nested_builder.format_tokens_comment(&nested_tokens);
+        let nested_comment =
+            nested_builder.format_tokens_comment(&nested_tokens);
         assert_eq!(
             nested_comment,
             "Has value (Has a (At, Canonical name), PERCENT SIGN)"
@@ -4219,7 +4283,8 @@ mod tests {
         use crate::syntax::{DatasetRuleResolver, SyntaxRuleResolver};
 
         // 1. Test arbitrary Natural1 base (e.g. radix=123) in FormatExpr::Apply
-        let mut fv_base = sample_dc_defn(354, "A radix in a number system", "Base");
+        let mut fv_base =
+            sample_dc_defn(354, "A radix in a number system", "Base");
         fv_base.dc_id = 2_228_578;
         fv_base.script = ".Formats:format_variant".to_string();
         fv_base.format = Some(FormatDetails {
@@ -4253,12 +4318,17 @@ mod tests {
             .iter()
             .find(|n| n.tokens == expected_int_tokens)
             .expect("Expected integer value node for 123");
-        assert_eq!(index.get_integer(DcShorthand::Long(int_node.id)), Some(123));
+        assert_eq!(
+            index.get_integer(DcShorthand::Long(int_node.id)),
+            Some(123)
+        );
 
         let apply_node = index
             .nodes()
             .iter()
-            .find(|n| n.tokens.first() == Some(&sh(DC_FORMAT_PARAM_APPLICATION)))
+            .find(|n| {
+                n.tokens.first() == Some(&sh(DC_FORMAT_PARAM_APPLICATION))
+            })
             .expect("Expected Dc 535 FormatParamApplication value node");
         assert_eq!(
             apply_node.tokens,
@@ -4297,9 +4367,17 @@ mod tests {
         let resolver = DatasetRuleResolver::load_from_seed_graph()?;
         let dc9_gid = crate::dc::short_to_long_dc(9);
         assert!(resolver.token_satisfies_type(dc9_gid, "format", None));
-        assert!(resolver.token_satisfies_type(dc9_gid, "format", Some("calendar")));
+        assert!(resolver.token_satisfies_type(
+            dc9_gid,
+            "format",
+            Some("calendar")
+        ));
         assert!(resolver.token_satisfies_type(dc9_gid, "type", None));
-        assert!(resolver.token_satisfies_type(dc9_gid, "type", Some("calendar")));
+        assert!(resolver.token_satisfies_type(
+            dc9_gid,
+            "type",
+            Some("calendar")
+        ));
 
         Ok(())
     }
@@ -4310,13 +4388,23 @@ mod tests {
         let start_id = SYSTEM_REGION_START;
         let base_node_1 = LedgerNode {
             id: start_id,
-            tokens: vec![DcShorthand::Short(582), DcShorthand::Short(257), DcShorthand::Short(590)],
-            comment: "Is instance of (Enclosing document, Graph statement)".to_string(),
+            tokens: vec![
+                DcShorthand::Short(582),
+                DcShorthand::Short(257),
+                DcShorthand::Short(590),
+            ],
+            comment: "Is instance of (Enclosing document, Graph statement)"
+                .to_string(),
         };
         let base_node_2 = LedgerNode {
             id: start_id.saturating_add(1),
-            tokens: vec![DcShorthand::Short(582), DcShorthand::Short(257), DcShorthand::Short(650)],
-            comment: "Is instance of (Enclosing document, Document format)".to_string(),
+            tokens: vec![
+                DcShorthand::Short(582),
+                DcShorthand::Short(257),
+                DcShorthand::Short(650),
+            ],
+            comment: "Is instance of (Enclosing document, Document format)"
+                .to_string(),
         };
 
         // Initial write creates the first chunk file via O_CREAT | O_EXCL.
@@ -4347,7 +4435,11 @@ mod tests {
 
         // Attempting to alter tokens or comments of an already-written node must fail.
         let mut mutated_node_1 = base_node_1.clone();
-        mutated_node_1.tokens = vec![DcShorthand::Short(582), DcShorthand::Short(257), DcShorthand::Short(1)];
+        mutated_node_1.tokens = vec![
+            DcShorthand::Short(582),
+            DcShorthand::Short(257),
+            DcShorthand::Short(1),
+        ];
         let mutate_err = write_ledger_nodes_to_dir(
             dir.path(),
             &[mutated_node_1.clone(), base_node_2.clone()],
@@ -4384,8 +4476,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_idempotent_csv_reconciliation_retracts_duplicates_and_matches_pre_step3_ledger(
-    ) -> Result<()> {
+    fn test_idempotent_csv_reconciliation_retracts_duplicates_and_matches_pre_step3_ledger()
+    -> Result<()> {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         let repo_root = manifest_dir
             .parent()
@@ -4417,7 +4509,8 @@ mod tests {
         // retract the exact same 616 duplicate/shadowed/outdated statement nodes that were
         // retracted in Step 3 (`l8589957728`..`l8589958343`), while leaving all Dc 348 nodes untouched.
         let pre_step3_nodes = full_nodes[..23_136].to_vec();
-        let expected_retracted_targets: BTreeSet<u128> = full_nodes[23_136..23_752]
+        let expected_retracted_targets: BTreeSet<u128> = full_nodes
+            [23_136..23_752]
             .iter()
             .map(|n| {
                 let Some((verb, subj, DcShorthand::Long(target_id))) =
@@ -4435,7 +4528,8 @@ mod tests {
             .collect();
         assert_eq!(expected_retracted_targets.len(), 616);
 
-        let pre_step3_pairs = &committed_pairs[..committed_pairs.len().saturating_sub(1)];
+        let pre_step3_pairs =
+            &committed_pairs[..committed_pairs.len().saturating_sub(1)];
         let (_reconciled_items, _, reconciled_nodes, reconciled_stats) =
             plan_csv_reconciliation_items_for_repo(
                 repo_root,
@@ -4445,7 +4539,8 @@ mod tests {
         assert_eq!(reconciled_stats.nodes_superseded, 3);
         assert_eq!(reconciled_stats.nodes_retracted, 616);
 
-        let actual_retracted_targets: BTreeSet<u128> = reconciled_nodes[23_136..]
+        let actual_retracted_targets: BTreeSet<u128> = reconciled_nodes
+            [23_136..]
             .iter()
             .filter_map(|n| {
                 let (verb, subj, DcShorthand::Long(target_id)) =
@@ -4453,7 +4548,8 @@ mod tests {
                 else {
                     return None;
                 };
-                if verb == sh(DC_RETRACTS) && subj == sh(DC_ENCLOSING_DOCUMENT) {
+                if verb == sh(DC_RETRACTS) && subj == sh(DC_ENCLOSING_DOCUMENT)
+                {
                     Some(target_id)
                 } else {
                     None
@@ -4474,15 +4570,18 @@ mod tests {
         // Verify all 602 active Dc 348 ("Ambiguous values") nodes remain active and untouched.
         let index_before =
             crate::seed_graph::SeedGraphIndex::from_nodes(pre_step3_nodes);
-        let index_after =
-            crate::seed_graph::SeedGraphIndex::from_nodes(reconciled_nodes.clone());
+        let index_after = crate::seed_graph::SeedGraphIndex::from_nodes(
+            reconciled_nodes.clone(),
+        );
         let active_ambiguous_before: BTreeSet<u128> = index_before
             .nodes()
             .iter()
             .filter(|n| {
                 !index_before.inactive_ids.contains(&n.id)
-                    && crate::seed_graph::parse_ambiguous_values_tokens(&n.tokens)
-                        .is_some()
+                    && crate::seed_graph::parse_ambiguous_values_tokens(
+                        &n.tokens,
+                    )
+                    .is_some()
             })
             .map(|n| n.id)
             .collect();
@@ -4491,8 +4590,10 @@ mod tests {
             .iter()
             .filter(|n| {
                 !index_after.inactive_ids.contains(&n.id)
-                    && crate::seed_graph::parse_ambiguous_values_tokens(&n.tokens)
-                        .is_some()
+                    && crate::seed_graph::parse_ambiguous_values_tokens(
+                        &n.tokens,
+                    )
+                    .is_some()
             })
             .map(|n| n.id)
             .collect();

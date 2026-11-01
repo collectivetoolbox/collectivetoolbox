@@ -74,9 +74,7 @@ impl DcStr {
     )]
     pub const unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
         // Safety: Caller guarantees bytes are valid DcTF, and DcStr is #[repr(transparent)] around [u8].
-        unsafe {
-            std::mem::transmute::<&[u8], &Self>(bytes)
-        }
+        unsafe { std::mem::transmute::<&[u8], &Self>(bytes) }
     }
 
     /// Validates that the provided mutable byte slice is valid DcTF and
@@ -105,9 +103,7 @@ impl DcStr {
     )]
     pub unsafe fn from_bytes_unchecked_mut(bytes: &mut [u8]) -> &mut Self {
         // Safety: Caller guarantees bytes are valid DcTF, and DcStr is #[repr(transparent)] around [u8].
-        unsafe {
-            std::mem::transmute::<&mut [u8], &mut Self>(bytes)
-        }
+        unsafe { std::mem::transmute::<&mut [u8], &mut Self>(bytes) }
     }
 
     /// Returns the underlying byte slice.

@@ -28,10 +28,10 @@ use crate::utilities::*;
 
 use crate::args::{FsearchArgs, SearchOutputFormat, SearchSortField};
 use crate::index_engine::check_has_full_text;
+use ctb_formats_time::{format_timestamp, parse_time_spec};
 use ctb_io::file::entity::FileEntityType;
 use regex::Regex;
 use serde::Serialize;
-use ctb_formats_time::{format_timestamp, parse_time_spec};
 use std::fmt::Write as _;
 use turso::Value;
 
@@ -73,7 +73,10 @@ struct ResolvedSearch {
     pattern: String,
 }
 
-fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<ResolvedSearch>> {
+fn resolve_search(
+    args: &FsearchArgs,
+    has_full_text: bool,
+) -> Result<Option<ResolvedSearch>> {
     let explicit_keyword = if args.keyword.is_empty() {
         args.keyword_path.clone()
     } else {
@@ -313,10 +316,11 @@ fn extract_context_lines(
                 })
             }
             SearchKind::Glob => {
-                let pat_lower = res.pattern.trim_matches('*').to_ascii_lowercase();
-                lines
-                    .iter()
-                    .position(|line| line.to_ascii_lowercase().contains(&pat_lower))
+                let pat_lower =
+                    res.pattern.trim_matches('*').to_ascii_lowercase();
+                lines.iter().position(|line| {
+                    line.to_ascii_lowercase().contains(&pat_lower)
+                })
             }
             SearchKind::Regex => None,
         }
@@ -357,7 +361,9 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     let has_full_text = check_has_full_text(&conn).await?;
 
     if args.context.is_some() && !has_full_text {
-        anyhow::bail!("Cannot display context lines: database was not indexed with --fulltext");
+        anyhow::bail!(
+            "Cannot display context lines: database was not indexed with --fulltext"
+        );
     }
 
     let resolved = resolve_search(&args, has_full_text)?;
@@ -398,23 +404,25 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
     let mut regex_filter: Option<Regex> = None;
     if let Some(ref res) = resolved {
         match res.kind {
-            SearchKind::Keyword => match res.target {
-                SearchTarget::Name => {
-                    sql.push_str(" AND e.filename_keywords MATCH ?");
-                    params.push(Value::Text(res.pattern.clone()));
-                }
-                SearchTarget::Path => {
-                    sql.push_str(" AND (e.filename_keywords, e.path_keywords) MATCH ?");
-                    params.push(Value::Text(res.pattern.clone()));
-                }
-                SearchTarget::Text => {
-                    sql.push_str(
+            SearchKind::Keyword => {
+                match res.target {
+                    SearchTarget::Name => {
+                        sql.push_str(" AND e.filename_keywords MATCH ?");
+                        params.push(Value::Text(res.pattern.clone()));
+                    }
+                    SearchTarget::Path => {
+                        sql.push_str(" AND (e.filename_keywords, e.path_keywords) MATCH ?");
+                        params.push(Value::Text(res.pattern.clone()));
+                    }
+                    SearchTarget::Text => {
+                        sql.push_str(
                         " AND ((e.filename_keywords, e.path_keywords) MATCH ? OR (e.full_text IS NOT NULL AND e.full_text MATCH ?))",
                     );
-                    params.push(Value::Text(res.pattern.clone()));
-                    params.push(Value::Text(res.pattern.clone()));
+                        params.push(Value::Text(res.pattern.clone()));
+                        params.push(Value::Text(res.pattern.clone()));
+                    }
                 }
-            },
+            }
             SearchKind::Glob => match res.target {
                 SearchTarget::Name => {
                     sql.push_str(" AND e.filename GLOB ?");
@@ -434,8 +442,9 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
                 }
             },
             SearchKind::Regex => {
-                let re = Regex::new(&res.pattern)
-                    .with_context(|| format!("Invalid regular expression: {}", res.pattern))?;
+                let re = Regex::new(&res.pattern).with_context(|| {
+                    format!("Invalid regular expression: {}", res.pattern)
+                })?;
                 regex_filter = Some(re);
             }
         }
@@ -542,11 +551,15 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
         };
         let mtime_sec = match row.get_value(5)? {
             Value::Integer(i) => i,
-            _ => anyhow::bail!("Corrupted database record for '{path}': expected integer in mtime column"),
+            _ => anyhow::bail!(
+                "Corrupted database record for '{path}': expected integer in mtime column"
+            ),
         };
         let ctime_sec = match row.get_value(6)? {
             Value::Integer(i) => i,
-            _ => anyhow::bail!("Corrupted database record for '{path}': expected integer in ctime column"),
+            _ => anyhow::bail!(
+                "Corrupted database record for '{path}': expected integer in ctime column"
+            ),
         };
         let mode = match row.get_value(7)? {
             Value::Integer(i) => u32::try_from(i).with_context(|| {
@@ -596,7 +609,12 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
 
         let context_lines = if let Some(n) = args.context {
             full_text.as_deref().and_then(|t| {
-                extract_context_lines(t, resolved.as_ref(), regex_filter.as_ref(), n)
+                extract_context_lines(
+                    t,
+                    resolved.as_ref(),
+                    regex_filter.as_ref(),
+                    n,
+                )
             })
         } else {
             None
@@ -650,7 +668,12 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
                 writeln!(
                     out,
                     "{} {:>10} {} [{}] {}{}",
-                    perm_str, item.size, date_str, item.source_name, item.path, target_str
+                    perm_str,
+                    item.size,
+                    date_str,
+                    item.source_name,
+                    item.path,
+                    target_str
                 )?;
                 if let Some(ref ctx) = item.context_lines {
                     for line in ctx {
@@ -687,7 +710,9 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_camelcase_keyword_indexing_and_searching() {
-        use crate::index_engine::{expand_search_keywords, run_fsindex, split_camel_case};
+        use crate::index_engine::{
+            expand_search_keywords, run_fsindex, split_camel_case,
+        };
         use crate::search_engine::run_fsearch;
 
         // Test unit tokenization
@@ -703,10 +728,12 @@ mod tests {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("fonts_src");
         fs::create_dir_all(&src).expect("create fonts_src");
-        fs::write(src.join("FooBarRegular.ttf"), b"dummy font data").expect("write font");
+        fs::write(src.join("FooBarRegular.ttf"), b"dummy font data")
+            .expect("write font");
 
         let db_path = temp.path().join("fonts.cscindex.sqlite");
-        let idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        let idx_args =
+            default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
         run_fsindex(idx_args).await.expect("run fsindex");
 
         // 1. Match on -kn foobar
@@ -715,7 +742,10 @@ mod tests {
         let res1 = run_fsearch(s_kn1).await.expect("search -kn foobar");
         if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res1 {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("FooBarRegular.ttf"), "Expected match on foobar: {out}");
+            assert!(
+                out.contains("FooBarRegular.ttf"),
+                "Expected match on foobar: {out}"
+            );
         } else {
             panic!("Expected immediate result");
         }
@@ -726,7 +756,10 @@ mod tests {
         let res2 = run_fsearch(s_kn2).await.expect("search -kn foo bar");
         if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res2 {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("FooBarRegular.ttf"), "Expected match on foo bar: {out}");
+            assert!(
+                out.contains("FooBarRegular.ttf"),
+                "Expected match on foo bar: {out}"
+            );
         } else {
             panic!("Expected immediate result");
         }
@@ -737,7 +770,10 @@ mod tests {
         let res3 = run_fsearch(s_kn3).await.expect("search -kn bar");
         if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res3 {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("FooBarRegular.ttf"), "Expected match on bar: {out}");
+            assert!(
+                out.contains("FooBarRegular.ttf"),
+                "Expected match on bar: {out}"
+            );
         } else {
             panic!("Expected immediate result");
         }
@@ -748,7 +784,10 @@ mod tests {
         let res4 = run_fsearch(s_kp).await.expect("search -kp foobar");
         if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res4 {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("FooBarRegular.ttf"), "Expected match on -kp foobar: {out}");
+            assert!(
+                out.contains("FooBarRegular.ttf"),
+                "Expected match on -kp foobar: {out}"
+            );
         } else {
             panic!("Expected immediate result");
         }
@@ -762,11 +801,17 @@ mod tests {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("sub_src");
         fs::create_dir_all(&src).expect("create sub_src");
-        fs::write(src.join("foo.bar.baz.txt"), b"sample content").expect("write foo.bar");
-        fs::write(src.join("special[regex]+file.log"), b"log data with target.substring in it").expect("write special");
+        fs::write(src.join("foo.bar.baz.txt"), b"sample content")
+            .expect("write foo.bar");
+        fs::write(
+            src.join("special[regex]+file.log"),
+            b"log data with target.substring in it",
+        )
+        .expect("write special");
 
         let db_path = temp.path().join("sub.cscindex.sqlite");
-        let mut idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        let mut idx_args =
+            default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
         idx_args.fulltext = true;
         run_fsindex(idx_args).await.expect("run fsindex");
 
@@ -806,10 +851,16 @@ mod tests {
         // 4. Default search behavior: single positional argument does substring search
         let mut s_single = default_fsearch_args(db_path.clone());
         s_single.query = vec!["bar.baz".to_string()];
-        let res_single = run_fsearch(s_single).await.expect("search single positional argument");
-        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res_single {
+        let res_single = run_fsearch(s_single)
+            .await
+            .expect("search single positional argument");
+        if let ctb_utilities::ToolResult::Immediate { stdout, .. } = res_single
+        {
             let out = String::from_utf8_lossy(&stdout);
-            assert!(out.contains("foo.bar.baz.txt"), "Single positional term must do substring search: {out}");
+            assert!(
+                out.contains("foo.bar.baz.txt"),
+                "Single positional term must do substring search: {out}"
+            );
         } else {
             panic!("Expected immediate result");
         }
@@ -818,29 +869,37 @@ mod tests {
     #[crate::ctb_test("tokio")]
     async fn test_encrypted_fsindex_and_fsearch() {
         use crate::index_engine::run_fsindex;
+        use crate::index_meta::{
+            is_database_encrypted, load_index_meta, resolve_meta_path,
+        };
         use crate::search_engine::run_fsearch;
-        use crate::index_meta::{is_database_encrypted, load_index_meta, resolve_meta_path};
         use std::io::Read;
 
         let temp = tempdir().expect("tempdir");
         let src = temp.path().join("secret_src");
         fs::create_dir_all(src.join("sub")).expect("create dirs");
-        fs::write(src.join("secret_doc.txt"), b"Confidential memo").expect("write doc");
-        fs::write(src.join("sub/notes.md"), b"Secret notes").expect("write notes");
+        fs::write(src.join("secret_doc.txt"), b"Confidential memo")
+            .expect("write doc");
+        fs::write(src.join("sub/notes.md"), b"Secret notes")
+            .expect("write notes");
 
         let pw_file = temp.path().join("correct_pw.txt");
-        fs::write(&pw_file, b"super-secret-index-pass-987\n").expect("write pw");
+        fs::write(&pw_file, b"super-secret-index-pass-987\n")
+            .expect("write pw");
 
         let db_path = temp.path().join("encrypted.cscindex.sqlite");
 
         // 1. Index with encryption
-        let mut idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        let mut idx_args =
+            default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
         idx_args.encrypt = true;
         idx_args.password_file = Some(pw_file.clone());
 
         let res = run_fsindex(idx_args).await.expect("run encrypted fsindex");
         match res {
-            ToolResult::Immediate { exit_code, stdout, .. } => {
+            ToolResult::Immediate {
+                exit_code, stdout, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Indexing completed successfully"));
@@ -851,7 +910,10 @@ mod tests {
         // 2. Verify database exists and has b"Turso" magic header
         assert!(db_path.exists());
         let is_enc = is_database_encrypted(&db_path).expect("check encrypted");
-        assert!(is_enc, "Database should be detected as encrypted via Turso header");
+        assert!(
+            is_enc,
+            "Database should be detected as encrypted via Turso header"
+        );
 
         let mut f = std::fs::File::open(&db_path).expect("open db");
         let mut magic = [0u8; 5];
@@ -875,7 +937,9 @@ mod tests {
 
         let search_res = run_fsearch(search_args).await.expect("run fsearch");
         match search_res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("secret_doc.txt"));
@@ -893,7 +957,8 @@ mod tests {
         let temp = tempdir().expect("tempdir");
         let src = temp.path().join("secure_src");
         fs::create_dir_all(&src).expect("create src");
-        fs::write(src.join("vault.data"), b"Treasury records").expect("write vault");
+        fs::write(src.join("vault.data"), b"Treasury records")
+            .expect("write vault");
 
         let correct_pw = temp.path().join("correct.txt");
         let wrong_pw = temp.path().join("wrong.txt");
@@ -903,7 +968,8 @@ mod tests {
         let db_path = temp.path().join("secure_vault.cscindex.sqlite");
 
         // Index with encryption
-        let mut idx_args = default_fsindex_args(vec![src], Some(db_path.clone()));
+        let mut idx_args =
+            default_fsindex_args(vec![src], Some(db_path.clone()));
         idx_args.encrypt = true;
         idx_args.password_file = Some(correct_pw);
         run_fsindex(idx_args).await.expect("run encrypted fsindex");
@@ -919,7 +985,8 @@ mod tests {
         };
         let err_msg = format!("{err:#}");
         assert!(
-            err_msg.contains("Incorrect password") || err_msg.contains("password"),
+            err_msg.contains("Incorrect password")
+                || err_msg.contains("password"),
             "Expected password rejection, got: {err_msg}"
         );
     }
@@ -936,9 +1003,12 @@ mod tests {
         fs::create_dir_all(&src_b).expect("create src_b");
 
         let file_to_delete = src_a.join("temporary.log");
-        fs::write(&file_to_delete, b"temporary log line").expect("write temp log");
-        fs::write(src_a.join("permanent.txt"), b"permanent text").expect("write perm text");
-        fs::write(src_b.join("appended.txt"), b"appended text").expect("write appended text");
+        fs::write(&file_to_delete, b"temporary log line")
+            .expect("write temp log");
+        fs::write(src_a.join("permanent.txt"), b"permanent text")
+            .expect("write perm text");
+        fs::write(src_b.join("appended.txt"), b"appended text")
+            .expect("write appended text");
 
         let pw_file = temp.path().join("vault_pw.txt");
         fs::write(&pw_file, b"vault-pass-alpha\n").expect("write pw");
@@ -948,14 +1018,16 @@ mod tests {
         let journal_a = temp.path().join("src_a.cscjournal");
 
         // 1. Initial index of src_a with encryption
-        let mut args_a = default_fsindex_args(vec![src_a.clone()], Some(db_path.clone()));
+        let mut args_a =
+            default_fsindex_args(vec![src_a.clone()], Some(db_path.clone()));
         args_a.journal_path = Some(journal_a.clone());
         args_a.encrypt = true;
         args_a.password_file = Some(pw_file.clone());
         run_fsindex(args_a).await.expect("index src_a");
 
         // 2. append src_b into existing encrypted index
-        let mut args_b = default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
+        let mut args_b =
+            default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
         args_b.password_file = Some(pw_file.clone());
         run_fsindex(args_b).await.expect("append src_b");
 
@@ -972,7 +1044,8 @@ mod tests {
 
         // 3. Delete temporary.log and flush deleted using journal_a
         fs::remove_file(&file_to_delete).expect("remove temporary.log");
-        let mut args_flush = default_fsindex_args(vec![journal_a], Some(db_path.clone()));
+        let mut args_flush =
+            default_fsindex_args(vec![journal_a], Some(db_path.clone()));
         args_flush.flush_deleted = true;
         args_flush.password_file = Some(pw_file.clone());
         let res_flush = run_fsindex(args_flush).await.expect("flush deleted");
@@ -995,14 +1068,15 @@ mod tests {
     #[crate::ctb_test("tokio")]
     async fn test_unencrypted_index_no_metadata_file() {
         use crate::index_engine::run_fsindex;
-        use crate::search_engine::run_fsearch;
         use crate::index_meta::{is_database_encrypted, resolve_meta_path};
+        use crate::search_engine::run_fsearch;
         use std::io::Read;
 
         let temp = tempdir().expect("tempdir");
         let src = temp.path().join("public_src");
         fs::create_dir_all(&src).expect("create src");
-        fs::write(src.join("public.txt"), b"Public domain data").expect("write public.txt");
+        fs::write(src.join("public.txt"), b"Public domain data")
+            .expect("write public.txt");
 
         let db_path = temp.path().join("public.cscindex.sqlite");
 
@@ -1013,7 +1087,10 @@ mod tests {
         // 1. Verify db exists and is standard SQLite (not Turso encrypted)
         assert!(db_path.exists());
         let is_enc = is_database_encrypted(&db_path).expect("check encrypted");
-        assert!(!is_enc, "Unencrypted index must NOT be detected as encrypted");
+        assert!(
+            !is_enc,
+            "Unencrypted index must NOT be detected as encrypted"
+        );
 
         let mut f = std::fs::File::open(&db_path).expect("open db");
         let mut magic = [0u8; 16];
@@ -1022,17 +1099,22 @@ mod tests {
 
         // 2. Verify companion *.cscidxmeta file DOES NOT exist
         let meta_path = resolve_meta_path(&db_path);
-        assert!(!meta_path.exists(), "Unencrypted index must NOT create a *.cscidxmeta companion file");
+        assert!(
+            !meta_path.exists(),
+            "Unencrypted index must NOT create a *.cscidxmeta companion file"
+        );
 
         // 3. Search without any password flags
         let mut s_args = default_fsearch_args(db_path);
         s_args.query = vec!["public.txt".to_string()];
         let res = run_fsearch(s_args).await.expect("search unencrypted");
-        if let ToolResult::Immediate { stdout, exit_code, .. } = res {
+        if let ToolResult::Immediate {
+            stdout, exit_code, ..
+        } = res
+        {
             assert_eq!(exit_code, 0);
             let out = String::from_utf8_lossy(&stdout);
             assert!(out.contains("public.txt"));
         }
     }
 }
-

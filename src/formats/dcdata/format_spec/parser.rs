@@ -248,7 +248,10 @@ pub fn parse_format_expr(input: &str) -> Result<FormatExpr> {
     );
 
     let tokens = tokenize(expr_str)?;
-    ensure!(!tokens.is_empty(), "No tokens found in format specification");
+    ensure!(
+        !tokens.is_empty(),
+        "No tokens found in format specification"
+    );
 
     if is_prefix_token_stream(&tokens) {
         if let Ok(expr) = parse_prefix_expr(&tokens) {
@@ -378,15 +381,20 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
                     "Unclosed opening parenthesis '(' in format specification"
                 );
 
-                let inner_range = start_idx.saturating_add(1)..idx.saturating_sub(1);
+                let inner_range =
+                    start_idx.saturating_add(1)..idx.saturating_sub(1);
                 let Some(inner_tokens) = tokens.get(inner_range) else {
                     bail!("Failed to slice inner parenthesized tokens");
                 };
-                let sub_expr = parse_scope(inner_tokens, current_depth.saturating_add(1))?;
+                let sub_expr =
+                    parse_scope(inner_tokens, current_depth.saturating_add(1))?;
                 items.push(sub_expr);
             }
             TokenKind::RParen => {
-                bail!("Unexpected closing parenthesis ')' at offset {}", token.start);
+                bail!(
+                    "Unexpected closing parenthesis ')' at offset {}",
+                    token.start
+                );
             }
             TokenKind::Ident(ident) => {
                 if let Some(next_tok) = tokens.get(idx.saturating_add(1)) {
@@ -419,7 +427,11 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
                 items.push(operand);
                 idx = idx.saturating_add(1);
             }
-            TokenKind::Gt | TokenKind::Bang | TokenKind::Colon | TokenKind::Amp | TokenKind::Pipe => {
+            TokenKind::Gt
+            | TokenKind::Bang
+            | TokenKind::Colon
+            | TokenKind::Amp
+            | TokenKind::Pipe => {
                 let op = match &token.kind {
                     TokenKind::Gt => FormatOp::Convert,
                     TokenKind::Bang => FormatOp::Transmute,
@@ -457,10 +469,15 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
 
     // Check operator consistency in this scope
     let has_union = operators.iter().any(|(op, _)| *op == FormatOp::Union);
-    let has_intersection = operators.iter().any(|(op, _)| *op == FormatOp::Intersection);
-    let has_operational = operators
+    let has_intersection = operators
         .iter()
-        .any(|(op, _)| matches!(op, FormatOp::Convert | FormatOp::Transmute | FormatOp::Transform));
+        .any(|(op, _)| *op == FormatOp::Intersection);
+    let has_operational = operators.iter().any(|(op, _)| {
+        matches!(
+            op,
+            FormatOp::Convert | FormatOp::Transmute | FormatOp::Transform
+        )
+    });
 
     if (has_union || has_intersection) && has_operational {
         bail!(
@@ -494,16 +511,22 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
             .context("Internal parser error: missing right operand")?;
         match op {
             FormatOp::Convert => {
-                current_expr =
-                    FormatExpr::Convert(Box::new(current_expr), Box::new(next_item));
+                current_expr = FormatExpr::Convert(
+                    Box::new(current_expr),
+                    Box::new(next_item),
+                );
             }
             FormatOp::Transmute => {
-                current_expr =
-                    FormatExpr::Transmute(Box::new(current_expr), Box::new(next_item));
+                current_expr = FormatExpr::Transmute(
+                    Box::new(current_expr),
+                    Box::new(next_item),
+                );
             }
             FormatOp::Transform => {
-                current_expr =
-                    FormatExpr::Transform(Box::new(current_expr), Box::new(next_item));
+                current_expr = FormatExpr::Transform(
+                    Box::new(current_expr),
+                    Box::new(next_item),
+                );
             }
             FormatOp::Union | FormatOp::Intersection => {
                 unreachable!("Filtered out by consistency checks above");
@@ -556,7 +579,9 @@ fn parse_param_bindings(
 
     while idx < tokens.len() {
         let Some(name_token) = tokens.get(idx) else {
-            bail!("Unexpected end of tokens in parameter list: expected parameter name");
+            bail!(
+                "Unexpected end of tokens in parameter list: expected parameter name"
+            );
         };
         let TokenKind::Ident(name) = &name_token.kind else {
             bail!(
@@ -617,12 +642,14 @@ fn parse_param_bindings(
                     "Unclosed '(' in parameter value for '{param_name}'"
                 );
                 let inner_tokens = tokens
-                    .get(start_idx.saturating_add(1)..scan_idx.saturating_sub(1))
-                    .context("Invalid token slice for parameter value expression")?;
-                let sub_expr = parse_scope(
-                    inner_tokens,
-                    current_depth.saturating_add(1),
-                )?;
+                    .get(
+                        start_idx.saturating_add(1)..scan_idx.saturating_sub(1),
+                    )
+                    .context(
+                        "Invalid token slice for parameter value expression",
+                    )?;
+                let sub_expr =
+                    parse_scope(inner_tokens, current_depth.saturating_add(1))?;
                 (ParamValue::Expr(Box::new(sub_expr)), scan_idx)
             }
             other => {
@@ -655,9 +682,7 @@ fn parse_param_bindings(
                 return Ok((params, idx));
             }
             other => {
-                bail!(
-                    "Expected ',' or ')' in parameter list, found {other:?}"
-                );
+                bail!("Expected ',' or ')' in parameter list, found {other:?}");
             }
         }
     }

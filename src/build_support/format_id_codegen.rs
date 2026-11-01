@@ -138,7 +138,9 @@ pub fn generate_format_id_code_from_index(
         let ident = index
             .ident_for_shorthand(subj)
             .with_context(|| {
-                format!("Format f{short_id} has no @ident(\"...\") in system graph")
+                format!(
+                    "Format f{short_id} has no @ident(\"...\") in system graph"
+                )
             })?
             .trim()
             .to_string();
@@ -190,14 +192,13 @@ pub fn generate_format_id_code_from_index(
                 }
                 DcShorthand::Long(expr_node_id) => {
                     if let Some(tokens) = index.node_tokens(expr_node_id) {
-                        let is_pure_format_conjunction =
-                            !tokens.is_empty()
-                                && tokens.iter().all(|&tok| {
-                                    tok == sh_begin_group
-                                        || tok == sh_end_group
-                                        || tok == sh_type_union
-                                        || matches!(tok, DcShorthand::Format(_))
-                                });
+                        let is_pure_format_conjunction = !tokens.is_empty()
+                            && tokens.iter().all(|&tok| {
+                                tok == sh_begin_group
+                                    || tok == sh_end_group
+                                    || tok == sh_type_union
+                                    || matches!(tok, DcShorthand::Format(_))
+                            });
                         if is_pure_format_conjunction {
                             for &tok in tokens {
                                 if let DcShorthand::Format(target_fid) = tok {
@@ -478,7 +479,6 @@ pub fn generate_format_id_code_from_index(
     // because they look identical to short Dc IDs. Format IDs must always use
     // the `FormatId` enum, `FormatId::shorthand()` ("f<N>"), or `FormatId::ident()`.
 
-
     out.push_str(
         "    /// Returns the format shorthand string (e.g. \"f0\", \"f405\").\n",
     );
@@ -501,7 +501,9 @@ pub fn generate_format_id_code_from_index(
         "    /// Looks up a `FormatId` from its format shorthand string (e.g. \"f405\").\n",
     );
     out.push_str("    #[must_use]\n");
-    out.push_str("    pub fn from_shorthand(shorthand: &str) -> Option<Self> {\n");
+    out.push_str(
+        "    pub fn from_shorthand(shorthand: &str) -> Option<Self> {\n",
+    );
     out.push_str("        let trimmed = shorthand.trim();\n");
     out.push_str("        match trimmed {\n");
     for r in &records {
@@ -616,8 +618,7 @@ pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
         }
     }
 
-    fs::write(&out_file, code).with_context(|| {
-        format!("Failed to write {}", out_file.display())
-    })?;
+    fs::write(&out_file, code)
+        .with_context(|| format!("Failed to write {}", out_file.display()))?;
     Ok(true)
 }

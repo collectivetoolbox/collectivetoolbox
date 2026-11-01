@@ -205,8 +205,7 @@ impl BuildGraphIndex {
                             .entry((claim_subj, claim_prop))
                             .or_default()
                             .push(entry);
-                        if let DcShorthand::Long(parent_claim_id) = claim_subj
-                        {
+                        if let DcShorthand::Long(parent_claim_id) = claim_subj {
                             qualifiers_by_claim_prop
                                 .entry((parent_claim_id, claim_prop))
                                 .or_default()
@@ -289,7 +288,8 @@ impl BuildGraphIndex {
             ident_to_shorthand.get("EndTypeDef"),
             ident_to_shorthand.get("EndLiteral"),
         ) {
-            let empty_lit = [begin_lit, begin_type, type_str, end_type, end_lit];
+            let empty_lit =
+                [begin_lit, begin_type, type_str, end_type, end_lit];
             for node in &active_nodes {
                 if node.tokens.as_slice() == empty_lit {
                     strings_by_id.insert(node.id, String::new());
@@ -302,16 +302,13 @@ impl BuildGraphIndex {
             .get("CanonicalName")
             .copied()
             .context("Missing CanonicalName in system graph")?;
-        let sh_bidi_class = ident_to_shorthand
-            .get("BidirectionalClass")
-            .copied();
-        let sh_char_gen_cat = ident_to_shorthand
-            .get("CharacterGeneralCategory")
-            .copied();
+        let sh_bidi_class =
+            ident_to_shorthand.get("BidirectionalClass").copied();
+        let sh_char_gen_cat =
+            ident_to_shorthand.get("CharacterGeneralCategory").copied();
         let sh_dc_gen_cat =
             ident_to_shorthand.get("DcGeneralCategory").copied();
-        let sh_char_script =
-            ident_to_shorthand.get("CharacterScript").copied();
+        let sh_char_script = ident_to_shorthand.get("CharacterScript").copied();
         let sh_uni_script = ident_to_shorthand.get("UnicodeScript").copied();
         let sh_entity_type = ident_to_shorthand.get("EntityType").copied();
 
@@ -621,8 +618,7 @@ impl BuildGraphIndex {
         let sh_dc_in = self.require_ident("DcFormatImportSupport")?;
         let sh_gen_out = self.require_ident("GeneralFormatExportSupport")?;
         let sh_dc_out = self.require_ident("DcFormatExportSupport")?;
-        let sh_level_prop =
-            self.require_ident("ImplementationSupportLevel")?;
+        let sh_level_prop = self.require_ident("ImplementationSupportLevel")?;
 
         let sh_na = self.require_ident("SupportNotApplicable")?;
         let sh_wip = self.require_ident("SupportWorkInProgress")?;
@@ -633,9 +629,8 @@ impl BuildGraphIndex {
             self.require_ident("SupportLosslessStrictValidation")?;
 
         let decode_level = |claim_id: u128| -> Result<i8> {
-            let Some(&level_tok) = self
-                .claim_qualifiers(claim_id, sh_level_prop)
-                .last()
+            let Some(&level_tok) =
+                self.claim_qualifiers(claim_id, sh_level_prop).last()
             else {
                 bail!(
                     "Support claim l{claim_id} on CollectiveToolbox is missing ImplementationSupportLevel qualifier"

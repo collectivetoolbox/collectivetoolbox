@@ -34,8 +34,7 @@ use turso::{Connection, Value};
 
 pub const DB_TYPE: DbSchemaType = DbSchemaType::Nodes;
 pub const NAME: &str = "2026_10_24_1_migrate_nodes_to_dctf";
-pub const DESCRIPTION: &str =
-    "Transcode Statements and System node bodies from DcUtf to DcTF and update checksums";
+pub const DESCRIPTION: &str = "Transcode Statements and System node bodies from DcUtf to DcTF and update checksums";
 pub const UP_SQL: Option<&str> = None;
 
 pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
@@ -75,10 +74,10 @@ pub async fn run_rust_migration(conn: &Connection) -> Result<()> {
 
         let dc_string = ctb_formats_dcstring::DcString::from_dcutf(data_blob)
             .map_err(|e| {
-                anyhow::anyhow!(
-                    "Invalid DcUtf node body during DcTF migration: {e}"
-                )
-            })?;
+            anyhow::anyhow!(
+                "Invalid DcUtf node body during DcTF migration: {e}"
+            )
+        })?;
         let new_data = dc_string.into_bytes();
         let new_checksum = Sha256::digest(&new_data).to_vec();
         updates.push((new_data, new_checksum, id_blob, graph_id_blob));
@@ -179,9 +178,7 @@ mod tests {
         run_rust_migration(&conn).await.unwrap();
 
         let mut stmt = conn
-            .prepare(
-                "SELECT id, data, checksum FROM nodes ORDER BY id ASC",
-            )
+            .prepare("SELECT id, data, checksum FROM nodes ORDER BY id ASC")
             .await
             .unwrap();
         let mut rows = stmt.query(()).await.unwrap();

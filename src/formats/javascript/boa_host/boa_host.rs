@@ -734,8 +734,10 @@ pub fn run_js_module(
     args: &[String],
 ) -> Result<()> {
     use anyhow::Context as AnyhowContext;
-    let entry_point = std::fs::canonicalize(entry_point)
-        .with_context(|| format!("Failed to resolve entry file {}", entry_point.display()))?;
+    let entry_point =
+        std::fs::canonicalize(entry_point).with_context(|| {
+            format!("Failed to resolve entry file {}", entry_point.display())
+        })?;
     let (mut context, loader) =
         create_context_with_bindings(&entry_point, loader_root, args, true)?;
 
@@ -808,7 +810,11 @@ mod tests {
     fn test_run_js_module_resolves_relative_imports() {
         let temp_dir = tempfile::tempdir().unwrap();
         let entry_point = temp_dir.path().join("entry.js");
-        std::fs::write(temp_dir.path().join("value.js"), "export const value = 42;").unwrap();
+        std::fs::write(
+            temp_dir.path().join("value.js"),
+            "export const value = 42;",
+        )
+        .unwrap();
         std::fs::write(&entry_point, "import { value } from './value.js'; if (value !== 42) throw new Error('wrong import');").unwrap();
         run_js_module(&entry_point, temp_dir.path(), &[]).unwrap();
     }

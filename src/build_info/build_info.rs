@@ -89,7 +89,8 @@ pub fn ctb_version_display() -> &'static str {
         Some(id) => id,
         None => "dev",
     };
-    const VERSION_DISPLAY: &str = constcat::concat!(VERSION, " (build ", BUILD_ID, ")");
+    const VERSION_DISPLAY: &str =
+        constcat::concat!(VERSION, " (build ", BUILD_ID, ")");
     VERSION_DISPLAY
 }
 

@@ -42,8 +42,12 @@ See full license information at the end of this file.
 use crate::utilities::*;
 
 use crate::expr::ast::{BoolOp, CmpOp, Expr, Operator, UnaryOp};
-use crate::precompile::hierarchy::{to_upper_camel_case, types_to_class_name, ClassSpec};
-use crate::precompile::types::{BitEndianness, DataType, Endianness, RepeatMode};
+use crate::precompile::hierarchy::{
+    ClassSpec, to_upper_camel_case, types_to_class_name,
+};
+use crate::precompile::types::{
+    BitEndianness, DataType, Endianness, RepeatMode,
+};
 
 /// Context for translating Kaitai expressions into Rust code.
 #[derive(Debug, Clone)]
@@ -61,7 +65,11 @@ pub struct TranslationContext<'a> {
 impl<'a> TranslationContext<'a> {
     /// Creates a new translation context.
     #[must_use]
-    pub const fn new(current_class: &'a ClassSpec, root: &'a ClassSpec, in_reader: bool) -> Self {
+    pub const fn new(
+        current_class: &'a ClassSpec,
+        root: &'a ClassSpec,
+        in_reader: bool,
+    ) -> Self {
         Self {
             current_class,
             root,
@@ -71,7 +79,10 @@ impl<'a> TranslationContext<'a> {
     }
 
     #[must_use]
-    pub const fn with_element_type<'b>(&'b self, element_type: Option<&'b DataType>) -> TranslationContext<'b> {
+    pub const fn with_element_type<'b>(
+        &'b self,
+        element_type: Option<&'b DataType>,
+    ) -> TranslationContext<'b> {
         TranslationContext {
             current_class: self.current_class,
             root: self.root,
@@ -108,7 +119,8 @@ impl<'a> TranslationContext<'a> {
         if let Some(inst) = class.instances.get(attr) {
             match &inst.data_type {
                 DataType::SwitchType { cases, .. } => {
-                    let is_numeric = !cases.is_empty() && cases.values().all(is_numeric_type);
+                    let is_numeric = !cases.is_empty()
+                        && cases.values().all(is_numeric_type);
                     return !is_numeric;
                 }
                 _ => return false,
@@ -125,18 +137,16 @@ impl<'a> TranslationContext<'a> {
     /// The name of the receiver identifier in Rust (`"self_rc"` in reader, `"self"` otherwise).
     #[must_use]
     pub const fn self_name(&self) -> &'static str {
-        if self.in_reader {
-            "self_rc"
-        } else {
-            "self"
-        }
+        if self.in_reader { "self_rc" } else { "self" }
     }
 }
 
 fn is_switch_type(expr: &Expr, ctx: &TranslationContext<'_>) -> bool {
     match expr {
         Expr::Name(name) => {
-            if let Some(attr) = ctx.current_class.seq.iter().find(|a| a.id == *name) {
+            if let Some(attr) =
+                ctx.current_class.seq.iter().find(|a| a.id == *name)
+            {
                 return matches!(attr.data_type, DataType::SwitchType { .. });
             }
             if let Some(inst) = ctx.current_class.instances.get(name) {
@@ -148,11 +158,18 @@ fn is_switch_type(expr: &Expr, ctx: &TranslationContext<'_>) -> bool {
                 let resolved = resolve_switch_type(&target_dt);
                 if let DataType::UserType { names, .. } = resolved {
                     if let Some(cls) = find_class_spec(ctx.root, &names) {
-                        if let Some(a) = cls.seq.iter().find(|a| a.id == *attr) {
-                            return matches!(a.data_type, DataType::SwitchType { .. });
+                        if let Some(a) = cls.seq.iter().find(|a| a.id == *attr)
+                        {
+                            return matches!(
+                                a.data_type,
+                                DataType::SwitchType { .. }
+                            );
                         }
                         if let Some(inst) = cls.instances.get(attr) {
-                            return matches!(inst.data_type, DataType::SwitchType { .. });
+                            return matches!(
+                                inst.data_type,
+                                DataType::SwitchType { .. }
+                            );
                         }
                     }
                 }
@@ -178,11 +195,7 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
         }
         Expr::FloatNum(f) => {
             let s = f.to_string();
-            if s.contains('.') {
-                s
-            } else {
-                format!("{s}.0")
-            }
+            if s.contains('.') { s } else { format!("{s}.0") }
         }
         Expr::Bool(b) => {
             if *b {
@@ -194,12 +207,18 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
         Expr::Str(s) => format!("{s:?}"),
         Expr::List(elements) => {
             if let Some(elem_dt) = ctx.element_type {
-                if matches!(elem_dt, DataType::Str { .. } | DataType::CalcStrType) {
+                if matches!(
+                    elem_dt,
+                    DataType::Str { .. } | DataType::CalcStrType
+                ) {
                     let elems = elements
                         .iter()
                         .map(|e| match e {
                             Expr::Str(s) => format!("{s:?}.to_string()"),
-                            other => format!("{}.to_string()", translate_expr(other, ctx)),
+                            other => format!(
+                                "{}.to_string()",
+                                translate_expr(other, ctx)
+                            ),
                         })
                         .collect::<Vec<_>>()
                         .join(", ");
@@ -214,7 +233,13 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                             Expr::FloatNum(f) => format!("{f}_{ct}"),
                             other => {
                                 let s = translate_expr(other, ctx);
-                                widen_expr(other, &s, detect_type_approx(other, ctx).as_ref(), elem_dt, ctx)
+                                widen_expr(
+                                    other,
+                                    &s,
+                                    detect_type_approx(other, ctx).as_ref(),
+                                    elem_dt,
+                                    ctx,
+                                )
                             }
                         })
                         .collect::<Vec<_>>()
@@ -222,13 +247,17 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     return format!("vec![{elems}]");
                 }
             }
-            let is_str_list = !elements.is_empty() && elements.iter().all(|e| matches!(e, Expr::Str(_)));
+            let is_str_list = !elements.is_empty()
+                && elements.iter().all(|e| matches!(e, Expr::Str(_)));
             if is_str_list {
                 let elems = elements
                     .iter()
                     .map(|e| match e {
                         Expr::Str(s) => format!("{s:?}.to_string()"),
-                        other => format!("{}.to_string()", translate_expr(other, ctx)),
+                        other => format!(
+                            "{}.to_string()",
+                            translate_expr(other, ctx)
+                        ),
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -269,14 +298,17 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             }
         }
         Expr::Name(name) => translate_name(name, ctx),
-        Expr::Attribute { value, attr } => translate_attribute(value, attr, ctx),
+        Expr::Attribute { value, attr } => {
+            translate_attribute(value, attr, ctx)
+        }
         Expr::Subscript { value, idx } => {
             let val_str = translate_expr(value, ctx);
             let t = remove_deref(&val_str);
             let val_type = detect_type_approx(value, ctx);
             let numeric_switch_type = match &val_type {
                 Some(DataType::ArrayType { element, .. }) => {
-                    if matches!(**element, DataType::SwitchType { ref cases, .. } if !cases.is_empty() && cases.values().all(is_numeric_type)) {
+                    if matches!(**element, DataType::SwitchType { ref cases, .. } if !cases.is_empty() && cases.values().all(is_numeric_type))
+                    {
                         let resolved = resolve_switch_type(element);
                         Some(kaitai_primitive_to_native(&resolved))
                     } else {
@@ -286,7 +318,9 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                 _ => None,
             };
             let deref = match &val_type {
-                Some(DataType::ArrayType { element, .. }) => needs_deref(element),
+                Some(DataType::ArrayType { element, .. }) => {
+                    needs_deref(element)
+                }
                 Some(DataType::Bytes { .. } | DataType::CalcBytesType) => true,
                 _ => false,
             };
@@ -298,15 +332,23 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                         i
                     } else {
                         match detect_type_approx(idx, ctx) {
-                            Some(DataType::Int1 { signed: false } | DataType::IntMulti {
-signed: false, width: 1 | 2, .. }) => format!("usize::from({i})"),
+                            Some(
+                                DataType::Int1 { signed: false }
+                                | DataType::IntMulti {
+                                    signed: false,
+                                    width: 1 | 2,
+                                    ..
+                                },
+                            ) => format!("usize::from({i})"),
                             _ => format!("usize::try_from({i})?"),
                         }
                     }
                 }
             };
             if let Some(num_type) = numeric_switch_type {
-                format!("{num_type}::try_from({t}.get({idx_str}).ok_or(KError::CastError)?)?")
+                format!(
+                    "{num_type}::try_from({t}.get({idx_str}).ok_or(KError::CastError)?)?"
+                )
             } else if deref {
                 format!("*({t}.get({idx_str}).ok_or(KError::CastError)?)")
             } else {
@@ -326,19 +368,29 @@ signed: false, width: 1 | 2, .. }) => format!("usize::from({i})"),
                         format!("-({inner_str})")
                     } else if matches!(
                         op_type,
-                        Some(DataType::IntMulti { signed: false, width: 8, .. })
+                        Some(DataType::IntMulti {
+                            signed: false,
+                            width: 8,
+                            ..
+                        })
                     ) {
                         format!("(0_i64).saturating_sub(to_i64({inner_str}))")
                     } else if matches!(
                         op_type,
-                        Some(DataType::IntMulti { signed: true, width: 8, .. })
+                        Some(DataType::IntMulti {
+                            signed: true,
+                            width: 8,
+                            ..
+                        })
                     ) {
                         format!("(0_i64).saturating_sub({inner_str})")
                     } else if matches!(
                         op_type,
-                        Some(DataType::Int1 { signed: false }
-                            | DataType::IntMulti { signed: false, .. }
-                            | DataType::Bits { .. })
+                        Some(
+                            DataType::Int1 { signed: false }
+                                | DataType::IntMulti { signed: false, .. }
+                                | DataType::Bits { .. }
+                        )
                     ) || inner_str.ends_with(".pos()")
                         || inner_str.ends_with("_raw()")
                         || inner_str.ends_with(".len()")
@@ -353,9 +405,13 @@ signed: false, width: 1 | 2, .. }) => format!("usize::from({i})"),
                 UnaryOp::Invert => format!("!({inner_str})"),
             }
         }
-        Expr::BinOp { left, op, right } => translate_bin_op(left, *op, right, ctx),
+        Expr::BinOp { left, op, right } => {
+            translate_bin_op(left, *op, right, ctx)
+        }
         Expr::BoolOp { op, values } => translate_bool_op(*op, values, ctx),
-        Expr::Compare { left, op, right } => translate_compare(left, *op, right, ctx),
+        Expr::Compare { left, op, right } => {
+            translate_compare(left, *op, right, ctx)
+        }
         Expr::IfExp {
             condition,
             if_true,
@@ -387,44 +443,67 @@ signed: false, width: 1 | 2, .. }) => format!("usize::from({i})"),
                     let inner_str = translate_expr(value, ctx);
                     format!("Into::<Vec<u8>>::into(&{inner_str})")
                 }
-            } else if let Some(user_class) = resolve_user_class_name(base_raw, ctx) {
-                if ctx.current_class.parent_name.as_ref().is_some_and(|p| p.as_slice() == ["KStructUnit"])
+            } else if let Some(user_class) =
+                resolve_user_class_name(base_raw, ctx)
+            {
+                if ctx
+                    .current_class
+                    .parent_name
+                    .as_ref()
+                    .is_some_and(|p| p.as_slice() == ["KStructUnit"])
                     && ctx.current_class.name.len() > 1
                     && ctx
                         .current_class
                         .name
                         .get(..ctx.current_class.name.len().saturating_sub(1))
-                        .is_some_and(|prefix| user_class == types_to_class_name(prefix))
+                        .is_some_and(|prefix| {
+                            user_class == types_to_class_name(prefix)
+                        })
                 {
                     if let Some(attr) = ctx.root.seq.iter().find(|a| {
                         if let DataType::UserType { names, .. } = &a.data_type {
-                            resolve_user_class_name(&names.join("::"), ctx).as_deref() == Some(&user_class)
+                            resolve_user_class_name(&names.join("::"), ctx)
+                                .as_deref()
+                                == Some(&user_class)
                                 || types_to_class_name(names) == user_class
                         } else {
                             false
                         }
                     }) {
-                        return format!("(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.{}()).clone()", attr.id);
+                        return format!(
+                            "(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.{}()).clone()",
+                            attr.id
+                        );
                     }
                 }
                 let inner_str = translate_expr(value, ctx);
                 if is_array {
-                    format!("Vec::<OptRc<{user_class}>>::try_from({inner_str})?")
+                    format!(
+                        "Vec::<OptRc<{user_class}>>::try_from({inner_str})?"
+                    )
                 } else {
                     let is_switch = is_switch_type(value, ctx);
-                    let inner_has_cast = inner_str.ends_with(".as_ref().ok_or(KError::CastError)?");
-                    let is_struct = !is_switch && matches!(detect_type_approx(value, ctx), Some(DataType::UserType { names, .. }) if names.as_slice() == ["struct"]);
+                    let inner_has_cast = inner_str
+                        .ends_with(".as_ref().ok_or(KError::CastError)?");
+                    let is_struct = !is_switch
+                        && matches!(detect_type_approx(value, ctx), Some(DataType::UserType { names, .. }) if names.as_slice() == ["struct"]);
                     let arg = if is_switch && !inner_has_cast {
                         let stripped = remove_deref(&inner_str);
-                        format!("*({stripped}).as_ref().ok_or(KError::CastError)?")
+                        format!(
+                            "*({stripped}).as_ref().ok_or(KError::CastError)?"
+                        )
                     } else {
                         inner_str
                     };
                     if is_struct {
-                        format!("DowncastOptRc::<{user_class}>::downcast_optrc(&({arg}))?")
+                        format!(
+                            "DowncastOptRc::<{user_class}>::downcast_optrc(&({arg}))?"
+                        )
                     } else {
                         let stripped = remove_deref(&arg);
-                        format!("OptRc::<{user_class}>::try_from(&*({stripped}))?")
+                        format!(
+                            "OptRc::<{user_class}>::try_from(&*({stripped}))?"
+                        )
                     }
                 }
             } else {
@@ -468,15 +547,41 @@ signed: false, width: 1 | 2, .. }) => format!("usize::from({i})"),
                     let target_dt = match base_raw {
                         "u1" | "b1" => Some(DataType::Int1 { signed: false }),
                         "s1" => Some(DataType::Int1 { signed: true }),
-                        "u2" => Some(DataType::IntMulti { signed: false, width: 2, endian: None }),
-                        "s2" => Some(DataType::IntMulti { signed: true, width: 2, endian: None }),
-                        "u4" => Some(DataType::IntMulti { signed: false, width: 4, endian: None }),
-                        "s4" => Some(DataType::IntMulti { signed: true, width: 4, endian: None }),
-                        "u8" => Some(DataType::IntMulti { signed: false, width: 8, endian: None }),
-                        "s8" => Some(DataType::IntMulti { signed: true, width: 8, endian: None }),
+                        "u2" => Some(DataType::IntMulti {
+                            signed: false,
+                            width: 2,
+                            endian: None,
+                        }),
+                        "s2" => Some(DataType::IntMulti {
+                            signed: true,
+                            width: 2,
+                            endian: None,
+                        }),
+                        "u4" => Some(DataType::IntMulti {
+                            signed: false,
+                            width: 4,
+                            endian: None,
+                        }),
+                        "s4" => Some(DataType::IntMulti {
+                            signed: true,
+                            width: 4,
+                            endian: None,
+                        }),
+                        "u8" => Some(DataType::IntMulti {
+                            signed: false,
+                            width: 8,
+                            endian: None,
+                        }),
+                        "s8" => Some(DataType::IntMulti {
+                            signed: true,
+                            width: 8,
+                            endian: None,
+                        }),
                         _ => None,
                     };
-                    if let (Some(vdt), Some(tdt)) = (val_dt.as_ref(), target_dt.as_ref()) {
+                    if let (Some(vdt), Some(tdt)) =
+                        (val_dt.as_ref(), target_dt.as_ref())
+                    {
                         let from_native = kaitai_primitive_to_native(vdt);
                         if from_native == rust_type {
                             inner_str
@@ -492,22 +597,34 @@ signed: false, width: 1 | 2, .. }) => format!("usize::from({i})"),
             }
         }
         Expr::EnumByLabel {
-            enum_name, label, in_type,
+            enum_name,
+            label,
+            in_type,
         } => {
             let full_enum_name = if in_type.names.is_empty() {
                 enum_name.clone()
             } else {
                 format!("{}::{enum_name}", in_type.names.join("::"))
             };
-            let scoped_enum = resolve_enum_type_name(&full_enum_name, ctx.current_class, Some(ctx.root));
+            let scoped_enum = resolve_enum_type_name(
+                &full_enum_name,
+                ctx.current_class,
+                Some(ctx.root),
+            );
             let variant = to_upper_camel_case(label);
             format!("{scoped_enum}::{variant}")
         }
         Expr::EnumById { id, .. } => {
-            let id_str = if let Expr::IntNum(n) = &**id { format!("{n}_i64") } else {
+            let id_str = if let Expr::IntNum(n) = &**id {
+                format!("{n}_i64")
+            } else {
                 let s = translate_expr(id, ctx);
                 match detect_type_approx(id, ctx) {
-                    Some(DataType::IntMulti { signed: false, width: 8, .. }) => {
+                    Some(DataType::IntMulti {
+                        signed: false,
+                        width: 8,
+                        ..
+                    }) => {
                         format!("i64::try_from({s})?")
                     }
                     _ if is_usize_expr_str(&s) => {
@@ -554,7 +671,11 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
         // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
         "_sizeof" => format!(
             "{}_i32",
-            calculate_class_seq_size_with_root(ctx.current_class, Some(ctx.root)).unwrap_or(0)
+            calculate_class_seq_size_with_root(
+                ctx.current_class,
+                Some(ctx.root)
+            )
+            .unwrap_or(0)
         ),
         other => {
             let self_name = ctx.self_name();
@@ -563,14 +684,18 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
             if let Some(_inst) = ctx.current_class.instances.get(other) {
                 // Instances are fallible and return KResult<Ref<'_, T>>
                 format!("*{self_name}.{escaped}()?")
-            } else if let Some(attr) = ctx.current_class.seq.iter().find(|a| a.id == other) {
+            } else if let Some(attr) =
+                ctx.current_class.seq.iter().find(|a| a.id == other)
+            {
                 // Sequential attribute
                 if needs_deref(&attr.data_type) {
                     format!("*{self_name}.{escaped}()")
                 } else {
                     format!("{self_name}.{escaped}()")
                 }
-            } else if let Some(param) = ctx.current_class.params.iter().find(|p| p.id == other) {
+            } else if let Some(param) =
+                ctx.current_class.params.iter().find(|p| p.id == other)
+            {
                 // Constructor parameter
                 if needs_deref(&param.data_type) {
                     format!("*{self_name}.{escaped}()")
@@ -587,7 +712,10 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
 
 /// Calculates the fixed byte size of a data type with optional root class lookup if known statically.
 #[must_use]
-pub fn calculate_attr_size_with_root(dt: &DataType, root: Option<&ClassSpec>) -> Option<i64> {
+pub fn calculate_attr_size_with_root(
+    dt: &DataType,
+    root: Option<&ClassSpec>,
+) -> Option<i64> {
     match dt {
         DataType::Int1 { .. } => Some(1),
         DataType::IntMulti { width, .. } => i64::try_from(*width).ok(),
@@ -638,7 +766,10 @@ pub fn calculate_attr_size(dt: &DataType) -> Option<i64> {
 
 /// Calculates the fixed byte size of a class specification's sequential fields if known statically.
 #[must_use]
-pub fn calculate_class_seq_size_with_root(class: &ClassSpec, root: Option<&ClassSpec>) -> Option<i64> {
+pub fn calculate_class_seq_size_with_root(
+    class: &ClassSpec,
+    root: Option<&ClassSpec>,
+) -> Option<i64> {
     let mut total = 0i64;
     for attr in &class.seq {
         if let Some(sz_expr) = &attr.size_expr {
@@ -659,26 +790,40 @@ pub fn calculate_class_seq_size(class: &ClassSpec) -> Option<i64> {
     calculate_class_seq_size_with_root(class, None)
 }
 
-fn calc_type_byte_size(type_name: &str, ctx: &TranslationContext<'_>) -> Option<i64> {
+fn calc_type_byte_size(
+    type_name: &str,
+    ctx: &TranslationContext<'_>,
+) -> Option<i64> {
     match type_name {
         "u1" | "s1" | "b1" => Some(1),
         "u2" | "s2" | "u2le" | "u2be" | "s2le" | "s2be" => Some(2),
-        "u4" | "s4" | "u4le" | "u4be" | "s4le" | "s4be" | "f4" | "f4le" | "f4be" => Some(4),
-        "u8" | "s8" | "u8le" | "u8be" | "s8le" | "s8be" | "f8" | "f8le" | "f8be" => Some(8),
-        user_name => {
-            resolve_user_class_spec(user_name, ctx)
-                .and_then(|spec| calculate_class_seq_size_with_root(spec, Some(ctx.root)))
-        }
+        "u4" | "s4" | "u4le" | "u4be" | "s4le" | "s4be" | "f4" | "f4le"
+        | "f4be" => Some(4),
+        "u8" | "s8" | "u8le" | "u8be" | "s8le" | "s8be" | "f8" | "f8le"
+        | "f8be" => Some(8),
+        user_name => resolve_user_class_spec(user_name, ctx).and_then(|spec| {
+            calculate_class_seq_size_with_root(spec, Some(ctx.root))
+        }),
     }
 }
 
-fn calc_expr_byte_size(value: &Expr, ctx: &TranslationContext<'_>) -> Option<i64> {
+fn calc_expr_byte_size(
+    value: &Expr,
+    ctx: &TranslationContext<'_>,
+) -> Option<i64> {
     match value {
-        Expr::Name(name) if name == "_" || name == "self" || name == "self_rc" => {
-            calculate_class_seq_size_with_root(ctx.current_class, Some(ctx.root))
+        Expr::Name(name)
+            if name == "_" || name == "self" || name == "self_rc" =>
+        {
+            calculate_class_seq_size_with_root(
+                ctx.current_class,
+                Some(ctx.root),
+            )
         }
         Expr::Name(name) => {
-            if let Some(a) = ctx.current_class.seq.iter().find(|x| x.id == *name) {
+            if let Some(a) =
+                ctx.current_class.seq.iter().find(|x| x.id == *name)
+            {
                 if let Some(sz_expr) = &a.size_expr {
                     if let Expr::IntNum(n) = sz_expr {
                         return i64::try_from(*n).ok();
@@ -691,17 +836,26 @@ fn calc_expr_byte_size(value: &Expr, ctx: &TranslationContext<'_>) -> Option<i64
                 None
             }
         }
-        Expr::Attribute { value: inner, attr: sub_attr } => {
+        Expr::Attribute {
+            value: inner,
+            attr: sub_attr,
+        } => {
             if let Some(target_dt) = detect_type_approx(inner, ctx) {
                 if let DataType::UserType { names, .. } = target_dt {
-                    if let Some(target_cls) = find_class_spec(ctx.root, &names) {
-                        if let Some(a) = target_cls.seq.iter().find(|x| x.id == *sub_attr) {
+                    if let Some(target_cls) = find_class_spec(ctx.root, &names)
+                    {
+                        if let Some(a) =
+                            target_cls.seq.iter().find(|x| x.id == *sub_attr)
+                        {
                             if let Some(sz_expr) = &a.size_expr {
                                 if let Expr::IntNum(n) = sz_expr {
                                     return i64::try_from(*n).ok();
                                 }
                             }
-                            return calculate_attr_size_with_root(&a.data_type, Some(ctx.root));
+                            return calculate_attr_size_with_root(
+                                &a.data_type,
+                                Some(ctx.root),
+                            );
                         }
                     }
                 }
@@ -722,8 +876,17 @@ fn calc_expr_byte_size(value: &Expr, ctx: &TranslationContext<'_>) -> Option<i64
     }
 }
 
-fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -> String {
-    if let Expr::IfExp { condition, if_true, if_false } = value {
+fn translate_attribute(
+    value: &Expr,
+    attr: &str,
+    ctx: &TranslationContext<'_>,
+) -> String {
+    if let Expr::IfExp {
+        condition,
+        if_true,
+        if_false,
+    } = value
+    {
         let new_true = Expr::Attribute {
             value: if_true.clone(),
             attr: attr.to_string(),
@@ -746,7 +909,10 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         || t == "&_io"
         || t == "&*_io"
         || t.ends_with("._io")
-        || matches!(detect_type_approx(value, ctx), Some(DataType::KaitaiStreamType));
+        || matches!(
+            detect_type_approx(value, ctx),
+            Some(DataType::KaitaiStreamType)
+        );
     if is_stream && attr == "eof" {
         let stripped = remove_deref(&t);
         return format!("{stripped}.is_eof()");
@@ -788,12 +954,21 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         let stripped = remove_deref(&t);
         let elem_dt = match detect_type_approx(value, ctx) {
             Some(DataType::ArrayType { element, .. }) => Some(*element),
-            Some(DataType::Bytes { .. } | DataType::CalcBytesType) => Some(DataType::Int1 { signed: false }),
+            Some(DataType::Bytes { .. } | DataType::CalcBytesType) => {
+                Some(DataType::Int1 { signed: false })
+            }
             _ => None,
         };
         if let Some(elem) = elem_dt {
-            if is_numeric_type(&elem) || matches!(elem, DataType::CalcBoolType | DataType::Bits1 { .. }) {
-                return format!("*{stripped}.{attr}().ok_or(KError::EmptyIterator)?");
+            if is_numeric_type(&elem)
+                || matches!(
+                    elem,
+                    DataType::CalcBoolType | DataType::Bits1 { .. }
+                )
+            {
+                return format!(
+                    "*{stripped}.{attr}().ok_or(KError::EmptyIterator)?"
+                );
             }
         }
         return format!("{stripped}.{attr}().ok_or(KError::EmptyIterator)?");
@@ -806,27 +981,57 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         return format!("{t}.{attr}()");
     }
     if attr == "_parent" {
-        return format!("{t}._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?");
+        return format!(
+            "{t}._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?"
+        );
     }
     if attr == "_root" {
-        return format!("{t}._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?");
+        return format!(
+            "{t}._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?"
+        );
     }
     if attr == "_io" {
         return format!("{t}._io()");
     }
     if attr == "to_i" {
-        if matches!(val_type, Some(DataType::CalcBoolType | DataType::Bits1 { .. })) {
+        if matches!(
+            val_type,
+            Some(DataType::CalcBoolType | DataType::Bits1 { .. })
+        ) {
             return format!("(if {t} {{ 1_i32 }} else {{ 0_i32 }})");
         }
         if matches!(val_type, Some(DataType::EnumType { .. })) {
             return format!("i64::from(&{t})");
         }
-        if matches!(val_type, Some(DataType::Float { .. } | DataType::CalcFloatType)) {
-            let t_val = if t.starts_with('*') || t.starts_with('(') { t } else { format!("*{t}") };
+        if matches!(
+            val_type,
+            Some(DataType::Float { .. } | DataType::CalcFloatType)
+        ) {
+            let t_val = if t.starts_with('*') || t.starts_with('(') {
+                t
+            } else {
+                format!("*{t}")
+            };
             return format!("float_to_int({t_val})?");
         }
-        if matches!(val_type, Some(DataType::CalcIntType | DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::Bits { .. })) {
-            if matches!(val_type, Some(DataType::IntMulti { signed: false, width: 8, .. })) || is_usize_expr_str(&t) {
+        if matches!(
+            val_type,
+            Some(
+                DataType::CalcIntType
+                    | DataType::Int1 { .. }
+                    | DataType::IntMulti { .. }
+                    | DataType::Bits { .. }
+            )
+        ) {
+            if matches!(
+                val_type,
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 8,
+                    ..
+                })
+            ) || is_usize_expr_str(&t)
+            {
                 return format!("i64::try_from({t})?");
             }
             return format!("i64::from({t})");
@@ -842,21 +1047,31 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         let is_float = matches!(val_type, Some(DataType::ArrayType { element, .. }) if matches!(element.as_ref(), DataType::Float { .. } | DataType::CalcFloatType));
         if is_float {
             if attr == "min" {
-                return format!("*{stripped}.iter().reduce(|a, b| if (a.min(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?");
+                return format!(
+                    "*{stripped}.iter().reduce(|a, b| if (a.min(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?"
+                );
             }
-            return format!("*{stripped}.iter().reduce(|a, b| if (a.max(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?");
+            return format!(
+                "*{stripped}.iter().reduce(|a, b| if (a.max(*b)) == *b {{ b }} else {{ a }}).ok_or(KError::EmptyIterator)?"
+            );
         }
-        return format!("*{stripped}.iter().{attr}().ok_or(KError::EmptyIterator)?");
+        return format!(
+            "*{stripped}.iter().{attr}().ok_or(KError::EmptyIterator)?"
+        );
     }
     let escaped_attr = super::escape_rust_keyword(attr);
-    let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx) {
-        Some(DataType::UserType { names, .. }) => find_class_spec(ctx.root, &names),
+    let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx)
+    {
+        Some(DataType::UserType { names, .. }) => {
+            find_class_spec(ctx.root, &names)
+        }
         _ => None,
     };
     let is_vlq_value = match detect_type_approx(value, ctx) {
         Some(DataType::UserType { names, .. }) => {
             // Reason for fallback: empty names list cannot match vlq_base128 prefix
-            names.last().is_some_and(|n| n.starts_with("vlq_base128")) && attr == "value"
+            names.last().is_some_and(|n| n.starts_with("vlq_base128"))
+                && attr == "value"
         }
         _ => false,
     };
@@ -873,15 +1088,16 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     let (q, unwrap) = if is_inst {
         let returns_opt = if let Some(tc) = target_class {
             // Reason for fallback: absent instance attribute is not an optional-returning instance
-            tc.instances.get(attr).is_some_and(|inst| {
-                match &inst.data_type {
+            tc.instances
+                .get(attr)
+                .is_some_and(|inst| match &inst.data_type {
                     DataType::SwitchType { cases, .. } => {
-                        let is_numeric = !cases.is_empty() && cases.values().all(is_numeric_type);
+                        let is_numeric = !cases.is_empty()
+                            && cases.values().all(is_numeric_type);
                         !is_numeric
                     }
                     _ => false,
-                }
-            })
+                })
         } else {
             ctx.is_instance_returning_option(attr)
         };
@@ -895,10 +1111,12 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     };
     let deref = if let Some(tc) = target_class {
         // Reason for fallback: attributes absent from the target class fall back to root-level switch lookup
-        !is_numeric_switch_in_class(attr, tc).unwrap_or_else(|| is_numeric_switch_attr(attr, ctx.root))
+        !is_numeric_switch_in_class(attr, tc)
+            .unwrap_or_else(|| is_numeric_switch_attr(attr, ctx.root))
     } else if is_self {
         // Reason for fallback: attributes absent from current class fall back to root-level switch lookup
-        !is_numeric_switch_in_class(attr, ctx.current_class).unwrap_or_else(|| is_numeric_switch_attr(attr, ctx.root))
+        !is_numeric_switch_in_class(attr, ctx.current_class)
+            .unwrap_or_else(|| is_numeric_switch_attr(attr, ctx.root))
     } else {
         !is_numeric_switch_attr(attr, ctx.root)
     };
@@ -915,11 +1133,16 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     }
 }
 
-fn is_numeric_switch_in_class(attr_name: &str, class: &ClassSpec) -> Option<bool> {
+fn is_numeric_switch_in_class(
+    attr_name: &str,
+    class: &ClassSpec,
+) -> Option<bool> {
     for a in &class.seq {
         if a.id == attr_name {
             if let DataType::SwitchType { cases, .. } = &a.data_type {
-                return Some(!cases.is_empty() && cases.values().all(is_numeric_type));
+                return Some(
+                    !cases.is_empty() && cases.values().all(is_numeric_type),
+                );
             }
             return Some(false);
         }
@@ -927,7 +1150,9 @@ fn is_numeric_switch_in_class(attr_name: &str, class: &ClassSpec) -> Option<bool
     for (id, inst) in &class.instances {
         if id == attr_name {
             if let DataType::SwitchType { cases, .. } = &inst.data_type {
-                return Some(!cases.is_empty() && cases.values().all(is_numeric_type));
+                return Some(
+                    !cases.is_empty() && cases.values().all(is_numeric_type),
+                );
             }
             return Some(false);
         }
@@ -935,7 +1160,9 @@ fn is_numeric_switch_in_class(attr_name: &str, class: &ClassSpec) -> Option<bool
     for p in &class.params {
         if p.id == attr_name {
             if let DataType::SwitchType { cases, .. } = &p.data_type {
-                return Some(!cases.is_empty() && cases.values().all(is_numeric_type));
+                return Some(
+                    !cases.is_empty() && cases.values().all(is_numeric_type),
+                );
             }
             return Some(false);
         }
@@ -943,7 +1170,10 @@ fn is_numeric_switch_in_class(attr_name: &str, class: &ClassSpec) -> Option<bool
     None
 }
 
-fn find_first_member_type<'a>(attr_name: &str, class: &'a ClassSpec) -> Option<&'a DataType> {
+fn find_first_member_type<'a>(
+    attr_name: &str,
+    class: &'a ClassSpec,
+) -> Option<&'a DataType> {
     for a in &class.seq {
         if a.id == attr_name {
             return Some(&a.data_type);
@@ -970,7 +1200,9 @@ fn find_first_member_type<'a>(attr_name: &str, class: &'a ClassSpec) -> Option<&
 }
 
 fn is_numeric_switch_attr(attr_name: &str, root: &ClassSpec) -> bool {
-    if let Some(DataType::SwitchType { cases, .. }) = find_first_member_type(attr_name, root) {
+    if let Some(DataType::SwitchType { cases, .. }) =
+        find_first_member_type(attr_name, root)
+    {
         !cases.is_empty() && cases.values().all(is_numeric_type)
     } else {
         false
@@ -1017,7 +1249,9 @@ fn strip_matched_parens(mut s: &str) -> &str {
             }
         }
         if matches_outer && depth == 0 {
-            if let Some(inner) = s.strip_prefix('(').and_then(|t| t.strip_suffix(')')) {
+            if let Some(inner) =
+                s.strip_prefix('(').and_then(|t| t.strip_suffix(')'))
+            {
                 s = inner.trim();
             } else {
                 break;
@@ -1064,17 +1298,26 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
                     // Reason for fallback: slice indexing before split point defaults to empty string
                     let prefix = trimmed.get(..i).unwrap_or("").trim();
                     // Reason for fallback: prefix without a trailing try operator remains unchanged
-                    let receiver = strip_matched_parens(prefix.strip_suffix('?').unwrap_or(prefix));
+                    let receiver = strip_matched_parens(
+                        prefix.strip_suffix('?').unwrap_or(prefix),
+                    );
                     return is_usize_expr_str(receiver);
                 }
             }
-            let prev_is_op = idx > 0 && chars.get(idx.saturating_sub(1)).is_some_and(|&(_, p)| p == '|' || p == '&');
-            let next_is_op = chars.get(idx.saturating_add(1)).is_some_and(|&(_, n)| n == '|' || n == '&');
-            if (c == '|' || c == '&' || c == '^') && !prev_is_op && !next_is_op {
+            let prev_is_op = idx > 0
+                && chars
+                    .get(idx.saturating_sub(1))
+                    .is_some_and(|&(_, p)| p == '|' || p == '&');
+            let next_is_op = chars
+                .get(idx.saturating_add(1))
+                .is_some_and(|&(_, n)| n == '|' || n == '&');
+            if (c == '|' || c == '&' || c == '^') && !prev_is_op && !next_is_op
+            {
                 // Reason for fallback: slice indexing at split point defaults to empty string on out-of-bounds
                 let left = trimmed.get(..i).unwrap_or("").trim();
                 // Reason for fallback: slice indexing at split point defaults to empty string on out-of-bounds
-                let right = trimmed.get(i.saturating_add(1)..).unwrap_or("").trim();
+                let right =
+                    trimmed.get(i.saturating_add(1)..).unwrap_or("").trim();
                 if is_usize_expr_str(left) || is_usize_expr_str(right) {
                     return true;
                 }
@@ -1107,14 +1350,19 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
     false
 }
 
-pub(crate) fn is_numeric_switch_call(expr_str: &str, current_class: &ClassSpec, root: &ClassSpec) -> bool {
+pub(crate) fn is_numeric_switch_call(
+    expr_str: &str,
+    current_class: &ClassSpec,
+    root: &ClassSpec,
+) -> bool {
     if let Some(s) = expr_str.strip_suffix("()") {
         let attr = if let Some((_, rest)) = s.rsplit_once('.') {
             rest
         } else {
             s
         };
-        if let Some(is_switch) = is_numeric_switch_in_class(attr, current_class) {
+        if let Some(is_switch) = is_numeric_switch_in_class(attr, current_class)
+        {
             return is_switch;
         }
         return is_numeric_switch_attr(attr, root);
@@ -1206,10 +1454,12 @@ fn translate_bin_op(
         };
         let shift_target = if matches!(
             lt,
-            Some(DataType::Int1 { .. }
-                | DataType::IntMulti { width: 1..=2, .. }
-                | DataType::Bits { .. }
-                | DataType::Bits1 { .. })
+            Some(
+                DataType::Int1 { .. }
+                    | DataType::IntMulti { width: 1..=2, .. }
+                    | DataType::Bits { .. }
+                    | DataType::Bits1 { .. }
+            )
         ) {
             DataType::CalcIntType
         } else {
@@ -1217,7 +1467,11 @@ fn translate_bin_op(
             lt.clone().unwrap_or(DataType::CalcIntType)
         };
         let l_typed = widen_expr(left, &l, lt.as_ref(), &shift_target, ctx);
-        let method = if op == Operator::LShift { "wrapping_shl" } else { "wrapping_shr" };
+        let method = if op == Operator::LShift {
+            "wrapping_shl"
+        } else {
+            "wrapping_shr"
+        };
         return format!("({l_typed}).{method}({shift_amt})");
     }
 
@@ -1242,19 +1496,35 @@ fn translate_bin_op(
             Operator::Add => return format!("({l_w}).saturating_add({r_w})"),
             Operator::Sub => return format!("({l_w}).saturating_sub({r_w})"),
             Operator::Mult => return format!("({l_w}).saturating_mul({r_w})"),
-            Operator::Div => return format!("({l_w}).checked_div({r_w}).ok_or(KError::CastError)?"),
-            Operator::Mod => return format!("({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?"),
+            Operator::Div => {
+                return format!(
+                    "({l_w}).checked_div({r_w}).ok_or(KError::CastError)?"
+                );
+            }
+            Operator::Mod => {
+                return format!(
+                    "({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?"
+                );
+            }
             Operator::BitAnd => return format!("(({l_w}) & ({r_w}))"),
             Operator::BitOr => return format!("(({l_w}) | ({r_w}))"),
             Operator::BitXor => return format!("(({l_w}) ^ ({r_w}))"),
-            Operator::LShift => return format!("({l_w}).wrapping_shl(to_shift_amt({r_w}))"),
-            Operator::RShift => return format!("({l_w}).wrapping_shr(to_shift_amt({r_w}))"),
+            Operator::LShift => {
+                return format!("({l_w}).wrapping_shl(to_shift_amt({r_w}))");
+            }
+            Operator::RShift => {
+                return format!("({l_w}).wrapping_shr(to_shift_amt({r_w}))");
+            }
         }
     }
 
     if let (Some(t1), Some(t2)) = (&lt, &rt) {
-        let is_float = matches!(t1, DataType::Float { .. } | DataType::CalcFloatType)
-            || matches!(t2, DataType::Float { .. } | DataType::CalcFloatType);
+        let is_float =
+            matches!(t1, DataType::Float { .. } | DataType::CalcFloatType)
+                || matches!(
+                    t2,
+                    DataType::Float { .. } | DataType::CalcFloatType
+                );
 
         if is_float {
             let combined = combine_types(t1, t2);
@@ -1270,15 +1540,29 @@ fn translate_bin_op(
             return format!("(({l_w}) {op_str} ({r_w}))");
         }
 
-        if is_signed_int_type(t1) && is_signed_int_type(t2) && op == Operator::Mod {
-            let i64_dt = DataType::IntMulti { signed: true, width: 8, endian: None };
+        if is_signed_int_type(t1)
+            && is_signed_int_type(t2)
+            && op == Operator::Mod
+        {
+            let i64_dt = DataType::IntMulti {
+                signed: true,
+                width: 8,
+                endian: None,
+            };
             let l_w = widen_expr(left, &l, Some(t1), &i64_dt, ctx);
             let r_w = widen_expr(right, &r, Some(t2), &i64_dt, ctx);
             return format!("modulo({l_w}, {r_w})");
         }
 
-        if is_signed_int_type(t1) && is_signed_int_type(t2) && op == Operator::Div {
-            let i64_dt = DataType::IntMulti { signed: true, width: 8, endian: None };
+        if is_signed_int_type(t1)
+            && is_signed_int_type(t2)
+            && op == Operator::Div
+        {
+            let i64_dt = DataType::IntMulti {
+                signed: true,
+                width: 8,
+                endian: None,
+            };
             let l_w = widen_expr(left, &l, Some(t1), &i64_dt, ctx);
             let r_w = widen_expr(right, &r, Some(t2), &i64_dt, ctx);
             return format!("div_floor({l_w}, {r_w})?");
@@ -1289,11 +1573,25 @@ fn translate_bin_op(
             let l_w = widen_expr(left, &l, Some(t1), &combined, ctx);
             let r_w = widen_expr(right, &r, Some(t2), &combined, ctx);
             match op {
-                Operator::Add => return format!("({l_w}).saturating_add({r_w})"),
-                Operator::Sub => return format!("({l_w}).saturating_sub({r_w})"),
-                Operator::Mult => return format!("({l_w}).saturating_mul({r_w})"),
-                Operator::Div => return format!("({l_w}).checked_div({r_w}).ok_or(KError::CastError)?"),
-                Operator::Mod => return format!("({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?"),
+                Operator::Add => {
+                    return format!("({l_w}).saturating_add({r_w})");
+                }
+                Operator::Sub => {
+                    return format!("({l_w}).saturating_sub({r_w})");
+                }
+                Operator::Mult => {
+                    return format!("({l_w}).saturating_mul({r_w})");
+                }
+                Operator::Div => {
+                    return format!(
+                        "({l_w}).checked_div({r_w}).ok_or(KError::CastError)?"
+                    );
+                }
+                Operator::Mod => {
+                    return format!(
+                        "({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?"
+                    );
+                }
                 Operator::BitAnd => return format!("(({l_w}) & ({r_w}))"),
                 Operator::BitOr => return format!("(({l_w}) | ({r_w}))"),
                 Operator::BitXor => return format!("(({l_w}) ^ ({r_w}))"),
@@ -1329,12 +1627,18 @@ fn translate_bin_op(
                 format!("({l_w}).checked_div({r_w}).ok_or(KError::CastError)?")
             }
         }
-        Operator::Mod => format!("({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?"),
+        Operator::Mod => {
+            format!("({l_w}).checked_rem({r_w}).ok_or(KError::CastError)?")
+        }
         Operator::BitAnd => format!("(({l_w}) & ({r_w}))"),
         Operator::BitOr => format!("(({l_w}) | ({r_w}))"),
         Operator::BitXor => format!("(({l_w}) ^ ({r_w}))"),
-        Operator::LShift => format!("({l_w}).wrapping_shl(to_shift_amt({r_w}))"),
-        Operator::RShift => format!("({l_w}).wrapping_shr(to_shift_amt({r_w}))"),
+        Operator::LShift => {
+            format!("({l_w}).wrapping_shl(to_shift_amt({r_w}))")
+        }
+        Operator::RShift => {
+            format!("({l_w}).wrapping_shr(to_shift_amt({r_w}))")
+        }
     }
 }
 
@@ -1343,7 +1647,9 @@ fn translate_bool_op(
     values: &[Expr],
     ctx: &TranslationContext<'_>,
 ) -> String {
-    if op == BoolOp::And && values.iter().any(|v| matches!(v, Expr::Bool(false))) {
+    if op == BoolOp::And
+        && values.iter().any(|v| matches!(v, Expr::Bool(false)))
+    {
         let non_false = values
             .iter()
             .filter(|v| !matches!(v, Expr::Bool(false)))
@@ -1359,7 +1665,8 @@ fn translate_bool_op(
             .join(" ");
         return format!("({{ {stmts} false }})");
     }
-    if op == BoolOp::Or && values.iter().any(|v| matches!(v, Expr::Bool(true))) {
+    if op == BoolOp::Or && values.iter().any(|v| matches!(v, Expr::Bool(true)))
+    {
         let non_true = values
             .iter()
             .filter(|v| !matches!(v, Expr::Bool(true)))
@@ -1407,16 +1714,38 @@ fn translate_compare(
     let mut l_raw = translate_expr(left, ctx);
     let mut r_raw = translate_expr(right, ctx);
 
-    if !l_raw.starts_with('*') && (l_raw.starts_with("self.") || l_raw.starts_with("self_rc.")) && !is_usize_expr_str(&l_raw) {
+    if !l_raw.starts_with('*')
+        && (l_raw.starts_with("self.") || l_raw.starts_with("self_rc."))
+        && !is_usize_expr_str(&l_raw)
+    {
         if matches!(right, Expr::List(_) | Expr::Str(_))
-            || matches!(lt, Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType))
+            || matches!(
+                lt,
+                Some(
+                    DataType::Bytes { .. }
+                        | DataType::CalcBytesType
+                        | DataType::Str { .. }
+                        | DataType::CalcStrType
+                )
+            )
         {
             l_raw = format!("*{l_raw}");
         }
     }
-    if !r_raw.starts_with('*') && (r_raw.starts_with("self.") || r_raw.starts_with("self_rc.")) && !is_usize_expr_str(&r_raw) {
+    if !r_raw.starts_with('*')
+        && (r_raw.starts_with("self.") || r_raw.starts_with("self_rc."))
+        && !is_usize_expr_str(&r_raw)
+    {
         if matches!(left, Expr::List(_) | Expr::Str(_))
-            || matches!(rt, Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType))
+            || matches!(
+                rt,
+                Some(
+                    DataType::Bytes { .. }
+                        | DataType::CalcBytesType
+                        | DataType::Str { .. }
+                        | DataType::CalcStrType
+                )
+            )
         {
             r_raw = format!("*{r_raw}");
         }
@@ -1425,7 +1754,12 @@ fn translate_compare(
     if l_raw == "_tmpa"
         && matches!(
             lt,
-            Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType)
+            Some(
+                DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::Str { .. }
+                    | DataType::CalcStrType
+            )
         )
     {
         l_raw = "*_tmpa".to_string();
@@ -1433,29 +1767,37 @@ fn translate_compare(
     if r_raw == "_tmpa"
         && matches!(
             rt,
-            Some(DataType::Bytes { .. } | DataType::CalcBytesType | DataType::Str { .. } | DataType::CalcStrType)
+            Some(
+                DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::Str { .. }
+                    | DataType::CalcStrType
+            )
         )
     {
         r_raw = "*_tmpa".to_string();
     }
 
-    let is_str_cmp = matches!(lt, Some(DataType::Str { .. } | DataType::CalcStrType))
-        || matches!(rt, Some(DataType::Str { .. } | DataType::CalcStrType))
-        || matches!(left, Expr::Str(_))
-        || matches!(right, Expr::Str(_));
+    let is_str_cmp =
+        matches!(lt, Some(DataType::Str { .. } | DataType::CalcStrType))
+            || matches!(rt, Some(DataType::Str { .. } | DataType::CalcStrType))
+            || matches!(left, Expr::Str(_))
+            || matches!(right, Expr::Str(_));
     if is_str_cmp {
         let l_clean = remove_deref(&l_raw);
         let r_clean = remove_deref(&r_raw);
-        let l_str = if l_clean.starts_with('"') || l_clean.ends_with(".as_str()") {
-            l_clean.to_string()
-        } else {
-            format!("{l_clean}.as_str()")
-        };
-        let r_str = if r_clean.starts_with('"') || r_clean.ends_with(".as_str()") {
-            r_clean.to_string()
-        } else {
-            format!("{r_clean}.as_str()")
-        };
+        let l_str =
+            if l_clean.starts_with('"') || l_clean.ends_with(".as_str()") {
+                l_clean.to_string()
+            } else {
+                format!("{l_clean}.as_str()")
+            };
+        let r_str =
+            if r_clean.starts_with('"') || r_clean.ends_with(".as_str()") {
+                r_clean.to_string()
+            } else {
+                format!("{r_clean}.as_str()")
+            };
         return format!("({l_str} {op_str} {r_str})");
     }
 
@@ -1493,14 +1835,21 @@ fn translate_if_exp(
     if matches!(t_dt, Some(DataType::Str { .. } | DataType::CalcStrType))
         || matches!(f_dt, Some(DataType::Str { .. } | DataType::CalcStrType))
     {
-        return format!("if {cond_str} {{ {t_clean}.to_string() }} else {{ {f_clean}.to_string() }}");
+        return format!(
+            "if {cond_str} {{ {t_clean}.to_string() }} else {{ {f_clean}.to_string() }}"
+        );
     }
 
     // If one of the branches is Bytes, coerce both to Vec<u8>
     if matches!(t_dt, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
-        || matches!(f_dt, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
+        || matches!(
+            f_dt,
+            Some(DataType::Bytes { .. } | DataType::CalcBytesType)
+        )
     {
-        return format!("if {cond_str} {{ {t_clean}.to_vec() }} else {{ {f_clean}.to_vec() }}");
+        return format!(
+            "if {cond_str} {{ {t_clean}.to_vec() }} else {{ {f_clean}.to_vec() }}"
+        );
     }
 
     // If UserType or EnumType or ArrayType, clone
@@ -1509,27 +1858,47 @@ fn translate_if_exp(
     let t_effective = t_resolved.as_ref().or(t_dt.as_ref());
     let f_effective = f_resolved.as_ref().or(f_dt.as_ref());
 
-    if matches!(t_effective, Some(DataType::KaitaiStreamType)) || matches!(f_effective, Some(DataType::KaitaiStreamType)) {
-        return format!("if {cond_str} {{ Clone::clone(&*({t_clean})) }} else {{ Clone::clone(&*({f_clean})) }}");
+    if matches!(t_effective, Some(DataType::KaitaiStreamType))
+        || matches!(f_effective, Some(DataType::KaitaiStreamType))
+    {
+        return format!(
+            "if {cond_str} {{ Clone::clone(&*({t_clean})) }} else {{ Clone::clone(&*({f_clean})) }}"
+        );
     }
 
-    if let (Some(DataType::UserType { names: n1, .. }), Some(DataType::UserType { names: n2, .. })) = (&t_effective, &f_effective) {
+    if let (
+        Some(DataType::UserType { names: n1, .. }),
+        Some(DataType::UserType { names: n2, .. }),
+    ) = (&t_effective, &f_effective)
+    {
         if n1 != n2 {
-            return format!("if {cond_str} {{ Struct::from_opt_rc(&({t_clean})) }} else {{ Struct::from_opt_rc(&({f_clean})) }}");
+            return format!(
+                "if {cond_str} {{ Struct::from_opt_rc(&({t_clean})) }} else {{ Struct::from_opt_rc(&({f_clean})) }}"
+            );
         }
     }
 
     if matches!(
         t_effective,
-        Some(DataType::UserType { .. } | DataType::EnumType { .. } | DataType::ArrayType { .. })
+        Some(
+            DataType::UserType { .. }
+                | DataType::EnumType { .. }
+                | DataType::ArrayType { .. }
+        )
     ) || matches!(
         f_effective,
-        Some(DataType::UserType { .. } | DataType::EnumType { .. } | DataType::ArrayType { .. })
+        Some(
+            DataType::UserType { .. }
+                | DataType::EnumType { .. }
+                | DataType::ArrayType { .. }
+        )
     ) {
         let t_val = if is_switch_type(if_true, ctx) {
             if let Some(DataType::UserType { names, .. }) = t_effective {
                 let user_class = types_to_class_name(names);
-                format!("OptRc::<{user_class}>::try_from(&*({t_clean}).as_ref().ok_or(KError::CastError)?)?")
+                format!(
+                    "OptRc::<{user_class}>::try_from(&*({t_clean}).as_ref().ok_or(KError::CastError)?)?"
+                )
             } else {
                 format!("{t_clean}.clone()")
             }
@@ -1539,7 +1908,9 @@ fn translate_if_exp(
         let f_val = if is_switch_type(if_false, ctx) {
             if let Some(DataType::UserType { names, .. }) = f_effective {
                 let user_class = types_to_class_name(names);
-                format!("OptRc::<{user_class}>::try_from(&*({f_clean}).as_ref().ok_or(KError::CastError)?)?")
+                format!(
+                    "OptRc::<{user_class}>::try_from(&*({f_clean}).as_ref().ok_or(KError::CastError)?)?"
+                )
             } else {
                 format!("{f_clean}.clone()")
             }
@@ -1553,14 +1924,22 @@ fn translate_if_exp(
     if let (Some(t_type), Some(f_type)) = (&t_dt, &f_dt) {
         if is_numeric_type(t_type) && is_numeric_type(f_type) {
             let combined = combine_types(t_type, f_type);
-            let t_val = widen_expr(if_true, &true_raw, Some(t_type), &combined, ctx);
-            let f_val = widen_expr(if_false, &false_raw, Some(f_type), &combined, ctx);
+            let t_val =
+                widen_expr(if_true, &true_raw, Some(t_type), &combined, ctx);
+            let f_val =
+                widen_expr(if_false, &false_raw, Some(f_type), &combined, ctx);
             return format!("if {cond_str} {{ {t_val} }} else {{ {f_val} }}");
         }
     }
 
-    let t_is_bool = matches!(t_dt, Some(DataType::CalcBoolType | DataType::Bits1 { .. })) || true_raw == "true" || true_raw == "false";
-    let f_is_bool = matches!(f_dt, Some(DataType::CalcBoolType | DataType::Bits1 { .. })) || false_raw == "true" || false_raw == "false";
+    let t_is_bool =
+        matches!(t_dt, Some(DataType::CalcBoolType | DataType::Bits1 { .. }))
+            || true_raw == "true"
+            || true_raw == "false";
+    let f_is_bool =
+        matches!(f_dt, Some(DataType::CalcBoolType | DataType::Bits1 { .. }))
+            || false_raw == "true"
+            || false_raw == "false";
     if !t_is_bool && !f_is_bool {
         let t_is_usize = is_usize_expr_str(&true_raw);
         let f_is_usize = is_usize_expr_str(&false_raw);
@@ -1583,15 +1962,27 @@ fn translate_if_exp(
         }
     }
 
-    let is_stream = |t: &str| t.ends_with("._io()") || t == "_io" || t == "&_io" || t == "&*_io" || t.ends_with("._io");
+    let is_stream = |t: &str| {
+        t.ends_with("._io()")
+            || t == "_io"
+            || t == "&_io"
+            || t == "&*_io"
+            || t.ends_with("._io")
+    };
     if is_stream(&true_raw) || is_stream(&false_raw) {
-        return format!("if {cond_str} {{ KStream::clone(&*{t_clean}) }} else {{ KStream::clone(&*{f_clean}) }}");
+        return format!(
+            "if {cond_str} {{ KStream::clone(&*{t_clean}) }} else {{ KStream::clone(&*{f_clean}) }}"
+        );
     }
 
     format!("if {cond_str} {{ {true_raw} }} else {{ {false_raw} }}")
 }
 
-fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> String {
+fn translate_call(
+    func: &Expr,
+    args: &[Expr],
+    ctx: &TranslationContext<'_>,
+) -> String {
     if let Expr::Attribute { value, attr } = func {
         let t = translate_expr(value, ctx);
         match attr.as_str() {
@@ -1603,12 +1994,18 @@ fn translate_call(func: &Expr, args: &[Expr], ctx: &TranslationContext<'_>) -> S
                 if let Some(arg) = args.first() {
                     let base = translate_expr(arg, ctx);
                     if base == "10" {
-                        format!("{t}.parse::<i32>().map_err(|_| KError::CastError)?")
+                        format!(
+                            "{t}.parse::<i32>().map_err(|_| KError::CastError)?"
+                        )
                     } else {
-                        format!("i32::from_str_radix({t}, {base}).map_err(|_| KError::CastError)?")
+                        format!(
+                            "i32::from_str_radix({t}, {base}).map_err(|_| KError::CastError)?"
+                        )
                     }
                 } else {
-                    format!("{t}.parse::<i32>().map_err(|_| KError::CastError)?")
+                    format!(
+                        "{t}.parse::<i32>().map_err(|_| KError::CastError)?"
+                    )
                 }
             }
             "length" | "size" => {
@@ -1688,7 +2085,10 @@ pub const fn needs_deref(dt: &DataType) -> bool {
     }
 }
 
-pub(crate) fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Option<&'a ClassSpec> {
+pub(crate) fn find_class_spec<'a>(
+    root: &'a ClassSpec,
+    path: &[String],
+) -> Option<&'a ClassSpec> {
     if path.is_empty() {
         return None;
     }
@@ -1718,8 +2118,14 @@ pub(crate) fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Optio
     Some(cur)
 }
 
-fn resolve_user_class_spec<'a>(type_name: &str, ctx: &'a TranslationContext<'_>) -> Option<&'a ClassSpec> {
-    let primitives = ["u1", "u2", "u4", "u8", "s1", "s2", "s4", "s8", "f4", "f8", "b1", "bool", "str", "strz"];
+fn resolve_user_class_spec<'a>(
+    type_name: &str,
+    ctx: &'a TranslationContext<'_>,
+) -> Option<&'a ClassSpec> {
+    let primitives = [
+        "u1", "u2", "u4", "u8", "s1", "s2", "s4", "s8", "f4", "f8", "b1",
+        "bool", "str", "strz",
+    ];
     if primitives.contains(&type_name) {
         return None;
     }
@@ -1754,7 +2160,8 @@ fn resolve_user_class_spec<'a>(type_name: &str, ctx: &'a TranslationContext<'_>)
         if let Some(spec) = find_class_spec(root, &candidate) {
             return Some(spec);
         }
-        let full_parts: Vec<String> = parts.iter().map(|p| (*p).to_string()).collect();
+        let full_parts: Vec<String> =
+            parts.iter().map(|p| (*p).to_string()).collect();
         if let Some(spec) = find_class_spec(root, &full_parts) {
             return Some(spec);
         }
@@ -1762,11 +2169,18 @@ fn resolve_user_class_spec<'a>(type_name: &str, ctx: &'a TranslationContext<'_>)
     None
 }
 
-fn resolve_user_class_name(type_name: &str, ctx: &TranslationContext<'_>) -> Option<String> {
-    resolve_user_class_spec(type_name, ctx).map(|spec| types_to_class_name(&spec.name))
+fn resolve_user_class_name(
+    type_name: &str,
+    ctx: &TranslationContext<'_>,
+) -> Option<String> {
+    resolve_user_class_spec(type_name, ctx)
+        .map(|spec| types_to_class_name(&spec.name))
 }
 
-fn find_enum_owner<'a>(class: &'a ClassSpec, enum_name: &str) -> Option<&'a ClassSpec> {
+fn find_enum_owner<'a>(
+    class: &'a ClassSpec,
+    enum_name: &str,
+) -> Option<&'a ClassSpec> {
     if class.enums.contains_key(enum_name) {
         return Some(class);
     }
@@ -1814,10 +2228,17 @@ pub fn resolve_enum_type_name(
         }
         if let Some(root_spec) = root {
             if let Some(first) = parts.first() {
-                if root_spec.external_types.iter().any(|ext| ext.first().map(String::as_str) == Some(*first))
-                    || root_spec.meta_imports.iter().any(|imp| imp.trim_start_matches('/').split('/').next_back() == Some(*first))
+                if root_spec
+                    .external_types
+                    .iter()
+                    .any(|ext| ext.first().map(String::as_str) == Some(*first))
+                    || root_spec.meta_imports.iter().any(|imp| {
+                        imp.trim_start_matches('/').split('/').next_back()
+                            == Some(*first)
+                    })
                 {
-                    let mut full_parts: Vec<String> = parts.iter().map(|p| (*p).to_string()).collect();
+                    let mut full_parts: Vec<String> =
+                        parts.iter().map(|p| (*p).to_string()).collect();
                     full_parts.push(simple_enum_name.to_string());
                     return types_to_class_name(&full_parts);
                 }
@@ -1856,30 +2277,54 @@ fn find_attr_type(class: &ClassSpec, attr: &str) -> Option<DataType> {
 }
 
 /// Simple heuristic to detect data type of an expression for clone and cast formatting.
-pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> Option<DataType> {
+pub(crate) fn detect_type_approx(
+    expr: &Expr,
+    ctx: &TranslationContext<'_>,
+) -> Option<DataType> {
     let current_class = ctx.current_class;
     match expr {
         Expr::IntNum(x) => {
             if *x >= i128::from(i32::MIN) && *x <= i128::from(i32::MAX) {
                 Some(DataType::CalcIntType)
             } else if *x >= 0 && *x <= i128::from(u32::MAX) {
-                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 4,
+                    endian: None,
+                })
             } else if *x >= i128::from(i64::MIN) && *x <= i128::from(i64::MAX) {
-                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: true,
+                    width: 8,
+                    endian: None,
+                })
             } else {
-                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 8,
+                    endian: None,
+                })
             }
         }
         Expr::FloatNum(_) => Some(DataType::CalcFloatType),
-        Expr::Bool(_) | Expr::Compare { .. } | Expr::BoolOp { .. } => Some(DataType::CalcBoolType),
-        Expr::UnaryOp { op: UnaryOp::Not, .. } => Some(DataType::CalcBoolType),
-        Expr::UnaryOp { op: UnaryOp::Minus, operand } => {
+        Expr::Bool(_) | Expr::Compare { .. } | Expr::BoolOp { .. } => {
+            Some(DataType::CalcBoolType)
+        }
+        Expr::UnaryOp {
+            op: UnaryOp::Not, ..
+        } => Some(DataType::CalcBoolType),
+        Expr::UnaryOp {
+            op: UnaryOp::Minus,
+            operand,
+        } => {
             let t = detect_type_approx(operand, ctx);
             match t {
                 Some(DataType::IntMulti { width, .. }) if width > 4 => t,
-                Some(DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::CalcIntType) => {
-                    Some(DataType::CalcIntType)
-                }
+                Some(
+                    DataType::Int1 { .. }
+                    | DataType::IntMulti { .. }
+                    | DataType::CalcIntType,
+                ) => Some(DataType::CalcIntType),
                 Some(DataType::Float { .. } | DataType::CalcFloatType) => t,
                 _ => Some(DataType::CalcIntType),
             }
@@ -1888,7 +2333,9 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
         Expr::List(elements) => {
             // Reason for fallback: empty list or uninferrable element type defaults to integer calculation type
             let mut elem_type = DataType::CalcIntType;
-            if let Some(first) = elements.first().and_then(|e| detect_type_approx(e, ctx)) {
+            if let Some(first) =
+                elements.first().and_then(|e| detect_type_approx(e, ctx))
+            {
                 elem_type = first;
                 for e in elements.iter().skip(1) {
                     if let Some(t) = detect_type_approx(e, ctx) {
@@ -1899,11 +2346,15 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             Some(DataType::ArrayType {
                 element: Box::new(elem_type),
                 // Reason for fallback: list length integer conversion overflow defaults to 0
-                repeat: RepeatMode::Expr(Expr::IntNum(i128::try_from(elements.len()).unwrap_or(0))),
+                repeat: RepeatMode::Expr(Expr::IntNum(
+                    i128::try_from(elements.len()).unwrap_or(0),
+                )),
             })
         }
         Expr::Str(_) => Some(DataType::CalcStrType),
-        Expr::EnumByLabel { enum_name, in_type, .. } => {
+        Expr::EnumByLabel {
+            enum_name, in_type, ..
+        } => {
             let mut curr_opt = Some(current_class.name.as_slice());
             while let Some(cls_name) = curr_opt {
                 if let Some(cls) = find_class_spec(ctx.root, cls_name) {
@@ -1934,10 +2385,16 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 underlying: None,
             })
         }
-        Expr::ByteSizeOfType(_) | Expr::BitSizeOfType(_) => Some(DataType::CalcIntType),
+        Expr::ByteSizeOfType(_) | Expr::BitSizeOfType(_) => {
+            Some(DataType::CalcIntType)
+        }
         Expr::Name(name) => {
             if name == "_index" {
-                return Some(DataType::IntMulti { signed: false, width: 8, endian: None });
+                return Some(DataType::IntMulti {
+                    signed: false,
+                    width: 8,
+                    endian: None,
+                });
             }
             if name == "_sizeof" {
                 return Some(DataType::CalcIntType);
@@ -1970,18 +2427,23 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                     });
                 }
             }
-            if let Some(param) = current_class.params.iter().find(|p| p.id == *name) {
+            if let Some(param) =
+                current_class.params.iter().find(|p| p.id == *name)
+            {
                 return Some(resolve_switch_type(&param.data_type));
             }
             if let Some(inst) = current_class.instances.get(name) {
                 return Some(resolve_switch_type(&inst.data_type));
             }
-            if let Some(attr) = current_class.seq.iter().find(|a| a.id == *name) {
+            if let Some(attr) = current_class.seq.iter().find(|a| a.id == *name)
+            {
                 return Some(resolve_switch_type(&attr.data_type));
             }
             None
         }
-        Expr::IfExp { if_true, if_false, .. } => {
+        Expr::IfExp {
+            if_true, if_false, ..
+        } => {
             let t1 = detect_type_approx(if_true, ctx);
             let t2 = detect_type_approx(if_false, ctx);
             match (t1, t2) {
@@ -1997,7 +2459,10 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 if let DataType::ArrayType { element: elem, .. } = resolved_dt {
                     return Some(*elem);
                 }
-                if matches!(resolved_dt, DataType::Bytes { .. } | DataType::CalcBytesType) {
+                if matches!(
+                    resolved_dt,
+                    DataType::Bytes { .. } | DataType::CalcBytesType
+                ) {
                     return Some(DataType::Int1 { signed: false });
                 }
             }
@@ -2007,28 +2472,38 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             let lt = detect_type_approx(left, ctx);
             let rt = detect_type_approx(right, ctx);
             if *op == Operator::Add {
-                if matches!(lt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                    || matches!(rt, Some(DataType::CalcStrType | DataType::Str { .. }))
-                {
+                if matches!(
+                    lt,
+                    Some(DataType::CalcStrType | DataType::Str { .. })
+                ) || matches!(
+                    rt,
+                    Some(DataType::CalcStrType | DataType::Str { .. })
+                ) {
                     return Some(DataType::CalcStrType);
                 }
             }
             if *op == Operator::LShift || *op == Operator::RShift {
                 return if matches!(
                     lt,
-                    Some(DataType::Int1 { .. }
-                        | DataType::IntMulti { width: 1..=2, .. }
-                        | DataType::Bits { .. }
-                        | DataType::Bits1 { .. })
+                    Some(
+                        DataType::Int1 { .. }
+                            | DataType::IntMulti { width: 1..=2, .. }
+                            | DataType::Bits { .. }
+                            | DataType::Bits1 { .. }
+                    )
                 ) {
                     Some(DataType::CalcIntType)
                 } else {
                     lt.or(Some(DataType::CalcIntType))
                 };
             }
-            if matches!(lt, Some(DataType::CalcFloatType | DataType::Float { .. }))
-                || matches!(rt, Some(DataType::CalcFloatType | DataType::Float { .. }))
-            {
+            if matches!(
+                lt,
+                Some(DataType::CalcFloatType | DataType::Float { .. })
+            ) || matches!(
+                rt,
+                Some(DataType::CalcFloatType | DataType::Float { .. })
+            ) {
                 return match (lt, rt) {
                     (Some(t1), Some(t2)) => Some(combine_types(&t1, &t2)),
                     (Some(t), None) | (None, Some(t)) => Some(t),
@@ -2046,7 +2521,8 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             if let Some(target_dt) = detect_type_approx(value, ctx) {
                 let resolved_dt = resolve_switch_type(&target_dt);
                 if let DataType::UserType { names, .. } = resolved_dt {
-                    if let Some(target_cls) = find_class_spec(ctx.root, &names) {
+                    if let Some(target_cls) = find_class_spec(ctx.root, &names)
+                    {
                         if attr == "_parent" {
                             if let Some(pname) = &target_cls.parent_name {
                                 return Some(DataType::UserType {
@@ -2061,7 +2537,9 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                         }
                     }
                 }
-                if matches!(target_dt, DataType::ArrayType { .. }) && (attr == "first" || attr == "last") {
+                if matches!(target_dt, DataType::ArrayType { .. })
+                    && (attr == "first" || attr == "last")
+                {
                     if let DataType::ArrayType { element, .. } = target_dt {
                         return Some(resolve_switch_type(&element));
                     }
@@ -2075,17 +2553,33 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             }
             if attr == "to_i" {
                 if let Some(target_dt) = detect_type_approx(value, ctx) {
-                    if matches!(target_dt, DataType::EnumType { .. } | DataType::Float { .. } | DataType::CalcFloatType) {
-                        return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
+                    if matches!(
+                        target_dt,
+                        DataType::EnumType { .. }
+                            | DataType::Float { .. }
+                            | DataType::CalcFloatType
+                    ) {
+                        return Some(DataType::IntMulti {
+                            signed: true,
+                            width: 8,
+                            endian: None,
+                        });
                     }
                 }
                 return Some(DataType::CalcIntType);
             }
             let is_stream = matches!(&**value, Expr::Name(n) if n == "_io" || n == "io")
                 || matches!(&**value, Expr::Attribute { attr: a, .. } if a == "_io" || a == "io")
-                || matches!(detect_type_approx(value, ctx), Some(DataType::KaitaiStreamType));
+                || matches!(
+                    detect_type_approx(value, ctx),
+                    Some(DataType::KaitaiStreamType)
+                );
             if is_stream && (attr == "length" || attr == "size") {
-                return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
+                return Some(DataType::IntMulti {
+                    signed: true,
+                    width: 8,
+                    endian: None,
+                });
             }
             if attr == "length" || attr == "size" || attr == "pos" {
                 return Some(DataType::CalcIntType);
@@ -2101,7 +2595,9 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
         Expr::Call { func, .. } => {
             if let Expr::Attribute { value, attr } = &**func {
                 if let Some(target_dt) = detect_type_approx(value, ctx) {
-                    if matches!(target_dt, DataType::ArrayType { .. }) && (attr == "first" || attr == "last") {
+                    if matches!(target_dt, DataType::ArrayType { .. })
+                        && (attr == "first" || attr == "last")
+                    {
                         if let DataType::ArrayType { element, .. } = target_dt {
                             return Some(resolve_switch_type(&element));
                         }
@@ -2112,17 +2608,33 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 }
                 if attr == "to_i" {
                     if let Some(target_dt) = detect_type_approx(value, ctx) {
-                        if matches!(target_dt, DataType::EnumType { .. } | DataType::Float { .. } | DataType::CalcFloatType) {
-                            return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
+                        if matches!(
+                            target_dt,
+                            DataType::EnumType { .. }
+                                | DataType::Float { .. }
+                                | DataType::CalcFloatType
+                        ) {
+                            return Some(DataType::IntMulti {
+                                signed: true,
+                                width: 8,
+                                endian: None,
+                            });
                         }
                     }
                     return Some(DataType::CalcIntType);
                 }
                 let is_stream = matches!(&**value, Expr::Name(n) if n == "_io" || n == "io")
                     || matches!(&**value, Expr::Attribute { attr: a, .. } if a == "_io" || a == "io")
-                    || matches!(detect_type_approx(value, ctx), Some(DataType::KaitaiStreamType));
+                    || matches!(
+                        detect_type_approx(value, ctx),
+                        Some(DataType::KaitaiStreamType)
+                    );
                 if is_stream && (attr == "length" || attr == "size") {
-                    return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
+                    return Some(DataType::IntMulti {
+                        signed: true,
+                        width: 8,
+                        endian: None,
+                    });
                 }
                 if attr == "length" || attr == "size" || attr == "pos" {
                     return Some(DataType::CalcIntType);
@@ -2147,26 +2659,56 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             } else if s == "s1" {
                 Some(DataType::Int1 { signed: true })
             } else if s == "u2" {
-                Some(DataType::IntMulti { signed: false, width: 2, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 2,
+                    endian: None,
+                })
             } else if s == "s2" {
-                Some(DataType::IntMulti { signed: true, width: 2, endian: None })
+                Some(DataType::IntMulti {
+                    signed: true,
+                    width: 2,
+                    endian: None,
+                })
             } else if s == "u4" {
-                Some(DataType::IntMulti { signed: false, width: 4, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 4,
+                    endian: None,
+                })
             } else if s == "s4" {
-                Some(DataType::IntMulti { signed: true, width: 4, endian: None })
+                Some(DataType::IntMulti {
+                    signed: true,
+                    width: 4,
+                    endian: None,
+                })
             } else if s == "u8" {
-                Some(DataType::IntMulti { signed: false, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: false,
+                    width: 8,
+                    endian: None,
+                })
             } else if s == "s8" {
-                Some(DataType::IntMulti { signed: true, width: 8, endian: None })
+                Some(DataType::IntMulti {
+                    signed: true,
+                    width: 8,
+                    endian: None,
+                })
             } else if s == "b1" {
-                Some(DataType::Bits1 { bit_endian: BitEndianness::Big })
+                Some(DataType::Bits1 {
+                    bit_endian: BitEndianness::Big,
+                })
             } else if matches!(s.as_str(), "f4" | "f8") {
                 Some(DataType::CalcFloatType)
-            } else { resolve_user_class_spec(&s, ctx).map(|spec| DataType::UserType {
-                    names: spec.name.clone(),
-                    is_external: false,
-                    args: Vec::new(),
-                }) }
+            } else {
+                resolve_user_class_spec(&s, ctx).map(|spec| {
+                    DataType::UserType {
+                        names: spec.name.clone(),
+                        is_external: false,
+                        args: Vec::new(),
+                    }
+                })
+            }
         }
         Expr::EnumById { enum_name, .. } => {
             let mut curr_opt = Some(current_class.name.as_slice());
@@ -2247,7 +2789,9 @@ pub(crate) fn is_numeric_type(dt: &DataType) -> bool {
         | DataType::CalcIntType
         | DataType::CalcFloatType
         | DataType::Bits { .. } => true,
-        DataType::SwitchType { cases, .. } => cases.values().all(is_numeric_type),
+        DataType::SwitchType { cases, .. } => {
+            cases.values().all(is_numeric_type)
+        }
         _ => false,
     }
 }
@@ -2304,22 +2848,28 @@ pub(crate) fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
                 }
             }
         }
-        (DataType::CalcBytesType, DataType::Bytes { .. } | DataType::CalcBytesType) |
-(DataType::Bytes { .. }, DataType::CalcBytesType) |
-(DataType::Bytes { .. }, DataType::Bytes { .. }) => {
+        (
+            DataType::CalcBytesType,
+            DataType::Bytes { .. } | DataType::CalcBytesType,
+        )
+        | (DataType::Bytes { .. }, DataType::CalcBytesType)
+        | (DataType::Bytes { .. }, DataType::Bytes { .. }) => {
             DataType::CalcBytesType
         }
-        (DataType::CalcStrType, DataType::Str { .. } | DataType::CalcStrType) |
-(DataType::Str { .. }, DataType::CalcStrType) |
-(DataType::Str { .. }, DataType::Str { .. }) => {
-            DataType::CalcStrType
-        }
-        (DataType::CalcBoolType | DataType::Bits1 { .. }, DataType::CalcBoolType | DataType::Bits1 { .. }) => {
-            DataType::CalcBoolType
-        }
-        (DataType::UserType { names: n1, .. }, DataType::UserType { names: n2, .. }) if n1 == n2 => {
-            t1_eff.clone()
-        }
+        (
+            DataType::CalcStrType,
+            DataType::Str { .. } | DataType::CalcStrType,
+        )
+        | (DataType::Str { .. }, DataType::CalcStrType)
+        | (DataType::Str { .. }, DataType::Str { .. }) => DataType::CalcStrType,
+        (
+            DataType::CalcBoolType | DataType::Bits1 { .. },
+            DataType::CalcBoolType | DataType::Bits1 { .. },
+        ) => DataType::CalcBoolType,
+        (
+            DataType::UserType { names: n1, .. },
+            DataType::UserType { names: n2, .. },
+        ) if n1 == n2 => t1_eff.clone(),
         (DataType::UserType { .. }, DataType::UserType { .. }) => {
             DataType::UserType {
                 names: vec!["struct".to_string()],
@@ -2330,34 +2880,66 @@ pub(crate) fn combine_types(t1: &DataType, t2: &DataType) -> DataType {
         (DataType::CalcFloatType, DataType::Float { width, endian })
         | (DataType::Float { width, endian }, DataType::CalcFloatType) => {
             if *width == 4 {
-                DataType::Float { width: 4, endian: *endian }
+                DataType::Float {
+                    width: 4,
+                    endian: *endian,
+                }
             } else {
                 DataType::CalcFloatType
             }
         }
-        (DataType::Float { width: w1, endian: e1 }, DataType::Float { width: w2, endian: e2 }) => {
+        (
             DataType::Float {
-                width: (*w1).max(*w2),
-                endian: e1.or(*e2),
+                width: w1,
+                endian: e1,
+            },
+            DataType::Float {
+                width: w2,
+                endian: e2,
+            },
+        ) => DataType::Float {
+            width: (*w1).max(*w2),
+            endian: e1.or(*e2),
+        },
+        (DataType::CalcFloatType, other) if is_numeric_type(other) => {
+            DataType::CalcFloatType
+        }
+        (other, DataType::CalcFloatType) if is_numeric_type(other) => {
+            DataType::CalcFloatType
+        }
+        (DataType::Float { width, endian }, other)
+            if is_numeric_type(other) =>
+        {
+            DataType::Float {
+                width: *width,
+                endian: *endian,
             }
         }
-        (DataType::CalcFloatType, other) if is_numeric_type(other) => DataType::CalcFloatType,
-        (other, DataType::CalcFloatType) if is_numeric_type(other) => DataType::CalcFloatType,
-        (DataType::Float { width, endian }, other) if is_numeric_type(other) => {
-            DataType::Float { width: *width, endian: *endian }
+        (other, DataType::Float { width, endian })
+            if is_numeric_type(other) =>
+        {
+            DataType::Float {
+                width: *width,
+                endian: *endian,
+            }
         }
-        (other, DataType::Float { width, endian }) if is_numeric_type(other) => {
-            DataType::Float { width: *width, endian: *endian }
+        (
+            DataType::CalcIntType,
+            DataType::Int1 { .. } | DataType::IntMulti { width: 2, .. },
+        ) => DataType::CalcIntType,
+        (
+            DataType::Int1 { .. } | DataType::IntMulti { width: 2, .. },
+            DataType::CalcIntType,
+        ) => DataType::CalcIntType,
+        (DataType::CalcIntType, other) if is_numeric_type(other) => {
+            other.clone()
         }
-        (DataType::CalcIntType, DataType::Int1 { .. } | DataType::IntMulti { width: 2, .. }) => {
+        (other, DataType::CalcIntType) if is_numeric_type(other) => {
+            other.clone()
+        }
+        (a, b) if is_numeric_type(a) && is_numeric_type(b) => {
             DataType::CalcIntType
         }
-        (DataType::Int1 { .. } | DataType::IntMulti { width: 2, .. }, DataType::CalcIntType) => {
-            DataType::CalcIntType
-        }
-        (DataType::CalcIntType, other) if is_numeric_type(other) => other.clone(),
-        (other, DataType::CalcIntType) if is_numeric_type(other) => other.clone(),
-        (a, b) if is_numeric_type(a) && is_numeric_type(b) => DataType::CalcIntType,
         _ => DataType::CalcIntType,
     }
 }
@@ -2366,12 +2948,36 @@ fn kaitai_primitive_to_native(dt: &DataType) -> &'static str {
     match dt {
         DataType::Int1 { signed: false } => "u8",
         DataType::Int1 { signed: true } => "i8",
-        DataType::IntMulti { signed: false, width: 2, .. } => "u16",
-        DataType::IntMulti { signed: false, width: 4, .. } => "u32",
-        DataType::IntMulti { signed: false, width: 8, .. } => "u64",
-        DataType::IntMulti { signed: true, width: 2, .. } => "i16",
-        DataType::IntMulti { signed: true, width: 4, .. } => "i32",
-        DataType::IntMulti { signed: true, width: 8, .. } => "i64",
+        DataType::IntMulti {
+            signed: false,
+            width: 2,
+            ..
+        } => "u16",
+        DataType::IntMulti {
+            signed: false,
+            width: 4,
+            ..
+        } => "u32",
+        DataType::IntMulti {
+            signed: false,
+            width: 8,
+            ..
+        } => "u64",
+        DataType::IntMulti {
+            signed: true,
+            width: 2,
+            ..
+        } => "i16",
+        DataType::IntMulti {
+            signed: true,
+            width: 4,
+            ..
+        } => "i32",
+        DataType::IntMulti {
+            signed: true,
+            width: 8,
+            ..
+        } => "i64",
         DataType::Bits { .. } => "u64",
         DataType::Bits1 { .. } => "bool",
         DataType::CalcIntType => "i32",
@@ -2384,7 +2990,10 @@ fn kaitai_primitive_to_native(dt: &DataType) -> &'static str {
 }
 
 /// Translates a custom validation expression (such as `_ & 0x8000 == 0` or `_ == 0 or _ >= _sizeof`).
-fn integer_suffix_for_type(dt: Option<&DataType>, fallback_native: &str) -> &'static str {
+fn integer_suffix_for_type(
+    dt: Option<&DataType>,
+    fallback_native: &str,
+) -> &'static str {
     if let Some(d) = dt {
         match kaitai_primitive_to_native(d) {
             "u8" => "u8",
@@ -2426,7 +3035,9 @@ pub fn translate_validation_custom_expr(
     let dt_suffix = integer_suffix_for_type(Some(dt), dt_native);
     match expr {
         Expr::BinOp { left, op, right }
-            if *op == Operator::BitAnd || *op == Operator::BitOr || *op == Operator::BitXor =>
+            if *op == Operator::BitAnd
+                || *op == Operator::BitOr
+                || *op == Operator::BitXor =>
         {
             let op_char = match op {
                 Operator::BitAnd => '&',
@@ -2438,18 +3049,40 @@ pub fn translate_validation_custom_expr(
                 if n == "_" {
                     "_tmpa".to_string()
                 } else {
-                    translate_validation_custom_expr(left, dt, current_class, ctx)
+                    translate_validation_custom_expr(
+                        left,
+                        dt,
+                        current_class,
+                        ctx,
+                    )
                 }
             } else {
                 translate_validation_custom_expr(left, dt, current_class, ctx)
             };
             let r = match right.as_ref() {
                 Expr::IntNum(n) => format!("{n}_{dt_suffix}"),
-                Expr::UnaryOp { op: UnaryOp::Invert, operand } => if let Expr::IntNum(n) = operand.as_ref() { format!("!({n}_{dt_suffix})") } else {
-                    let inner = translate_validation_custom_expr(operand, dt, current_class, ctx);
-                    format!("!({inner})")
-                },
-                _ => translate_validation_custom_expr(right, dt, current_class, ctx),
+                Expr::UnaryOp {
+                    op: UnaryOp::Invert,
+                    operand,
+                } => {
+                    if let Expr::IntNum(n) = operand.as_ref() {
+                        format!("!({n}_{dt_suffix})")
+                    } else {
+                        let inner = translate_validation_custom_expr(
+                            operand,
+                            dt,
+                            current_class,
+                            ctx,
+                        );
+                        format!("!({inner})")
+                    }
+                }
+                _ => translate_validation_custom_expr(
+                    right,
+                    dt,
+                    current_class,
+                    ctx,
+                ),
             };
             format!("({l} {op_char} {r})")
         }
@@ -2462,9 +3095,21 @@ pub fn translate_validation_custom_expr(
                 CmpOp::Gt => ">",
                 CmpOp::GtE => ">=",
             };
-            if matches!(left.as_ref(), Expr::Str(_)) || matches!(right.as_ref(), Expr::Str(_)) {
-                let l = translate_validation_custom_expr(left, dt, current_class, ctx);
-                let r = translate_validation_custom_expr(right, dt, current_class, ctx);
+            if matches!(left.as_ref(), Expr::Str(_))
+                || matches!(right.as_ref(), Expr::Str(_))
+            {
+                let l = translate_validation_custom_expr(
+                    left,
+                    dt,
+                    current_class,
+                    ctx,
+                );
+                let r = translate_validation_custom_expr(
+                    right,
+                    dt,
+                    current_class,
+                    ctx,
+                );
                 return format!("({l} {op_str} {r})");
             }
             if let Expr::Name(n) = left.as_ref() {
@@ -2480,7 +3125,9 @@ pub fn translate_validation_custom_expr(
                                 Some(ctx.root),
                             )
                             .unwrap_or(0);
-                            return format!("(_tmpa {op_str} {sz}_{dt_suffix})");
+                            return format!(
+                                "(_tmpa {op_str} {sz}_{dt_suffix})"
+                            );
                         }
                     }
                 }
@@ -2492,8 +3139,10 @@ pub fn translate_validation_custom_expr(
                     }
                 }
             }
-            let mut l = translate_validation_custom_expr(left, dt, current_class, ctx);
-            let mut r = translate_validation_custom_expr(right, dt, current_class, ctx);
+            let mut l =
+                translate_validation_custom_expr(left, dt, current_class, ctx);
+            let mut r =
+                translate_validation_custom_expr(right, dt, current_class, ctx);
             if l == "_tmpa" && !needs_deref(dt) {
                 l = "*_tmpa".to_string();
             }
@@ -2503,12 +3152,18 @@ pub fn translate_validation_custom_expr(
             let lt = if matches!(left.as_ref(), Expr::Name(n) if n == "_") {
                 Some(dt.clone())
             } else if matches!(left.as_ref(), Expr::Subscript { .. })
-                && matches!(dt, DataType::Bytes { .. } | DataType::CalcBytesType)
+                && matches!(
+                    dt,
+                    DataType::Bytes { .. } | DataType::CalcBytesType
+                )
             {
                 Some(DataType::Int1 { signed: false })
             } else if matches!(
                 left.as_ref(),
-                Expr::BinOp { op: Operator::BitAnd | Operator::BitOr | Operator::BitXor, .. }
+                Expr::BinOp {
+                    op: Operator::BitAnd | Operator::BitOr | Operator::BitXor,
+                    ..
+                }
             ) {
                 Some(dt.clone())
             } else {
@@ -2517,12 +3172,18 @@ pub fn translate_validation_custom_expr(
             let rt = if matches!(right.as_ref(), Expr::Name(n) if n == "_") {
                 Some(dt.clone())
             } else if matches!(right.as_ref(), Expr::Subscript { .. })
-                && matches!(dt, DataType::Bytes { .. } | DataType::CalcBytesType)
+                && matches!(
+                    dt,
+                    DataType::Bytes { .. } | DataType::CalcBytesType
+                )
             {
                 Some(DataType::Int1 { signed: false })
             } else if matches!(
                 right.as_ref(),
-                Expr::BinOp { op: Operator::BitAnd | Operator::BitOr | Operator::BitXor, .. }
+                Expr::BinOp {
+                    op: Operator::BitAnd | Operator::BitOr | Operator::BitXor,
+                    ..
+                }
             ) {
                 Some(dt.clone())
             } else {
@@ -2568,25 +3229,38 @@ pub fn translate_validation_custom_expr(
             };
             let rendered: Vec<String> = values
                 .iter()
-                .map(|v| translate_validation_custom_expr(v, dt, current_class, ctx))
+                .map(|v| {
+                    translate_validation_custom_expr(v, dt, current_class, ctx)
+                })
                 .collect();
             format!(" ({}) ", rendered.join(op_str))
         }
-        Expr::UnaryOp { op: UnaryOp::Not, operand } => {
-            let inner = translate_validation_custom_expr(operand, dt, current_class, ctx);
+        Expr::UnaryOp {
+            op: UnaryOp::Not,
+            operand,
+        } => {
+            let inner = translate_validation_custom_expr(
+                operand,
+                dt,
+                current_class,
+                ctx,
+            );
             format!("!({inner})")
         }
         Expr::Name(n) if n == "_" => "_tmpa".to_string(),
         Expr::Name(n) if n == "_sizeof" => {
             // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-            let sz = calculate_class_seq_size_with_root(current_class, Some(ctx.root)).unwrap_or(0);
+            let sz = calculate_class_seq_size_with_root(
+                current_class,
+                Some(ctx.root),
+            )
+            .unwrap_or(0);
             format!("{sz}_{dt_suffix}")
         }
         Expr::IntNum(n) => format!("{n}"),
         other => translate_expr(other, ctx),
     }
 }
-
 
 /* License information for parts derived from Kaitai Struct:
 

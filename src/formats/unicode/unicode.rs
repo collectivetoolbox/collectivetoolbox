@@ -214,22 +214,31 @@ pub fn combining_class(cp: u32) -> u8 {
 /// Returns the canonical script name for a code point (e.g. "Latin", "Arabic", "Common").
 #[must_use]
 pub fn script_name(cp: u32) -> Option<&'static str> {
-    let script_map = icu_properties::CodePointMapData::<icu_properties::props::Script>::new();
-    let script_names = icu_properties::PropertyNamesLong::<icu_properties::props::Script>::new();
+    let script_map = icu_properties::CodePointMapData::<
+        icu_properties::props::Script,
+    >::new();
+    let script_names = icu_properties::PropertyNamesLong::<
+        icu_properties::props::Script,
+    >::new();
     let script_val = script_map.get32(cp);
     script_names.get(script_val)
 }
 
-static ALL_UNICODE_SCRIPTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    let script_names = icu_properties::PropertyNamesLong::<icu_properties::props::Script>::new();
-    let mut scripts = HashSet::new();
-    for i in 0..=1000 {
-        if let Some(name) = script_names.get(icu_properties::props::Script::from_icu4c_value(i)) {
-            scripts.insert(name);
+static ALL_UNICODE_SCRIPTS: LazyLock<HashSet<&'static str>> =
+    LazyLock::new(|| {
+        let script_names = icu_properties::PropertyNamesLong::<
+            icu_properties::props::Script,
+        >::new();
+        let mut scripts = HashSet::new();
+        for i in 0..=1000 {
+            if let Some(name) = script_names
+                .get(icu_properties::props::Script::from_icu4c_value(i))
+            {
+                scripts.insert(name);
+            }
         }
-    }
-    scripts
-});
+        scripts
+    });
 
 /// Checks if a string is a valid Unicode script name (e.g. "Latin", "Arabic", "Common").
 #[must_use]
@@ -293,10 +302,12 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
     let bidi_map = icu_properties::CodePointMapData::<BidiClass>::new();
     let ccc_map =
         icu_properties::CodePointMapData::<CanonicalCombiningClass>::new();
-    let script_map =
-        icu_properties::CodePointMapData::<icu_properties::props::Script>::new();
-    let script_names =
-        icu_properties::PropertyNamesLong::<icu_properties::props::Script>::new();
+    let script_map = icu_properties::CodePointMapData::<
+        icu_properties::props::Script,
+    >::new();
+    let script_names = icu_properties::PropertyNamesLong::<
+        icu_properties::props::Script,
+    >::new();
 
     // Assert that compiled ICU Unicode properties match the inlined Unicode 17.0 tables
     let sample_17_cp = 0x088F; // ARABIC LETTER NOON WITH RING ABOVE, added in Unicode 17.0
@@ -316,8 +327,7 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
                 tables,
                 cp,
                 DescriptionMode::Standard,
-            )
-        {
+            ) {
             n
         } else if (0xE000..=0xF8FF).contains(&cp)
             || (0xF0000..=0xFFFFD).contains(&cp)
@@ -392,10 +402,8 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
 
         let script_val = script_map.get32(cp);
         // Reason for fallback: unassigned or non-block code points default to general "Common" script categorization
-        let script = script_names
-            .get(script_val)
-            .unwrap_or("Common")
-            .to_string();
+        let script =
+            script_names.get(script_val).unwrap_or("Common").to_string();
 
         let mut alias_parts = Vec::new();
         let mut seen_aliases = HashSet::new();
@@ -543,10 +551,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_get_unicode_name() {
-        assert_eq!(
-            get_unicode_name(0x0000).as_deref(),
-            Some("<control> NULL")
-        );
+        assert_eq!(get_unicode_name(0x0000).as_deref(), Some("<control> NULL"));
         assert_eq!(
             get_unicode_name(0x000A).as_deref(),
             Some("<control, Unicode-semantic-defined> LINE FEED")
@@ -569,7 +574,10 @@ mod tests {
             get_unicode_name(0x0041).as_deref(),
             Some("LATIN CAPITAL LETTER A")
         );
-        assert_eq!(get_unicode_name(0xAC00).as_deref(), Some("HANGUL SYLLABLE GA"));
+        assert_eq!(
+            get_unicode_name(0xAC00).as_deref(),
+            Some("HANGUL SYLLABLE GA")
+        );
         assert_eq!(
             get_unicode_name(0x4E00).as_deref(),
             Some("CJK UNIFIED IDEOGRAPH-4E00")

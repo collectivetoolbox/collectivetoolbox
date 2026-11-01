@@ -24,13 +24,13 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail};
 use crate::license_consts::{
     AGPL_3_0_ONLY_COPYRIGHT_BLOCK, AGPL_COPYRIGHT_BLOCK, DEFAULT_AGPL_HEADER,
     DESCRIPTION_DETECTION, DETECTION_LICENSES_OTHER, FILE_ADDITIONAL_LICENSES,
     HASH_AGPL_HEADER, HASH_BSD_DARWIN_HEADER, PAN_MIT_HEADER,
     SCHEME_GPL_HEADER, SPDX_HEADERS_DETECTION,
 };
+use anyhow::{Context, Result, bail};
 
 #[derive(Debug, Clone)]
 pub struct Violation {
@@ -39,11 +39,7 @@ pub struct Violation {
     pub message: String,
 }
 
-fn should_skip_dir(
-    dir: &Path,
-    path: &Path,
-    rel_str: &str,
-) -> bool {
+fn should_skip_dir(dir: &Path, path: &Path, rel_str: &str) -> bool {
     let name = path.file_name().and_then(|n| n.to_str());
 
     // "data" directories:
@@ -69,7 +65,8 @@ fn should_skip_dir(
     // Exclude test fixtures, except for compression fixtures which contains
     // first-party test scripts that must have license headers.
     if name == Some("fixtures") {
-        let is_compression_fixtures = rel_str == "src/formats/compression/fixtures"
+        let is_compression_fixtures = rel_str
+            == "src/formats/compression/fixtures"
             || rel_str == "compression/fixtures"
             || path.ends_with("formats/compression/fixtures")
             || path.ends_with("compression/fixtures");
@@ -210,13 +207,15 @@ fn find_files_internal(
     Ok(())
 }
 
-
 /// Determine whether a file is located in `src/formats/pan/`.
 fn is_pan_file(file_path: &Path) -> bool {
     file_path
         .components()
         .any(|c| c.as_os_str() == "pan" || c.as_os_str() == "pan.rs")
-        && file_path.to_string_lossy().replace('\\', "/").contains("formats/pan")
+        && file_path
+            .to_string_lossy()
+            .replace('\\', "/")
+            .contains("formats/pan")
 }
 
 /// Determine whether a file is in the formats detection module. `detection.rs` or in
@@ -229,7 +228,8 @@ fn is_detection_file(file_path: &Path) -> bool {
     } else {
         trimmed
     };
-    (relative.starts_with("src/formats/detection/") && relative.ends_with(".rs"))
+    (relative.starts_with("src/formats/detection/")
+        && relative.ends_with(".rs"))
         || relative == "src/formats/detection.rs"
         || relative == "src/formats/utilities/extension_rule.rs"
 }
@@ -460,7 +460,9 @@ fn parse_derived_third_party_header(
 
     // Lines 2+ should have one or more lines starting with `// SPDX-License-Identifier for parts derived from `
     while let Some(line) = lines.get(idx) {
-        if line.starts_with("// SPDX-License-Identifier for parts derived from ") {
+        if line
+            .starts_with("// SPDX-License-Identifier for parts derived from ")
+        {
             found_derived_clause = true;
             idx = idx.saturating_add(1);
         } else {
@@ -525,8 +527,10 @@ fn matches_line_block(lines: &[&str], expected: &[&str]) -> bool {
 /// 3. `AGPL_COPYRIGHT_BLOCK`
 /// 4. `DESCRIPTION_DETECTION`
 fn check_detection_header(lines: &[&str]) -> Result<(), (usize, String)> {
-    let darwin_lines: Vec<&str> =
-        HASH_BSD_DARWIN_HEADER.trim_end_matches('\n').lines().collect();
+    let darwin_lines: Vec<&str> = HASH_BSD_DARWIN_HEADER
+        .trim_end_matches('\n')
+        .lines()
+        .collect();
     if !matches_line_block(lines, &darwin_lines) {
         return Err((
             1,
@@ -546,8 +550,10 @@ fn check_detection_header(lines: &[&str]) -> Result<(), (usize, String)> {
     }
 
     let remaining_from_spdx = lines.get(idx..).unwrap_or_default();
-    let spdx_lines: Vec<&str> =
-        SPDX_HEADERS_DETECTION.trim_end_matches('\n').lines().collect();
+    let spdx_lines: Vec<&str> = SPDX_HEADERS_DETECTION
+        .trim_end_matches('\n')
+        .lines()
+        .collect();
     if !matches_line_block(remaining_from_spdx, &spdx_lines) {
         return Err((
             idx.saturating_add(1),
@@ -566,8 +572,10 @@ fn check_detection_header(lines: &[&str]) -> Result<(), (usize, String)> {
         }
     }
 
-    let agpl_lines: Vec<&str> =
-        AGPL_COPYRIGHT_BLOCK.trim_end_matches('\n').lines().collect();
+    let agpl_lines: Vec<&str> = AGPL_COPYRIGHT_BLOCK
+        .trim_end_matches('\n')
+        .lines()
+        .collect();
     let remaining_from_agpl = lines.get(idx..).unwrap_or_default();
     if !matches_line_block(remaining_from_agpl, &agpl_lines) {
         return Err((
@@ -587,8 +595,10 @@ fn check_detection_header(lines: &[&str]) -> Result<(), (usize, String)> {
         }
     }
 
-    let desc_lines: Vec<&str> =
-        DESCRIPTION_DETECTION.trim_end_matches('\n').lines().collect();
+    let desc_lines: Vec<&str> = DESCRIPTION_DETECTION
+        .trim_end_matches('\n')
+        .lines()
+        .collect();
     let remaining_from_desc = lines.get(idx..).unwrap_or_default();
     if !matches_line_block(remaining_from_desc, &desc_lines) {
         return Err((
@@ -612,10 +622,14 @@ fn check_detection_footer(
     let normalized = normalize_newlines(content);
     let lines: Vec<&str> = normalized.lines().collect();
 
-    let other_lines: Vec<&str> =
-        DETECTION_LICENSES_OTHER.trim_end_matches('\n').lines().collect();
-    let addl_lines: Vec<&str> =
-        FILE_ADDITIONAL_LICENSES.trim_end_matches('\n').lines().collect();
+    let other_lines: Vec<&str> = DETECTION_LICENSES_OTHER
+        .trim_end_matches('\n')
+        .lines()
+        .collect();
+    let addl_lines: Vec<&str> = FILE_ADDITIONAL_LICENSES
+        .trim_end_matches('\n')
+        .lines()
+        .collect();
 
     // Find end without trailing empty lines
     let mut end_idx = lines.len();
@@ -660,7 +674,8 @@ fn check_detection_footer(
         before_other_idx = before_other_idx.saturating_sub(1);
     }
 
-    let Some(addl_start) = before_other_idx.checked_sub(addl_lines.len()) else {
+    let Some(addl_start) = before_other_idx.checked_sub(addl_lines.len())
+    else {
         violations.push(Violation {
             file: file_path.to_path_buf(),
             line: before_other_idx.max(1),
@@ -782,7 +797,10 @@ fn parse_license_header(
         return Ok(header);
     }
 
-    Err((1, "Missing or invalid license header at top of file".to_string()))
+    Err((
+        1,
+        "Missing or invalid license header at top of file".to_string(),
+    ))
 }
 
 /// Check that a module docblock (`//!` or `/*!`) exists following the header.
@@ -865,15 +883,16 @@ fn check_module_docblock(
         || trimmed
             .starts_with("//! @generated by ctb-build-support::ipc_codegen")
         || trimmed.starts_with("//! IPC service for ")
-        || trimmed.starts_with("// @generated by ctb-build-support::format_support_codegen")
-        || trimmed
-            .starts_with("//! @generated by ctb-build-support::format_support_codegen")
+        || trimmed.starts_with(
+            "// @generated by ctb-build-support::format_support_codegen",
+        )
+        || trimmed.starts_with(
+            "//! @generated by ctb-build-support::format_support_codegen",
+        )
         || trimmed.starts_with("// @generated by ctb-formats-kaitai::build")
-        || trimmed
-            .starts_with("//! @generated by ctb-formats-kaitai::build")
+        || trimmed.starts_with("//! @generated by ctb-formats-kaitai::build")
         || trimmed.starts_with("// @generated by ctb-formats-kaitai::codegen")
-        || trimmed
-            .starts_with("//! @generated by ctb-formats-kaitai::codegen")
+        || trimmed.starts_with("//! @generated by ctb-formats-kaitai::codegen")
     {
         return Ok(());
     }
@@ -915,12 +934,17 @@ fn parse_spdx_licenses(expression: &str) -> BTreeSet<String> {
 }
 
 /// Load the allowed license identifiers from the workspace `Cargo.toml`.
-pub fn load_allowed_licenses(workspace_root: &Path) -> Result<BTreeSet<String>> {
+pub fn load_allowed_licenses(
+    workspace_root: &Path,
+) -> Result<BTreeSet<String>> {
     let cargo_toml_path = workspace_root.join("Cargo.toml");
-    let content = fs::read_to_string(&cargo_toml_path)
-        .with_context(|| format!("failed to read {}", cargo_toml_path.display()))?;
-    let manifest: toml::Table = toml::from_str(&content)
-        .with_context(|| format!("failed to parse {}", cargo_toml_path.display()))?;
+    let content = fs::read_to_string(&cargo_toml_path).with_context(|| {
+        format!("failed to read {}", cargo_toml_path.display())
+    })?;
+    let manifest: toml::Table =
+        toml::from_str(&content).with_context(|| {
+            format!("failed to parse {}", cargo_toml_path.display())
+        })?;
     let license_str = manifest
         .get("package")
         .and_then(|p| p.get("license"))
@@ -1547,7 +1571,8 @@ fn add_docker_headers(
 
         for line in normalized.lines() {
             let trimmed = line.trim();
-            if trimmed.starts_with("# syntax=") || trimmed.starts_with("# escape=")
+            if trimmed.starts_with("# syntax=")
+                || trimmed.starts_with("# escape=")
             {
                 directive_prefix.push_str(line);
                 directive_prefix.push('\n');
@@ -1815,14 +1840,30 @@ mod tests {
     #[test]
     fn test_is_detection_file() {
         assert!(is_detection_file(Path::new("src/formats/detection.rs")));
-        assert!(is_detection_file(Path::new("src/formats/detection/magic.rs")));
-        assert!(is_detection_file(Path::new("src/formats/detection/mime_derivation.rs")));
-        assert!(!is_detection_file(Path::new("src/formats/utilities/detection/mime_derivation.rs")));
-        assert!(is_detection_file(Path::new("/workspaces/ctoolbox/src/formats/detection/resource_fork.rs")));
-        assert!(is_detection_file(Path::new("src/formats/utilities/extension_rule.rs")));
-        assert!(!is_detection_file(Path::new("src/formats/utilities/utilities.rs")));
-        assert!(!is_detection_file(Path::new("src/io/environment/detection.rs")));
-        assert!(!is_detection_file(Path::new("src/build_support/license_consts.rs")));
+        assert!(is_detection_file(Path::new(
+            "src/formats/detection/magic.rs"
+        )));
+        assert!(is_detection_file(Path::new(
+            "src/formats/detection/mime_derivation.rs"
+        )));
+        assert!(!is_detection_file(Path::new(
+            "src/formats/utilities/detection/mime_derivation.rs"
+        )));
+        assert!(is_detection_file(Path::new(
+            "/workspaces/ctoolbox/src/formats/detection/resource_fork.rs"
+        )));
+        assert!(is_detection_file(Path::new(
+            "src/formats/utilities/extension_rule.rs"
+        )));
+        assert!(!is_detection_file(Path::new(
+            "src/formats/utilities/utilities.rs"
+        )));
+        assert!(!is_detection_file(Path::new(
+            "src/io/environment/detection.rs"
+        )));
+        assert!(!is_detection_file(Path::new(
+            "src/build_support/license_consts.rs"
+        )));
     }
 
     #[test]
@@ -1913,7 +1954,8 @@ mod tests {
 
     #[test]
     fn test_check_detection_footer_missing_other() {
-        let content = format!("fn dummy() {{}}\n\n{FILE_ADDITIONAL_LICENSES}\n");
+        let content =
+            format!("fn dummy() {{}}\n\n{FILE_ADDITIONAL_LICENSES}\n");
         let mut violations = Vec::new();
         check_detection_footer(
             Path::new("detection/dummy.rs"),
@@ -1926,7 +1968,8 @@ mod tests {
 
     #[test]
     fn test_check_detection_footer_missing_additional() {
-        let content = format!("fn dummy() {{}}\n\n{DETECTION_LICENSES_OTHER}\n");
+        let content =
+            format!("fn dummy() {{}}\n\n{DETECTION_LICENSES_OTHER}\n");
         let mut violations = Vec::new();
         check_detection_footer(
             Path::new("detection/dummy.rs"),
@@ -1961,7 +2004,8 @@ mod tests {
             Path::new("src/formats/detection.rs"),
         );
         assert!(parsed.is_ok());
-        let parsed_header = parsed.unwrap().expect("Should match derived header");
+        let parsed_header =
+            parsed.unwrap().expect("Should match derived header");
         assert!(matches!(parsed_header.kind, HeaderKind::DerivedThirdParty));
 
         let mut allowed = BTreeSet::new();
@@ -1991,7 +2035,8 @@ mod tests {
 
     #[test]
     fn test_lint_shell_file_valid() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_sh_valid_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_sh_valid_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let sub_dir = temp_dir.join("scripts");
         fs::create_dir_all(&sub_dir).unwrap();
@@ -2005,15 +2050,20 @@ mod tests {
         let mut allowed = BTreeSet::new();
         allowed.insert("AGPL-3.0-or-later".to_string());
         let mut violations = Vec::new();
-        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations).unwrap();
-        assert!(violations.is_empty(), "Unexpected violations: {violations:?}");
+        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations)
+            .unwrap();
+        assert!(
+            violations.is_empty(),
+            "Unexpected violations: {violations:?}"
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_lint_shell_file_rejects_missing_hash_agpl_header() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_sh_invalid_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_sh_invalid_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let sub_dir = temp_dir.join("scripts");
         fs::create_dir_all(&sub_dir).unwrap();
@@ -2026,16 +2076,20 @@ mod tests {
         let mut allowed = BTreeSet::new();
         allowed.insert("AGPL-3.0-or-later".to_string());
         let mut violations = Vec::new();
-        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations).unwrap();
+        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations)
+            .unwrap();
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("Missing or invalid AGPL license header in shell script"));
+        assert!(violations[0].message.contains(
+            "Missing or invalid AGPL license header in shell script"
+        ));
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_lint_shell_file_rejects_invalid_shebang_and_missing_cd() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_sh_shebang_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_sh_shebang_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let script_path = temp_dir.join("bad-script.sh");
 
@@ -2047,34 +2101,50 @@ mod tests {
         let mut allowed = BTreeSet::new();
         allowed.insert("AGPL-3.0-or-later".to_string());
         let mut violations = Vec::new();
-        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations).unwrap();
-        assert!(violations.iter().any(|v| v.message.contains("Shell script shebang must be `#!/usr/bin/env bash`")));
-        assert!(violations.iter().any(|v| v.message.contains("Expected `cd")));
+        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations)
+            .unwrap();
+        assert!(
+            violations.iter().any(|v| v.message.contains(
+                "Shell script shebang must be `#!/usr/bin/env bash`"
+            ))
+        );
+        assert!(
+            violations
+                .iter()
+                .any(|v| v.message.contains("Expected `cd"))
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_lint_scm_file_valid() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_scm_valid_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_scm_valid_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let scm_path = temp_dir.join("patch.scm");
 
-        let content = format!("{SCHEME_GPL_HEADER}\n\n;;; Purpose of this patch module\n(define-module (test))\n");
+        let content = format!(
+            "{SCHEME_GPL_HEADER}\n\n;;; Purpose of this patch module\n(define-module (test))\n"
+        );
         fs::write(&scm_path, content).unwrap();
 
         let mut allowed = BTreeSet::new();
         allowed.insert("GPL-3.0-or-later".to_string());
         let mut violations = Vec::new();
         lint_scm_file(&scm_path, &allowed, &mut violations).unwrap();
-        assert!(violations.is_empty(), "Unexpected violations: {violations:?}");
+        assert!(
+            violations.is_empty(),
+            "Unexpected violations: {violations:?}"
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_lint_scm_file_rejects_missing_header() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_scm_invalid_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_scm_invalid_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let scm_path = temp_dir.join("patch.scm");
 
@@ -2086,18 +2156,24 @@ mod tests {
         let mut violations = Vec::new();
         lint_scm_file(&scm_path, &allowed, &mut violations).unwrap();
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("Missing or invalid Scheme GPL license header"));
+        assert!(
+            violations[0]
+                .message
+                .contains("Missing or invalid Scheme GPL license header")
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_lint_scm_file_rejects_missing_purpose_comment() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_scm_no_comment_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_scm_no_comment_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let scm_path = temp_dir.join("patch.scm");
 
-        let content = format!("{SCHEME_GPL_HEADER}\n\n(define-module (test))\n");
+        let content =
+            format!("{SCHEME_GPL_HEADER}\n\n(define-module (test))\n");
         fs::write(&scm_path, content).unwrap();
 
         let mut allowed = BTreeSet::new();
@@ -2105,34 +2181,46 @@ mod tests {
         let mut violations = Vec::new();
         lint_scm_file(&scm_path, &allowed, &mut violations).unwrap();
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("Expected file purpose comment"));
+        assert!(
+            violations[0]
+                .message
+                .contains("Expected file purpose comment")
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_lint_python_file_valid_and_invalid() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_py_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_py_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let valid_py = temp_dir.join("valid.py");
         let invalid_py = temp_dir.join("invalid.py");
 
-        let valid_content = format!("#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\n\"\"\"Docstring\"\"\"\n");
+        let valid_content = format!(
+            "#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\n\"\"\"Docstring\"\"\"\n"
+        );
         fs::write(&valid_py, valid_content).unwrap();
 
-        let invalid_content = "#!/usr/bin/env python3\n\"\"\"Docstring without license\"\"\"\n";
+        let invalid_content =
+            "#!/usr/bin/env python3\n\"\"\"Docstring without license\"\"\"\n";
         fs::write(&invalid_py, invalid_content).unwrap();
 
         let mut allowed = BTreeSet::new();
         allowed.insert("AGPL-3.0-or-later".to_string());
 
         let mut violations = Vec::new();
-        lint_python_file(&valid_py, &temp_dir, &allowed, &mut violations).unwrap();
+        lint_python_file(&valid_py, &temp_dir, &allowed, &mut violations)
+            .unwrap();
         assert!(violations.is_empty());
 
-        lint_python_file(&invalid_py, &temp_dir, &allowed, &mut violations).unwrap();
+        lint_python_file(&invalid_py, &temp_dir, &allowed, &mut violations)
+            .unwrap();
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("Missing or invalid AGPL license header in Python script"));
+        assert!(violations[0].message.contains(
+            "Missing or invalid AGPL license header in Python script"
+        ));
 
         let script_dir = temp_dir.join("scripts");
         fs::create_dir_all(&script_dir).unwrap();
@@ -2141,20 +2229,25 @@ mod tests {
 
         fs::write(
             &script_no_cd,
-            format!("#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\nprint('hello')\n"),
-        ).unwrap();
+            format!(
+                "#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\nprint('hello')\n"
+            ),
+        )
+        .unwrap();
         fs::write(
             &script_with_cd,
             format!("#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\ndef find_repo_root(): pass\n"),
         ).unwrap();
 
         let mut v_no_cd = Vec::new();
-        lint_python_file(&script_no_cd, &temp_dir, &allowed, &mut v_no_cd).unwrap();
+        lint_python_file(&script_no_cd, &temp_dir, &allowed, &mut v_no_cd)
+            .unwrap();
         assert_eq!(v_no_cd.len(), 1);
         assert!(v_no_cd[0].message.contains("consistent working directory"));
 
         let mut v_with_cd = Vec::new();
-        lint_python_file(&script_with_cd, &temp_dir, &allowed, &mut v_with_cd).unwrap();
+        lint_python_file(&script_with_cd, &temp_dir, &allowed, &mut v_with_cd)
+            .unwrap();
         assert!(v_with_cd.is_empty());
 
         fs::remove_dir_all(&temp_dir).ok();
@@ -2162,12 +2255,14 @@ mod tests {
 
     #[test]
     fn test_lint_docker_file_valid_and_invalid() {
-        let temp_dir = std::env::temp_dir().join(format!("test_lint_docker_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_lint_docker_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
         let valid_df = temp_dir.join("Dockerfile");
         let invalid_df = temp_dir.join("Dockerfile.bad");
 
-        let valid_content = format!("{HASH_AGPL_HEADER}\n\nFROM alpine:latest\n");
+        let valid_content =
+            format!("{HASH_AGPL_HEADER}\n\nFROM alpine:latest\n");
         fs::write(&valid_df, valid_content).unwrap();
 
         let invalid_content = "FROM alpine:latest\n";
@@ -2182,14 +2277,19 @@ mod tests {
 
         lint_docker_file(&invalid_df, &allowed, &mut violations).unwrap();
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("Missing or invalid AGPL license header in Dockerfile"));
+        assert!(
+            violations[0].message.contains(
+                "Missing or invalid AGPL license header in Dockerfile"
+            )
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_find_files_includes_compression_scripts_and_patches_scheme() {
-        let temp_dir = std::env::temp_dir().join(format!("test_find_files_coverage_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_find_files_coverage_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
 
         // 1. Scheme patch under scripts/guix/patches/
@@ -2199,10 +2299,12 @@ mod tests {
         fs::write(&patch_file, ";;; test patch\n").unwrap();
 
         // 2. Extensionless script under formats/compression/fixtures/
-        let comp_fixtures_dir = temp_dir.join("src/formats/compression/fixtures");
+        let comp_fixtures_dir =
+            temp_dir.join("src/formats/compression/fixtures");
         fs::create_dir_all(&comp_fixtures_dir).unwrap();
         let test_compressors = comp_fixtures_dir.join("test-compressors");
-        fs::write(&test_compressors, "#!/usr/bin/env bash\necho test\n").unwrap();
+        fs::write(&test_compressors, "#!/usr/bin/env bash\necho test\n")
+            .unwrap();
 
         // 3. Python file in compression fixtures
         let oracle_py = comp_fixtures_dir.join("codec-oracle.py");
@@ -2235,19 +2337,26 @@ mod tests {
             &mut shell_files,
             &mut python_files,
             &mut violations,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(scm_files, vec![patch_file]);
         assert_eq!(shell_files, vec![test_compressors]);
         assert_eq!(python_files, vec![oracle_py]);
-        assert!(rs_files.is_empty(), "Other data and vendor should be excluded from rs_files");
+        assert!(
+            rs_files.is_empty(),
+            "Other data and vendor should be excluded from rs_files"
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 
     #[test]
     fn test_repo_find_files_covers_test_compressors_and_scheme_patches() {
-        let repo_root = if let Ok(canon) = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize() {
+        let repo_root = if let Ok(canon) = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+        {
             canon
         } else if let Ok(win_root) = std::env::var("CTB_WIN_TEST_ROOT") {
             let p = PathBuf::from(win_root);
@@ -2274,21 +2383,33 @@ mod tests {
             &mut shell_files,
             &mut python_files,
             &mut violations,
-        ).unwrap();
+        )
+        .unwrap();
 
         let has_test_compressors = shell_files.iter().any(|p| {
             p.ends_with("src/formats/compression/fixtures/test-compressors")
         });
-        assert!(has_test_compressors, "find_files must include test-compressors in shell_files");
+        assert!(
+            has_test_compressors,
+            "find_files must include test-compressors in shell_files"
+        );
 
         let has_generate_fixtures = shell_files.iter().any(|p| {
             p.ends_with("src/formats/compression/fixtures/generate-compression-fixtures")
         });
-        assert!(has_generate_fixtures, "find_files must include generate-compression-fixtures in shell_files");
+        assert!(
+            has_generate_fixtures,
+            "find_files must include generate-compression-fixtures in shell_files"
+        );
 
-        let patch_scm_count = scm_files.iter().filter(|p| {
-            p.to_string_lossy().replace('\\', "/").contains("scripts/guix/patches")
-        }).count();
+        let patch_scm_count = scm_files
+            .iter()
+            .filter(|p| {
+                p.to_string_lossy()
+                    .replace('\\', "/")
+                    .contains("scripts/guix/patches")
+            })
+            .count();
         assert!(
             patch_scm_count >= 80,
             "find_files must find all Scheme files in scripts/guix/patches, found {patch_scm_count}"
@@ -2297,10 +2418,8 @@ mod tests {
 
     #[test]
     fn test_find_files_skips_only_root_vendor_and_old_not_nested() {
-        let temp_dir = std::env::temp_dir().join(format!(
-            "test_find_files_paths_{}",
-            std::process::id()
-        ));
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_find_files_paths_{}", std::process::id()));
         fs::create_dir_all(&temp_dir).unwrap();
 
         // 1. Root /vendor, /old, /target, /built should be skipped
@@ -2329,7 +2448,8 @@ mod tests {
         let nested_old = temp_dir.join("scripts/old");
         fs::create_dir_all(&nested_old).unwrap();
         let nested_old_sh = nested_old.join("included_old.sh");
-        fs::write(&nested_old_sh, "#!/usr/bin/env bash\necho included\n").unwrap();
+        fs::write(&nested_old_sh, "#!/usr/bin/env bash\necho included\n")
+            .unwrap();
 
         let nested_gen = temp_dir.join("src/my_crate/generated");
         fs::create_dir_all(&nested_gen).unwrap();
@@ -2339,7 +2459,8 @@ mod tests {
         // 3. Known external/generated directories SHOULD be skipped
         let ref_impl = temp_dir.join("docs/reference-implementations");
         fs::create_dir_all(&ref_impl).unwrap();
-        fs::write(ref_impl.join("skipped_ref.rs"), "fn skipped() {}\n").unwrap();
+        fs::write(ref_impl.join("skipped_ref.rs"), "fn skipped() {}\n")
+            .unwrap();
 
         let guix_gen = temp_dir.join("packaging/guix/generated");
         fs::create_dir_all(&guix_gen).unwrap();
@@ -2354,7 +2475,8 @@ mod tests {
         // 5. Data directory in folder with Cargo.toml should be skipped
         let crate_dir = temp_dir.join("src/crate_with_cargo");
         fs::create_dir_all(&crate_dir).unwrap();
-        fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"test\"\n").unwrap();
+        fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"test\"\n")
+            .unwrap();
         let crate_data = crate_dir.join("data");
         fs::create_dir_all(&crate_data).unwrap();
         fs::write(crate_data.join("sample.rs"), "fn sample() {}\n").unwrap();
@@ -2374,21 +2496,41 @@ mod tests {
             &mut shell_files,
             &mut python_files,
             &mut violations,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Verify nested vendor, nested generated, and kaitai generated rs files are included
-        assert!(rs_files.contains(&nested_vendor_rs), "Nested vendor/ must NOT be skipped");
-        assert!(rs_files.contains(&nested_gen_rs), "Nested generated/ in crate must NOT be skipped");
-        assert!(rs_files.contains(&kaitai_rs), "Kaitai generated/ must NOT be skipped");
-        assert_eq!(rs_files.len(), 3, "Nested vendor, nested generated, and kaitai generated rs files should be found");
+        assert!(
+            rs_files.contains(&nested_vendor_rs),
+            "Nested vendor/ must NOT be skipped"
+        );
+        assert!(
+            rs_files.contains(&nested_gen_rs),
+            "Nested generated/ in crate must NOT be skipped"
+        );
+        assert!(
+            rs_files.contains(&kaitai_rs),
+            "Kaitai generated/ must NOT be skipped"
+        );
+        assert_eq!(
+            rs_files.len(),
+            3,
+            "Nested vendor, nested generated, and kaitai generated rs files should be found"
+        );
 
         // Verify nested old shell script is included
-        assert_eq!(shell_files, vec![nested_old_sh], "Nested old/ must NOT be skipped");
+        assert_eq!(
+            shell_files,
+            vec![nested_old_sh],
+            "Nested old/ must NOT be skipped"
+        );
 
         // Verify scm_files is empty (guix generated skipped)
-        assert!(scm_files.is_empty(), "packaging/guix/generated must be skipped");
+        assert!(
+            scm_files.is_empty(),
+            "packaging/guix/generated must be skipped"
+        );
 
         fs::remove_dir_all(&temp_dir).ok();
     }
 }
-

@@ -167,13 +167,9 @@ pub fn parse_invocation(args: Option<Vec<String>>) -> Result<Invocation> {
     // Fallback: user CLI
     let cli = Cli::parse_from(normalized); // Clap handles errors & help display
     if cli.command.is_some() {
-        environment::set_process_role(
-            environment::ProcessRole::LightweightCli,
-        );
+        environment::set_process_role(environment::ProcessRole::LightweightCli);
     } else {
-        environment::set_process_role(
-            environment::ProcessRole::WorkspaceMain,
-        );
+        environment::set_process_role(environment::ProcessRole::WorkspaceMain);
     }
     Ok(Invocation::User(cli))
 }
@@ -471,9 +467,7 @@ mod tests {
     }
 
     #[crate::ctb_test("tokio")]
-    async fn test_hex2bin_and_bin2hex_commands() {
-
-    }
+    async fn test_hex2bin_and_bin2hex_commands() {}
 
     #[crate::ctb_test("tokio")]
     async fn test_maybe_run_lightweight_with_options() {
@@ -512,7 +506,5 @@ mod tests {
     }
 
     // Don't add command-specific tests here! Any nontrivial logic should go in the associated crate, rather than this file and crate.
-// This module and crate should be as small as possible, with any logic related to parsing and dispatching of commands implemented in the respective crates relevant to the functionality.
-
+    // This module and crate should be as small as possible, with any logic related to parsing and dispatching of commands implemented in the respective crates relevant to the functionality.
 }
-

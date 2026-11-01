@@ -68,7 +68,6 @@ use std::path::Path;
 use anyhow::Result;
 use num_enum::IntoPrimitive;
 
-
 use ctb_formats_utilities::FormatLog;
 
 #[cfg(test)]

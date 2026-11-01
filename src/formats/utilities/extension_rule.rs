@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Extension rule definitions and matching utilities.
 
 #[expect(
@@ -550,7 +549,10 @@ impl ExtensionRule {
 
     /// Checks if a filename or path ends with this extension (preceded by a
     /// dot), and returns the path slice without the extension if matched.
-    pub fn strip_from_filename<'a>(&self, candidate: &'a str) -> Option<&'a str> {
+    pub fn strip_from_filename<'a>(
+        &self,
+        candidate: &'a str,
+    ) -> Option<&'a str> {
         let dot_ext_len = self.extension.len().checked_add(1)?;
         if candidate.len() < dot_ext_len {
             return None;
@@ -567,11 +569,7 @@ impl ExtensionRule {
                 ext_part.eq_ignore_ascii_case(self.extension)
             }
         };
-        if matches {
-            Some(prefix)
-        } else {
-            None
-        }
+        if matches { Some(prefix) } else { None }
     }
 }
 /*

@@ -31,23 +31,23 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::Result;
+use crate::DcString;
+use crate::dc_char::DcChar;
 use crate::dc_char::DcCharExt;
-use ctb_formats_dcdata::syntax::{
-    default_syntax_resolver, DcRole, SyntaxRuleResolver,
-};
-use ctb_formats_utilities::{ConversionOutput, FormatLog};
-use ctb_formats_dcdata::dc::{DC_ESCAPE, DC_LOCAL_NODE, DC_LONG_DC};
 use crate::dc_number::{
     integer_to_dc_number_global, read_dc_number_global,
     read_dc_number_global_with_resolver, read_dc_number_short,
 };
-use crate::dc_char::DcChar;
 use crate::dc_str::DcStr;
-use crate::DcString;
+use anyhow::Result;
+use ctb_formats_dcdata::dc::{DC_ESCAPE, DC_LOCAL_NODE, DC_LONG_DC};
+use ctb_formats_dcdata::syntax::{
+    DcRole, SyntaxRuleResolver, default_syntax_resolver,
+};
 use ctb_formats_dctf::{
     decode_dctf, decode_utf_8e_128, encode_dctf_buf, encode_utf_8e_128_buf,
 };
+use ctb_formats_utilities::{ConversionOutput, FormatLog};
 
 /// A list of global graph Document Character IDs represented as `u128` values.
 pub type DcList = Vec<u128>;
@@ -69,7 +69,9 @@ pub type DcList = Vec<u128>;
 ///
 /// # Errors
 /// Returns an error if the document contains invalid UTF-8 or malformed syntax.
-pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
+pub fn dctext_to_dcstring(
+    document: &[u8],
+) -> Result<ConversionOutput<DcString>> {
     let mut log = FormatLog::default();
     let mut dc_string = DcString::with_capacity(document.len());
     let mut i = 0usize;
@@ -287,9 +289,7 @@ pub fn dcarray_to_dcstring(
 }
 
 /// Converts a `DcStr` to an EITE DcArray (short Dcs, `Vec<u32>`).
-pub fn dcstring_to_dcarray(
-    s: &DcStr,
-) -> Result<ConversionOutput<Vec<u32>>> {
+pub fn dcstring_to_dcarray(s: &DcStr) -> Result<ConversionOutput<Vec<u32>>> {
     dclist_to_dcarray(&s.to_dclist())
 }
 
@@ -301,7 +301,9 @@ pub fn dcstring_to_dctext(s: &DcStr) -> Vec<u8> {
 }
 
 /// Converts a DcText document to `DcMstring`.
-pub fn dctext_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn dctext_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     dctext_to_dcmstring_with_options(bytes, false)
 }
 
@@ -312,19 +314,25 @@ pub fn dctext_to_dcmstring_with_options(
 ) -> Result<(crate::DcMstring, FormatLog)> {
     let conv = dctext_to_dcstring(bytes)?;
     if !permissive && conv.log.has_errors() {
-        bail!("Invalid DcText token(s): {}", conv.log.get_errors().join("; "));
+        bail!(
+            "Invalid DcText token(s): {}",
+            conv.log.get_errors().join("; ")
+        );
     }
     let policy = if permissive {
         crate::DcProjectionPolicy::forgiving()
     } else {
         crate::DcProjectionPolicy::strict()
     };
-    let doc = crate::DcMstring::from_dc_string_with_policy(&conv.result, &policy)?;
+    let doc =
+        crate::DcMstring::from_dc_string_with_policy(&conv.result, &policy)?;
     Ok((doc, conv.log))
 }
 
 /// Converts a `DcMstring` to DcText bytes.
-pub fn dcmstring_to_dctext(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_dctext(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     let bytes = dcstring_to_dctext(&dc_string);
     Ok((bytes, FormatLog::default()))
@@ -411,7 +419,9 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
                                 u128::try_from(int_val.unsigned_abs_ref())
                             {
                                 list.push(abs_u128);
-                                i = i.saturating_add(1).saturating_add(consumed);
+                                i = i
+                                    .saturating_add(1)
+                                    .saturating_add(consumed);
                                 continue;
                             }
                         }
@@ -534,11 +544,10 @@ pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
 )]
 mod tests {
     use super::*;
-    use ctb_formats_dcdata::dc::{
-        DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER,
-        SHORT_DC_REGION_START,
-    };
     use ctb_formats_dcdata::DC_INTEGER;
+    use ctb_formats_dcdata::dc::{
+        DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER, SHORT_DC_REGION_START,
+    };
 
     #[crate::ctb_test]
     fn test_format_blob_preview() {
@@ -553,10 +562,7 @@ mod tests {
             format!("{}...", "a".repeat(60))
         );
         let dctf_redirect = dctext_to_dctf(b"@1114409@@L42@".to_vec()).unwrap();
-        assert_eq!(
-            format_blob_preview(&dctf_redirect, true),
-            "@1114409@@L42@"
-        );
+        assert_eq!(format_blob_preview(&dctf_redirect, true), "@1114409@@L42@");
     }
 
     #[crate::ctb_test]
@@ -612,8 +618,7 @@ mod tests {
     fn test_dctext_to_dcarray_direct_short_dc() {
         // DcText Dc ID 1114500 (offset 388, valid direct short Dc)
         let input = b"@1114500@";
-        let out =
-            dctext_to_dcarray(input).expect("conversion should succeed");
+        let out = dctext_to_dcarray(input).expect("conversion should succeed");
         assert!(!out.log.has_warnings());
         assert_eq!(out.result, vec![388]);
 
@@ -679,10 +684,7 @@ mod tests {
             dclist_to_dcarray(&original_dclist).expect("should succeed");
         assert_eq!(
             array_out.result,
-            vec![
-                DC_ESCAPE.to_short().unwrap(),
-                DC_ESCAPE.to_short().unwrap()
-            ]
+            vec![DC_ESCAPE.to_short().unwrap(), DC_ESCAPE.to_short().unwrap()]
         );
 
         let back = dcarray_to_dclist(&array_out.result)
@@ -725,7 +727,10 @@ mod tests {
         assert!(back.log.has_warnings());
         assert_eq!(
             back.result,
-            vec![DC_LONG_DC.to_long(), SHORT_DC_REGION_START.saturating_add(65)]
+            vec![
+                DC_LONG_DC.to_long(),
+                SHORT_DC_REGION_START.saturating_add(65)
+            ]
         );
     }
 
@@ -763,6 +768,4 @@ mod tests {
     //     assert!(out.result.contains(&191));
     //     assert!(out.result.contains(&192));
     // }
-
-
 }

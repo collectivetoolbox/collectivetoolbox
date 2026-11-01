@@ -74,18 +74,18 @@ pub fn parse_bytes_u128(s: &str) -> Result<u128> {
     }
 
     // Reason for fallback: strings consisting entirely of digits end at the string boundary
-    let num_end = s
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(s.len());
+    let num_end = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
 
     let (num_str, suffix_str) = s.split_at(num_end);
     if num_str.is_empty() {
-        anyhow::bail!("Invalid byte size specification '{s}': missing numeric value");
+        anyhow::bail!(
+            "Invalid byte size specification '{s}': missing numeric value"
+        );
     }
 
-    let base_val: u128 = num_str
-        .parse()
-        .with_context(|| format!("Invalid number in byte size specification: '{num_str}'"))?;
+    let base_val: u128 = num_str.parse().with_context(|| {
+        format!("Invalid number in byte size specification: '{num_str}'")
+    })?;
 
     let suffix = suffix_str.trim().to_ascii_lowercase();
 
@@ -97,23 +97,31 @@ pub fn parse_bytes_u128(s: &str) -> Result<u128> {
         1_u128
     } else if let Some(stripped) = suffix.strip_suffix("ib") {
         if stripped.chars().count() != 1 {
-            anyhow::bail!("Unrecognized binary unit '{suffix}' in byte specification: '{s}'");
+            anyhow::bail!(
+                "Unrecognized binary unit '{suffix}' in byte specification: '{s}'"
+            );
         }
         let c = stripped.chars().next().context("Missing unit prefix")?;
-        let power = suffix_power(c)
-            .with_context(|| format!("Unknown binary unit prefix '{c}' in: '{s}'"))?;
+        let power = suffix_power(c).with_context(|| {
+            format!("Unknown binary unit prefix '{c}' in: '{s}'")
+        })?;
         unit_multiplier(1024, power)?
     } else if let Some(stripped) = suffix.strip_suffix('b') {
         if stripped.chars().count() != 1 {
-            anyhow::bail!("Unrecognized decimal unit '{suffix}' in byte specification: '{s}'");
+            anyhow::bail!(
+                "Unrecognized decimal unit '{suffix}' in byte specification: '{s}'"
+            );
         }
         let c = stripped.chars().next().context("Missing unit prefix")?;
-        let power = suffix_power(c)
-            .with_context(|| format!("Unknown decimal unit prefix '{c}' in: '{s}'"))?;
+        let power = suffix_power(c).with_context(|| {
+            format!("Unknown decimal unit prefix '{c}' in: '{s}'")
+        })?;
         unit_multiplier(1000, power)?
     } else {
         if suffix.chars().count() != 1 {
-            anyhow::bail!("Unrecognized unit suffix '{suffix}' in byte specification: '{s}'");
+            anyhow::bail!(
+                "Unrecognized unit suffix '{suffix}' in byte specification: '{s}'"
+            );
         }
         let c = suffix.chars().next().context("Missing unit prefix")?;
         let power = suffix_power(c)
@@ -404,4 +412,3 @@ mod tests {
         assert!(parse_bytes("10xyz").is_err());
     }
 }
-

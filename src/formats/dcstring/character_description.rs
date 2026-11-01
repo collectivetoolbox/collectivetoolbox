@@ -118,8 +118,8 @@ fn describe_dc_id(gid: u128, short_dc: u32) -> String {
 
 /// Formats detailed character metadata for a short Document Character (Dc) ID.
 pub fn describe_dc(short_dc: u32) -> Result<String> {
-    let short_usize = usize::try_from(short_dc)
-        .context("Dc ID exceeds usize range")?;
+    let short_usize =
+        usize::try_from(short_dc).context("Dc ID exceeds usize range")?;
     let defn = ctb_formats_dcdata::get_short_dc_defn(short_usize)
         .ok_or_else(|| anyhow!("Unknown Dc ID: {short_dc}"))?;
 
@@ -170,10 +170,8 @@ pub fn describe_dc(short_dc: u32) -> Result<String> {
         ));
     }
     if !defn.decompositions.is_empty() {
-        lines.push(format!(
-            "Decomposition: {}",
-            defn.decompositions.join(", ")
-        ));
+        lines
+            .push(format!("Decomposition: {}", defn.decompositions.join(", ")));
     }
     if !defn.description.is_empty() {
         lines.push(format!("Description: {}", defn.description));

@@ -2,18 +2,18 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
 use super::icmp_packet::IcmpPacket;
 use super::icmp_packet::*;
-use super::ipv6_packet::Ipv6Packet;
-use super::ipv6_packet::*;
 use super::ipv4_packet::Ipv4Packet;
 use super::ipv4_packet::*;
+use super::ipv6_packet::Ipv6Packet;
+use super::ipv6_packet::*;
 use super::tcp_segment::TcpSegment;
 use super::tcp_segment::*;
 use super::udp_datagram::UdpDatagram;
 use super::udp_datagram::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 /**
  * Protocol body represents particular payload on transport level (OSI
@@ -68,12 +68,16 @@ impl TryFrom<&&ProtocolBody_Body> for OptRc<ProtocolBody_OptionHopByHop> {
     }
 }
 impl DowncastOptRc<ProtocolBody_OptionHopByHop> for ProtocolBody_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
         OptRc::<ProtocolBody_OptionHopByHop>::try_from(self)
     }
 }
 impl DowncastOptRc<ProtocolBody_OptionHopByHop> for &ProtocolBody_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -188,12 +192,16 @@ impl TryFrom<&&ProtocolBody_Body> for OptRc<ProtocolBody_NoNextHeader> {
     }
 }
 impl DowncastOptRc<ProtocolBody_NoNextHeader> for ProtocolBody_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
         OptRc::<ProtocolBody_NoNextHeader>::try_from(self)
     }
 }
 impl DowncastOptRc<ProtocolBody_NoNextHeader> for &ProtocolBody_Body {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -298,7 +306,11 @@ impl KStruct for ProtocolBody {
     type Root = ProtocolBody;
     type Parent = ProtocolBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -312,31 +324,46 @@ impl KStruct for ProtocolBody {
         let _io = io;
         match *self_rc.protocol()? {
             ProtocolBody_ProtocolEnum::Hopopt => {
-                let t = Self::read_into::<_, ProtocolBody_OptionHopByHop>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, ProtocolBody_OptionHopByHop>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Icmp => {
-                let t = Self::read_into::<_, IcmpPacket>(&*_io, None, None)?.into();
+                let t =
+                    Self::read_into::<_, IcmpPacket>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Ipv4 => {
-                let t = Self::read_into::<_, Ipv4Packet>(&*_io, None, None)?.into();
+                let t =
+                    Self::read_into::<_, Ipv4Packet>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Ipv6 => {
-                let t = Self::read_into::<_, Ipv6Packet>(&*_io, None, None)?.into();
+                let t =
+                    Self::read_into::<_, Ipv6Packet>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Ipv6Nonxt => {
-                let t = Self::read_into::<_, ProtocolBody_NoNextHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, ProtocolBody_NoNextHeader>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Tcp => {
-                let t = Self::read_into::<_, TcpSegment>(&*_io, None, None)?.into();
+                let t =
+                    Self::read_into::<_, TcpSegment>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Udp => {
-                let t = Self::read_into::<_, UdpDatagram>(&*_io, None, None)?.into();
+                let t = Self::read_into::<_, UdpDatagram>(&*_io, None, None)?
+                    .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -357,16 +384,19 @@ impl ProtocolBody {
     }
 }
 impl ProtocolBody {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn protocol(
-        &self
-    ) -> KResult<Ref<'_, ProtocolBody_ProtocolEnum>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn protocol(&self) -> KResult<Ref<'_, ProtocolBody_ProtocolEnum>> {
         let _io = self._io.borrow();
         if self.f_protocol.get() {
             return Ok(self.protocol.borrow());
         }
         self.f_protocol.set(true);
-        *self.protocol.borrow_mut() = i64::from(*self.protocol_num()).try_into()?;
+        *self.protocol.borrow_mut() =
+            i64::from(*self.protocol_num()).try_into()?;
         Ok(self.protocol.borrow())
     }
 }
@@ -835,15 +865,16 @@ impl From<&ProtocolBody_ProtocolEnum> for i64 {
             ProtocolBody_ProtocolEnum::Wesp => 141,
             ProtocolBody_ProtocolEnum::Rohc => 142,
             ProtocolBody_ProtocolEnum::Reserved255 => 255,
-            ProtocolBody_ProtocolEnum::Unknown(v) => v
+            ProtocolBody_ProtocolEnum::Unknown(v) => v,
         }
     }
 }
 
 impl Default for ProtocolBody_ProtocolEnum {
-    fn default() -> Self { ProtocolBody_ProtocolEnum::Unknown(0) }
+    fn default() -> Self {
+        ProtocolBody_ProtocolEnum::Unknown(0)
+    }
 }
-
 
 /**
  * Dummy type for IPv6 "no next header" type, which signifies end of headers chain.
@@ -869,22 +900,34 @@ impl TryFrom<&&ProtocolBody_NoNextHeader> for OptRc<ProtocolBody_NoNextHeader> {
     }
 }
 impl DowncastOptRc<ProtocolBody_NoNextHeader> for ProtocolBody_NoNextHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ProtocolBody_NoNextHeader> for &ProtocolBody_NoNextHeader {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProtocolBody_NoNextHeader> for OptRc<ProtocolBody_NoNextHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+impl DowncastOptRc<ProtocolBody_NoNextHeader>
+    for OptRc<ProtocolBody_NoNextHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProtocolBody_NoNextHeader> for &OptRc<ProtocolBody_NoNextHeader> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+impl DowncastOptRc<ProtocolBody_NoNextHeader>
+    for &OptRc<ProtocolBody_NoNextHeader>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -892,7 +935,11 @@ impl KStruct for ProtocolBody_NoNextHeader {
     type Root = ProtocolBody;
     type Parent = ProtocolBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -908,8 +955,7 @@ impl KStruct for ProtocolBody_NoNextHeader {
         Ok(())
     }
 }
-impl ProtocolBody_NoNextHeader {
-}
+impl ProtocolBody_NoNextHeader {}
 impl ProtocolBody_NoNextHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -934,35 +980,55 @@ pub struct ProtocolBody_OptionHopByHop {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ProtocolBody_OptionHopByHop> for OptRc<ProtocolBody_OptionHopByHop> {
+impl TryFrom<&ProtocolBody_OptionHopByHop>
+    for OptRc<ProtocolBody_OptionHopByHop>
+{
     type Error = KError;
     fn try_from(v: &ProtocolBody_OptionHopByHop) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProtocolBody_OptionHopByHop> for OptRc<ProtocolBody_OptionHopByHop> {
+impl TryFrom<&&ProtocolBody_OptionHopByHop>
+    for OptRc<ProtocolBody_OptionHopByHop>
+{
     type Error = KError;
     fn try_from(v: &&ProtocolBody_OptionHopByHop) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ProtocolBody_OptionHopByHop> for ProtocolBody_OptionHopByHop {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+impl DowncastOptRc<ProtocolBody_OptionHopByHop>
+    for ProtocolBody_OptionHopByHop
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ProtocolBody_OptionHopByHop> for &ProtocolBody_OptionHopByHop {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+impl DowncastOptRc<ProtocolBody_OptionHopByHop>
+    for &ProtocolBody_OptionHopByHop
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProtocolBody_OptionHopByHop> for OptRc<ProtocolBody_OptionHopByHop> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+impl DowncastOptRc<ProtocolBody_OptionHopByHop>
+    for OptRc<ProtocolBody_OptionHopByHop>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProtocolBody_OptionHopByHop> for &OptRc<ProtocolBody_OptionHopByHop> {
-    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+impl DowncastOptRc<ProtocolBody_OptionHopByHop>
+    for &OptRc<ProtocolBody_OptionHopByHop>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
         Ok((*self).clone())
     }
 }
@@ -970,7 +1036,11 @@ impl KStruct for ProtocolBody_OptionHopByHop {
     type Root = ProtocolBody;
     type Parent = ProtocolBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -986,18 +1056,35 @@ impl KStruct for ProtocolBody_OptionHopByHop {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hdr_ext_len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if ((to_i128(*self_rc.hdr_ext_len())) > (to_i128(0))) { (i32::from(*self_rc.hdr_ext_len())).saturating_sub(1_i32) } else { 1_i32 })?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
+            if ((to_i128(*self_rc.hdr_ext_len())) > (to_i128(0))) {
+                (i32::from(*self_rc.hdr_ext_len())).saturating_sub(1_i32)
+            } else {
+                1_i32
+            },
+        )?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.next_header_type()).try_into().map_err(|_| KError::CastError)?));
-        let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()), &f)?.into();
+        let f = |t: &mut ProtocolBody| {
+            Ok(t.set_params(
+                (*self_rc.next_header_type())
+                    .try_into()
+                    .map_err(|_| KError::CastError)?,
+            ))
+        };
+        let t = Self::read_into_with_init::<_, ProtocolBody>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._root.clone()),
+            &f,
+        )?
+        .into();
         *self_rc.next_header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProtocolBody_OptionHopByHop {
-}
+impl ProtocolBody_OptionHopByHop {}
 impl ProtocolBody_OptionHopByHop {
     pub fn next_header_type(&self) -> Ref<'_, u8> {
         self.next_header_type.borrow()

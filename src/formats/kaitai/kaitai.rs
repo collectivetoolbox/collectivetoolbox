@@ -50,7 +50,7 @@ See full license information for Kaitai Struct compiler at the end of this file.
 )]
 pub(crate) use ctb_utilities::*;
 
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 
 pub mod codegen;
 pub mod expr;
@@ -66,7 +66,10 @@ static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 #[must_use]
 pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
     if key.starts_with("fixtures/") {
-        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
+        return ctb_utilities::load_manifest_fixture(
+            env!("CARGO_MANIFEST_DIR"),
+            key,
+        );
     }
     get_embedded_asset(&KAITAI_DATA_DIR, key)
 }
@@ -94,12 +97,12 @@ pub mod my_custom_fx;
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
-    use super::*;
     use super::codegen::*;
     use super::parser::*;
     use super::precompile::validator::validate_ksy_file;
     use super::precompile::*;
     use super::spec::*;
+    use super::*;
     use kaitai::{BytesReader, KStruct, OptRc, SharedType};
 
     #[crate::ctb_test]
@@ -130,7 +133,10 @@ mod tests {
         ensure!(meta.endian == Some(EndianSpec::Simple("le".to_string())));
         ensure!(ksy.seq.len() == 8);
         ensure!(ksy.seq[0].id.as_deref() == Some("year"));
-        ensure!(ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single()) == Some("wYear"));
+        ensure!(
+            ksy.seq[0].orig_id.as_ref().and_then(|s| s.as_single())
+                == Some("wYear")
+        );
         Ok(())
     }
 
@@ -168,8 +174,6 @@ mod tests {
         Ok(())
     }
 
-
-
     #[crate::ctb_test]
     fn test_runtime_windows_systemtime() -> anyhow::Result<()> {
         let bytes = vec![
@@ -183,8 +187,11 @@ mod tests {
             0xf4, 0x01, // msec: 500
         ];
         let stream = BytesReader::from(bytes);
-        let rc = std::rc::Rc::new(crate::generated::windows::WindowsSystemtime::default());
-        let root: OptRc<crate::generated::windows::WindowsSystemtime> = OptRc::from(rc.clone());
+        let rc = std::rc::Rc::new(
+            crate::generated::windows::WindowsSystemtime::default(),
+        );
+        let root: OptRc<crate::generated::windows::WindowsSystemtime> =
+            OptRc::from(rc.clone());
         crate::generated::windows::WindowsSystemtime::read(
             &root,
             &stream,
@@ -216,7 +223,9 @@ mod tests {
         for entry in walkdir::WalkDir::new(&formats_dir) {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+            if path.is_file()
+                && path.extension().and_then(|s| s.to_str()) == Some("ksy")
+            {
                 total_files = total_files.saturating_add(1);
                 let bytes = std::fs::read(path)?;
                 if let Err(e) = parse_ksy_slice(&bytes) {
@@ -225,7 +234,11 @@ mod tests {
             }
         }
 
-        ensure!(total_files == 339, "Expected exactly 339 format files, found {}", total_files);
+        ensure!(
+            total_files == 339,
+            "Expected exactly 339 format files, found {}",
+            total_files
+        );
         ensure!(
             parse_failures.is_empty(),
             "Expected all formats to parse cleanly, but {} failed:\n{}",
@@ -251,10 +264,15 @@ mod tests {
         for entry in walkdir::WalkDir::new(&err_dir) {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+            if path.is_file()
+                && path.extension().and_then(|s| s.to_str()) == Some("ksy")
+            {
                 total_files = total_files.saturating_add(1);
                 let bytes = std::fs::read(path)?;
-                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+                let stem = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default();
 
                 // Per upstream ErrorMessagesSpec.scala, files with leading '#' comments specify
                 // expected errors; files without (auxiliary imported fixtures) expect 0 problems.
@@ -321,19 +339,33 @@ mod tests {
             return Ok(());
         }
 
-        let test_formats = ["fixed_struct", "enum_0", "floating_points", "integers", "bits_simple"];
+        let test_formats = [
+            "fixed_struct",
+            "enum_0",
+            "floating_points",
+            "integers",
+            "bits_simple",
+        ];
         for format_id in &test_formats {
             let path = formats_dir.join(format!("{format_id}.ksy"));
-            let bytes = std::fs::read(&path)
-                .with_context(|| format!("Missing format file: {}", path.display()))?;
+            let bytes = std::fs::read(&path).with_context(|| {
+                format!("Missing format file: {}", path.display())
+            })?;
             let ksy = parse_ksy_slice(&bytes)
                 .with_context(|| format!("Failed to parse: {format_id}"))?;
             let spec = resolve_ksy(format_id, &ksy, None)
                 .with_context(|| format!("Failed to resolve: {format_id}"))?;
-            let rust_code = compile_to_rust(&spec)
-                .with_context(|| format!("Failed to compile to rust: {format_id}"))?;
-            ensure!(!rust_code.is_empty(), "Generated code was empty for {format_id}");
-            ensure!(rust_code.contains("impl KStruct for"), "Missing KStruct impl for {format_id}");
+            let rust_code = compile_to_rust(&spec).with_context(|| {
+                format!("Failed to compile to rust: {format_id}")
+            })?;
+            ensure!(
+                !rust_code.is_empty(),
+                "Generated code was empty for {format_id}"
+            );
+            ensure!(
+                rust_code.contains("impl KStruct for"),
+                "Missing KStruct impl for {format_id}"
+            );
         }
 
         let mut total: usize = 0;
@@ -342,25 +374,38 @@ mod tests {
         for entry in walkdir::WalkDir::new(&formats_dir) {
             let entry = entry?;
             let path = entry.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+            if path.is_file()
+                && path.extension().and_then(|s| s.to_str()) == Some("ksy")
+            {
                 total = total.saturating_add(1);
                 let bytes = std::fs::read(path)?;
-                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+                let stem = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default();
                 match parse_ksy_slice(&bytes) {
                     Ok(ksy) => match resolve_ksy(stem, &ksy, None) {
                         Ok(spec) => {
                             if let Err(e) = compile_to_rust(&spec) {
-                                compile_failures.push(format!("{stem} (compile): {e:#}"));
+                                compile_failures
+                                    .push(format!("{stem} (compile): {e:#}"));
                             }
                         }
-                        Err(e) => compile_failures.push(format!("{stem} (resolve): {e:#}")),
+                        Err(e) => compile_failures
+                            .push(format!("{stem} (resolve): {e:#}")),
                     },
-                    Err(e) => compile_failures.push(format!("{stem} (parse): {e:#}")),
+                    Err(e) => {
+                        compile_failures.push(format!("{stem} (parse): {e:#}"))
+                    }
                 }
             }
         }
 
-        ensure!(total == 339, "Expected exactly 339 format files in formats, found {}", total);
+        ensure!(
+            total == 339,
+            "Expected exactly 339 format files in formats, found {}",
+            total
+        );
         ensure!(
             compile_failures.is_empty(),
             "Expected all formats to compile successfully, but {} failed:\n{}",
@@ -369,9 +414,7 @@ mod tests {
         );
         Ok(())
     }
-
 }
-
 
 /* License information for parts derived from Kaitai Struct:
 

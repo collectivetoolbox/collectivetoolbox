@@ -247,7 +247,8 @@ impl ClassSpec {
     /// Whether this class uses dynamic calculated or inherited endianness.
     #[must_use]
     pub fn has_dynamic_endian(&self) -> bool {
-        self.endian_switch.is_some() || self.meta_endian == Some(Endianness::Inherited)
+        self.endian_switch.is_some()
+            || self.meta_endian == Some(Endianness::Inherited)
     }
 
     /// Whether this class inherits its endianness dynamically from its parent.
@@ -272,9 +273,10 @@ impl ClassSpec {
     #[must_use]
     pub fn parent_class_type_name(&self) -> String {
         // Reason for fallback: types without an explicit parent belong directly to the root class
-        self.parent_name
-            .as_ref()
-            .map_or_else(|| self.root_class_type_name(), |p| types_to_class_name(p))
+        self.parent_name.as_ref().map_or_else(
+            || self.root_class_type_name(),
+            |p| types_to_class_name(p),
+        )
     }
 }
 

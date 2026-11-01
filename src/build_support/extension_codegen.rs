@@ -96,8 +96,7 @@ pub fn generate_extension_data_code_from_index(
         ));
     }
 
-    format_subjects
-        .sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+    format_subjects.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
     let mut entries = Vec::new();
     for (_category_stem, _short_id, subj, ident) in format_subjects {
@@ -239,8 +238,7 @@ pub fn generate_extension_data_file(base_dir: &Path) -> Result<bool> {
         }
     }
 
-    fs::write(&out_file, code).with_context(|| {
-        format!("Failed to write {}", out_file.display())
-    })?;
+    fs::write(&out_file, code)
+        .with_context(|| format!("Failed to write {}", out_file.display()))?;
     Ok(true)
 }

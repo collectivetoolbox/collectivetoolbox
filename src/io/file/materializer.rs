@@ -27,11 +27,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::apple_double::{
-    AppleFormat, AppleWriteMode, StreamAdaptationRecord, apple_double_companion_path,
-    create_apple_archive_from_entity_with_stream_source, plan_windows_ads_companions,
+    AppleFormat, AppleWriteMode, StreamAdaptationRecord,
+    apple_double_companion_path,
+    create_apple_archive_from_entity_with_stream_source,
+    plan_windows_ads_companions,
     serialize_apple_double_for_entity_with_stream_source,
-    write_apple_double_companion_bytes, write_apple_double_companion_with_stream_source,
-    write_apple_single_double, write_windows_ads_companions_with_warnings,
+    write_apple_double_companion_bytes,
+    write_apple_double_companion_with_stream_source, write_apple_single_double,
+    write_windows_ads_companions_with_warnings,
 };
 use crate::entity::{FileEntity, FileEntityKind};
 use crate::identity::resolve_relative_path_for_os;
@@ -40,9 +43,13 @@ use crate::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
 };
 use crate::payload::{Extent, PayloadSource};
-use crate::sandboxable_dir::{DirHandleRef, ExistingEntryPolicy, SandboxableDir};
+use crate::sandboxable_dir::{
+    DirHandleRef, ExistingEntryPolicy, SandboxableDir,
+};
 use crate::streams::{read_and_hash_streams, remove_stream, write_streams};
-use crate::sys_flags::{apply_file_flags, apply_file_flags_with_source, query_file_flags};
+use crate::sys_flags::{
+    apply_file_flags, apply_file_flags_with_source, query_file_flags,
+};
 use crate::verifier::{EntityAuditOptions, audit_entity_detailed};
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
@@ -64,7 +71,10 @@ use std::path::{Path, PathBuf};
 
 /// Execution options for file materialization.
 #[derive(Debug, Clone)]
-#[expect(clippy::struct_excessive_bools, reason = "Configuration flags for materialization fidelity")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Configuration flags for materialization fidelity"
+)]
 pub struct MaterializeOptions {
     /// If true, calculate operations without modifying the filesystem.
     pub dry_run: bool,
@@ -107,7 +117,8 @@ impl Default for MaterializeOptions {
             force_overwrite: false,
             existing_entry_policy: ExistingEntryPolicy::Refuse,
             apple_write_mode: AppleWriteMode::NativeOnly,
-            apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
+            apple_single_write_extension:
+                crate::apple_double::AppleSingleExtension::WithoutExtension,
         }
     }
 }
@@ -146,14 +157,16 @@ impl MaterializeReceipt {
                     adapt.materialized_relative_path.as_deref(),
                 ) {
                     if src_rel != mat_rel
-                        || adapt.source_stream_name != adapt.materialized_stream_name
+                        || adapt.source_stream_name
+                            != adapt.materialized_stream_name
                     {
                         stream
                             .entity
                             .metadata
                             .set_materialized_relative_path(src_rel, mat_rel);
                     }
-                    stream.entity.identity.relative_path = Some(mat_rel.to_path_buf());
+                    stream.entity.identity.relative_path =
+                        Some(mat_rel.to_path_buf());
                 }
             }
         }
@@ -178,7 +191,10 @@ pub fn apply_entity_metadata(
     }
     let mut warnings = Vec::new();
     #[cfg(not(any(unix, windows)))]
-    anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
+    anyhow::ensure!(
+        !strict_lossless,
+        "Lossless ownership and permission preservation is not implemented on this platform"
+    );
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
 
@@ -237,7 +253,10 @@ pub fn apply_entity_metadata(
             if let Err(e) = std::fs::set_permissions(dest, perms) {
                 if strict_lossless {
                     return Err(e).with_context(|| {
-                        format!("Failed to set permissions on {}", display_target.display())
+                        format!(
+                            "Failed to set permissions on {}",
+                            display_target.display()
+                        )
                     });
                 }
                 let warning = format!(
@@ -261,7 +280,8 @@ pub fn apply_entity_metadata(
                 })();
                 if let Err(error) = permission_result {
                     let error = error.context(format!(
-                        "Failed to set read-only permissions on {}", display_target.display(),
+                        "Failed to set read-only permissions on {}",
+                        display_target.display(),
                     ));
                     if strict_lossless {
                         return Err(error);
@@ -281,8 +301,14 @@ pub fn apply_entity_metadata(
             .as_ref()
             .is_ok_and(|m| !m.is_file() && !m.is_dir());
         let time_res = (|| -> Result<()> {
-            let atime = crate::metadata::checked_file_time(ts.atime_sec, ts.atime_nsec)?;
-            let mtime = crate::metadata::checked_file_time(ts.mtime_sec, ts.mtime_nsec)?;
+            let atime = crate::metadata::checked_file_time(
+                ts.atime_sec,
+                ts.atime_nsec,
+            )?;
+            let mtime = crate::metadata::checked_file_time(
+                ts.mtime_sec,
+                ts.mtime_nsec,
+            )?;
             if is_symlink || is_special {
                 set_symlink_file_times(dest, atime, mtime)?;
             } else {
@@ -293,7 +319,10 @@ pub fn apply_entity_metadata(
         if let Err(e) = time_res {
             if strict_lossless {
                 return Err(e).with_context(|| {
-                    format!("Failed to set file timestamps on {}", display_target.display())
+                    format!(
+                        "Failed to set file timestamps on {}",
+                        display_target.display()
+                    )
                 });
             }
             let warning = format!(
@@ -308,9 +337,17 @@ pub fn apply_entity_metadata(
     #[cfg(windows)]
     {
         if let Some(ref native) = meta.native {
-            crate::metadata::windows::apply_windows_security_metadata(dest, native, strict_lossless)?;
+            crate::metadata::windows::apply_windows_security_metadata(
+                dest,
+                native,
+                strict_lossless,
+            )?;
             if is_symlink {
-                crate::metadata::windows::apply_windows_reparse_metadata(dest, native, strict_lossless)?;
+                crate::metadata::windows::apply_windows_reparse_metadata(
+                    dest,
+                    native,
+                    strict_lossless,
+                )?;
             }
         }
         apply_windows_birthtime(dest, meta)?;
@@ -327,7 +364,10 @@ pub fn apply_entity_metadata(
     let has_flags = meta.flags.is_some() || meta.platform_raw_flags.is_some();
     if apply_flags && has_flags {
         let flags_slice = meta.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        let source_os = meta.environment.as_ref().map_or(OsFamily::CURRENT, |env| env.os_family());
+        let source_os = meta
+            .environment
+            .as_ref()
+            .map_or(OsFamily::CURRENT, |env| env.os_family());
         apply_file_flags_with_source(
             dest,
             flags_slice,
@@ -339,24 +379,44 @@ pub fn apply_entity_metadata(
 
     if apply_flags {
         #[cfg(windows)]
-        warnings.extend(apply_windows_change_time(dest, meta, strict_lossless)?);
-        warnings.extend(crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false, check_birthtime)?);
+        warnings.extend(apply_windows_change_time(
+            dest,
+            meta,
+            strict_lossless,
+        )?);
+        warnings.extend(crate::metadata::check_metadata_replication(
+            dest,
+            meta,
+            strict_lossless,
+            false,
+            check_birthtime,
+        )?);
     }
 
     Ok(warnings)
 }
 
 #[cfg(windows)]
-fn apply_windows_change_time(dest: &Path, meta: &FileMetadata, strict_lossless: bool) -> Result<Vec<String>> {
+fn apply_windows_change_time(
+    dest: &Path,
+    meta: &FileMetadata,
+    strict_lossless: bool,
+) -> Result<Vec<String>> {
     let Some(timestamps) = &meta.timestamps else {
         return Ok(Vec::new());
     };
     let result = (|| -> Result<()> {
-        let time = crate::metadata::checked_file_time(timestamps.ctime_sec, timestamps.ctime_nsec)?;
+        let time = crate::metadata::checked_file_time(
+            timestamps.ctime_sec,
+            timestamps.ctime_nsec,
+        )?;
         crate::metadata::windows::set_file_change_time(dest, time)
     })();
     if let Err(error) = result {
-        let error = error.context(format!("Failed to restore change time on {}", dest.display()));
+        let error = error.context(format!(
+            "Failed to restore change time on {}",
+            dest.display()
+        ));
         if strict_lossless {
             return Err(error);
         }
@@ -382,18 +442,22 @@ fn apply_windows_birthtime(dest: &Path, meta: &FileMetadata) -> Result<()> {
             let intervals = total_secs
                 .checked_mul(10_000_000)
                 .context("Overflow in birth time calculation")?
-                .checked_add(u64::from(nsec).checked_div(100).context("Division error")?)
+                .checked_add(
+                    u64::from(nsec)
+                        .checked_div(100)
+                        .context("Division error")?,
+                )
                 .context("Overflow adding nanoseconds")?;
-        let low = u32::try_from(intervals & 0xFFFF_FFFF)?;
-        let high = u32::try_from(intervals >> 32)?;
-        let ft = windows_sys::Win32::Foundation::FILETIME {
-            dwLowDateTime: low,
-            dwHighDateTime: high,
-        };
-        let wide = crate::metadata::windows::path_to_wide(dest)?;
-        // SAFETY: wide is a null-terminated path and handle is properly closed if valid.
-        let handle = unsafe {
-            windows_sys::Win32::Storage::FileSystem::CreateFileW(
+            let low = u32::try_from(intervals & 0xFFFF_FFFF)?;
+            let high = u32::try_from(intervals >> 32)?;
+            let ft = windows_sys::Win32::Foundation::FILETIME {
+                dwLowDateTime: low,
+                dwHighDateTime: high,
+            };
+            let wide = crate::metadata::windows::path_to_wide(dest)?;
+            // SAFETY: wide is a null-terminated path and handle is properly closed if valid.
+            let handle = unsafe {
+                windows_sys::Win32::Storage::FileSystem::CreateFileW(
                 wide.as_ptr(),
                 windows_sys::Win32::Storage::FileSystem::FILE_WRITE_ATTRIBUTES,
                 windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
@@ -405,28 +469,43 @@ fn apply_windows_birthtime(dest: &Path, meta: &FileMetadata) -> Result<()> {
                     | windows_sys::Win32::Storage::FileSystem::FILE_FLAG_OPEN_REPARSE_POINT,
                 core::ptr::null_mut(),
             )
-        };
-        if handle == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
-            return Err(std::io::Error::last_os_error())
-                .with_context(|| format!("Failed to open {} to restore birth time", dest.display()));
-        }
+            };
+            if handle == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+                return Err(std::io::Error::last_os_error()).with_context(
+                    || {
+                        format!(
+                            "Failed to open {} to restore birth time",
+                            dest.display()
+                        )
+                    },
+                );
+            }
             // SAFETY: handle is live, ft remains initialized, and the handle is closed only after SetFileTime returns.
             let result = unsafe {
-                let result = windows_sys::Win32::Storage::FileSystem::SetFileTime(
-                    handle,
-                    &raw const ft,
-                    core::ptr::null(),
-                    core::ptr::null(),
-                );
-                let error = if result == 0 { Some(std::io::Error::last_os_error()) } else { None };
+                let result =
+                    windows_sys::Win32::Storage::FileSystem::SetFileTime(
+                        handle,
+                        &raw const ft,
+                        core::ptr::null(),
+                        core::ptr::null(),
+                    );
+                let error = if result == 0 {
+                    Some(std::io::Error::last_os_error())
+                } else {
+                    None
+                };
                 windows_sys::Win32::Foundation::CloseHandle(handle);
                 error
             };
             if let Some(error) = result {
-                return Err(error)
-                    .with_context(|| format!("Failed to restore birth time on {}", dest.display()));
+                return Err(error).with_context(|| {
+                    format!(
+                        "Failed to restore birth time on {}",
+                        dest.display()
+                    )
+                });
             }
-    }
+        }
     }
     Ok(())
 }
@@ -445,7 +524,8 @@ pub fn verify_filename_exact_bytes(
 }
 
 /// Global sequence generator for atomic temporary files.
-static ATOMIC_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+static ATOMIC_SEQ: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(1);
 
 /// Materializes a complete `FileEntity` onto the filesystem within a [`SandboxableDir`].
 pub fn materialize_entity(
@@ -454,7 +534,13 @@ pub fn materialize_entity(
     dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
 ) -> Result<MaterializeReceipt> {
-    materialize_entity_with_stream_source(entity, payload, dest_dir, options, &crate::streams::FilesystemStreamSource)
+    materialize_entity_with_stream_source(
+        entity,
+        payload,
+        dest_dir,
+        options,
+        &crate::streams::FilesystemStreamSource,
+    )
 }
 
 /// Materializes primary and attached bodies before publishing a regular file.
@@ -469,7 +555,10 @@ pub fn materialize_entity_with_stream_source(
         timestamps.validate()?;
     }
     #[cfg(not(any(unix, windows)))]
-    anyhow::ensure!(!options.strict_lossless, "Lossless materialization is not implemented on this platform");
+    anyhow::ensure!(
+        !options.strict_lossless,
+        "Lossless materialization is not implemented on this platform"
+    );
     if entity.is_error() {
         let err_details = if entity.metadata.errors.is_empty() {
             "entity is marked inaccessible".to_string()
@@ -496,7 +585,9 @@ pub fn materialize_entity_with_stream_source(
     let max_leaf_bytes = if options.strict_lossless {
         crate::clean_name::MAX_FILENAME_BYTES
     } else {
-        if options.apple_write_mode.is_windows_ads() && !entity.streams.is_empty() {
+        if options.apple_write_mode.is_windows_ads()
+            && !entity.streams.is_empty()
+        {
             let max_stream_len: usize = entity
                 .streams
                 .iter()
@@ -508,7 +599,8 @@ pub fn materialize_entity_with_stream_source(
                 })
                 .max()
                 .unwrap_or(16); // Reason for fallback: non-empty streams slice always yields Some
-            crate::clean_name::MAX_FILENAME_BYTES.saturating_sub(max_stream_len.saturating_add(1))
+            crate::clean_name::MAX_FILENAME_BYTES
+                .saturating_sub(max_stream_len.saturating_add(1))
         } else if options.apple_write_mode.double_style().is_some()
             && (!entity.streams.is_empty()
                 // Reason for fallback: absent AppleMetadata defaults to false
@@ -526,23 +618,30 @@ pub fn materialize_entity_with_stream_source(
         }
     };
 
-    let (mut relative_path_buf, mut path_warnings) = if options.strict_lossless {
+    let (mut relative_path_buf, mut path_warnings) = if options.strict_lossless
+    {
         (orig_relative_path.to_path_buf(), Vec::new())
     } else {
-        let (mut adapted, mut warnings) = crate::clean_name::adapt_relative_path_for_materialization(
-            orig_relative_path,
-            cfg!(windows),
-        );
+        let (mut adapted, mut warnings) =
+            crate::clean_name::adapt_relative_path_for_materialization(
+                orig_relative_path,
+                cfg!(windows),
+            );
         if max_leaf_bytes < crate::clean_name::MAX_FILENAME_BYTES {
-            if let Some(leaf) = adapted.file_name().map(std::ffi::OsStr::to_os_string) {
+            if let Some(leaf) =
+                adapted.file_name().map(std::ffi::OsStr::to_os_string)
+            {
                 if leaf.as_encoded_bytes().len() > max_leaf_bytes {
-                    let (short_leaf, reason) = crate::clean_name::adapt_component_with_max_bytes(
-                        &leaf,
-                        cfg!(windows),
-                        max_leaf_bytes,
-                    );
+                    let (short_leaf, reason) =
+                        crate::clean_name::adapt_component_with_max_bytes(
+                            &leaf,
+                            cfg!(windows),
+                            max_leaf_bytes,
+                        );
                     let new_adapted = match adapted.parent() {
-                        Some(p) if !p.as_os_str().is_empty() => p.join(&short_leaf),
+                        Some(p) if !p.as_os_str().is_empty() => {
+                            p.join(&short_leaf)
+                        }
                         _ => PathBuf::from(&short_leaf),
                     };
                     let msg = format!(
@@ -574,7 +673,10 @@ pub fn materialize_entity_with_stream_source(
         && relative_path_buf != orig_relative_path
         && std::fs::symlink_metadata(&dest_path).is_ok()
     {
-        if let Some(leaf_os) = relative_path_buf.file_name().map(std::ffi::OsStr::to_os_string) {
+        if let Some(leaf_os) = relative_path_buf
+            .file_name()
+            .map(std::ffi::OsStr::to_os_string)
+        {
             let leaf_str = leaf_os.to_string_lossy();
             // Reason for fallback: single-component relative path is already the file name
             let orig_leaf_bytes = orig_relative_path
@@ -583,14 +685,17 @@ pub fn materialize_entity_with_stream_source(
                 .as_encoded_bytes();
             let mut collision_idx = 1_usize;
             loop {
-                let disambiguated = crate::clean_name::disambiguate_cleaned_name(
-                    &leaf_str,
-                    orig_leaf_bytes,
-                    collision_idx,
-                    max_leaf_bytes,
-                );
+                let disambiguated =
+                    crate::clean_name::disambiguate_cleaned_name(
+                        &leaf_str,
+                        orig_leaf_bytes,
+                        collision_idx,
+                        max_leaf_bytes,
+                    );
                 let cand_rel = match relative_path_buf.parent() {
-                    Some(p) if !p.as_os_str().is_empty() => p.join(&disambiguated),
+                    Some(p) if !p.as_os_str().is_empty() => {
+                        p.join(&disambiguated)
+                    }
                     _ => PathBuf::from(&disambiguated),
                 };
                 let cand_dest = resolve_and_validate_path(
@@ -638,9 +743,15 @@ pub fn materialize_entity_with_stream_source(
         .ensure_parent_dir(relative_path, options.path_policy)
     {
         Ok(res) => res,
-        Err(err) if !options.strict_lossless && is_filename_rejection_error(&err) => {
+        Err(err)
+            if !options.strict_lossless
+                && is_filename_rejection_error(&err) =>
+        {
             let (win_adapted, win_warnings) =
-                crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
+                crate::clean_name::adapt_relative_path_for_materialization(
+                    orig_relative_path,
+                    true,
+                );
             if win_adapted == relative_path_buf {
                 return Err(err);
             }
@@ -660,26 +771,58 @@ pub fn materialize_entity_with_stream_source(
         Err(err) => return Err(err),
     };
 
-    if options.existing_entry_policy == ExistingEntryPolicy::Refuse && !entity.is_dir() {
+    if options.existing_entry_policy == ExistingEntryPolicy::Refuse
+        && !entity.is_dir()
+    {
         match std::fs::symlink_metadata(&dest_path) {
-            Ok(_) => bail!("Destination already exists; explicit overwrite permission required: {}", dest_path.display()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-            Err(error) => return Err(error).context("Cannot inspect materialization destination"),
+            Ok(_) => bail!(
+                "Destination already exists; explicit overwrite permission required: {}",
+                dest_path.display()
+            ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(error)
+                    .context("Cannot inspect materialization destination");
+            }
         }
     }
 
     match &entity.kind {
         FileEntityKind::Symlink { target } => {
-            if options.strict_lossless && options.check_birthtime && !cfg!(windows) && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
-                anyhow::bail!("Cannot reproduce symlink birth time on this platform");
+            if options.strict_lossless
+                && options.check_birthtime
+                && !cfg!(windows)
+                && entity
+                    .metadata
+                    .timestamps
+                    .as_ref()
+                    .and_then(|t| t.birthtime_sec)
+                    .is_some()
+            {
+                anyhow::bail!(
+                    "Cannot reproduce symlink birth time on this platform"
+                );
             }
-            let (target_path, mut adaptation_warnings) =
-                target.to_path_buf_for_materialization_with_warnings(options.strict_lossless)?;
-            let create = |path: &Path, p_fd: &crate::sandboxable_dir::DirHandle, f_name: &Path, d_path: &Path| {
+            let (target_path, mut adaptation_warnings) = target
+                .to_path_buf_for_materialization_with_warnings(
+                    options.strict_lossless,
+                )?;
+            let create = |path: &Path,
+                          p_fd: &crate::sandboxable_dir::DirHandle,
+                          f_name: &Path,
+                          d_path: &Path| {
                 #[cfg(windows)]
                 if let Some(native) = &entity.metadata.native {
-                    if native.source_os == OsFamily::Windows && native.values.contains_key("reparse.data") {
-                        return dest_dir.create_native_reparse_at(d_path, path, native, options.symlink_policy, options.existing_entry_policy);
+                    if native.source_os == OsFamily::Windows
+                        && native.values.contains_key("reparse.data")
+                    {
+                        return dest_dir.create_native_reparse_at(
+                            d_path,
+                            path,
+                            native,
+                            options.symlink_policy,
+                            options.existing_entry_policy,
+                        );
                     }
                 }
                 dest_dir.create_symlink_at(
@@ -691,13 +834,17 @@ pub fn materialize_entity_with_stream_source(
                     options.existing_entry_policy,
                 )
             };
-            if let Err(error) = create(&target_path, &parent_dir_fd, &file_name, &dest_path) {
+            if let Err(error) =
+                create(&target_path, &parent_dir_fd, &file_name, &dest_path)
+            {
                 if options.strict_lossless {
                     return Err(error);
                 }
                 let mut handled = false;
                 if crate::link_path::is_destination_encoding_error(&error) {
-                    let adapted = PathBuf::from(target_path.to_string_lossy().into_owned());
+                    let adapted = PathBuf::from(
+                        target_path.to_string_lossy().into_owned(),
+                    );
                     if adapted != target_path {
                         let warning = format!(
                             "Destination rejected symlink encoding {:?} -> {:?} on {}; retrying with replacement characters (best-effort): {error:#}",
@@ -706,7 +853,12 @@ pub fn materialize_entity_with_stream_source(
                             dest_path.display()
                         );
                         warn_fmt!("{warning}");
-                        create(&adapted, &parent_dir_fd, &file_name, &dest_path)?;
+                        create(
+                            &adapted,
+                            &parent_dir_fd,
+                            &file_name,
+                            &dest_path,
+                        )?;
                         adaptation_warnings.push(warning);
                         handled = true;
                     }
@@ -726,11 +878,19 @@ pub fn materialize_entity_with_stream_source(
                             relative_path,
                             options.path_policy,
                         )?;
-                        let (new_p_fd, new_f_name) =
-                            dest_dir.ensure_parent_dir(relative_path, options.path_policy)?;
+                        let (new_p_fd, new_f_name) = dest_dir
+                            .ensure_parent_dir(
+                                relative_path,
+                                options.path_policy,
+                            )?;
                         parent_dir_fd = new_p_fd;
                         file_name = new_f_name;
-                        create(&target_path, &parent_dir_fd, &file_name, &dest_path)?;
+                        create(
+                            &target_path,
+                            &parent_dir_fd,
+                            &file_name,
+                            &dest_path,
+                        )?;
                         handled = true;
                     }
                 }
@@ -738,13 +898,14 @@ pub fn materialize_entity_with_stream_source(
                     return Err(error);
                 }
             }
-            let stream_warnings = crate::streams::write_streams_from_source_with_warnings(
-                &dest_path,
-                None,
-                &entity.streams,
-                options.strict_lossless,
-                stream_source,
-            )?;
+            let stream_warnings =
+                crate::streams::write_streams_from_source_with_warnings(
+                    &dest_path,
+                    None,
+                    &entity.streams,
+                    options.strict_lossless,
+                    stream_source,
+                )?;
             let mut warnings = path_warnings;
             warnings.extend(adaptation_warnings);
             warnings.extend(stream_warnings);
@@ -770,8 +931,10 @@ pub fn materialize_entity_with_stream_source(
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
-            let (mut target_path, mut warnings) =
-                target_relative_path.to_path_buf_for_materialization_with_warnings(options.strict_lossless)?;
+            let (mut target_path, mut warnings) = target_relative_path
+                .to_path_buf_for_materialization_with_warnings(
+                    options.strict_lossless,
+                )?;
             warnings.splice(0..0, path_warnings);
             if options.path_policy == PathTraversalPolicy::StrictSandboxed {
                 for comp in target_path.components() {
@@ -813,7 +976,10 @@ pub fn materialize_entity_with_stream_source(
                 }
                 let mut retried = false;
                 let (win_target, win_target_warnings) =
-                    crate::clean_name::adapt_relative_path_for_materialization(&target_path, true);
+                    crate::clean_name::adapt_relative_path_for_materialization(
+                        &target_path,
+                        true,
+                    );
                 if win_target != target_path {
                     for w in &win_target_warnings {
                         warn_fmt!("{w}");
@@ -837,8 +1003,11 @@ pub fn materialize_entity_with_stream_source(
                             relative_path,
                             options.path_policy,
                         )?;
-                        let (new_p_fd, new_f_name) =
-                            dest_dir.ensure_parent_dir(relative_path, options.path_policy)?;
+                        let (new_p_fd, new_f_name) = dest_dir
+                            .ensure_parent_dir(
+                                relative_path,
+                                options.path_policy,
+                            )?;
                         parent_dir_fd = new_p_fd;
                         file_name = new_f_name;
                         retried = true;
@@ -871,8 +1040,11 @@ pub fn materialize_entity_with_stream_source(
             })
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
-            if let Err(err) = dest_dir.ensure_dir_all(relative_path, options.path_policy) {
-                if !options.strict_lossless && is_filename_rejection_error(&err) {
+            if let Err(err) =
+                dest_dir.ensure_dir_all(relative_path, options.path_policy)
+            {
+                if !options.strict_lossless && is_filename_rejection_error(&err)
+                {
                     let (win_adapted, win_warnings) =
                         crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
                     if win_adapted == relative_path_buf {
@@ -889,13 +1061,19 @@ pub fn materialize_entity_with_stream_source(
                             relative_path,
                             options.path_policy,
                         )?;
-                        let _ = dest_dir.ensure_dir_all(relative_path, options.path_policy)?;
+                        let _ = dest_dir.ensure_dir_all(
+                            relative_path,
+                            options.path_policy,
+                        )?;
                     }
                 } else {
                     return Err(err);
                 }
             }
-            dest_dir.authorize_metadata(relative_path, options.existing_entry_policy)?;
+            dest_dir.authorize_metadata(
+                relative_path,
+                options.existing_entry_policy,
+            )?;
             let (stream_adaptations, stream_warnings) =
                 materialize_directory_streams_and_companions(
                     entity,
@@ -927,8 +1105,19 @@ pub fn materialize_entity_with_stream_source(
         FileEntityKind::Fifo
         | FileEntityKind::CharDevice { .. }
         | FileEntityKind::BlockDevice { .. } => {
-            if options.strict_lossless && options.check_birthtime && !cfg!(windows) && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
-                anyhow::bail!("Cannot reproduce special-node birth time on this platform");
+            if options.strict_lossless
+                && options.check_birthtime
+                && !cfg!(windows)
+                && entity
+                    .metadata
+                    .timestamps
+                    .as_ref()
+                    .and_then(|t| t.birthtime_sec)
+                    .is_some()
+            {
+                anyhow::bail!(
+                    "Cannot reproduce special-node birth time on this platform"
+                );
             }
             anyhow::ensure!(
                 options.copy_specials,
@@ -944,7 +1133,8 @@ pub fn materialize_entity_with_stream_source(
                 mode,
                 options.existing_entry_policy,
             ) {
-                if !options.strict_lossless && is_filename_rejection_error(&err) {
+                if !options.strict_lossless && is_filename_rejection_error(&err)
+                {
                     let (win_adapted, win_warnings) =
                         crate::clean_name::adapt_relative_path_for_materialization(orig_relative_path, true);
                     if win_adapted == relative_path_buf {
@@ -961,8 +1151,11 @@ pub fn materialize_entity_with_stream_source(
                             relative_path,
                             options.path_policy,
                         )?;
-                        let (new_p_fd, new_f_name) =
-                            dest_dir.ensure_parent_dir(relative_path, options.path_policy)?;
+                        let (new_p_fd, new_f_name) = dest_dir
+                            .ensure_parent_dir(
+                                relative_path,
+                                options.path_policy,
+                            )?;
                         parent_dir_fd = new_p_fd;
                         file_name = new_f_name;
                         dest_dir.create_special(
@@ -977,13 +1170,14 @@ pub fn materialize_entity_with_stream_source(
                     return Err(err);
                 }
             }
-            let stream_warnings = crate::streams::write_streams_from_source_with_warnings(
-                &dest_path,
-                None,
-                &entity.streams,
-                options.strict_lossless,
-                stream_source,
-            )?;
+            let stream_warnings =
+                crate::streams::write_streams_from_source_with_warnings(
+                    &dest_path,
+                    None,
+                    &entity.streams,
+                    options.strict_lossless,
+                    stream_source,
+                )?;
             let mut warnings = path_warnings;
             warnings.extend(stream_warnings);
             warnings.extend(apply_entity_metadata(
@@ -1022,7 +1216,9 @@ pub fn materialize_entity_with_stream_source(
             is_sparse,
             extents,
         } => {
-            if options.existing_entry_policy == ExistingEntryPolicy::Replace && !options.force_overwrite {
+            if options.existing_entry_policy == ExistingEntryPolicy::Replace
+                && !options.force_overwrite
+            {
                 if let Some(mut receipt) = try_update_existing_regular_entity(
                     &dest_path,
                     dest_dir,
@@ -1038,8 +1234,10 @@ pub fn materialize_entity_with_stream_source(
                 }
             }
 
-            let is_apple_single = options.apple_write_mode == AppleWriteMode::ForceAppleSingle
-                || (options.apple_write_mode == AppleWriteMode::MaybeAppleSingle
+            let is_apple_single = options.apple_write_mode
+                == AppleWriteMode::ForceAppleSingle
+                || (options.apple_write_mode
+                    == AppleWriteMode::MaybeAppleSingle
                     && (!entity.streams.is_empty()
                         // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                         || entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty())));
@@ -1075,23 +1273,40 @@ pub fn materialize_entity_with_stream_source(
                     };
                     data_fork.extend_from_slice(read_slice);
                 }
-                anyhow::ensure!(read_bytes == initial_size, "Unexpected EOF in AppleSingle payload for {}", dest_path.display());
+                anyhow::ensure!(
+                    read_bytes == initial_size,
+                    "Unexpected EOF in AppleSingle payload for {}",
+                    dest_path.display()
+                );
                 let mut extra = [0_u8; 1];
-                anyhow::ensure!(source.read(&mut extra)? == 0, "Payload grew during AppleSingle copy of {}", dest_path.display());
+                anyhow::ensure!(
+                    source.read(&mut extra)? == 0,
+                    "Payload grew during AppleSingle copy of {}",
+                    dest_path.display()
+                );
                 let mut payload_hasher = Sha256Stream::new();
                 payload_hasher.update(&data_fork);
                 let payload_sha256 = payload_hasher.finalize();
-                anyhow::ensure!(*expected_sha256 == [0_u8; 32] || payload_sha256 == *expected_sha256,
-                    "Payload SHA-256 verification failed during AppleSingle write for {}", dest_path.display());
+                anyhow::ensure!(
+                    *expected_sha256 == [0_u8; 32]
+                        || payload_sha256 == *expected_sha256,
+                    "Payload SHA-256 verification failed during AppleSingle write for {}",
+                    dest_path.display()
+                );
                 let source_warnings = source.finish()?;
-                anyhow::ensure!(!options.strict_lossless || source_warnings.is_empty(),
-                    "Payload source fidelity failed for {}: {:?}", dest_path.display(), source_warnings);
-                let archive = create_apple_archive_from_entity_with_stream_source(
-                    entity,
-                    AppleFormat::AppleSingle,
-                    Some(data_fork),
-                    stream_source,
-                )?;
+                anyhow::ensure!(
+                    !options.strict_lossless || source_warnings.is_empty(),
+                    "Payload source fidelity failed for {}: {:?}",
+                    dest_path.display(),
+                    source_warnings
+                );
+                let archive =
+                    create_apple_archive_from_entity_with_stream_source(
+                        entity,
+                        AppleFormat::AppleSingle,
+                        Some(data_fork),
+                        stream_source,
+                    )?;
                 let single_bytes = write_apple_single_double(&archive)?;
                 let mut hasher = Sha256Stream::new();
                 hasher.update(&single_bytes);
@@ -1099,11 +1314,14 @@ pub fn materialize_entity_with_stream_source(
                 let single_size = u64::try_from(single_bytes.len())?;
 
                 let pid = std::process::id();
-                let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                let nanos = match std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                {
                     Ok(dur) => dur.subsec_nanos(),
                     Err(_) => 0,
                 };
-                let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let seq = ATOMIC_SEQ
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
 
                 // Reason for fallback: absent file mode for AppleSingle temp file defaults to standard 0o644 permissions
@@ -1172,7 +1390,12 @@ pub fn materialize_entity_with_stream_source(
                     );
                 }
 
-                dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &actual_file_name, options.existing_entry_policy)?;
+                dest_dir.commit_atomic_file(
+                    &parent_dir_fd.as_fd(),
+                    &temp_name,
+                    &actual_file_name,
+                    options.existing_entry_policy,
+                )?;
                 cleanup_guard.active = false;
 
                 #[cfg(windows)]
@@ -1185,7 +1408,8 @@ pub fn materialize_entity_with_stream_source(
                     || entity.metadata.platform_raw_flags.is_some();
                 if has_flags {
                     // Reason for fallback: absent flags metadata defaults to empty slice
-                    let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]);
+                    let flags_slice =
+                        entity.metadata.flags.as_deref().unwrap_or(&[]);
                     // Reason for fallback: absent environment metadata defaults to compile-target OS family
                     let source_os = entity
                         .metadata
@@ -1233,11 +1457,14 @@ pub fn materialize_entity_with_stream_source(
             let payload_noatime = source.opened_with_noatime();
 
             let pid = std::process::id();
-            let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+            let nanos = match std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+            {
                 Ok(dur) => dur.subsec_nanos(),
                 Err(_) => 0,
             };
-            let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let seq =
+                ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
 
             // Reason for fallback: absent file mode for regular temp file defaults to standard 0o644 permissions
@@ -1264,9 +1491,8 @@ pub fn materialize_entity_with_stream_source(
                 let mut extent_end = 0_u64;
                 for extent in extents {
                     let (offset, length) = match extent {
-                        Extent::Data { offset, length } | Extent::Hole { offset, length } => {
-                            (*offset, *length)
-                        }
+                        Extent::Data { offset, length }
+                        | Extent::Hole { offset, length } => (*offset, *length),
                     };
                     if offset != extent_end || length == 0 {
                         can_use_sparse = false;
@@ -1314,7 +1540,10 @@ pub fn materialize_entity_with_stream_source(
 
                 let mut returned = 0_u32;
                 // SAFETY: temp_file is a valid live file handle
-                #[expect(unsafe_code, reason = "DeviceIoControl requires Win32 FFI with a live file handle and synchronous output storage")]
+                #[expect(
+                    unsafe_code,
+                    reason = "DeviceIoControl requires Win32 FFI with a live file handle and synchronous output storage"
+                )]
                 let ret = unsafe {
                     DeviceIoControl(
                         temp_file.as_raw_handle(),
@@ -1330,7 +1559,9 @@ pub fn materialize_entity_with_stream_source(
                 let has_sparse_attr = temp_file
                     .metadata()
                     .context("Failed to query destination sparse attributes")?
-                    .file_attributes() & FILE_ATTRIBUTE_SPARSE_FILE != 0;
+                    .file_attributes()
+                    & FILE_ATTRIBUTE_SPARSE_FILE
+                    != 0;
                 if ret == 0 || !has_sparse_attr {
                     if options.strict_lossless {
                         anyhow::bail!(
@@ -1364,14 +1595,19 @@ pub fn materialize_entity_with_stream_source(
                                     .get_mut(..to_read)
                                     .context("Buffer slice index out of bounds for read")?;
                                 let n = source.read(buf_slice)?;
-                                anyhow::ensure!(n != 0, "Unexpected EOF in sparse payload for {}", dest_path.display());
+                                anyhow::ensure!(
+                                    n != 0,
+                                    "Unexpected EOF in sparse payload for {}",
+                                    dest_path.display()
+                                );
                                 let write_slice = buf
                                     .get(..n)
                                     .context("Buffer slice index out of bounds for write")?;
                                 temp_file.write_all(write_slice)?;
                                 hasher.update(write_slice);
-                                let n_u64 = u64::try_from(n)
-                                    .context("Failed to convert read bytes count to u64")?;
+                                let n_u64 = u64::try_from(n).context(
+                                    "Failed to convert read bytes count to u64",
+                                )?;
                                 remaining = remaining.saturating_sub(n_u64);
                             }
                         }
@@ -1381,12 +1617,14 @@ pub fn materialize_entity_with_stream_source(
                             while remaining > 0 {
                                 let chunk = usize::try_from(remaining.min(8 * 1024))
                                     .context("Failed to convert hole chunk size to usize")?;
-                                let zero_slice = zero_buf
-                                    .get(..chunk)
-                                    .context("Zero buffer slice index out of bounds")?;
+                                let zero_slice =
+                                    zero_buf.get(..chunk).context(
+                                        "Zero buffer slice index out of bounds",
+                                    )?;
                                 hasher.update(zero_slice);
-                                let chunk_u64 = u64::try_from(chunk)
-                                    .context("Failed to convert hole chunk size to u64")?;
+                                let chunk_u64 = u64::try_from(chunk).context(
+                                    "Failed to convert hole chunk size to u64",
+                                )?;
                                 remaining = remaining.saturating_sub(chunk_u64);
                             }
                         }
@@ -1413,21 +1651,27 @@ pub fn materialize_entity_with_stream_source(
                             let end_u64 = offset
                                 .checked_add(*length)
                                 .context("Hole end offset overflow")?;
-                            let end = i64::try_from(end_u64)
-                                .context("Hole end offset out of range for i64")?;
+                            let end = i64::try_from(end_u64).context(
+                                "Hole end offset out of range for i64",
+                            )?;
                             let zero_info = FILE_ZERO_DATA_INFORMATION {
                                 FileOffset: start,
                                 BeyondFinalZero: end,
                             };
                             let mut returned = 0_u32;
                             // SAFETY: temp_file is a live handle; zero_info is a stack-allocated struct.
-                            #[expect(unsafe_code, reason = "DeviceIoControl requires Win32 FFI with live synchronous input and output buffers")]
+                            #[expect(
+                                unsafe_code,
+                                reason = "DeviceIoControl requires Win32 FFI with live synchronous input and output buffers"
+                            )]
                             let ok = unsafe {
                                 DeviceIoControl(
                                     temp_file.as_raw_handle(),
                                     FSCTL_SET_ZERO_DATA,
                                     (&raw const zero_info).cast(),
-                                    u32::try_from(std::mem::size_of_val(&zero_info))?,
+                                    u32::try_from(std::mem::size_of_val(
+                                        &zero_info,
+                                    ))?,
                                     std::ptr::null_mut(),
                                     0,
                                     &mut returned,
@@ -1465,20 +1709,34 @@ pub fn materialize_entity_with_stream_source(
                     if n == 0 {
                         break;
                     }
-                    written = written.checked_add(u64::try_from(n)?).context("Payload size overflow")?;
-                    anyhow::ensure!(written <= initial_size, "Payload grew during copy of {}", dest_path.display());
-                    let slice = buf
-                        .get(..n)
-                        .context("Buffer slice index out of bounds for write")?;
+                    written = written
+                        .checked_add(u64::try_from(n)?)
+                        .context("Payload size overflow")?;
+                    anyhow::ensure!(
+                        written <= initial_size,
+                        "Payload grew during copy of {}",
+                        dest_path.display()
+                    );
+                    let slice = buf.get(..n).context(
+                        "Buffer slice index out of bounds for write",
+                    )?;
                     temp_file.write_all(slice)?;
                     hasher.update(slice);
                 }
-                anyhow::ensure!(written == initial_size, "Unexpected EOF in payload for {}", dest_path.display());
+                anyhow::ensure!(
+                    written == initial_size,
+                    "Unexpected EOF in payload for {}",
+                    dest_path.display()
+                );
             }
 
             let source_warnings = source.finish()?;
-            anyhow::ensure!(!options.strict_lossless || source_warnings.is_empty(),
-                "Payload source fidelity failed for {}: {:?}", dest_path.display(), source_warnings);
+            anyhow::ensure!(
+                !options.strict_lossless || source_warnings.is_empty(),
+                "Payload source fidelity failed for {}: {:?}",
+                dest_path.display(),
+                source_warnings
+            );
             let computed_sha256 = hasher.finalize();
             let is_sentinel = *expected_sha256 == [0_u8; 32];
             if !is_sentinel && computed_sha256 != *expected_sha256 {
@@ -1505,14 +1763,19 @@ pub fn materialize_entity_with_stream_source(
                 }
                 AppleWriteMode::MaybeAppleDouble(_) => {
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    let has_apple_meta = entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty());
-                    let streams_res = crate::streams::write_streams_from_source_with_warnings(
-                        &temp_path,
-                        Some(&dest_path),
-                        &entity.streams,
-                        false,
-                        stream_source,
-                    );
+                    let has_apple_meta = entity
+                        .metadata
+                        .apple
+                        .as_ref()
+                        .is_some_and(|a| !a.is_empty());
+                    let streams_res =
+                        crate::streams::write_streams_from_source_with_warnings(
+                            &temp_path,
+                            Some(&dest_path),
+                            &entity.streams,
+                            false,
+                            stream_source,
+                        );
                     match streams_res {
                         Ok(w) => {
                             stream_warnings.extend(w);
@@ -1532,7 +1795,13 @@ pub fn materialize_entity_with_stream_source(
                 AppleWriteMode::ForceWindowsAds => {
                     write_windows_ads = !entity.streams.is_empty();
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
+                    if options.strict_lossless
+                        && entity
+                            .metadata
+                            .apple
+                            .as_ref()
+                            .is_some_and(|a| !a.is_empty())
+                    {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for {} with Windows ADS companions",
                             dest_path.display()
@@ -1540,13 +1809,14 @@ pub fn materialize_entity_with_stream_source(
                     }
                 }
                 AppleWriteMode::MaybeWindowsAds => {
-                    let streams_res = crate::streams::write_streams_from_source_with_warnings(
-                        &temp_path,
-                        Some(&dest_path),
-                        &entity.streams,
-                        true,
-                        stream_source,
-                    );
+                    let streams_res =
+                        crate::streams::write_streams_from_source_with_warnings(
+                            &temp_path,
+                            Some(&dest_path),
+                            &entity.streams,
+                            true,
+                            stream_source,
+                        );
                     match streams_res {
                         Ok(w) => {
                             stream_warnings.extend(w);
@@ -1560,7 +1830,13 @@ pub fn materialize_entity_with_stream_source(
                         }
                     }
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
+                    if options.strict_lossless
+                        && entity
+                            .metadata
+                            .apple
+                            .as_ref()
+                            .is_some_and(|a| !a.is_empty())
+                    {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for {} with Windows ADS companions",
                             dest_path.display()
@@ -1576,7 +1852,13 @@ pub fn materialize_entity_with_stream_source(
                         stream_source,
                     )?);
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-                    if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
+                    if options.strict_lossless
+                        && entity
+                            .metadata
+                            .apple
+                            .as_ref()
+                            .is_some_and(|a| !a.is_empty())
+                    {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for {} natively without AppleDouble or AppleSingle",
                             dest_path.display()
@@ -1587,8 +1869,12 @@ pub fn materialize_entity_with_stream_source(
 
             let prebuilt_apple_double = if write_companion {
                 if let Some(style) = options.apple_write_mode.double_style() {
-                    if let Some(companion) = apple_double_companion_path(entity, &dest_path, dest_dir, style)? {
-                        if options.existing_entry_policy == ExistingEntryPolicy::Refuse {
+                    if let Some(companion) = apple_double_companion_path(
+                        entity, &dest_path, dest_dir, style,
+                    )? {
+                        if options.existing_entry_policy
+                            == ExistingEntryPolicy::Refuse
+                        {
                             match std::fs::symlink_metadata(&companion) {
                                 Ok(_) => bail!("AppleDouble companion already exists; explicit overwrite permission required: {}", companion.display()),
                                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
@@ -1611,8 +1897,15 @@ pub fn materialize_entity_with_stream_source(
             } else {
                 None
             };
-            if write_windows_ads && options.existing_entry_policy == ExistingEntryPolicy::Refuse {
-                for planned in plan_windows_ads_companions(entity, &dest_path, dest_dir, options.strict_lossless)? {
+            if write_windows_ads
+                && options.existing_entry_policy == ExistingEntryPolicy::Refuse
+            {
+                for planned in plan_windows_ads_companions(
+                    entity,
+                    &dest_path,
+                    dest_dir,
+                    options.strict_lossless,
+                )? {
                     if options.strict_lossless || planned.adaptation.is_none() {
                         match std::fs::symlink_metadata(&planned.companion_path) {
                             Ok(_) => bail!(
@@ -1631,7 +1924,10 @@ pub fn materialize_entity_with_stream_source(
             let temp_file = {
                 temp_file.sync_all()?;
                 drop(temp_file);
-                std::fs::OpenOptions::new().read(true).write(true).open(&temp_path)?
+                std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&temp_path)?
             };
             let mut warnings = path_warnings;
             warnings.extend(stream_warnings);
@@ -1649,7 +1945,10 @@ pub fn materialize_entity_with_stream_source(
 
             let audited_entity = if options.strict_lossless {
                 let mut expected = entity.clone();
-                if let FileEntityKind::Regular { sha256, is_sparse, .. } = &mut expected.kind {
+                if let FileEntityKind::Regular {
+                    sha256, is_sparse, ..
+                } = &mut expected.kind
+                {
                     *sha256 = computed_sha256;
                     if !can_use_sparse {
                         *is_sparse = false;
@@ -1662,10 +1961,21 @@ pub fn materialize_entity_with_stream_source(
                     ignore_xattrs: write_companion || write_windows_ads,
                     ..EntityAuditOptions::default()
                 };
-                let (differences, _) = audit_entity_detailed(&temp_path, &expected, &audit_options)?;
-                anyhow::ensure!(differences.is_empty(), "Staged file failed fidelity verification for {}: {:?}", dest_path.display(), differences);
+                let (differences, _) = audit_entity_detailed(
+                    &temp_path,
+                    &expected,
+                    &audit_options,
+                )?;
+                anyhow::ensure!(
+                    differences.is_empty(),
+                    "Staged file failed fidelity verification for {}: {:?}",
+                    dest_path.display(),
+                    differences
+                );
                 Some(expected)
-            } else { None };
+            } else {
+                None
+            };
 
             // Sync temp file and parent directory
             temp_file.sync_all()?;
@@ -1675,16 +1985,30 @@ pub fn materialize_entity_with_stream_source(
             sync_parent_dir_best_effort(&parent_dir_fd, &parent_dir);
 
             // Atomic rename inside parent directory
-            if let Err(err) = dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name, options.existing_entry_policy) {
-                if !options.strict_lossless && is_filename_rejection_error(&err) {
+            if let Err(err) = dest_dir.commit_atomic_file(
+                &parent_dir_fd.as_fd(),
+                &temp_name,
+                &file_name,
+                options.existing_entry_policy,
+            ) {
+                if !options.strict_lossless && is_filename_rejection_error(&err)
+                {
                     if let Some(orig_name) = file_name.file_name() {
                         let (mut adapted_name, reason) =
-                            crate::clean_name::adapt_component_with_max_bytes(orig_name, true, max_leaf_bytes);
+                            crate::clean_name::adapt_component_with_max_bytes(
+                                orig_name,
+                                true,
+                                max_leaf_bytes,
+                            );
                         if adapted_name == orig_name {
                             return Err(err);
                         } else {
-                            if options.existing_entry_policy == ExistingEntryPolicy::Refuse
-                                && std::fs::symlink_metadata(parent_dir.join(&adapted_name)).is_ok()
+                            if options.existing_entry_policy
+                                == ExistingEntryPolicy::Refuse
+                                && std::fs::symlink_metadata(
+                                    parent_dir.join(&adapted_name),
+                                )
+                                .is_ok()
                             {
                                 let base_str = adapted_name.to_string_lossy();
                                 let mut collision_idx = 1_usize;
@@ -1695,23 +2019,33 @@ pub fn materialize_entity_with_stream_source(
                                         collision_idx,
                                         max_leaf_bytes,
                                     );
-                                    let cand_os = std::ffi::OsString::from(&disambig);
-                                    if std::fs::symlink_metadata(parent_dir.join(&cand_os)).is_err() {
+                                    let cand_os =
+                                        std::ffi::OsString::from(&disambig);
+                                    if std::fs::symlink_metadata(
+                                        parent_dir.join(&cand_os),
+                                    )
+                                    .is_err()
+                                    {
                                         adapted_name = cand_os;
                                         break;
                                     }
-                                    collision_idx = collision_idx.saturating_add(1);
+                                    collision_idx =
+                                        collision_idx.saturating_add(1);
                                 }
                             }
                             let new_rel = match relative_path.parent() {
-                                Some(p) if !p.as_os_str().is_empty() => p.join(&adapted_name),
+                                Some(p) if !p.as_os_str().is_empty() => {
+                                    p.join(&adapted_name)
+                                }
                                 _ => PathBuf::from(&adapted_name),
                             };
                             let msg = format!(
                                 "Adapted destination path {:?} -> {:?} (best-effort: {})",
                                 orig_relative_path.display(),
                                 new_rel.display(),
-                                reason.as_deref().unwrap_or("rejected by destination filesystem") // Reason for fallback: default description when filesystem rejects component
+                                reason.as_deref().unwrap_or(
+                                    "rejected by destination filesystem"
+                                ) // Reason for fallback: default description when filesystem rejects component
                             );
                             warn_fmt!("{msg}");
                             warnings.push(msg);
@@ -1736,7 +2070,8 @@ pub fn materialize_entity_with_stream_source(
             #[cfg(windows)]
             apply_windows_birthtime(&dest_path, &entity.metadata)?;
 
-            if let Some((style, ref apple_double_bytes)) = prebuilt_apple_double {
+            if let Some((style, ref apple_double_bytes)) = prebuilt_apple_double
+            {
                 write_apple_double_companion_bytes(
                     entity,
                     &dest_path,
@@ -1748,14 +2083,15 @@ pub fn materialize_entity_with_stream_source(
             }
             let mut stream_adaptations = Vec::new();
             if write_windows_ads {
-                let (_paths, adapts, ads_warnings) = write_windows_ads_companions_with_warnings(
-                    entity,
-                    &dest_path,
-                    dest_dir,
-                    options.existing_entry_policy,
-                    options.strict_lossless,
-                    stream_source,
-                )?;
+                let (_paths, adapts, ads_warnings) =
+                    write_windows_ads_companions_with_warnings(
+                        entity,
+                        &dest_path,
+                        dest_dir,
+                        options.existing_entry_policy,
+                        options.strict_lossless,
+                        stream_source,
+                    )?;
                 stream_adaptations = adapts;
                 warnings.extend(ads_warnings);
             }
@@ -1764,10 +2100,16 @@ pub fn materialize_entity_with_stream_source(
             sync_parent_dir_best_effort(&parent_dir_fd, &parent_dir);
 
             // Deferred immutability: apply flags after publication, before restoring Windows change time.
-            let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
+            let has_flags = entity.metadata.flags.is_some()
+                || entity.metadata.platform_raw_flags.is_some();
             if has_flags {
-                let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-                let source_os = entity.metadata.environment.as_ref().map_or(OsFamily::CURRENT, |env| env.os_family());
+                let flags_slice =
+                    entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
+                let source_os = entity
+                    .metadata
+                    .environment
+                    .as_ref()
+                    .map_or(OsFamily::CURRENT, |env| env.os_family());
                 apply_file_flags_with_source(
                     &dest_path,
                     flags_slice,
@@ -1777,15 +2119,32 @@ pub fn materialize_entity_with_stream_source(
                 )?;
             }
             #[cfg(windows)]
-            warnings.extend(apply_windows_change_time(&dest_path, &entity.metadata, options.strict_lossless)?);
-            warnings.extend(crate::metadata::check_metadata_replication(
-                &dest_path, &entity.metadata, options.strict_lossless, false, options.check_birthtime,
+            warnings.extend(apply_windows_change_time(
+                &dest_path,
+                &entity.metadata,
+                options.strict_lossless,
             )?);
-            if write_companion || write_windows_ads || options.check_atime || options.check_ctime || options.check_birthtime {
+            warnings.extend(crate::metadata::check_metadata_replication(
+                &dest_path,
+                &entity.metadata,
+                options.strict_lossless,
+                false,
+                options.check_birthtime,
+            )?);
+            if write_companion
+                || write_windows_ads
+                || options.check_atime
+                || options.check_ctime
+                || options.check_birthtime
+            {
                 if let Some(expected) = audited_entity.as_ref() {
                     crate::verifier::verify_materialized_entity_ext(
-                        &dest_path, expected, true, options.check_atime,
-                        options.check_ctime, options.check_birthtime,
+                        &dest_path,
+                        expected,
+                        true,
+                        options.check_atime,
+                        options.check_ctime,
+                        options.check_birthtime,
                     )?;
                 }
             }
@@ -1816,7 +2175,11 @@ fn is_filename_rejection_error(error: &anyhow::Error) -> bool {
     if error.chain().any(|cause| {
         matches!(
             cause.downcast_ref::<rustix::io::Errno>(),
-            Some(&rustix::io::Errno::NAMETOOLONG | &rustix::io::Errno::INVAL | &rustix::io::Errno::ILSEQ)
+            Some(
+                &rustix::io::Errno::NAMETOOLONG
+                    | &rustix::io::Errno::INVAL
+                    | &rustix::io::Errno::ILSEQ
+            )
         )
     }) {
         return true;
@@ -1848,7 +2211,10 @@ fn is_filename_rejection_error(error: &anyhow::Error) -> bool {
 }
 
 #[cfg(unix)]
-fn sync_parent_dir_best_effort(parent_fd: &impl rustix::fd::AsFd, parent_path: &Path) {
+fn sync_parent_dir_best_effort(
+    parent_fd: &impl rustix::fd::AsFd,
+    parent_path: &Path,
+) {
     if let Err(err) = rustix::fs::fsync(parent_fd) {
         let raw = err.raw_os_error();
         if raw == nix::libc::EINVAL
@@ -1861,7 +2227,10 @@ fn sync_parent_dir_best_effort(parent_fd: &impl rustix::fd::AsFd, parent_path: &
                 parent_path.display()
             );
         } else {
-            log_fmt!("Directory fsync note on {}: {err}", parent_path.display());
+            log_fmt!(
+                "Directory fsync note on {}: {err}",
+                parent_path.display()
+            );
         }
     }
 }
@@ -1876,16 +2245,24 @@ impl Drop for TempFileCleanupGuard<'_> {
     fn drop(&mut self) {
         if self.active {
             #[cfg(unix)]
-            let _ = rustix::fs::unlinkat(self.parent_fd, &self.temp_name, AtFlags::empty());
+            let _ = rustix::fs::unlinkat(
+                self.parent_fd,
+                &self.temp_name,
+                AtFlags::empty(),
+            );
             #[cfg(not(unix))]
-            let _ = std::fs::remove_file(self.parent_fd.path.join(&self.temp_name));
+            let _ =
+                std::fs::remove_file(self.parent_fd.path.join(&self.temp_name));
         }
     }
 }
 
 /// Atomically replaces a file after syncing its contents and publication.
 pub fn write_file_durable(path: &Path, contents: &[u8]) -> Result<()> {
-    let parent = match path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+    let parent = match path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         Some(parent) => parent,
         None => Path::new("."),
     };
@@ -1895,19 +2272,29 @@ pub fn write_file_durable(path: &Path, contents: &[u8]) -> Result<()> {
     #[cfg(windows)]
     {
         use windows_sys::Win32::Storage::FileSystem::{
-            FILE_ATTRIBUTE_NORMAL, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
-            MoveFileExW, SetFileAttributesW,
+            FILE_ATTRIBUTE_NORMAL, MOVEFILE_REPLACE_EXISTING,
+            MOVEFILE_WRITE_THROUGH, MoveFileExW, SetFileAttributesW,
         };
         let source = crate::metadata::windows::path_to_wide(staged.path())?;
         let destination = crate::metadata::windows::path_to_wide(path)?;
-        #[expect(unsafe_code, reason = "Both native paths are live NUL-terminated UTF-16 buffers")]
+        #[expect(
+            unsafe_code,
+            reason = "Both native paths are live NUL-terminated UTF-16 buffers"
+        )]
         // SAFETY: Both path buffers remain live and NUL-terminated for these calls.
         unsafe {
             if SetFileAttributesW(source.as_ptr(), FILE_ATTRIBUTE_NORMAL) == 0 {
-                return Err(std::io::Error::last_os_error()).context("Failed to prepare durable replacement");
+                return Err(std::io::Error::last_os_error())
+                    .context("Failed to prepare durable replacement");
             }
-            if MoveFileExW(source.as_ptr(), destination.as_ptr(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == 0 {
-                return Err(std::io::Error::last_os_error()).context("Failed to publish durable replacement");
+            if MoveFileExW(
+                source.as_ptr(),
+                destination.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            ) == 0
+            {
+                return Err(std::io::Error::last_os_error())
+                    .context("Failed to publish durable replacement");
             }
         }
     }
@@ -1937,8 +2324,10 @@ pub fn verify_directory_filenames_exact(
     };
 
     let mut found = std::collections::HashSet::new();
-    for entry in crate::traversal::read_dir_raw(dir_path)
-        .with_context(|| format!("Failed to read directory: {}", dir_path.display()))?
+    for entry in
+        crate::traversal::read_dir_raw(dir_path).with_context(|| {
+            format!("Failed to read directory: {}", dir_path.display())
+        })?
     {
         let entry = entry.with_context(|| {
             format!("Error reading entry in directory: {}", dir_path.display())
@@ -1977,7 +2366,11 @@ pub fn materialize_directory_streams_and_companions(
         }
         AppleWriteMode::MaybeAppleDouble(_) => {
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            let has_apple_meta = entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty());
+            let has_apple_meta = entity
+                .metadata
+                .apple
+                .as_ref()
+                .is_some_and(|a| !a.is_empty());
             let res = crate::streams::write_streams_from_source_with_warnings(
                 dest_path,
                 None,
@@ -2004,7 +2397,13 @@ pub fn materialize_directory_streams_and_companions(
         AppleWriteMode::ForceWindowsAds => {
             write_windows_ads = !entity.streams.is_empty();
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
+            if options.strict_lossless
+                && entity
+                    .metadata
+                    .apple
+                    .as_ref()
+                    .is_some_and(|a| !a.is_empty())
+            {
                 anyhow::bail!(
                     "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
                     dest_path.display()
@@ -2032,7 +2431,13 @@ pub fn materialize_directory_streams_and_companions(
                 }
             }
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
+            if options.strict_lossless
+                && entity
+                    .metadata
+                    .apple
+                    .as_ref()
+                    .is_some_and(|a| !a.is_empty())
+            {
                 anyhow::bail!(
                     "Cannot preserve Apple metadata for directory {} with Windows ADS companions",
                     dest_path.display()
@@ -2040,15 +2445,23 @@ pub fn materialize_directory_streams_and_companions(
             }
         }
         _ => {
-            stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
-                dest_path,
-                None,
-                &entity.streams,
-                options.strict_lossless,
-                stream_source,
-            )?);
+            stream_warnings.extend(
+                crate::streams::write_streams_from_source_with_warnings(
+                    dest_path,
+                    None,
+                    &entity.streams,
+                    options.strict_lossless,
+                    stream_source,
+                )?,
+            );
             // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-            if options.strict_lossless && entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty()) {
+            if options.strict_lossless
+                && entity
+                    .metadata
+                    .apple
+                    .as_ref()
+                    .is_some_and(|a| !a.is_empty())
+            {
                 anyhow::bail!(
                     "Cannot preserve Apple metadata for directory {} natively without AppleDouble or AppleSingle",
                     dest_path.display()
@@ -2083,14 +2496,15 @@ pub fn materialize_directory_streams_and_companions(
     }
     let mut stream_adaptations = Vec::new();
     if write_windows_ads {
-        let (_paths, adapts, ads_warnings) = write_windows_ads_companions_with_warnings(
-            entity,
-            dest_path,
-            companion_sandbox,
-            options.existing_entry_policy,
-            options.strict_lossless,
-            stream_source,
-        )?;
+        let (_paths, adapts, ads_warnings) =
+            write_windows_ads_companions_with_warnings(
+                entity,
+                dest_path,
+                companion_sandbox,
+                options.existing_entry_policy,
+                options.strict_lossless,
+                stream_source,
+            )?;
         stream_adaptations = adapts;
         stream_warnings.extend(ads_warnings);
     }
@@ -2110,7 +2524,10 @@ pub fn materialize_entity_at_path(
 
 /// Attempts to validate and losslessly update an existing regular file in-place
 /// without re-writing payload bytes if the content hash and structure match.
-#[expect(clippy::too_many_lines, reason = "Comprehensive in-place entity validation and lossless metadata reconciliation")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Comprehensive in-place entity validation and lossless metadata reconciliation"
+)]
 fn try_update_existing_regular_entity(
     dest_path: &Path,
     dest_dir: &SandboxableDir,
@@ -2123,7 +2540,9 @@ fn try_update_existing_regular_entity(
 ) -> Result<Option<MaterializeReceipt>> {
     let dest_meta = match std::fs::symlink_metadata(dest_path) {
         Ok(m) => m,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(None);
+        }
         Err(err) => {
             return Err(err).with_context(|| {
                 format!("Failed to query metadata for {}", dest_path.display())
@@ -2215,24 +2634,44 @@ fn try_update_existing_regular_entity(
         }
     };
 
-    let source_names = entity.streams.iter().map(|stream| {
-        stream.name.as_ref().map(|name| name.canonicalize_native_for_materialization(
-            options.strict_lossless,
-        )).transpose()
-    }).collect::<Result<Vec<_>>>()?;
-    let disk_names = on_disk_streams.iter().map(|stream| {
-        stream.name.as_ref().map(crate::streams::StreamName::canonicalize_native).transpose()
-    }).collect::<Result<Vec<_>>>()?;
+    let source_names = entity
+        .streams
+        .iter()
+        .map(|stream| {
+            stream
+                .name
+                .as_ref()
+                .map(|name| {
+                    name.canonicalize_native_for_materialization(
+                        options.strict_lossless,
+                    )
+                })
+                .transpose()
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let disk_names = on_disk_streams
+        .iter()
+        .map(|stream| {
+            stream
+                .name
+                .as_ref()
+                .map(crate::streams::StreamName::canonicalize_native)
+                .transpose()
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     // Remove any extra streams that do not exist on the source entity
     for (disk_stream, disk_name) in on_disk_streams.iter().zip(&disk_names) {
-        let exists_in_source = entity.streams.iter().zip(&source_names).any(|(s, source_name)| {
-            match (source_name, disk_name) {
-                (Some(s_name), Some(d_name)) => s_name == d_name,
-                (None, None) => s.kind == disk_stream.kind,
-                _ => false,
-            }
-        });
+        let exists_in_source =
+            entity
+                .streams
+                .iter()
+                .zip(&source_names)
+                .any(|(s, source_name)| match (source_name, disk_name) {
+                    (Some(s_name), Some(d_name)) => s_name == d_name,
+                    (None, None) => s.kind == disk_stream.kind,
+                    _ => false,
+                });
         if !exists_in_source {
             let res = match &disk_stream.name {
                 Some(name) => remove_stream(dest_path, &name.to_os_string()?),
@@ -2273,57 +2712,69 @@ fn try_update_existing_regular_entity(
             stream_source,
         )?;
     } else if options.apple_write_mode.is_windows_ads() {
-        let (_paths, adapts, ads_warnings) = write_windows_ads_companions_with_warnings(
-            entity,
-            dest_path,
-            dest_dir,
-            options.existing_entry_policy,
-            options.strict_lossless,
-            stream_source,
-        )?;
+        let (_paths, adapts, ads_warnings) =
+            write_windows_ads_companions_with_warnings(
+                entity,
+                dest_path,
+                dest_dir,
+                options.existing_entry_policy,
+                options.strict_lossless,
+                stream_source,
+            )?;
         stream_adaptations = adapts;
         stream_warnings.extend(ads_warnings);
     } else {
         // Write missing or mismatched streams
         for (stream, source_name) in entity.streams.iter().zip(&source_names) {
-            let matches_on_disk = on_disk_streams.iter().zip(&disk_names).any(|(d, disk_name)| {
-                let names_match = match (disk_name, source_name) {
-                    (Some(d_name), Some(s_name)) => d_name == s_name,
-                    (None, None) => d.kind == stream.kind,
-                    _ => false,
-                };
-                names_match
-                    && match (&d.entity.kind, &stream.entity.kind) {
-                        (
-                            FileEntityKind::Regular { sha256: d_hash, .. },
-                            FileEntityKind::Regular { sha256: s_hash, .. },
-                        ) => d_hash == s_hash,
+            let matches_on_disk = on_disk_streams.iter().zip(&disk_names).any(
+                |(d, disk_name)| {
+                    let names_match = match (disk_name, source_name) {
+                        (Some(d_name), Some(s_name)) => d_name == s_name,
+                        (None, None) => d.kind == stream.kind,
                         _ => false,
-                    }
-            });
+                    };
+                    names_match
+                        && match (&d.entity.kind, &stream.entity.kind) {
+                            (
+                                FileEntityKind::Regular {
+                                    sha256: d_hash, ..
+                                },
+                                FileEntityKind::Regular {
+                                    sha256: s_hash, ..
+                                },
+                            ) => d_hash == s_hash,
+                            _ => false,
+                        }
+                },
+            );
 
             if !matches_on_disk {
-                stream_warnings.extend(crate::streams::write_streams_from_source_with_warnings(
-                    dest_path,
-                    Some(dest_path),
-                    std::slice::from_ref(stream),
-                    options.strict_lossless,
-                    stream_source,
-                )?);
+                stream_warnings.extend(
+                    crate::streams::write_streams_from_source_with_warnings(
+                        dest_path,
+                        Some(dest_path),
+                        std::slice::from_ref(stream),
+                        options.strict_lossless,
+                        stream_source,
+                    )?,
+                );
             }
         }
     }
 
     // 8. File Flags: clear any conflicting flags (e.g. immutable) before updating metadata
     // Reason for fallback: query_file_flags is best-effort when unsupported by the filesystem
-    let (dest_flags, dest_raw) = query_file_flags(dest_path, false).unwrap_or_default();
+    let (dest_flags, dest_raw) =
+        query_file_flags(dest_path, false).unwrap_or_default();
     #[cfg(target_os = "linux")]
     if !dest_flags.is_empty() {
         use rustix::fs::{IFlags, ioctl_setflags};
         let f_res = std::fs::OpenOptions::new()
             .write(true)
             .open(dest_path)
-            .or_else(|_| std::fs::OpenOptions::new().read(true).open(dest_path));
+            .or_else(|_| {
+                std::fs::OpenOptions::new().read(true).open(dest_path)
+            });
         if let Ok(f) = f_res {
             if let Err(err) = ioctl_setflags(&f, IFlags::empty()) {
                 if options.strict_lossless {
@@ -2349,13 +2800,15 @@ fn try_update_existing_regular_entity(
     )?);
 
     // 10. Apply final file flags
-    let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
-    if has_flags
-        || !dest_flags.is_empty()
-        || dest_raw.is_some()
-    {
+    let has_flags = entity.metadata.flags.is_some()
+        || entity.metadata.platform_raw_flags.is_some();
+    if has_flags || !dest_flags.is_empty() || dest_raw.is_some() {
         let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        let source_os = entity.metadata.environment.as_ref().map_or(OsFamily::CURRENT, |env| env.os_family());
+        let source_os = entity
+            .metadata
+            .environment
+            .as_ref()
+            .map_or(OsFamily::CURRENT, |env| env.os_family());
         apply_file_flags_with_source(
             dest_path,
             flags_slice,
@@ -2366,9 +2819,17 @@ fn try_update_existing_regular_entity(
     }
 
     #[cfg(windows)]
-    warnings.extend(apply_windows_change_time(dest_path, &entity.metadata, options.strict_lossless)?);
+    warnings.extend(apply_windows_change_time(
+        dest_path,
+        &entity.metadata,
+        options.strict_lossless,
+    )?);
     warnings.extend(crate::metadata::check_metadata_replication(
-        dest_path, &entity.metadata, options.strict_lossless, false, options.check_birthtime,
+        dest_path,
+        &entity.metadata,
+        options.strict_lossless,
+        false,
+        options.check_birthtime,
     )?);
 
     // 11. Strict lossless audit
@@ -2426,29 +2887,73 @@ mod tests {
         std::fs::write(&source, b"payload")?;
         let mut entity = FileEntity::from_filesystem(&source, None)?;
         entity.identity.relative_path = Some("default".into());
-        let timestamps = entity.metadata.timestamps.as_mut().context("Missing timestamps")?;
+        let timestamps = entity
+            .metadata
+            .timestamps
+            .as_mut()
+            .context("Missing timestamps")?;
         timestamps.birthtime_sec = Some(-1);
         timestamps.birthtime_nsec = Some(123);
         let sandbox = SandboxableDir::open(temporary.path())?;
         let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
-        materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions::default())?;
+        materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &sandbox,
+            &MaterializeOptions::default(),
+        )?;
         entity.identity.relative_path = Some("strict-birthtime".into());
         let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
-        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions {
-            check_birthtime: true, ..Default::default()
-        }).is_err());
-        entity.identity.relative_path = Some("unknown-native".into());
-        entity.metadata.native.as_mut().context("Missing native metadata")?.values.insert(
-            "future.attribute".to_owned(), crate::metadata::NativeMetadataValue::Bytes(vec![1, 2, 3]),
+        assert!(
+            materialize_entity(
+                &entity,
+                Some(&mut payload),
+                &sandbox,
+                &MaterializeOptions {
+                    check_birthtime: true,
+                    ..Default::default()
+                }
+            )
+            .is_err()
         );
+        entity.identity.relative_path = Some("unknown-native".into());
+        entity
+            .metadata
+            .native
+            .as_mut()
+            .context("Missing native metadata")?
+            .values
+            .insert(
+                "future.attribute".to_owned(),
+                crate::metadata::NativeMetadataValue::Bytes(vec![1, 2, 3]),
+            );
         let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
-        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions::default()).is_err());
+        assert!(
+            materialize_entity(
+                &entity,
+                Some(&mut payload),
+                &sandbox,
+                &MaterializeOptions::default()
+            )
+            .is_err()
+        );
         entity.identity.relative_path = Some("best-effort".into());
         let mut payload = MemoryPayloadSource::new(b"payload".to_vec())?;
-        let receipt = materialize_entity(&entity, Some(&mut payload), &sandbox, &MaterializeOptions {
-            strict_lossless: false, ..Default::default()
-        })?;
-        assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
+        let receipt = materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &sandbox,
+            &MaterializeOptions {
+                strict_lossless: false,
+                ..Default::default()
+            },
+        )?;
+        assert!(
+            receipt
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("future.attribute"))
+        );
         Ok(())
     }
 
@@ -2460,14 +2965,19 @@ mod tests {
         std::fs::write(&source, &bytes)?;
         let mut entity = FileEntity::from_vec(b"primary".to_vec());
         entity.identity.relative_path = Some("destination".into());
-        entity.streams.push(crate::streams::AttachedStream::from_file(
-            Some(crate::streams::StreamName::from_str("user.lazy")),
-            crate::streams::StreamKind::ExtendedAttribute, &source,
-        )?);
+        entity
+            .streams
+            .push(crate::streams::AttachedStream::from_file(
+                Some(crate::streams::StreamName::from_str("user.lazy")),
+                crate::streams::StreamKind::ExtendedAttribute,
+                &source,
+            )?);
         let sandbox = SandboxableDir::open(temporary.path())?;
         let options = MaterializeOptions::default();
         let companion_options = MaterializeOptions {
-            apple_write_mode: AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
+            apple_write_mode: AppleWriteMode::ForceAppleDouble(
+                crate::apple_double::AppleDoubleStyle::Alongside,
+            ),
             ..options.clone()
         };
         let single_options = MaterializeOptions {
@@ -2478,17 +2988,37 @@ mod tests {
         // 1. Native materialization of nonresident file-backed stream succeeds
         let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
         materialize_entity(&entity, Some(&mut payload), &sandbox, &options)?;
-        let restored = read_and_hash_streams(&temporary.path().join("destination"))?;
+        let restored =
+            read_and_hash_streams(&temporary.path().join("destination"))?;
         assert_eq!(restored.len(), 1);
-        assert_eq!(restored.first().context("Missing restored stream")?.entity.kind, entity.streams.first().context("Missing expected stream")?.entity.kind);
+        assert_eq!(
+            restored
+                .first()
+                .context("Missing restored stream")?
+                .entity
+                .kind,
+            entity
+                .streams
+                .first()
+                .context("Missing expected stream")?
+                .entity
+                .kind
+        );
 
         // 2. AppleDouble materialization of nonresident file-backed stream succeeds
         entity.identity.relative_path = Some("destination-double".into());
         let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
-        materialize_entity(&entity, Some(&mut payload), &sandbox, &companion_options)?;
+        materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &sandbox,
+            &companion_options,
+        )?;
         assert!(temporary.path().join("destination-double").is_file());
         assert!(temporary.path().join("._destination-double").is_file());
-        let parsed_double = crate::apple_double::read_apple_single_double(&std::fs::read(temporary.path().join("._destination-double"))?)?;
+        let parsed_double = crate::apple_double::read_apple_single_double(
+            &std::fs::read(temporary.path().join("._destination-double"))?,
+        )?;
         assert_eq!(parsed_double.extended_attributes.len(), 1);
         assert_eq!(parsed_double.extended_attributes[0].name, "user.lazy");
         assert_eq!(parsed_double.extended_attributes[0].data, bytes);
@@ -2496,8 +3026,15 @@ mod tests {
         // 3. AppleSingle materialization of nonresident file-backed stream succeeds
         entity.identity.relative_path = Some("destination-single".into());
         let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
-        materialize_entity(&entity, Some(&mut payload), &sandbox, &single_options)?;
-        let parsed_single = crate::apple_double::read_apple_single_double(&std::fs::read(temporary.path().join("destination-single"))?)?;
+        materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &sandbox,
+            &single_options,
+        )?;
+        let parsed_single = crate::apple_double::read_apple_single_double(
+            &std::fs::read(temporary.path().join("destination-single"))?,
+        )?;
         assert_eq!(parsed_single.data_fork.as_deref(), Some(&b"primary"[..]));
         assert_eq!(parsed_single.extended_attributes.len(), 1);
         assert_eq!(parsed_single.extended_attributes[0].name, "user.lazy");
@@ -2511,10 +3048,24 @@ mod tests {
             ("must-not-publish-single", &single_options),
         ] {
             entity.identity.relative_path = Some(rel_name.into());
-            let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
-            assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, mode_opts).is_err());
+            let mut payload =
+                crate::MemoryPayloadSource::new(b"primary".to_vec())?;
+            assert!(
+                materialize_entity(
+                    &entity,
+                    Some(&mut payload),
+                    &sandbox,
+                    mode_opts
+                )
+                .is_err()
+            );
             assert!(!temporary.path().join(rel_name).try_exists()?);
-            assert!(!temporary.path().join(format!("._" ) + rel_name).try_exists()?);
+            assert!(
+                !temporary
+                    .path()
+                    .join(format!("._") + rel_name)
+                    .try_exists()?
+            );
         }
         assert_eq!(std::fs::read_dir(temporary.path())?.count(), 5);
         Ok(())
@@ -2539,10 +3090,15 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_apple_double_preflight_preserves_primary_and_companion() -> Result<()> {
+    fn test_apple_double_preflight_preserves_primary_and_companion()
+    -> Result<()> {
         for mode in [
-            AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
-            AppleWriteMode::MaybeAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
+            AppleWriteMode::ForceAppleDouble(
+                crate::apple_double::AppleDoubleStyle::Alongside,
+            ),
+            AppleWriteMode::MaybeAppleDouble(
+                crate::apple_double::AppleDoubleStyle::Alongside,
+            ),
         ] {
             for dangling in [false, true] {
                 let temp = tempfile::tempdir()?;
@@ -2550,19 +3106,47 @@ mod tests {
                 let destination = temp.path().join("destination");
                 let companion = temp.path().join("._destination");
                 std::fs::write(&source, b"replacement")?;
-                if dangling { std::os::unix::fs::symlink("missing", &companion)?; }
-                else { std::fs::write(&companion, b"original companion")?; }
+                if dangling {
+                    std::os::unix::fs::symlink("missing", &companion)?;
+                } else {
+                    std::fs::write(&companion, b"original companion")?;
+                }
                 let mut entity = FileEntity::from_filesystem(&source, None)?;
-                entity.identity.relative_path = Some(PathBuf::from("destination"));
-                entity.metadata.apple = Some(crate::metadata::AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
+                entity.identity.relative_path =
+                    Some(PathBuf::from("destination"));
+                entity.metadata.apple = Some(crate::metadata::AppleMetadata {
+                    comment: Some("replacement".into()),
+                    ..Default::default()
+                });
                 let sandbox = SandboxableDir::open(temp.path())?;
-                let options = MaterializeOptions { apple_write_mode: mode, ..Default::default() };
-                let mut payload = crate::MemoryPayloadSource::new(b"replacement".to_vec())?;
-                let error = materialize_entity(&entity, Some(&mut payload), &sandbox, &options).unwrap_err();
-                assert!(format!("{error:#}").contains("companion already exists"));
+                let options = MaterializeOptions {
+                    apple_write_mode: mode,
+                    ..Default::default()
+                };
+                let mut payload =
+                    crate::MemoryPayloadSource::new(b"replacement".to_vec())?;
+                let error = materialize_entity(
+                    &entity,
+                    Some(&mut payload),
+                    &sandbox,
+                    &options,
+                )
+                .unwrap_err();
+                assert!(
+                    format!("{error:#}").contains("companion already exists")
+                );
                 assert!(!destination.try_exists()?);
-                if dangling { assert_eq!(std::fs::read_link(&companion)?, Path::new("missing")); }
-                else { assert_eq!(std::fs::read(&companion)?, b"original companion"); }
+                if dangling {
+                    assert_eq!(
+                        std::fs::read_link(&companion)?,
+                        Path::new("missing")
+                    );
+                } else {
+                    assert_eq!(
+                        std::fs::read(&companion)?,
+                        b"original companion"
+                    );
+                }
                 assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
             }
         }
@@ -2576,17 +3160,36 @@ mod tests {
         std::fs::create_dir(&source)?;
         let mut entity = FileEntity::from_filesystem(&source, None)?;
         entity.identity.relative_path = Some(PathBuf::from("destination"));
-        entity.metadata.apple = Some(crate::metadata::AppleMetadata { comment: Some("directory".into()), ..Default::default() });
+        entity.metadata.apple = Some(crate::metadata::AppleMetadata {
+            comment: Some("directory".into()),
+            ..Default::default()
+        });
         let sandbox = SandboxableDir::open(temp.path())?;
         let options = MaterializeOptions {
-            apple_write_mode: AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Netatalk),
+            apple_write_mode: AppleWriteMode::ForceAppleDouble(
+                crate::apple_double::AppleDoubleStyle::Netatalk,
+            ),
             ..Default::default()
         };
         materialize_entity(&entity, None, &sandbox, &options)?;
-        sandbox.authorize_metadata(Path::new("destination"), ExistingEntryPolicy::Refuse)?;
+        sandbox.authorize_metadata(
+            Path::new("destination"),
+            ExistingEntryPolicy::Refuse,
+        )?;
         let reopened = SandboxableDir::open(temp.path())?;
-        assert!(reopened.authorize_metadata(Path::new("destination"), ExistingEntryPolicy::Refuse).is_err());
-        assert!(temp.path().join("destination/.AppleDouble/.Parent").is_file());
+        assert!(
+            reopened
+                .authorize_metadata(
+                    Path::new("destination"),
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+        );
+        assert!(
+            temp.path()
+                .join("destination/.AppleDouble/.Parent")
+                .is_file()
+        );
         Ok(())
     }
 
@@ -2597,19 +3200,35 @@ mod tests {
         let destination = temp.path().join("destination");
         std::fs::write(&source, b"replacement").unwrap();
         std::fs::write(&destination, b"original destination").unwrap();
-        let mut entity = crate::FileEntity::from_filesystem(&source, None).unwrap();
-        entity.identity.relative_path = Some(std::path::PathBuf::from("destination"));
+        let mut entity =
+            crate::FileEntity::from_filesystem(&source, None).unwrap();
+        entity.identity.relative_path =
+            Some(std::path::PathBuf::from("destination"));
         entity.metadata.timestamps.as_mut().unwrap().mtime_nsec = 1_000_000_000;
         let directory = crate::SandboxableDir::open(temp.path()).unwrap();
         for strict_lossless in [true, false] {
-            let mut payload = crate::MemoryPayloadSource::new(b"replacement".to_vec()).unwrap();
+            let mut payload =
+                crate::MemoryPayloadSource::new(b"replacement".to_vec())
+                    .unwrap();
             let options = MaterializeOptions {
                 strict_lossless,
                 ..MaterializeOptions::default()
             };
-            let error = materialize_entity(&entity, Some(&mut payload), &directory, &options).unwrap_err();
-            assert!(format!("{error:#}").contains("Invalid file timestamp nanoseconds"));
-            assert_eq!(std::fs::read(&destination).unwrap(), b"original destination");
+            let error = materialize_entity(
+                &entity,
+                Some(&mut payload),
+                &directory,
+                &options,
+            )
+            .unwrap_err();
+            assert!(
+                format!("{error:#}")
+                    .contains("Invalid file timestamp nanoseconds")
+            );
+            assert_eq!(
+                std::fs::read(&destination).unwrap(),
+                b"original destination"
+            );
         }
     }
 
@@ -2617,11 +3236,12 @@ mod tests {
     use crate::*;
     use ctb_formats_checksum::Sha256Stream;
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_symlink_encoding_depends_on_destination_and_lossless_policy() -> Result<()> {
+    fn test_symlink_encoding_depends_on_destination_and_lossless_policy()
+    -> Result<()> {
         use std::os::unix::ffi::OsStrExt;
         let temp = tempfile::tempdir()?;
         let directory = SandboxableDir::open(temp.path())?;
@@ -2632,41 +3252,81 @@ mod tests {
             (&b"target\0name"[..], false, false, true),
         ] {
             let mut entity = FileEntity::from_vec(Vec::new());
-            let target = crate::link_path::LinkPath::from_bytes(bytes, is_windows);
-            entity.kind = FileEntityKind::Symlink { target: target.clone() };
+            let target =
+                crate::link_path::LinkPath::from_bytes(bytes, is_windows);
+            entity.kind = FileEntityKind::Symlink {
+                target: target.clone(),
+            };
             entity.identity.relative_path = Some(PathBuf::from("link"));
-            let options = MaterializeOptions { strict_lossless, existing_entry_policy: ExistingEntryPolicy::Replace, ..Default::default() };
-            let result = materialize_entity(&entity, None, &directory, &options);
-            ensure!(result.is_ok() == succeeds, "Unexpected symlink result: {result:?}");
+            let options = MaterializeOptions {
+                strict_lossless,
+                existing_entry_policy: ExistingEntryPolicy::Replace,
+                ..Default::default()
+            };
+            let result =
+                materialize_entity(&entity, None, &directory, &options);
+            ensure!(
+                result.is_ok() == succeeds,
+                "Unexpected symlink result: {result:?}"
+            );
             if succeeds {
-                let expected = target.to_path_buf_for_materialization(strict_lossless)?;
-                ensure!(fs::read_link(temp.path().join("link"))?.as_os_str().as_bytes()
-                    == expected.as_os_str().as_bytes(), "Symlink target changed");
+                let expected =
+                    target.to_path_buf_for_materialization(strict_lossless)?;
+                ensure!(
+                    fs::read_link(temp.path().join("link"))?
+                        .as_os_str()
+                        .as_bytes()
+                        == expected.as_os_str().as_bytes(),
+                    "Symlink target changed"
+                );
                 let audit_options = EntityAuditOptions {
-                    best_effort: !strict_lossless, ..Default::default()
+                    best_effort: !strict_lossless,
+                    ..Default::default()
                 };
-                ensure!(!audit_entity(&temp.path().join("link"), &entity, &audit_options)?
-                    .iter().any(|diff| matches!(diff, DiffKind::SymlinkTargetMismatch { .. })),
-                    "Audit did not recognize materialized symlink target");
+                ensure!(
+                    !audit_entity(
+                        &temp.path().join("link"),
+                        &entity,
+                        &audit_options
+                    )?
+                    .iter()
+                    .any(|diff| matches!(
+                        diff,
+                        DiffKind::SymlinkTargetMismatch { .. }
+                    )),
+                    "Audit did not recognize materialized symlink target"
+                );
             }
-            ensure!(target.to_bytes() == bytes, "Source symlink target changed");
+            ensure!(
+                target.to_bytes() == bytes,
+                "Source symlink target changed"
+            );
         }
         Ok(())
     }
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_destination_encoding_retry_is_limited_to_encoding_errors() -> Result<()> {
-        let encoding = anyhow::Error::from(std::io::Error::from_raw_os_error(libc::EILSEQ))
-            .context("Filesystem rejected encoding");
+    fn test_destination_encoding_retry_is_limited_to_encoding_errors()
+    -> Result<()> {
+        let encoding = anyhow::Error::from(std::io::Error::from_raw_os_error(
+            libc::EILSEQ,
+        ))
+        .context("Filesystem rejected encoding");
         ensure!(crate::link_path::is_destination_encoding_error(&encoding));
         ensure!(crate::link_path::is_destination_encoding_error(
-            &anyhow::Error::from(rustix::io::Errno::ILSEQ).context("Failed to stage symlink"),
+            &anyhow::Error::from(rustix::io::Errno::ILSEQ)
+                .context("Failed to stage symlink"),
         ));
         for code in [libc::EACCES, libc::EINVAL, libc::ENOSPC, libc::EIO] {
-            ensure!(!crate::link_path::is_destination_encoding_error(
-                &anyhow::Error::from(std::io::Error::from_raw_os_error(code)),
-            ), "Non-encoding failure triggered replacement adaptation");
+            ensure!(
+                !crate::link_path::is_destination_encoding_error(
+                    &anyhow::Error::from(std::io::Error::from_raw_os_error(
+                        code
+                    )),
+                ),
+                "Non-encoding failure triggered replacement adaptation"
+            );
         }
         Ok(())
     }
@@ -2678,17 +3338,20 @@ mod tests {
         let dest_root = temp_dir.path().join("dest_root");
         fs::create_dir_all(&dest_root).unwrap();
 
-        let payload_bytes = b"Testing robust file abstraction pipeline with SHA-256";
+        let payload_bytes =
+            b"Testing robust file abstraction pipeline with SHA-256";
         let mut hasher = Sha256Stream::new();
         hasher.update(payload_bytes);
         let sha256 = hasher.finalize();
         let size = u64::try_from(payload_bytes.len()).unwrap();
 
         let rel_path = PathBuf::from("nested/test_file.bin");
-        let baseline_file = tempfile::NamedTempFile::new_in(&dest_root).unwrap();
+        let baseline_file =
+            tempfile::NamedTempFile::new_in(&dest_root).unwrap();
         fs::write(baseline_file.path(), payload_bytes).unwrap();
         let (flags, platform_raw_flags) =
-            crate::sys_flags::query_file_flags(baseline_file.path(), false).unwrap();
+            crate::sys_flags::query_file_flags(baseline_file.path(), false)
+                .unwrap();
         baseline_file.close().unwrap();
         let entity = FileEntity {
             identity: FileIdentity {
@@ -2727,12 +3390,16 @@ mod tests {
                 size,
                 sha256,
                 is_sparse: false,
-                extents: vec![Extent::Data { offset: 0, length: size }],
+                extents: vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }],
             },
             streams: Vec::new(),
         };
 
-        let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let mut payload =
+            MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
         let options = MaterializeOptions::default();
 
         let dest_dir = SandboxableDir::open(&dest_root).unwrap();
@@ -2755,8 +3422,22 @@ mod tests {
         for (is_sparse, extents, bytes) in [
             (false, Vec::new(), payload_bytes[..4].to_vec()),
             (false, Vec::new(), vec![1_u8; payload_bytes.len() + 1]),
-            (true, vec![Extent::Data { offset: 0, length: size }], payload_bytes[..4].to_vec()),
-            (true, vec![Extent::Hole { offset: 1, length: size }], payload_bytes.to_vec()),
+            (
+                true,
+                vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }],
+                payload_bytes[..4].to_vec(),
+            ),
+            (
+                true,
+                vec![Extent::Hole {
+                    offset: 1,
+                    length: size,
+                }],
+                payload_bytes.to_vec(),
+            ),
             (true, Vec::new(), payload_bytes.to_vec()),
         ] {
             let mut invalid_entity = entity.clone();
@@ -2767,20 +3448,27 @@ mod tests {
                 extents,
             };
             let mut invalid_payload = MemoryPayloadSource::new(bytes).unwrap();
-            assert!(materialize_entity(
-                &invalid_entity,
-                Some(&mut invalid_payload),
-                &dest_dir,
-                &options,
-            ).is_err());
+            assert!(
+                materialize_entity(
+                    &invalid_entity,
+                    Some(&mut invalid_payload),
+                    &dest_dir,
+                    &options,
+                )
+                .is_err()
+            );
             assert_eq!(fs::read(&target_path).unwrap(), payload_bytes);
-            assert_eq!(fs::read_dir(target_path.parent().unwrap()).unwrap().count(), 1);
+            assert_eq!(
+                fs::read_dir(target_path.parent().unwrap()).unwrap().count(),
+                1
+            );
         }
     }
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_existing_materialization_requires_explicit_permission() -> Result<()> {
+    fn test_existing_materialization_requires_explicit_permission() -> Result<()>
+    {
         let temporary = tempfile::tempdir()?;
         let destination = temporary.path().join("destination");
         fs::write(&destination, b"original")?;
@@ -2793,14 +3481,29 @@ mod tests {
             entity.metadata.mode = Some(0o777);
             for force_overwrite in [false, true] {
                 let mut source = MemoryPayloadSource::new(bytes.to_vec())?;
-                let result = materialize_entity(&entity, Some(&mut source), &sandbox, &MaterializeOptions {
-                    force_overwrite, ..Default::default()
-                });
+                let result = materialize_entity(
+                    &entity,
+                    Some(&mut source),
+                    &sandbox,
+                    &MaterializeOptions {
+                        force_overwrite,
+                        ..Default::default()
+                    },
+                );
                 ensure!(result.is_err());
                 let after = fs::metadata(&destination)?;
-                ensure!(before.ino() == after.ino() && before.mode() == after.mode());
-                ensure!(before.mtime() == after.mtime() && before.mtime_nsec() == after.mtime_nsec());
-                ensure!(before.ctime() == after.ctime() && before.ctime_nsec() == after.ctime_nsec());
+                ensure!(
+                    before.ino() == after.ino()
+                        && before.mode() == after.mode()
+                );
+                ensure!(
+                    before.mtime() == after.mtime()
+                        && before.mtime_nsec() == after.mtime_nsec()
+                );
+                ensure!(
+                    before.ctime() == after.ctime()
+                        && before.ctime_nsec() == after.ctime_nsec()
+                );
                 ensure!(fs::read(&destination)? == b"original");
             }
         }
@@ -2809,7 +3512,8 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_authorized_replacement_preserves_unrelated_hardlink() -> Result<()> {
+    fn test_authorized_replacement_preserves_unrelated_hardlink() -> Result<()>
+    {
         let temporary = tempfile::tempdir()?;
         let destination = temporary.path().join("destination");
         let alias = temporary.path().join("alias");
@@ -2823,10 +3527,15 @@ mod tests {
         entity.metadata.mode = Some(0o644);
         let mut source = MemoryPayloadSource::new(b"payload".to_vec())?;
         let sandbox = SandboxableDir::open(temporary.path())?;
-        let receipt = materialize_entity(&entity, Some(&mut source), &sandbox, &MaterializeOptions {
-            existing_entry_policy: ExistingEntryPolicy::Replace,
-            ..Default::default()
-        })?;
+        let receipt = materialize_entity(
+            &entity,
+            Some(&mut source),
+            &sandbox,
+            &MaterializeOptions {
+                existing_entry_policy: ExistingEntryPolicy::Replace,
+                ..Default::default()
+            },
+        )?;
         ensure!(!receipt.skipped_identical);
         ensure!(fs::metadata(&alias)?.ino() == original.ino());
         ensure!(fs::metadata(&alias)?.mode() == original.mode());
@@ -2888,14 +3597,21 @@ mod tests {
                 size,
                 sha256,
                 is_sparse: false,
-                extents: vec![Extent::Data { offset: 0, length: size }],
+                extents: vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }],
             },
             streams: Vec::new(),
         };
 
-        let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let mut payload =
+            MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
         let dest_dir = SandboxableDir::open(&dest_root).unwrap();
-        let options = MaterializeOptions { existing_entry_policy: ExistingEntryPolicy::Replace, ..Default::default() };
+        let options = MaterializeOptions {
+            existing_entry_policy: ExistingEntryPolicy::Replace,
+            ..Default::default()
+        };
 
         let receipt1 = entity
             .materialize(Some(&mut payload), &dest_dir, &options)
@@ -2912,7 +3628,8 @@ mod tests {
         if let Some(ref mut ts) = entity.metadata.timestamps {
             ts.mtime_sec = 1_700_050_000;
         }
-        let mut payload2 = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let mut payload2 =
+            MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
 
         let receipt2 = entity
             .materialize(Some(&mut payload2), &dest_dir, &options)
@@ -2980,7 +3697,10 @@ mod tests {
                 size,
                 sha256,
                 is_sparse: false,
-                extents: vec![Extent::Data { offset: 0, length: size }],
+                extents: vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }],
             },
             streams: Vec::new(),
         };
@@ -2988,7 +3708,11 @@ mod tests {
         let dest_dir = SandboxableDir::open(&dest_root).unwrap();
         let mut p1 = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
         let r1 = entity
-            .materialize(Some(&mut p1), &dest_dir, &MaterializeOptions::default())
+            .materialize(
+                Some(&mut p1),
+                &dest_dir,
+                &MaterializeOptions::default(),
+            )
             .expect("initial write");
         assert_eq!(r1.bytes_written, size);
         assert!(!r1.skipped_identical);
@@ -3061,7 +3785,10 @@ mod tests {
                 size,
                 sha256,
                 is_sparse: false,
-                extents: vec![Extent::Data { offset: 0, length: size }],
+                extents: vec![Extent::Data {
+                    offset: 0,
+                    length: size,
+                }],
             },
             streams: Vec::new(),
         };
@@ -3069,9 +3796,14 @@ mod tests {
         let dest_dir = SandboxableDir::open(&dest_root).unwrap();
         let mut payload = MemoryPayloadSource::new(new_bytes.to_vec()).unwrap();
         let receipt = entity
-            .materialize(Some(&mut payload), &dest_dir, &MaterializeOptions {
-                existing_entry_policy: ExistingEntryPolicy::Replace, ..Default::default()
-            })
+            .materialize(
+                Some(&mut payload),
+                &dest_dir,
+                &MaterializeOptions {
+                    existing_entry_policy: ExistingEntryPolicy::Replace,
+                    ..Default::default()
+                },
+            )
             .expect("materialize on mismatch");
 
         assert_eq!(receipt.bytes_written, size);
@@ -3125,17 +3857,31 @@ mod tests {
             force_overwrite: true,
             existing_entry_policy: ExistingEntryPolicy::Replace,
             apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
-            apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
+            apple_single_write_extension:
+                crate::apple_double::AppleSingleExtension::WithoutExtension,
             ..Default::default()
         };
 
         let dest_dir = SandboxableDir::open(temp.path()).unwrap();
         // Materialization should fall back to linear copy and succeed completely without failing
         let mut strict_payload = DiskPayloadSource::open(&src_path).unwrap();
-        assert!(materializer::materialize_entity(&entity, Some(&mut strict_payload), &dest_dir,
-            &MaterializeOptions::default()).is_err());
+        assert!(
+            materializer::materialize_entity(
+                &entity,
+                Some(&mut strict_payload),
+                &dest_dir,
+                &MaterializeOptions::default()
+            )
+            .is_err()
+        );
         assert!(!dest_path.exists());
-        materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+        materializer::materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &dest_dir,
+            &options,
+        )
+        .unwrap();
 
         let read_back = std::fs::read(&dest_path).unwrap();
         assert_eq!(read_back, data);
@@ -3148,9 +3894,35 @@ mod tests {
         let path = temp.path().join("destination");
         fs::write(&path, b"keep this data").unwrap();
         let root = SandboxableDir::open(temp.path()).unwrap();
-        assert!(root.create_hardlink(PathBuf::from("missing").as_path(), &root.root_fd(), "destination", ExistingEntryPolicy::Replace).is_err());
-        assert!(root.create_symlink(&root.root_fd(), "destination", b"invalid\0target", SymlinkValidationPolicy::PreserveVerbatim, ExistingEntryPolicy::Replace).is_err());
-        assert!(root.create_special(&root.root_fd(), "destination", &FileEntityKind::Socket, 0o600, ExistingEntryPolicy::Replace).is_err());
+        assert!(
+            root.create_hardlink(
+                PathBuf::from("missing").as_path(),
+                &root.root_fd(),
+                "destination",
+                ExistingEntryPolicy::Replace
+            )
+            .is_err()
+        );
+        assert!(
+            root.create_symlink(
+                &root.root_fd(),
+                "destination",
+                b"invalid\0target",
+                SymlinkValidationPolicy::PreserveVerbatim,
+                ExistingEntryPolicy::Replace
+            )
+            .is_err()
+        );
+        assert!(
+            root.create_special(
+                &root.root_fd(),
+                "destination",
+                &FileEntityKind::Socket,
+                0o600,
+                ExistingEntryPolicy::Replace
+            )
+            .is_err()
+        );
         assert_eq!(fs::read(path).unwrap(), b"keep this data");
         assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
     }
@@ -3170,7 +3942,9 @@ mod tests {
         let res1 = materialize_entity(&inaccessible, None, &dest_dir, &options);
         assert!(res1.is_err());
         let err1_str = res1.unwrap_err().to_string();
-        assert!(err1_str.contains("Refusing to materialize inaccessible entity"));
+        assert!(
+            err1_str.contains("Refusing to materialize inaccessible entity")
+        );
 
         // 2. Regular entity with error attached
         let mut regular_err = FileEntity::from_string("hello");
@@ -3200,12 +3974,21 @@ mod tests {
             }
         }
         impl PayloadSource for CompletionPayload {
-            fn total_size(&self) -> u64 { self.inner.total_size() }
-            fn extents(&self) -> &[Extent] { self.inner.extents() }
+            fn total_size(&self) -> u64 {
+                self.inner.total_size()
+            }
+            fn extents(&self) -> &[Extent] {
+                self.inner.extents()
+            }
             fn finish(&mut self) -> Result<Vec<String>> {
                 self.completed = true;
-                anyhow::ensure!(!self.fail, "Injected source completion failure");
-                Ok(vec!["Injected source timestamp fidelity warning".to_owned()])
+                anyhow::ensure!(
+                    !self.fail,
+                    "Injected source completion failure"
+                );
+                Ok(vec![
+                    "Injected source timestamp fidelity warning".to_owned(),
+                ])
             }
         }
         let temp = tempfile::tempdir().unwrap();
@@ -3213,8 +3996,12 @@ mod tests {
         let target = temp.path().join("payload");
         let mut entity = FileEntity::from_string("hello");
         entity.identity.relative_path = Some(PathBuf::from("payload"));
-        for mode in [MaterializeOptions::default().apple_write_mode, AppleWriteMode::ForceAppleSingle] {
-            for (fail, strict) in [(true, false), (false, true), (false, false)] {
+        for mode in [
+            MaterializeOptions::default().apple_write_mode,
+            AppleWriteMode::ForceAppleSingle,
+        ] {
+            for (fail, strict) in [(true, false), (false, true), (false, false)]
+            {
                 fs::write(&target, b"existing destination").unwrap();
                 let mut payload = CompletionPayload {
                     inner: MemoryPayloadSource::new(b"hello".to_vec()).unwrap(),
@@ -3228,13 +4015,23 @@ mod tests {
                     apple_write_mode: mode,
                     ..MaterializeOptions::default()
                 };
-                let result = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options);
+                let result = materialize_entity(
+                    &entity,
+                    Some(&mut payload),
+                    &dest_dir,
+                    &options,
+                );
                 assert!(payload.completed);
                 if fail || strict {
                     assert!(result.is_err());
-                    assert_eq!(fs::read(&target).unwrap(), b"existing destination");
+                    assert_eq!(
+                        fs::read(&target).unwrap(),
+                        b"existing destination"
+                    );
                 } else {
-                    assert!(result.unwrap().warnings.iter().any(|warning| warning.contains("Injected source timestamp")));
+                    assert!(result.unwrap().warnings.iter().any(|warning| {
+                        warning.contains("Injected source timestamp")
+                    }));
                 }
                 assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
             }
@@ -3257,7 +4054,15 @@ mod tests {
         for bytes in [b"hell".to_vec(), b"hello!".to_vec(), b"wrong".to_vec()] {
             fs::write(&target, b"existing destination").unwrap();
             let mut payload = MemoryPayloadSource::new(bytes).unwrap();
-            assert!(materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).is_err());
+            assert!(
+                materialize_entity(
+                    &entity,
+                    Some(&mut payload),
+                    &dest_dir,
+                    &options
+                )
+                .is_err()
+            );
             assert_eq!(fs::read(&target).unwrap(), b"existing destination");
             assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
         }
@@ -3272,14 +4077,30 @@ mod tests {
 
         let total_size = 655_360_u64; // 5 * 128KB
         let extents = vec![
-            Extent::Hole { offset: 0, length: 131_072 },
-            Extent::Data { offset: 131_072, length: 131_072 },
-            Extent::Hole { offset: 262_144, length: 131_072 },
-            Extent::Data { offset: 393_216, length: 131_072 },
-            Extent::Hole { offset: 524_288, length: 131_072 },
+            Extent::Hole {
+                offset: 0,
+                length: 131_072,
+            },
+            Extent::Data {
+                offset: 131_072,
+                length: 131_072,
+            },
+            Extent::Hole {
+                offset: 262_144,
+                length: 131_072,
+            },
+            Extent::Data {
+                offset: 393_216,
+                length: 131_072,
+            },
+            Extent::Hole {
+                offset: 524_288,
+                length: 131_072,
+            },
         ];
 
-        let mut payload_bytes = vec![0_u8; usize::try_from(total_size).unwrap()];
+        let mut payload_bytes =
+            vec![0_u8; usize::try_from(total_size).unwrap()];
         if let Some(slice1) = payload_bytes.get_mut(131_072..262_144) {
             slice1.fill(0xAA);
         }
@@ -3309,22 +4130,38 @@ mod tests {
             streams: Vec::new(),
         };
 
-        let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let mut payload =
+            crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
         let strict_result = materialize_entity(
-            &entity, Some(&mut payload), &dest_dir, &MaterializeOptions::default(),
+            &entity,
+            Some(&mut payload),
+            &dest_dir,
+            &MaterializeOptions::default(),
         );
         if let Err(err) = strict_result {
             assert!(format!("{err:#}").contains("sparse"));
             assert!(!dest_path.exists());
 
             // Native control/readback, not platform identity, decides capability.
-            let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+            let mut payload =
+                crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
             let options = MaterializeOptions {
                 strict_lossless: false,
                 ..MaterializeOptions::default()
             };
-            let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
-            assert!(receipt.warnings.iter().any(|w| w.contains("did not retain sparse support")));
+            let receipt = materialize_entity(
+                &entity,
+                Some(&mut payload),
+                &dest_dir,
+                &options,
+            )
+            .unwrap();
+            assert!(
+                receipt
+                    .warnings
+                    .iter()
+                    .any(|w| w.contains("did not retain sparse support"))
+            );
             assert_eq!(std::fs::read(&dest_path).unwrap(), payload_bytes);
 
             // An advertised sparse-capable volume must not conceal missing holes.
@@ -3333,15 +4170,21 @@ mod tests {
                 check_sparse: true,
                 ..EntityAuditOptions::default()
             };
-            let (diffs, ignored) = audit_entity_detailed(&dest_path, &entity, &audit_opts).unwrap();
+            let (diffs, ignored) =
+                audit_entity_detailed(&dest_path, &entity, &audit_opts)
+                    .unwrap();
             let fs_info = crate::filesystem::query_filesystem_info(
-                &dest_path, &std::fs::metadata(&dest_path).unwrap(),
+                &dest_path,
+                &std::fs::metadata(&dest_path).unwrap(),
             );
             if fs_info.supports_sparse() == Some(true) {
-                assert_eq!(diffs, vec![crate::verifier::DiffKind::SparseHoleMismatch {
-                    expected_has_holes: true,
-                    actual_has_holes: false,
-                }]);
+                assert_eq!(
+                    diffs,
+                    vec![crate::verifier::DiffKind::SparseHoleMismatch {
+                        expected_has_holes: true,
+                        actual_has_holes: false,
+                    }]
+                );
                 assert_eq!(ignored.sparseness, 0);
             } else {
                 assert!(diffs.is_empty(), "Unexpected diffs: {diffs:?}");
@@ -3359,11 +4202,14 @@ mod tests {
                 best_effort: false,
                 ..EntityAuditOptions::default()
             };
-            let (diffs, _) = audit_entity_detailed(&dest_path, &entity, &audit_opts).unwrap();
+            let (diffs, _) =
+                audit_entity_detailed(&dest_path, &entity, &audit_opts)
+                    .unwrap();
             assert!(diffs.is_empty(), "Strict sparse audit failed: {diffs:?}");
 
             let file = std::fs::File::open(&dest_path).unwrap();
-            let actual_extents = crate::payload::get_file_extents(&file, total_size).unwrap();
+            let actual_extents =
+                crate::payload::get_file_extents(&file, total_size).unwrap();
             assert_eq!(actual_extents, extents);
         }
     }
@@ -3387,22 +4233,43 @@ mod tests {
                 size: u64::try_from(payload_bytes.len()).unwrap(),
                 sha256: hasher.finalize(),
                 is_sparse: true,
-                extents: vec![Extent::Data { offset: 0, length: 16_384 }],
+                extents: vec![Extent::Data {
+                    offset: 0,
+                    length: 16_384,
+                }],
             },
             metadata: FileMetadata::default(),
             streams: Vec::new(),
         };
-        let mut strict_payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
-        assert!(materialize_entity(&entity, Some(&mut strict_payload), &dest_dir,
-            &MaterializeOptions::default()).is_err());
+        let mut strict_payload =
+            crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        assert!(
+            materialize_entity(
+                &entity,
+                Some(&mut strict_payload),
+                &dest_dir,
+                &MaterializeOptions::default()
+            )
+            .is_err()
+        );
         assert!(!temp.path().join("invalid_sparse.bin").exists());
-        let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let mut payload =
+            crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
         let options = MaterializeOptions {
             strict_lossless: false,
             ..MaterializeOptions::default()
         };
-        let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
-        assert_eq!(std::fs::read(receipt.destination_path).unwrap(), payload_bytes);
+        let receipt = materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &dest_dir,
+            &options,
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read(receipt.destination_path).unwrap(),
+            payload_bytes
+        );
         assert!(receipt.warnings.iter().any(|warning| {
             warning.contains("without preserving sparse layout")
         }));
@@ -3417,11 +4284,18 @@ mod tests {
 
         let total_size = 32_768_u64; // 32KB
         let extents = vec![
-            Extent::Hole { offset: 0, length: 16_384 },
-            Extent::Data { offset: 16_384, length: 16_384 },
+            Extent::Hole {
+                offset: 0,
+                length: 16_384,
+            },
+            Extent::Data {
+                offset: 16_384,
+                length: 16_384,
+            },
         ];
 
-        let mut payload_bytes = vec![0_u8; usize::try_from(total_size).unwrap()];
+        let mut payload_bytes =
+            vec![0_u8; usize::try_from(total_size).unwrap()];
         if let Some(slice) = payload_bytes.get_mut(16_384..32_768) {
             slice.fill(0xCC);
         }
@@ -3448,13 +4322,23 @@ mod tests {
             streams: Vec::new(),
         };
 
-        let normal_destination = SandboxableDir::create_or_open(&temp.path().join("normal")).unwrap();
-        let mut normal_payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
-        let normal = materialize_entity(&entity, Some(&mut normal_payload), &normal_destination,
-            &MaterializeOptions::default());
+        let normal_destination =
+            SandboxableDir::create_or_open(&temp.path().join("normal"))
+                .unwrap();
+        let mut normal_payload =
+            crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let normal = materialize_entity(
+            &entity,
+            Some(&mut normal_payload),
+            &normal_destination,
+            &MaterializeOptions::default(),
+        );
         match normal {
             Ok(receipt) => {
-                assert_eq!(std::fs::read(receipt.destination_path).unwrap(), payload_bytes);
+                assert_eq!(
+                    std::fs::read(receipt.destination_path).unwrap(),
+                    payload_bytes
+                );
             }
             Err(err) => {
                 // If the underlying filesystem (e.g. NTFS on Windows, or ZFS on FreeBSD)
@@ -3468,19 +4352,32 @@ mod tests {
         }
 
         // Materialize in best-effort mode
-        let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let mut payload =
+            crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
         let options = MaterializeOptions {
             strict_lossless: false,
             ..MaterializeOptions::default()
         };
-        let _receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+        let _receipt = materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &dest_dir,
+            &options,
+        )
+        .unwrap();
         assert_eq!(std::fs::read(&dest_path).unwrap(), payload_bytes);
 
         #[cfg(windows)]
         {
             if !ctb_io_environment::is_wine() {
                 // On native Windows NTFS, sub-64KB hole warning is recorded
-                assert!(receipt.warnings.iter().any(|w| w.contains("sub-64KB hole") || w.contains("64KB granularity")));
+                assert!(
+                    receipt
+                        .warnings
+                        .iter()
+                        .any(|w| w.contains("sub-64KB hole")
+                            || w.contains("64KB granularity"))
+                );
             }
         }
 
@@ -3490,7 +4387,8 @@ mod tests {
             check_sparse: true,
             ..EntityAuditOptions::default()
         };
-        let (diffs, _ignored) = audit_entity_detailed(&dest_path, &entity, &audit_opts_be).unwrap();
+        let (diffs, _ignored) =
+            audit_entity_detailed(&dest_path, &entity, &audit_opts_be).unwrap();
         assert!(diffs.is_empty(), "Best effort audit must pass: {diffs:?}");
 
         #[cfg(windows)]
@@ -3505,8 +4403,16 @@ mod tests {
                     check_sparse: true,
                     ..EntityAuditOptions::default()
                 };
-                let (strict_diffs, _) = audit_entity_detailed(&dest_path, &entity, &audit_opts_strict).unwrap();
-                assert!(!strict_diffs.is_empty(), "Strict audit must detect un-deallocated sub-64KB hole");
+                let (strict_diffs, _) = audit_entity_detailed(
+                    &dest_path,
+                    &entity,
+                    &audit_opts_strict,
+                )
+                .unwrap();
+                assert!(
+                    !strict_diffs.is_empty(),
+                    "Strict audit must detect un-deallocated sub-64KB hole"
+                );
             }
         }
     }
@@ -3532,7 +4438,10 @@ mod tests {
                 hardlink_group: None,
             },
             kind: FileEntityKind::Hardlink {
-                target_relative_path: crate::link_path::LinkPath::from_bytes(b"..\\outside.txt", true),
+                target_relative_path: crate::link_path::LinkPath::from_bytes(
+                    b"..\\outside.txt",
+                    true,
+                ),
             },
             metadata,
             streams: Vec::new(),
@@ -3544,7 +4453,10 @@ mod tests {
         };
 
         let res = materialize_entity(&entity, None, &dest_dir, &options);
-        assert!(res.is_err(), "Escaping hardlink target must be rejected under StrictSandboxed");
+        assert!(
+            res.is_err(),
+            "Escaping hardlink target must be rejected under StrictSandboxed"
+        );
         let err_msg = res.unwrap_err().to_string();
         assert!(
             err_msg.contains("target escapes destination root or contains root/parent components"),
@@ -3554,7 +4466,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_best_effort_materialization_adapts_overlong_names_and_logs_warnings() -> Result<()> {
+    fn test_best_effort_materialization_adapts_overlong_names_and_logs_warnings()
+    -> Result<()> {
         let temp_dir = tempfile::tempdir()?;
         let dest_dir = SandboxableDir::create_or_open(temp_dir.path())?;
 
@@ -3585,24 +4498,37 @@ mod tests {
         };
 
         // Strict mode must reject the >255-byte component.
-        let mut strict_payload = crate::MemoryPayloadSource::new(payload_bytes.clone())?;
+        let mut strict_payload =
+            crate::MemoryPayloadSource::new(payload_bytes.clone())?;
         let strict_opts = MaterializeOptions {
             strict_lossless: true,
             ..MaterializeOptions::default()
         };
         assert!(
-            materialize_entity(&entity, Some(&mut strict_payload), &dest_dir, &strict_opts).is_err(),
+            materialize_entity(
+                &entity,
+                Some(&mut strict_payload),
+                &dest_dir,
+                &strict_opts
+            )
+            .is_err(),
             "Strict mode must fail on >255-byte filename"
         );
 
         // Best-effort mode must truncate the component to <=255 bytes while preserving `.txt`
         // and record the exact rename warning in `receipt.warnings`.
-        let mut be_payload = crate::MemoryPayloadSource::new(payload_bytes.clone())?;
+        let mut be_payload =
+            crate::MemoryPayloadSource::new(payload_bytes.clone())?;
         let be_opts = MaterializeOptions {
             strict_lossless: false,
             ..MaterializeOptions::default()
         };
-        let receipt = materialize_entity(&entity, Some(&mut be_payload), &dest_dir, &be_opts)?;
+        let receipt = materialize_entity(
+            &entity,
+            Some(&mut be_payload),
+            &dest_dir,
+            &be_opts,
+        )?;
         let materialized_name = receipt
             .destination_path
             .file_name()
@@ -3622,10 +4548,11 @@ mod tests {
         );
 
         // Also verify Windows-specific filename adaptation rules (illegal chars, reserved names, trailing dots).
-        let (win_adapted, win_warnings) = crate::clean_name::adapt_relative_path_for_materialization(
-            Path::new("sub:dir/CON.txt/file?.log."),
-            true,
-        );
+        let (win_adapted, win_warnings) =
+            crate::clean_name::adapt_relative_path_for_materialization(
+                Path::new("sub:dir/CON.txt/file?.log."),
+                true,
+            );
         assert_eq!(win_adapted, PathBuf::from("sub_dir/unnamed.txt/file_.log"));
         assert_eq!(win_warnings.len(), 1);
         assert!(win_warnings[0].contains("Adapted destination path"));
@@ -3635,7 +4562,8 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_best_effort_symlink_target_and_stream_name_adaptation_warnings() -> Result<()> {
+    fn test_best_effort_symlink_target_and_stream_name_adaptation_warnings()
+    -> Result<()> {
         let temp_dir = tempfile::tempdir()?;
         let dest_dir = SandboxableDir::create_or_open(temp_dir.path())?;
 
@@ -3649,7 +4577,10 @@ mod tests {
                 hardlink_group: None,
             },
             kind: FileEntityKind::Symlink {
-                target: crate::link_path::LinkPath::from_bytes(b"target\0name", false),
+                target: crate::link_path::LinkPath::from_bytes(
+                    b"target\0name",
+                    false,
+                ),
             },
             metadata: FileMetadata::default(),
             streams: Vec::new(),
@@ -3659,7 +4590,8 @@ mod tests {
             symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
             ..MaterializeOptions::default()
         };
-        let sym_receipt = materialize_entity(&sym_entity, None, &dest_dir, &be_opts)?;
+        let sym_receipt =
+            materialize_entity(&sym_entity, None, &dest_dir, &be_opts)?;
         assert_eq!(
             std::fs::read_link(&sym_receipt.destination_path)?,
             PathBuf::from("target\u{FFFD}name")
@@ -3668,20 +4600,26 @@ mod tests {
             sym_receipt
                 .warnings
                 .iter()
-                .any(|w| w.contains("Replaced NUL in link target") && w.contains("target\\0name") && w.contains("->")),
+                .any(|w| w.contains("Replaced NUL in link target")
+                    && w.contains("target\\0name")
+                    && w.contains("->")),
             "Expected link target adaptation warning, got: {:?}",
             sym_receipt.warnings
         );
 
         // Stream name containing NUL byte is adapted in best-effort mode and records warning.
-        let stream_name = crate::streams::StreamName::from_bytes(b"user.bad\0attr");
-        let (adapted_stream, stream_warnings) =
-            stream_name.to_os_string_for_materialization_with_warnings(false)?;
-        assert_eq!(adapted_stream, std::ffi::OsString::from("user.bad\u{FFFD}attr"));
+        let stream_name =
+            crate::streams::StreamName::from_bytes(b"user.bad\0attr");
+        let (adapted_stream, stream_warnings) = stream_name
+            .to_os_string_for_materialization_with_warnings(false)?;
+        assert_eq!(
+            adapted_stream,
+            std::ffi::OsString::from("user.bad\u{FFFD}attr")
+        );
         assert!(
-            stream_warnings
-                .iter()
-                .any(|w| w.contains("stream name") && w.contains("user.bad\\0attr") && w.contains("->")),
+            stream_warnings.iter().any(|w| w.contains("stream name")
+                && w.contains("user.bad\\0attr")
+                && w.contains("->")),
             "Expected stream name adaptation warning, got: {:?}",
             stream_warnings
         );

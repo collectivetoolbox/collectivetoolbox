@@ -103,7 +103,11 @@ impl KStruct for ExprIoPosBits {
     type Root = ExprIoPosBits;
     type Parent = ExprIoPosBits;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -136,8 +140,7 @@ impl KStruct for ExprIoPosBits {
         Ok(())
     }
 }
-impl ExprIoPosBits {
-}
+impl ExprIoPosBits {}
 impl ExprIoPosBits {
     pub fn foo(&self) -> Ref<'_, u64> {
         self.foo.borrow()

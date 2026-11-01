@@ -43,9 +43,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+use ctb_formats_dcstring::{
+    DcMixedDecode, DcMixedEncode, DcProjectionContext, NodeId,
+};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcProjectionContext, NodeId};
 
 /// Retrieves AppleSingle / AppleDouble test fixture data by path key.
 #[must_use]
@@ -175,10 +177,13 @@ impl AppleSingleExtension {
 
     /// Appends the extension to a filename if one is configured.
     #[must_use]
-    pub fn apply_to_name(self, name: impl AsRef<std::ffi::OsStr>) -> std::ffi::OsString {
+    pub fn apply_to_name(
+        self,
+        name: impl AsRef<std::ffi::OsStr>,
+    ) -> std::ffi::OsString {
         let mut result = name.as_ref().to_os_string();
         match self {
-            Self::WithoutExtension => {},
+            Self::WithoutExtension => {}
             Self::As => result.push(".as"),
             Self::Asf => result.push(".asf"),
         }
@@ -187,14 +192,21 @@ impl AppleSingleExtension {
 
     /// Removes the configured extension without transcoding the filename.
     #[must_use]
-    pub fn strip_from_name(self, name: &std::ffi::OsStr) -> Option<&std::ffi::OsStr> {
+    pub fn strip_from_name(
+        self,
+        name: &std::ffi::OsStr,
+    ) -> Option<&std::ffi::OsStr> {
         let extension = match self {
             Self::WithoutExtension => return Some(name),
             Self::As => b"as".as_slice(),
             Self::Asf => b"asf".as_slice(),
         };
         let path = Path::new(name);
-        if path.extension()?.as_encoded_bytes().eq_ignore_ascii_case(extension) {
+        if path
+            .extension()?
+            .as_encoded_bytes()
+            .eq_ignore_ascii_case(extension)
+        {
             path.file_stem()
         } else {
             None
@@ -222,7 +234,9 @@ impl std::str::FromStr for AppleSingleExtension {
 
 /// Options controlling which AppleSingle, AppleDouble, and Windows alternate
 /// data stream companion styles to detect and unpack on read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize,
+)]
 pub struct AppleReadOptions {
     /// Read alongside ._<filename> companion files. Defaults to false.
     pub read_apple_double_alongside: bool,
@@ -289,13 +303,14 @@ pub fn get_companion_path(
             // Reason for fallback: path without a file name component defaults
             // to original file name
             name.push(rel.file_name().unwrap_or(file_name.as_os_str()));
-            base.join("__MACOSX")
-                .join(rel_parent)
-                .join(name)
+            base.join("__MACOSX").join(rel_parent).join(name)
         }
         AppleDoubleStyle::Netatalk => {
             if is_dir {
-                parent_dir.join(file_name).join(".AppleDouble").join(".Parent")
+                parent_dir
+                    .join(file_name)
+                    .join(".AppleDouble")
+                    .join(".Parent")
             } else {
                 parent_dir.join(".AppleDouble").join(file_name)
             }
@@ -480,14 +495,7 @@ pub struct AppleArchiveEntry {
 }
 
 /// Preserved raw unrecognized entry from AppleSingle or AppleDouble archive.
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppleRawEntry {
     /// 32-bit entry type identifier (e.g. 5 for `IconBw`, 6 for `IconColor`, 10 for `MacintoshFileInfo`).
     pub entry_id: u32,
@@ -503,7 +511,17 @@ pub type AppleUnrecognizedEntry = AppleRawEntry;
     clippy::struct_excessive_bools,
     reason = "Mirrors 10 boolean flags from Finder metadata bitmask"
 )]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 388, end = 389, flags)]
 pub struct FinderFlags {
     /// File icon resides on desktop.
@@ -607,7 +625,10 @@ impl From<FinderFlags> for u16 {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for FinderFlags {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+    fn encode_dc_number(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcWriter<'_>,
+    ) -> Result<()> {
         self.to_raw_u16().encode_dc_mixed_to(mst)
     }
 
@@ -621,7 +642,17 @@ impl ctb_formats_dcstring::DcMixedNumber for FinderFlags {
 }
 
 /// Extended Finder boolean flags decoded from classic Mac OS 8-bit `xflags`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 388, end = 389, flags)]
 pub struct ExtendedFlags {
     /// Mac OS object has a custom badge.
@@ -676,7 +707,10 @@ impl From<ExtendedFlags> for u8 {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for ExtendedFlags {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+    fn encode_dc_number(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcWriter<'_>,
+    ) -> Result<()> {
         self.to_raw_u8().encode_dc_mixed_to(mst)
     }
 
@@ -690,7 +724,17 @@ impl ctb_formats_dcstring::DcMixedNumber for ExtendedFlags {
 }
 
 /// Decoded Finder label color and names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[repr(u8)]
 pub enum FinderLabel {
     #[default]
@@ -814,7 +858,10 @@ impl TryFrom<u8> for FinderLabel {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for FinderLabel {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+    fn encode_dc_number(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcWriter<'_>,
+    ) -> Result<()> {
         self.index().encode_dc_mixed_to(mst)
     }
 
@@ -828,7 +875,17 @@ impl ctb_formats_dcstring::DcMixedNumber for FinderLabel {
 }
 
 /// Extended Finder information (`FXInfo`, 16 bytes).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 490, end = 491)]
 pub struct ExtendedFinderInfo {
     /// Custom icon ID (for files).
@@ -852,7 +909,16 @@ pub struct ExtendedFinderInfo {
 }
 
 /// Complete Finder metadata (`FInfo` + optional `FXInfo`).
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 401, end = 402)]
 pub struct FinderInfo {
     /// 4-character Mac OS file type code (e.g. "TEXT", "BINA").
@@ -964,7 +1030,8 @@ pub struct AppleArchive {
 impl AppleArchive {
     /// Serializes archive metadata to compact JSON string.
     pub fn to_json(&self) -> Result<String> {
-        serde_json::to_string(self).context("Failed to serialize AppleArchive to JSON")
+        serde_json::to_string(self)
+            .context("Failed to serialize AppleArchive to JSON")
     }
 
     /// Serializes archive metadata to pretty-printed JSON string.
@@ -997,9 +1064,7 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
     } else if magic_raw == APPLEDOUBLE_MAGIC_LE {
         (AppleFormat::AppleDouble, false)
     } else {
-        bail!(
-            "Invalid AppleSingle/AppleDouble magic: {magic_raw:#010x}"
-        );
+        bail!("Invalid AppleSingle/AppleDouble magic: {magic_raw:#010x}");
     };
 
     let version = if is_big_endian {
@@ -1027,14 +1092,16 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
     let mut resource_fork = None;
 
     for entry in &entries {
-        let start = usize::try_from(entry.offset).context("Entry offset exceeds usize")?;
-        let len = usize::try_from(entry.length).context("Entry length exceeds usize")?;
+        let start = usize::try_from(entry.offset)
+            .context("Entry offset exceeds usize")?;
+        let len = usize::try_from(entry.length)
+            .context("Entry length exceeds usize")?;
         let end = start
             .checked_add(len)
             .context("Entry boundary calculation overflow")?;
-        let slice = bytes
-            .get(start..end)
-            .ok_or_else(|| anyhow::anyhow!("Entry out of file bounds: {start}..{end}"))?;
+        let slice = bytes.get(start..end).ok_or_else(|| {
+            anyhow::anyhow!("Entry out of file bounds: {start}..{end}")
+        })?;
 
         match entry.entry_type {
             EntryType::DataFork => {
@@ -1044,13 +1111,17 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
                 resource_fork = Some(slice.to_vec());
             }
             EntryType::RealName => {
-                let name = String::from_utf8_lossy(slice).trim_matches('\0').to_string();
+                let name = String::from_utf8_lossy(slice)
+                    .trim_matches('\0')
+                    .to_string();
                 if !name.is_empty() {
                     real_name = Some(name);
                 }
             }
             EntryType::Comment => {
-                let text = String::from_utf8_lossy(slice).trim_matches('\0').to_string();
+                let text = String::from_utf8_lossy(slice)
+                    .trim_matches('\0')
+                    .to_string();
                 if !text.is_empty() {
                     comment = Some(text);
                 }
@@ -1061,7 +1132,8 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
                 backup_timestamp_sec = backup;
             }
             EntryType::FinderInfo => {
-                let (finfo, xattrs) = parse_finder_info(slice, bytes, is_big_endian)?;
+                let (finfo, xattrs) =
+                    parse_finder_info(slice, bytes, is_big_endian)?;
                 finder_info = Some(finfo);
                 extended_attributes = xattrs;
             }
@@ -1122,7 +1194,8 @@ fn parse_dates_info(slice: &[u8]) -> Result<(AppleDatesInfo, Option<i64>)> {
         if raw == TIMESTAMP_UNSET_SENTINEL {
             None
         } else {
-            let signed_seconds = i64::from(i32::from_be_bytes(raw.to_be_bytes()));
+            let signed_seconds =
+                i64::from(i32::from_be_bytes(raw.to_be_bytes()));
             SECONDS_1970_TO_2000.checked_add(signed_seconds)
         }
     };
@@ -1183,13 +1256,20 @@ fn parse_finder_info(
         read_i16_le(slice, 6)?
     };
 
-    let is_type_printable = type_bytes.iter().all(|&b| (0x20..=0x7e).contains(&b));
-    let is_creator_printable = creator_bytes.iter().all(|&b| (0x20..=0x7e).contains(&b));
+    let is_type_printable =
+        type_bytes.iter().all(|&b| (0x20..=0x7e).contains(&b));
+    let is_creator_printable =
+        creator_bytes.iter().all(|&b| (0x20..=0x7e).contains(&b));
 
-    let (file_type, file_creator, window_bounds) = if (!is_type_printable || !is_creator_printable)
+    let (file_type, file_creator, window_bounds) = if (!is_type_printable
+        || !is_creator_printable)
         && (bottom > top && right > left && bottom < 4000 && right < 4000)
     {
-        (String::new(), String::new(), Some([top, left, bottom, right]))
+        (
+            String::new(),
+            String::new(),
+            Some([top, left, bottom, right]),
+        )
     } else {
         let f_type = if type_bytes == [0, 0, 0, 0] {
             String::new()
@@ -1227,8 +1307,7 @@ fn parse_finder_info(
     };
 
     // Reason for fallback: Bit shift and mask guarantees the value is within 0..7; defaults to 0 (None) if conversion fails.
-    let label_idx = u8::try_from((raw_flags >> 1) & 0x07)
-        .unwrap_or(0);
+    let label_idx = u8::try_from((raw_flags >> 1) & 0x07).unwrap_or(0);
     let label = FinderLabel::from_index(label_idx);
 
     let flags = FinderFlags::from_raw_u16(raw_flags);
@@ -1334,7 +1413,8 @@ fn parse_apple_double_xattrs(
             .checked_add(pad)
             .context("Descriptor stride overflow")?;
 
-        let data_off = usize::try_from(entry_offset).context("Entry offset exceeds usize")?;
+        let data_off = usize::try_from(entry_offset)
+            .context("Entry offset exceeds usize")?;
         let data_len_usize =
             usize::try_from(entry_len).context("Entry length exceeds usize")?;
         let data_end = data_off
@@ -1364,9 +1444,9 @@ fn read_u16_be(bytes: &[u8], offset: usize) -> Result<u16> {
     let end = offset
         .checked_add(2)
         .context("u16 read offset calculation overflow")?;
-    let slice = bytes
-        .get(offset..end)
-        .ok_or_else(|| anyhow::anyhow!("Offset {offset} out of bounds for u16"))?;
+    let slice = bytes.get(offset..end).ok_or_else(|| {
+        anyhow::anyhow!("Offset {offset} out of bounds for u16")
+    })?;
     let arr: [u8; 2] = slice
         .try_into()
         .context("Failed to convert slice to u16 array")?;
@@ -1377,9 +1457,9 @@ fn read_u16_le(bytes: &[u8], offset: usize) -> Result<u16> {
     let end = offset
         .checked_add(2)
         .context("u16 read offset calculation overflow")?;
-    let slice = bytes
-        .get(offset..end)
-        .ok_or_else(|| anyhow::anyhow!("Offset {offset} out of bounds for u16"))?;
+    let slice = bytes.get(offset..end).ok_or_else(|| {
+        anyhow::anyhow!("Offset {offset} out of bounds for u16")
+    })?;
     let arr: [u8; 2] = slice
         .try_into()
         .context("Failed to convert slice to u16 array")?;
@@ -1390,9 +1470,9 @@ fn read_i16_be(bytes: &[u8], offset: usize) -> Result<i16> {
     let end = offset
         .checked_add(2)
         .context("i16 read offset calculation overflow")?;
-    let slice = bytes
-        .get(offset..end)
-        .ok_or_else(|| anyhow::anyhow!("Offset {offset} out of bounds for i16"))?;
+    let slice = bytes.get(offset..end).ok_or_else(|| {
+        anyhow::anyhow!("Offset {offset} out of bounds for i16")
+    })?;
     let arr: [u8; 2] = slice
         .try_into()
         .context("Failed to convert slice to i16 array")?;
@@ -1403,9 +1483,9 @@ fn read_i16_le(bytes: &[u8], offset: usize) -> Result<i16> {
     let end = offset
         .checked_add(2)
         .context("i16 read offset calculation overflow")?;
-    let slice = bytes
-        .get(offset..end)
-        .ok_or_else(|| anyhow::anyhow!("Offset {offset} out of bounds for i16"))?;
+    let slice = bytes.get(offset..end).ok_or_else(|| {
+        anyhow::anyhow!("Offset {offset} out of bounds for i16")
+    })?;
     let arr: [u8; 2] = slice
         .try_into()
         .context("Failed to convert slice to i16 array")?;
@@ -1416,9 +1496,9 @@ fn read_u32_be(bytes: &[u8], offset: usize) -> Result<u32> {
     let end = offset
         .checked_add(4)
         .context("u32 read offset calculation overflow")?;
-    let slice = bytes
-        .get(offset..end)
-        .ok_or_else(|| anyhow::anyhow!("Offset {offset} out of bounds for u32"))?;
+    let slice = bytes.get(offset..end).ok_or_else(|| {
+        anyhow::anyhow!("Offset {offset} out of bounds for u32")
+    })?;
     let arr: [u8; 4] = slice
         .try_into()
         .context("Failed to convert slice to u32 array")?;
@@ -1429,9 +1509,9 @@ fn read_u32_le(bytes: &[u8], offset: usize) -> Result<u32> {
     let end = offset
         .checked_add(4)
         .context("u32 read offset calculation overflow")?;
-    let slice = bytes
-        .get(offset..end)
-        .ok_or_else(|| anyhow::anyhow!("Offset {offset} out of bounds for u32"))?;
+    let slice = bytes.get(offset..end).ok_or_else(|| {
+        anyhow::anyhow!("Offset {offset} out of bounds for u32")
+    })?;
     let arr: [u8; 4] = slice
         .try_into()
         .context("Failed to convert slice to u32 array")?;
@@ -1606,7 +1686,9 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
 
         dates_bytes.extend_from_slice(&encode_ts(ts.birthtime_sec));
         dates_bytes.extend_from_slice(&encode_ts(Some(ts.mtime_sec)));
-        dates_bytes.extend_from_slice(&encode_ts(ts.backup_sec.or(archive.backup_timestamp_sec)));
+        dates_bytes.extend_from_slice(&encode_ts(
+            ts.backup_sec.or(archive.backup_timestamp_sec),
+        ));
         dates_bytes.extend_from_slice(&encode_ts(Some(ts.atime_sec)));
 
         raw_entries.push(RawEntry {
@@ -1616,7 +1698,8 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
     }
 
     // 6. Finder Info (Entry ID 9)
-    if archive.finder_info.is_some() || !archive.extended_attributes.is_empty() {
+    if archive.finder_info.is_some() || !archive.extended_attributes.is_empty()
+    {
         let mut finfo_bytes = vec![0u8; 32];
         if let Some(ref finfo) = archive.finder_info {
             if let Some(bounds) = finfo.window_bounds {
@@ -1641,7 +1724,9 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
                 }
                 let creator_bytes = finfo.file_creator.as_bytes();
                 for (i, &b) in creator_bytes.iter().take(4).enumerate() {
-                    if let Some(slot) = finfo_bytes.get_mut(4_usize.saturating_add(i)) {
+                    if let Some(slot) =
+                        finfo_bytes.get_mut(4_usize.saturating_add(i))
+                    {
                         *slot = b;
                     }
                 }
@@ -1663,7 +1748,9 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
             }
 
             if let Some(ref ext) = finfo.extended {
-                if finfo.window_bounds.is_some() || ext.scroll_position.is_some() {
+                if finfo.window_bounds.is_some()
+                    || ext.scroll_position.is_some()
+                {
                     // Reason for fallback: In Finder DXInfo / folder window records, if window bounds are present but scroll position was not explicitly specified, default to unscrolled origin (0, 0).
                     let (v, h) = ext.scroll_position.unwrap_or((0, 0));
                     if let Some(slot) = finfo_bytes.get_mut(16..18) {
@@ -1712,15 +1799,23 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
     let num_entries = u16::try_from(raw_entries.len())
         .context("Too many archive entries to fit in u16")?;
     let header_and_descriptors_len = 26_usize
-        .checked_add(usize::from(num_entries).checked_mul(12).context("Descriptors length overflow")?)
+        .checked_add(
+            usize::from(num_entries)
+                .checked_mul(12)
+                .context("Descriptors length overflow")?,
+        )
         .context("Header length overflow")?;
 
     if !archive.extended_attributes.is_empty() {
-        if let Some(finfo_idx) = raw_entries.iter().position(|e| e.raw_id == EntryType::FinderInfo.to_u32()) {
+        if let Some(finfo_idx) = raw_entries
+            .iter()
+            .position(|e| e.raw_id == EntryType::FinderInfo.to_u32())
+        {
             let mut entry_finder_start = header_and_descriptors_len;
             for i in 0..finfo_idx {
                 if let Some(e) = raw_entries.get(i) {
-                    entry_finder_start = entry_finder_start.saturating_add(e.data.len());
+                    entry_finder_start =
+                        entry_finder_start.saturating_add(e.data.len());
                 }
             }
 
@@ -1739,14 +1834,20 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
                     .context("Extended attribute name exceeds 255 bytes")?;
                 let total_desc = usize::from(namelen).saturating_add(11);
                 let rem = total_desc & 3;
-                let pad = if rem == 0 { 0 } else { 4_usize.saturating_sub(rem) };
+                let pad = if rem == 0 {
+                    0
+                } else {
+                    4_usize.saturating_sub(rem)
+                };
                 descriptors_total_len = descriptors_total_len
                     .saturating_add(total_desc)
                     .saturating_add(pad);
             }
 
-            let first_payload_rel = 70_usize.saturating_add(descriptors_total_len);
-            let mut running_payload_offset = entry_finder_start.saturating_add(first_payload_rel);
+            let first_payload_rel =
+                70_usize.saturating_add(descriptors_total_len);
+            let mut running_payload_offset =
+                entry_finder_start.saturating_add(first_payload_rel);
 
             let mut payloads = Vec::new();
             for attr in &archive.extended_attributes {
@@ -1765,12 +1866,17 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
 
                 let total_desc = usize::from(namelen).saturating_add(11);
                 let rem = total_desc & 3;
-                let pad = if rem == 0 { 0 } else { 4_usize.saturating_sub(rem) };
+                let pad = if rem == 0 {
+                    0
+                } else {
+                    4_usize.saturating_sub(rem)
+                };
                 for _ in 0..pad {
                     attr_block.push(0);
                 }
 
-                running_payload_offset = running_payload_offset.saturating_add(attr.data.len());
+                running_payload_offset =
+                    running_payload_offset.saturating_add(attr.data.len());
                 payloads.extend_from_slice(&attr.data);
             }
 
@@ -1823,8 +1929,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_single_fixtures() -> anyhow::Result<()> {
-        let data1 = get_apple_single_double_data("fixtures/AppleSingle/test file.as")
-            .context("test file.as fixture missing")?;
+        let data1 =
+            get_apple_single_double_data("fixtures/AppleSingle/test file.as")
+                .context("test file.as fixture missing")?;
         let archive1 = read_apple_single_double(&data1)?;
 
         ensure!(archive1.format == AppleFormat::AppleSingle);
@@ -1834,7 +1941,10 @@ mod tests {
         ensure!(archive1.data_fork_size == Some(9));
         ensure!(archive1.resource_fork_size == Some(332));
 
-        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        let finfo1 = archive1
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo1.file_type == "TEXT");
         ensure!(finfo1.file_creator == "ttxt");
         ensure!(finfo1.label.index() == 0);
@@ -1864,17 +1974,24 @@ mod tests {
         ensure!(parsed1.timestamps == archive1.timestamps);
 
         // Test second AppleSingle fixture with green label
-        let data2 = get_apple_single_double_data("fixtures/AppleSingle/test file green2.as")
-            .context("test file green2.as fixture missing")?;
+        let data2 = get_apple_single_double_data(
+            "fixtures/AppleSingle/test file green2.as",
+        )
+        .context("test file green2.as fixture missing")?;
         let archive2 = read_apple_single_double(&data2)?;
 
         ensure!(archive2.format == AppleFormat::AppleSingle);
         ensure!(archive2.real_name.as_deref() == Some("test file green2"));
-        ensure!(archive2.data_fork.as_deref() == Some(b"test file\x01".as_slice()));
+        ensure!(
+            archive2.data_fork.as_deref() == Some(b"test file\x01".as_slice())
+        );
         ensure!(archive2.data_fork_size == Some(10));
         ensure!(archive2.resource_fork_size == Some(372));
 
-        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        let finfo2 = archive2
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo2.file_type == "TEXT");
         ensure!(finfo2.file_creator == "ttxt");
         ensure!(finfo2.label.index() == 2);
@@ -1898,15 +2015,20 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_double_alongside_fixtures() -> anyhow::Result<()> {
-        let data1 = get_apple_single_double_data("fixtures/AppleDouble/Alongside/test file/._test file")
-            .context("Alongside ._test file missing")?;
+        let data1 = get_apple_single_double_data(
+            "fixtures/AppleDouble/Alongside/test file/._test file",
+        )
+        .context("Alongside ._test file missing")?;
         let archive1 = read_apple_single_double(&data1)?;
 
         ensure!(archive1.format == AppleFormat::AppleDouble);
         ensure!(archive1.data_fork.is_none());
         ensure!(archive1.resource_fork_size == Some(332));
 
-        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        let finfo1 = archive1
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo1.file_type == "TEXT");
         ensure!(finfo1.file_creator == "ttxt");
         ensure!(finfo1.label.index() == 0);
@@ -1919,7 +2041,10 @@ mod tests {
         ensure!(archive2.data_fork.is_none());
         ensure!(archive2.resource_fork_size == Some(372));
 
-        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        let finfo2 = archive2
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo2.file_type == "TEXT");
         ensure!(finfo2.file_creator == "ttxt");
         ensure!(finfo2.label.index() == 2);
@@ -1931,7 +2056,10 @@ mod tests {
         let parsed2 = read_apple_single_double(&written2)?;
         ensure!(parsed2.format == AppleFormat::AppleDouble);
         ensure!(parsed2.resource_fork == archive2.resource_fork);
-        let parsed_finfo2 = parsed2.finder_info.as_ref().context("missing parsed finfo")?;
+        let parsed_finfo2 = parsed2
+            .finder_info
+            .as_ref()
+            .context("missing parsed finfo")?;
         ensure!(parsed_finfo2.file_type == finfo2.file_type);
         ensure!(parsed_finfo2.file_creator == finfo2.file_creator);
         ensure!(parsed_finfo2.label.index() == finfo2.label.index());
@@ -1953,7 +2081,10 @@ mod tests {
         ensure!(archive.entries[0].entry_type == EntryType::FinderInfo);
         ensure!(archive.resource_fork.is_none());
 
-        let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
+        let finfo = archive
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo.file_type == "BINA");
         ensure!(finfo.file_creator == "SITx");
         ensure!(finfo.label.index() == 1);
@@ -2029,18 +2160,32 @@ mod tests {
         ensure!(parsed.comment == archive.comment);
         ensure!(parsed.resource_fork == archive.resource_fork);
 
-        let parsed_ts = parsed.timestamps.as_ref().context("missing timestamps")?;
-        ensure!(parsed_ts.birthtime_sec == archive.timestamps.as_ref().unwrap().birthtime_sec);
-        ensure!(parsed_ts.mtime_sec == archive.timestamps.as_ref().unwrap().mtime_sec);
+        let parsed_ts =
+            parsed.timestamps.as_ref().context("missing timestamps")?;
+        ensure!(
+            parsed_ts.birthtime_sec
+                == archive.timestamps.as_ref().unwrap().birthtime_sec
+        );
+        ensure!(
+            parsed_ts.mtime_sec
+                == archive.timestamps.as_ref().unwrap().mtime_sec
+        );
 
-        let parsed_finfo = parsed.finder_info.as_ref().context("missing finfo")?;
+        let parsed_finfo =
+            parsed.finder_info.as_ref().context("missing finfo")?;
         ensure!(parsed_finfo.file_type == "TEXT");
         ensure!(parsed_finfo.file_creator == "ttxt");
         ensure!(parsed_finfo.location == (100, 200));
 
         ensure!(parsed.extended_attributes.len() == 2);
-        ensure!(parsed.extended_attributes[0].name == "com.apple.metadata:kMDItemWhereFroms");
-        ensure!(parsed.extended_attributes[0].data == b"https://example.com/download");
+        ensure!(
+            parsed.extended_attributes[0].name
+                == "com.apple.metadata:kMDItemWhereFroms"
+        );
+        ensure!(
+            parsed.extended_attributes[0].data
+                == b"https://example.com/download"
+        );
         ensure!(parsed.extended_attributes[1].name == "user.custom.note");
         ensure!(parsed.extended_attributes[1].data == b"important payload");
 
@@ -2074,7 +2219,9 @@ mod tests {
             Some(root),
             Some(rel),
         );
-        ensure!(zip_path == PathBuf::from("/tmp/root/__MACOSX/sub/._hello.txt"));
+        ensure!(
+            zip_path == PathBuf::from("/tmp/root/__MACOSX/sub/._hello.txt")
+        );
 
         // Netatalk style for file
         let netatalk_file = get_companion_path(
@@ -2085,7 +2232,10 @@ mod tests {
             None,
             None,
         );
-        ensure!(netatalk_file == PathBuf::from("/tmp/testdir/.AppleDouble/hello.txt"));
+        ensure!(
+            netatalk_file
+                == PathBuf::from("/tmp/testdir/.AppleDouble/hello.txt")
+        );
 
         // Netatalk style for directory
         let dir = Path::new("subdir");
@@ -2097,7 +2247,10 @@ mod tests {
             None,
             None,
         );
-        ensure!(netatalk_dir == PathBuf::from("/tmp/testdir/subdir/.AppleDouble/.Parent"));
+        ensure!(
+            netatalk_dir
+                == PathBuf::from("/tmp/testdir/subdir/.AppleDouble/.Parent")
+        );
 
         Ok(())
     }
@@ -2116,45 +2269,92 @@ mod tests {
         #[cfg(windows)]
         {
             use std::os::windows::ffi::OsStringExt;
-            names.push(std::ffi::OsString::from_wide(&[110, 97, 109, 101, 0xD800]));
+            names.push(std::ffi::OsString::from_wide(&[
+                110, 97, 109, 101, 0xD800,
+            ]));
         }
         for name in names {
-            for extension in [AppleSingleExtension::WithoutExtension, AppleSingleExtension::As, AppleSingleExtension::Asf] {
+            for extension in [
+                AppleSingleExtension::WithoutExtension,
+                AppleSingleExtension::As,
+                AppleSingleExtension::Asf,
+            ] {
                 let encoded = extension.apply_to_name(&name);
-                ensure!(extension.strip_from_name(&encoded) == Some(name.as_os_str()));
+                ensure!(
+                    extension.strip_from_name(&encoded)
+                        == Some(name.as_os_str())
+                );
             }
             let mut mixed_case = name.clone();
             mixed_case.push(".aSf");
-            ensure!(AppleSingleExtension::Asf.strip_from_name(&mixed_case) == Some(name.as_os_str()));
+            ensure!(
+                AppleSingleExtension::Asf.strip_from_name(&mixed_case)
+                    == Some(name.as_os_str())
+            );
             let mut companion = std::ffi::OsString::from("._");
             companion.push(&name);
             let relative = PathBuf::from("nested").join(&name);
-            for style in [AppleDoubleStyle::Alongside, AppleDoubleStyle::Zip, AppleDoubleStyle::Netatalk] {
-                let actual = get_companion_path(Path::new("destination"), Path::new(&name), false,
-                    style, Some(Path::new("destination")), Some(&relative));
+            for style in [
+                AppleDoubleStyle::Alongside,
+                AppleDoubleStyle::Zip,
+                AppleDoubleStyle::Netatalk,
+            ] {
+                let actual = get_companion_path(
+                    Path::new("destination"),
+                    Path::new(&name),
+                    false,
+                    style,
+                    Some(Path::new("destination")),
+                    Some(&relative),
+                );
                 let expected = match style {
-                    AppleDoubleStyle::Alongside => PathBuf::from("destination").join(&companion),
-                    AppleDoubleStyle::Zip => PathBuf::from("destination/__MACOSX/nested").join(&companion),
-                    AppleDoubleStyle::Netatalk => PathBuf::from("destination/.AppleDouble").join(&name),
+                    AppleDoubleStyle::Alongside => {
+                        PathBuf::from("destination").join(&companion)
+                    }
+                    AppleDoubleStyle::Zip => {
+                        PathBuf::from("destination/__MACOSX/nested")
+                            .join(&companion)
+                    }
+                    AppleDoubleStyle::Netatalk => {
+                        PathBuf::from("destination/.AppleDouble").join(&name)
+                    }
                 };
                 ensure!(actual == expected);
             }
         }
-        ensure!(AppleSingleExtension::As.strip_from_name(std::ffi::OsStr::new(".as")).is_none());
-        ensure!(AppleSingleExtension::As.strip_from_name(std::ffi::OsStr::new("file.asf")).is_none());
+        ensure!(
+            AppleSingleExtension::As
+                .strip_from_name(std::ffi::OsStr::new(".as"))
+                .is_none()
+        );
+        ensure!(
+            AppleSingleExtension::As
+                .strip_from_name(std::ffi::OsStr::new("file.asf"))
+                .is_none()
+        );
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_apple_single_extension_handling() -> anyhow::Result<()> {
-        ensure!(AppleSingleExtension::WithoutExtension.apply_to_name("file") == "file");
+        ensure!(
+            AppleSingleExtension::WithoutExtension.apply_to_name("file")
+                == "file"
+        );
         ensure!(AppleSingleExtension::As.apply_to_name("file") == "file.as");
         ensure!(AppleSingleExtension::Asf.apply_to_name("file") == "file.asf");
 
         use std::str::FromStr;
-        ensure!(AppleSingleExtension::from_str("as")? == AppleSingleExtension::As);
-        ensure!(AppleSingleExtension::from_str("asf")? == AppleSingleExtension::Asf);
-        ensure!(AppleSingleExtension::from_str("without-extension")? == AppleSingleExtension::WithoutExtension);
+        ensure!(
+            AppleSingleExtension::from_str("as")? == AppleSingleExtension::As
+        );
+        ensure!(
+            AppleSingleExtension::from_str("asf")? == AppleSingleExtension::Asf
+        );
+        ensure!(
+            AppleSingleExtension::from_str("without-extension")?
+                == AppleSingleExtension::WithoutExtension
+        );
 
         let read_opts = AppleReadOptions::default();
         ensure!(!read_opts.any_apple_single());
@@ -2167,7 +2367,9 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_finder_label_dc_document_roundtrip() -> Result<()> {
-        use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMstring};
+        use ctb_formats_dcstring::{
+            DcChar, DcMixedDecode, DcMixedEncode, DcMstring,
+        };
 
         for index in 0..=7 {
             let label = FinderLabel::try_from(index)?;
@@ -2191,9 +2393,12 @@ mod tests {
                 }
                 mst.push_char(DcChar::from_short(402));
                 ctb_formats_dcstring::validate_dc_mixed_strict(&mst)
-                    .with_context(|| format!("Finder label {index}, numeric={numeric}"))?;
-                let decoded: FinderInfo =
-                    mst.decode(&ctb_formats_dcstring::DcProjectionPolicy::strict())?;
+                    .with_context(|| {
+                        format!("Finder label {index}, numeric={numeric}")
+                    })?;
+                let decoded: FinderInfo = mst.decode(
+                    &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+                )?;
                 ensure!(decoded == finfo);
             }
         }
@@ -2203,8 +2408,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_finder_label_equivalent_list_type_header() -> Result<()> {
         use ctb_formats_dcstring::{
-            DcChar, DcMixedDecode, DcMixedEncode,
-            DcProjectionPolicy,
+            DcChar, DcMixedDecode, DcMixedEncode, DcProjectionPolicy,
         };
 
         let finfo = FinderInfo {
@@ -2213,18 +2417,23 @@ mod tests {
         };
         let encoded = finfo.to_dc_mixed()?;
         let mut tokens = encoded.to_dc_tokens()?;
-        let prefix = [401, 405, 397, 310, 275, 487].map(|id| DcChar::from_short(id).to_u128());
+        let prefix = [401, 405, 397, 310, 275, 487]
+            .map(|id| DcChar::from_short(id).to_u128());
         ensure!(tokens.get(..prefix.len()) == Some(prefix.as_slice()));
         tokens.remove(4);
-        ensure!(ctb_formats_dcstring::validate_dc_tokens_strict(&tokens).is_err(),
-            "Untyped equivalent list passed strict validation");
+        ensure!(
+            ctb_formats_dcstring::validate_dc_tokens_strict(&tokens).is_err(),
+            "Untyped equivalent list passed strict validation"
+        );
 
         let mut old_encoded = ctb_formats_dcstring::DcMstring::new();
         for token in tokens {
             old_encoded.push_char(DcChar::from_u128(token));
         }
         ensure!(
-            old_encoded.decode::<FinderInfo>(&DcProjectionPolicy::strict()).is_err(),
+            old_encoded
+                .decode::<FinderInfo>(&DcProjectionPolicy::strict())
+                .is_err(),
             "Untyped equivalent list was decoded"
         );
         for malformed in [
@@ -2240,7 +2449,8 @@ mod tests {
                 mst.push_char(DcChar::from_short(token));
             }
             ensure!(
-                mst.decode::<FinderInfo>(&DcProjectionPolicy::strict()).is_err(),
+                mst.decode::<FinderInfo>(&DcProjectionPolicy::strict())
+                    .is_err(),
                 "Malformed equivalent list was decoded"
             );
         }
@@ -2260,7 +2470,9 @@ mod tests {
                         put_away: u32::MAX,
                         scroll_position,
                     };
-                    ctb_formats_dcstring::assert_dc_document_roundtrip(&extended)?;
+                    ctb_formats_dcstring::assert_dc_document_roundtrip(
+                        &extended,
+                    )?;
                     let finfo = FinderInfo {
                         file_type: "TEXT".to_string(),
                         file_creator: "ttxt".to_string(),
@@ -2275,9 +2487,15 @@ mod tests {
                 }
             }
         }
-        ctb_formats_dcstring::assert_dc_document_roundtrip(&FinderFlags::default())?;
-        ctb_formats_dcstring::assert_dc_document_roundtrip(&ExtendedFlags::default())?;
-        ctb_formats_dcstring::assert_dc_document_roundtrip(&ExtendedFinderInfo::default())?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(
+            &FinderFlags::default(),
+        )?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(
+            &ExtendedFlags::default(),
+        )?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(
+            &ExtendedFinderInfo::default(),
+        )?;
         ctb_formats_dcstring::assert_dc_document_roundtrip(&FinderInfo {
             extended: Some(ExtendedFinderInfo::default()),
             ..FinderInfo::default()
@@ -2288,8 +2506,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_apple_dc_mixed_roundtrip() -> anyhow::Result<()> {
         use ctb_formats_dcstring::{
-            DcMixedDecode, DcMixedEncode, DcMstring,
-            DcProjectionPolicy,
+            DcMixedDecode, DcMixedEncode, DcMstring, DcProjectionPolicy,
         };
 
         // 1. AppleFormat enum roundtrip with format Dcs (f315, f316)
@@ -2318,7 +2535,8 @@ mod tests {
 
         // 3. FinderFlags bitmask conversion
         let label = FinderLabel::from_index(5);
-        let raw_flags = 0x4181u16 | (u16::from(label.index()).checked_shl(1).unwrap_or(0));
+        let raw_flags =
+            0x4181u16 | (u16::from(label.index()).checked_shl(1).unwrap_or(0));
         let flags = FinderFlags::from_raw_u16(raw_flags);
         ensure!(flags.is_on_desk);
         ensure!(flags.has_no_inits);
@@ -2353,9 +2571,11 @@ mod tests {
         custom_mst.push_char(ctb_formats_dcstring::dc::DC_BEGIN_LIST);
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(275));
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(499)); // ondesk
-        custom_mst.push_char(ctb_formats_dcstring::dc::DC_LIST_ELEMENT_SEPARATOR);
+        custom_mst
+            .push_char(ctb_formats_dcstring::dc::DC_LIST_ELEMENT_SEPARATOR);
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(501)); // noinits
-        custom_mst.push_char(ctb_formats_dcstring::dc::DC_LIST_ELEMENT_SEPARATOR);
+        custom_mst
+            .push_char(ctb_formats_dcstring::dc::DC_LIST_ELEMENT_SEPARATOR);
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(507)); // invisible
         custom_mst.push_char(ctb_formats_dcstring::dc::DC_END_LIST);
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(389));
@@ -2399,8 +2619,8 @@ information.
 
 
 -----------------------------------------------------------------------
-		  GNU LESSER GENERAL PUBLIC LICENSE
-		       Version 2.1, February 1999
+          GNU LESSER GENERAL PUBLIC LICENSE
+               Version 2.1, February 1999
 
  Copyright (C) 1991, 1999 Free Software Foundation, Inc.
  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -2411,7 +2631,7 @@ information.
  as the successor of the GNU Library Public License, version 2, hence
  the version number 2.1.]
 
-			    Preamble
+                Preamble
 
   The licenses for most software are designed to take away your
 freedom to share and change it.  By contrast, the GNU General Public
@@ -2456,7 +2676,7 @@ modified by someone else and passed on, the recipients should know
 that what they have is not the original version, so that the original
 author's reputation will not be affected by problems that might be
 introduced by others.
-
+
   Finally, software patents pose a constant threat to the existence of
 any free program.  We wish to make sure that a company cannot
 effectively restrict the users of a free program by obtaining a
@@ -2512,8 +2732,8 @@ modification follow.  Pay close attention to the difference between a
 "work based on the library" and a "work that uses the library".  The
 former contains code derived from the library, whereas the latter must
 be combined with the library in order to run.
-
-		  GNU LESSER GENERAL PUBLIC LICENSE
+
+          GNU LESSER GENERAL PUBLIC LICENSE
    TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
 
   0. This License Agreement applies to any software library or other
@@ -2559,7 +2779,7 @@ Library.
   You may charge a fee for the physical act of transferring a copy,
 and you may at your option offer warranty protection in exchange for a
 fee.
-
+
   2. You may modify your copy or copies of the Library or any portion
 of it, thus forming a work based on the Library, and copy and
 distribute such modifications or work under the terms of Section 1
@@ -2617,7 +2837,7 @@ instead of to this License.  (If a newer version than version 2 of the
 ordinary GNU General Public License has appeared, then you can specify
 that version instead if you wish.)  Do not make any other change in
 these notices.
-
+
   Once this change is made in a given copy, it is irreversible for
 that copy, so the ordinary GNU General Public License applies to all
 subsequent copies and derivative works made from that copy.
@@ -2668,7 +2888,7 @@ Library will still fall under Section 6.)
 distribute the object code for the work under the terms of Section 6.
 Any executables containing that work also fall under Section 6,
 whether or not they are linked directly with the Library itself.
-
+
   6. As an exception to the Sections above, you may also combine or
 link a "work that uses the Library" with the Library to produce a
 work containing portions of the Library, and distribute that work
@@ -2730,7 +2950,7 @@ restrictions of other proprietary libraries that do not normally
 accompany the operating system.  Such a contradiction means you cannot
 use both them and the Library together in an executable that you
 distribute.
-
+
   7. You may place library facilities that are a work based on the
 Library side-by-side in a single library together with other library
 facilities not covered by this License, and distribute such a combined
@@ -2771,7 +2991,7 @@ subject to these terms and conditions.  You may not impose any further
 restrictions on the recipients' exercise of the rights granted herein.
 You are not responsible for enforcing compliance by third parties with
 this License.
-
+
   11. If, as a consequence of a court judgment or allegation of patent
 infringement or for any other reason (not limited to patent issues),
 conditions are imposed on you (whether by court order, agreement or
@@ -2823,7 +3043,7 @@ conditions either of that version or of any later version published by
 the Free Software Foundation.  If the Library does not specify a
 license version number, you may choose any version ever published by
 the Free Software Foundation.
-
+
   14. If you wish to incorporate parts of the Library into other free
 programs whose distribution conditions are incompatible with these,
 write to the author to ask for permission.  For software which is
@@ -2833,7 +3053,7 @@ decision will be guided by the two goals of preserving the free status
 of all derivatives of our free software and of promoting the sharing
 and reuse of software generally.
 
-			    NO WARRANTY
+                NO WARRANTY
 
   15. BECAUSE THE LIBRARY IS LICENSED FREE OF CHARGE, THERE IS NO
 WARRANTY FOR THE LIBRARY, TO THE EXTENT PERMITTED BY APPLICABLE LAW.
@@ -2856,8 +3076,8 @@ FAILURE OF THE LIBRARY TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
 SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGES.
 
-		     END OF TERMS AND CONDITIONS
-
+             END OF TERMS AND CONDITIONS
+
            How to Apply These Terms to Your New Libraries
 
   If you develop a new library, and you want it to be of the greatest

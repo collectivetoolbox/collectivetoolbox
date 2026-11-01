@@ -26,22 +26,24 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-pub mod args;
 pub mod archive;
+pub mod args;
 pub mod cli;
 pub mod copy_engine;
-pub mod journal;
-mod section;
-pub mod path_resolution;
-pub mod verifier;
-pub mod index_engine;
-pub mod search_engine;
-pub mod move_engine;
-pub mod index_meta;
 pub mod diff_engine;
+pub mod index_engine;
+pub mod index_meta;
+pub mod journal;
+pub mod move_engine;
+pub mod path_resolution;
+pub mod search_engine;
+mod section;
+pub mod verifier;
 
 #[cfg(all(test, unix))]
-pub(crate) fn run_permission_test_unprivileged(test_path: &str) -> Result<bool> {
+pub(crate) fn run_permission_test_unprivileged(
+    test_path: &str,
+) -> Result<bool> {
     use std::os::unix::process::CommandExt;
     if nix::unistd::geteuid().as_raw() != 0 {
         return Ok(false);
@@ -57,7 +59,9 @@ pub(crate) fn run_permission_test_unprivileged(test_path: &str) -> Result<bool> 
         .output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    anyhow::ensure!(output.status.success() && stdout.contains("1 passed"),
-        "Unprivileged permission test failed: {stdout}\n{stderr}");
+    anyhow::ensure!(
+        output.status.success() && stdout.contains("1 passed"),
+        "Unprivileged permission test failed: {stdout}\n{stderr}"
+    );
     Ok(true)
 }

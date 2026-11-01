@@ -102,7 +102,9 @@ impl DowncastOptRc<StrEncodingsEscapingEnc> for OptRc<StrEncodingsEscapingEnc> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc> for &OptRc<StrEncodingsEscapingEnc> {
+impl DowncastOptRc<StrEncodingsEscapingEnc>
+    for &OptRc<StrEncodingsEscapingEnc>
+{
     fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc>, KError> {
         Ok((*self).clone())
     }
@@ -111,7 +113,11 @@ impl KStruct for StrEncodingsEscapingEnc {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,7 +134,15 @@ impl KStruct for StrEncodingsEscapingEnc {
         let _raw_str1 = _io.read_bytes(usize::from(*self_rc.len_of_1()))?;
         *self_rc.str1_raw.borrow_mut() = _raw_str1.clone();
         let _io_str1 = BytesReader::from(_raw_str1);
-        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str1Wrapper>(&_io_str1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            StrEncodingsEscapingEnc_Str1Wrapper,
+        >(
+            &_io_str1,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_2.borrow_mut() = _io.read_u2le()?;
@@ -136,7 +150,15 @@ impl KStruct for StrEncodingsEscapingEnc {
         let _raw_str2 = _io.read_bytes(usize::from(*self_rc.len_of_2()))?;
         *self_rc.str2_raw.borrow_mut() = _raw_str2.clone();
         let _io_str2 = BytesReader::from(_raw_str2);
-        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str2Wrapper>(&_io_str2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            StrEncodingsEscapingEnc_Str2Wrapper,
+        >(
+            &_io_str2,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_3.borrow_mut() = _io.read_u2le()?;
@@ -144,7 +166,15 @@ impl KStruct for StrEncodingsEscapingEnc {
         let _raw_str3 = _io.read_bytes(usize::from(*self_rc.len_of_3()))?;
         *self_rc.str3_raw.borrow_mut() = _raw_str3.clone();
         let _io_str3 = BytesReader::from(_raw_str3);
-        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str3Wrapper>(&_io_str3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            StrEncodingsEscapingEnc_Str3Wrapper,
+        >(
+            &_io_str3,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
@@ -152,15 +182,22 @@ impl KStruct for StrEncodingsEscapingEnc {
         let _raw_str4 = _io.read_bytes(usize::from(*self_rc.len_of_4()))?;
         *self_rc.str4_raw.borrow_mut() = _raw_str4.clone();
         let _io_str4 = BytesReader::from(_raw_str4);
-        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str4Wrapper>(&_io_str4, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<
+            BytesReader,
+            StrEncodingsEscapingEnc_Str4Wrapper,
+        >(
+            &_io_str4,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.str4.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StrEncodingsEscapingEnc {
-}
+impl StrEncodingsEscapingEnc {}
 impl StrEncodingsEscapingEnc {
     pub fn len_of_1(&self) -> Ref<'_, u16> {
         self.len_of_1.borrow()
@@ -242,35 +279,59 @@ pub struct StrEncodingsEscapingEnc_Str1Wrapper {
     f_v: Cell<bool>,
     v: RefCell<String>,
 }
-impl TryFrom<&StrEncodingsEscapingEnc_Str1Wrapper> for OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
+impl TryFrom<&StrEncodingsEscapingEnc_Str1Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &StrEncodingsEscapingEnc_Str1Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEncodingsEscapingEnc_Str1Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEncodingsEscapingEnc_Str1Wrapper> for OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
+impl TryFrom<&&StrEncodingsEscapingEnc_Str1Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &&StrEncodingsEscapingEnc_Str1Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEncodingsEscapingEnc_Str1Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for StrEncodingsEscapingEnc_Str1Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+    for StrEncodingsEscapingEnc_Str1Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for &StrEncodingsEscapingEnc_Str1Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+    for &StrEncodingsEscapingEnc_Str1Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+    for &OptRc<StrEncodingsEscapingEnc_Str1Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -278,7 +339,11 @@ impl KStruct for StrEncodingsEscapingEnc_Str1Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -295,10 +360,12 @@ impl KStruct for StrEncodingsEscapingEnc_Str1Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str1Wrapper {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn v(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn v(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_v.get() {
             return Ok(self.v.borrow());
@@ -306,7 +373,8 @@ impl StrEncodingsEscapingEnc_Str1Wrapper {
         self.f_v.set(true);
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        *self.v.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ASCII\\x")?;
+        *self.v.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "ASCII\\x")?;
         _io.seek(_pos)?;
         Ok(self.v.borrow())
     }
@@ -332,35 +400,59 @@ pub struct StrEncodingsEscapingEnc_Str2Wrapper {
     f_v: Cell<bool>,
     v: RefCell<String>,
 }
-impl TryFrom<&StrEncodingsEscapingEnc_Str2Wrapper> for OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
+impl TryFrom<&StrEncodingsEscapingEnc_Str2Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &StrEncodingsEscapingEnc_Str2Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEncodingsEscapingEnc_Str2Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEncodingsEscapingEnc_Str2Wrapper> for OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
+impl TryFrom<&&StrEncodingsEscapingEnc_Str2Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &&StrEncodingsEscapingEnc_Str2Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEncodingsEscapingEnc_Str2Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for StrEncodingsEscapingEnc_Str2Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+    for StrEncodingsEscapingEnc_Str2Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for &StrEncodingsEscapingEnc_Str2Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+    for &StrEncodingsEscapingEnc_Str2Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+    for &OptRc<StrEncodingsEscapingEnc_Str2Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -368,7 +460,11 @@ impl KStruct for StrEncodingsEscapingEnc_Str2Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -385,10 +481,12 @@ impl KStruct for StrEncodingsEscapingEnc_Str2Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str2Wrapper {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn v(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn v(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_v.get() {
             return Ok(self.v.borrow());
@@ -396,7 +494,8 @@ impl StrEncodingsEscapingEnc_Str2Wrapper {
         self.f_v.set(true);
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        *self.v.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8\'x")?;
+        *self.v.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "UTF-8\'x")?;
         _io.seek(_pos)?;
         Ok(self.v.borrow())
     }
@@ -422,35 +521,59 @@ pub struct StrEncodingsEscapingEnc_Str3Wrapper {
     f_v: Cell<bool>,
     v: RefCell<String>,
 }
-impl TryFrom<&StrEncodingsEscapingEnc_Str3Wrapper> for OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
+impl TryFrom<&StrEncodingsEscapingEnc_Str3Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &StrEncodingsEscapingEnc_Str3Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEncodingsEscapingEnc_Str3Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEncodingsEscapingEnc_Str3Wrapper> for OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
+impl TryFrom<&&StrEncodingsEscapingEnc_Str3Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &&StrEncodingsEscapingEnc_Str3Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEncodingsEscapingEnc_Str3Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for StrEncodingsEscapingEnc_Str3Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+    for StrEncodingsEscapingEnc_Str3Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for &StrEncodingsEscapingEnc_Str3Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+    for &StrEncodingsEscapingEnc_Str3Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+    for &OptRc<StrEncodingsEscapingEnc_Str3Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -458,7 +581,11 @@ impl KStruct for StrEncodingsEscapingEnc_Str3Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -475,10 +602,12 @@ impl KStruct for StrEncodingsEscapingEnc_Str3Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str3Wrapper {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn v(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn v(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_v.get() {
             return Ok(self.v.borrow());
@@ -486,7 +615,8 @@ impl StrEncodingsEscapingEnc_Str3Wrapper {
         self.f_v.set(true);
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        *self.v.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "SJIS\"x")?;
+        *self.v.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "SJIS\"x")?;
         _io.seek(_pos)?;
         Ok(self.v.borrow())
     }
@@ -512,35 +642,59 @@ pub struct StrEncodingsEscapingEnc_Str4Wrapper {
     f_v: Cell<bool>,
     v: RefCell<String>,
 }
-impl TryFrom<&StrEncodingsEscapingEnc_Str4Wrapper> for OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
+impl TryFrom<&StrEncodingsEscapingEnc_Str4Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &StrEncodingsEscapingEnc_Str4Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &StrEncodingsEscapingEnc_Str4Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StrEncodingsEscapingEnc_Str4Wrapper> for OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
+impl TryFrom<&&StrEncodingsEscapingEnc_Str4Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+{
     type Error = KError;
-    fn try_from(v: &&StrEncodingsEscapingEnc_Str4Wrapper) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&StrEncodingsEscapingEnc_Str4Wrapper,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for StrEncodingsEscapingEnc_Str4Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+    for StrEncodingsEscapingEnc_Str4Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for &StrEncodingsEscapingEnc_Str4Wrapper {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+    for &StrEncodingsEscapingEnc_Str4Wrapper
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+    for OptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
-    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+    for &OptRc<StrEncodingsEscapingEnc_Str4Wrapper>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -548,7 +702,11 @@ impl KStruct for StrEncodingsEscapingEnc_Str4Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -565,10 +723,12 @@ impl KStruct for StrEncodingsEscapingEnc_Str4Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str4Wrapper {
-    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
-    pub fn v(
-        &self
-    ) -> KResult<Ref<'_, String>> {
+    #[allow(
+        clippy::approx_constant,
+        clippy::unnecessary_fallible_conversions,
+        reason = "Generic instance calculation conversion"
+    )]
+    pub fn v(&self) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_v.get() {
             return Ok(self.v.borrow());
@@ -576,7 +736,8 @@ impl StrEncodingsEscapingEnc_Str4Wrapper {
         self.f_v.set(true);
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        *self.v.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "IBM437\nx")?;
+        *self.v.borrow_mut() =
+            bytes_to_str(&_io.read_bytes_full()?, "IBM437\nx")?;
         _io.seek(_pos)?;
         Ok(self.v.borrow())
     }

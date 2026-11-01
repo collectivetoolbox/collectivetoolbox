@@ -221,8 +221,10 @@ mod tests {
         Ok(())
     }
 
-    static CANCEL_TEST_STARTED: tokio::sync::Notify = tokio::sync::Notify::const_new();
-    static CANCEL_TEST_DROPPED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+    static CANCEL_TEST_STARTED: tokio::sync::Notify =
+        tokio::sync::Notify::const_new();
+    static CANCEL_TEST_DROPPED: tokio::sync::Notify =
+        tokio::sync::Notify::const_new();
 
     #[ipc_method]
     async fn wait_for_cancellation() -> Result<()> {
@@ -242,21 +244,33 @@ mod tests {
     /// response is sent by the real peer dispatcher.
     #[crate::ctb_test("tokio")]
     async fn server_cancel_stops_inflight_fetch() -> Result<()> {
-        use crate::auth::capability::{CapabilitySet, MethodRule, MethodSelector, ServiceName};
+        use crate::auth::capability::{
+            CapabilitySet, MethodRule, MethodSelector, ServiceName,
+        };
         use crate::router::{ConnectionContext, IpcRouter};
         let (session, mut to_server_rx, from_server_tx) = make_mock_session();
         let method = "ipc.wait_for_cancellation";
         let mut allowed = std::collections::HashMap::new();
-        allowed.insert(ServiceName("workspace".to_string()), vec![MethodRule {
-            method: MethodSelector::Exact(method.to_string()),
-            quotas: None,
-        }]);
+        allowed.insert(
+            ServiceName("workspace".to_string()),
+            vec![MethodRule {
+                method: MethodSelector::Exact(method.to_string()),
+                quotas: None,
+            }],
+        );
         let context = ConnectionContext {
             id: crate::types::ConnectionId::default(),
-            capabilities: CapabilitySet { allowed, global_limits: None },
+            capabilities: CapabilitySet {
+                allowed,
+                global_limits: None,
+            },
             metadata: None,
         };
-        let peer = crate::peer::IpcPeer::new(session, std::sync::Arc::new(IpcRouter::new()), context);
+        let peer = crate::peer::IpcPeer::new(
+            session,
+            std::sync::Arc::new(IpcRouter::new()),
+            context,
+        );
         from_server_tx
             .send(Message::Request(Request {
                 id: 7,
@@ -264,13 +278,18 @@ mod tests {
                     service: "workspace".into(),
                     method: method.into(),
                 },
-                args: postcard_helpers::encode(&(), "cancellation test arguments")?,
+                args: postcard_helpers::encode(
+                    &(),
+                    "cancellation test arguments",
+                )?,
             }))
             .await?;
         let timeout = std::time::Duration::from_secs(10);
         tokio::time::timeout(timeout, CANCEL_TEST_STARTED.notified()).await?;
         from_server_tx.send(Message::Cancel(Cancel::new(7))).await?;
-        let msg = tokio::time::timeout(timeout, to_server_rx.recv()).await?.context("missing response")?;
+        let msg = tokio::time::timeout(timeout, to_server_rx.recv())
+            .await?
+            .context("missing response")?;
         let Message::Response(resp) = msg else {
             anyhow::bail!("expected Response");
         };

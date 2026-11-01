@@ -53,7 +53,11 @@ pub use ctb_formats_dcdata::dc_number_minimal::{
 };
 use ctb_formats_dcdata::syntax::{DcRole, SyntaxRuleResolver};
 
-fn gid_fills_role(gid: u128, role: DcRole, resolver: &dyn SyntaxRuleResolver) -> bool {
+fn gid_fills_role(
+    gid: u128,
+    role: DcRole,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
     if resolver.token_fills_role(gid, role) {
         return true;
     }
@@ -68,12 +72,17 @@ fn gid_fills_role(gid: u128, role: DcRole, resolver: &dyn SyntaxRuleResolver) ->
     false
 }
 
-fn gid_to_base64_digit(gid: u128, resolver: &dyn SyntaxRuleResolver) -> Option<u8> {
+fn gid_to_base64_digit(
+    gid: u128,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Option<u8> {
     if let Some(digit) = resolver.base64_digit_value(gid) {
         return Some(digit);
     }
     if let Ok(s) = u32::try_from(gid) {
-        if let Some(digit) = resolver.base64_digit_value(DcChar::from_short(s).to_u128()) {
+        if let Some(digit) =
+            resolver.base64_digit_value(DcChar::from_short(s).to_u128())
+        {
             return Some(digit);
         }
     }
@@ -109,17 +118,20 @@ fn digit_to_base64_char(digit: u8) -> Result<char> {
     match digit {
         0..=25 => {
             let code = u32::from(b'A').saturating_add(u32::from(digit));
-            char::from_u32(code).ok_or_else(|| anyhow!("Invalid char code {code}"))
+            char::from_u32(code)
+                .ok_or_else(|| anyhow!("Invalid char code {code}"))
         }
         26..=51 => {
             let offset = u32::from(digit.saturating_sub(26));
             let code = u32::from(b'a').saturating_add(offset);
-            char::from_u32(code).ok_or_else(|| anyhow!("Invalid char code {code}"))
+            char::from_u32(code)
+                .ok_or_else(|| anyhow!("Invalid char code {code}"))
         }
         52..=61 => {
             let offset = u32::from(digit.saturating_sub(52));
             let code = u32::from(b'0').saturating_add(offset);
-            char::from_u32(code).ok_or_else(|| anyhow!("Invalid char code {code}"))
+            char::from_u32(code)
+                .ok_or_else(|| anyhow!("Invalid char code {code}"))
         }
         62 => Ok('+'),
         63 => Ok('/'),
@@ -177,8 +189,9 @@ pub fn base64_char_to_global_dc(c: char) -> Result<u128> {
 /// its corresponding standard Base64 character or padding character (`=`).
 pub fn global_dc_to_base64_char(gid: u128) -> Result<char> {
     let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-    let digit = gid_to_base64_digit(gid, &**resolver)
-        .ok_or_else(|| anyhow!("Global ID {gid} is not a valid Base64 encapsulation Dc"))?;
+    let digit = gid_to_base64_digit(gid, &**resolver).ok_or_else(|| {
+        anyhow!("Global ID {gid} is not a valid Base64 encapsulation Dc")
+    })?;
     digit_to_base64_char(digit)
 }
 
@@ -340,7 +353,8 @@ where
 
     let second = next_char()?;
     ensure!(
-        resolver.token_fills_role(second.to_u128(), DcRole::IntegerFormatIndicator),
+        resolver
+            .token_fills_role(second.to_u128(), DcRole::IntegerFormatIndicator),
         "Expected format 199 indicator after Dc 6, found {second:?}"
     );
 
@@ -363,7 +377,10 @@ where
         ch = next_char()?;
     }
 
-    ensure!(!b64_str.is_empty(), "Dc number contains no digit characters");
+    ensure!(
+        !b64_str.is_empty(),
+        "Dc number contains no digit characters"
+    );
     let b64_base = Base::new(64)?;
     let nat = parse_natural(&b64_str, b64_base).with_context(|| {
         format!("Failed to parse Base64 number string '{b64_str}'")
@@ -388,11 +405,13 @@ pub fn parse_dc_number_digits_with_resolver(
     let mut is_negative = false;
     let mut b64_str = String::new();
     for (idx, &ch) in digits.iter().enumerate() {
-        if idx == 0 && resolver.token_fills_role(ch.to_u128(), DcRole::Negative) {
+        if idx == 0 && resolver.token_fills_role(ch.to_u128(), DcRole::Negative)
+        {
             is_negative = true;
             continue;
         }
-        if idx == 0 && resolver.token_fills_role(ch.to_u128(), DcRole::Positive) {
+        if idx == 0 && resolver.token_fills_role(ch.to_u128(), DcRole::Positive)
+        {
             continue;
         }
         let digit = resolver
@@ -442,8 +461,13 @@ pub fn read_dc_number_short_with_resolver(
     let second_format = DcChar::from_format(second);
     let second_short = DcChar::from_short(second);
     ensure!(
-        resolver.token_fills_role(second_format.to_u128(), DcRole::IntegerFormatIndicator)
-            || resolver.token_fills_role(second_short.to_u128(), DcRole::IntegerFormatIndicator),
+        resolver.token_fills_role(
+            second_format.to_u128(),
+            DcRole::IntegerFormatIndicator
+        ) || resolver.token_fills_role(
+            second_short.to_u128(),
+            DcRole::IntegerFormatIndicator
+        ),
         "Expected format 199 indicator after Dc 6, found Dc {second}"
     );
 
@@ -455,7 +479,9 @@ pub fn read_dc_number_short_with_resolver(
         if resolver.token_fills_role(third_dc.to_u128(), DcRole::Negative) {
             is_negative = true;
             idx = idx.saturating_add(1);
-        } else if resolver.token_fills_role(third_dc.to_u128(), DcRole::Positive) {
+        } else if resolver
+            .token_fills_role(third_dc.to_u128(), DcRole::Positive)
+        {
             idx = idx.saturating_add(1);
         }
     }
@@ -551,8 +577,9 @@ pub fn read_dc_number_global_with_resolver(
             break;
         }
 
-        let digit = gid_to_base64_digit(gid, resolver)
-            .ok_or_else(|| anyhow!("Global ID {gid} is not a valid Base64 encapsulation Dc"))?;
+        let digit = gid_to_base64_digit(gid, resolver).ok_or_else(|| {
+            anyhow!("Global ID {gid} is not a valid Base64 encapsulation Dc")
+        })?;
         let ch = digit_to_base64_char(digit)?;
         b64_str.push(ch);
     }
@@ -736,23 +763,48 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dc_number_chars_and_reader_roundtrip() {
-        let test_cases = [0i128, 1, -1, 42, -42, 64, -64, 1_000_000, -1_000_000, i128::from(i64::MAX), i128::from(i64::MIN)];
+        let test_cases = [
+            0i128,
+            1,
+            -1,
+            42,
+            -42,
+            64,
+            -64,
+            1_000_000,
+            -1_000_000,
+            i128::from(i64::MAX),
+            i128::from(i64::MIN),
+        ];
         for &tc in &test_cases {
             let chars = i128_to_dc_number_chars(tc).unwrap();
             let mut it = chars.into_iter();
             let parsed_int = read_dc_number_from_reader(|| {
                 it.next().ok_or_else(|| anyhow!("Unexpected end of stream"))
-            }).unwrap();
+            })
+            .unwrap();
             assert_eq!(i128::try_from(&parsed_int).unwrap(), tc);
         }
 
-        let u_cases = [0u128, 1, 42, 64, 127, 255, 65535, 1_000_000, u128::from(u64::MAX), u128::MAX];
+        let u_cases = [
+            0u128,
+            1,
+            42,
+            64,
+            127,
+            255,
+            65535,
+            1_000_000,
+            u128::from(u64::MAX),
+            u128::MAX,
+        ];
         for &tc in &u_cases {
             let chars = u128_to_dc_number_chars(tc).unwrap();
             let mut it = chars.into_iter();
             let parsed_int = read_dc_number_from_reader(|| {
                 it.next().ok_or_else(|| anyhow!("Unexpected end of stream"))
-            }).unwrap();
+            })
+            .unwrap();
             let nat = parsed_int.unsigned_abs_ref();
             assert_eq!(u128::try_from(nat).unwrap(), tc);
         }
@@ -770,10 +822,18 @@ mod tests {
 
         // parse_dc_number_digits with positive sign Dc 10
         let digits_pos = vec![DcChar::from_short(10), DcChar::from_short(169)];
-        assert_eq!(i128::try_from(&parse_dc_number_digits(&digits_pos).unwrap()).unwrap(), 42);
+        assert_eq!(
+            i128::try_from(&parse_dc_number_digits(&digits_pos).unwrap())
+                .unwrap(),
+            42
+        );
 
         // parse_dc_number_digits with negative sign Dc 11
         let digits_neg = vec![DcChar::from_short(11), DcChar::from_short(169)];
-        assert_eq!(i128::try_from(&parse_dc_number_digits(&digits_neg).unwrap()).unwrap(), -42);
+        assert_eq!(
+            i128::try_from(&parse_dc_number_digits(&digits_neg).unwrap())
+                .unwrap(),
+            -42
+        );
     }
 }

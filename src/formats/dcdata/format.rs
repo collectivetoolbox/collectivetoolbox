@@ -26,14 +26,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::report::ValidationReport;
 use crate::dc_def::{DcDefn, FormatDetails};
+use crate::format_spec::{parse_format_expr, validate_format_expr};
+use crate::report::ValidationReport;
 use crate::shared::{
     BidiClass, GeneralCategory, split_comma_separated_items,
     validate_extensions_field, validate_mime_field, validate_rust_identifier,
     validate_support_level,
 };
-use crate::format_spec::{parse_format_expr, validate_format_expr};
 use crate::syntax::parse_dc_syntax;
 use include_dir::Dir;
 use std::collections::{HashMap, HashSet};
@@ -138,7 +138,11 @@ pub fn validate_formats_category_file(
             continue;
         }
 
-        let short_id = if let Ok(v) = ctb_storage_minimal::shorthand::parse_format_shorthand(&short_str) { v } else {
+        let short_id = if let Ok(v) =
+            ctb_storage_minimal::shorthand::parse_format_shorthand(&short_str)
+        {
+            v
+        } else {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -647,13 +651,16 @@ where
         .filter(|r| r.syntax.is_some())
         .filter_map(|r| r.short_id)
         .filter_map(|sid| {
-            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{sid}"))
+            ctb_utilities::format_id::FormatId::from_shorthand(&format!(
+                "f{sid}"
+            ))
         })
         .map(crate::syntax::CharTarget::Format)
         .collect();
     let empty_dcs = HashSet::new();
     let empty_named_types = HashSet::new();
-    let format_registry = crate::syntax::build_format_validation_registry(&all_rows);
+    let format_registry =
+        crate::syntax::build_format_validation_registry(&all_rows);
 
     for row in &all_rows {
         if let (Some(syntax_rule), Some(Ok(self_id))) =
@@ -696,7 +703,9 @@ where
 
     for row in &all_rows {
         if let Some(details) = &row.format {
-            if details.vary_as.is_some() && row.script != ".Formats:format_variant" {
+            if details.vary_as.is_some()
+                && row.script != ".Formats:format_variant"
+            {
                 report.add_error(
                     &row.source_file,
                     Some(row.line_number),
@@ -711,9 +720,9 @@ where
 
             for target in &details.varies {
                 let is_variant = match target {
-                    ctb_storage_minimal::shorthand::DcShorthand::Format(sid) => {
-                        variant_format_short_ids.contains(sid)
-                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Format(
+                        sid,
+                    ) => variant_format_short_ids.contains(sid),
                     ctb_storage_minimal::shorthand::DcShorthand::Short(sid) => {
                         // Reason for fallback: out-of-range integer IDs cannot match format IDs
                         usize::try_from(*sid).is_ok_and(|s| {
@@ -723,7 +732,9 @@ where
                     ctb_storage_minimal::shorthand::DcShorthand::Long(dc) => {
                         variant_format_dc_ids.contains(dc)
                     }
-                    ctb_storage_minimal::shorthand::DcShorthand::Unicode(dc) => {
+                    ctb_storage_minimal::shorthand::DcShorthand::Unicode(
+                        dc,
+                    ) => {
                         let dc_u128 = u128::from(*dc);
                         variant_format_dc_ids.contains(&dc_u128)
                     }
@@ -898,7 +909,11 @@ mod tests {
             &mut report,
         );
 
-        assert!(!report.has_errors(), "Unexpected errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Unexpected errors: {}",
+            report.format_report()
+        );
         assert_eq!(rows.len(), 1);
         assert!(rows[0].is_deprecated);
         assert_eq!(rows[0].ident.as_deref(), Some("Gregorian"));
@@ -919,7 +934,11 @@ mod tests {
         );
 
         assert!(report.has_errors());
-        assert!(report.format_report().contains("Invalid Rust identifier '!123Invalid'"));
+        assert!(
+            report
+                .format_report()
+                .contains("Invalid Rust identifier '!123Invalid'")
+        );
     }
 
     #[crate::ctb_test]
@@ -935,7 +954,11 @@ mod tests {
             &mut report,
         );
 
-        assert!(!report.has_errors(), "Unexpected errors: {}", report.format_report());
+        assert!(
+            !report.has_errors(),
+            "Unexpected errors: {}",
+            report.format_report()
+        );
         assert_eq!(rows.len(), 1);
         let details = rows[0].format.as_ref().unwrap();
         assert!(details.format_spec.is_some());
@@ -992,8 +1015,17 @@ mod tests {
             ("format_variant.csv", &fv_csv[..]),
             ("number.csv", &num_csv[..]),
         ];
-        let _ = validate_format_files_data(files, "test/formats/", None, &mut report);
-        assert!(!report.has_errors(), "Unexpected errors: {}", report.format_report());
+        let _ = validate_format_files_data(
+            files,
+            "test/formats/",
+            None,
+            &mut report,
+        );
+        assert!(
+            !report.has_errors(),
+            "Unexpected errors: {}",
+            report.format_report()
+        );
 
         // 2. Invalid @varies target (referencing non-variant format f1)
         let mut err_report = ValidationReport::new();
@@ -1002,19 +1034,33 @@ mod tests {
             ("format_variant.csv", &fv_csv[..]),
             ("number.csv", &num_bad_csv[..]),
         ];
-        let _ = validate_format_files_data(files_bad_varies, "test/formats/", None, &mut err_report);
+        let _ = validate_format_files_data(
+            files_bad_varies,
+            "test/formats/",
+            None,
+            &mut err_report,
+        );
         assert!(err_report.has_errors());
-        assert!(err_report.format_report().contains("references non-variant format or character"));
+        assert!(
+            err_report
+                .format_report()
+                .contains("references non-variant format or character")
+        );
 
         // 3. Invalid @vary_as placement outside .Formats:format_variant
         let mut err_vary_as = ValidationReport::new();
         let num_bad_vary_as = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228225,1,BaseNNumeral,Base N Numeral,number,\"@vary_as(\"\"radix\"\")\",,,,,,,,,,, \n";
-        let files_bad_vary_as = vec![
-            ("number.csv", &num_bad_vary_as[..]),
-        ];
-        let _ = validate_format_files_data(files_bad_vary_as, "test/formats/", None, &mut err_vary_as);
+        let files_bad_vary_as = vec![("number.csv", &num_bad_vary_as[..])];
+        let _ = validate_format_files_data(
+            files_bad_vary_as,
+            "test/formats/",
+            None,
+            &mut err_vary_as,
+        );
         assert!(err_vary_as.has_errors());
-        assert!(err_vary_as.format_report().contains("only permitted on formats in '.Formats:format_variant'"));
+        assert!(err_vary_as.format_report().contains(
+            "only permitted on formats in '.Formats:format_variant'"
+        ));
 
         // 4. Variant script .Formats:v:case without matching @vary_as("case") in format_variant
         let mut err_unregistered_v = ValidationReport::new();
@@ -1023,11 +1069,13 @@ mod tests {
             ("format_variant.csv", &fv_csv[..]),
             ("v.case.csv", &v_case_csv[..]),
         ];
-        let _ = validate_format_files_data(files_unregistered_v, "test/formats/", None, &mut err_unregistered_v);
+        let _ = validate_format_files_data(
+            files_unregistered_v,
+            "test/formats/",
+            None,
+            &mut err_unregistered_v,
+        );
         assert!(err_unregistered_v.has_errors());
         assert!(err_unregistered_v.format_report().contains("is not defined by any declared '@vary_as(\"case\")' in .Formats:format_variant"));
     }
 }
-
-
-

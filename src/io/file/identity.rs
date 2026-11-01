@@ -26,14 +26,25 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode};
 use malachite::Natural;
 use serde::{Deserialize, Serialize};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
-use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode};
 
 /// Unique filesystem inode identifier across mounts.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(flatten)]
 pub struct InodeKey {
     /// Device identifier (`st_dev`).
@@ -97,7 +108,15 @@ impl From<(u64, Natural)> for InodeKey {
 }
 
 /// The origin source where a file was discovered or extracted from.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 349, end = 350)]
 pub enum FileOrigin {
     /// Residing on a local filesystem.
@@ -142,7 +161,15 @@ pub enum FileOrigin {
 }
 
 /// Multifaceted identity information for a file entity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(begin = 319, end = 320)]
 #[serde(deny_unknown_fields)]
 pub struct FileIdentity {
@@ -169,13 +196,17 @@ impl FileIdentity {
     /// Returns the native byte representation of the relative path, if present.
     #[must_use]
     pub fn path_bytes(&self) -> Option<&[u8]> {
-        self.relative_path.as_deref().map(|path| path.as_os_str().as_encoded_bytes())
+        self.relative_path
+            .as_deref()
+            .map(|path| path.as_os_str().as_encoded_bytes())
     }
 
     /// Returns the native filename bytes from the relative path, if present.
     #[must_use]
     pub fn filename_bytes(&self) -> Option<&[u8]> {
-        self.relative_path.as_deref().and_then(Path::file_name)
+        self.relative_path
+            .as_deref()
+            .and_then(Path::file_name)
             .map(std::ffi::OsStr::as_encoded_bytes)
     }
 
@@ -213,7 +244,10 @@ impl FileIdentity {
 /// Converts canonical forward-slash separated path bytes to the current platform's
 /// path representation. On POSIX/Linux, this is lossless for any byte sequence.
 /// On Windows, decodes canonical WTF-8 and maps `/` to `\`.
-pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -> Result<PathBuf> {
+pub fn resolve_relative_path_for_os(
+    raw_bytes: &[u8],
+    origin_is_windows: bool,
+) -> Result<PathBuf> {
     #[cfg(unix)]
     {
         use std::ffi::OsStr;
@@ -237,8 +271,14 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;
-        let bytes: Vec<u8> = raw_bytes.iter().map(|byte| if *byte == b'/' { b'\\' } else { *byte }).collect();
-        let normalized = ctb_formats_dcstring::dc_mixed_serde::path_from_native_bytes(&bytes)?;
+        let bytes: Vec<u8> = raw_bytes
+            .iter()
+            .map(|byte| if *byte == b'/' { b'\\' } else { *byte })
+            .collect();
+        let normalized =
+            ctb_formats_dcstring::dc_mixed_serde::path_from_native_bytes(
+                &bytes,
+            )?;
         for component in normalized.components() {
             match component {
                 std::path::Component::Normal(name) => {
@@ -250,7 +290,10 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
                     );
                 }
                 std::path::Component::Prefix(_) => {
-                    anyhow::ensure!(origin_is_windows, "A non-Windows source path contains a Windows path prefix");
+                    anyhow::ensure!(
+                        origin_is_windows,
+                        "A non-Windows source path contains a Windows path prefix"
+                    );
                 }
                 _ => {}
             }
@@ -285,10 +328,11 @@ pub fn resolve_relative_path_for_materialization(
 
     match resolve_relative_path_for_os(raw_bytes, origin_is_windows) {
         Ok(path) => {
-            let (adapted, warnings) = crate::clean_name::adapt_relative_path_for_materialization(
-                &path,
-                cfg!(windows),
-            );
+            let (adapted, warnings) =
+                crate::clean_name::adapt_relative_path_for_materialization(
+                    &path,
+                    cfg!(windows),
+                );
             for w in &warnings {
                 warn_fmt!("{w}");
             }
@@ -303,7 +347,10 @@ pub fn resolve_relative_path_for_materialization(
             };
             let fallback_path = PathBuf::from(&normalized_sep);
             let (adapted, mut warnings) =
-                crate::clean_name::adapt_relative_path_for_materialization(&fallback_path, true);
+                crate::clean_name::adapt_relative_path_for_materialization(
+                    &fallback_path,
+                    true,
+                );
             if warnings.is_empty() {
                 let msg = format!(
                     "Adapted relative path {:?} -> {:?} for host OS (best-effort: {err})",
@@ -332,8 +379,9 @@ pub fn query_file_identity(path: &Path) -> Result<InodeKey> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        let meta = std::fs::symlink_metadata(path)
-            .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
+        let meta = std::fs::symlink_metadata(path).with_context(|| {
+            format!("Failed to read metadata for {}", path.display())
+        })?;
         Ok(InodeKey {
             device_id: meta.dev(),
             inode: Natural::from(meta.ino()),
@@ -341,8 +389,9 @@ pub fn query_file_identity(path: &Path) -> Result<InodeKey> {
     }
     #[cfg(windows)]
     {
-        let fid = file_id::get_file_id(path)
-            .with_context(|| format!("Failed to read file ID for {}", path.display()))?;
+        let fid = file_id::get_file_id(path).with_context(|| {
+            format!("Failed to read file ID for {}", path.display())
+        })?;
         match fid {
             file_id::FileId::LowRes {
                 volume_serial_number,
@@ -431,7 +480,10 @@ pub fn query_open_file_identity(file: &std::fs::File) -> Result<InodeKey> {
         // 2. Fall back to standard 64-bit file index via GetFileInformationByHandle
         let mut information = BY_HANDLE_FILE_INFORMATION::default();
         // SAFETY: raw_handle is borrowed from a live File, and information is a valid, writable BY_HANDLE_FILE_INFORMATION struct.
-        if unsafe { GetFileInformationByHandle(raw_handle, &raw mut information) } == 0 {
+        if unsafe {
+            GetFileInformationByHandle(raw_handle, &raw mut information)
+        } == 0
+        {
             return Err(std::io::Error::last_os_error())
                 .context("Native open-handle file identity is unsupported or unavailable");
         }
@@ -440,14 +492,16 @@ pub fn query_open_file_identity(file: &std::fs::File) -> Result<InodeKey> {
             "Native open-handle file identity is unsupported: filesystem returned no file index"
         );
         let volume = u64::from(information.dwVolumeSerialNumber);
-        let file_index =
-            (u128::from(information.nFileIndexHigh) << 32) | u128::from(information.nFileIndexLow);
+        let file_index = (u128::from(information.nFileIndexHigh) << 32)
+            | u128::from(information.nFileIndexLow);
         Ok(InodeKey::from_file_id_128(volume, file_index))
     }
     #[cfg(not(any(unix, windows)))]
     {
         let _ = file;
-        anyhow::bail!("query_open_file_identity is not supported on this platform");
+        anyhow::bail!(
+            "query_open_file_identity is not supported on this platform"
+        );
     }
 }
 
@@ -461,7 +515,9 @@ pub fn query_open_file_identity(file: &std::fs::File) -> Result<InodeKey> {
         reason = "GetFileType queries the handle classification of a live File handle"
     )
 )]
-pub fn try_query_open_file_identity(file: &std::fs::File) -> Result<Option<InodeKey>> {
+pub fn try_query_open_file_identity(
+    file: &std::fs::File,
+) -> Result<Option<InodeKey>> {
     #[cfg(unix)]
     {
         query_open_file_identity(file).map(Some)
@@ -469,7 +525,9 @@ pub fn try_query_open_file_identity(file: &std::fs::File) -> Result<Option<Inode
     #[cfg(windows)]
     {
         use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::Storage::FileSystem::{FILE_TYPE_DISK, GetFileType};
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_TYPE_DISK, GetFileType,
+        };
 
         let raw_handle = file.as_raw_handle();
         // SAFETY: raw_handle is borrowed from a live File.
@@ -499,7 +557,9 @@ pub fn try_query_open_file_path(file: &std::fs::File) -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {
         use std::os::fd::AsRawFd;
-        let link = std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd())).ok()?;
+        let link =
+            std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd()))
+                .ok()?;
         if link.is_absolute() && link.exists() {
             Some(link)
         } else {
@@ -511,7 +571,8 @@ pub fn try_query_open_file_path(file: &std::fs::File) -> Option<PathBuf> {
         use std::os::windows::ffi::OsStringExt;
         use std::os::windows::io::AsRawHandle;
         use windows_sys::Win32::Storage::FileSystem::{
-            FILE_NAME_NORMALIZED, FILE_TYPE_DISK, GetFileType, GetFinalPathNameByHandleW,
+            FILE_NAME_NORMALIZED, FILE_TYPE_DISK, GetFileType,
+            GetFinalPathNameByHandleW,
         };
 
         let raw_handle = file.as_raw_handle();
@@ -566,7 +627,9 @@ pub fn extract_file_identity(path: &Path, meta: &Metadata) -> Result<InodeKey> {
     #[cfg(not(any(unix, windows)))]
     {
         let _ = (path, meta);
-        anyhow::bail!("extract_file_identity is not supported on this platform");
+        anyhow::bail!(
+            "extract_file_identity is not supported on this platform"
+        );
     }
 }
 
@@ -586,7 +649,9 @@ pub fn extract_device_id_for_path(path: &Path, meta: &Metadata) -> Result<u64> {
     #[cfg(not(any(unix, windows)))]
     {
         let _ = (path, meta);
-        anyhow::bail!("extract_device_id_for_path is not supported on this platform");
+        anyhow::bail!(
+            "extract_device_id_for_path is not supported on this platform"
+        );
     }
 }
 
@@ -609,8 +674,13 @@ mod tests {
         let identity = crate::FileEntity::from_vec(Vec::new()).identity;
         for field in ["raw_relative_path", "raw_filename"] {
             let mut value = serde_json::to_value(&identity)?;
-            let object = value.as_object_mut().context("Identity must serialize as a JSON object")?;
-            object.insert(field.to_owned(), serde_json::Value::String("different".to_owned()));
+            let object = value
+                .as_object_mut()
+                .context("Identity must serialize as a JSON object")?;
+            object.insert(
+                field.to_owned(),
+                serde_json::Value::String("different".to_owned()),
+            );
             let error = serde_json::from_value::<FileIdentity>(value)
                 .expect_err("Removed identity representations must not be silently discarded");
             assert!(error.to_string().contains(field));
@@ -622,7 +692,11 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_identity_paths_dc_roundtrip() -> Result<()> {
-        let samples = [None, Some(PathBuf::new()), Some(PathBuf::from("logical/name.txt"))];
+        let samples = [
+            None,
+            Some(PathBuf::new()),
+            Some(PathBuf::from("logical/name.txt")),
+        ];
         for relative_path in &samples {
             for enclosing_path in &samples {
                 let identity = FileIdentity {
@@ -657,7 +731,9 @@ mod tests {
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(320));
         assert!(
             encoded
-                .decode::<FileIdentity>(&ctb_formats_dcstring::DcProjectionPolicy::strict())
+                .decode::<FileIdentity>(
+                    &ctb_formats_dcstring::DcProjectionPolicy::strict()
+                )
                 .is_err()
         );
         let decoded = encoded.decode::<FileIdentity>(
@@ -681,12 +757,15 @@ mod tests {
         let name = std::ffi::OsString::from("native-name");
         let path = temp.path().join(&name);
         std::fs::write(&path, b"payload")?;
-        let entity = crate::FileEntity::from_filesystem(&path, Some(temp.path()))?;
-        assert_eq!(entity.identity.filename_bytes(), Some(name.as_encoded_bytes()));
+        let entity =
+            crate::FileEntity::from_filesystem(&path, Some(temp.path()))?;
+        assert_eq!(
+            entity.identity.filename_bytes(),
+            Some(name.as_encoded_bytes())
+        );
         assert!(entity.identity.path_bytes().is_some());
         ctb_formats_dcstring::assert_dc_roundtrip(&entity.identity)?;
         ctb_formats_dcstring::assert_dc_roundtrip(&entity)?;
         Ok(())
     }
 }
-

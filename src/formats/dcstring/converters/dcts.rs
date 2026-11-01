@@ -48,10 +48,10 @@ use super::dctext::{
     DcList, dcarray_to_dclist, dclist_to_dcarray, dclist_to_dcutf,
     dctf_to_dclist, dcutf_to_dclist,
 };
+use crate::DcString;
 use crate::dc_char::DcChar;
 use crate::dc_number::{integer_to_dc_number_global, read_dc_number_global};
 use crate::dc_str::DcStr;
-use crate::DcString;
 
 /// Parses a Dcts document (`&[u8]`) directly into a `DcString`.
 ///
@@ -83,7 +83,8 @@ pub fn dcts_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
             if let Some(rest) = slice.get(1..) {
                 if let Some(end_rel) = rest.iter().position(|&b| b == b'@') {
                     if let Some(token_bytes) = rest.get(..end_rel) {
-                        if let Ok(token_str) = std::str::from_utf8(token_bytes) {
+                        if let Ok(token_str) = std::str::from_utf8(token_bytes)
+                        {
                             if token_str.is_empty() {
                                 // @@ token represents @ (codepoint 64)
                                 dc_string.push(DcChar(64u128));
@@ -91,13 +92,19 @@ pub fn dcts_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
                                 continue;
                             }
 
-                            if let Ok(shorthand) = DcShorthand::parse(token_str) {
+                            if let Ok(shorthand) = DcShorthand::parse(token_str)
+                            {
                                 match shorthand {
                                     DcShorthand::Local(int_val) => {
-                                        let malachite_val = malachite::Integer::from(int_val);
-                                        match integer_to_dc_number_global(&malachite_val) {
+                                        let malachite_val =
+                                            malachite::Integer::from(int_val);
+                                        match integer_to_dc_number_global(
+                                            &malachite_val,
+                                        ) {
                                             Ok(dc_num_gids) => {
-                                                dc_string.push(DcChar(1_114_408u128));
+                                                dc_string.push(DcChar(
+                                                    1_114_408u128,
+                                                ));
                                                 for gid in dc_num_gids {
                                                     dc_string.push(DcChar(gid));
                                                 }
@@ -168,7 +175,9 @@ pub fn dcstring_to_dcts(s: &DcStr) -> Vec<u8> {
 }
 
 /// Converts a Dcts document to `DcMstring`.
-pub fn dcts_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn dcts_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     dcts_to_dcmstring_with_options(bytes, false)
 }
 
@@ -179,19 +188,25 @@ pub fn dcts_to_dcmstring_with_options(
 ) -> Result<(crate::DcMstring, FormatLog)> {
     let conv = dcts_to_dcstring(bytes)?;
     if !permissive && conv.log.has_errors() {
-        bail!("Invalid Dcts token(s): {}", conv.log.get_errors().join("; "));
+        bail!(
+            "Invalid Dcts token(s): {}",
+            conv.log.get_errors().join("; ")
+        );
     }
     let policy = if permissive {
         crate::DcProjectionPolicy::forgiving()
     } else {
         crate::DcProjectionPolicy::strict()
     };
-    let doc = crate::DcMstring::from_dc_string_with_policy(&conv.result, &policy)?;
+    let doc =
+        crate::DcMstring::from_dc_string_with_policy(&conv.result, &policy)?;
     Ok((doc, conv.log))
 }
 
 /// Converts a `DcMstring` to Dcts bytes.
-pub fn dcmstring_to_dcts(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_dcts(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     let bytes = dcstring_to_dcts(&dc_string);
     Ok((bytes, FormatLog::default()))
@@ -235,9 +250,7 @@ pub fn dcutf_to_dcts(document: Vec<u8>) -> Vec<u8> {
 ///
 /// # Errors
 /// Returns an error if the array cannot be converted.
-pub fn dcarray_to_dcts(
-    dc_array: &[u32],
-) -> Result<ConversionOutput<Vec<u8>>> {
+pub fn dcarray_to_dcts(dc_array: &[u32]) -> Result<ConversionOutput<Vec<u8>>> {
     let conv = dcarray_to_dclist(dc_array)?;
     let text_bytes = dclist_to_dcts(&conv.result);
     Ok(ConversionOutput::new(text_bytes, conv.log))
@@ -247,9 +260,7 @@ pub fn dcarray_to_dcts(
 ///
 /// # Errors
 /// Returns an error if the document cannot be converted.
-pub fn dcts_to_dcarray(
-    document: &[u8],
-) -> Result<ConversionOutput<Vec<u32>>> {
+pub fn dcts_to_dcarray(document: &[u8]) -> Result<ConversionOutput<Vec<u32>>> {
     let conv = dcts_to_dcstring(document)?;
     let array_conv = dclist_to_dcarray(&conv.result.to_dclist())?;
     let mut total_log = conv.log;

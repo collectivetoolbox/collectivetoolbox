@@ -26,8 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::*;
 
+use anyhow::{Result, anyhow, bail};
 use std::fmt;
-use anyhow::{anyhow, bail, Result};
 
 pub const SHORT_DC_REGION_START: u128 = 1_114_112;
 pub const SHORT_DC_REGION_END: u128 = 2_228_223;
@@ -87,8 +87,9 @@ impl DcChar {
     pub fn to_short(self) -> Result<u32> {
         if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&self.0) {
             let diff = self.0.saturating_sub(SHORT_DC_REGION_START);
-            u32::try_from(diff)
-                .map_err(|e| anyhow!("Failed to convert short Dc offset to u32: {e}"))
+            u32::try_from(diff).map_err(|e| {
+                anyhow!("Failed to convert short Dc offset to u32: {e}")
+            })
         } else {
             bail!(
                 "DcChar(0x{:X}) is not in short Document Character range ({SHORT_DC_REGION_START}..={SHORT_DC_REGION_END})",
@@ -117,8 +118,9 @@ impl DcChar {
     pub fn to_format(self) -> Result<u32> {
         if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&self.0) {
             let diff = self.0.saturating_sub(FORMAT_REGION_START);
-            u32::try_from(diff)
-                .map_err(|e| anyhow!("Failed to convert format offset to u32: {e}"))
+            u32::try_from(diff).map_err(|e| {
+                anyhow!("Failed to convert format offset to u32: {e}")
+            })
         } else {
             bail!(
                 "DcChar(0x{:X}) is not in Format region ({FORMAT_REGION_START}..={FORMAT_REGION_END})",
@@ -145,7 +147,9 @@ impl DcChar {
             ]);
             Ok(Self(id))
         } else {
-            bail!("Codepoint 0x{cp:X} exceeds maximum Unicode range (0..=0x10FFFF)")
+            bail!(
+                "Codepoint 0x{cp:X} exceeds maximum Unicode range (0..=0x10FFFF)"
+            )
         }
     }
 
@@ -155,8 +159,9 @@ impl DcChar {
     /// Returns an error if this character exceeds `0x10_FFFF`.
     pub fn to_unicode(self) -> Result<u32> {
         if self.0 <= 0x10_FFFF {
-            u32::try_from(self.0)
-                .map_err(|e| anyhow!("Failed to convert Unicode codepoint to u32: {e}"))
+            u32::try_from(self.0).map_err(|e| {
+                anyhow!("Failed to convert Unicode codepoint to u32: {e}")
+            })
         } else {
             bail!(
                 "DcChar(0x{:X}) is not a Unicode codepoint (0..=0x10FFFF)",

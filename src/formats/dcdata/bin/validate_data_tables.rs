@@ -122,9 +122,7 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             Err(e) => {
-                eprintln!(
-                    "Error planning CSV reconciliation manifest: {e:#}"
-                );
+                eprintln!("Error planning CSV reconciliation manifest: {e:#}");
                 return ExitCode::FAILURE;
             }
         }
@@ -281,7 +279,9 @@ fn main() -> ExitCode {
     match ctb_formats_dcdata::updater::generate_format_id_file(&repo_root) {
         Ok(updated) => {
             if updated {
-                println!("Successfully updated format_id.generated.rs from system graph.");
+                println!(
+                    "Successfully updated format_id.generated.rs from system graph."
+                );
             }
         }
         Err(e) => {
@@ -293,7 +293,9 @@ fn main() -> ExitCode {
     match ctb_build_support::dc_codegen::generate_dc_file(&repo_root) {
         Ok(updated) => {
             if updated {
-                println!("Successfully updated dcdata/dc.generated.rs from system graph.");
+                println!(
+                    "Successfully updated dcdata/dc.generated.rs from system graph."
+                );
             }
         }
         Err(e) => {
@@ -305,7 +307,9 @@ fn main() -> ExitCode {
     match ctb_build_support::dc_codegen::generate_role_file(&repo_root) {
         Ok(updated) => {
             if updated {
-                println!("Successfully updated dcdata/syntax/role.generated.rs from system graph.");
+                println!(
+                    "Successfully updated dcdata/syntax/role.generated.rs from system graph."
+                );
             }
         }
         Err(e) => {
@@ -314,10 +318,14 @@ fn main() -> ExitCode {
         }
     }
 
-    match ctb_build_support::extension_codegen::generate_extension_data_file(&repo_root) {
+    match ctb_build_support::extension_codegen::generate_extension_data_file(
+        &repo_root,
+    ) {
         Ok(updated) => {
             if updated {
-                println!("Successfully updated extension_data.generated.rs from system graph.");
+                println!(
+                    "Successfully updated extension_data.generated.rs from system graph."
+                );
             }
         }
         Err(e) => {
@@ -326,10 +334,14 @@ fn main() -> ExitCode {
         }
     }
 
-    match ctb_build_support::encoding_codegen::generate_encoding_file(&repo_root) {
+    match ctb_build_support::encoding_codegen::generate_encoding_file(
+        &repo_root,
+    ) {
         Ok(updated) => {
             if updated {
-                println!("Successfully updated encoding.generated.rs from system graph.");
+                println!(
+                    "Successfully updated encoding.generated.rs from system graph."
+                );
             }
         }
         Err(e) => {
@@ -358,8 +370,12 @@ fn main() -> ExitCode {
             archive_source: false,
             write_debug_stubs: true,
         };
-        if let Err(e) = ctb_build_support::asset_packer::prepare_assets(&repo_root, &options) {
-            eprintln!("Error repacking runtime resource bundles (built/ctoolbox.rsrc): {e}");
+        if let Err(e) = ctb_build_support::asset_packer::prepare_assets(
+            &repo_root, &options,
+        ) {
+            eprintln!(
+                "Error repacking runtime resource bundles (built/ctoolbox.rsrc): {e}"
+            );
             return ExitCode::FAILURE;
         }
     }

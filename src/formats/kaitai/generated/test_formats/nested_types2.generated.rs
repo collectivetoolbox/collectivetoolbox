@@ -101,7 +101,11 @@ impl KStruct for NestedTypes2 {
     type Root = NestedTypes2;
     type Parent = NestedTypes2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,18 +117,27 @@ impl KStruct for NestedTypes2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, NestedTypes2_SubtypeA>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeA>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes2_SubtypeB>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeB>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.two.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedTypes2 {
-}
+impl NestedTypes2 {}
 impl NestedTypes2 {
     pub fn one(&self) -> Ref<'_, OptRc<NestedTypes2_SubtypeA>> {
         self.one.borrow()
@@ -193,7 +206,11 @@ impl KStruct for NestedTypes2_SubtypeA {
     type Root = NestedTypes2;
     type Parent = NestedTypes2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -205,33 +222,51 @@ impl KStruct for NestedTypes2_SubtypeA {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, NestedTypes2_SubtypeB>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeB>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.typed_at_root.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeC>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeC>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.typed_here1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeCc>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeCc>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.typed_here2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedTypes2_SubtypeA {
-}
+impl NestedTypes2_SubtypeA {}
 impl NestedTypes2_SubtypeA {
     pub fn typed_at_root(&self) -> Ref<'_, OptRc<NestedTypes2_SubtypeB>> {
         self.typed_at_root.borrow()
     }
 }
 impl NestedTypes2_SubtypeA {
-    pub fn typed_here1(&self) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeC>> {
+    pub fn typed_here1(
+        &self,
+    ) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeC>> {
         self.typed_here1.borrow()
     }
 }
 impl NestedTypes2_SubtypeA {
-    pub fn typed_here2(&self) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeCc>> {
+    pub fn typed_here2(
+        &self,
+    ) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeCc>> {
         self.typed_here2.borrow()
     }
 }
@@ -258,35 +293,59 @@ pub struct NestedTypes2_SubtypeA_SubtypeC {
     typed_root: RefCell<OptRc<NestedTypes2_SubtypeB>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&NestedTypes2_SubtypeA_SubtypeC> for OptRc<NestedTypes2_SubtypeA_SubtypeC> {
+impl TryFrom<&NestedTypes2_SubtypeA_SubtypeC>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeC>
+{
     type Error = KError;
-    fn try_from(v: &NestedTypes2_SubtypeA_SubtypeC) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &NestedTypes2_SubtypeA_SubtypeC,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeC> for OptRc<NestedTypes2_SubtypeA_SubtypeC> {
+impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeC>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeC>
+{
     type Error = KError;
-    fn try_from(v: &&NestedTypes2_SubtypeA_SubtypeC) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&NestedTypes2_SubtypeA_SubtypeC,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for NestedTypes2_SubtypeA_SubtypeC {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC>
+    for NestedTypes2_SubtypeA_SubtypeC
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for &NestedTypes2_SubtypeA_SubtypeC {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC>
+    for &NestedTypes2_SubtypeA_SubtypeC
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for OptRc<NestedTypes2_SubtypeA_SubtypeC> {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeC>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for &OptRc<NestedTypes2_SubtypeA_SubtypeC> {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC>
+    for &OptRc<NestedTypes2_SubtypeA_SubtypeC>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
         Ok((*self).clone())
     }
 }
@@ -294,7 +353,11 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeC {
     type Root = NestedTypes2;
     type Parent = NestedTypes2_SubtypeA;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -308,33 +371,51 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeC {
         let _io = io;
         *self_rc.value_c.borrow_mut() = _io.read_s1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeC_SubtypeD>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeC_SubtypeD>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.typed_here.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeCc>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeA_SubtypeCc>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.typed_parent.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedTypes2_SubtypeB>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, NestedTypes2_SubtypeB>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            None,
+        )?
+        .into();
         *self_rc.typed_root.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedTypes2_SubtypeA_SubtypeC {
-}
+impl NestedTypes2_SubtypeA_SubtypeC {}
 impl NestedTypes2_SubtypeA_SubtypeC {
     pub fn value_c(&self) -> Ref<'_, i8> {
         self.value_c.borrow()
     }
 }
 impl NestedTypes2_SubtypeA_SubtypeC {
-    pub fn typed_here(&self) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>> {
+    pub fn typed_here(
+        &self,
+    ) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>> {
         self.typed_here.borrow()
     }
 }
 impl NestedTypes2_SubtypeA_SubtypeC {
-    pub fn typed_parent(&self) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeCc>> {
+    pub fn typed_parent(
+        &self,
+    ) -> Ref<'_, OptRc<NestedTypes2_SubtypeA_SubtypeCc>> {
         self.typed_parent.borrow()
     }
 }
@@ -363,35 +444,59 @@ pub struct NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
     value_d: RefCell<i8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
+impl TryFrom<&NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+{
     type Error = KError;
-    fn try_from(v: &NestedTypes2_SubtypeA_SubtypeC_SubtypeD) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &NestedTypes2_SubtypeA_SubtypeC_SubtypeD,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
+impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+{
     type Error = KError;
-    fn try_from(v: &&NestedTypes2_SubtypeA_SubtypeC_SubtypeD) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&NestedTypes2_SubtypeA_SubtypeC_SubtypeD,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+    for NestedTypes2_SubtypeA_SubtypeC_SubtypeD
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for &NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+    for &NestedTypes2_SubtypeA_SubtypeC_SubtypeD
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for &OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+    for &OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
         Ok((*self).clone())
     }
 }
@@ -399,7 +504,11 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
     type Root = NestedTypes2;
     type Parent = NestedTypes2_SubtypeA_SubtypeC;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -417,8 +526,7 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
         Ok(())
     }
 }
-impl NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
-}
+impl NestedTypes2_SubtypeA_SubtypeC_SubtypeD {}
 impl NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
     pub fn value_d(&self) -> Ref<'_, i8> {
         self.value_d.borrow()
@@ -444,35 +552,59 @@ pub struct NestedTypes2_SubtypeA_SubtypeCc {
     value_cc: RefCell<i8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&NestedTypes2_SubtypeA_SubtypeCc> for OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
+impl TryFrom<&NestedTypes2_SubtypeA_SubtypeCc>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeCc>
+{
     type Error = KError;
-    fn try_from(v: &NestedTypes2_SubtypeA_SubtypeCc) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &NestedTypes2_SubtypeA_SubtypeCc,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeCc> for OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
+impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeCc>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeCc>
+{
     type Error = KError;
-    fn try_from(v: &&NestedTypes2_SubtypeA_SubtypeCc) -> Result<Self, Self::Error> {
+    fn try_from(
+        v: &&NestedTypes2_SubtypeA_SubtypeCc,
+    ) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for NestedTypes2_SubtypeA_SubtypeCc {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc>
+    for NestedTypes2_SubtypeA_SubtypeCc
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for &NestedTypes2_SubtypeA_SubtypeCc {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc>
+    for &NestedTypes2_SubtypeA_SubtypeCc
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc>
+    for OptRc<NestedTypes2_SubtypeA_SubtypeCc>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for &OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
-    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc>
+    for &OptRc<NestedTypes2_SubtypeA_SubtypeCc>
+{
+    fn downcast_optrc(
+        &self,
+    ) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
         Ok((*self).clone())
     }
 }
@@ -480,7 +612,11 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeCc {
     type Root = NestedTypes2;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -498,8 +634,7 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeCc {
         Ok(())
     }
 }
-impl NestedTypes2_SubtypeA_SubtypeCc {
-}
+impl NestedTypes2_SubtypeA_SubtypeCc {}
 impl NestedTypes2_SubtypeA_SubtypeCc {
     pub fn value_cc(&self) -> Ref<'_, i8> {
         self.value_cc.borrow()
@@ -561,7 +696,11 @@ impl KStruct for NestedTypes2_SubtypeB {
     type Root = NestedTypes2;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -579,8 +718,7 @@ impl KStruct for NestedTypes2_SubtypeB {
         Ok(())
     }
 }
-impl NestedTypes2_SubtypeB {
-}
+impl NestedTypes2_SubtypeB {}
 impl NestedTypes2_SubtypeB {
     pub fn value_b(&self) -> Ref<'_, i8> {
         self.value_b.borrow()

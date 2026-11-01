@@ -78,7 +78,8 @@ pub fn check_deny_table(
         _ => {
             violations.push(DenyConfigViolation {
                 file: file_path.to_path_buf(),
-                message: "expected [advisories].ignore to be an array".to_string(),
+                message: "expected [advisories].ignore to be an array"
+                    .to_string(),
             });
         }
     }
@@ -87,7 +88,9 @@ pub fn check_deny_table(
 }
 
 /// Parses and validates `deny.toml` at `workspace_root.join("deny.toml")`.
-pub fn check_deny_toml(workspace_root: &Path) -> Result<Vec<DenyConfigViolation>> {
+pub fn check_deny_toml(
+    workspace_root: &Path,
+) -> Result<Vec<DenyConfigViolation>> {
     let deny_path = workspace_root.join("deny.toml");
     if !deny_path.is_file() {
         return Ok(vec![DenyConfigViolation {
@@ -189,7 +192,11 @@ ignore = "RUSTSEC-2026-0001"
         let table: Table = toml_content.parse().unwrap();
         let violations = check_deny_table(&table, Path::new("deny.toml"));
         assert_eq!(violations.len(), 1);
-        assert!(violations[0].message.contains("expected [advisories].ignore to be an array"));
+        assert!(
+            violations[0]
+                .message
+                .contains("expected [advisories].ignore to be an array")
+        );
     }
 
     #[test]

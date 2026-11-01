@@ -20,40 +20,36 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Comprehensive table validators and facet splitters for Document Characters (Dcs),
 //! Formats, and Global Graph Layout datasets.
 
+#[cfg(test)]
+pub(crate) use ctb_build_support::{dc_codegen, find_repository_root_from};
+pub(crate) use ctb_build_support::{fs2, sha2};
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
-pub(crate) use ctb_build_support::{
-    fs2, sha2,
-};
-#[cfg(test)]
-pub(crate) use ctb_build_support::{
-    dc_codegen, find_repository_root_from,
-};
 
 pub use crate as ctb_formats_dc_data;
 
+pub mod column_spec;
+#[path = "../../build_support/ctbnbdl.rs"]
+pub mod ctbnbdl;
 #[path = "dc.generated.rs"]
 pub mod dc;
 pub mod dc_char;
 pub mod dc_def;
+pub mod dc_number_minimal;
+pub mod dcts;
 pub mod format;
+pub mod format_spec;
+pub mod graph_ledger;
 pub mod layout;
 pub mod lookup;
 pub mod report;
-pub mod shared;
-pub mod column_spec;
-pub mod dc_number_minimal;
-pub mod format_spec;
-pub mod syntax;
-pub mod dcts;
-#[path = "../../build_support/ctbnbdl.rs"]
-pub mod ctbnbdl;
-pub mod graph_ledger;
 pub mod seed_graph;
+pub mod shared;
+pub mod syntax;
 pub mod updater;
 pub mod validation;
 
@@ -73,7 +69,7 @@ pub use dcts::{
     dclist_to_dcts_with_options,
 };
 
-pub use dc_char::{DcChar, DcCharExt, is_type_token};
+pub use ctb_formats_unicode::describe_general_category;
 pub use ctb_utilities::DC_INTEGER;
 pub use dc::{
     DC_ASSIGN, DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START,
@@ -82,38 +78,38 @@ pub use dc::{
     DC_BEGIN_DATE_MAGNITUDE, DC_BEGIN_ENVIRONMENT_DESCRIPTION,
     DC_BEGIN_ERROR_RECORD, DC_BEGIN_FILE_FLAGS_DESCRIPTION,
     DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_IDENTIFIER, DC_BEGIN_KV_MAP,
-    DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST,
-    DC_BEGIN_LITERAL, DC_BEGIN_NUMBER, DC_BEGIN_OPERATION_SESSION,
-    DC_BEGIN_PARAMETER, DC_BEGIN_SINGLE_LINE_COMMENT,
-    DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_TIME_MOMENT,
-    DC_BEGIN_TYPE_DEF, DC_BEGIN_WARNING_RECORD, DC_BOOLEAN_FALSE,
-    DC_BOOLEAN_TRUE, DC_DESTINATION_PATH, DC_END_BLOCK_COMMENT,
-    DC_END_CHECKSUMMED_SECTION, DC_END_DATE_DURATION, DC_END_DATE_MAGNITUDE,
-    DC_END_ENCAPSULATION_BINARY, DC_END_ENCAPSULATION_UTF8,
-    DC_END_ENVIRONMENT_DESCRIPTION, DC_END_ERROR_RECORD,
-    DC_END_FILE_FLAGS_DESCRIPTION, DC_END_FORMAT_REPRESENTATION,
-    DC_END_IDENTIFIER, DC_END_KV_MAP, DC_END_KV_PAIR,
-    DC_END_LEGACY_KV_MAP, DC_END_LIST, DC_END_LITERAL, DC_END_NUMBER,
-    DC_END_OPERATION_SESSION, DC_END_PARAMETER, DC_END_SINGLE_LINE_COMMENT,
-    DC_END_TIME_MOMENT, DC_END_TYPE_DEF, DC_END_WARNING_RECORD,
-    DC_ENTER_IDENTIFIER_SCOPE, DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE,
-    DC_EXIT_IDENTIFIER_SCOPE, DC_FILE_PATH_DELIMITER,
-    DC_FORMAT_PARAM_APPLICATION, DC_LANG_ASSIGN, DC_LANG_SAY,
-    DC_LIST_ELEMENT_SEPARATOR, DC_LOG_MESSAGE, DC_LONG_DC, DC_NEGATIVE,
-    DC_OPERATION_COMPLETED, DC_OPERATION_STATUS_CODE, DC_OPTIONAL_ABSENT,
-    DC_OPTIONAL_PRESENT,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_POSITIVE,
-    DC_RAW_FILE_FLAGS, DC_REFERENCE_BOUND_VALUE,
-    DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT_UNAVAIL_DC,
-    DC_REPLACEMENT_UNAVAIL_UNICODE, DC_ROUTINE_INVOCATION,
-    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_SOURCE_PATH,
-    DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8,
-    DC_TRACE_IDENTIFIER, DC_TYPE_ANY, DC_TYPE_CONVERSION,
-    DC_TYPE_INTERSECTION, DC_TYPE_NUMBER, DC_TYPE_ROUTINE,
-    DC_TYPE_ROUTINE_NAME, DC_TYPE_STRING, DC_TYPE_TRANSFORMATION,
-    DC_TYPE_TRANSMUTATION, DC_TYPE_UNION, SHORT_DC_REGION_END,
-    SHORT_DC_REGION_START, long_to_short_dc, short_to_long_dc,
+    DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BEGIN_LITERAL,
+    DC_BEGIN_NUMBER, DC_BEGIN_OPERATION_SESSION, DC_BEGIN_PARAMETER,
+    DC_BEGIN_SINGLE_LINE_COMMENT, DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE,
+    DC_BEGIN_TIME_MOMENT, DC_BEGIN_TYPE_DEF, DC_BEGIN_WARNING_RECORD,
+    DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_DESTINATION_PATH,
+    DC_END_BLOCK_COMMENT, DC_END_CHECKSUMMED_SECTION, DC_END_DATE_DURATION,
+    DC_END_DATE_MAGNITUDE, DC_END_ENCAPSULATION_BINARY,
+    DC_END_ENCAPSULATION_UTF8, DC_END_ENVIRONMENT_DESCRIPTION,
+    DC_END_ERROR_RECORD, DC_END_FILE_FLAGS_DESCRIPTION,
+    DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER, DC_END_KV_MAP,
+    DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP, DC_END_LIST, DC_END_LITERAL,
+    DC_END_NUMBER, DC_END_OPERATION_SESSION, DC_END_PARAMETER,
+    DC_END_SINGLE_LINE_COMMENT, DC_END_TIME_MOMENT, DC_END_TYPE_DEF,
+    DC_END_WARNING_RECORD, DC_ENTER_IDENTIFIER_SCOPE,
+    DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE, DC_EXIT_IDENTIFIER_SCOPE,
+    DC_FILE_PATH_DELIMITER, DC_FORMAT_PARAM_APPLICATION, DC_LANG_ASSIGN,
+    DC_LANG_SAY, DC_LIST_ELEMENT_SEPARATOR, DC_LOG_MESSAGE, DC_LONG_DC,
+    DC_NEGATIVE, DC_OPERATION_COMPLETED, DC_OPERATION_STATUS_CODE,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
+    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_POSITIVE, DC_RAW_FILE_FLAGS,
+    DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT,
+    DC_REPLACEMENT_UNAVAIL_DC, DC_REPLACEMENT_UNAVAIL_UNICODE,
+    DC_ROUTINE_INVOCATION, DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
+    DC_SOURCE_PATH, DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8,
+    DC_TRACE_IDENTIFIER, DC_TYPE_ANY, DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION,
+    DC_TYPE_NUMBER, DC_TYPE_ROUTINE, DC_TYPE_ROUTINE_NAME, DC_TYPE_STRING,
+    DC_TYPE_TRANSFORMATION, DC_TYPE_TRANSMUTATION, DC_TYPE_UNION,
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START, long_to_short_dc,
+    short_to_long_dc,
 };
+pub use dc_char::{DcChar, DcCharExt, is_type_token};
+pub use dc_def::{DcDefn, FormatDetails};
 pub use dc_number_minimal::{
     dc_base64_char_to_digit, dc_base64_char_to_digit_with_resolver,
     dc_base64_digit_to_char, is_dc_base64_encapsulation_char,
@@ -121,11 +117,16 @@ pub use dc_number_minimal::{
     read_dc_number_u128_with_resolver, u128_to_dc_number_chars,
     u128_to_dc_number_short,
 };
-pub use dc_def::{DcDefn, FormatDetails};
 pub use format::{
-    FORMAT_REGION_END, FORMAT_REGION_START,
-    validate_all_format_files, validate_all_format_files_from_disk,
-    validate_format_files_data, validate_formats_category_file,
+    FORMAT_REGION_END, FORMAT_REGION_START, validate_all_format_files,
+    validate_all_format_files_from_disk, validate_format_files_data,
+    validate_formats_category_file,
+};
+pub use format_spec::{
+    DcToken, FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH,
+    MAX_FORMAT_EXPR_NODES, decode_dc_stream, decode_dc_stream_string,
+    encode_dc_stream, encode_dc_stream_string, format_chain_directive,
+    format_expr, parse_format_expr, validate_format_expr,
 };
 pub use layout::{
     ParsedLayoutRow, UNICODE_REGION_END, UNICODE_REGION_START,
@@ -136,8 +137,11 @@ pub use lookup::{
     get_dc_name, get_eite_dc_data_rows, get_short_dc_defn, get_short_dc_name,
     maximum_known_short_dc,
 };
-pub use ctb_formats_unicode::describe_general_category;
 pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
+pub use seed_graph::{
+    ActivePropertyValue, PRIMARY_SEED_GRAPH_ASSET_KEY, SEED_GRAPH_ASSET_GLOB,
+    SYSTEM_GRAPH_HISTORY_ASSET_GLOB, SeedGraphIndex,
+};
 pub use shared::{
     BidiClass, GeneralCategory, SupportLevel, validate_bidi_class,
     validate_combining_class, validate_cross_table_uniqueness,
@@ -145,26 +149,17 @@ pub use shared::{
     validate_general_category, validate_mime_field, validate_rust_identifier,
     validate_support_level,
 };
-pub use format_spec::{
-    DcToken, FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH,
-    MAX_FORMAT_EXPR_NODES, decode_dc_stream, decode_dc_stream_string,
-    encode_dc_stream, encode_dc_stream_string, format_chain_directive,
-    format_expr, parse_format_expr, validate_format_expr,
-};
 pub use syntax::{
-    ActionArg, CharTarget, DcSyntaxExpr, DcSyntaxRule, Quantifier, SyntaxAction,
-    SyntaxElement, SyntaxPattern, SyntaxTerm, parse_dc_syntax,
+    ActionArg, CharTarget, DcSyntaxExpr, DcSyntaxRule, Quantifier,
+    SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm, parse_dc_syntax,
     parse_target_token, validate_dc_syntax,
 };
 pub use updater::{
     MergedGenerationStats, TableUpdateStats, assign_and_update_dc_categories,
-    assign_and_update_format_categories, check_category_csvs_need_no_id_updates,
-    find_repository_root, generate_merged_csvs, is_empty_row, is_unassigned_id,
-    read_csv_file, write_csv_file,
-};
-pub use seed_graph::{
-    ActivePropertyValue, PRIMARY_SEED_GRAPH_ASSET_KEY, SEED_GRAPH_ASSET_GLOB,
-    SYSTEM_GRAPH_HISTORY_ASSET_GLOB, SeedGraphIndex,
+    assign_and_update_format_categories,
+    check_category_csvs_need_no_id_updates, find_repository_root,
+    generate_merged_csvs, is_empty_row, is_unassigned_id, read_csv_file,
+    write_csv_file,
 };
 pub use validation::{
     parse_dc_aliases_column, split_dc_aliases_column, validate_all_data_tables,
@@ -252,4 +247,3 @@ pub fn get_droid_container_signature_xml() -> Option<&'static [u8]> {
 pub fn get_droid_signatures_dir() -> Option<&'static Dir<'static>> {
     DC_DATA_DIR.get_dir("droid/signatures")
 }
-

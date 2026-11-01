@@ -61,7 +61,11 @@ pub struct CscArgs {
     pub resume: Option<PathBuf>,
 
     /// Explicit path for the state journal file (.cscjournal).
-    #[arg(long = "journal-path", alias = "journal", value_name = "JOURNAL_PATH")]
+    #[arg(
+        long = "journal-path",
+        alias = "journal",
+        value_name = "JOURNAL_PATH"
+    )]
     pub journal_path: Option<PathBuf>,
 
     /// Directory in which to store state files (default: user's home folder).
@@ -336,12 +340,15 @@ impl CscArgs {
             self.no_read_apple_single,
             &self.read_apple_single_with_extension,
         );
-        opts.read_windows_ads_alongside = self.read_windows_ads && !self.no_read_windows_ads;
+        opts.read_windows_ads_alongside =
+            self.read_windows_ads && !self.no_read_windows_ads;
         opts
     }
 
     /// Resolves AppleSingle / AppleDouble / Windows ADS write mode, ensuring mutual exclusivity.
-    pub fn resolve_apple_write_mode(&self) -> Result<(AppleWriteMode, AppleSingleExtension)> {
+    pub fn resolve_apple_write_mode(
+        &self,
+    ) -> Result<(AppleWriteMode, AppleSingleExtension)> {
         resolve_apple_write_mode_from_flags(
             self.maybe_write_apple_double,
             self.force_write_apple_double,
@@ -427,7 +434,8 @@ impl AppleReadCliArgs {
             self.no_read_apple_single,
             &self.read_apple_single_with_extension,
         );
-        opts.read_windows_ads_alongside = self.read_windows_ads && !self.no_read_windows_ads;
+        opts.read_windows_ads_alongside =
+            self.read_windows_ads && !self.no_read_windows_ads;
         opts
     }
 }
@@ -585,19 +593,23 @@ pub fn resolve_apple_read_options_from_flags(
     no_read_apple_single: bool,
     read_apple_single_with_extension: &[AppleSingleExtension],
 ) -> AppleReadOptions {
-    let mut alongside = read_apple_double_alongside && !no_read_apple_double_alongside;
+    let mut alongside =
+        read_apple_double_alongside && !no_read_apple_double_alongside;
     let mut zip = read_apple_double_zip;
     let mut netatalk = read_apple_double_netatalk;
 
     if let Some(style) = read_apple_double {
         match style {
-            AppleDoubleStyle::Alongside => alongside = !no_read_apple_double_alongside,
+            AppleDoubleStyle::Alongside => {
+                alongside = !no_read_apple_double_alongside
+            }
             AppleDoubleStyle::Zip => zip = true,
             AppleDoubleStyle::Netatalk => netatalk = true,
         }
     }
 
-    let read_single_bare = (read_apple_single || read_apple_single_without_extension)
+    let read_single_bare = (read_apple_single
+        || read_apple_single_without_extension)
         && !no_read_apple_single;
 
     let mut read_as = false;
@@ -706,12 +718,14 @@ impl VerificationCriteriaArgs {
         if self.strict || self.check_atime {
             return false;
         }
-        self.ignore_atime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("atime"))
+        self.ignore_atime
+            || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("atime"))
     }
 
     #[must_use]
     pub fn should_ignore_mtime(&self) -> bool {
-        self.ignore_mtime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("mtime"))
+        self.ignore_mtime
+            || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("mtime"))
     }
 
     #[must_use]
@@ -719,7 +733,8 @@ impl VerificationCriteriaArgs {
         if self.strict || self.check_ctime {
             return false;
         }
-        self.ignore_ctime || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("ctime"))
+        self.ignore_ctime
+            || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("ctime"))
     }
 
     #[must_use]
@@ -744,20 +759,27 @@ impl VerificationCriteriaArgs {
 
     #[must_use]
     pub fn should_ignore_flags(&self) -> bool {
-        self.ignore_flags || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("flags"))
+        self.ignore_flags
+            || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("flags"))
     }
 
     #[must_use]
     pub fn should_ignore_xattrs(&self) -> bool {
         self.ignore_xattrs
             || self.ignore.iter().any(|s| {
-                s.eq_ignore_ascii_case("xattrs") || s.eq_ignore_ascii_case("xattr") || s.eq_ignore_ascii_case("streams")
+                s.eq_ignore_ascii_case("xattrs")
+                    || s.eq_ignore_ascii_case("xattr")
+                    || s.eq_ignore_ascii_case("streams")
             })
     }
 
     #[must_use]
     pub fn should_ignore_untracked(&self) -> bool {
-        self.ignore_untracked || self.ignore.iter().any(|s| s.eq_ignore_ascii_case("untracked") || s.eq_ignore_ascii_case("extra"))
+        self.ignore_untracked
+            || self.ignore.iter().any(|s| {
+                s.eq_ignore_ascii_case("untracked")
+                    || s.eq_ignore_ascii_case("extra")
+            })
     }
 
     #[must_use]
@@ -782,12 +804,16 @@ impl VerificationCriteriaArgs {
 
     /// Converts this set of criteria flags into `EntityAuditOptions`.
     #[must_use]
-    pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
+    pub fn to_audit_options(
+        &self,
+    ) -> ctb_io::file::verifier::EntityAuditOptions {
         ctb_io::file::verifier::EntityAuditOptions {
             ignore_atime: self.should_ignore_atime(),
             ignore_mtime: self.should_ignore_mtime(),
             ignore_ctime: self.should_ignore_ctime(),
-            check_birthtime: self.strict || self.check_birthtime || cfg!(windows),
+            check_birthtime: self.strict
+                || self.check_birthtime
+                || cfg!(windows),
             ignore_owner: self.should_ignore_owner(),
             ignore_perms: self.should_ignore_perms(),
             ignore_flags: self.should_ignore_flags(),
@@ -921,7 +947,9 @@ impl CscVerifyArgs {
 
     /// Converts this set of CLI verification flags into `EntityAuditOptions`.
     #[must_use]
-    pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
+    pub fn to_audit_options(
+        &self,
+    ) -> ctb_io::file::verifier::EntityAuditOptions {
         self.criteria.to_audit_options()
     }
 }
@@ -1045,13 +1073,16 @@ impl CscDiffArgs {
             self.no_read_apple_single,
             &self.read_apple_single_with_extension,
         );
-        opts.read_windows_ads_alongside = self.read_windows_ads && !self.no_read_windows_ads;
+        opts.read_windows_ads_alongside =
+            self.read_windows_ads && !self.no_read_windows_ads;
         opts
     }
 
     /// Converts this set of CLI verification flags into `EntityAuditOptions`.
     #[must_use]
-    pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
+    pub fn to_audit_options(
+        &self,
+    ) -> ctb_io::file::verifier::EntityAuditOptions {
         self.criteria.to_audit_options()
     }
 
@@ -1096,7 +1127,11 @@ pub struct FsindexArgs {
     pub database: Option<PathBuf>,
 
     /// Explicit path for the state journal file (.cscjournal).
-    #[arg(long = "journal-path", alias = "journal", value_name = "JOURNAL_PATH")]
+    #[arg(
+        long = "journal-path",
+        alias = "journal",
+        value_name = "JOURNAL_PATH"
+    )]
     pub journal_path: Option<PathBuf>,
 
     /// Flush deleted files that no longer exist on disk from the database index.
@@ -1218,51 +1253,111 @@ pub struct FsearchArgs {
     pub query: Vec<String>,
 
     /// Regular expression pattern to match against path and filename (shorthand: -rp, --rp). Does not require delimiters.
-    #[arg(long = "regex-path", visible_alias = "rp", alias = "rp", conflicts_with = "query")]
+    #[arg(
+        long = "regex-path",
+        visible_alias = "rp",
+        alias = "rp",
+        conflicts_with = "query"
+    )]
     pub regex_path: Option<String>,
 
     /// Regular expression pattern to match against path, filename, and full text content (shorthand: -rt, --rt). Does not require delimiters.
-    #[arg(long = "regex-text", visible_alias = "rt", alias = "rt", conflicts_with = "query")]
+    #[arg(
+        long = "regex-text",
+        visible_alias = "rt",
+        alias = "rt",
+        conflicts_with = "query"
+    )]
     pub regex_text: Option<String>,
 
     /// Regular expression pattern to match against filename only (shorthand: -rn, --rn). Does not require delimiters.
-    #[arg(long = "regex-name", visible_alias = "rn", alias = "rn", conflicts_with = "query")]
+    #[arg(
+        long = "regex-name",
+        visible_alias = "rn",
+        alias = "rn",
+        conflicts_with = "query"
+    )]
     pub regex_name: Option<String>,
 
     /// Glob pattern to match against relative path and filename (shorthand: -gp, --gp).
-    #[arg(long = "glob-path", visible_alias = "gp", alias = "gp", conflicts_with = "query")]
+    #[arg(
+        long = "glob-path",
+        visible_alias = "gp",
+        alias = "gp",
+        conflicts_with = "query"
+    )]
     pub glob_path: Option<String>,
 
     /// Glob pattern to match against relative path, filename, and full text content (shorthand: -gt, --gt).
-    #[arg(long = "glob-text", visible_alias = "gt", alias = "gt", conflicts_with = "query")]
+    #[arg(
+        long = "glob-text",
+        visible_alias = "gt",
+        alias = "gt",
+        conflicts_with = "query"
+    )]
     pub glob_text: Option<String>,
 
     /// Glob pattern to match against filename only (shorthand: -gn, --gn).
-    #[arg(long = "glob-name", visible_alias = "gn", alias = "gn", conflicts_with = "query")]
+    #[arg(
+        long = "glob-name",
+        visible_alias = "gn",
+        alias = "gn",
+        conflicts_with = "query"
+    )]
     pub glob_name: Option<String>,
 
     /// Keyword match across relative path and filename (shorthand: -kp, --kp).
-    #[arg(long = "keyword-path", visible_alias = "kp", alias = "kp", conflicts_with = "query")]
+    #[arg(
+        long = "keyword-path",
+        visible_alias = "kp",
+        alias = "kp",
+        conflicts_with = "query"
+    )]
     pub keyword_path: Option<String>,
 
     /// Keyword match across relative path, filename, and full text content (shorthand: -kt, --kt).
-    #[arg(long = "keyword-text", visible_alias = "kt", alias = "kt", conflicts_with = "query")]
+    #[arg(
+        long = "keyword-text",
+        visible_alias = "kt",
+        alias = "kt",
+        conflicts_with = "query"
+    )]
     pub keyword_text: Option<String>,
 
     /// Keyword match on filename only (shorthand: -kn, --kn).
-    #[arg(long = "keyword-name", visible_alias = "kn", alias = "kn", conflicts_with = "query")]
+    #[arg(
+        long = "keyword-name",
+        visible_alias = "kn",
+        alias = "kn",
+        conflicts_with = "query"
+    )]
     pub keyword_name: Option<String>,
 
     /// Substring pattern to match against relative path and filename (shorthand: -sp, --sp).
-    #[arg(long = "substring-path", visible_alias = "sp", alias = "sp", conflicts_with = "query")]
+    #[arg(
+        long = "substring-path",
+        visible_alias = "sp",
+        alias = "sp",
+        conflicts_with = "query"
+    )]
     pub substring_path: Option<String>,
 
     /// Substring pattern to match against relative path, filename, and full text content (shorthand: -st, --st).
-    #[arg(long = "substring-text", visible_alias = "st", alias = "st", conflicts_with = "query")]
+    #[arg(
+        long = "substring-text",
+        visible_alias = "st",
+        alias = "st",
+        conflicts_with = "query"
+    )]
     pub substring_text: Option<String>,
 
     /// Substring pattern to match against filename only (shorthand: -sn, --sn).
-    #[arg(long = "substring-name", visible_alias = "sn", alias = "sn", conflicts_with = "query")]
+    #[arg(
+        long = "substring-name",
+        visible_alias = "sn",
+        alias = "sn",
+        conflicts_with = "query"
+    )]
     pub substring_name: Option<String>,
 
     /// Print n lines around first match of full text.
@@ -1365,7 +1460,11 @@ pub struct MvArgs {
     pub resume: Option<PathBuf>,
 
     /// Explicit path for the state journal file (.cscjournal).
-    #[arg(long = "journal-path", alias = "journal", value_name = "JOURNAL_PATH")]
+    #[arg(
+        long = "journal-path",
+        alias = "journal",
+        value_name = "JOURNAL_PATH"
+    )]
     pub journal_path: Option<PathBuf>,
 
     /// Directory in which to store state files when cross-device copy occurs.
@@ -1437,7 +1536,10 @@ impl MvArgs {
     }
 }
 #[cfg(test)]
-pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscArgs {
+pub(crate) fn default_test_args(
+    paths: Vec<PathBuf>,
+    state_dir: PathBuf,
+) -> CscArgs {
     CscArgs {
         paths,
         resume: None,
@@ -1490,7 +1592,10 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
 }
 
 #[cfg(test)]
-pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> CscVerifyArgs {
+pub(crate) fn default_verify_args(
+    manifest: PathBuf,
+    dir: Option<PathBuf>,
+) -> CscVerifyArgs {
     CscVerifyArgs {
         manifest,
         dir,
@@ -1521,7 +1626,10 @@ pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> Cs
 }
 
 #[cfg(test)]
-pub(crate) fn default_diff_args(path_a: PathBuf, path_b: PathBuf) -> CscDiffArgs {
+pub(crate) fn default_diff_args(
+    path_a: PathBuf,
+    path_b: PathBuf,
+) -> CscDiffArgs {
     CscDiffArgs {
         path_a,
         path_b,
@@ -1562,7 +1670,10 @@ pub(crate) fn default_diff_args(path_a: PathBuf, path_b: PathBuf) -> CscDiffArgs
 }
 
 #[cfg(test)]
-pub(crate) fn default_fsindex_args(targets: Vec<PathBuf>, database: Option<PathBuf>) -> crate::args::FsindexArgs {
+pub(crate) fn default_fsindex_args(
+    targets: Vec<PathBuf>,
+    database: Option<PathBuf>,
+) -> crate::args::FsindexArgs {
     crate::args::FsindexArgs {
         targets,
         database,
@@ -1587,7 +1698,9 @@ pub(crate) fn default_fsindex_args(targets: Vec<PathBuf>, database: Option<PathB
 }
 
 #[cfg(test)]
-pub(crate) fn default_fsearch_args(database: PathBuf) -> crate::args::FsearchArgs {
+pub(crate) fn default_fsearch_args(
+    database: PathBuf,
+) -> crate::args::FsearchArgs {
     crate::args::FsearchArgs {
         database,
         query: Vec::new(),
@@ -1638,19 +1751,37 @@ pub(crate) fn default_fsearch_args(database: PathBuf) -> crate::args::FsearchArg
 )]
 mod tests {
     use super::*;
-    use crate::args::{AppleDoubleStyle, CscArgs, CscVerifyArgs, MvArgs, default_test_args};
+    use crate::args::{
+        AppleDoubleStyle, CscArgs, CscVerifyArgs, MvArgs, default_test_args,
+    };
     use crate::cli::run_csc;
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[crate::ctb_test]
     fn test_csc_overwrite_argument() {
         use clap::Parser;
 
-        assert!(!CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap().overwrite);
-        assert!(CscArgs::try_parse_from(["csc", "--overwrite", "src", "dest"]).unwrap().overwrite);
-        assert!(CscArgs::try_parse_from(["csc", "--always-overwrite", "src", "dest"]).is_err());
+        assert!(
+            !CscArgs::try_parse_from(["csc", "src", "dest"])
+                .unwrap()
+                .overwrite
+        );
+        assert!(
+            CscArgs::try_parse_from(["csc", "--overwrite", "src", "dest"])
+                .unwrap()
+                .overwrite
+        );
+        assert!(
+            CscArgs::try_parse_from([
+                "csc",
+                "--always-overwrite",
+                "src",
+                "dest"
+            ])
+            .is_err()
+        );
     }
 
     #[crate::ctb_test]
@@ -1662,11 +1793,18 @@ mod tests {
         fs::write(&test_file, b"data").expect("write test file");
 
         // Verify that matching bytes succeed
-        assert!(verify_filename_exact_bytes(temp.path(), b"original_name.txt").is_ok());
+        assert!(
+            verify_filename_exact_bytes(temp.path(), b"original_name.txt")
+                .is_ok()
+        );
 
         // Verify that altered, stripped, or normalized bytes fail with error
-        let err = verify_filename_exact_bytes(temp.path(), b"Original_Name.txt");
-        assert!(err.is_err(), "Expected error when filename bytes do not match exactly");
+        let err =
+            verify_filename_exact_bytes(temp.path(), b"Original_Name.txt");
+        assert!(
+            err.is_err(),
+            "Expected error when filename bytes do not match exactly"
+        );
     }
 
     #[crate::ctb_test]
@@ -1684,13 +1822,17 @@ mod tests {
         );
 
         // Explicit --progress
-        let args = CscArgs::try_parse_from(["csc", "--progress", "src", "dest"]).unwrap();
+        let args =
+            CscArgs::try_parse_from(["csc", "--progress", "src", "dest"])
+                .unwrap();
         assert!(args.progress);
         assert!(!args.no_progress);
         assert!(args.should_show_progress());
 
         // Explicit --no-progress
-        let args = CscArgs::try_parse_from(["csc", "--no-progress", "src", "dest"]).unwrap();
+        let args =
+            CscArgs::try_parse_from(["csc", "--no-progress", "src", "dest"])
+                .unwrap();
         assert!(!args.progress);
         assert!(args.no_progress);
         assert!(!args.should_show_progress());
@@ -1729,10 +1871,14 @@ mod tests {
             ctb_utilities::cli::is_stderr_interactive()
         );
 
-        let mv_args = MvArgs::try_parse_from(["mv", "--progress", "src", "dest"]).unwrap();
+        let mv_args =
+            MvArgs::try_parse_from(["mv", "--progress", "src", "dest"])
+                .unwrap();
         assert!(mv_args.should_show_progress());
 
-        let mv_args = MvArgs::try_parse_from(["mv", "--no-progress", "src", "dest"]).unwrap();
+        let mv_args =
+            MvArgs::try_parse_from(["mv", "--no-progress", "src", "dest"])
+                .unwrap();
         assert!(!mv_args.should_show_progress());
     }
 
@@ -1740,20 +1886,29 @@ mod tests {
     fn test_strict_flags_parsing() {
         use clap::Parser;
 
-        let verify_args = CscVerifyArgs::try_parse_from(["csc-verify", "--strict", "manifest.cscjournal"]).unwrap();
+        let verify_args = CscVerifyArgs::try_parse_from([
+            "csc-verify",
+            "--strict",
+            "manifest.cscjournal",
+        ])
+        .unwrap();
         assert!(verify_args.strict);
         assert!(!verify_args.should_ignore_atime());
         assert!(!verify_args.should_ignore_ctime());
         assert!(verify_args.is_strict());
 
-        let csc_args = CscArgs::try_parse_from(["csc", "--strict", "src", "dest"]).unwrap();
+        let csc_args =
+            CscArgs::try_parse_from(["csc", "--strict", "src", "dest"])
+                .unwrap();
         assert!(csc_args.strict);
         assert!(csc_args.should_check_atime());
         assert!(csc_args.should_check_ctime());
         assert!(csc_args.should_check_birthtime());
         assert!(verify_args.to_audit_options().check_birthtime);
 
-        let csc_args_ctime = CscArgs::try_parse_from(["csc", "--check-ctime", "src", "dest"]).unwrap();
+        let csc_args_ctime =
+            CscArgs::try_parse_from(["csc", "--check-ctime", "src", "dest"])
+                .unwrap();
         assert!(csc_args_ctime.check_ctime);
         assert!(csc_args_ctime.should_check_ctime());
         assert!(!csc_args_ctime.should_check_atime());
@@ -1766,18 +1921,38 @@ mod tests {
             ctb_io::file::AppleReadOptions::default(),
             "All read-apple* and read-windows-ads options must be off by default"
         );
-        assert!(!normal.resolve_apple_read_options().read_apple_double_alongside);
-        assert!(!normal.resolve_apple_read_options().read_windows_ads_alongside);
+        assert!(
+            !normal
+                .resolve_apple_read_options()
+                .read_apple_double_alongside
+        );
+        assert!(
+            !normal
+                .resolve_apple_read_options()
+                .read_windows_ads_alongside
+        );
         assert_eq!(normal.should_check_birthtime(), cfg!(windows));
-        let birthtime = CscArgs::try_parse_from(["csc", "--check-birthtime", "src", "dest"]).unwrap();
+        let birthtime = CscArgs::try_parse_from([
+            "csc",
+            "--check-birthtime",
+            "src",
+            "dest",
+        ])
+        .unwrap();
         assert!(birthtime.should_check_birthtime());
         assert!(!birthtime.should_check_atime());
         let permissive = CscVerifyArgs::try_parse_from([
-            "csc-verify", "--strict", "--best-effort", "manifest.cscjournal",
-        ]).unwrap();
+            "csc-verify",
+            "--strict",
+            "--best-effort",
+            "manifest.cscjournal",
+        ])
+        .unwrap();
         let audit = permissive.to_audit_options();
         assert!(!audit.best_effort);
-        assert!(!audit.ignore_atime && !audit.ignore_ctime && audit.check_birthtime);
+        assert!(
+            !audit.ignore_atime && !audit.ignore_ctime && audit.check_birthtime
+        );
     }
 
     #[crate::ctb_test]
@@ -1794,7 +1969,10 @@ mod tests {
         args.force_write_apple_single = true;
 
         let res = run_csc(args);
-        assert!(res.is_err(), "Expected mutual exclusion error when multiple write modes specified");
+        assert!(
+            res.is_err(),
+            "Expected mutual exclusion error when multiple write modes specified"
+        );
     }
 
     #[crate::ctb_test]
@@ -1806,8 +1984,14 @@ mod tests {
 
         let mut args = default_test_args(vec![src, dest], state);
         args.best_effort_metadata = true;
-        let (mode, _ext) = args.resolve_apple_write_mode().expect("resolve mode");
-        assert_eq!(mode, ctb_io::file::AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside));
+        let (mode, _ext) =
+            args.resolve_apple_write_mode().expect("resolve mode");
+        assert_eq!(
+            mode,
+            ctb_io::file::AppleWriteMode::MaybeAppleDouble(
+                AppleDoubleStyle::Alongside
+            )
+        );
     }
 
     #[crate::ctb_test]
@@ -1825,7 +2009,8 @@ mod tests {
             state,
         );
         args.force_write_apple_single = true;
-        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::As);
+        args.write_apple_single_with_extension =
+            Some(ctb_io::file::AppleSingleExtension::As);
 
         let res = run_csc(args).expect("run csc");
         match res {
@@ -1835,13 +2020,23 @@ mod tests {
             _ => panic!("Expected immediate result"),
         }
 
-        assert!(dest.join("sample.txt.as").exists(), "sample.txt.as must exist");
-        assert!(!dest.join("sample.txt").exists(), "bare sample.txt must not exist");
+        assert!(
+            dest.join("sample.txt.as").exists(),
+            "sample.txt.as must exist"
+        );
+        assert!(
+            !dest.join("sample.txt").exists(),
+            "bare sample.txt must not exist"
+        );
 
         let data = fs::read(dest.join("sample.txt.as")).unwrap();
-        let archive = ctb_io::file::read_apple_single_double(&data).expect("parse AppleSingle");
+        let archive = ctb_io::file::read_apple_single_double(&data)
+            .expect("parse AppleSingle");
         assert_eq!(archive.format, ctb_io::file::AppleFormat::AppleSingle);
-        assert_eq!(archive.data_fork.as_deref(), Some(&b"AppleSingle with .as"[..]));
+        assert_eq!(
+            archive.data_fork.as_deref(),
+            Some(&b"AppleSingle with .as"[..])
+        );
     }
 
     #[crate::ctb_test]
@@ -1859,7 +2054,8 @@ mod tests {
             state,
         );
         args.force_write_apple_single = true;
-        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::Asf);
+        args.write_apple_single_with_extension =
+            Some(ctb_io::file::AppleSingleExtension::Asf);
 
         let res = run_csc(args).expect("run csc");
         match res {
@@ -1869,26 +2065,44 @@ mod tests {
             _ => panic!("Expected immediate result"),
         }
 
-        assert!(dest.join("sample.txt.asf").exists(), "sample.txt.asf must exist");
-        assert!(!dest.join("sample.txt").exists(), "bare sample.txt must not exist");
+        assert!(
+            dest.join("sample.txt.asf").exists(),
+            "sample.txt.asf must exist"
+        );
+        assert!(
+            !dest.join("sample.txt").exists(),
+            "bare sample.txt must not exist"
+        );
 
         let data = fs::read(dest.join("sample.txt.asf")).unwrap();
-        let archive = ctb_io::file::read_apple_single_double(&data).expect("parse AppleSingle");
+        let archive = ctb_io::file::read_apple_single_double(&data)
+            .expect("parse AppleSingle");
         assert_eq!(archive.format, ctb_io::file::AppleFormat::AppleSingle);
-        assert_eq!(archive.data_fork.as_deref(), Some(&b"AppleSingle with .asf"[..]));
+        assert_eq!(
+            archive.data_fork.as_deref(),
+            Some(&b"AppleSingle with .asf"[..])
+        );
     }
 
     #[crate::ctb_test]
     fn test_csc_continue_on_error_args_parsing() {
         use clap::Parser;
-        let parsed = CscArgs::try_parse_from(["csc", "src", "dest", "--continue-on-error"]).unwrap();
+        let parsed = CscArgs::try_parse_from([
+            "csc",
+            "src",
+            "dest",
+            "--continue-on-error",
+        ])
+        .unwrap();
         assert!(parsed.continue_on_error);
 
-        let parsed_alias = CscArgs::try_parse_from(["csc", "src", "dest", "--ignore-errors"]).unwrap();
+        let parsed_alias =
+            CscArgs::try_parse_from(["csc", "src", "dest", "--ignore-errors"])
+                .unwrap();
         assert!(parsed_alias.continue_on_error);
 
-        let default_parsed = CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap();
+        let default_parsed =
+            CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap();
         assert!(!default_parsed.continue_on_error);
     }
 }
-

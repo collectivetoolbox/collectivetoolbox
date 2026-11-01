@@ -41,32 +41,32 @@ See full license information at the end of this file.
     reason = "Build script code generation"
 )]
 
+use anyhow::{Context, Result};
+use ctb_build_support::license_consts::DEFAULT_AGPL_HEADER;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
-use anyhow::{Context, Result};
-use ctb_build_support::license_consts::DEFAULT_AGPL_HEADER;
 use walkdir::WalkDir;
 
 pub(crate) mod utilities {
-    pub use anyhow::{Result, Context, bail, ensure};
+    pub use anyhow::{Context, Result, bail, ensure};
 }
 
+#[path = "codegen.rs"]
+pub mod codegen;
 #[path = "expr.rs"]
 pub mod expr;
-#[path = "spec.rs"]
-pub mod spec;
 #[path = "parser.rs"]
 pub mod parser;
 #[path = "precompile.rs"]
 pub mod precompile;
-#[path = "codegen.rs"]
-pub mod codegen;
+#[path = "spec.rs"]
+pub mod spec;
 
+use codegen::{LICENSE_HEADER, compile_to_rust_with_header};
 use parser::parse_ksy_slice;
-use precompile::{resolve_ksy, SpecRegistry};
-use codegen::{compile_to_rust_with_header, LICENSE_HEADER};
+use precompile::{SpecRegistry, resolve_ksy};
 
 fn write_if_changed(path: &Path, content: &str) -> Result<()> {
     if path.exists() {
@@ -96,9 +96,9 @@ fn emit_cargo_rerun_directives(manifest_dir: &Path) -> Result<()> {
         }
 
         // Skip hidden files/directories (like .git, .build_cache)
-        let is_hidden = rel_path.components().any(|c| {
-            c.as_os_str().to_string_lossy().starts_with('.')
-        });
+        let is_hidden = rel_path
+            .components()
+            .any(|c| c.as_os_str().to_string_lossy().starts_with('.'));
         if is_hidden {
             continue;
         }
@@ -117,7 +117,7 @@ fn emit_cargo_rerun_directives(manifest_dir: &Path) -> Result<()> {
             continue;
         }
         if rel_path == Path::new("tests")
-          || rel_path.starts_with("tests/generated")
+            || rel_path.starts_with("tests/generated")
         {
             continue;
         }
@@ -148,7 +148,8 @@ fn main() -> Result<()> {
 
     fs::create_dir_all(&generated_dir)?;
 
-    let source_hash = codegen::test_generator::compute_source_hash(&manifest_dir)?;
+    let source_hash =
+        codegen::test_generator::compute_source_hash(&manifest_dir)?;
     let header_prefix = format!("# source_hash\t{source_hash}");
 
     // 1. Load build cache (rel_path -> (mtime_nanos, size_bytes))
@@ -162,7 +163,9 @@ fn main() -> Result<()> {
             for line in lines {
                 let parts: Vec<&str> = line.split('\t').collect();
                 if parts.len() == 3 {
-                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
+                    if let (Ok(mtime), Ok(size)) =
+                        (parts[1].parse(), parts[2].parse())
+                    {
                         cache.insert(parts[0].to_string(), (mtime, size));
                     }
                 }
@@ -175,13 +178,17 @@ fn main() -> Result<()> {
     for entry in WalkDir::new(&definitions_dir) {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+        if path.is_file()
+            && path.extension().and_then(|s| s.to_str()) == Some("ksy")
+        {
             let rel_path = path.strip_prefix(&definitions_dir)?;
             let rel_components: Vec<_> = rel_path
                 .components()
                 .map(|c| c.as_os_str().to_string_lossy().to_string())
                 .collect();
-            if rel_components.first().map(std::string::String::as_str) == Some("licenses") {
+            if rel_components.first().map(std::string::String::as_str)
+                == Some("licenses")
+            {
                 continue;
             }
             let stem = path
@@ -219,10 +226,13 @@ fn main() -> Result<()> {
         let rel_key = rel_path.to_string_lossy().to_string();
 
         // Reason for fallback: definition at root without subfolder defaults to common category
-        let top_cat = rel_path
-            .components()
-            .next().map_or_else(|| "common".to_string(), |c| c.as_os_str().to_string_lossy().to_string());
-        let out_file = generated_dir.join(&top_cat).join(format!("{stem}.generated.rs"));
+        let top_cat = rel_path.components().next().map_or_else(
+            || "common".to_string(),
+            |c| c.as_os_str().to_string_lossy().to_string(),
+        );
+        let out_file = generated_dir
+            .join(&top_cat)
+            .join(format!("{stem}.generated.rs"));
 
         let cached = cache.get(&rel_key);
         let up_to_date = out_file.exists() && cached == Some(&(mtime, size));
@@ -248,7 +258,9 @@ fn main() -> Result<()> {
                                 updated_cache.insert(rel_key, (mtime, size));
                             }
                             Err(e) => {
-                                println!("cargo:warning=Failed to generate Rust for {stem}: {e}");
+                                println!(
+                                    "cargo:warning=Failed to generate Rust for {stem}: {e}"
+                                );
                             }
                         }
                     }
@@ -283,7 +295,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
+fn generate_module_files(
+    manifest_dir: &Path,
+    generated_dir: &Path,
+) -> Result<()> {
     // Clean up any legacy mod.rs files if present
     let root_mod = generated_dir.join("mod.rs");
     if root_mod.exists() {
@@ -298,7 +313,8 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
 
-            if path.is_dir() && !name.starts_with('.') && name != "test_formats" {
+            if path.is_dir() && !name.starts_with('.') && name != "test_formats"
+            {
                 let cat_mod = path.join("mod.rs");
                 if cat_mod.exists() {
                     let _ = fs::remove_file(cat_mod);
@@ -308,15 +324,20 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
                 for sub_entry in fs::read_dir(&path)? {
                     let sub_entry = sub_entry?;
                     let sub_path = sub_entry.path();
-                    let sub_name = sub_entry.file_name().to_string_lossy().to_string();
-                    if sub_path.is_file() && sub_name.ends_with(".generated.rs") {
-                        let mod_name = sub_name.trim_end_matches(".generated.rs").to_string();
+                    let sub_name =
+                        sub_entry.file_name().to_string_lossy().to_string();
+                    if sub_path.is_file() && sub_name.ends_with(".generated.rs")
+                    {
+                        let mod_name = sub_name
+                            .trim_end_matches(".generated.rs")
+                            .to_string();
                         gen_files.push((mod_name, sub_name));
                     }
                 }
 
                 if gen_files.is_empty() {
-                    let cat_file = generated_dir.join(format!("{name}.generated.rs"));
+                    let cat_file =
+                        generated_dir.join(format!("{name}.generated.rs"));
                     if cat_file.exists() {
                         let _ = fs::remove_file(cat_file);
                     }
@@ -333,17 +354,19 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
                             "#[path = \"{name}/{filename}\"]\npub mod {mod_name};\npub use {mod_name}::*;\n"
                         ));
                     }
-                    let cat_file = generated_dir.join(format!("{name}.generated.rs"));
+                    let cat_file =
+                        generated_dir.join(format!("{name}.generated.rs"));
                     write_if_changed(&cat_file, &cat_rs)?;
                     categories.push(name);
                 }
             } else if path.is_file() && name.ends_with(".rs") {
                 if name.ends_with(".generated.rs") {
-                    let cat_name = name.trim_end_matches(".generated.rs").to_string();
-                  if !generated_dir.join(&cat_name).is_dir()
-                    && name != "test_formats.generated.rs"
-                  {
-                    fs::remove_file(&path)?;
+                    let cat_name =
+                        name.trim_end_matches(".generated.rs").to_string();
+                    if !generated_dir.join(&cat_name).is_dir()
+                        && name != "test_formats.generated.rs"
+                    {
+                        fs::remove_file(&path)?;
                     }
                 } else {
                     // Clean up any legacy non-.generated.rs files
@@ -411,7 +434,9 @@ fn compile_test_suite(
             for line in lines {
                 let parts: Vec<&str> = line.split('\t').collect();
                 if parts.len() == 3 {
-                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
+                    if let (Ok(mtime), Ok(size)) =
+                        (parts[1].parse(), parts[2].parse())
+                    {
                         cache.insert(parts[0].to_string(), (mtime, size));
                     }
                 }
@@ -424,7 +449,9 @@ fn compile_test_suite(
     for entry in WalkDir::new(&formats_dir) {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
+        if path.is_file()
+            && path.extension().and_then(|s| s.to_str()) == Some("ksy")
+        {
             let rel_path = path.strip_prefix(&formats_dir)?;
             let stem = path
                 .file_stem()
@@ -466,8 +493,12 @@ fn compile_test_suite(
 
         if up_to_date {
             let content = fs::read_to_string(&out_file)?;
-            syn::parse_file(&content)
-                .with_context(|| format!("Generated file {} failed to parse as valid Rust", out_file.display()))?;
+            syn::parse_file(&content).with_context(|| {
+                format!(
+                    "Generated file {} failed to parse as valid Rust",
+                    out_file.display()
+                )
+            })?;
             successfully_compiled_formats.push(stem.clone());
         } else {
             let bytes = fs::read(ksy_path)?;
@@ -481,7 +512,9 @@ fn compile_test_suite(
                     } else {
                         None
                     };
-                    if let Ok(rust_code) = compile_to_rust_with_header(&spec, header) {
+                    if let Ok(rust_code) =
+                        compile_to_rust_with_header(&spec, header)
+                    {
                         syn::parse_file(&rust_code)
                             .with_context(|| format!("Generated code for {} failed to parse as valid Rust", out_file.display()))?;
                         write_if_changed(&out_file, &rust_code)?;
@@ -530,7 +563,8 @@ fn compile_test_suite(
             let entry = entry?;
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with("test_") && name.ends_with(".generated.rs") {
-                let mod_name = name.trim_end_matches(".generated.rs").to_string();
+                let mod_name =
+                    name.trim_end_matches(".generated.rs").to_string();
                 spec_modules.push((mod_name, name));
             }
         }
@@ -539,11 +573,11 @@ fn compile_test_suite(
 
     let mut spec_rs_content = String::new();
     spec_rs_content.push_str(DEFAULT_AGPL_HEADER);
-    spec_rs_content.push_str("\n\n// @generated by ctb-formats-kaitai::build\n\n");
+    spec_rs_content
+        .push_str("\n\n// @generated by ctb-formats-kaitai::build\n\n");
     for (mod_name, filename) in &spec_modules {
-        spec_rs_content.push_str(&format!(
-            "#[path = \"{filename}\"]\nmod {mod_name};\n"
-        ));
+        spec_rs_content
+            .push_str(&format!("#[path = \"{filename}\"]\nmod {mod_name};\n"));
     }
     write_if_changed(&spec_modules_file, &spec_rs_content)?;
 

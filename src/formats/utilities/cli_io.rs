@@ -251,10 +251,7 @@ mod tests {
         let file_dest = CliOutputDestArgs::to_file(&target_path, false);
         assert!(!file_dest.is_stdout());
         assert_eq!(file_dest.output_path(), Some(target_path.as_path()));
-        assert_eq!(
-            file_dest.write_or_stdout(b"first".to_vec()).unwrap(),
-            None
-        );
+        assert_eq!(file_dest.write_or_stdout(b"first".to_vec()).unwrap(), None);
         assert_eq!(std::fs::read(&target_path).unwrap(), b"first");
 
         // Second write without force should fail

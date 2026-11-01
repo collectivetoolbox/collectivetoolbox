@@ -27,9 +27,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-use std::path::PathBuf;
 use kaitai::*;
 use rust::formats::to_string_custom::*;
+use std::path::PathBuf;
 
 #[crate::ctb_test]
 #[allow(
@@ -38,7 +38,9 @@ use rust::formats::to_string_custom::*;
 )]
 fn test_to_string_custom() -> KResult<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"))?;
+    let bytes = std::fs::read(
+        manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"),
+    )?;
     let _io = BytesReader::from(bytes);
     let r: OptRc<ToStringCustom> = ToStringCustom::read_into(&_io, None, None)?;
 

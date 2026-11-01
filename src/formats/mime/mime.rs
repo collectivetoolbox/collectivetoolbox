@@ -136,15 +136,20 @@ pub fn parse_mime_type(s: &str) -> Option<MimeDetection> {
     }
 
     let top_lower = top_clean.to_ascii_lowercase();
-    let is_standard_top = STANDARD_TOP_LEVEL_TYPES.contains(&top_lower.as_str());
+    let is_standard_top =
+        STANDARD_TOP_LEVEL_TYPES.contains(&top_lower.as_str());
     let is_x_top = top_lower.starts_with("x-");
     if !is_standard_top && !is_x_top {
         return None;
     }
 
-    let valid_sub = sub_clean
-        .bytes()
-        .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'.' || b == b'-' || b == b'_');
+    let valid_sub = sub_clean.bytes().all(|b| {
+        b.is_ascii_alphanumeric()
+            || b == b'+'
+            || b == b'.'
+            || b == b'-'
+            || b == b'_'
+    });
     if !valid_sub {
         return None;
     }
@@ -163,7 +168,8 @@ pub fn parse_mime_type(s: &str) -> Option<MimeDetection> {
         }
     }
 
-    let normalized_media_type = format!("{}/{}", top_lower, sub_clean.to_ascii_lowercase());
+    let normalized_media_type =
+        format!("{}/{}", top_lower, sub_clean.to_ascii_lowercase());
     let description = format!("MIME type string: {trimmed}");
 
     Some(MimeDetection {
@@ -245,13 +251,17 @@ impl MimeDatabase {
     /// Looks up primary MIME media type for a file extension (without leading dot).
     #[must_use]
     pub fn lookup_mime(&self, extension: &str) -> Option<&str> {
-        let clean = extension.trim().trim_start_matches('.').to_ascii_lowercase();
+        let clean = extension
+            .trim()
+            .trim_start_matches('.')
+            .to_ascii_lowercase();
         self.by_extension.get(&clean).map(String::as_str)
     }
 }
 
 /// Global lazy-initialized MIME lookup database.
-pub static MIME_DATABASE: LazyLock<MimeDatabase> = LazyLock::new(MimeDatabase::new);
+pub static MIME_DATABASE: LazyLock<MimeDatabase> =
+    LazyLock::new(MimeDatabase::new);
 
 /// Checks whether a child MIME type is a subclass or specialization of a parent
 /// MIME type according to MIME taxonomy, structured suffixes, and inheritance
@@ -293,7 +303,8 @@ pub fn is_mime_subclass_of(child_mime: &str, parent_mime: &str) -> bool {
             dynamic_parents.push("text/plain".to_string());
         }
         if (current.ends_with("+zip")
-            || current.starts_with("application/vnd.openxmlformats-officedocument.")
+            || current
+                .starts_with("application/vnd.openxmlformats-officedocument.")
             || current.starts_with("application/vnd.oasis.opendocument.")
             || current == "application/java-archive"
             || current == "application/vnd.android.package-archive")
@@ -342,7 +353,10 @@ mod tests {
 
         let text = parse_mime_type("text/plain; charset=utf-8").unwrap();
         assert_eq!(text.media_type, "text/plain");
-        assert_eq!(text.parameters, vec![("charset".to_string(), "utf-8".to_string())]);
+        assert_eq!(
+            text.parameters,
+            vec![("charset".to_string(), "utf-8".to_string())]
+        );
 
         let svg = parse_mime_type("image/svg+xml").unwrap();
         assert_eq!(svg.media_type, "image/svg+xml");
@@ -385,9 +399,15 @@ mod tests {
         assert!(is_mime_subclass_of("image/svg+xml", "application/xml"));
         assert!(is_mime_subclass_of("image/svg+xml", "text/plain"));
         assert!(is_mime_subclass_of("application/json", "text/plain"));
-        assert!(is_mime_subclass_of("application/geo+json", "application/json"));
+        assert!(is_mime_subclass_of(
+            "application/geo+json",
+            "application/json"
+        ));
         assert!(is_mime_subclass_of("application/geo+json", "text/plain"));
-        assert!(is_mime_subclass_of("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip"));
+        assert!(is_mime_subclass_of(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/zip"
+        ));
         assert!(!is_mime_subclass_of("text/plain", "application/xml"));
         assert!(!is_mime_subclass_of("image/png", "application/zip"));
     }

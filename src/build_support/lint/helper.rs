@@ -250,11 +250,7 @@ pub fn run(workspace_root: &Path) -> Result<()> {
         let syntax = match syn::parse_file(&file_content) {
             Ok(s) => s,
             Err(e) => {
-                bail!(
-                    "failed to parse {}: {}",
-                    file_path.display(),
-                    e
-                );
+                bail!("failed to parse {}: {}", file_path.display(), e);
             }
         };
 
@@ -296,7 +292,8 @@ pub fn run(workspace_root: &Path) -> Result<()> {
             "If this is intentional, add a `//bypass-tempdir-lint` comment inside the test function block."
         );
         for v in &violations {
-            let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
+            let relative =
+                v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
             eprintln!(
                 "  {}:{}: function `{}` called `{}` without tempdir",
                 relative.display(),

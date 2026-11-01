@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! File extension registry and matching utilities for format identification.
 //!
 //! Adapted from extension and multi-layer disambiguation logic in
@@ -455,7 +454,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use ctb_utilities::*;
 
-pub use ctb_formats_utilities::extension_rule::{CaseSensitivity, ExtensionRule};
+pub use ctb_formats_utilities::extension_rule::{
+    CaseSensitivity, ExtensionRule,
+};
 
 /// Resolves candidate `FormatId` variants and scores for a given file extension,
 /// taking into account database OS associations and platform priors.

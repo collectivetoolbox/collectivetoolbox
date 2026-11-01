@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Core data types, candidate representations, and report structures for the
 //! format detection engine.
 
@@ -453,8 +452,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub use ctb_utilities::format_id::FormatCategory;
 pub use ctb_utilities::FormatId;
+pub use ctb_utilities::format_id::FormatCategory;
 
 /// Calibrated confidence tier for a detection candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -705,15 +704,10 @@ pub enum DetectionOutcome {
         limit: u64,
     },
     /// A hardware or OS read error occurred during probing.
-    ReadError {
-        offset: u64,
-        message: String,
-    },
+    ReadError { offset: u64, message: String },
     /// The source was inspected up to all required bounds and did not
     /// match any known format signature.
-    TrueNegative {
-        bytes_inspected: u64,
-    },
+    TrueNegative { bytes_inspected: u64 },
 }
 
 /// Comprehensive report produced by format detection.

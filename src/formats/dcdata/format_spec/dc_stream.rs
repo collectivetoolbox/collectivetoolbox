@@ -65,7 +65,10 @@ impl std::fmt::Display for DcToken {
 }
 
 impl Serialize for DcToken {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -102,7 +105,11 @@ impl DcToken {
 
     /// Returns true if this token fills the specified syntax role under `resolver`.
     #[must_use]
-    pub fn fills_role_with(&self, role: DcRole, resolver: &dyn SyntaxRuleResolver) -> bool {
+    pub fn fills_role_with(
+        &self,
+        role: DcRole,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
         match self {
             Self::Dc(sh) => {
                 if let Ok(gid) = sh.to_global_id() {
@@ -136,7 +143,11 @@ pub fn encode_dc_stream_string(expr: &FormatExpr) -> String {
     parts.join(" ")
 }
 
-fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcToken>) {
+fn encode_expr_recursive(
+    expr: &FormatExpr,
+    is_tail: bool,
+    tokens: &mut Vec<DcToken>,
+) {
     match expr {
         FormatExpr::Dc(shorthand) => {
             tokens.push(DcToken::Dc(*shorthand));
@@ -160,10 +171,20 @@ fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcTo
             encode_expr_recursive(right, is_tail, tokens);
         }
         FormatExpr::Union(children) => {
-            encode_variable_arity_op(FormatOp::Union, children, is_tail, tokens);
+            encode_variable_arity_op(
+                FormatOp::Union,
+                children,
+                is_tail,
+                tokens,
+            );
         }
         FormatExpr::Intersection(children) => {
-            encode_variable_arity_op(FormatOp::Intersection, children, is_tail, tokens);
+            encode_variable_arity_op(
+                FormatOp::Intersection,
+                children,
+                is_tail,
+                tokens,
+            );
         }
         FormatExpr::Apply { target, params } => {
             tokens.push(DcToken::from_short_dc(DC_FORMAT_PARAM_APPLICATION));
@@ -253,8 +274,11 @@ fn parse_tokens_from_str(input: &str) -> Result<Vec<DcToken>> {
             ">" => tokens.push(DcToken::from_short_dc(DC_TYPE_CONVERSION)),
             "!" => tokens.push(DcToken::from_short_dc(DC_TYPE_TRANSMUTATION)),
             ":" => tokens.push(DcToken::from_short_dc(DC_TYPE_TRANSFORMATION)),
-            "(" => tokens.push(DcToken::from_short_dc(DC_BEGIN_ASSOCIATIVITY_GROUP)),
-            ")" => tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP)),
+            "(" => tokens
+                .push(DcToken::from_short_dc(DC_BEGIN_ASSOCIATIVITY_GROUP)),
+            ")" => {
+                tokens.push(DcToken::from_short_dc(DC_END_ASSOCIATIVITY_GROUP))
+            }
             _ => {
                 if let Ok(shorthand) = DcShorthand::parse(part) {
                     tokens.push(DcToken::Dc(shorthand));
@@ -268,19 +292,27 @@ fn parse_tokens_from_str(input: &str) -> Result<Vec<DcToken>> {
 }
 
 /// Returns true if `token` is a closing delimiter ('299' or ')').
-pub(crate) fn is_closing_token(token: &DcToken, resolver: &dyn SyntaxRuleResolver) -> bool {
+pub(crate) fn is_closing_token(
+    token: &DcToken,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
     token.fills_role_with(DcRole::EndAssociativityGroup, resolver)
         || matches!(token, DcToken::NamedType(s) if s == ")")
 }
 
-fn format_op_from_token(token: &DcToken, resolver: &dyn SyntaxRuleResolver) -> Option<FormatOp> {
+fn format_op_from_token(
+    token: &DcToken,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Option<FormatOp> {
     [
         FormatOp::Union,
         FormatOp::Transform,
         FormatOp::Convert,
         FormatOp::Transmute,
         FormatOp::Intersection,
-    ].into_iter().find(|&op| token.fills_role_with(op.role(), resolver))
+    ]
+    .into_iter()
+    .find(|&op| token.fills_role_with(op.role(), resolver))
 }
 
 /// Decodes a slice of `DcToken`s into a `FormatExpr`.
@@ -288,7 +320,10 @@ fn format_op_from_token(token: &DcToken, resolver: &dyn SyntaxRuleResolver) -> O
 /// # Errors
 /// Returns an error on structural or syntax mismatch.
 pub fn decode_dc_stream(tokens: &[DcToken]) -> Result<FormatExpr> {
-    decode_dc_stream_with_resolver(tokens, crate::syntax::default_syntax_resolver().as_ref())
+    decode_dc_stream_with_resolver(
+        tokens,
+        crate::syntax::default_syntax_resolver().as_ref(),
+    )
 }
 
 /// Decodes a slice of `DcToken`s into a `FormatExpr` using the given syntax resolver.
@@ -342,13 +377,26 @@ fn decode_recursive(
     if token.fills_role_with(DcRole::BeginAssociativityGroup, resolver) {
         // Group start: next token must be operator
         let Some(op_token) = tokens.get(*pos) else {
-            bail!("Unexpected end of stream after group start '298': expected operator");
+            bail!(
+                "Unexpected end of stream after group start '298': expected operator"
+            );
         };
         *pos = pos.saturating_add(1);
 
         if op_token.fills_role_with(DcRole::FormatParamApplication, resolver) {
-            let target = decode_recursive(tokens, pos, depth.saturating_add(1), false, resolver)?;
-            let params = decode_apply_params(tokens, pos, depth.saturating_add(1), resolver)?;
+            let target = decode_recursive(
+                tokens,
+                pos,
+                depth.saturating_add(1),
+                false,
+                resolver,
+            )?;
+            let params = decode_apply_params(
+                tokens,
+                pos,
+                depth.saturating_add(1),
+                resolver,
+            )?;
             return Ok(FormatExpr::Apply {
                 target: Box::new(target),
                 params,
@@ -363,11 +411,25 @@ fn decode_recursive(
 
         match op {
             FormatOp::Convert | FormatOp::Transmute | FormatOp::Transform => {
-                let left = decode_recursive(tokens, pos, depth.saturating_add(1), false, resolver)?;
-                let right = decode_recursive(tokens, pos, depth.saturating_add(1), false, resolver)?;
+                let left = decode_recursive(
+                    tokens,
+                    pos,
+                    depth.saturating_add(1),
+                    false,
+                    resolver,
+                )?;
+                let right = decode_recursive(
+                    tokens,
+                    pos,
+                    depth.saturating_add(1),
+                    false,
+                    resolver,
+                )?;
 
                 let Some(closing) = tokens.get(*pos) else {
-                    bail!("Unclosed Dc associativity group: expected terminating '299'");
+                    bail!(
+                        "Unclosed Dc associativity group: expected terminating '299'"
+                    );
                 };
                 *pos = pos.saturating_add(1);
                 ensure!(
@@ -376,7 +438,9 @@ fn decode_recursive(
                 );
 
                 Ok(match op {
-                    FormatOp::Convert => FormatExpr::Convert(Box::new(left), Box::new(right)),
+                    FormatOp::Convert => {
+                        FormatExpr::Convert(Box::new(left), Box::new(right))
+                    }
                     FormatOp::Transmute => {
                         FormatExpr::Transmute(Box::new(left), Box::new(right))
                     }
@@ -419,7 +483,13 @@ fn decode_recursive(
     } else if let Some(op) = format_op_from_token(token, resolver) {
         match op {
             FormatOp::Convert | FormatOp::Transmute | FormatOp::Transform => {
-                let left = decode_recursive(tokens, pos, depth.saturating_add(1), false, resolver)?;
+                let left = decode_recursive(
+                    tokens,
+                    pos,
+                    depth.saturating_add(1),
+                    false,
+                    resolver,
+                )?;
                 let right = decode_recursive(
                     tokens,
                     pos,
@@ -439,7 +509,9 @@ fn decode_recursive(
                 }
 
                 Ok(match op {
-                    FormatOp::Convert => FormatExpr::Convert(Box::new(left), Box::new(right)),
+                    FormatOp::Convert => {
+                        FormatExpr::Convert(Box::new(left), Box::new(right))
+                    }
                     FormatOp::Transmute => {
                         FormatExpr::Transmute(Box::new(left), Box::new(right))
                     }
@@ -480,14 +552,27 @@ fn decode_recursive(
             }
         }
     } else if token.fills_role_with(DcRole::FormatParamApplication, resolver) {
-        let target = decode_recursive(tokens, pos, depth.saturating_add(1), false, resolver)?;
-        let params = decode_apply_params(tokens, pos, depth.saturating_add(1), resolver)?;
+        let target = decode_recursive(
+            tokens,
+            pos,
+            depth.saturating_add(1),
+            false,
+            resolver,
+        )?;
+        let params = decode_apply_params(
+            tokens,
+            pos,
+            depth.saturating_add(1),
+            resolver,
+        )?;
         Ok(FormatExpr::Apply {
             target: Box::new(target),
             params,
         })
     } else if token.fills_role_with(DcRole::EndAssociativityGroup, resolver) {
-        bail!("Unexpected closing group '299' without matching opening operator or group");
+        bail!(
+            "Unexpected closing group '299' without matching opening operator or group"
+        );
     } else {
         match token {
             DcToken::Dc(shorthand) => Ok(FormatExpr::Dc(*shorthand)),
@@ -511,7 +596,9 @@ fn decode_apply_params(
         if tok.fills_role_with(DcRole::BeginParameter, resolver) {
             *pos = pos.saturating_add(1);
             let Some(name_tok) = tokens.get(*pos) else {
-                bail!("Unexpected end of stream: expected parameter name after '258'");
+                bail!(
+                    "Unexpected end of stream: expected parameter name after '258'"
+                );
             };
             *pos = pos.saturating_add(1);
             let name = match name_tok {
@@ -520,14 +607,20 @@ fn decode_apply_params(
             };
 
             let Some(val_tok) = tokens.get(*pos) else {
-                bail!("Unexpected end of stream: expected parameter value for '{name}'");
+                bail!(
+                    "Unexpected end of stream: expected parameter value for '{name}'"
+                );
             };
             *pos = pos.saturating_add(1);
             let value = match val_tok {
                 DcToken::Dc(sh) => {
-                    if val_tok.fills_role_with(DcRole::BeginAssociativityGroup, resolver)
-                        || val_tok.fills_role_with(DcRole::FormatParamApplication, resolver)
-                        || format_op_from_token(val_tok, resolver).is_some()
+                    if val_tok.fills_role_with(
+                        DcRole::BeginAssociativityGroup,
+                        resolver,
+                    ) || val_tok.fills_role_with(
+                        DcRole::FormatParamApplication,
+                        resolver,
+                    ) || format_op_from_token(val_tok, resolver).is_some()
                     {
                         *pos = pos.saturating_sub(1);
                         let sub = decode_recursive(
@@ -561,7 +654,9 @@ fn decode_apply_params(
             };
 
             let Some(end_tok) = tokens.get(*pos) else {
-                bail!("Unexpected end of stream: expected '259' closing parameter '{name}'");
+                bail!(
+                    "Unexpected end of stream: expected '259' closing parameter '{name}'"
+                );
             };
             *pos = pos.saturating_add(1);
             ensure!(
@@ -576,4 +671,3 @@ fn decode_apply_params(
     }
     Ok(params)
 }
-

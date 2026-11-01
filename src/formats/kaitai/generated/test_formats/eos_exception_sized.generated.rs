@@ -101,7 +101,11 @@ impl KStruct for EosExceptionSized {
     type Root = EosExceptionSized;
     type Parent = EosExceptionSized;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,15 +120,19 @@ impl KStruct for EosExceptionSized {
         let _raw_envelope = _io.read_bytes(6_usize)?;
         *self_rc.envelope_raw.borrow_mut() = _raw_envelope.clone();
         let _io_envelope = BytesReader::from(_raw_envelope);
-        let t = Self::read_into::<BytesReader, EosExceptionSized_Data>(&_io_envelope, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, EosExceptionSized_Data>(
+            &_io_envelope,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.envelope.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl EosExceptionSized {
-}
+impl EosExceptionSized {}
 impl EosExceptionSized {
     pub fn envelope(&self) -> Ref<'_, OptRc<EosExceptionSized_Data>> {
         self.envelope.borrow()
@@ -192,7 +200,11 @@ impl KStruct for EosExceptionSized_Data {
     type Root = EosExceptionSized;
     type Parent = EosExceptionSized;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -207,15 +219,19 @@ impl KStruct for EosExceptionSized_Data {
         let _raw_buf = _io.read_bytes(7_usize)?;
         *self_rc.buf_raw.borrow_mut() = _raw_buf.clone();
         let _io_buf = BytesReader::from(_raw_buf);
-        let t = Self::read_into::<BytesReader, EosExceptionSized_Foo>(&_io_buf, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<BytesReader, EosExceptionSized_Foo>(
+            &_io_buf,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.buf.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl EosExceptionSized_Data {
-}
+impl EosExceptionSized_Data {}
 impl EosExceptionSized_Data {
     pub fn buf(&self) -> Ref<'_, OptRc<EosExceptionSized_Foo>> {
         self.buf.borrow()
@@ -281,7 +297,11 @@ impl KStruct for EosExceptionSized_Foo {
     type Root = EosExceptionSized;
     type Parent = EosExceptionSized_Data;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -297,8 +317,7 @@ impl KStruct for EosExceptionSized_Foo {
         Ok(())
     }
 }
-impl EosExceptionSized_Foo {
-}
+impl EosExceptionSized_Foo {}
 impl EosExceptionSized_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

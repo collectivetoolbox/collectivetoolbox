@@ -440,16 +440,22 @@ mod tests {
             no_progress_callback(),
         );
         let mut manifest = test_manifest();
-        manifest.signature = Some(crate::signing::sign_manifest(
-            &manifest,
-            &private_key,
-        )?);
+        manifest.signature =
+            Some(crate::signing::sign_manifest(&manifest, &private_key)?);
         verify_downloaded_manifest(&downloader, &manifest).await?;
 
         manifest.ctoolbox_version = semver::Version::new(2, 0, 0);
-        assert!(verify_downloaded_manifest(&downloader, &manifest).await.is_err());
+        assert!(
+            verify_downloaded_manifest(&downloader, &manifest)
+                .await
+                .is_err()
+        );
         manifest.signature = None;
-        assert!(verify_downloaded_manifest(&downloader, &manifest).await.is_err());
+        assert!(
+            verify_downloaded_manifest(&downloader, &manifest)
+                .await
+                .is_err()
+        );
         Ok(())
     }
 }

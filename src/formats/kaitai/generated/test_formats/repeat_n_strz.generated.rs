@@ -101,7 +101,11 @@ impl KStruct for RepeatNStrz {
     type Root = RepeatNStrz;
     type Parent = RepeatNStrz;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,15 +122,17 @@ impl KStruct for RepeatNStrz {
         *self_rc.lines.borrow_mut() = Vec::new();
         let l_lines = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_lines {
-            self_rc.lines.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
+            self_rc.lines.borrow_mut().push(bytes_to_str(
+                &_io.read_bytes_term(0, false, true, true)?,
+                "UTF-8",
+            )?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl RepeatNStrz {
-}
+impl RepeatNStrz {}
 impl RepeatNStrz {
     pub fn qty(&self) -> Ref<'_, u32> {
         self.qty.borrow()

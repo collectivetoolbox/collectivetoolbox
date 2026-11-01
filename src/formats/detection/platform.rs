@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Platform association, operating system compatibility matching, and
 //! environment prior scoring for format detection.
 
@@ -461,7 +460,10 @@ use crate::format_id::FormatId;
 /// Checks whether a candidate format has recorded OS associations compatible
 /// with the specified target operating system.
 #[must_use]
-pub fn format_matches_platform(format_id: FormatId, target_os: FormatId) -> bool {
+pub fn format_matches_platform(
+    format_id: FormatId,
+    target_os: FormatId,
+) -> bool {
     if let Some(mapping) = FORMAT_CATALOG.lookup_ident(format_id.ident()) {
         mapping
             .os_associations

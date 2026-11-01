@@ -64,7 +64,10 @@ pub fn should_skip_path(rel_path: &str) -> bool {
 
 /// Checks a single parsed Rust file AST for discarded `FormatLog` violations.
 #[must_use]
-pub fn check_file_ast(rel_path: &str, syntax: &syn::File) -> Vec<FormatLogViolation> {
+pub fn check_file_ast(
+    rel_path: &str,
+    syntax: &syn::File,
+) -> Vec<FormatLogViolation> {
     let mut visitor = FileFormatLogVisitor {
         rel_path,
         violations: Vec::new(),
@@ -140,7 +143,9 @@ fn type_mentions_format_log(ty: &syn::Type) -> bool {
             .segments
             .last()
             .is_some_and(|seg| seg.ident == "FormatLog"),
-        syn::Type::Reference(type_ref) => type_mentions_format_log(&type_ref.elem),
+        syn::Type::Reference(type_ref) => {
+            type_mentions_format_log(&type_ref.elem)
+        }
         syn::Type::Paren(paren) => type_mentions_format_log(&paren.elem),
         syn::Type::Group(group) => type_mentions_format_log(&group.elem),
         _ => false,
@@ -294,9 +299,11 @@ impl<'a> FnBodyAnalyzer<'a> {
         pat: &syn::Pat,
         init_expr: Option<&syn::Expr>,
     ) {
-        let is_tuple_log_call = init_expr.is_some_and(expr_returns_format_log_tuple);
+        let is_tuple_log_call =
+            init_expr.is_some_and(expr_returns_format_log_tuple);
         let is_any_log_call = init_expr.is_some_and(|e| {
-            expr_returns_format_log_tuple(e) || expr_returns_conversion_wrapper(e)
+            expr_returns_format_log_tuple(e)
+                || expr_returns_conversion_wrapper(e)
         });
 
         match pat {
@@ -312,7 +319,9 @@ impl<'a> FnBodyAnalyzer<'a> {
             syn::Pat::Ident(pat_ident) => {
                 let name = pat_ident.ident.to_string();
                 let line = pat_ident.ident.span().start().line;
-                if (name == "_log" || name.ends_with("_log")) && name.starts_with('_') {
+                if (name == "_log" || name.ends_with("_log"))
+                    && name.starts_with('_')
+                {
                     self.violations.push(FormatLogViolation {
                         file: self.rel_path.to_string(),
                         line,
@@ -374,7 +383,10 @@ impl<'a> FnBodyAnalyzer<'a> {
                                 });
                             }
                             syn::Pat::Ident(pat_ident)
-                                if pat_ident.ident.to_string().starts_with('_') =>
+                                if pat_ident
+                                    .ident
+                                    .to_string()
+                                    .starts_with('_') =>
                             {
                                 let name = pat_ident.ident.to_string();
                                 self.violations.push(FormatLogViolation {
@@ -422,7 +434,8 @@ impl<'a> FnBodyAnalyzer<'a> {
                                 self.violations.push(FormatLogViolation {
                                     file: self.rel_path.to_string(),
                                     line: w.span().start().line,
-                                    message: "struct pattern discards `log: _`".to_string(),
+                                    message: "struct pattern discards `log: _`"
+                                        .to_string(),
                                 });
                             }
                             syn::Pat::Ident(pi)
@@ -514,7 +527,8 @@ impl<'ast> Visit<'ast> for FnBodyAnalyzer<'_> {
         let method_name = node.method.to_string();
         if let Some(recv_ident) = extract_root_ident(&node.receiver) {
             self.referenced_idents.insert(recv_ident.clone());
-            if let Some(log_info) = self.local_format_logs.get_mut(&recv_ident) {
+            if let Some(log_info) = self.local_format_logs.get_mut(&recv_ident)
+            {
                 if is_format_log_consuming_method(&method_name) {
                     log_info.consumed_or_returned = true;
                 }
@@ -637,7 +651,7 @@ fn extract_called_fn_name(expr: &syn::Expr) -> Option<String> {
     let inner = unwrap_try_and_context(expr);
     match inner {
         syn::Expr::Call(call) => {
-            if let syn::Expr::Path( ref ep) = *call.func {
+            if let syn::Expr::Path(ref ep) = *call.func {
                 ep.path.segments.last().map(|s| s.ident.to_string())
             } else {
                 None
@@ -804,7 +818,9 @@ pub fn run(workspace_root: &Path) -> Result<()> {
     }
 
     if violations.is_empty() {
-        println!("FormatLog lint passed (no discarded FormatLog instances found).");
+        println!(
+            "FormatLog lint passed (no discarded FormatLog instances found)."
+        );
         Ok(())
     } else {
         eprintln!(
@@ -848,7 +864,10 @@ mod tests {
             "#,
         );
         assert_eq!(v.len(), 1);
-        assert!(v[0].message.contains("tuple destructuring discards `FormatLog`"));
+        assert!(
+            v[0].message
+                .contains("tuple destructuring discards `FormatLog`")
+        );
     }
 
     #[test]
@@ -889,7 +908,10 @@ mod tests {
             "#,
         );
         assert_eq!(v.len(), 1);
-        assert!(v[0].message.contains("drops the temporary struct and discards `.log`"));
+        assert!(
+            v[0].message
+                .contains("drops the temporary struct and discards `.log`")
+        );
     }
 
     #[test]
@@ -916,7 +938,11 @@ mod tests {
             "#,
         );
         assert_eq!(v.len(), 1);
-        assert!(v[0].message.contains("local FormatLog `log` is created but never inspected"));
+        assert!(
+            v[0].message.contains(
+                "local FormatLog `log` is created but never inspected"
+            )
+        );
     }
 
     #[test]
@@ -941,4 +967,3 @@ mod tests {
         assert!(v.is_empty(), "expected no violations, got: {v:?}");
     }
 }
-

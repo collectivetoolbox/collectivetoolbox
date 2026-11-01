@@ -40,8 +40,8 @@ use crate::utilities::{
     wait_for_ctoolbox_exit_and_clean_up,
 };
 use crate::{StringInput, generate_help_bytes};
-use ctb_formats_math::cli::{BaseArgs, run_base_convert, run_base2base};
 pub use ctb_formats_internetarchive::cli::IACommand;
+use ctb_formats_math::cli::{BaseArgs, run_base_convert, run_base2base};
 
 /// Return true if this is a command that can be run without booting.
 pub fn is_lightweight_command(command: &str) -> bool {
@@ -1268,8 +1268,12 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         Command::Mv(args) => ctb_io_csc::move_engine::run_mv(args.clone()),
         Command::CscVerify(args) => ctb_io_csc::verifier::run_csc_verify(args),
         Command::CscDiff(args) => ctb_io_csc::diff_engine::run_csc_diff(args),
-        Command::Fsindex(args) => ctb_io_csc::index_engine::run_fsindex(args.clone()).await,
-        Command::Fsearch(args) => ctb_io_csc::search_engine::run_fsearch(args.clone()).await,
+        Command::Fsindex(args) => {
+            ctb_io_csc::index_engine::run_fsindex(args.clone()).await
+        }
+        Command::Fsearch(args) => {
+            ctb_io_csc::search_engine::run_fsearch(args.clone()).await
+        }
         Command::Csum {
             algo,
             file,
@@ -1280,13 +1284,11 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             *prefix_0x,
             read_file_or_stdin,
         ),
-        Command::Compress(args) => {
-            ctb_formats_compression_cli::run_compress(
-                args.clone(),
-                read_file_or_stdin,
-                check_overwrite_prompt,
-            )
-        }
+        Command::Compress(args) => ctb_formats_compression_cli::run_compress(
+            args.clone(),
+            read_file_or_stdin,
+            check_overwrite_prompt,
+        ),
         Command::Decompress {
             format,
             file,
@@ -1303,9 +1305,10 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         Command::File(args) => {
             ctb_formats_detection::cli::run_file_detection(args)
         }
-        Command::Wfparser { file } => {
-            ctb_formats_wfscan::cli::wfparser(file.as_path(), read_file_or_stdin)
-        }
+        Command::Wfparser { file } => ctb_formats_wfscan::cli::wfparser(
+            file.as_path(),
+            read_file_or_stdin,
+        ),
         Command::Wfscan { file } => {
             ctb_formats_wfscan::cli::wfscan(file.as_path(), read_file_or_stdin)
         }
@@ -1543,12 +1546,8 @@ mod tests {
             );
         }
 
-        let non_lightweight_commands = [
-            "nonexistent-subcommand-12345",
-            "server",
-            "start",
-            "",
-        ];
+        let non_lightweight_commands =
+            ["nonexistent-subcommand-12345", "server", "start", ""];
         for cmd_name in non_lightweight_commands {
             assert!(
                 !is_lightweight_command(cmd_name),
@@ -1565,20 +1564,19 @@ mod tests {
         let res = run_lightweight_command(&cmd).await?;
         match res {
             ToolResult::Immediate {
-                stdout,
-                exit_code,
-                ..
+                stdout, exit_code, ..
             } => {
                 assert_eq!(exit_code, 0);
-                assert_eq!(String::from_utf8(stdout)?, "\"hello \\\"world\\\"\"");
+                assert_eq!(
+                    String::from_utf8(stdout)?,
+                    "\"hello \\\"world\\\"\""
+                );
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
         Ok(())
     }
 
-
     // Don't add command-specific tests here! Any nontrivial logic should go in the associated crate, rather than this file and crate.
-// This module and crate should be as small as possible, with any logic related to parsing and dispatching of commands implemented in the respective crates relevant to the functionality.
-
+    // This module and crate should be as small as possible, with any logic related to parsing and dispatching of commands implemented in the respective crates relevant to the functionality.
 }

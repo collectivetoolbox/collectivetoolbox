@@ -101,7 +101,11 @@ impl KStruct for ValidFailRepeatExpr {
     type Root = ValidFailRepeatExpr;
     type Parent = ValidFailRepeatExpr;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,8 +127,11 @@ impl KStruct for ValidFailRepeatExpr {
         }
         for _item in self_rc.foo().iter() {
             let _tmpa = &*_item;
-            if !((*_tmpa != vec![0x0u8, 0x12u8, 0x34u8, 0x56u8])) {
-                return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/0".to_string() }));
+            if !(*_tmpa != vec![0x0u8, 0x12u8, 0x34u8, 0x56u8]) {
+                return Err(KError::ValidationFailed(ValidationFailedError {
+                    kind: ValidationKind::Expr,
+                    src_path: "/seq/0".to_string(),
+                }));
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -132,8 +139,7 @@ impl KStruct for ValidFailRepeatExpr {
         Ok(())
     }
 }
-impl ValidFailRepeatExpr {
-}
+impl ValidFailRepeatExpr {}
 impl ValidFailRepeatExpr {
     pub fn foo(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.foo.borrow()

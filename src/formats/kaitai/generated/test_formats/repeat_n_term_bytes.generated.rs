@@ -102,7 +102,11 @@ impl KStruct for RepeatNTermBytes {
     type Root = RepeatNTermBytes;
     type Parent = RepeatNTermBytes;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,27 +121,35 @@ impl KStruct for RepeatNTermBytes {
         *self_rc.records1.borrow_mut() = Vec::new();
         let l_records1 = 2_usize;
         for _i in 0_usize..l_records1 {
-            self_rc.records1.borrow_mut().push(_io.read_bytes_term(170, false, true, true)?);
+            self_rc
+                .records1
+                .borrow_mut()
+                .push(_io.read_bytes_term(170, false, true, true)?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records2.borrow_mut() = Vec::new();
         let l_records2 = 2_usize;
         for _i in 0_usize..l_records2 {
-            self_rc.records2.borrow_mut().push(_io.read_bytes_term(170, true, true, true)?);
+            self_rc
+                .records2
+                .borrow_mut()
+                .push(_io.read_bytes_term(170, true, true, true)?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records3.borrow_mut() = Vec::new();
         let l_records3 = 2_usize;
         for _i in 0_usize..l_records3 {
-            self_rc.records3.borrow_mut().push(_io.read_bytes_term(85, false, false, true)?);
+            self_rc
+                .records3
+                .borrow_mut()
+                .push(_io.read_bytes_term(85, false, false, true)?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl RepeatNTermBytes {
-}
+impl RepeatNTermBytes {}
 impl RepeatNTermBytes {
     pub fn records1(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.records1.borrow()

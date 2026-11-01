@@ -30,27 +30,34 @@ use crate::utilities::*;
 use crate::args::{CscDiffArgs, VerifyOutputFormat};
 use crate::verifier::{
     EntryDiff, VerificationReport, VerificationReportKind,
-    audit_entries_against_target, build_audit_caveats, check_cache_flush_privileges,
-    normalize_rel_path, scan_disk_entries,
+    audit_entries_against_target, build_audit_caveats,
+    check_cache_flush_privileges, normalize_rel_path, scan_disk_entries,
 };
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::extract_file_identity;
 use ctb_io::file::link_path::LinkPath;
-use ctb_io::file::verifier::{DiffKind, audit_entity_detailed, try_drop_system_caches};
+use ctb_io::file::verifier::{
+    DiffKind, audit_entity_detailed, try_drop_system_caches,
+};
 use ctb_utilities::cli::ToolResult;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 /// Compares two filesystem paths and generates a `VerificationReport` with `VerificationReportKind::PathDiff`.
-#[expect(clippy::too_many_lines, reason = "Comprehensive diff covering file-vs-file, dir-vs-dir, and file-vs-dir")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "Comprehensive diff covering file-vs-file, dir-vs-dir, and file-vs-dir"
+)]
 pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
     let path_a = &args.path_a;
     let path_b = &args.path_b;
 
-    let meta_a = std::fs::symlink_metadata(path_a)
-        .with_context(|| format!("Path A does not exist: {}", path_a.display()))?;
-    let meta_b = std::fs::symlink_metadata(path_b)
-        .with_context(|| format!("Path B does not exist: {}", path_b.display()))?;
+    let meta_a = std::fs::symlink_metadata(path_a).with_context(|| {
+        format!("Path A does not exist: {}", path_a.display())
+    })?;
+    let meta_b = std::fs::symlink_metadata(path_b).with_context(|| {
+        format!("Path B does not exist: {}", path_b.display())
+    })?;
 
     if args.should_drop_caches() {
         check_cache_flush_privileges();
@@ -74,11 +81,15 @@ pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
                 .apple_read_options(apple_read_options);
 
             let mut expected_entries: Vec<(PathBuf, FileEntity)> = Vec::new();
-            let mut seen_hardlinks: HashMap<ctb_io::file::InodeKey, PathBuf> = HashMap::new();
+            let mut seen_hardlinks: HashMap<ctb_io::file::InodeKey, PathBuf> =
+                HashMap::new();
 
             for item in ctb_io::file::traverse_dir(path_a, traversal_opts)? {
                 let item = item.with_context(|| {
-                    format!("Failed during traversal of Path A: {}", path_a.display())
+                    format!(
+                        "Failed during traversal of Path A: {}",
+                        path_a.display()
+                    )
                 })?;
                 let rel = item.relative_path().to_path_buf();
 
@@ -100,7 +111,8 @@ pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
                 if item.is_dir {
                     // Directories are not hardlinked
                 } else if let Some(m) = sym_meta {
-                    if let Ok(ident) = extract_file_identity(full_item_path, m) {
+                    if let Ok(ident) = extract_file_identity(full_item_path, m)
+                    {
                         if let Some(first_rel) = seen_hardlinks.get(&ident) {
                             is_hardlink_to = Some(first_rel.clone());
                         } else {
@@ -116,15 +128,18 @@ pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
                         &apple_read_options,
                     )?;
                     hardlink_entity.kind = FileEntityKind::Hardlink {
-                        target_relative_path: LinkPath::from_relative_path(&first_rel)?,
+                        target_relative_path: LinkPath::from_relative_path(
+                            &first_rel,
+                        )?,
                     };
                     expected_entries.push((rel, hardlink_entity));
                 } else {
-                    let entity = FileEntity::from_filesystem_with_apple_options(
-                        full_item_path,
-                        Some(path_a),
-                        &apple_read_options,
-                    )?;
+                    let entity =
+                        FileEntity::from_filesystem_with_apple_options(
+                            full_item_path,
+                            Some(path_a),
+                            &apple_read_options,
+                        )?;
                     expected_entries.push((rel, entity));
                 }
             }
@@ -169,7 +184,8 @@ pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
                 }
             }
 
-            changed_entries.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+            changed_entries
+                .sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
             missing_entries.sort();
             untracked_entries.sort();
 
@@ -206,7 +222,8 @@ pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
                 &apple_read_options,
             )?;
 
-            let (diffs, ignored) = audit_entity_detailed(path_b, &entity_a, &audit_options)?;
+            let (diffs, ignored) =
+                audit_entity_detailed(path_b, &entity_a, &audit_options)?;
 
             let mut matched_entries = 0_usize;
             let mut changed_entries = Vec::new();
@@ -261,10 +278,15 @@ pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
             let mut matched_entries = 0_usize;
             let mut changed_entries = Vec::new();
             let mut missing_entries = Vec::new();
-            let mut total_ignored = crate::verifier::IgnoredDifferences::default();
+            let mut total_ignored =
+                crate::verifier::IgnoredDifferences::default();
 
             if target_in_b.exists() {
-                let (diffs, ignored) = audit_entity_detailed(&target_in_b, &entity_a, &audit_options)?;
+                let (diffs, ignored) = audit_entity_detailed(
+                    &target_in_b,
+                    &entity_a,
+                    &audit_options,
+                )?;
                 total_ignored = ignored;
                 if diffs.is_empty() {
                     matched_entries = 1;
@@ -344,7 +366,8 @@ pub fn diff_paths(args: &CscDiffArgs) -> Result<VerificationReport> {
                 }],
                 missing_entries: Vec::new(),
                 untracked_entries: Vec::new(),
-                ignored_differences: crate::verifier::IgnoredDifferences::default(),
+                ignored_differences:
+                    crate::verifier::IgnoredDifferences::default(),
                 best_effort: is_best_effort,
                 caveats,
                 recorded_errors: Vec::new(),
@@ -435,7 +458,11 @@ mod tests {
         assert!(!report.is_clean());
         assert_eq!(report.changed_entries.len(), 1);
         let diffs = &report.changed_entries[0].differences;
-        assert!(diffs.iter().any(|d| matches!(d, DiffKind::ContentHashMismatch { .. })));
+        assert!(
+            diffs
+                .iter()
+                .any(|d| matches!(d, DiffKind::ContentHashMismatch { .. }))
+        );
     }
 
     #[crate::ctb_test]
@@ -455,7 +482,8 @@ mod tests {
         filetime::set_file_times(dir_b.join("f1.txt"), mtime, mtime).unwrap();
 
         let meta_dir = fs::metadata(&dir_a).unwrap();
-        let mtime_dir = filetime::FileTime::from_last_modification_time(&meta_dir);
+        let mtime_dir =
+            filetime::FileTime::from_last_modification_time(&meta_dir);
         filetime::set_file_times(&dir_b, mtime_dir, mtime_dir).unwrap();
 
         let mut args = default_diff_args(dir_a, dir_b);
@@ -487,8 +515,14 @@ mod tests {
         let report = diff_paths(&args).unwrap();
         assert!(!report.is_clean());
         assert_eq!(report.matched_entries, 1);
-        assert_eq!(report.missing_entries, vec![PathBuf::from("only_in_a.txt")]);
-        assert_eq!(report.untracked_entries, vec![PathBuf::from("only_in_b.txt")]);
+        assert_eq!(
+            report.missing_entries,
+            vec![PathBuf::from("only_in_a.txt")]
+        );
+        assert_eq!(
+            report.untracked_entries,
+            vec![PathBuf::from("only_in_b.txt")]
+        );
     }
 
     #[crate::ctb_test]
@@ -539,7 +573,9 @@ mod tests {
         assert!(!report.is_clean());
         // file2 should fail hardlink check because in B they are separate inodes
         assert!(report.changed_entries.iter().any(|e| {
-            e.differences.iter().any(|d| matches!(d, DiffKind::HardlinkMismatch { .. }))
+            e.differences
+                .iter()
+                .any(|d| matches!(d, DiffKind::HardlinkMismatch { .. }))
         }));
     }
 
@@ -556,24 +592,32 @@ mod tests {
 
         let res = run_csc_diff(&args).unwrap();
         match res {
-            ToolResult::Immediate { exit_code, stdout, .. } => {
+            ToolResult::Immediate {
+                exit_code, stdout, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("--- CSC Diff Report ---"));
                 assert!(out.contains("Status:           OK - Paths match."));
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
 
         // Test quiet mode
         args.quiet = true;
         let res_quiet = run_csc_diff(&args).unwrap();
         match res_quiet {
-            ToolResult::Immediate { exit_code, stdout, .. } => {
+            ToolResult::Immediate {
+                exit_code, stdout, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 assert!(stdout.is_empty());
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
 
         // Alter file B
@@ -581,14 +625,17 @@ mod tests {
         args.quiet = false;
         let res_fail = run_csc_diff(&args).unwrap();
         match res_fail {
-            ToolResult::Immediate { exit_code, stdout, .. } => {
+            ToolResult::Immediate {
+                exit_code, stdout, ..
+            } => {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Status:           FAILED - Discrepancies detected between paths."));
                 assert!(out.contains("Changed Entries (1):"));
             }
-            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+            ToolResult::Streaming { .. } => {
+                panic!("Expected Immediate ToolResult")
+            }
         }
     }
 }
-

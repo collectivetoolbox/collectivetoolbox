@@ -488,7 +488,10 @@ pub fn get_inode_or_file_index(path: &Path) -> Result<u64> {
     }
 }
 
-#[expect(unsafe_code, reason = "Unsafe Windows FFI to query file index by handle")]
+#[expect(
+    unsafe_code,
+    reason = "Unsafe Windows FFI to query file index by handle"
+)]
 pub fn get_inode_or_file_index_from_descriptor(file: &File) -> Result<u64> {
     #[cfg(unix)]
     {
@@ -504,7 +507,8 @@ pub fn get_inode_or_file_index_from_descriptor(file: &File) -> Result<u64> {
         };
 
         let handle: HANDLE = file.as_raw_handle();
-        let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+        let mut info: BY_HANDLE_FILE_INFORMATION =
+            unsafe { std::mem::zeroed() };
         let ok = unsafe { GetFileInformationByHandle(handle, &mut info) };
         if ok == 0 {
             bail!("GetFileInformationByHandle failed");
@@ -670,14 +674,15 @@ mod tests {
     fn check_filesystem_lock_support_concurrent() {
         let mut handles = Vec::new();
         for _ in 0..8 {
-            let handle = thread::spawn(|| {
-                check_filesystem_lock_support()
-            });
+            let handle = thread::spawn(|| check_filesystem_lock_support());
             handles.push(handle);
         }
         for handle in handles {
             let res = handle.join().expect("thread join failed");
-            assert!(res.is_ok(), "Concurrent lock support check failed: {res:?}");
+            assert!(
+                res.is_ok(),
+                "Concurrent lock support check failed: {res:?}"
+            );
         }
     }
 }

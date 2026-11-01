@@ -41,9 +41,9 @@ See full license information at the end of this file.
 )]
 use crate::utilities::*;
 
+use indexmap::IndexMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use indexmap::IndexMap;
 
 use crate::parser::parse_ksy_slice;
 use crate::spec::KsyFile;
@@ -82,13 +82,14 @@ impl SpecRegistry {
     ///
     /// # Errors
     /// Returns an error if the imported file cannot be found or parsed.
-    pub fn load_import(&mut self, import_str: &str, current_file: Option<&Path>) -> Result<()> {
+    pub fn load_import(
+        &mut self,
+        import_str: &str,
+        current_file: Option<&Path>,
+    ) -> Result<()> {
         let clean_path = import_str.trim_start_matches('/');
         // Reason for fallback: import string without path separator is already the base name
-        let base_name = clean_path
-            .rsplit('/')
-            .next()
-            .unwrap_or(clean_path);
+        let base_name = clean_path.rsplit('/').next().unwrap_or(clean_path);
 
         if self.specs.contains_key(base_name) {
             return Ok(());
@@ -125,10 +126,12 @@ impl SpecRegistry {
             bail!("Could not resolve import '{import_str}'");
         };
 
-        let content = fs::read(&path)
-            .with_context(|| format!("Failed to read imported file {}", path.display()))?;
-        let ksy = parse_ksy_slice(&content)
-            .with_context(|| format!("Failed to parse imported file {}", path.display()))?;
+        let content = fs::read(&path).with_context(|| {
+            format!("Failed to read imported file {}", path.display())
+        })?;
+        let ksy = parse_ksy_slice(&content).with_context(|| {
+            format!("Failed to parse imported file {}", path.display())
+        })?;
 
         self.specs.insert(base_name.to_string(), ksy.clone());
 

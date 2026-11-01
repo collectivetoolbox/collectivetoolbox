@@ -30,29 +30,35 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! 5. In-place source editing (`preserve_source`, `preserve_text`): replacements,
 //!    deletions, insertions over `DcSyntaxArena` without panics.
 
-#[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Integration test root"
+)]
 use ctb_utilities::*;
 
 use anyhow::{Context, Result, ensure};
 use ctb_formats_checksum::sha256;
+pub use ctb_formats_dcdata::dc::*;
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_ERROR_RECORD, DC_BEGIN_FORMAT_REPRESENTATION,
-    DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST,
-    DC_BEGIN_NUMBER, DC_BEGIN_OPERATION_SESSION, DC_BEGIN_WARNING_RECORD,
-    DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_END_CHECKSUMMED_SECTION,
-    DC_END_ERROR_RECORD, DC_END_FORMAT_REPRESENTATION, DC_END_KV_MAP, DC_END_KV_PAIR,
+    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_ERROR_RECORD,
+    DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
+    DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BEGIN_NUMBER,
+    DC_BEGIN_OPERATION_SESSION, DC_BEGIN_WARNING_RECORD, DC_BOOLEAN_FALSE,
+    DC_BOOLEAN_TRUE, DC_END_CHECKSUMMED_SECTION, DC_END_ERROR_RECORD,
+    DC_END_FORMAT_REPRESENTATION, DC_END_KV_MAP, DC_END_KV_PAIR,
     DC_END_LEGACY_KV_MAP, DC_END_LIST, DC_END_NUMBER, DC_END_OPERATION_SESSION,
     DC_END_WARNING_RECORD, DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE,
     DC_LIST_ELEMENT_SEPARATOR, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
+    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_SECTION_DIGEST,
+    DC_SEQUENCE_IDENTIFIER,
 };
 use ctb_formats_dcdata::syntax::{
-    CharTarget, DatasetRuleResolver, SyntaxPattern, SyntaxRuleResolver, SyntaxTerm,
-    default_syntax_resolver,
+    CharTarget, DatasetRuleResolver, SyntaxPattern, SyntaxRuleResolver,
+    SyntaxTerm, default_syntax_resolver,
 };
 use ctb_formats_dcstring::dc_mixed_serde::encode_format_representation;
 pub use ctb_formats_dcstring::*;
-pub use ctb_formats_dcdata::dc::*;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -103,23 +109,39 @@ mod challenge1_recursion_depth_limits {
                 let start = nav.position();
                 let mut ctx = SyntaxEvalContext::new(&**resolver, None);
                 ctx.max_depth = budget;
-                ensure!(nav.eval_term_single(&term, &mut ctx)? == (budget == 2), "Wrong constructor boundary at budget {budget}");
-                ensure!(ctx.has_errors == (budget < 2), "Depth exhaustion must produce a diagnostic");
+                ensure!(
+                    nav.eval_term_single(&term, &mut ctx)? == (budget == 2),
+                    "Wrong constructor boundary at budget {budget}"
+                );
+                ensure!(
+                    ctx.has_errors == (budget < 2),
+                    "Depth exhaustion must produce a diagnostic"
+                );
                 ensure!(ctx.depth == 0 && ctx.self_dc.is_none());
                 if budget < 2 {
-                    ensure!(nav.position() == start, "Failed type matching must restore the cursor");
+                    ensure!(
+                        nav.position() == start,
+                        "Failed type matching must restore the cursor"
+                    );
                 } else {
                     ensure!(nav.position() == nav.active_span().end);
                 }
             }
             let depth = 8192usize;
             let mut deep = DcMstring::new();
-            for _ in 0..depth { deep.push_char(constructor); }
-            for _ in 0..=depth { deep.push_char(DC_TYPE_WILDCARD); }
+            for _ in 0..depth {
+                deep.push_char(constructor);
+            }
+            for _ in 0..=depth {
+                deep.push_char(DC_TYPE_WILDCARD);
+            }
             let mut nav = DcDocumentNavigator::from_mstr(&deep);
             let mut ctx = SyntaxEvalContext::new(&**resolver, None);
             ctx.max_depth = depth;
-            ensure!(nav.eval_term_single(&term, &mut ctx)?, "Raised-budget constructor chain must parse iteratively");
+            ensure!(
+                nav.eval_term_single(&term, &mut ctx)?,
+                "Raised-budget constructor chain must parse iteratively"
+            );
             ensure!(!ctx.has_errors && nav.position() == nav.active_span().end);
 
             for chars in [
@@ -131,15 +153,27 @@ mod challenge1_recursion_depth_limits {
                 let start = nav.position();
                 let mut ctx = SyntaxEvalContext::new(&**resolver, None);
                 ensure!(!nav.eval_term_single(&term, &mut ctx)?);
-                ensure!(nav.position() == start && ctx.depth == 0 && ctx.self_dc.is_none());
+                ensure!(
+                    nav.position() == start
+                        && ctx.depth == 0
+                        && ctx.self_dc.is_none()
+                );
             }
             let list = create_mstring(&[
-                constructor, DC_BEGIN_LIST, DC_TYPE_WILDCARD,
-                DC_TYPE_WILDCARD, DC_LIST_ELEMENT_SEPARATOR, DC_TYPE_WILDCARD, DC_END_LIST,
+                constructor,
+                DC_BEGIN_LIST,
+                DC_TYPE_WILDCARD,
+                DC_TYPE_WILDCARD,
+                DC_LIST_ELEMENT_SEPARATOR,
+                DC_TYPE_WILDCARD,
+                DC_END_LIST,
             ]);
             let mut nav = DcDocumentNavigator::from_mstr(&list);
             let mut ctx = SyntaxEvalContext::new(&**resolver, None);
-            ensure!(nav.eval_term_single(&term, &mut ctx)?, "Generated list alternative must remain accepted");
+            ensure!(
+                nav.eval_term_single(&term, &mut ctx)?,
+                "Generated list alternative must remain accepted"
+            );
             ensure!(nav.position() == nav.active_span().end && !ctx.has_errors);
         }
         Ok(())
@@ -193,7 +227,8 @@ mod challenge1_recursion_depth_limits {
         }
 
         validate_dc_mixed_strict(&doc33)?;
-        let low = DcProjectionPolicy::strict().with_max_depth(32, DiagnosticAction::Error);
+        let low = DcProjectionPolicy::strict()
+            .with_max_depth(32, DiagnosticAction::Error);
         let mut nav = DcDocumentNavigator::from_mstr(&doc33);
         ensure!(nav.validate_document(&low).is_err());
         let mut arena = DcSyntaxArena::new();
@@ -247,7 +282,8 @@ mod challenge1_recursion_depth_limits {
                 res.is_ok() == (depth <= 64),
                 "Default document depth budget disagrees at depth {depth}"
             );
-            let raised = DcProjectionPolicy::strict().with_max_depth(600, DiagnosticAction::Error);
+            let raised = DcProjectionPolicy::strict()
+                .with_max_depth(600, DiagnosticAction::Error);
             let mut nav = DcDocumentNavigator::from_mstr(&doc);
             nav.validate_document(&raised)?;
             let mut arena = DcSyntaxArena::new();
@@ -277,20 +313,24 @@ mod challenge1_recursion_depth_limits {
         let mut nav_strict = DcDocumentNavigator::from_mstr(&doc);
         let mut arena_strict = DcSyntaxArena::new();
         ensure!(
-            nav_strict.parse_document_into_arena(&mut arena_strict, &strict).is_err(),
+            nav_strict
+                .parse_document_into_arena(&mut arena_strict, &strict)
+                .is_err(),
             "Strict policy must reject transparent wrapper chains exceeding max_depth"
         );
 
         // Under forgiving policy, Stage 1 caps the arena at 32 levels and unwrap_transparent terminates cleanly
         let mut nav_forgiving = DcDocumentNavigator::from_mstr(&doc);
         let mut arena_forgiving = DcSyntaxArena::new();
-        nav_forgiving.parse_document_into_arena(&mut arena_forgiving, &forgiving)?;
+        nav_forgiving
+            .parse_document_into_arena(&mut arena_forgiving, &forgiving)?;
 
         let roots = arena_forgiving.roots();
         ensure!(!roots.is_empty(), "Arena must contain root node");
         let root = roots[0];
 
-        let ctx_forgiving = DcProjectionContext::new(&arena_forgiving, &forgiving);
+        let ctx_forgiving =
+            DcProjectionContext::new(&arena_forgiving, &forgiving);
         let unwrapped = ctx_forgiving.unwrap_transparent(root)?;
         let node = ctx_forgiving.node(unwrapped)?;
         ensure!(
@@ -316,7 +356,8 @@ mod challenge2_complex_container_nesting {
     /// - `DcMixedDecode` transparent projection to typed values (PathBuf and String)
     /// - Detection of tamper anywhere in the nested envelope
     #[crate::ctb_test]
-    fn test_adversarial_equivalent_in_optional_in_checksummed_section() -> Result<()> {
+    fn test_adversarial_equivalent_in_optional_in_checksummed_section()
+    -> Result<()> {
         let policy = DcProjectionPolicy::strict();
         let mut mst = DcMstring::new();
 
@@ -395,9 +436,11 @@ mod challenge2_complex_container_nesting {
 
         // Expand frame into arena
         let mut arena = DcSyntaxArena::new();
-        let section_node_id = nav.expand_frame(&section_stub, &mut arena, &policy)?;
+        let section_node_id =
+            nav.expand_frame(&section_stub, &mut arena, &policy)?;
 
-        let section_node = arena.get(section_node_id).context("Section node")?;
+        let section_node =
+            arena.get(section_node_id).context("Section node")?;
         let children = section_node.children();
         ensure!(
             children.len() >= 2,
@@ -409,8 +452,9 @@ mod challenge2_complex_container_nesting {
         let mut ctx = DcProjectionContext::new(&arena, &policy);
 
         let decoded_path: Option<PathBuf> =
-            Option::<PathBuf>::decode_dc_node(&mut ctx, opt_child_id)
-                .context("Projecting Option<PathBuf> through 315 -> 397 -> 511 [f494]")?;
+            Option::<PathBuf>::decode_dc_node(&mut ctx, opt_child_id).context(
+                "Projecting Option<PathBuf> through 315 -> 397 -> 511 [f494]",
+            )?;
         ensure!(
             decoded_path == Some(PathBuf::from("report.pdf")),
             "Primary candidate must project to PathBuf: got {decoded_path:?}"
@@ -484,7 +528,8 @@ mod challenge2_complex_container_nesting {
         let opt_child = sec_node.children()[1];
 
         let mut ctx = DcProjectionContext::new(&arena, &policy);
-        let decoded: Option<String> = Option::<String>::decode_dc_node(&mut ctx, opt_child)?;
+        let decoded: Option<String> =
+            Option::<String>::decode_dc_node(&mut ctx, opt_child)?;
         ensure!(
             decoded.is_none(),
             "Optional absent must decode to None: got {decoded:?}"
@@ -544,7 +589,9 @@ mod challenge3_transparent_unwrapping {
         mst_str.push_char(DC_TYPE_WILDCARD);
 
         mst_str.push_char(DC_OPTIONAL_PRESENT);
-        "multi_layer_string".to_string().encode_dc_mixed(&mut mst_str)?;
+        "multi_layer_string"
+            .to_string()
+            .encode_dc_mixed(&mut mst_str)?;
 
         mst_str.push_char(DC_END_LIST);
         mst_str.push_char(DC_END_LIST);
@@ -556,7 +603,10 @@ mod challenge3_transparent_unwrapping {
 
         let mut ctx_str = DcProjectionContext::new(&arena_str, &policy);
         let val_str = String::decode_dc_node(&mut ctx_str, root_str)?;
-        ensure!(val_str == "multi_layer_string", "String unwrapping mismatch");
+        ensure!(
+            val_str == "multi_layer_string",
+            "String unwrapping mismatch"
+        );
 
         // 3. Composite framed map BTreeMap<String, u32> through 397 [list] -> 315
         let mut map_data = BTreeMap::new();
@@ -578,7 +628,10 @@ mod challenge3_transparent_unwrapping {
         let root_map = arena_map.roots()[0];
 
         let mut ctx_map = DcProjectionContext::new(&arena_map, &policy);
-        let val_map = Option::<BTreeMap<String, u32>>::decode_dc_node(&mut ctx_map, root_map)?;
+        let val_map = Option::<BTreeMap<String, u32>>::decode_dc_node(
+            &mut ctx_map,
+            root_map,
+        )?;
         ensure!(val_map == Some(map_data), "Map unwrapping mismatch");
 
         // 4. Collection Vec<u32> through 397 [list] -> 315
@@ -599,8 +652,12 @@ mod challenge3_transparent_unwrapping {
         let root_vec = arena_vec.roots()[0];
 
         let mut ctx_vec = DcProjectionContext::new(&arena_vec, &policy);
-        let val_vec = Option::<Vec<u32>>::decode_dc_node(&mut ctx_vec, root_vec)?;
-        ensure!(val_vec == Some(vec_data.clone()), "Option<Vec> unwrapping mismatch");
+        let val_vec =
+            Option::<Vec<u32>>::decode_dc_node(&mut ctx_vec, root_vec)?;
+        ensure!(
+            val_vec == Some(vec_data.clone()),
+            "Option<Vec> unwrapping mismatch"
+        );
         let direct_vec = Vec::<u32>::decode_dc_node(&mut ctx_vec, root_vec)?;
         ensure!(direct_vec == vec_data, "Direct Vec unwrapping mismatch");
 
@@ -619,8 +676,12 @@ mod challenge3_transparent_unwrapping {
         nav_pair.parse_document_into_arena(&mut arena_pair, &policy)?;
         let root_pair = arena_pair.roots()[0];
         let mut ctx_pair = DcProjectionContext::new(&arena_pair, &policy);
-        let decoded_pair = <(u32, bool)>::decode_dc_node(&mut ctx_pair, root_pair)?;
-        ensure!(decoded_pair == pair, "Composite pair (777, true) unwrapping mismatch");
+        let decoded_pair =
+            <(u32, bool)>::decode_dc_node(&mut ctx_pair, root_pair)?;
+        ensure!(
+            decoded_pair == pair,
+            "Composite pair (777, true) unwrapping mismatch"
+        );
 
         // 6. #[derive(DcMixed)] struct with framed and tagged (u32, bool) + Vec<u32> fields
         // wrapped in 397 [list] -> 315
@@ -695,7 +756,8 @@ mod challenge3_transparent_unwrapping {
     /// Verifies that `Vec<T>` and `(A, B)` call `unwrap_transparent` and properly
     /// unwrap transparent optional (`315`) wrappers.
     #[crate::ctb_test]
-    fn test_adversarial_bare_vec_and_tuple_unwrap_transparent_optionals() -> Result<()> {
+    fn test_adversarial_bare_vec_and_tuple_unwrap_transparent_optionals()
+    -> Result<()> {
         let policy = DcProjectionPolicy::strict();
 
         // 315 wrapping a Vec<u32>
@@ -754,7 +816,10 @@ mod challenge3_transparent_unwrapping {
         200u64.encode_dc_mixed(&mut doc)?;
         doc.push_char(DC_END_LIST);
 
-        ensure!(validate_dc_mixed_strict(&doc).is_err(), "Standalone validation must enforce equivalent separators too");
+        ensure!(
+            validate_dc_mixed_strict(&doc).is_err(),
+            "Standalone validation must enforce equivalent separators too"
+        );
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         let mut arena = DcSyntaxArena::new();
         let res = nav.parse_document_into_arena(&mut arena, &strict);
@@ -773,7 +838,8 @@ mod challenge3_transparent_unwrapping {
 
     /// Verifies strict rejection of empty equivalent representation containers and empty optionals.
     #[crate::ctb_test]
-    fn test_adversarial_empty_equivalent_and_empty_optional_rejection() -> Result<()> {
+    fn test_adversarial_empty_equivalent_and_empty_optional_rejection()
+    -> Result<()> {
         let strict = DcProjectionPolicy::strict();
 
         // A. Empty 397 tagged construct
@@ -821,13 +887,16 @@ mod challenge4_strict_syntax_enforcement {
 
     /// Verifies that bare strings and bare binaries are rejected for `PathBuf`.
     #[crate::ctb_test]
-    fn test_adversarial_strict_rejection_bare_strings_and_binary() -> Result<()> {
+    fn test_adversarial_strict_rejection_bare_strings_and_binary() -> Result<()>
+    {
         let strict = DcProjectionPolicy::strict();
         let forgiving = DcProjectionPolicy::forgiving();
 
         // 1. Bare string representation for PathBuf
         let mut mst_bare_str = DcMstring::new();
-        "folder/file.txt".to_string().encode_dc_mixed(&mut mst_bare_str)?;
+        "folder/file.txt"
+            .to_string()
+            .encode_dc_mixed(&mut mst_bare_str)?;
 
         let mut nav = DcDocumentNavigator::from_mstr(&mst_bare_str);
         let mut arena = DcSyntaxArena::new();
@@ -842,7 +911,9 @@ mod challenge4_strict_syntax_enforcement {
         );
         let err_msg = format!("{:#}", res_strict.unwrap_err());
         ensure!(
-            err_msg.contains("Expected format representation (Dc 511 + f494) for PathBuf"),
+            err_msg.contains(
+                "Expected format representation (Dc 511 + f494) for PathBuf"
+            ),
             "Error message must specify canonical format representation requirement: got {err_msg}"
         );
 
@@ -862,13 +933,15 @@ mod challenge4_strict_syntax_enforcement {
         let root_bin = arena_bin.roots()[0];
 
         let mut ctx_bin_strict = DcProjectionContext::new(&arena_bin, &strict);
-        let res_bin_strict = PathBuf::decode_dc_node(&mut ctx_bin_strict, root_bin);
+        let res_bin_strict =
+            PathBuf::decode_dc_node(&mut ctx_bin_strict, root_bin);
         ensure!(
             res_bin_strict.is_err(),
             "Bare binary for PathBuf must fail under strict policy"
         );
 
-        let mut ctx_bin_forgiving = DcProjectionContext::new(&arena_bin, &forgiving);
+        let mut ctx_bin_forgiving =
+            DcProjectionContext::new(&arena_bin, &forgiving);
         ensure!(
             PathBuf::decode_dc_node(&mut ctx_bin_forgiving, root_bin).is_err(),
             "Standalone PathBuf decoder must reject bare binary under forgiving policy too"
@@ -893,7 +966,8 @@ mod challenge4_strict_syntax_enforcement {
         let root = arena.roots()[0];
 
         let mut ctx_dur_strict = DcProjectionContext::new(&arena, &strict);
-        let res_dur_strict = Duration::decode_dc_node(&mut ctx_dur_strict, root);
+        let res_dur_strict =
+            Duration::decode_dc_node(&mut ctx_dur_strict, root);
         ensure!(
             res_dur_strict.is_err(),
             "Bare number for Duration must fail under strict policy"
@@ -904,7 +978,8 @@ mod challenge4_strict_syntax_enforcement {
             "Error must specify duration container requirement: got {err_dur}"
         );
 
-        let mut ctx_dur_forgiving = DcProjectionContext::new(&arena, &forgiving);
+        let mut ctx_dur_forgiving =
+            DcProjectionContext::new(&arena, &forgiving);
         ensure!(
             Duration::decode_dc_node(&mut ctx_dur_forgiving, root).is_err(),
             "Standalone Duration decoder must reject bare number under forgiving policy too"
@@ -912,15 +987,21 @@ mod challenge4_strict_syntax_enforcement {
 
         // 2. Bare number for SystemTime
         let mut ctx_time_strict = DcProjectionContext::new(&arena, &strict);
-        let res_time_strict = std::time::SystemTime::decode_dc_node(&mut ctx_time_strict, root);
+        let res_time_strict =
+            std::time::SystemTime::decode_dc_node(&mut ctx_time_strict, root);
         ensure!(
             res_time_strict.is_err(),
             "Bare number for SystemTime must fail under strict policy"
         );
 
-        let mut ctx_time_forgiving = DcProjectionContext::new(&arena, &forgiving);
+        let mut ctx_time_forgiving =
+            DcProjectionContext::new(&arena, &forgiving);
         ensure!(
-            std::time::SystemTime::decode_dc_node(&mut ctx_time_forgiving, root).is_err(),
+            std::time::SystemTime::decode_dc_node(
+                &mut ctx_time_forgiving,
+                root
+            )
+            .is_err(),
             "Standalone SystemTime decoder must reject bare number under forgiving policy too"
         );
 
@@ -931,12 +1012,36 @@ mod challenge4_strict_syntax_enforcement {
     #[crate::ctb_test]
     fn test_adversarial_strict_rejection_mismatched_delimiters() -> Result<()> {
         let mismatched_pairs: &[(DcChar, DcChar, &str)] = &[
-            (DC_BEGIN_LIST, DC_END_FORMAT_REPRESENTATION, "List opened with 310, closed with 512"),
-            (DC_BEGIN_KV_MAP, DC_END_LIST, "KV Map opened with 559, closed with 311"),
-            (DC_BEGIN_CHECKSUMMED_SECTION, DC_END_OPERATION_SESSION, "Section opened with 543, closed with 548"),
-            (DC_BEGIN_KV_PAIR, DC_END_KV_MAP, "KV Pair opened with 514, closed with 560"),
-            (DC_BEGIN_OPERATION_SESSION, DC_END_LIST, "Session opened with 547, closed with 311"),
-            (DC_BEGIN_FORMAT_REPRESENTATION, DC_END_LEGACY_KV_MAP, "Format opened with 511, closed with 516"),
+            (
+                DC_BEGIN_LIST,
+                DC_END_FORMAT_REPRESENTATION,
+                "List opened with 310, closed with 512",
+            ),
+            (
+                DC_BEGIN_KV_MAP,
+                DC_END_LIST,
+                "KV Map opened with 559, closed with 311",
+            ),
+            (
+                DC_BEGIN_CHECKSUMMED_SECTION,
+                DC_END_OPERATION_SESSION,
+                "Section opened with 543, closed with 548",
+            ),
+            (
+                DC_BEGIN_KV_PAIR,
+                DC_END_KV_MAP,
+                "KV Pair opened with 514, closed with 560",
+            ),
+            (
+                DC_BEGIN_OPERATION_SESSION,
+                DC_END_LIST,
+                "Session opened with 547, closed with 311",
+            ),
+            (
+                DC_BEGIN_FORMAT_REPRESENTATION,
+                DC_END_LEGACY_KV_MAP,
+                "Format opened with 511, closed with 516",
+            ),
         ];
 
         for &(opener, closer, desc) in mismatched_pairs {
@@ -1025,7 +1130,10 @@ mod challenge5_source_editing_over_arena {
         Ok(mst)
     }
 
-    fn do_preserve_source(old: &DcMstring, new: &DcMstring) -> Result<DcMstring> {
+    fn do_preserve_source(
+        old: &DcMstring,
+        new: &DcMstring,
+    ) -> Result<DcMstring> {
         let range = ctb_formats_dcstring::DCMM_HEADER_LEN..old.len();
         old.replace_typed_source_field(range, new)
     }
@@ -1043,18 +1151,21 @@ mod challenge5_source_editing_over_arena {
 
     /// Tests replacements, deletions, and insertions over `DcSyntaxArena` in `preserve_source`.
     #[crate::ctb_test]
-    fn test_adversarial_source_edit_replacements_insertions_deletions() -> Result<()> {
+    fn test_adversarial_source_edit_replacements_insertions_deletions()
+    -> Result<()> {
         let strict = DcProjectionPolicy::strict();
 
         // Original document: Map with keys "alpha": 10, "beta": 20, "gamma": 30
-        let original = build_kv_map(&[("alpha", 10), ("beta", 20), ("gamma", 30)])?;
+        let original =
+            build_kv_map(&[("alpha", 10), ("beta", 20), ("gamma", 30)])?;
 
         // Replacement:
         // - "alpha" is deleted
         // - "beta" value replaced with 999
         // - "gamma" value unchanged (30)
         // - "delta" is newly inserted (40)
-        let modified = build_kv_map(&[("beta", 999), ("gamma", 30), ("delta", 40)])?;
+        let modified =
+            build_kv_map(&[("beta", 999), ("gamma", 30), ("delta", 40)])?;
 
         let revised = do_preserve_source(&original, &modified)
             .context("do_preserve_source replacement/insertion/deletion")?;
@@ -1066,12 +1177,25 @@ mod challenge5_source_editing_over_arena {
         let root = arena.roots()[0];
 
         let mut ctx = DcProjectionContext::new(&arena, &strict);
-        let map: BTreeMap<String, u64> = BTreeMap::<String, u64>::decode_dc_node(&mut ctx, root)?;
+        let map: BTreeMap<String, u64> =
+            BTreeMap::<String, u64>::decode_dc_node(&mut ctx, root)?;
 
-        ensure!(!map.contains_key("alpha"), "Deleted key 'alpha' must not be in result");
-        ensure!(map.get("beta") == Some(&999), "Updated key 'beta' must have new value 999");
-        ensure!(map.get("gamma") == Some(&30), "Unchanged key 'gamma' must retain value 30");
-        ensure!(map.get("delta") == Some(&40), "Inserted key 'delta' must be present with 40");
+        ensure!(
+            !map.contains_key("alpha"),
+            "Deleted key 'alpha' must not be in result"
+        );
+        ensure!(
+            map.get("beta") == Some(&999),
+            "Updated key 'beta' must have new value 999"
+        );
+        ensure!(
+            map.get("gamma") == Some(&30),
+            "Unchanged key 'gamma' must retain value 30"
+        );
+        ensure!(
+            map.get("delta") == Some(&40),
+            "Inserted key 'delta' must be present with 40"
+        );
 
         Ok(())
     }
@@ -1094,7 +1218,8 @@ mod challenge5_source_editing_over_arena {
         ensure!(view.fields().len() == 3, "Expected 3 field annotations");
 
         let mut updated = rec.clone();
-        updated.title = "adversarially_updated_title_with_extra_length".to_string();
+        updated.title =
+            "adversarially_updated_title_with_extra_length".to_string();
 
         let revised: DcMstring = view.replace_field("title", &updated)?;
         let decoded = revised.decode::<KeyedEditRecord>(&strict)?;
@@ -1105,13 +1230,17 @@ mod challenge5_source_editing_over_arena {
 
     /// Verifies that empty, boundary, and malformed inputs never panic in source editing.
     #[crate::ctb_test]
-    fn test_adversarial_source_edit_boundary_and_malformed_inputs() -> Result<()> {
+    fn test_adversarial_source_edit_boundary_and_malformed_inputs() -> Result<()>
+    {
         let empty_doc = DcMstring::new();
         let valid_doc = build_kv_map(&[("entry", 100)])?;
 
         // 1. Both empty -> returns empty
         let both_empty = do_preserve_source(&empty_doc, &empty_doc)?;
-        ensure!(both_empty.as_bytes().len() == ctb_formats_dcstring::DCMM_HEADER_LEN);
+        ensure!(
+            both_empty.as_bytes().len()
+                == ctb_formats_dcstring::DCMM_HEADER_LEN
+        );
 
         // 2. Empty old, valid new -> returns valid new
         let empty_old = do_preserve_source(&empty_doc, &valid_doc)?;

@@ -26,8 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::shared::{BidiClass, GeneralCategory};
 use crate::format_spec::FormatExpr;
+use crate::shared::{BidiClass, GeneralCategory};
 use crate::syntax::DcSyntaxRule;
 use serde::{Deserialize, Serialize};
 
@@ -92,7 +92,10 @@ where
 
 fn deserialize_shorthands<'de, D>(
     deserializer: D,
-) -> std::result::Result<Vec<ctb_storage_minimal::shorthand::DcShorthand>, D::Error>
+) -> std::result::Result<
+    Vec<ctb_storage_minimal::shorthand::DcShorthand>,
+    D::Error,
+>
 where
     D: serde::Deserializer<'de>,
 {
@@ -121,7 +124,10 @@ where
 
 fn deserialize_opt_shorthand<'de, D>(
     deserializer: D,
-) -> std::result::Result<Option<ctb_storage_minimal::shorthand::DcShorthand>, D::Error>
+) -> std::result::Result<
+    Option<ctb_storage_minimal::shorthand::DcShorthand>,
+    D::Error,
+>
 where
     D: serde::Deserializer<'de>,
 {

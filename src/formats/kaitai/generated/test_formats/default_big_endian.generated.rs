@@ -100,7 +100,11 @@ impl KStruct for DefaultBigEndian {
     type Root = DefaultBigEndian;
     type Parent = DefaultBigEndian;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,8 +122,7 @@ impl KStruct for DefaultBigEndian {
         Ok(())
     }
 }
-impl DefaultBigEndian {
-}
+impl DefaultBigEndian {}
 impl DefaultBigEndian {
     pub fn one(&self) -> Ref<'_, u32> {
         self.one.borrow()

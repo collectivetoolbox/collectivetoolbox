@@ -32,8 +32,8 @@ use mime_guess;
 use std::borrow::Cow;
 use std::path::PathBuf;
 
-use crate::{AppState, RequestState, error_400, error_404, render_view};
 use crate::respond_markdown_unsafe;
+use crate::{AppState, RequestState, error_400, error_404, render_view};
 use ctb_build_info::build_info;
 use ctb_installer::chunking::{
     compute_sha256_hex, read_chunk_from_directory_compressed,
@@ -722,7 +722,8 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
                     // Reason for fallback: when v86_images.rsrc is omitted (e.g. in test runners / test VMs),
                     // fallback to loading vendor images from disk for testing only.
                     let mut candidate_paths = vec![
-                        std::path::PathBuf::from("vendor/v86_images").join(tail),
+                        std::path::PathBuf::from("vendor/v86_images")
+                            .join(tail),
                     ];
                     if let Ok(root) = std::env::var("CTB_WIN_TEST_ROOT") {
                         candidate_paths.push(
@@ -732,23 +733,30 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
                         );
                     }
                     candidate_paths.push(
-                        std::path::PathBuf::from(r"C:\workspaces\ctoolbox\vendor\v86_images")
-                            .join(tail),
+                        std::path::PathBuf::from(
+                            r"C:\workspaces\ctoolbox\vendor\v86_images",
+                        )
+                        .join(tail),
                     );
                     for path in candidate_paths {
                         if let Ok(file) = std::fs::File::open(&path) {
                             let tokio_file = tokio::fs::File::from_std(file);
                             let stream =
                                 tokio_util::io::ReaderStream::new(tokio_file);
-                            let mime_guess = mime_guess::from_path(tail).first();
-                            let mime_guess_str: Cow<'static, str> = match mime_guess {
-                                Some(mime) => {
-                                    Cow::Owned(mime.essence_str().to_string())
-                                }
-                                None => Cow::Borrowed("application/octet-stream"),
-                            };
+                            let mime_guess =
+                                mime_guess::from_path(tail).first();
+                            let mime_guess_str: Cow<'static, str> =
+                                match mime_guess {
+                                    Some(mime) => Cow::Owned(
+                                        mime.essence_str().to_string(),
+                                    ),
+                                    None => Cow::Borrowed(
+                                        "application/octet-stream",
+                                    ),
+                                };
 
-                            let mut resp = Response::new(Body::from_stream(stream));
+                            let mut resp =
+                                Response::new(Body::from_stream(stream));
                             resp.headers_mut().insert(
                                 header::CONTENT_TYPE,
                                 // Reason for fallback: invalid MIME type header string defaults to application/octet-stream

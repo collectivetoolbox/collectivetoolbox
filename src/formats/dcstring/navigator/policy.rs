@@ -17,7 +17,6 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 //! Projection policies, diagnostic actions, and forgiving defaults.
 
 #[expect(
@@ -27,7 +26,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::{Read, Seek, DcCharExt, SyntaxRuleResolver, Digest, DcBinaryResolver, DcExpressionEvaluator, DcMixedDecode, DEFAULT_MAX_PROJECTION_DEPTH, PathBuf, Natural, Integer, BinaryPayload, DcMstring, DcString, Ipv4Addr, Ipv6Addr, IpAddr, SystemTime, UNIX_EPOCH, Duration, BTreeMap, Arc};
+use super::{
+    Arc, BTreeMap, BinaryPayload, DEFAULT_MAX_PROJECTION_DEPTH,
+    DcBinaryResolver, DcCharExt, DcExpressionEvaluator, DcMixedDecode,
+    DcMstring, DcString, Digest, Duration, Integer, IpAddr, Ipv4Addr, Ipv6Addr,
+    Natural, PathBuf, Read, Seek, SyntaxRuleResolver, SystemTime, UNIX_EPOCH,
+};
 
 /// Maximum binary payload size (in bytes) eagerly loaded into memory when
 /// navigating or expanding frames from a seekable on-disk `.dcmm` file.
@@ -108,8 +112,10 @@ impl DcProjectionPolicy {
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Error,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
-            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
-            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+            max_encapsulation_metadata_depth:
+                DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes:
+                DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
         }
     }
 
@@ -127,8 +133,10 @@ impl DcProjectionPolicy {
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Warn,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
-            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
-            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+            max_encapsulation_metadata_depth:
+                DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes:
+                DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
         }
     }
 
@@ -145,8 +153,10 @@ impl DcProjectionPolicy {
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Ignore,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
-            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
-            max_encapsulation_payload_bytes: DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+            max_encapsulation_metadata_depth:
+                DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+            max_encapsulation_payload_bytes:
+                DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
         }
     }
 
@@ -164,7 +174,10 @@ impl DcProjectionPolicy {
 
     /// Sets the eager metadata allocation budget for each seekable binary header.
     #[must_use]
-    pub const fn with_max_binary_metadata_bytes(mut self, max_bytes: u64) -> Self {
+    pub const fn with_max_binary_metadata_bytes(
+        mut self,
+        max_bytes: u64,
+    ) -> Self {
         self.max_binary_metadata_bytes = max_bytes;
         self
     }
@@ -347,14 +360,16 @@ impl<T: DcForgivingDefault, const N: usize> DcForgivingDefault for [T; N] {
     }
 }
 
-impl<A: DcForgivingDefault, B: DcForgivingDefault> DcForgivingDefault for (A, B) {
+impl<A: DcForgivingDefault, B: DcForgivingDefault> DcForgivingDefault
+    for (A, B)
+{
     fn dc_forgiving_default() -> Self {
         (A::dc_forgiving_default(), B::dc_forgiving_default())
     }
 }
 
-impl<A: DcForgivingDefault, B: DcForgivingDefault, C: DcForgivingDefault> DcForgivingDefault
-    for (A, B, C)
+impl<A: DcForgivingDefault, B: DcForgivingDefault, C: DcForgivingDefault>
+    DcForgivingDefault for (A, B, C)
 {
     fn dc_forgiving_default() -> Self {
         (
@@ -370,7 +385,8 @@ impl<
     B: DcForgivingDefault,
     C: DcForgivingDefault,
     D: DcForgivingDefault,
-> DcForgivingDefault for (A, B, C, D) {
+> DcForgivingDefault for (A, B, C, D)
+{
     fn dc_forgiving_default() -> Self {
         (
             A::dc_forgiving_default(),
@@ -380,4 +396,3 @@ impl<
         )
     }
 }
-

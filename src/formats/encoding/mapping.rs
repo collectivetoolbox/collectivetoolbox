@@ -303,17 +303,11 @@ mod tests {
         let mac = CharEncoding::mac_roman();
         assert_eq!(mac.to_format_id(), FormatId::MacRoman);
         assert_eq!(mac.dc_char(), Some(DC_MAC_ROMAN));
-        assert_eq!(
-            CharEncoding::from_format_id(FormatId::MacRoman),
-            Some(mac)
-        );
+        assert_eq!(CharEncoding::from_format_id(FormatId::MacRoman), Some(mac));
 
         let iso = CharEncoding::iso_8859_1();
         assert_eq!(iso.to_format_id(), FormatId::Iso88591);
-        assert_eq!(
-            CharEncoding::from_format_id(FormatId::Iso88591),
-            Some(iso)
-        );
+        assert_eq!(CharEncoding::from_format_id(FormatId::Iso88591), Some(iso));
 
         // Line ending formats to FormatIds and Dcs
         let crlf = LineEndingFormat::terminated(LineEndingKind::CrLf);

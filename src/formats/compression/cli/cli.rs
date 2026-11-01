@@ -19,16 +19,18 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! CLI execution helpers for compression and decompression.
 
+use anyhow::anyhow;
+pub use ctb_formats_compression::*;
+use ctb_formats_detection::{
+    FormatCategory, detect_file_format, detect_format_id,
+};
+use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
-pub use ctb_formats_compression::*;
-use ctb_formats_detection::{FormatCategory, detect_file_format, detect_format_id};
-use ctb_formats_utilities::extension_data::lookup_format_by_extension;
-use anyhow::anyhow;
 use std::path::{Path, PathBuf};
 
 /// Detects the compression format given a `FileEntity` and `PayloadSource`.
@@ -44,7 +46,8 @@ pub fn detect_entity(
 pub fn detect_path(path: &Path) -> Result<Option<FormatId>> {
     if path == Path::new("-") {
         let entity = ctb_io_file::FileEntity::from_stream(Some("-"));
-        let mut payload = ctb_io_file::ReaderPayloadSource::new(std::io::stdin());
+        let mut payload =
+            ctb_io_file::ReaderPayloadSource::new(std::io::stdin());
         Ok(detect_entity(&entity, &mut payload))
     } else {
         let entity = ctb_io_file::FileEntity::from_filesystem(path, None)?;
@@ -58,20 +61,16 @@ pub fn detect(
     data: Option<&[u8]>,
     filename_or_ext: Option<&str>,
 ) -> Option<FormatId> {
-    detect_format_id(
-        data,
-        filename_or_ext,
-        Some(FormatCategory::Compression),
-    )
-    .filter(|&id| is_supported(id))
-    .or_else(|| {
-        filename_or_ext.and_then(|name| {
-            let clean = name.trim().trim_start_matches('.');
-            lookup_format_by_extension(clean)
-                .into_iter()
-                .find(|&fid| is_supported(fid))
+    detect_format_id(data, filename_or_ext, Some(FormatCategory::Compression))
+        .filter(|&id| is_supported(id))
+        .or_else(|| {
+            filename_or_ext.and_then(|name| {
+                let clean = name.trim().trim_start_matches('.');
+                lookup_format_by_extension(clean)
+                    .into_iter()
+                    .find(|&fid| is_supported(fid))
+            })
         })
-    })
 }
 
 /// Execution options for compressing a file via the CLI.
@@ -205,7 +204,9 @@ where
                 let in_path = PathBuf::from(fmt_str);
                 (in_path, None)
             } else {
-                return Err(anyhow!("Unknown decompression format: '{fmt_str}'"));
+                return Err(anyhow!(
+                    "Unknown decompression format: '{fmt_str}'"
+                ));
             }
         }
         None => (args.input_path.clone(), None),
@@ -213,15 +214,14 @@ where
 
     let data = read_data(resolved_input_path.as_path())?;
 
-    let compression_format = if let Some(fmt) = explicit_format { fmt } else {
+    let compression_format = if let Some(fmt) = explicit_format {
+        fmt
+    } else {
         let detected_id = crate::detect_path(&resolved_input_path)
             .ok()
             .flatten()
             .or_else(|| {
-                crate::detect(
-                    Some(&data),
-                    resolved_input_path.to_str(),
-                )
+                crate::detect(Some(&data), resolved_input_path.to_str())
             })
             .ok_or_else(|| {
                 anyhow!(
@@ -267,11 +267,7 @@ where
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
     let cli_output =
-        execute_cli_compress(
-            args,
-            read_file_or_stdin,
-            check_overwrite_prompt,
-        )?;
+        execute_cli_compress(args, read_file_or_stdin, check_overwrite_prompt)?;
     match cli_output {
         CliCompressionOutput::Stdout(bytes) => {
             Ok(ToolResult::immediate_ok(bytes))
@@ -279,12 +275,10 @@ where
         CliCompressionOutput::FileWritten(_) => {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
-        CliCompressionOutput::Cancelled => {
-            Ok(ToolResult::immediate_err(
-                "Operation cancelled.\n".as_bytes().to_vec(),
-                1,
-            ))
-        }
+        CliCompressionOutput::Cancelled => Ok(ToolResult::immediate_err(
+            "Operation cancelled.\n".as_bytes().to_vec(),
+            1,
+        )),
     }
 }
 
@@ -300,17 +294,16 @@ where
     FRead: Fn(&Path) -> Result<Vec<u8>>,
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
-    let cli_output =
-        execute_cli_decompress(
-            CliDecompressArgs {
-                format,
-                input_path: file,
-                output_path: output,
-                force,
-            },
-            read_file_or_stdin,
-            check_overwrite_prompt,
-        )?;
+    let cli_output = execute_cli_decompress(
+        CliDecompressArgs {
+            format,
+            input_path: file,
+            output_path: output,
+            force,
+        },
+        read_file_or_stdin,
+        check_overwrite_prompt,
+    )?;
     match cli_output {
         CliCompressionOutput::Stdout(bytes) => {
             Ok(ToolResult::immediate_ok(bytes))
@@ -318,12 +311,10 @@ where
         CliCompressionOutput::FileWritten(_) => {
             Ok(ToolResult::immediate_ok(Vec::new()))
         }
-        CliCompressionOutput::Cancelled => {
-            Ok(ToolResult::immediate_err(
-                "Operation cancelled.\n".as_bytes().to_vec(),
-                1,
-            ))
-        }
+        CliCompressionOutput::Cancelled => Ok(ToolResult::immediate_err(
+            "Operation cancelled.\n".as_bytes().to_vec(),
+            1,
+        )),
     }
 }
 
@@ -535,8 +526,7 @@ mod tests {
             force: true,
         };
         let out =
-            execute_cli_decompress(args, read_mock, overwrite_mock)
-                .unwrap();
+            execute_cli_decompress(args, read_mock, overwrite_mock).unwrap();
         match out {
             CliCompressionOutput::Stdout(decompressed) => {
                 assert_eq!(decompressed, sample_data);
@@ -547,7 +537,8 @@ mod tests {
 
     #[ctb_test]
     fn test_reader_payload_source_detection() {
-        let gzip_stream: &[u8] = &[0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04];
+        let gzip_stream: &[u8] =
+            &[0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04];
         let entity = ctb_io_file::FileEntity::from_stream(Some("input.gz"));
         let mut payload = ctb_io_file::ReaderPayloadSource::new(gzip_stream);
         let detected = detect_entity(&entity, &mut payload);
@@ -572,14 +563,8 @@ mod tests {
             detect(Some(&[0x42, 0x5A, 0x30]), None),
             Some(FormatId::Bzip)
         );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x1E]), None),
-            Some(FormatId::Pack)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x1F]), None),
-            Some(FormatId::OldPack)
-        );
+        assert_eq!(detect(Some(&[0x1F, 0x1E]), None), Some(FormatId::Pack));
+        assert_eq!(detect(Some(&[0x1F, 0x1F]), None), Some(FormatId::OldPack));
         assert_eq!(
             detect(Some(&[0x1F, 0x9D, 0x90]), None),
             Some(FormatId::CompressLzw)
@@ -588,27 +573,15 @@ mod tests {
             detect(Some(&[0x1F, 0x9D, 0x10]), None),
             Some(FormatId::CompressLzw2)
         );
-        assert_eq!(
-            detect(Some(&[0xFF, 0x1F]), None),
-            Some(FormatId::Compact)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x9F]), None),
-            Some(FormatId::Freeze2)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x9E]), None),
-            Some(FormatId::Freeze1)
-        );
+        assert_eq!(detect(Some(&[0xFF, 0x1F]), None), Some(FormatId::Compact));
+        assert_eq!(detect(Some(&[0x1F, 0x9F]), None), Some(FormatId::Freeze2));
+        assert_eq!(detect(Some(&[0x1F, 0x9E]), None), Some(FormatId::Freeze1));
         assert_eq!(
             detect(Some(&[0x04, 0x22, 0x4D, 0x18]), None),
             Some(FormatId::Lz4)
         );
         assert_eq!(
-            detect(
-                Some(&[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00]),
-                None
-            ),
+            detect(Some(&[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00]), None),
             Some(FormatId::Xz)
         );
         assert_eq!(
@@ -626,14 +599,8 @@ mod tests {
             ),
             Some(FormatId::Lzo)
         );
-        assert_eq!(
-            detect(Some(b"RZIP\x02\x01"), None),
-            Some(FormatId::Rzip)
-        );
-        assert_eq!(
-            detect(Some(b"SZ\x0a\x04"), None),
-            Some(FormatId::Szip)
-        );
+        assert_eq!(detect(Some(b"RZIP\x02\x01"), None), Some(FormatId::Rzip));
+        assert_eq!(detect(Some(b"SZ\x0a\x04"), None), Some(FormatId::Szip));
     }
 
     #[ctb_test]
@@ -647,14 +614,14 @@ mod tests {
         ));
     }
 
-
     struct Cli;
     impl Cli {
         fn command() -> clap::Command {
             use clap::Args;
             let cmd = clap::Command::new("ctoolbox");
-            let compress_sub = CliCompressArgs::augment_args(clap::Command::new("compress"))
-                .after_help(crate::COMPRESSION_AFTER_HELP.as_str());
+            let compress_sub =
+                CliCompressArgs::augment_args(clap::Command::new("compress"))
+                    .after_help(crate::COMPRESSION_AFTER_HELP.as_str());
             cmd.subcommand(compress_sub)
         }
     }
@@ -679,4 +646,3 @@ mod tests {
         ));
     }
 }
-

@@ -53,7 +53,11 @@ use walkdir::WalkDir;
 
 /// Command line options for importing Kaitai Struct format specifications.
 #[derive(Parser, Debug)]
-#[command(author, version, about = "Import licensed Kaitai Struct format specifications")]
+#[command(
+    author,
+    version,
+    about = "Import licensed Kaitai Struct format specifications"
+)]
 struct Cli {
     /// Path to the `kaitai_struct_formats` directory.
     #[arg(value_name = "FORMATS_DIR")]
@@ -83,9 +87,8 @@ struct UnmatchedFile {
 /// for proper attribution under MIT, or depending on un-attributable dependencies).
 const SKIPPED_FORMATS: &[&str] = &[
     "rar", // FIXME broken https://github.com/kaitai-io/kaitai_struct_formats/issues/773,
-
     "pcf_font", // depends on MIT bytes_with_io missing attribution info
-    "mach_o_fat" // depends on MIT mach_o missing attribution info
+    "mach_o_fat", // depends on MIT mach_o missing attribution info
 ];
 
 fn check_license_match(
@@ -95,7 +98,8 @@ fn check_license_match(
 ) -> bool {
     let candidate1 = licenses_dir.join(format!("{license_id}.txt"));
     let candidate2 = licenses_dir.join(format!("{license_id}.md"));
-    let candidate3 = licenses_dir.join(format!("{base_name}--{license_id}.txt"));
+    let candidate3 =
+        licenses_dir.join(format!("{base_name}--{license_id}.txt"));
     let candidate4 = licenses_dir.join(format!("{base_name}--{license_id}.md"));
 
     candidate1.is_file()
@@ -230,10 +234,7 @@ fn run() -> Result<()> {
     if cli.dry_run {
         println!("Files matching license (dry run): {matched_count}");
     } else {
-        println!(
-            "Files copied to {}: {matched_count}",
-            dest_dir.display()
-        );
+        println!("Files copied to {}: {matched_count}", dest_dir.display());
     }
     println!("Files with non-matched license: {}", unmatched.len());
 
@@ -241,10 +242,10 @@ fn run() -> Result<()> {
         println!("\n=== Non-Matched Files ===");
         for item in &unmatched {
             // Reason for fallback: unmatched file without detected license displays as 'no license'
-            let lic_info = item
-                .license
-                .as_deref()
-                .map_or_else(|| "no license".to_string(), |l| format!("license: {l}"));
+            let lic_info = item.license.as_deref().map_or_else(
+                || "no license".to_string(),
+                |l| format!("license: {l}"),
+            );
             println!(
                 "  {} [{}] - {}",
                 item.rel_path.display(),

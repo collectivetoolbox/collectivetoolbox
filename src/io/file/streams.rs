@@ -31,15 +31,15 @@ use crate::identity::{FileIdentity, FileOrigin};
 use crate::metadata::{FileMetadata, FileTimestamps};
 use crate::payload::Extent;
 use ctb_formats_checksum::Sha256Stream;
+use ctb_formats_dcstring::{
+    BinaryPayloadRef, DcMixedDecode, DcMixedEncode, DcProjectionContext,
+    DcRawValue, LazyBinaryPayload, NodeId,
+};
+use ctb_utilities::format_id::FormatId;
 use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use ctb_formats_dcstring::{
-    BinaryPayloadRef, DcMixedDecode, DcMixedEncode, DcProjectionContext, DcRawValue,
-    LazyBinaryPayload, NodeId,
-};
-use ctb_utilities::format_id::FormatId;
 
 /// Native stream name, independent of the journal reader's operating system.
 #[derive(
@@ -57,7 +57,10 @@ pub enum StreamName {
     Bytes(Vec<u8>),
     WindowsUtf16(Vec<u16>),
     /// Encoded source bytes that cannot yet be interpreted losslessly.
-    Encoded { format: FormatId, bytes: Vec<u8> },
+    Encoded {
+        format: FormatId,
+        bytes: Vec<u8>,
+    },
 }
 
 impl Default for StreamName {
@@ -82,20 +85,16 @@ impl TryFrom<&StreamName> for DcRawValue {
                     })
                 }
             }
-            StreamName::WindowsUtf16(units) => {
-                Ok(DcRawValue::Binary {
-                    format: Some(FormatId::Wtf8),
-                    with_sha256: false,
-                    bytes: ctb_formats_wtf8::encode_wtf8_from_ucs2(units)?,
-                })
-            }
-            StreamName::Encoded { format, bytes } => {
-                Ok(DcRawValue::Binary {
-                    format: Some(*format),
-                    with_sha256: false,
-                    bytes: bytes.clone(),
-                })
-            }
+            StreamName::WindowsUtf16(units) => Ok(DcRawValue::Binary {
+                format: Some(FormatId::Wtf8),
+                with_sha256: false,
+                bytes: ctb_formats_wtf8::encode_wtf8_from_ucs2(units)?,
+            }),
+            StreamName::Encoded { format, bytes } => Ok(DcRawValue::Binary {
+                format: Some(*format),
+                with_sha256: false,
+                bytes: bytes.clone(),
+            }),
         }
     }
 }
@@ -140,14 +139,30 @@ impl Ord for StreamName {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (Self::Bytes(left), Self::Bytes(right)) => left.cmp(right),
-            (Self::WindowsUtf16(left), Self::WindowsUtf16(right)) => left.cmp(right),
-            (Self::Encoded { format: left_format, bytes: left },
-                Self::Encoded { format: right_format, bytes: right }) =>
-                left_format.shorthand().cmp(right_format.shorthand()).then_with(|| left.cmp(right)),
-            (Self::Bytes(_), _) | (Self::WindowsUtf16(_), Self::Encoded { .. }) =>
-                std::cmp::Ordering::Less,
-            (_, Self::Bytes(_)) | (Self::Encoded { .. }, Self::WindowsUtf16(_)) =>
-                std::cmp::Ordering::Greater,
+            (Self::WindowsUtf16(left), Self::WindowsUtf16(right)) => {
+                left.cmp(right)
+            }
+            (
+                Self::Encoded {
+                    format: left_format,
+                    bytes: left,
+                },
+                Self::Encoded {
+                    format: right_format,
+                    bytes: right,
+                },
+            ) => left_format
+                .shorthand()
+                .cmp(right_format.shorthand())
+                .then_with(|| left.cmp(right)),
+            (Self::Bytes(_), _)
+            | (Self::WindowsUtf16(_), Self::Encoded { .. }) => {
+                std::cmp::Ordering::Less
+            }
+            (_, Self::Bytes(_))
+            | (Self::Encoded { .. }, Self::WindowsUtf16(_)) => {
+                std::cmp::Ordering::Greater
+            }
         }
     }
 }
@@ -173,8 +188,9 @@ impl StreamName {
             Self::Bytes(bytes) => std::borrow::Cow::Borrowed(bytes),
             Self::WindowsUtf16(units) => std::borrow::Cow::Owned(
                 // Reason for fallback: UTF-16 code units that fail WTF-8 encoding fall back to lossy UTF-8 bytes
-                ctb_formats_wtf8::encode_wtf8_from_ucs2(units)
-                    .unwrap_or_else(|_| String::from_utf16_lossy(units).into_bytes()),
+                ctb_formats_wtf8::encode_wtf8_from_ucs2(units).unwrap_or_else(
+                    |_| String::from_utf16_lossy(units).into_bytes(),
+                ),
             ),
             Self::Encoded { bytes, .. } => std::borrow::Cow::Borrowed(bytes),
         }
@@ -234,7 +250,10 @@ impl StreamName {
     }
 
     /// Canonicalizes using the same destination encoding policy as the writer.
-    pub fn canonicalize_native_for_materialization(&self, strict_lossless: bool) -> Result<Self> {
+    pub fn canonicalize_native_for_materialization(
+        &self,
+        strict_lossless: bool,
+    ) -> Result<Self> {
         let os_str = self.to_os_string_for_materialization(strict_lossless)?;
         #[cfg(windows)]
         {
@@ -251,7 +270,9 @@ impl StreamName {
                 && name_units.ends_with(&suffix)
             {
                 // Reason for fallback: slice excluding suffix is empty if name consisted solely of the suffix
-                name_units.get(..name_units.len().saturating_sub(suffix.len())).unwrap_or(&[])
+                name_units
+                    .get(..name_units.len().saturating_sub(suffix.len()))
+                    .unwrap_or(&[])
             } else {
                 name_units
             };
@@ -270,8 +291,12 @@ impl StreamName {
 
     /// Preserves exact bytes when the destination OS supports them; otherwise
     /// permits replacement characters only in explicit best-effort mode.
-    pub fn to_os_string_for_materialization(&self, strict_lossless: bool) -> Result<OsString> {
-        let (name, _warnings) = self.to_os_string_for_materialization_with_warnings(strict_lossless)?;
+    pub fn to_os_string_for_materialization(
+        &self,
+        strict_lossless: bool,
+    ) -> Result<OsString> {
+        let (name, _warnings) = self
+            .to_os_string_for_materialization_with_warnings(strict_lossless)?;
         Ok(name)
     }
 
@@ -287,11 +312,22 @@ impl StreamName {
         let name = match native {
             Ok(name) => name,
             Err(error) => {
-                anyhow::ensure!(!strict_lossless, "Cannot represent stream name losslessly: {error:#}");
+                anyhow::ensure!(
+                    !strict_lossless,
+                    "Cannot represent stream name losslessly: {error:#}"
+                );
                 let text = match self {
-                    Self::Encoded { format: FormatId::DcIntegerList, bytes } => {
-                        let mut units = bytes.chunks_exact(2)
-                            .map(|chunk| Ok(u16::from_le_bytes(<[u8; 2]>::try_from(chunk)?)))
+                    Self::Encoded {
+                        format: FormatId::DcIntegerList,
+                        bytes,
+                    } => {
+                        let mut units = bytes
+                            .chunks_exact(2)
+                            .map(|chunk| {
+                                Ok(u16::from_le_bytes(<[u8; 2]>::try_from(
+                                    chunk,
+                                )?))
+                            })
                             .collect::<Result<Vec<_>>>()?;
                         if !bytes.len().is_multiple_of(2) {
                             units.push(0xfffd);
@@ -312,8 +348,14 @@ impl StreamName {
                         #[cfg(not(windows))]
                         String::from_utf16_lossy(&units)
                     }
-                    Self::Encoded { format: FormatId::Wtf8, bytes } | Self::Bytes(bytes) => {
-                        if let Ok(units) = ctb_formats_wtf8::decode_wtf8_to_ucs2(bytes) {
+                    Self::Encoded {
+                        format: FormatId::Wtf8,
+                        bytes,
+                    }
+                    | Self::Bytes(bytes) => {
+                        if let Ok(units) =
+                            ctb_formats_wtf8::decode_wtf8_to_ucs2(bytes)
+                        {
                             #[cfg(windows)]
                             {
                                 let (adapted, mut sub_warnings) =
@@ -334,7 +376,9 @@ impl StreamName {
                         }
                     }
                     Self::Encoded { format, .. } => {
-                        anyhow::bail!("Cannot adapt unknown stream name encoding {format:?}: {error:#}");
+                        anyhow::bail!(
+                            "Cannot adapt unknown stream name encoding {format:?}: {error:#}"
+                        );
                     }
                     _ => self.to_string_lossy().into_owned(),
                 };
@@ -349,19 +393,27 @@ impl StreamName {
             }
         };
         if name.as_encoded_bytes().contains(&0) {
-            anyhow::ensure!(!strict_lossless, "Stream name contains a NUL unsupported by the destination OS");
+            anyhow::ensure!(
+                !strict_lossless,
+                "Stream name contains a NUL unsupported by the destination OS"
+            );
             let adapted = {
                 #[cfg(unix)]
                 {
-                    let bytes = name.as_encoded_bytes().split(|byte| *byte == 0)
-                        .collect::<Vec<_>>().join("\u{fffd}".as_bytes());
+                    let bytes = name
+                        .as_encoded_bytes()
+                        .split(|byte| *byte == 0)
+                        .collect::<Vec<_>>()
+                        .join("\u{fffd}".as_bytes());
                     OsStr::from_bytes(&bytes).to_os_string()
                 }
                 #[cfg(windows)]
                 {
                     use std::os::windows::ffi::{OsStrExt, OsStringExt};
-                    let units: Vec<u16> = name.encode_wide()
-                        .map(|unit| if unit == 0 { 0xfffd } else { unit }).collect();
+                    let units: Vec<u16> = name
+                        .encode_wide()
+                        .map(|unit| if unit == 0 { 0xfffd } else { unit })
+                        .collect();
                     OsString::from_wide(&units)
                 }
                 #[cfg(not(any(unix, windows)))]
@@ -390,17 +442,30 @@ impl StreamName {
                 #[cfg(not(unix))]
                 {
                     if *format == FormatId::DcIntegerList {
-                        anyhow::ensure!(bytes.len().is_multiple_of(2), "Historical UTF-16 stream name has odd byte length");
-                        let units = bytes.chunks_exact(2)
-                            .map(|chunk| Ok(u16::from_le_bytes(<[u8; 2]>::try_from(chunk)?)))
+                        anyhow::ensure!(
+                            bytes.len().is_multiple_of(2),
+                            "Historical UTF-16 stream name has odd byte length"
+                        );
+                        let units = bytes
+                            .chunks_exact(2)
+                            .map(|chunk| {
+                                Ok(u16::from_le_bytes(<[u8; 2]>::try_from(
+                                    chunk,
+                                )?))
+                            })
                             .collect::<Result<Vec<_>>>()?;
                         return Self::WindowsUtf16(units).to_native_os_string();
                     }
-                    anyhow::ensure!(*format == FormatId::Wtf8,
-                        "Cannot use stream name with uninterpreted source encoding {format:?}");
+                    anyhow::ensure!(
+                        *format == FormatId::Wtf8,
+                        "Cannot use stream name with uninterpreted source encoding {format:?}"
+                    );
                     let units = ctb_formats_wtf8::decode_wtf8_to_ucs2(bytes)?;
-                    anyhow::ensure!(ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)? == *bytes,
-                        "Stream name is not canonical WTF-8");
+                    anyhow::ensure!(
+                        ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)?
+                            == *bytes,
+                        "Stream name is not canonical WTF-8"
+                    );
                     Self::WindowsUtf16(units).to_native_os_string()
                 }
             }
@@ -514,7 +579,15 @@ impl StreamKind {
 }
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 #[dc(try_from = AttachedStreamWithPayload, try_into = AttachedStreamEncoding<'_>)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
@@ -536,7 +609,10 @@ pub struct AttachedStream {
     pub data: Option<Vec<u8>>,
     /// Lazy file span reference to the payload data in an archive, if available.
     #[serde(skip)]
-    #[dc(skip, reason = "Payload is retained in data or streamed lazily via LazyBinaryPayload")]
+    #[dc(
+        skip,
+        reason = "Payload is retained in data or streamed lazily via LazyBinaryPayload"
+    )]
     pub payload: Option<LazyBinaryPayload>,
 }
 
@@ -555,37 +631,64 @@ impl Default for AttachedStream {
 /// Supplies resident, captured, or archived bytes for an attached stream.
 pub trait AttachedStreamSource {
     /// Opens the stream at its first payload byte.
-    fn open<'source>(&'source self, stream: &'source AttachedStream) -> Result<Box<dyn std::io::Read + Send + 'source>>;
+    fn open<'source>(
+        &'source self,
+        stream: &'source AttachedStream,
+    ) -> Result<Box<dyn std::io::Read + Send + 'source>>;
 }
 
 /// Reads stream bodies from memory or their recorded filesystem origin.
 pub struct FilesystemStreamSource;
 
 impl AttachedStreamSource for FilesystemStreamSource {
-    fn open<'source>(&'source self, stream: &'source AttachedStream) -> Result<Box<dyn std::io::Read + Send + 'source>> {
+    fn open<'source>(
+        &'source self,
+        stream: &'source AttachedStream,
+    ) -> Result<Box<dyn std::io::Read + Send + 'source>> {
         if let Some(data) = &stream.data {
             return Ok(Box::new(data.as_slice()));
         }
         if let Some(payload) = &stream.payload {
-            let bytes = payload.0.as_resident_bytes().context("Archived stream requires its backing reader")?;
+            let bytes = payload
+                .0
+                .as_resident_bytes()
+                .context("Archived stream requires its backing reader")?;
             return Ok(Box::new(bytes));
         }
-        if let FileOrigin::Filesystem { key, canonical_path } = &stream.entity.identity.origin {
-            ensure!(crate::identity::query_file_identity(canonical_path)? == *key, "Captured stream identity changed");
+        if let FileOrigin::Filesystem {
+            key,
+            canonical_path,
+        } = &stream.entity.identity.origin
+        {
+            ensure!(
+                crate::identity::query_file_identity(canonical_path)? == *key,
+                "Captured stream identity changed"
+            );
             let file = std::fs::File::open(canonical_path)?;
-            ensure!(crate::identity::query_file_identity(canonical_path)? == *key, "Captured stream identity changed while opening");
+            ensure!(
+                crate::identity::query_file_identity(canonical_path)? == *key,
+                "Captured stream identity changed while opening"
+            );
             return Ok(Box::new(file));
         }
-        if matches!(stream.entity.kind, FileEntityKind::Regular { size: 0, .. }) {
+        if matches!(stream.entity.kind, FileEntityKind::Regular { size: 0, .. })
+        {
             return Ok(Box::new(std::io::empty()));
         }
-        bail!("Stream {:?} has no payload source", stream.to_string_lossy())
+        bail!(
+            "Stream {:?} has no payload source",
+            stream.to_string_lossy()
+        )
     }
 }
 
 impl AttachedStream {
     /// Hashes a file-backed stream without retaining its body in memory.
-    pub fn from_file(name: Option<StreamName>, kind: StreamKind, path: &Path) -> Result<Self> {
+    pub fn from_file(
+        name: Option<StreamName>,
+        kind: StreamKind,
+        path: &Path,
+    ) -> Result<Self> {
         // On Windows 7, GetFinalPathNameByHandleW in std::fs::canonicalize fails on
         // alternate data stream handles with ERROR_INVALID_NAME (123) or ERROR_INVALID_PARAMETER (87).
         // Falling back to absolute(path) is acceptable domain logic because the stream path was already
@@ -605,8 +708,14 @@ impl AttachedStream {
         let key = crate::identity::query_file_identity(&canonical_path)?;
         let file = std::fs::File::open(&canonical_path)?;
         let mut stream = Self::from_stream_reader(name, kind, file, false)?;
-        ensure!(crate::identity::query_file_identity(&canonical_path)? == key, "Stream identity changed during capture");
-        stream.entity.identity.origin = FileOrigin::Filesystem { key, canonical_path };
+        ensure!(
+            crate::identity::query_file_identity(&canonical_path)? == key,
+            "Stream identity changed during capture"
+        );
+        stream.entity.identity.origin = FileOrigin::Filesystem {
+            key,
+            canonical_path,
+        };
         Ok(stream)
     }
 
@@ -618,20 +727,33 @@ impl AttachedStream {
         reader: &mut R,
         size: u64,
     ) -> Result<()> {
-        self.encode_record_to_writer_with_reader(&mut mst.writer(), reader, size, &ctb_formats_dcstring::SharedValueContext::default())
+        self.encode_record_to_writer_with_reader(
+            &mut mst.writer(),
+            reader,
+            size,
+            &ctb_formats_dcstring::SharedValueContext::default(),
+        )
     }
 
     /// Serializes this `AttachedStream` along with its stream payload data (`Dc 385`)
     /// directly to a `std::io::Write` stream, streaming from `reader` without
     /// buffering either the document or payload in memory.
-    pub fn encode_to_writer_with_stream_reader<W: std::io::Write, R: std::io::Read>(
+    pub fn encode_to_writer_with_stream_reader<
+        W: std::io::Write,
+        R: std::io::Read,
+    >(
         &self,
         writer: &mut W,
         reader: &mut R,
         size: u64,
     ) -> Result<()> {
         writer.write_all(ctb_formats_dcstring::DcMstring::new().as_bytes())?;
-        self.encode_record_to_writer_with_reader(writer, reader, size, &ctb_formats_dcstring::SharedValueContext::default())
+        self.encode_record_to_writer_with_reader(
+            writer,
+            reader,
+            size,
+            &ctb_formats_dcstring::SharedValueContext::default(),
+        )
     }
 
     fn encode_record_to_writer_with_reader<W: std::io::Write>(
@@ -783,9 +905,12 @@ impl AttachedStream {
             if bytes_read == 0 {
                 break;
             }
-            let chunk = buffer.get(..bytes_read).context("Invalid slice range")?;
+            let chunk =
+                buffer.get(..bytes_read).context("Invalid slice range")?;
             hasher.update(chunk);
-            total_size = total_size.checked_add(u64::try_from(bytes_read)?).context("Stream size overflow")?;
+            total_size = total_size
+                .checked_add(u64::try_from(bytes_read)?)
+                .context("Stream size overflow")?;
             if let Some(ref mut vec) = collected {
                 vec.extend_from_slice(chunk);
             }
@@ -932,7 +1057,10 @@ enum StreamPayload<'stream> {
 }
 
 impl DcMixedEncode for StreamPayload<'_> {
-    fn encode_dc_mixed_to(&self, writer: &mut ctb_formats_dcstring::DcWriter<'_>) -> Result<()> {
+    fn encode_dc_mixed_to(
+        &self,
+        writer: &mut ctb_formats_dcstring::DcWriter<'_>,
+    ) -> Result<()> {
         match self {
             Self::Resident(bytes) => writer.push_binary_with_sha256(bytes),
             Self::Lazy(payload) => payload.encode_dc_mixed_to(writer),
@@ -940,7 +1068,9 @@ impl DcMixedEncode for StreamPayload<'_> {
     }
 }
 
-impl<'stream> TryFrom<&'stream AttachedStream> for AttachedStreamEncoding<'stream> {
+impl<'stream> TryFrom<&'stream AttachedStream>
+    for AttachedStreamEncoding<'stream>
+{
     type Error = anyhow::Error;
 
     fn try_from(stream: &'stream AttachedStream) -> Result<Self> {
@@ -949,7 +1079,12 @@ impl<'stream> TryFrom<&'stream AttachedStream> for AttachedStreamEncoding<'strea
         } else {
             stream.payload.as_ref().map(StreamPayload::Lazy)
         };
-        Ok(Self { name: stream.name.as_ref(), kind: &stream.kind, entity: &stream.entity, payload })
+        Ok(Self {
+            name: stream.name.as_ref(),
+            kind: &stream.kind,
+            entity: &stream.entity,
+            payload,
+        })
     }
 }
 
@@ -987,7 +1122,12 @@ pub fn write_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
-    let _warnings = write_streams_with_warnings(dest, target_display_path, streams, strict_lossless)?;
+    let _warnings = write_streams_with_warnings(
+        dest,
+        target_display_path,
+        streams,
+        strict_lossless,
+    )?;
     Ok(())
 }
 
@@ -1008,8 +1148,10 @@ pub fn write_streams_with_warnings(
     for stream in streams {
         let name_os = match &stream.name {
             Some(name) => {
-                let (os_name, name_warnings) =
-                    name.to_os_string_for_materialization_with_warnings(strict_lossless)?;
+                let (os_name, name_warnings) = name
+                    .to_os_string_for_materialization_with_warnings(
+                        strict_lossless,
+                    )?;
                 warnings.extend(name_warnings);
                 os_name
             }
@@ -1064,10 +1206,13 @@ pub fn write_streams_with_warnings(
     for (stream, name_os, data) in validated {
         if let Err(e) = xattr::set(dest, &name_os, data) {
             if !strict_lossless && e.raw_os_error() == Some(libc::EILSEQ) {
-                let adapted = OsString::from(name_os.to_string_lossy().into_owned());
+                let adapted =
+                    OsString::from(name_os.to_string_lossy().into_owned());
                 if adapted != name_os {
-                    anyhow::ensure!(names.insert(adapted.clone()),
-                        "Replacement stream names collide on the destination filesystem");
+                    anyhow::ensure!(
+                        names.insert(adapted.clone()),
+                        "Replacement stream names collide on the destination filesystem"
+                    );
                     let msg = format!(
                         "Destination rejected stream name encoding {:?} -> {:?} on {}; retrying with replacement characters (best-effort): {e}",
                         name_os.to_string_lossy(),
@@ -1135,7 +1280,12 @@ pub fn write_streams_from_source_with_warnings(
     source: &dyn AttachedStreamSource,
 ) -> Result<Vec<String>> {
     if streams.iter().all(|stream| stream.data.is_some()) {
-        return write_streams_with_warnings(dest, target_display_path, streams, strict_lossless);
+        return write_streams_with_warnings(
+            dest,
+            target_display_path,
+            streams,
+            strict_lossless,
+        );
     }
     #[cfg(windows)]
     return windows::write_windows_streams_from_source_with_warnings(
@@ -1149,14 +1299,24 @@ pub fn write_streams_from_source_with_warnings(
         let mut names = std::collections::HashSet::new();
         for stream in streams {
             let name = match &stream.name {
-                Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
-                None if stream.kind == StreamKind::MacOsResourceFork => OsString::from(RESOURCE_FORK_XATTR_NAME),
+                Some(name) => {
+                    name.to_os_string_for_materialization(strict_lossless)?
+                }
+                None if stream.kind == StreamKind::MacOsResourceFork => {
+                    OsString::from(RESOURCE_FORK_XATTR_NAME)
+                }
                 None => {
-                    ensure!(!strict_lossless, "Cannot write unnamed attached stream");
+                    ensure!(
+                        !strict_lossless,
+                        "Cannot write unnamed attached stream"
+                    );
                     continue;
                 }
             };
-            ensure!(names.insert(name), "Stream names collide on the destination platform");
+            ensure!(
+                names.insert(name),
+                "Stream names collide on the destination platform"
+            );
         }
         let mut warnings = Vec::new();
         for stream in streams {
@@ -1180,7 +1340,12 @@ pub fn write_stream_from_reader<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<()> {
-    let _warnings = write_stream_from_reader_with_warnings(dest, stream, reader, strict_lossless)?;
+    let _warnings = write_stream_from_reader_with_warnings(
+        dest,
+        stream,
+        reader,
+        strict_lossless,
+    )?;
     Ok(())
 }
 
@@ -1193,70 +1358,103 @@ pub fn write_stream_from_reader_with_warnings<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<Vec<String>> {
-    let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
+    let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind
+    else {
         anyhow::bail!("Attached stream is not a regular payload");
     };
     let mut warnings = Vec::new();
     let mut hasher = Sha256Stream::new();
     let name_os = match &stream.name {
         Some(name) => {
-            let (os_name, name_warnings) =
-                name.to_os_string_for_materialization_with_warnings(strict_lossless)?;
+            let (os_name, name_warnings) = name
+                .to_os_string_for_materialization_with_warnings(
+                    strict_lossless,
+                )?;
             warnings.extend(name_warnings);
             os_name
         }
-        None => if stream.kind == StreamKind::MacOsResourceFork { OsString::from(RESOURCE_FORK_XATTR_NAME) } else {
-            if strict_lossless {
-                anyhow::bail!("Cannot write unnamed non-resource-fork stream to {}", dest.display());
+        None => {
+            if stream.kind == StreamKind::MacOsResourceFork {
+                OsString::from(RESOURCE_FORK_XATTR_NAME)
+            } else {
+                if strict_lossless {
+                    anyhow::bail!(
+                        "Cannot write unnamed non-resource-fork stream to {}",
+                        dest.display()
+                    );
+                }
+                let msg = format!(
+                    "Skipping unnamed stream on {} (proceeding best-effort)",
+                    dest.display()
+                );
+                warn_fmt!("Caveat: {msg}");
+                warnings.push(msg);
+                return Ok(warnings);
             }
-            let msg = format!("Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
-            warn_fmt!("Caveat: {msg}");
-            warnings.push(msg);
-            return Ok(warnings);
-        },
+        }
     };
 
     #[cfg(target_os = "macos")]
     if stream.kind == StreamKind::MacOsResourceFork {
         let rsrc_path = dest.join("..namedfork/rsrc");
-        if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(&rsrc_path) {
+        if let Ok(mut file) =
+            std::fs::OpenOptions::new().write(true).open(&rsrc_path)
+        {
             let mut buf = [0_u8; 64 * 1024];
             let mut total_written = 0_u64;
             loop {
                 let n = reader.read(&mut buf)?;
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
                 let chunk = buf.get(..n).context("Invalid slice range")?;
                 hasher.update(chunk);
-                total_written = total_written.checked_add(u64::try_from(n)?).context("Stream size overflow")?;
+                total_written = total_written
+                    .checked_add(u64::try_from(n)?)
+                    .context("Stream size overflow")?;
                 file.write_all(chunk)?;
             }
-            anyhow::ensure!(total_written == *size && hasher.finalize() == *sha256,
-                "Stream payload does not match descriptor: {:?}", stream.to_string_lossy());
+            anyhow::ensure!(
+                total_written == *size && hasher.finalize() == *sha256,
+                "Stream payload does not match descriptor: {:?}",
+                stream.to_string_lossy()
+            );
             return Ok(warnings);
         }
     }
 
     #[cfg(target_os = "linux")]
-    ensure!(*size <= LINUX_XATTR_SIZE_MAX, "Attached stream exceeds the Linux xattr limit");
+    ensure!(
+        *size <= LINUX_XATTR_SIZE_MAX,
+        "Attached stream exceeds the Linux xattr limit"
+    );
     let mut data = Vec::new();
     data.try_reserve_exact(usize::try_from(*size)?)?;
     let mut buf = [0_u8; 64 * 1024];
     let mut total_read = 0_u64;
     loop {
         let n = reader.read(&mut buf)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         let chunk = buf.get(..n).context("Invalid slice range")?;
         hasher.update(chunk);
-        total_read = total_read.checked_add(u64::try_from(n)?).context("Stream size overflow")?;
+        total_read = total_read
+            .checked_add(u64::try_from(n)?)
+            .context("Stream size overflow")?;
         ensure!(total_read <= *size, "Stream grew during restoration");
         data.extend_from_slice(chunk);
     }
-    anyhow::ensure!(total_read == *size && hasher.finalize() == *sha256,
-        "Stream payload does not match descriptor: {:?}", stream.to_string_lossy());
+    anyhow::ensure!(
+        total_read == *size && hasher.finalize() == *sha256,
+        "Stream payload does not match descriptor: {:?}",
+        stream.to_string_lossy()
+    );
     let stream_size = data.len();
     if let Err(e) = xattr::set(dest, &name_os, &data) {
         if !strict_lossless && e.raw_os_error() == Some(libc::EILSEQ) {
-            let adapted = OsString::from(name_os.to_string_lossy().into_owned());
+            let adapted =
+                OsString::from(name_os.to_string_lossy().into_owned());
             if adapted != name_os {
                 let msg = format!(
                     "Destination rejected stream name encoding {:?} -> {:?} on {}; retrying with replacement characters (best-effort): {e}",
@@ -1302,7 +1500,12 @@ pub fn write_stream_from_reader<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<()> {
-    let _warnings = write_stream_from_reader_with_warnings(dest, stream, reader, strict_lossless)?;
+    let _warnings = write_stream_from_reader_with_warnings(
+        dest,
+        stream,
+        reader,
+        strict_lossless,
+    )?;
     Ok(())
 }
 
@@ -1315,7 +1518,12 @@ pub fn write_stream_from_reader_with_warnings<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<Vec<String>> {
-    windows::write_windows_stream_from_reader_with_warnings(dest, stream, reader, strict_lossless)
+    windows::write_windows_stream_from_reader_with_warnings(
+        dest,
+        stream,
+        reader,
+        strict_lossless,
+    )
 }
 
 /// Writes a single attached stream directly from a `Read` stream to disk without buffering
@@ -1350,7 +1558,8 @@ pub fn write_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
-    let _warnings = write_streams_with_warnings(dest, None, streams, strict_lossless)?;
+    let _warnings =
+        write_streams_with_warnings(dest, None, streams, strict_lossless)?;
     Ok(())
 }
 
@@ -1374,7 +1583,12 @@ pub fn write_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
-    let _warnings = write_streams_with_warnings(dest, target_display_path, streams, strict_lossless)?;
+    let _warnings = write_streams_with_warnings(
+        dest,
+        target_display_path,
+        streams,
+        strict_lossless,
+    )?;
     Ok(())
 }
 
@@ -1437,12 +1651,17 @@ mod tests {
         let bytes = vec![0x5a_u8; 2 * 1024 * 1024];
         std::fs::write(&path, &bytes)?;
         let stream = AttachedStream::from_file(
-            Some(StreamName::from_str("user.large")), StreamKind::ExtendedAttribute, &path,
+            Some(StreamName::from_str("user.large")),
+            StreamKind::ExtendedAttribute,
+            &path,
         )?;
         ensure!(stream.data.is_none() && stream.payload.is_none());
         let mut reader = FilesystemStreamSource.open(&stream)?;
         let mut digest = Sha256Stream::new();
-        ensure!(std::io::copy(&mut reader, &mut digest)? == u64::try_from(bytes.len())?);
+        ensure!(
+            std::io::copy(&mut reader, &mut digest)?
+                == u64::try_from(bytes.len())?
+        );
         ensure!(digest.finalize() == ctb_formats_checksum::sha256(&bytes));
         std::fs::remove_file(&path)?;
         ensure!(FilesystemStreamSource.open(&stream).is_err());
@@ -1464,16 +1683,24 @@ mod tests {
         ] {
             ctb_formats_dcstring::assert_dc_roundtrip(&name).unwrap();
             let encoded = serde_json::to_vec(&name).unwrap();
-            let restored: StreamName = serde_json::from_slice(&encoded).unwrap();
+            let restored: StreamName =
+                serde_json::from_slice(&encoded).unwrap();
             assert_eq!(restored, name);
             #[cfg(windows)]
-            if matches!(&name, StreamName::WindowsUtf16(units) if !units.contains(&0)) {
-                assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
+            if matches!(&name, StreamName::WindowsUtf16(units) if !units.contains(&0))
+            {
+                assert_eq!(
+                    StreamName::from_os_str(&name.to_os_string().unwrap()),
+                    name
+                );
             }
 
             #[cfg(unix)]
             if matches!(name, StreamName::Bytes(_)) {
-                assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
+                assert_eq!(
+                    StreamName::from_os_str(&name.to_os_string().unwrap()),
+                    name
+                );
             }
         }
     }
@@ -1482,10 +1709,15 @@ mod tests {
     fn test_stream_name_preserves_malformed_encoding_until_use() -> Result<()> {
         let mut metadata = ctb_formats_dcstring::DcString::new();
         metadata.push(ctb_formats_dcstring::DcChar::from_u128(
-            FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
+            FormatId::Wtf8
+                .dc_id()
+                .context("Missing WTF-8 format identifier")?,
         ));
-        for bytes in [&b"\xed\xa0"[..], &b"\xc0\xaf"[..],
-            &b"\xed\xa0\x80\xed\xb0\x80"[..]] {
+        for bytes in [
+            &b"\xed\xa0"[..],
+            &b"\xc0\xaf"[..],
+            &b"\xed\xa0\x80\xed\xb0\x80"[..],
+        ] {
             let mut encoded = ctb_formats_dcstring::DcMstring::new();
             encoded.push_binary_with_metadata(bytes, &metadata)?;
             let name = encoded.decode::<StreamName>(
@@ -1500,36 +1732,56 @@ mod tests {
                 assert!(name.to_os_string().is_err());
                 assert!(name.to_os_string_for_materialization(false).is_ok());
             }
-            let restored: StreamName = serde_json::from_value(serde_json::to_value(&name)?)?;
+            let restored: StreamName =
+                serde_json::from_value(serde_json::to_value(&name)?)?;
             assert_eq!(restored, name);
             ctb_formats_dcstring::assert_dc_roundtrip(
                 &AttachedStream::from_data(
-                    Some(name), StreamKind::NtfsAlternateDataStream, Vec::new()
-                )?
+                    Some(name),
+                    StreamKind::NtfsAlternateDataStream,
+                    Vec::new(),
+                )?,
             )?;
         }
         let encoded = StreamName::from_windows_utf16(&[0x61]).to_dc_mixed()?;
-        let mut nav = ctb_formats_dcstring::DcDocumentNavigator::from_mstr(&encoded);
+        let mut nav =
+            ctb_formats_dcstring::DcDocumentNavigator::from_mstr(&encoded);
         let mut arena = ctb_formats_dcstring::DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
-        let root = arena.roots().first().copied().context("Missing root node")?;
+        nav.parse_document_into_arena(
+            &mut arena,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        )?;
+        let root = arena
+            .roots()
+            .first()
+            .copied()
+            .context("Missing root node")?;
         let node = arena.get(root).context("Missing node")?;
         let (format, bytes) = match &node.kind {
-            ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { checksum_format, payload, .. } => {
-                (*checksum_format, payload.materialize_bytes()?)
-            }
+            ctb_formats_dcstring::navigator::DcSyntaxKind::Binary {
+                checksum_format,
+                payload,
+                ..
+            } => (*checksum_format, payload.materialize_bytes()?),
             other => panic!("Expected Binary node, found {other:?}"),
         };
-        assert_eq!(format, Some(ctb_formats_dcstring::DcChar::from_u128(
-            FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
-        )));
+        assert_eq!(
+            format,
+            Some(ctb_formats_dcstring::DcChar::from_u128(
+                FormatId::Wtf8
+                    .dc_id()
+                    .context("Missing WTF-8 format identifier")?
+            ))
+        );
         assert_eq!(bytes.as_ref(), b"a");
         for name in [
             StreamName::from_windows_utf16(&[0x61, 0x62]),
             StreamName::from_windows_utf16(&[0xd800]),
         ] {
             let stream = AttachedStream::from_data(
-                Some(name.clone()), StreamKind::NtfsAlternateDataStream, Vec::new()
+                Some(name.clone()),
+                StreamKind::NtfsAlternateDataStream,
+                Vec::new(),
             )?;
             ctb_formats_dcstring::assert_dc_roundtrip(&stream)?;
             ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
@@ -1539,88 +1791,154 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_raw_encoded_stream_names_are_replicated_when_supported() -> Result<()> {
+    fn test_raw_encoded_stream_names_are_replicated_when_supported()
+    -> Result<()> {
         let temp = tempfile::tempdir()?;
         let path = temp.path().join("file");
         fs::write(&path, b"main")?;
         for name in [
-            StreamName::from_encoded(FormatId::Wtf8, b"user.raw\xed\xa0".to_vec())?,
-            StreamName::from_encoded(FormatId::DcIntegerList, b"user.oddx".to_vec())?,
+            StreamName::from_encoded(
+                FormatId::Wtf8,
+                b"user.raw\xed\xa0".to_vec(),
+            )?,
+            StreamName::from_encoded(
+                FormatId::DcIntegerList,
+                b"user.oddx".to_vec(),
+            )?,
             StreamName::from_windows_utf16(&[117, 115, 101, 114, 46, 0xd800]),
         ] {
             let stream = AttachedStream::from_data(
-                Some(name.clone()), StreamKind::ExtendedAttribute, b"metadata".to_vec(),
+                Some(name.clone()),
+                StreamKind::ExtendedAttribute,
+                b"metadata".to_vec(),
             )?;
             write_streams(&path, None, &[stream], true)?;
             let native = name.to_os_string()?;
-            ensure!(xattr::get(&path, &native)?.as_deref() == Some(&b"metadata"[..]),
-                "Destination changed raw stream payload");
+            ensure!(
+                xattr::get(&path, &native)?.as_deref()
+                    == Some(&b"metadata"[..]),
+                "Destination changed raw stream payload"
+            );
             let streams = read_and_hash_streams(&path)?;
-            ensure!(streams.iter().any(|stream| stream.name.as_ref()
-                .is_some_and(|actual| actual.as_bytes().as_ref() == native.as_encoded_bytes())),
-                "Destination changed raw stream name");
+            ensure!(
+                streams.iter().any(|stream| stream
+                    .name
+                    .as_ref()
+                    .is_some_and(|actual| actual.as_bytes().as_ref()
+                        == native.as_encoded_bytes())),
+                "Destination changed raw stream name"
+            );
             remove_stream(&path, &native)?;
         }
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_unrepresentable_stream_names_adapt_only_in_best_effort() -> Result<()> {
+    fn test_unrepresentable_stream_names_adapt_only_in_best_effort()
+    -> Result<()> {
         let name = StreamName::from_bytes(b"user.\0name");
-        ensure!(name.to_os_string().is_err(), "NUL stream name was accepted losslessly");
-        ensure!(name.to_os_string_for_materialization(false)? == OsStr::new("user.\u{fffd}name"),
-            "Best-effort stream name was not adapted");
-        ensure!(name.as_bytes().as_ref() == b"user.\0name", "Source stream name changed");
+        ensure!(
+            name.to_os_string().is_err(),
+            "NUL stream name was accepted losslessly"
+        );
+        ensure!(
+            name.to_os_string_for_materialization(false)?
+                == OsStr::new("user.\u{fffd}name"),
+            "Best-effort stream name was not adapted"
+        );
+        ensure!(
+            name.as_bytes().as_ref() == b"user.\0name",
+            "Source stream name changed"
+        );
         #[cfg(windows)]
         {
-            let historical = StreamName::from_encoded(FormatId::DcIntegerList, vec![97, 0, 255])?;
-            ensure!(historical.to_os_string().is_err(), "Odd UTF-16 payload was accepted losslessly");
-            ensure!(historical.to_os_string_for_materialization(false)? == OsStr::new("a\u{fffd}"),
-                "Odd historical UTF-16 was not adapted");
+            let historical = StreamName::from_encoded(
+                FormatId::DcIntegerList,
+                vec![97, 0, 255],
+            )?;
+            ensure!(
+                historical.to_os_string().is_err(),
+                "Odd UTF-16 payload was accepted losslessly"
+            );
+            ensure!(
+                historical.to_os_string_for_materialization(false)?
+                    == OsStr::new("a\u{fffd}"),
+                "Odd historical UTF-16 was not adapted"
+            );
             let historical_surrogate = StreamName::from_encoded(
-                FormatId::DcIntegerList, vec![0, 216, 255],
+                FormatId::DcIntegerList,
+                vec![0, 216, 255],
             )?;
             use std::os::windows::ffi::OsStrExt;
-            ensure!(historical_surrogate.to_os_string_for_materialization(false)?
-                .encode_wide().collect::<Vec<_>>() == vec![0xd800, 0xfffd],
-                "Best-effort adaptation discarded a representable UTF-16 surrogate");
+            ensure!(
+                historical_surrogate
+                    .to_os_string_for_materialization(false)?
+                    .encode_wide()
+                    .collect::<Vec<_>>()
+                    == vec![0xd800, 0xfffd],
+                "Best-effort adaptation discarded a representable UTF-16 surrogate"
+            );
             let surrogate = StreamName::from_bytes(b"\xed\xa0\x80");
-            ensure!(surrogate.to_os_string()?.encode_wide().collect::<Vec<_>>() == vec![0xd800],
-                "Windows-native surrogate was not preserved");
+            ensure!(
+                surrogate.to_os_string()?.encode_wide().collect::<Vec<_>>()
+                    == vec![0xd800],
+                "Windows-native surrogate was not preserved"
+            );
         }
         Ok(())
     }
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_best_effort_stream_adaptation_is_audited_and_collision_checked() -> Result<()> {
+    fn test_best_effort_stream_adaptation_is_audited_and_collision_checked()
+    -> Result<()> {
         let temp = tempfile::tempdir()?;
         let path = temp.path().join("file");
         fs::write(&path, b"main")?;
         let name = StreamName::from_bytes(b"user.\0name");
         let stream = AttachedStream::from_data(
-            Some(name.clone()), StreamKind::ExtendedAttribute, b"metadata".to_vec(),
+            Some(name.clone()),
+            StreamKind::ExtendedAttribute,
+            b"metadata".to_vec(),
         )?;
-        ensure!(write_streams(&path, None, std::slice::from_ref(&stream), true).is_err());
+        ensure!(
+            write_streams(&path, None, std::slice::from_ref(&stream), true)
+                .is_err()
+        );
         write_streams(&path, None, std::slice::from_ref(&stream), false)?;
-        ensure!(xattr::get(&path, "user.\u{fffd}name")?.as_deref() == Some(&b"metadata"[..]));
+        ensure!(
+            xattr::get(&path, "user.\u{fffd}name")?.as_deref()
+                == Some(&b"metadata"[..])
+        );
         let mut entity = FileEntity::from_filesystem(&path, None)?;
         entity.streams = vec![stream.clone()];
-        let options = EntityAuditOptions { best_effort: true, ..Default::default() };
-        ensure!(!audit_entity(&path, &entity, &options)?.iter().any(|diff|
-            matches!(diff, DiffKind::StreamMismatch { .. })),
-            "Audit did not recognize best-effort adapted name");
+        let options = EntityAuditOptions {
+            best_effort: true,
+            ..Default::default()
+        };
+        ensure!(
+            !audit_entity(&path, &entity, &options)?
+                .iter()
+                .any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })),
+            "Audit did not recognize best-effort adapted name"
+        );
         let mut collision = stream.clone();
         collision.name = Some(StreamName::from_str("user.\u{fffd}name"));
-        ensure!(write_streams(&path, None, &[stream, collision], false).is_err(),
-            "Replacement stream-name collision was accepted");
-        ensure!(name.as_bytes().as_ref() == b"user.\0name", "Source name changed");
+        ensure!(
+            write_streams(&path, None, &[stream, collision], false).is_err(),
+            "Replacement stream-name collision was accepted"
+        );
+        ensure!(
+            name.as_bytes().as_ref() == b"user.\0name",
+            "Source name changed"
+        );
         Ok(())
     }
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_best_effort_audit_accepts_filesystem_replacement_but_not_corruption() -> Result<()> {
+    fn test_best_effort_audit_accepts_filesystem_replacement_but_not_corruption()
+    -> Result<()> {
         let temp = tempfile::tempdir()?;
         let path = temp.path().join("file");
         fs::write(&path, b"main")?;
@@ -1628,21 +1946,39 @@ mod tests {
         let mut entity = FileEntity::from_filesystem(&path, None)?;
         entity.streams = vec![AttachedStream::from_data(
             Some(StreamName::from_bytes(b"user.\xff")),
-            StreamKind::ExtendedAttribute, b"metadata".to_vec(),
+            StreamKind::ExtendedAttribute,
+            b"metadata".to_vec(),
         )?];
         let strict = EntityAuditOptions::default();
-        ensure!(audit_entity(&path, &entity, &strict)?.iter().any(|diff|
-            matches!(diff, DiffKind::StreamMismatch { .. })),
-            "Strict audit accepted a replacement-encoded name");
-        let best_effort = EntityAuditOptions { best_effort: true, ..Default::default() };
-        ensure!(!audit_entity(&path, &entity, &best_effort)?.iter().any(|diff|
-            matches!(diff, DiffKind::StreamMismatch { .. })),
-            "Best-effort audit rejected a replacement-encoded name");
+        ensure!(
+            audit_entity(&path, &entity, &strict)?
+                .iter()
+                .any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })),
+            "Strict audit accepted a replacement-encoded name"
+        );
+        let best_effort = EntityAuditOptions {
+            best_effort: true,
+            ..Default::default()
+        };
+        ensure!(
+            !audit_entity(&path, &entity, &best_effort)?
+                .iter()
+                .any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })),
+            "Best-effort audit rejected a replacement-encoded name"
+        );
         xattr::set(&path, "user.\u{fffd}", b"corrupted")?;
-        ensure!(audit_entity(&path, &entity, &best_effort)?.iter().any(|diff|
-            matches!(diff, DiffKind::StreamMismatch {
-                details: StreamDiffKind::DigestMismatch { .. }, ..
-            })), "Replacement-name adaptation hid payload corruption");
+        ensure!(
+            audit_entity(&path, &entity, &best_effort)?.iter().any(
+                |diff| matches!(
+                    diff,
+                    DiffKind::StreamMismatch {
+                        details: StreamDiffKind::DigestMismatch { .. },
+                        ..
+                    }
+                )
+            ),
+            "Replacement-name adaptation hid payload corruption"
+        );
         Ok(())
     }
 
@@ -1658,43 +1994,70 @@ mod tests {
             Some(StreamName::from_windows_utf16(&units)),
             StreamKind::NtfsAlternateDataStream,
             b"stream payload".to_vec(),
-        ).unwrap();
+        )
+        .unwrap();
         let assert_stream_roundtrip = || {
             let mut encoded = ctb_formats_dcstring::DcMstring::new();
             stream.encode_dc_mixed(&mut encoded).unwrap();
-            let restored = encoded.decode::<AttachedStream>(
-                &ctb_formats_dcstring::DcProjectionPolicy::strict(),
-            )
-            .unwrap();
+            let restored = encoded
+                .decode::<AttachedStream>(
+                    &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+                )
+                .unwrap();
             assert_eq!(restored.name, stream.name);
             assert_eq!(restored.kind, stream.kind);
             assert_eq!(restored.data, stream.data);
             assert_eq!(restored.entity.kind, stream.entity.kind);
-            assert_eq!(restored.entity.metadata.warnings, stream.entity.metadata.warnings);
-            assert_eq!(restored.entity.metadata.errors, stream.entity.metadata.errors);
+            assert_eq!(
+                restored.entity.metadata.warnings,
+                stream.entity.metadata.warnings
+            );
+            assert_eq!(
+                restored.entity.metadata.errors,
+                stream.entity.metadata.errors
+            );
             let mut reencoded = ctb_formats_dcstring::DcMstring::new();
             restored.encode_dc_mixed(&mut reencoded).unwrap();
             assert_eq!(encoded, reencoded);
         };
         assert_stream_roundtrip();
         for strict_lossless in [true, false] {
-            match write_streams(&path, None, std::slice::from_ref(&stream), strict_lossless) {
+            match write_streams(
+                &path,
+                None,
+                std::slice::from_ref(&stream),
+                strict_lossless,
+            ) {
                 Ok(()) => {
                     let streams = read_and_hash_streams(&path).unwrap();
                     assert_eq!(streams.len(), 1);
                     assert_eq!(streams[0].name, stream.name);
                     assert!(streams[0].data.is_none());
                     assert_eq!(streams[0].entity.kind, stream.entity.kind);
-                    let mut reader = FilesystemStreamSource.open(&streams[0]).unwrap();
+                    let mut reader =
+                        FilesystemStreamSource.open(&streams[0]).unwrap();
                     let mut digest = Sha256Stream::new();
                     std::io::copy(&mut reader, &mut digest).unwrap();
-                    assert_eq!(digest.finalize(), ctb_formats_checksum::sha256(stream.data.as_ref().unwrap()));
+                    assert_eq!(
+                        digest.finalize(),
+                        ctb_formats_checksum::sha256(
+                            stream.data.as_ref().unwrap()
+                        )
+                    );
                 }
                 Err(error) => {
-                    assert!(environment::is_wine(), "Unexpected native stream failure: {error:#}");
-                    let native_error = error.downcast_ref::<std::io::Error>().unwrap();
+                    assert!(
+                        environment::is_wine(),
+                        "Unexpected native stream failure: {error:#}"
+                    );
+                    let native_error =
+                        error.downcast_ref::<std::io::Error>().unwrap();
                     assert_eq!(native_error.raw_os_error(), Some(2));
-                    assert!(error.to_string().contains("Windows alternate data stream"));
+                    assert!(
+                        error
+                            .to_string()
+                            .contains("Windows alternate data stream")
+                    );
                     assert!(error.to_string().contains("55296"));
                     assert!(read_and_hash_streams(&path).unwrap().is_empty());
                 }
@@ -1714,7 +2077,8 @@ mod tests {
             Some(StreamName::from_str(":safe:$DATA")),
             StreamKind::NtfsAlternateDataStream,
             b"stream payload".to_vec(),
-        ).unwrap();
+        )
+        .unwrap();
         let mut tampered = valid.clone();
         tampered.name = Some(StreamName::from_str(":tampered:$DATA"));
         tampered.data = Some(b"tampered".to_vec());
@@ -1733,7 +2097,11 @@ mod tests {
             (tampered, "payload does not match its descriptor", false),
             (missing, "has no payload source", false),
             (unnamed, "cannot overwrite the unnamed data fork", false),
-            (traversal, "Invalid Windows alternate data stream name", true),
+            (
+                traversal,
+                "Invalid Windows alternate data stream name",
+                true,
+            ),
             (nul.clone(), "Stream name contains a NUL", true),
             (valid.clone(), "Stream names collide", false),
             (alias, "Stream names collide", false),
@@ -1742,14 +2110,22 @@ mod tests {
                 if strict_only && !strict_lossless {
                     continue;
                 }
-                let error = write_streams(&path, None, &[valid.clone(), invalid.clone()], strict_lossless).unwrap_err();
+                let error = write_streams(
+                    &path,
+                    None,
+                    &[valid.clone(), invalid.clone()],
+                    strict_lossless,
+                )
+                .unwrap_err();
                 assert!(error.to_string().contains(expected), "{error:#}");
                 assert_eq!(fs::read(&path).unwrap(), b"main payload");
                 assert!(read_and_hash_streams(&path).unwrap().is_empty());
             }
         }
         // In best-effort mode, NUL is adapted with replacement character U+FFFD
-        assert!(write_streams(&path, None, &[valid.clone(), nul], false).is_ok());
+        assert!(
+            write_streams(&path, None, &[valid.clone(), nul], false).is_ok()
+        );
     }
 
     #[cfg(unix)]
@@ -1760,18 +2136,35 @@ mod tests {
         fs::write(&path, b"payload").unwrap();
         xattr::set(&path, "user.portable", b"metadata").unwrap();
         let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
-        entity.streams[0].name = Some(StreamName::from_windows_utf16(&"user.portable".encode_utf16().collect::<Vec<_>>()));
-        crate::streams::write_streams(&path, None, &entity.streams, true).unwrap();
-        let options = EntityAuditOptions { best_effort: true, ..Default::default() };
+        entity.streams[0].name = Some(StreamName::from_windows_utf16(
+            &"user.portable".encode_utf16().collect::<Vec<_>>(),
+        ));
+        crate::streams::write_streams(&path, None, &entity.streams, true)
+            .unwrap();
+        let options = EntityAuditOptions {
+            best_effort: true,
+            ..Default::default()
+        };
         let diffs = audit_entity(&path, &entity, &options).unwrap();
-        assert!(!diffs.iter().any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })));
+        assert!(
+            !diffs
+                .iter()
+                .any(|diff| matches!(diff, DiffKind::StreamMismatch { .. }))
+        );
         let mut duplicate = entity.streams[0].clone();
         duplicate.name = Some(StreamName::from_str("user.portable"));
         entity.streams.push(duplicate);
-        assert!(crate::streams::write_streams(&path, None, &entity.streams, false).is_err());
+        assert!(
+            crate::streams::write_streams(&path, None, &entity.streams, false)
+                .is_err()
+        );
         assert!(audit_entity(&path, &entity, &options).is_err());
-        entity.streams[0].name = Some(StreamName::from_windows_utf16(&[0xd800]));
-        assert!(crate::streams::write_streams(&path, None, &entity.streams, true).is_err());
+        entity.streams[0].name =
+            Some(StreamName::from_windows_utf16(&[0xd800]));
+        assert!(
+            crate::streams::write_streams(&path, None, &entity.streams, true)
+                .is_err()
+        );
     }
 
     #[cfg(unix)]
@@ -1785,17 +2178,29 @@ mod tests {
             None,
             crate::streams::StreamKind::MacOsResourceFork,
             b"resource fork contents".to_vec(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(rsrc_stream.name, None);
-        assert_eq!(rsrc_stream.kind, crate::streams::StreamKind::MacOsResourceFork);
+        assert_eq!(
+            rsrc_stream.kind,
+            crate::streams::StreamKind::MacOsResourceFork
+        );
         assert_eq!(rsrc_stream.to_string_lossy(), "(resource fork)");
 
         entity.streams.push(rsrc_stream);
-        crate::streams::write_streams(&path, None, &entity.streams, true).unwrap();
+        crate::streams::write_streams(&path, None, &entity.streams, true)
+            .unwrap();
 
-        let options = EntityAuditOptions { best_effort: false, ..Default::default() };
+        let options = EntityAuditOptions {
+            best_effort: false,
+            ..Default::default()
+        };
         let diffs = audit_entity(&path, &entity, &options).unwrap();
-        assert!(!diffs.iter().any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })));
+        assert!(
+            !diffs
+                .iter()
+                .any(|diff| matches!(diff, DiffKind::StreamMismatch { .. }))
+        );
     }
 
     #[cfg(unix)]
@@ -1817,7 +2222,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_incremental_attached_stream_reader_and_lazy_payload() -> Result<()> {
+    fn test_incremental_attached_stream_reader_and_lazy_payload() -> Result<()>
+    {
         let payload = vec![0x5a_u8; 128 * 1024]; // 128KB payload
         let expected_size = u64::try_from(payload.len())?;
         let expected_hash = ctb_formats_checksum::sha256(&payload);
@@ -1830,7 +2236,9 @@ mod tests {
             false, // retain_body = false
         )?;
         assert_eq!(stream_streaming.data, None);
-        if let FileEntityKind::Regular { size, sha256, .. } = &stream_streaming.entity.kind {
+        if let FileEntityKind::Regular { size, sha256, .. } =
+            &stream_streaming.entity.kind
+        {
             assert_eq!(*size, expected_size);
             assert_eq!(*sha256, expected_hash);
         } else {
@@ -1858,7 +2266,10 @@ mod tests {
             &mut payload.as_slice(),
             expected_size,
         )?;
-        ensure!(streamed_document == buffered_document.as_bytes(), "Stream encoders disagree");
+        ensure!(
+            streamed_document == buffered_document.as_bytes(),
+            "Stream encoders disagree"
+        );
         ctb_formats_dcstring::validate_dc_mixed_strict(&buffered_document)?;
 
         // 3. Lazy payload representation

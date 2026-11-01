@@ -1518,8 +1518,11 @@ pub fn run_repair() -> Result<()> {
 
     #[cfg(unix)]
     if should_preflight_x11() {
-        return run_app_with_x11_client_backend(&settings, InstallerApp::new_repair)
-            .map_err(|e| anyhow::anyhow!("Failed to run repair: {e}"));
+        return run_app_with_x11_client_backend(
+            &settings,
+            InstallerApp::new_repair,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to run repair: {e}"));
     }
     run_app_with_software_backend(settings, InstallerApp::new_repair)
         .map_err(|e| anyhow::anyhow!("Failed to run repair: {e}"))
@@ -1539,8 +1542,11 @@ pub fn run_uninstall() -> Result<()> {
 
     #[cfg(unix)]
     if should_preflight_x11() {
-        return run_app_with_x11_client_backend(&settings, InstallerApp::new_uninstall)
-            .map_err(|e| anyhow::anyhow!("Failed to run uninstaller: {e}"));
+        return run_app_with_x11_client_backend(
+            &settings,
+            InstallerApp::new_uninstall,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to run uninstaller: {e}"));
     }
     run_app_with_software_backend(settings, InstallerApp::new_uninstall)
         .map_err(|e| anyhow::anyhow!("Failed to run uninstaller: {e}"))

@@ -32,17 +32,17 @@ pub use crate::metadata::AppleMetadata;
 use crate::payload::Extent;
 use crate::streams::{AttachedStream, StreamKind, StreamName};
 pub use ctb_formats_apple_single_double::{
-    AppleArchive, AppleArchiveEntry, AppleDatesInfo, AppleDoubleStyle,
-    AppleExtendedAttribute, AppleFormat, AppleRawEntry, AppleReadOptions,
-    AppleSingleExtension, EntryType, ExtendedFinderInfo, FinderFlags,
-    FinderInfo, FinderLabel, get_companion_path, is_apple_double_file,
-    is_apple_single_file, read_apple_single_double, write_apple_single_double,
     APPLEDOUBLE_MAGIC_BE, APPLEDOUBLE_MAGIC_LE, APPLESINGLE_MAGIC_BE,
-    APPLESINGLE_MAGIC_LE, VERSION_2_0_BE,
+    APPLESINGLE_MAGIC_LE, AppleArchive, AppleArchiveEntry, AppleDatesInfo,
+    AppleDoubleStyle, AppleExtendedAttribute, AppleFormat, AppleRawEntry,
+    AppleReadOptions, AppleSingleExtension, EntryType, ExtendedFinderInfo,
+    FinderFlags, FinderInfo, FinderLabel, VERSION_2_0_BE, get_companion_path,
+    is_apple_double_file, is_apple_single_file, read_apple_single_double,
+    write_apple_single_double,
 };
-use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use rustix::fd::AsFd;
+use std::path::{Path, PathBuf};
 
 /// Extension methods for [`AppleArchive`] bridging to `ctb-io-file` types.
 pub trait AppleArchiveExt {
@@ -106,7 +106,6 @@ impl AppleArchiveExt for AppleArchive {
     }
 }
 
-
 fn read_stream_bytes_from_source(
     stream: &AttachedStream,
     stream_source: &dyn crate::streams::AttachedStreamSource,
@@ -136,7 +135,10 @@ fn read_stream_bytes_from_source(
         total_read = total_read
             .checked_add(u64::try_from(n)?)
             .context("Stream size overflow")?;
-        ensure!(total_read <= *expected_size, "Stream grew during restoration");
+        ensure!(
+            total_read <= *expected_size,
+            "Stream grew during restoration"
+        );
         data.extend_from_slice(chunk);
     }
     ensure!(
@@ -177,15 +179,18 @@ pub fn create_apple_archive_from_entity_with_stream_source(
     for stream in &entity.streams {
         match stream.kind {
             StreamKind::MacOsResourceFork => {
-                let data = read_stream_bytes_from_source(stream, stream_source)?;
+                let data =
+                    read_stream_bytes_from_source(stream, stream_source)?;
                 resource_fork = Some(data);
             }
-            StreamKind::ExtendedAttribute | StreamKind::NtfsAlternateDataStream => {
+            StreamKind::ExtendedAttribute
+            | StreamKind::NtfsAlternateDataStream => {
                 let name = match &stream.name {
                     Some(n) => n.to_string_lossy().into_owned(),
                     None => continue,
                 };
-                let data = read_stream_bytes_from_source(stream, stream_source)?;
+                let data =
+                    read_stream_bytes_from_source(stream, stream_source)?;
                 extended_attributes.push(AppleExtendedAttribute {
                     name,
                     size: data.len(),
@@ -202,22 +207,24 @@ pub fn create_apple_archive_from_entity_with_stream_source(
     // Reason for fallback: absent flags metadata defaults to empty slice
     let entity_flags = entity.metadata.flags.as_deref().unwrap_or(&[]);
 
-    let has_mac_flags = entity_flags.iter().any(|f| matches!(
-        f,
-        crate::metadata::FileFlag::OnDesk
-            | crate::metadata::FileFlag::SharedApp
-            | crate::metadata::FileFlag::NoInits
-            | crate::metadata::FileFlag::Inited
-            | crate::metadata::FileFlag::CustomIcon
-            | crate::metadata::FileFlag::Stationery
-            | crate::metadata::FileFlag::NameLocked
-            | crate::metadata::FileFlag::HasBundle
-            | crate::metadata::FileFlag::Invisible
-            | crate::metadata::FileFlag::Alias
-            | crate::metadata::FileFlag::CustomBadge
-            | crate::metadata::FileFlag::RoutingInfo
-            | crate::metadata::FileFlag::ExtendedFlagsInvalid
-    ));
+    let has_mac_flags = entity_flags.iter().any(|f| {
+        matches!(
+            f,
+            crate::metadata::FileFlag::OnDesk
+                | crate::metadata::FileFlag::SharedApp
+                | crate::metadata::FileFlag::NoInits
+                | crate::metadata::FileFlag::Inited
+                | crate::metadata::FileFlag::CustomIcon
+                | crate::metadata::FileFlag::Stationery
+                | crate::metadata::FileFlag::NameLocked
+                | crate::metadata::FileFlag::HasBundle
+                | crate::metadata::FileFlag::Invisible
+                | crate::metadata::FileFlag::Alias
+                | crate::metadata::FileFlag::CustomBadge
+                | crate::metadata::FileFlag::RoutingInfo
+                | crate::metadata::FileFlag::ExtendedFlagsInvalid
+        )
+    });
     if has_mac_flags && finder_info.is_none() {
         finder_info = Some(FinderInfo::default());
     }
@@ -240,26 +247,50 @@ pub fn create_apple_archive_from_entity_with_stream_source(
     if let Some(ref mut finfo) = finder_info {
         for flag in entity_flags {
             match flag {
-                crate::metadata::FileFlag::OnDesk => finfo.flags.is_on_desk = true,
-                crate::metadata::FileFlag::SharedApp => finfo.flags.is_shared = true,
-                crate::metadata::FileFlag::NoInits => finfo.flags.has_no_inits = true,
-                crate::metadata::FileFlag::Inited => finfo.flags.has_been_inited = true,
-                crate::metadata::FileFlag::CustomIcon => finfo.flags.has_custom_icon = true,
-                crate::metadata::FileFlag::Stationery => finfo.flags.is_stationery = true,
-                crate::metadata::FileFlag::NameLocked => finfo.flags.name_locked = true,
-                crate::metadata::FileFlag::HasBundle => finfo.flags.has_bundle = true,
-                crate::metadata::FileFlag::Invisible => finfo.flags.is_invisible = true,
+                crate::metadata::FileFlag::OnDesk => {
+                    finfo.flags.is_on_desk = true
+                }
+                crate::metadata::FileFlag::SharedApp => {
+                    finfo.flags.is_shared = true
+                }
+                crate::metadata::FileFlag::NoInits => {
+                    finfo.flags.has_no_inits = true
+                }
+                crate::metadata::FileFlag::Inited => {
+                    finfo.flags.has_been_inited = true
+                }
+                crate::metadata::FileFlag::CustomIcon => {
+                    finfo.flags.has_custom_icon = true
+                }
+                crate::metadata::FileFlag::Stationery => {
+                    finfo.flags.is_stationery = true
+                }
+                crate::metadata::FileFlag::NameLocked => {
+                    finfo.flags.name_locked = true
+                }
+                crate::metadata::FileFlag::HasBundle => {
+                    finfo.flags.has_bundle = true
+                }
+                crate::metadata::FileFlag::Invisible => {
+                    finfo.flags.is_invisible = true
+                }
                 crate::metadata::FileFlag::Alias => finfo.flags.is_alias = true,
                 crate::metadata::FileFlag::CustomBadge => {
-                    let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
+                    let ext = finfo
+                        .extended
+                        .get_or_insert_with(ExtendedFinderInfo::default);
                     ext.xflags.custom_badge = true;
                 }
                 crate::metadata::FileFlag::RoutingInfo => {
-                    let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
+                    let ext = finfo
+                        .extended
+                        .get_or_insert_with(ExtendedFinderInfo::default);
                     ext.xflags.routing_info = true;
                 }
                 crate::metadata::FileFlag::ExtendedFlagsInvalid => {
-                    let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
+                    let ext = finfo
+                        .extended
+                        .get_or_insert_with(ExtendedFinderInfo::default);
                     ext.xflags.extended_flags_invalid = true;
                 }
                 _ => {}
@@ -274,13 +305,18 @@ pub fn create_apple_archive_from_entity_with_stream_source(
         .map(|a| a.unrecognized_entries.clone())
         .unwrap_or_default();
 
-    let timestamps = entity.metadata.timestamps.as_ref().map(|ts| AppleDatesInfo {
-        birthtime_sec: ts.birthtime_sec,
-        mtime_sec: ts.mtime_sec,
-        ctime_sec: ts.ctime_sec,
-        atime_sec: ts.atime_sec,
-        backup_sec: backup_timestamp_sec,
-    });
+    let timestamps =
+        entity
+            .metadata
+            .timestamps
+            .as_ref()
+            .map(|ts| AppleDatesInfo {
+                birthtime_sec: ts.birthtime_sec,
+                mtime_sec: ts.mtime_sec,
+                ctime_sec: ts.ctime_sec,
+                atime_sec: ts.atime_sec,
+                backup_sec: backup_timestamp_sec,
+            });
 
     let data_fork_size = data_fork.as_ref().map(Vec::len);
     let resource_fork_size = resource_fork.as_ref().map(Vec::len);
@@ -304,7 +340,9 @@ pub fn create_apple_archive_from_entity_with_stream_source(
 }
 
 /// Serializes an AppleDouble companion payload for `entity`.
-pub fn serialize_apple_double_for_entity(entity: &FileEntity) -> Result<Vec<u8>> {
+pub fn serialize_apple_double_for_entity(
+    entity: &FileEntity,
+) -> Result<Vec<u8>> {
     serialize_apple_double_for_entity_with_stream_source(
         entity,
         &crate::streams::FilesystemStreamSource,
@@ -352,7 +390,9 @@ impl AppleWriteMode {
     pub fn is_force(&self) -> bool {
         matches!(
             self,
-            Self::ForceAppleDouble(_) | Self::ForceAppleSingle | Self::ForceWindowsAds
+            Self::ForceAppleDouble(_)
+                | Self::ForceAppleSingle
+                | Self::ForceWindowsAds
         )
     }
 
@@ -371,7 +411,6 @@ impl AppleWriteMode {
         matches!(self, Self::MaybeWindowsAds | Self::ForceWindowsAds)
     }
 }
-
 
 /// Writes an AppleDouble companion file for `entity` to `dest_path` according to `style`.
 ///
@@ -404,11 +443,16 @@ pub fn write_apple_double_companion_with_stream_source(
     existing: crate::sandboxable_dir::ExistingEntryPolicy,
     stream_source: &dyn crate::streams::AttachedStreamSource,
 ) -> Result<Option<PathBuf>> {
-    if apple_double_companion_path(entity, dest_path, dest_dir, style)?.is_none() {
+    if apple_double_companion_path(entity, dest_path, dest_dir, style)?
+        .is_none()
+    {
         return Ok(None);
     }
     let apple_double_bytes =
-        serialize_apple_double_for_entity_with_stream_source(entity, stream_source)?;
+        serialize_apple_double_for_entity_with_stream_source(
+            entity,
+            stream_source,
+        )?;
     write_apple_double_companion_bytes(
         entity,
         dest_path,
@@ -431,24 +475,37 @@ pub(crate) fn write_apple_double_companion_bytes(
     let times = if let Some(timestamps) = &entity.metadata.timestamps {
         timestamps.validate()?;
         Some((
-            crate::metadata::checked_file_time(timestamps.atime_sec, timestamps.atime_nsec)
-                .context("Invalid native AppleDouble companion access time")?,
-            crate::metadata::checked_file_time(timestamps.mtime_sec, timestamps.mtime_nsec)
-                .context("Invalid native AppleDouble companion modification time")?,
+            crate::metadata::checked_file_time(
+                timestamps.atime_sec,
+                timestamps.atime_nsec,
+            )
+            .context("Invalid native AppleDouble companion access time")?,
+            crate::metadata::checked_file_time(
+                timestamps.mtime_sec,
+                timestamps.mtime_nsec,
+            )
+            .context(
+                "Invalid native AppleDouble companion modification time",
+            )?,
         ))
     } else {
         None
     };
-    let Some(companion_path) = apple_double_companion_path(entity, dest_path, dest_dir, style)? else {
+    let Some(companion_path) =
+        apple_double_companion_path(entity, dest_path, dest_dir, style)?
+    else {
         return Ok(None);
     };
-    let relative = companion_path.strip_prefix(dest_dir.root_path())
+    let relative = companion_path
+        .strip_prefix(dest_dir.root_path())
         .context("AppleDouble companion is outside the destination sandbox")?;
     let (parent, final_name) = dest_dir.ensure_parent_dir(
-        relative, crate::path_policy::PathTraversalPolicy::StrictSandboxed,
+        relative,
+        crate::path_policy::PathTraversalPolicy::StrictSandboxed,
     )?;
     let temp_name = format!(".ctb-apple-double-{}", uuid());
-    let mut staged = dest_dir.create_temp_file(&parent.as_fd(), &temp_name, 0o600)?;
+    let mut staged =
+        dest_dir.create_temp_file(&parent.as_fd(), &temp_name, 0o600)?;
     let result = (|| -> Result<()> {
         std::io::Write::write_all(&mut staged, apple_double_bytes)
             .context("Failed to stage AppleDouble companion bytes")?;
@@ -456,19 +513,35 @@ pub(crate) fn write_apple_double_companion_bytes(
             filetime::set_file_handle_times(&staged, Some(atime), Some(mtime))
                 .context("Failed to stage AppleDouble companion timestamps")?;
         }
-        staged.sync_all().context("Failed to sync staged AppleDouble companion")?;
-        dest_dir.commit_atomic_file(&parent.as_fd(), &temp_name, &final_name, existing)
+        staged
+            .sync_all()
+            .context("Failed to sync staged AppleDouble companion")?;
+        dest_dir.commit_atomic_file(
+            &parent.as_fd(),
+            &temp_name,
+            &final_name,
+            existing,
+        )
     })();
     drop(staged);
     if let Err(error) = result {
         #[cfg(unix)]
-        let cleanup = rustix::fs::unlinkat(parent.as_fd(), temp_name.as_str(), rustix::fs::AtFlags::empty());
+        let cleanup = rustix::fs::unlinkat(
+            parent.as_fd(),
+            temp_name.as_str(),
+            rustix::fs::AtFlags::empty(),
+        );
         #[cfg(not(unix))]
         let cleanup = std::fs::remove_file(
-            companion_path.parent().context("AppleDouble companion has no parent")?.join(&temp_name),
+            companion_path
+                .parent()
+                .context("AppleDouble companion has no parent")?
+                .join(&temp_name),
         );
         if let Err(cleanup) = cleanup {
-            return Err(error).context(format!("Failed to remove staged AppleDouble companion: {cleanup}"));
+            return Err(error).context(format!(
+                "Failed to remove staged AppleDouble companion: {cleanup}"
+            ));
         }
         return Err(error);
     }
@@ -480,25 +553,31 @@ pub(crate) fn write_apple_double_companion_bytes(
 /// that require preservation in an AppleDouble companion file.
 pub(crate) fn has_apple_metadata(entity: &FileEntity) -> bool {
     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
-    let has_apple_meta = entity.metadata.apple.as_ref().is_some_and(|a| !a.is_empty());
+    let has_apple_meta = entity
+        .metadata
+        .apple
+        .as_ref()
+        .is_some_and(|a| !a.is_empty());
     // Reason for fallback: absent flags metadata defaults to empty slice
     let entity_flags = entity.metadata.flags.as_deref().unwrap_or(&[]);
-    let has_mac_flags = entity_flags.iter().any(|f| matches!(
-        f,
-        crate::metadata::FileFlag::OnDesk
-            | crate::metadata::FileFlag::SharedApp
-            | crate::metadata::FileFlag::NoInits
-            | crate::metadata::FileFlag::Inited
-            | crate::metadata::FileFlag::CustomIcon
-            | crate::metadata::FileFlag::Stationery
-            | crate::metadata::FileFlag::NameLocked
-            | crate::metadata::FileFlag::HasBundle
-            | crate::metadata::FileFlag::Invisible
-            | crate::metadata::FileFlag::Alias
-            | crate::metadata::FileFlag::CustomBadge
-            | crate::metadata::FileFlag::RoutingInfo
-            | crate::metadata::FileFlag::ExtendedFlagsInvalid
-    ));
+    let has_mac_flags = entity_flags.iter().any(|f| {
+        matches!(
+            f,
+            crate::metadata::FileFlag::OnDesk
+                | crate::metadata::FileFlag::SharedApp
+                | crate::metadata::FileFlag::NoInits
+                | crate::metadata::FileFlag::Inited
+                | crate::metadata::FileFlag::CustomIcon
+                | crate::metadata::FileFlag::Stationery
+                | crate::metadata::FileFlag::NameLocked
+                | crate::metadata::FileFlag::HasBundle
+                | crate::metadata::FileFlag::Invisible
+                | crate::metadata::FileFlag::Alias
+                | crate::metadata::FileFlag::CustomBadge
+                | crate::metadata::FileFlag::RoutingInfo
+                | crate::metadata::FileFlag::ExtendedFlagsInvalid
+        )
+    });
     has_apple_meta || has_mac_flags
 }
 
@@ -516,7 +595,10 @@ pub(crate) fn apple_double_companion_path(
     let parent_dir = dest_path.parent().unwrap_or(Path::new("."));
     // Reason for fallback: destination path without a file name component defaults to verbatim OsStr
     let file_name = dest_path.file_name().unwrap_or(dest_path.as_os_str());
-    let is_dir = matches!(entity.kind, FileEntityKind::Directory | FileEntityKind::Bundle { .. });
+    let is_dir = matches!(
+        entity.kind,
+        FileEntityKind::Directory | FileEntityKind::Bundle { .. }
+    );
 
     let companion_path = get_companion_path(
         parent_dir,
@@ -527,20 +609,30 @@ pub(crate) fn apple_double_companion_path(
         entity.identity.relative_path.as_deref(),
     );
 
-    let relative = companion_path.strip_prefix(dest_dir.root_path())
+    let relative = companion_path
+        .strip_prefix(dest_dir.root_path())
         .context("AppleDouble companion is outside the destination sandbox")?;
-    ensure!(relative.components().all(|component| matches!(
-        component, std::path::Component::Normal(_) | std::path::Component::CurDir
-    )), "AppleDouble companion path is not contained in the destination sandbox");
+    ensure!(
+        relative.components().all(|component| matches!(
+            component,
+            std::path::Component::Normal(_) | std::path::Component::CurDir
+        )),
+        "AppleDouble companion path is not contained in the destination sandbox"
+    );
     Ok(Some(companion_path))
 }
 
-
-fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, extension: AppleSingleExtension) {
+fn strip_apple_single_extension_from_entity(
+    entity: &mut FileEntity,
+    extension: AppleSingleExtension,
+) {
     let Some(ref rel) = entity.identity.relative_path else {
         return;
     };
-    let Some(stem) = rel.file_name().and_then(|name| extension.strip_from_name(name)) else {
+    let Some(stem) = rel
+        .file_name()
+        .and_then(|name| extension.strip_from_name(name))
+    else {
         return;
     };
     entity.identity.relative_path = Some(rel.with_file_name(stem));
@@ -553,7 +645,9 @@ pub fn join_apple_double_or_single(
     base_dir: Option<&Path>,
     options: &AppleReadOptions,
 ) -> Result<()> {
-    join_apple_double_or_single_captured(entity, file_path, base_dir, options, None)
+    join_apple_double_or_single_captured(
+        entity, file_path, base_dir, options, None,
+    )
 }
 
 pub(crate) fn join_apple_double_or_single_captured(
@@ -566,37 +660,57 @@ pub(crate) fn join_apple_double_or_single_captured(
     // 1. If any AppleSingle read style is enabled and this is a regular file, check if it's AppleSingle
     if options.any_apple_single() && entity.is_regular() {
         // Reason for fallback: file path without a file name component defaults to verbatim OsStr
-        let file_name_os = file_path.file_name().unwrap_or(file_path.as_os_str());
+        let file_name_os =
+            file_path.file_name().unwrap_or(file_path.as_os_str());
 
         let single_match = if options.read_apple_single_as
-            && AppleSingleExtension::As.strip_from_name(file_name_os).is_some()
+            && AppleSingleExtension::As
+                .strip_from_name(file_name_os)
+                .is_some()
         {
             Some(AppleSingleExtension::As)
         } else if options.read_apple_single_asf
-            && AppleSingleExtension::Asf.strip_from_name(file_name_os).is_some()
+            && AppleSingleExtension::Asf
+                .strip_from_name(file_name_os)
+                .is_some()
         {
             Some(AppleSingleExtension::Asf)
-        } else if options.read_apple_single_without_extension || options.read_apple_single {
+        } else if options.read_apple_single_without_extension
+            || options.read_apple_single
+        {
             Some(AppleSingleExtension::WithoutExtension)
         } else {
             None
         };
 
         if let Some(matched_ext) = single_match {
-            if let Some(data) = read_captured_apple_input(file_path, snapshot, true)? {
+            if let Some(data) =
+                read_captured_apple_input(file_path, snapshot, true)?
+            {
                 let archive = read_apple_single_double(&data)?;
-                ensure!(archive.format == AppleFormat::AppleSingle, "Recognized container is not AppleSingle");
+                ensure!(
+                    archive.format == AppleFormat::AppleSingle,
+                    "Recognized container is not AppleSingle"
+                );
                 unpack_apple_single_into_entity(entity, &archive)?;
                 if let Some(snapshot) = snapshot {
                     // Reason for fallback: empty data fork represents empty file payload
-                    snapshot.set_interpreted_payload(archive.data_fork.clone().unwrap_or_default())?;
+                    snapshot.set_interpreted_payload(
+                        archive.data_fork.clone().unwrap_or_default(),
+                    )?;
                 }
                 match matched_ext {
                     AppleSingleExtension::As => {
-                        strip_apple_single_extension_from_entity(entity, AppleSingleExtension::As);
+                        strip_apple_single_extension_from_entity(
+                            entity,
+                            AppleSingleExtension::As,
+                        );
                     }
                     AppleSingleExtension::Asf => {
-                        strip_apple_single_extension_from_entity(entity, AppleSingleExtension::Asf);
+                        strip_apple_single_extension_from_entity(
+                            entity,
+                            AppleSingleExtension::Asf,
+                        );
                     }
                     AppleSingleExtension::WithoutExtension => {}
                 }
@@ -610,7 +724,10 @@ pub(crate) fn join_apple_double_or_single_captured(
     let parent_dir = file_path.parent().unwrap_or(Path::new("."));
     // Reason for fallback: file path without a file name component defaults to verbatim OsStr
     let file_name = file_path.file_name().unwrap_or(file_path.as_os_str());
-    let is_dir = matches!(entity.kind, FileEntityKind::Directory | FileEntityKind::Bundle { .. });
+    let is_dir = matches!(
+        entity.kind,
+        FileEntityKind::Directory | FileEntityKind::Bundle { .. }
+    );
 
     let mut companion_candidates = Vec::new();
 
@@ -652,26 +769,59 @@ pub(crate) fn join_apple_double_or_single_captured(
     for companion_path in companion_candidates {
         match std::fs::symlink_metadata(&companion_path) {
             Ok(metadata) => {
-                ensure!(metadata.is_file(), "AppleDouble companion is not a regular file: {}", companion_path.display());
-                if !existing.contains(&companion_path) { existing.push(companion_path); }
+                ensure!(
+                    metadata.is_file(),
+                    "AppleDouble companion is not a regular file: {}",
+                    companion_path.display()
+                );
+                if !existing.contains(&companion_path) {
+                    existing.push(companion_path);
+                }
             }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-            Err(error) => return Err(error).context("Cannot inspect AppleDouble companion"),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(error)
+                    .context("Cannot inspect AppleDouble companion");
+            }
         }
     }
-    ensure!(existing.len() <= 1, "Multiple AppleDouble companions for {}", file_path.display());
+    ensure!(
+        existing.len() <= 1,
+        "Multiple AppleDouble companions for {}",
+        file_path.display()
+    );
     if let Some(companion_path) = existing.first() {
-        let dependency = snapshot.map(|snapshot| snapshot.capture_dependency(companion_path)).transpose()?;
-        let data = read_captured_apple_input(companion_path, dependency.as_ref(), false)?.context("AppleDouble input omitted")?;
-        let archive = read_apple_single_double(&data).with_context(|| format!("Invalid AppleDouble companion: {}", companion_path.display()))?;
-        ensure!(archive.format == AppleFormat::AppleDouble, "Companion is not AppleDouble: {}", companion_path.display());
+        let dependency = snapshot
+            .map(|snapshot| snapshot.capture_dependency(companion_path))
+            .transpose()?;
+        let data = read_captured_apple_input(
+            companion_path,
+            dependency.as_ref(),
+            false,
+        )?
+        .context("AppleDouble input omitted")?;
+        let archive = read_apple_single_double(&data).with_context(|| {
+            format!(
+                "Invalid AppleDouble companion: {}",
+                companion_path.display()
+            )
+        })?;
+        ensure!(
+            archive.format == AppleFormat::AppleDouble,
+            "Companion is not AppleDouble: {}",
+            companion_path.display()
+        );
         join_apple_archive_into_entity(entity, &archive)?;
-        if let Some(snapshot) = snapshot { snapshot.retain_changes(snapshot.validate()?)?; }
+        if let Some(snapshot) = snapshot {
+            snapshot.retain_changes(snapshot.validate()?)?;
+        }
     }
 
     // 3. Check for alongside Windows ADS companion files (`<filename>:<stream_name>`)
     if options.read_windows_ads_alongside {
-        join_windows_ads_companions_captured(entity, parent_dir, file_name, snapshot)?;
+        join_windows_ads_companions_captured(
+            entity, parent_dir, file_name, snapshot,
+        )?;
     }
 
     Ok(())
@@ -682,7 +832,9 @@ pub(crate) fn join_apple_double_or_single_captured(
 /// where both `<base_name>` and `<stream_suffix>` are non-empty and `<stream_suffix>` is not
 /// solely `:$DATA`.
 #[must_use]
-pub fn split_windows_ads_companion_bytes(name_bytes: &[u8]) -> Option<(&[u8], &[u8])> {
+pub fn split_windows_ads_companion_bytes(
+    name_bytes: &[u8],
+) -> Option<(&[u8], &[u8])> {
     let colon_idx = name_bytes.iter().position(|&b| b == b':')?;
     let base = name_bytes.get(..colon_idx)?;
     let suffix = name_bytes.get(colon_idx.checked_add(1)?..)?;
@@ -748,7 +900,8 @@ fn join_windows_ads_companions_captured(
         })?;
         let candidate_name = entry.file_name();
         let candidate_bytes = candidate_name.as_encoded_bytes();
-        let Some((cand_base, stream_suffix)) = split_windows_ads_companion_bytes(candidate_bytes)
+        let Some((cand_base, stream_suffix)) =
+            split_windows_ads_companion_bytes(candidate_bytes)
         else {
             continue;
         };
@@ -758,7 +911,9 @@ fn join_windows_ads_companions_captured(
         let companion_path = parent_dir.join(&candidate_name);
         let metadata = match std::fs::symlink_metadata(&companion_path) {
             Ok(meta) => meta,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                continue;
+            }
             Err(error) => {
                 return Err(error).with_context(|| {
                     format!(
@@ -784,9 +939,14 @@ fn join_windows_ads_companions_captured(
         let dependency = snapshot
             .map(|snap| snap.capture_dependency(&companion_path))
             .transpose()?;
-        let data = read_captured_apple_input(&companion_path, dependency.as_ref(), false)?
-            .context("Windows ADS companion input omitted")?;
-        let stream_name = crate::streams::StreamName::from_bytes(&stream_suffix_bytes);
+        let data = read_captured_apple_input(
+            &companion_path,
+            dependency.as_ref(),
+            false,
+        )?
+        .context("Windows ADS companion input omitted")?;
+        let stream_name =
+            crate::streams::StreamName::from_bytes(&stream_suffix_bytes);
         let stream = AttachedStream::from_data(
             Some(stream_name),
             StreamKind::NtfsAlternateDataStream,
@@ -876,20 +1036,25 @@ pub fn plan_windows_ads_companions(
                     name.as_bytes()
                 }
             }
-            None => if stream.kind == StreamKind::MacOsResourceFork {
-                std::borrow::Cow::Borrowed(crate::streams::RESOURCE_FORK_XATTR_NAME.as_bytes())
-            } else {
-                if strict_lossless {
-                    bail!(
-                        "Cannot write unnamed stream as Windows ADS companion for {}",
-                        dest_path.display()
-                    );
+            None => {
+                if stream.kind == StreamKind::MacOsResourceFork {
+                    std::borrow::Cow::Borrowed(
+                        crate::streams::RESOURCE_FORK_XATTR_NAME.as_bytes(),
+                    )
+                } else {
+                    if strict_lossless {
+                        bail!(
+                            "Cannot write unnamed stream as Windows ADS companion for {}",
+                            dest_path.display()
+                        );
+                    }
+                    std::borrow::Cow::Borrowed(b"")
                 }
-                std::borrow::Cow::Borrowed(b"")
-            },
+            }
         };
         let stream_bytes = raw_stream_bytes.as_ref();
-        let trimmed_leading = stream_bytes.strip_prefix(b":").unwrap_or(stream_bytes); // Reason for fallback: stream name without leading ':' is already unprefixed
+        let trimmed_leading =
+            stream_bytes.strip_prefix(b":").unwrap_or(stream_bytes); // Reason for fallback: stream name without leading ':' is already unprefixed
         let orig_suffix = strip_ads_data_type_suffix(trimmed_leading);
 
         let (final_suffix_bytes, adaptation_warning) = if strict_lossless {
@@ -912,9 +1077,7 @@ pub fn plan_windows_ads_companions(
                 dest_path.display()
             );
             ensure!(
-                base_len
-                    .saturating_add(1)
-                    .saturating_add(orig_suffix.len())
+                base_len.saturating_add(1).saturating_add(orig_suffix.len())
                     <= crate::clean_name::MAX_FILENAME_BYTES,
                 "Windows ADS companion filename exceeds maximum filename length ({} bytes) for {}",
                 crate::clean_name::MAX_FILENAME_BYTES,
@@ -928,7 +1091,10 @@ pub fn plan_windows_ads_companions(
                     )
                 })?;
                 ensure!(
-                    !s.chars().any(|c| matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control()),
+                    !s.chars().any(|c| matches!(
+                        c,
+                        '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
+                    ) || c.is_control()),
                     "Windows ADS companion stream name contains illegal characters for {}",
                     dest_path.display()
                 );
@@ -944,20 +1110,27 @@ pub fn plan_windows_ads_companions(
                 dest_path.display()
             );
             let (mut cleaned_str, mut reason) =
-                crate::clean_name::clean_stream_name_for_companion(orig_suffix, max_suffix_bytes);
+                crate::clean_name::clean_stream_name_for_companion(
+                    orig_suffix,
+                    max_suffix_bytes,
+                );
 
             let mut candidate_companion =
-                build_windows_ads_companion_os_string(file_name, cleaned_str.as_bytes())?;
+                build_windows_ads_companion_os_string(
+                    file_name,
+                    cleaned_str.as_bytes(),
+                )?;
             if seen_names.contains(&candidate_companion) {
                 let base_cleaned = cleaned_str.clone();
                 let mut collision_idx = 1_usize;
                 loop {
-                    let disambiguated = crate::clean_name::disambiguate_cleaned_name(
-                        &base_cleaned,
-                        orig_suffix,
-                        collision_idx,
-                        max_suffix_bytes,
-                    );
+                    let disambiguated =
+                        crate::clean_name::disambiguate_cleaned_name(
+                            &base_cleaned,
+                            orig_suffix,
+                            collision_idx,
+                            max_suffix_bytes,
+                        );
                     let cand_os = build_windows_ads_companion_os_string(
                         file_name,
                         disambiguated.as_bytes(),
@@ -991,17 +1164,20 @@ pub fn plan_windows_ads_companions(
             (cleaned_str.into_bytes(), warning)
         };
 
-        let companion_file_name =
-            build_windows_ads_companion_os_string(file_name, &final_suffix_bytes)?;
+        let companion_file_name = build_windows_ads_companion_os_string(
+            file_name,
+            &final_suffix_bytes,
+        )?;
         ensure!(
             seen_names.insert(companion_file_name.clone()),
             "Windows ADS companion names collide on {}",
             dest_path.display()
         );
         let companion_path = parent_dir.join(&companion_file_name);
-        let relative = companion_path
-            .strip_prefix(dest_dir.root_path())
-            .context("Windows ADS companion is outside the destination sandbox")?;
+        let relative =
+            companion_path.strip_prefix(dest_dir.root_path()).context(
+                "Windows ADS companion is outside the destination sandbox",
+            )?;
         ensure!(
             relative.components().all(|component| matches!(
                 component,
@@ -1012,16 +1188,18 @@ pub fn plan_windows_ads_companions(
 
         let mat_rel = relative.to_path_buf();
         let src_rel = orig_base_rel.as_ref().map(|base_rel| {
-            let base_file = base_rel.file_name().unwrap_or(base_rel.as_os_str()); // Reason for fallback: single-component relative path is already the file name
-            let orig_comp_os = build_windows_ads_companion_os_string(base_file, orig_suffix)
-                .unwrap_or_else(|_| {
-                    // Reason for fallback: non-UTF-8 suffix on non-Unix falls back to lossy string display for source relative path record
-                    std::ffi::OsString::from(format!(
-                        "{}:{}",
-                        base_file.to_string_lossy(),
-                        String::from_utf8_lossy(orig_suffix)
-                    ))
-                });
+            let base_file =
+                base_rel.file_name().unwrap_or(base_rel.as_os_str()); // Reason for fallback: single-component relative path is already the file name
+            let orig_comp_os =
+                build_windows_ads_companion_os_string(base_file, orig_suffix)
+                    .unwrap_or_else(|_| {
+                        // Reason for fallback: non-UTF-8 suffix on non-Unix falls back to lossy string display for source relative path record
+                        std::ffi::OsString::from(format!(
+                            "{}:{}",
+                            base_file.to_string_lossy(),
+                            String::from_utf8_lossy(orig_suffix)
+                        ))
+                    });
             match base_rel.parent() {
                 Some(p) if !p.as_os_str().is_empty() => p.join(orig_comp_os),
                 _ => PathBuf::from(orig_comp_os),
@@ -1061,7 +1239,12 @@ pub fn windows_ads_companion_paths(
     dest_dir: &crate::sandboxable_dir::SandboxableDir,
     strict_lossless: bool,
 ) -> Result<Vec<(PathBuf, AttachedStream)>> {
-    let planned = plan_windows_ads_companions(entity, dest_path, dest_dir, strict_lossless)?;
+    let planned = plan_windows_ads_companions(
+        entity,
+        dest_path,
+        dest_dir,
+        strict_lossless,
+    )?;
     Ok(planned
         .into_iter()
         .map(|p| (p.companion_path, p.stream))
@@ -1107,14 +1290,15 @@ pub fn write_windows_ads_companions(
     strict_lossless: bool,
     stream_source: &dyn crate::streams::AttachedStreamSource,
 ) -> Result<Vec<PathBuf>> {
-    let (paths, _adaptations, _warnings) = write_windows_ads_companions_with_warnings(
-        entity,
-        dest_path,
-        dest_dir,
-        existing,
-        strict_lossless,
-        stream_source,
-    )?;
+    let (paths, _adaptations, _warnings) =
+        write_windows_ads_companions_with_warnings(
+            entity,
+            dest_path,
+            dest_dir,
+            existing,
+            strict_lossless,
+            stream_source,
+        )?;
     Ok(paths)
 }
 
@@ -1131,16 +1315,29 @@ pub fn write_windows_ads_companions_with_warnings(
     let times = if let Some(timestamps) = &entity.metadata.timestamps {
         timestamps.validate()?;
         Some((
-            crate::metadata::checked_file_time(timestamps.atime_sec, timestamps.atime_nsec)
-                .context("Invalid native Windows ADS companion access time")?,
-            crate::metadata::checked_file_time(timestamps.mtime_sec, timestamps.mtime_nsec)
-                .context("Invalid native Windows ADS companion modification time")?,
+            crate::metadata::checked_file_time(
+                timestamps.atime_sec,
+                timestamps.atime_nsec,
+            )
+            .context("Invalid native Windows ADS companion access time")?,
+            crate::metadata::checked_file_time(
+                timestamps.mtime_sec,
+                timestamps.mtime_nsec,
+            )
+            .context(
+                "Invalid native Windows ADS companion modification time",
+            )?,
         ))
     } else {
         None
     };
 
-    let planned = plan_windows_ads_companions(entity, dest_path, dest_dir, strict_lossless)?;
+    let planned = plan_windows_ads_companions(
+        entity,
+        dest_path,
+        dest_dir,
+        strict_lossless,
+    )?;
     if planned.is_empty() {
         return Ok((Vec::new(), Vec::new(), Vec::new()));
     }
@@ -1166,13 +1363,13 @@ pub fn write_windows_ads_companions_with_warnings(
                 .as_ref()
                 .map_or_else(Vec::new, |a| a.source_stream_name.clone());
             // Reason for fallback: companion without an adaptation uses lossy original suffix as disambiguation baseline
-            let base_cleaned = item
-                .adaptation
-                .as_ref()
-                .map_or_else(
-                    || String::from_utf8_lossy(&orig_suffix).into_owned(),
-                    |a| String::from_utf8_lossy(&a.materialized_stream_name).into_owned(),
-                );
+            let base_cleaned = item.adaptation.as_ref().map_or_else(
+                || String::from_utf8_lossy(&orig_suffix).into_owned(),
+                |a| {
+                    String::from_utf8_lossy(&a.materialized_stream_name)
+                        .into_owned()
+                },
+            );
             let mut collision_idx = 1_usize;
             loop {
                 let disambig = crate::clean_name::disambiguate_cleaned_name(
@@ -1181,7 +1378,10 @@ pub fn write_windows_ads_companions_with_warnings(
                     collision_idx,
                     max_suffix_bytes,
                 );
-                let cand_os = build_windows_ads_companion_os_string(file_name, disambig.as_bytes())?;
+                let cand_os = build_windows_ads_companion_os_string(
+                    file_name,
+                    disambig.as_bytes(),
+                )?;
                 let cand_path = parent_dir.join(&cand_os);
                 if std::fs::symlink_metadata(&cand_path).is_err() {
                     let rel = cand_path
@@ -1231,9 +1431,10 @@ pub fn write_windows_ads_companions_with_warnings(
             bail!("Attached stream is not a regular payload");
         };
 
-        let relative = companion_path
-            .strip_prefix(dest_dir.root_path())
-            .context("Windows ADS companion is outside the destination sandbox")?;
+        let relative =
+            companion_path.strip_prefix(dest_dir.root_path()).context(
+                "Windows ADS companion is outside the destination sandbox",
+            )?;
         #[cfg(unix)]
         {
             let (parent, final_name) = dest_dir.ensure_parent_dir(
@@ -1241,7 +1442,11 @@ pub fn write_windows_ads_companions_with_warnings(
                 crate::path_policy::PathTraversalPolicy::StrictSandboxed,
             )?;
             let temp_name = format!(".ctb-windows-ads-{}", uuid());
-            let mut staged = dest_dir.create_temp_file(&parent.as_fd(), &temp_name, 0o600)?;
+            let mut staged = dest_dir.create_temp_file(
+                &parent.as_fd(),
+                &temp_name,
+                0o600,
+            )?;
             let result = (|| -> Result<()> {
                 let mut reader = stream_source.open(&stream)?;
                 let mut hasher = ctb_formats_checksum::Sha256Stream::new();
@@ -1258,22 +1463,35 @@ pub fn write_windows_ads_companions_with_warnings(
                     total_written = total_written
                         .checked_add(u64::try_from(n)?)
                         .context("Stream size overflow")?;
-                    std::io::Write::write_all(&mut staged, chunk)
-                        .context("Failed to stage Windows ADS companion bytes")?;
+                    std::io::Write::write_all(&mut staged, chunk).context(
+                        "Failed to stage Windows ADS companion bytes",
+                    )?;
                 }
                 ensure!(
-                    total_written == *expected_size && hasher.finalize() == *expected_sha256,
+                    total_written == *expected_size
+                        && hasher.finalize() == *expected_sha256,
                     "Attached stream payload does not match its descriptor: {:?}",
                     stream.to_string_lossy()
                 );
                 if let Some((atime, mtime)) = times {
-                    filetime::set_file_handle_times(&staged, Some(atime), Some(mtime))
-                        .context("Failed to stage Windows ADS companion timestamps")?;
+                    filetime::set_file_handle_times(
+                        &staged,
+                        Some(atime),
+                        Some(mtime),
+                    )
+                    .context(
+                        "Failed to stage Windows ADS companion timestamps",
+                    )?;
                 }
                 staged
                     .sync_all()
                     .context("Failed to sync staged Windows ADS companion")?;
-                dest_dir.commit_atomic_file(&parent.as_fd(), &temp_name, &final_name, existing)
+                dest_dir.commit_atomic_file(
+                    &parent.as_fd(),
+                    &temp_name,
+                    &final_name,
+                    existing,
+                )
             })();
             drop(staged);
             if let Err(error) = result {
@@ -1299,7 +1517,8 @@ pub fn write_windows_ads_companions_with_warnings(
             #[cfg(windows)]
             let open_path = {
                 use std::os::windows::ffi::OsStringExt;
-                let wide = crate::metadata::windows::path_to_wide(&companion_path)?;
+                let wide =
+                    crate::metadata::windows::path_to_wide(&companion_path)?;
                 let without_nul = wide
                     .get(..wide.len().saturating_sub(1))
                     .context("Invalid wide path slice")?;
@@ -1340,11 +1559,13 @@ pub fn write_windows_ads_companions_with_warnings(
                     total_written = total_written
                         .checked_add(u64::try_from(n)?)
                         .context("Stream size overflow")?;
-                    std::io::Write::write_all(&mut staged, chunk)
-                        .context("Failed to write Windows ADS companion bytes")?;
+                    std::io::Write::write_all(&mut staged, chunk).context(
+                        "Failed to write Windows ADS companion bytes",
+                    )?;
                 }
                 ensure!(
-                    total_written == *expected_size && hasher.finalize() == *expected_sha256,
+                    total_written == *expected_size
+                        && hasher.finalize() == *expected_sha256,
                     "Attached stream payload does not match its descriptor: {:?}",
                     stream.to_string_lossy()
                 );
@@ -1375,24 +1596,47 @@ pub fn write_windows_ads_companions_with_warnings(
     Ok((written_paths, adaptations, warnings))
 }
 
-fn read_captured_apple_input(path: &Path, snapshot: Option<&crate::payload::SourceSnapshot>, single_only: bool) -> Result<Option<Vec<u8>>> {
+fn read_captured_apple_input(
+    path: &Path,
+    snapshot: Option<&crate::payload::SourceSnapshot>,
+    single_only: bool,
+) -> Result<Option<Vec<u8>>> {
     use crate::payload::PayloadSource;
     use std::io::Read;
     let mut payload = crate::payload::DiskPayloadSource::open(path)?;
-    if let Some(snapshot) = snapshot { payload.bind_snapshot(snapshot)?; }
+    if let Some(snapshot) = snapshot {
+        payload.bind_snapshot(snapshot)?;
+    }
     let mut data = Vec::new();
     let selected = if single_only {
         (&mut payload).take(4).read_to_end(&mut data)?;
-        matches!(<[u8; 4]>::try_from(data.as_slice()).map(u32::from_be_bytes), Ok(APPLESINGLE_MAGIC_BE | APPLESINGLE_MAGIC_LE))
-    } else { true };
-    if selected { payload.read_to_end(&mut data)?; }
+        matches!(
+            <[u8; 4]>::try_from(data.as_slice()).map(u32::from_be_bytes),
+            Ok(APPLESINGLE_MAGIC_BE | APPLESINGLE_MAGIC_LE)
+        )
+    } else {
+        true
+    };
+    if selected {
+        payload.read_to_end(&mut data)?;
+    }
     let warnings = payload.finish()?;
-    if let Some(snapshot) = snapshot { snapshot.retain_cleanup_warnings(warnings)?; }
-    else { ensure!(warnings.is_empty(), "Apple input cleanup diagnostics: {}", warnings.join("; ")); }
+    if let Some(snapshot) = snapshot {
+        snapshot.retain_cleanup_warnings(warnings)?;
+    } else {
+        ensure!(
+            warnings.is_empty(),
+            "Apple input cleanup diagnostics: {}",
+            warnings.join("; ")
+        );
+    }
     Ok(if selected { Some(data) } else { None })
 }
 
-fn unpack_apple_single_into_entity(entity: &mut FileEntity, archive: &AppleArchive) -> Result<()> {
+fn unpack_apple_single_into_entity(
+    entity: &mut FileEntity,
+    archive: &AppleArchive,
+) -> Result<()> {
     if let Some(ref data) = archive.data_fork {
         let size = u64::try_from(data.len())?;
         let mut hasher = ctb_formats_checksum::Sha256Stream::new();
@@ -1411,7 +1655,10 @@ fn unpack_apple_single_into_entity(entity: &mut FileEntity, archive: &AppleArchi
     join_apple_archive_into_entity(entity, archive)
 }
 
-fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchive) -> Result<()> {
+fn join_apple_archive_into_entity(
+    entity: &mut FileEntity,
+    archive: &AppleArchive,
+) -> Result<()> {
     if let Some(ref finfo) = archive.finder_info {
         if finfo.window_bounds.is_some() && archive.data_fork.is_none() {
             if let FileEntityKind::Regular { size: 0, .. } = entity.kind {
@@ -1430,12 +1677,27 @@ fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchiv
             (finfo.flags.is_on_desk, crate::metadata::FileFlag::OnDesk),
             (finfo.flags.is_shared, crate::metadata::FileFlag::SharedApp),
             (finfo.flags.has_no_inits, crate::metadata::FileFlag::NoInits),
-            (finfo.flags.has_been_inited, crate::metadata::FileFlag::Inited),
-            (finfo.flags.has_custom_icon, crate::metadata::FileFlag::CustomIcon),
-            (finfo.flags.is_stationery, crate::metadata::FileFlag::Stationery),
-            (finfo.flags.name_locked, crate::metadata::FileFlag::NameLocked),
+            (
+                finfo.flags.has_been_inited,
+                crate::metadata::FileFlag::Inited,
+            ),
+            (
+                finfo.flags.has_custom_icon,
+                crate::metadata::FileFlag::CustomIcon,
+            ),
+            (
+                finfo.flags.is_stationery,
+                crate::metadata::FileFlag::Stationery,
+            ),
+            (
+                finfo.flags.name_locked,
+                crate::metadata::FileFlag::NameLocked,
+            ),
             (finfo.flags.has_bundle, crate::metadata::FileFlag::HasBundle),
-            (finfo.flags.is_invisible, crate::metadata::FileFlag::Invisible),
+            (
+                finfo.flags.is_invisible,
+                crate::metadata::FileFlag::Invisible,
+            ),
             (finfo.flags.is_alias, crate::metadata::FileFlag::Alias),
         ];
         let flags = entity.metadata.flags.get_or_insert_with(Vec::new);
@@ -1445,13 +1707,20 @@ fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchiv
             }
         }
         if let Some(ref ext) = finfo.extended {
-            if ext.xflags.custom_badge && !flags.contains(&crate::metadata::FileFlag::CustomBadge) {
+            if ext.xflags.custom_badge
+                && !flags.contains(&crate::metadata::FileFlag::CustomBadge)
+            {
                 flags.push(crate::metadata::FileFlag::CustomBadge);
             }
-            if ext.xflags.routing_info && !flags.contains(&crate::metadata::FileFlag::RoutingInfo) {
+            if ext.xflags.routing_info
+                && !flags.contains(&crate::metadata::FileFlag::RoutingInfo)
+            {
                 flags.push(crate::metadata::FileFlag::RoutingInfo);
             }
-            if ext.xflags.extended_flags_invalid && !flags.contains(&crate::metadata::FileFlag::ExtendedFlagsInvalid) {
+            if ext.xflags.extended_flags_invalid
+                && !flags
+                    .contains(&crate::metadata::FileFlag::ExtendedFlagsInvalid)
+            {
                 flags.push(crate::metadata::FileFlag::ExtendedFlagsInvalid);
             }
         }
@@ -1509,37 +1778,85 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_double_companion_publication_policies() -> Result<()> {
-        for style in [AppleDoubleStyle::Alongside, AppleDoubleStyle::Zip, AppleDoubleStyle::Netatalk] {
+        for style in [
+            AppleDoubleStyle::Alongside,
+            AppleDoubleStyle::Zip,
+            AppleDoubleStyle::Netatalk,
+        ] {
             let temp = tempfile::tempdir()?;
             let path = temp.path().join("file");
             std::fs::write(&path, b"primary")?;
             let sandbox = SandboxableDir::open(temp.path())?;
             let mut entity = FileEntity::from_filesystem(&path, None)?;
-            entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
+            entity.metadata.apple = Some(AppleMetadata {
+                comment: Some("replacement".into()),
+                ..Default::default()
+            });
             let timestamps = entity.metadata.timestamps.as_mut().unwrap();
             timestamps.atime_sec = 1_700_000_000;
             timestamps.atime_nsec = 123_456_789;
             timestamps.mtime_sec = 1_700_000_001;
             timestamps.mtime_nsec = 987_654_321;
-            let companion = apple_double_companion_path(&entity, &path, &sandbox, style)?.unwrap();
+            let companion =
+                apple_double_companion_path(&entity, &path, &sandbox, style)?
+                    .unwrap();
             std::fs::create_dir_all(companion.parent().unwrap())?;
             std::fs::write(&companion, b"original")?;
             let before = std::fs::symlink_metadata(&companion)?;
-            assert!(write_apple_double_companion(&entity, &path, &sandbox, style, ExistingEntryPolicy::Refuse).is_err());
+            assert!(
+                write_apple_double_companion(
+                    &entity,
+                    &path,
+                    &sandbox,
+                    style,
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+            );
             assert_eq!(std::fs::read(&companion)?, b"original");
-            assert_eq!(std::fs::metadata(&companion)?.modified()?, before.modified()?);
-            assert_eq!(std::fs::read_dir(companion.parent().unwrap())?.count(),
-                if style == AppleDoubleStyle::Alongside { 2 } else { 1 });
+            assert_eq!(
+                std::fs::metadata(&companion)?.modified()?,
+                before.modified()?
+            );
+            assert_eq!(
+                std::fs::read_dir(companion.parent().unwrap())?.count(),
+                if style == AppleDoubleStyle::Alongside {
+                    2
+                } else {
+                    1
+                }
+            );
             let expected = serialize_apple_double_for_entity(&entity)?;
-            assert_eq!(write_apple_double_companion(&entity, &path, &sandbox, style, ExistingEntryPolicy::Replace)?, Some(companion.clone()));
+            assert_eq!(
+                write_apple_double_companion(
+                    &entity,
+                    &path,
+                    &sandbox,
+                    style,
+                    ExistingEntryPolicy::Replace
+                )?,
+                Some(companion.clone())
+            );
             let after = std::fs::metadata(&companion)?;
             let (expected_atime_nsec, expected_mtime_nsec) = if cfg!(windows) {
                 ((123_456_789 / 100) * 100, (987_654_321 / 100) * 100)
             } else {
                 (123_456_789, 987_654_321)
             };
-            assert_eq!(filetime::FileTime::from_last_access_time(&after), filetime::FileTime::from_unix_time(1_700_000_000, expected_atime_nsec));
-            assert_eq!(filetime::FileTime::from_last_modification_time(&after), filetime::FileTime::from_unix_time(1_700_000_001, expected_mtime_nsec));
+            assert_eq!(
+                filetime::FileTime::from_last_access_time(&after),
+                filetime::FileTime::from_unix_time(
+                    1_700_000_000,
+                    expected_atime_nsec
+                )
+            );
+            assert_eq!(
+                filetime::FileTime::from_last_modification_time(&after),
+                filetime::FileTime::from_unix_time(
+                    1_700_000_001,
+                    expected_mtime_nsec
+                )
+            );
             assert_eq!(std::fs::read(&companion)?, expected);
             assert_eq!(std::fs::read(&path)?, b"primary");
             #[cfg(unix)]
@@ -1560,24 +1877,65 @@ mod tests {
             let target = temp.path().join("target");
             let companion = temp.path().join("._file");
             std::fs::write(&path, b"primary")?;
-            if !dangling { std::fs::write(&target, b"target original")?; }
+            if !dangling {
+                std::fs::write(&target, b"target original")?;
+            }
             std::os::unix::fs::symlink(&target, &companion)?;
             let sandbox = SandboxableDir::open(temp.path())?;
-            let options = AppleReadOptions { read_apple_double_alongside: false, ..Default::default() };
-            let mut entity = FileEntity::from_filesystem_with_apple_options(&path, None, &options)?;
-            entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
-            assert!(write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Alongside, ExistingEntryPolicy::Refuse).is_err());
+            let options = AppleReadOptions {
+                read_apple_double_alongside: false,
+                ..Default::default()
+            };
+            let mut entity = FileEntity::from_filesystem_with_apple_options(
+                &path, None, &options,
+            )?;
+            entity.metadata.apple = Some(AppleMetadata {
+                comment: Some("replacement".into()),
+                ..Default::default()
+            });
+            assert!(
+                write_apple_double_companion(
+                    &entity,
+                    &path,
+                    &sandbox,
+                    AppleDoubleStyle::Alongside,
+                    ExistingEntryPolicy::Refuse
+                )
+                .is_err()
+            );
             assert_eq!(std::fs::read_link(&companion)?, target);
             assert_eq!(std::fs::read(&path)?, b"primary");
-            if dangling { assert!(!target.try_exists()?); }
-            else { assert_eq!(std::fs::read(&target)?, b"target original"); }
-            write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Alongside, ExistingEntryPolicy::Replace)?;
-            assert!(!std::fs::symlink_metadata(&companion)?.file_type().is_symlink());
-            assert_eq!(std::fs::read(&companion)?, serialize_apple_double_for_entity(&entity)?);
+            if dangling {
+                assert!(!target.try_exists()?);
+            } else {
+                assert_eq!(std::fs::read(&target)?, b"target original");
+            }
+            write_apple_double_companion(
+                &entity,
+                &path,
+                &sandbox,
+                AppleDoubleStyle::Alongside,
+                ExistingEntryPolicy::Replace,
+            )?;
+            assert!(
+                !std::fs::symlink_metadata(&companion)?
+                    .file_type()
+                    .is_symlink()
+            );
+            assert_eq!(
+                std::fs::read(&companion)?,
+                serialize_apple_double_for_entity(&entity)?
+            );
             assert_eq!(std::fs::read(&path)?, b"primary");
-            if dangling { assert!(!target.try_exists()?); }
-            else { assert_eq!(std::fs::read(&target)?, b"target original"); }
-            assert_eq!(std::fs::read_dir(temp.path())?.count(), if dangling { 2 } else { 3 });
+            if dangling {
+                assert!(!target.try_exists()?);
+            } else {
+                assert_eq!(std::fs::read(&target)?, b"target original");
+            }
+            assert_eq!(
+                std::fs::read_dir(temp.path())?.count(),
+                if dangling { 2 } else { 3 }
+            );
         }
         Ok(())
     }
@@ -1590,23 +1948,54 @@ mod tests {
         std::fs::write(&path, b"primary")?;
         std::fs::write(&companion, b"original")?;
         let sandbox = SandboxableDir::open(temp.path())?;
-        let options = AppleReadOptions { read_apple_double_alongside: false, ..Default::default() };
-        let mut entity = FileEntity::from_filesystem_with_apple_options(&path, None, &options)?;
-        entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
-        for existing in [ExistingEntryPolicy::Refuse, ExistingEntryPolicy::Replace] {
+        let options = AppleReadOptions {
+            read_apple_double_alongside: false,
+            ..Default::default()
+        };
+        let mut entity = FileEntity::from_filesystem_with_apple_options(
+            &path, None, &options,
+        )?;
+        entity.metadata.apple = Some(AppleMetadata {
+            comment: Some("replacement".into()),
+            ..Default::default()
+        });
+        for existing in
+            [ExistingEntryPolicy::Refuse, ExistingEntryPolicy::Replace]
+        {
             for overflow in [false, true] {
                 let mut invalid = entity.clone();
                 let timestamps = invalid.metadata.timestamps.as_mut().unwrap();
-                if overflow { timestamps.mtime_sec = i64::MIN; }
-                else { timestamps.mtime_nsec = 1_000_000_000; }
-                assert!(write_apple_double_companion(&invalid, &path, &sandbox, AppleDoubleStyle::Alongside, existing).is_err());
+                if overflow {
+                    timestamps.mtime_sec = i64::MIN;
+                } else {
+                    timestamps.mtime_nsec = 1_000_000_000;
+                }
+                assert!(
+                    write_apple_double_companion(
+                        &invalid,
+                        &path,
+                        &sandbox,
+                        AppleDoubleStyle::Alongside,
+                        existing
+                    )
+                    .is_err()
+                );
                 assert_eq!(std::fs::read(&companion)?, b"original");
                 assert_eq!(std::fs::read(&path)?, b"primary");
                 assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
             }
         }
         entity.identity.relative_path = Some(PathBuf::from("../../file"));
-        assert!(write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Zip, ExistingEntryPolicy::Replace).is_err());
+        assert!(
+            write_apple_double_companion(
+                &entity,
+                &path,
+                &sandbox,
+                AppleDoubleStyle::Zip,
+                ExistingEntryPolicy::Replace
+            )
+            .is_err()
+        );
         assert_eq!(std::fs::read(&companion)?, b"original");
         assert_eq!(std::fs::read(&path)?, b"primary");
         assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
@@ -1620,7 +2009,10 @@ mod tests {
         for (style, expected) in [
             (AppleDoubleStyle::Alongside, b"._raw\xff".as_slice()),
             (AppleDoubleStyle::Zip, b"__MACOSX/._raw\xff".as_slice()),
-            (AppleDoubleStyle::Netatalk, b".AppleDouble/raw\xff".as_slice()),
+            (
+                AppleDoubleStyle::Netatalk,
+                b".AppleDouble/raw\xff".as_slice(),
+            ),
         ] {
             let temp = tempfile::tempdir()?;
             let name = std::ffi::OsString::from_vec(b"raw\xff".to_vec());
@@ -1629,10 +2021,26 @@ mod tests {
             let sandbox = SandboxableDir::open(temp.path())?;
             let mut entity = FileEntity::from_filesystem(&path, None)?;
             entity.identity.relative_path = Some(PathBuf::from(&name));
-            entity.metadata.apple = Some(AppleMetadata { comment: Some("raw".into()), ..Default::default() });
-            let companion = write_apple_double_companion(&entity, &path, &sandbox, style, ExistingEntryPolicy::Refuse)?.unwrap();
-            assert_eq!(companion.strip_prefix(temp.path())?.as_os_str().as_bytes(), expected);
-            assert_eq!(std::fs::read(&companion)?, serialize_apple_double_for_entity(&entity)?);
+            entity.metadata.apple = Some(AppleMetadata {
+                comment: Some("raw".into()),
+                ..Default::default()
+            });
+            let companion = write_apple_double_companion(
+                &entity,
+                &path,
+                &sandbox,
+                style,
+                ExistingEntryPolicy::Refuse,
+            )?
+            .unwrap();
+            assert_eq!(
+                companion.strip_prefix(temp.path())?.as_os_str().as_bytes(),
+                expected
+            );
+            assert_eq!(
+                std::fs::read(&companion)?,
+                serialize_apple_double_for_entity(&entity)?
+            );
         }
         Ok(())
     }
@@ -1645,11 +2053,16 @@ mod tests {
         let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
         entity.metadata.flags = Some(vec![FileFlag::Invisible]);
         entity.metadata.timestamps.as_mut().unwrap().atime_sec = i64::MIN;
-        let sandbox = crate::sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();
+        let sandbox =
+            crate::sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();
         let error = write_apple_double_companion(
-            &entity, &path, &sandbox, AppleDoubleStyle::Alongside,
+            &entity,
+            &path,
+            &sandbox,
+            AppleDoubleStyle::Alongside,
             crate::sandboxable_dir::ExistingEntryPolicy::Replace,
-        ).unwrap_err();
+        )
+        .unwrap_err();
         assert!(format!("{error:#}").contains("native conversion range"));
         assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
         assert_eq!(std::fs::read(&path).unwrap(), b"payload");
@@ -1669,18 +2082,33 @@ mod tests {
             FileFlag::CustomBadge,
         ]);
 
-        let archive = create_apple_archive_from_entity(&entity, AppleFormat::AppleDouble, None)?;
-        let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
+        let archive = create_apple_archive_from_entity(
+            &entity,
+            AppleFormat::AppleDouble,
+            None,
+        )?;
+        let finfo = archive
+            .finder_info
+            .as_ref()
+            .context("missing finder_info")?;
         ensure!(finfo.flags.is_on_desk);
         ensure!(finfo.flags.has_no_inits);
         ensure!(finfo.flags.is_invisible);
-        let ext = finfo.extended.as_ref().context("missing extended finder info")?;
+        let ext = finfo
+            .extended
+            .as_ref()
+            .context("missing extended finder info")?;
         ensure!(ext.xflags.custom_badge);
 
-        let mut roundtrip_entity = FileEntity::from_filesystem(&file_path, None)?;
+        let mut roundtrip_entity =
+            FileEntity::from_filesystem(&file_path, None)?;
         roundtrip_entity.metadata.flags = Some(Vec::new());
         join_apple_archive_into_entity(&mut roundtrip_entity, &archive)?;
-        let rt_flags = roundtrip_entity.metadata.flags.as_ref().context("missing flags")?;
+        let rt_flags = roundtrip_entity
+            .metadata
+            .flags
+            .as_ref()
+            .context("missing flags")?;
         ensure!(rt_flags.contains(&FileFlag::OnDesk));
         ensure!(rt_flags.contains(&FileFlag::NoInits));
         ensure!(rt_flags.contains(&FileFlag::Invisible));
@@ -1697,9 +2125,11 @@ mod tests {
             "windows_ads",
         );
         let pan_path = fixture_dir.join("example2 with lemurs.pan");
-        let pan_zone_path = fixture_dir.join("example2 with lemurs.pan:Zone.Identifier");
+        let pan_zone_path =
+            fixture_dir.join("example2 with lemurs.pan:Zone.Identifier");
         let bin_path = fixture_dir.join("example2 with lemurs-edited.bin");
-        let bin_zone_path = fixture_dir.join("example2 with lemurs-edited.bin:Zone.Identifier");
+        let bin_zone_path =
+            fixture_dir.join("example2 with lemurs-edited.bin:Zone.Identifier");
 
         let expected_pan_zone = std::fs::read(&pan_zone_path)?;
         let expected_bin_zone = std::fs::read(&bin_zone_path)?;
@@ -1717,13 +2147,17 @@ mod tests {
             .streams
             .iter()
             .find(|s| {
-                s.name
-                    .as_ref()
-                    .is_some_and(|n| n.as_bytes().as_ref() == b"Zone.Identifier")
+                s.name.as_ref().is_some_and(|n| {
+                    n.as_bytes().as_ref() == b"Zone.Identifier"
+                })
             })
-            .context("Missing Zone.Identifier stream on example2 with lemurs.pan")?;
+            .context(
+                "Missing Zone.Identifier stream on example2 with lemurs.pan",
+            )?;
         ensure!(zone_stream.kind == StreamKind::NtfsAlternateDataStream);
-        ensure!(zone_stream.data.as_deref() == Some(expected_pan_zone.as_slice()));
+        ensure!(
+            zone_stream.data.as_deref() == Some(expected_pan_zone.as_slice())
+        );
 
         let entity_bin = FileEntity::from_filesystem_with_apple_options(
             &bin_path,
@@ -1740,15 +2174,18 @@ mod tests {
             })
             .context("Missing Zone.Identifier stream on example2 with lemurs-edited.bin")?;
         ensure!(bin_stream.kind == StreamKind::NtfsAlternateDataStream);
-        ensure!(bin_stream.data.as_deref() == Some(expected_bin_zone.as_slice()));
+        ensure!(
+            bin_stream.data.as_deref() == Some(expected_bin_zone.as_slice())
+        );
 
         // Verify default AppleReadOptions (read_windows_ads_alongside: false) does not join the companion
-        let entity_no_ads = FileEntity::from_filesystem(&pan_path, Some(&fixture_dir))?;
+        let entity_no_ads =
+            FileEntity::from_filesystem(&pan_path, Some(&fixture_dir))?;
         ensure!(
             !entity_no_ads.streams.iter().any(|s| {
-                s.name
-                    .as_ref()
-                    .is_some_and(|n| n.as_bytes().as_ref() == b"Zone.Identifier")
+                s.name.as_ref().is_some_and(|n| {
+                    n.as_bytes().as_ref() == b"Zone.Identifier"
+                })
             }),
             "Zone.Identifier should not be joined when read_windows_ads_alongside is false"
         );
@@ -1766,7 +2203,8 @@ mod tests {
             true,
             &crate::streams::FilesystemStreamSource,
         )?;
-        let expected_companion = temp.path().join("example2 with lemurs.pan:Zone.Identifier");
+        let expected_companion =
+            temp.path().join("example2 with lemurs.pan:Zone.Identifier");
         ensure!(written == vec![expected_companion.clone()]);
         ensure!(std::fs::read(&expected_companion)? == expected_pan_zone);
         ensure!(
@@ -1794,7 +2232,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_windows_ads_stream_name_cleaning_collisions_and_directory_companions() -> Result<()> {
+    fn test_windows_ads_stream_name_cleaning_collisions_and_directory_companions()
+    -> Result<()> {
         use crate::streams::AttachedStreamSource;
         let temp = tempfile::tempdir()?;
         let src_dir = temp.path().join("src");
@@ -1825,14 +2264,18 @@ mod tests {
             .streams
             .iter()
             .find(|s| {
-                s.name
-                    .as_ref()
-                    .is_some_and(|n| n.to_string_lossy().contains("Zone.Identifier"))
+                s.name.as_ref().is_some_and(|n| {
+                    n.to_string_lossy().contains("Zone.Identifier")
+                })
             })
             .context("Directory must join my_folder:Zone.Identifier stream")?;
-        let mut dir_stream_reader = crate::streams::FilesystemStreamSource.open(dir_stream)?;
+        let mut dir_stream_reader =
+            crate::streams::FilesystemStreamSource.open(dir_stream)?;
         let mut actual_dir_zone = Vec::new();
-        std::io::Read::read_to_end(&mut dir_stream_reader, &mut actual_dir_zone)?;
+        std::io::Read::read_to_end(
+            &mut dir_stream_reader,
+            &mut actual_dir_zone,
+        )?;
         ensure!(actual_dir_zone.as_slice() == dir_zone_bytes);
 
         // Materialize directory with ForceWindowsAds
@@ -1848,7 +2291,9 @@ mod tests {
             &dest_sandbox,
             &mat_opts,
         )?;
-        ensure!(dir_receipt.destination_path == dest_dir_path.join("my_folder"));
+        ensure!(
+            dir_receipt.destination_path == dest_dir_path.join("my_folder")
+        );
         ensure!(
             std::fs::read(dest_dir_path.join("my_folder:Zone.Identifier"))?
                 == dir_zone_bytes
@@ -1866,7 +2311,8 @@ mod tests {
         //    - unnamed non-resource-fork stream (`None`)
         let src_file = src_dir.join("sample.txt");
         std::fs::write(&src_file, b"hello")?;
-        let mut entity = FileEntity::from_filesystem(&src_file, Some(&src_dir))?;
+        let mut entity =
+            FileEntity::from_filesystem(&src_file, Some(&src_dir))?;
         entity.streams = vec![
             AttachedStream::from_data(
                 Some(crate::streams::StreamName::from_bytes(b"a/b")),
@@ -1901,7 +2347,8 @@ mod tests {
             apple_write_mode: AppleWriteMode::ForceWindowsAds,
             ..Default::default()
         };
-        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        let mut payload =
+            crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
         ensure!(
             crate::materializer::materialize_entity(
                 &entity,
@@ -1915,7 +2362,8 @@ mod tests {
 
         // In best-effort mode (`strict_lossless: false`), materialization MUST clean & disambiguate
         // all 5 streams, record adaptations, and pass verification!
-        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        let mut payload =
+            crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
         let receipt = crate::materializer::materialize_entity(
             &entity,
             Some(&mut payload),
@@ -1933,7 +2381,11 @@ mod tests {
                 "Adapted stream must record materialized.stream_name in metadata"
             );
             ensure!(
-                stream.entity.metadata.materialized_relative_path().is_some(),
+                stream
+                    .entity
+                    .metadata
+                    .materialized_relative_path()
+                    .is_some(),
                 "Adapted stream must record materialized.relative_path in metadata"
             );
         }
@@ -1960,7 +2412,8 @@ mod tests {
             StreamKind::NtfsAlternateDataStream,
             b"zone-for-long".to_vec(),
         )?];
-        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        let mut payload =
+            crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
         ensure!(
             crate::materializer::materialize_entity(
                 &long_entity,
@@ -1971,7 +2424,8 @@ mod tests {
             .is_err(),
             "Strict lossless mode must reject >255 byte combined companion filename"
         );
-        let mut payload = crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
+        let mut payload =
+            crate::payload::MemoryPayloadSource::new(b"hello".to_vec())?;
         let long_receipt = crate::materializer::materialize_entity(
             &long_entity,
             Some(&mut payload),
@@ -1984,7 +2438,10 @@ mod tests {
             .unwrap()
             .as_encoded_bytes()
             .len();
-        ensure!(mat_base_len + 1 + "Zone.Identifier".len() <= crate::clean_name::MAX_FILENAME_BYTES);
+        ensure!(
+            mat_base_len + 1 + "Zone.Identifier".len()
+                <= crate::clean_name::MAX_FILENAME_BYTES
+        );
         crate::verifier::verify_materialized_entity(
             &long_receipt.destination_path,
             &long_entity,

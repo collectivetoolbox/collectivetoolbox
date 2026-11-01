@@ -2,12 +2,12 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use kaitai::*;
-use std::cell::{Cell, Ref, RefCell};
-use super::packet_ppi::PacketPpi;
-use super::packet_ppi::*;
 use super::ethernet_frame::EthernetFrame;
 use super::ethernet_frame::*;
+use super::packet_ppi::PacketPpi;
+use super::packet_ppi::*;
+use kaitai::*;
+use std::cell::{Cell, Ref, RefCell};
 
 /**
  * PCAP (named after libpcap / winpcap) is a popular format for saving
@@ -63,7 +63,11 @@ impl KStruct for Pcap {
     type Root = Pcap;
     type Parent = Pcap;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -75,16 +79,27 @@ impl KStruct for Pcap {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic_number.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc.magic_number.borrow_mut() =
+            i64::from(_io.read_u4be()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Pcap_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Pcap_Header>(
+            &*_io,
+            Some(self_rc._root.clone()),
+            Some(self_rc._self_shared.clone()),
+        )?
+        .into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.packets.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Pcap_Packet>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Pcap_Packet>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.packets.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -94,8 +109,7 @@ impl KStruct for Pcap {
         Ok(())
     }
 }
-impl Pcap {
-}
+impl Pcap {}
 impl Pcap {
     pub fn magic_number(&self) -> Ref<'_, Pcap_Magic> {
         self.magic_number.borrow()
@@ -766,13 +780,15 @@ impl From<&Pcap_Linktype> for i64 {
             Pcap_Linktype::ZwaveTap => 297,
             Pcap_Linktype::SilabsDebugChannel => 298,
             Pcap_Linktype::FiraUci => 299,
-            Pcap_Linktype::Unknown(v) => v
+            Pcap_Linktype::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Pcap_Linktype {
-    fn default() -> Self { Pcap_Linktype::Unknown(0) }
+    fn default() -> Self {
+        Pcap_Linktype::Unknown(0)
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -804,15 +820,16 @@ impl From<&Pcap_Magic> for i64 {
             Pcap_Magic::BeNanoseconds => 2712812621,
             Pcap_Magic::BeMicroseconds => 2712847316,
             Pcap_Magic::LeMicroseconds => 3569595041,
-            Pcap_Magic::Unknown(v) => v
+            Pcap_Magic::Unknown(v) => v,
         }
     }
 }
 
 impl Default for Pcap_Magic {
-    fn default() -> Self { Pcap_Magic::Unknown(0) }
+    fn default() -> Self {
+        Pcap_Magic::Unknown(0)
+    }
 }
-
 
 /**
  * \sa <https://wiki.wireshark.org/Development/LibpcapFileFormat#Global_Header> Source
@@ -868,7 +885,11 @@ impl KStruct for Pcap_Header {
     type Root = Pcap;
     type Parent = Pcap;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -880,7 +901,15 @@ impl KStruct for Pcap_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.magic_number() {
+        match *self_rc
+            ._root
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingRoot)?
+            .magic_number()
+        {
             Pcap_Magic::LeMicroseconds => {
                 *self_rc._is_le.borrow_mut() = 1_i32;
             }
@@ -896,21 +925,46 @@ impl KStruct for Pcap_Header {
             _ => {}
         }
         if *self_rc._is_le.borrow() == 0 {
-            return Err(KError::UndecidedEndianness { src_path: "/types/header".to_string() });
+            return Err(KError::UndecidedEndianness {
+                src_path: "/types/header".to_string(),
+            });
         }
-        *self_rc.version_major.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc.version_major.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u2le()?
+        } else {
+            _io.read_u2be()?
+        };
         let expected: u16 = (2).try_into()?;
         if !(*self_rc.version_major() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/types/header/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.version_minor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc.version_minor.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u2le()?
+        } else {
+            _io.read_u2be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.thiszone.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? };
+        *self_rc.thiszone.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_s4le()?
+        } else {
+            _io.read_s4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.sigfigs.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.sigfigs.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.snaplen.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.snaplen.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.network.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -923,8 +977,7 @@ impl Pcap_Header {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Pcap_Header {
-}
+impl Pcap_Header {}
 impl Pcap_Header {
     pub fn version_major(&self) -> Ref<'_, u16> {
         self.version_major.borrow()
@@ -1128,7 +1181,11 @@ impl KStruct for Pcap_Packet {
     type Root = Pcap;
     type Parent = Pcap;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1140,7 +1197,15 @@ impl KStruct for Pcap_Packet {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.magic_number() {
+        match *self_rc
+            ._root
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingRoot)?
+            .magic_number()
+        {
             Pcap_Magic::LeMicroseconds => {
                 *self_rc._is_le.borrow_mut() = 1_i32;
             }
@@ -1156,33 +1221,149 @@ impl KStruct for Pcap_Packet {
             _ => {}
         }
         if *self_rc._is_le.borrow() == 0 {
-            return Err(KError::UndecidedEndianness { src_path: "/types/packet".to_string() });
+            return Err(KError::UndecidedEndianness {
+                src_path: "/types/packet".to_string(),
+            });
         }
-        *self_rc.ts_sec.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.ts_sec.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ts_usec.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.ts_usec.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.incl_len.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.incl_len.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.orig_len.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc.orig_len.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
+            _io.read_u4le()?
+        } else {
+            _io.read_u4be()?
+        };
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().network() {
+        match *self_rc
+            ._root
+            .get_value()
+            .borrow()
+            .upgrade()
+            .as_ref()
+            .ok_or(KError::MissingRoot)?
+            .hdr()
+            .network()
+        {
             Pcap_Linktype::Ethernet => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.incl_len() < *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() { *self_rc.incl_len() } else { *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() })?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(
+                        if *self_rc.incl_len()
+                            < *self_rc
+                                ._root
+                                .get_value()
+                                .borrow()
+                                .upgrade()
+                                .as_ref()
+                                .ok_or(KError::MissingRoot)?
+                                .hdr()
+                                .snaplen()
+                        {
+                            *self_rc.incl_len()
+                        } else {
+                            *self_rc
+                                ._root
+                                .get_value()
+                                .borrow()
+                                .upgrade()
+                                .as_ref()
+                                .ok_or(KError::MissingRoot)?
+                                .hdr()
+                                .snaplen()
+                        },
+                    )?)?
+                    .into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, EthernetFrame>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<BytesReader, EthernetFrame>(
+                    &_t_body_raw_io,
+                    None,
+                    None,
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Pcap_Linktype::Ppi => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.incl_len() < *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() { *self_rc.incl_len() } else { *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() })?)?.into();
+                *self_rc.body_raw.borrow_mut() = _io
+                    .read_bytes(usize::try_from(
+                        if *self_rc.incl_len()
+                            < *self_rc
+                                ._root
+                                .get_value()
+                                .borrow()
+                                .upgrade()
+                                .as_ref()
+                                .ok_or(KError::MissingRoot)?
+                                .hdr()
+                                .snaplen()
+                        {
+                            *self_rc.incl_len()
+                        } else {
+                            *self_rc
+                                ._root
+                                .get_value()
+                                .borrow()
+                                .upgrade()
+                                .as_ref()
+                                .ok_or(KError::MissingRoot)?
+                                .hdr()
+                                .snaplen()
+                        },
+                    )?)?
+                    .into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, PacketPpi>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<BytesReader, PacketPpi>(
+                    &_t_body_raw_io,
+                    None,
+                    None,
+                )?
+                .into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(if *self_rc.incl_len() < *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() { *self_rc.incl_len() } else { *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() })?)?.into());
+                *self_rc.body.borrow_mut() = Some(
+                    _io.read_bytes(usize::try_from(
+                        if *self_rc.incl_len()
+                            < *self_rc
+                                ._root
+                                .get_value()
+                                .borrow()
+                                .upgrade()
+                                .as_ref()
+                                .ok_or(KError::MissingRoot)?
+                                .hdr()
+                                .snaplen()
+                        {
+                            *self_rc.incl_len()
+                        } else {
+                            *self_rc
+                                ._root
+                                .get_value()
+                                .borrow()
+                                .upgrade()
+                                .as_ref()
+                                .ok_or(KError::MissingRoot)?
+                                .hdr()
+                                .snaplen()
+                        },
+                    )?)?
+                    .into(),
+                );
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1195,8 +1376,7 @@ impl Pcap_Packet {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Pcap_Packet {
-}
+impl Pcap_Packet {}
 
 /**
  * Timestamp of a packet in seconds since 1970-01-01 00:00:00 UTC (UNIX timestamp).

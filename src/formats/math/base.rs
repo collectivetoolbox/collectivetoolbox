@@ -1040,11 +1040,7 @@ fn _parse_base_string(
     let mut out: Vec<String> = Vec::new();
 
     if s.is_empty() && from_base == 1 {
-        let nat = int_from_base_str_big_alphabet(
-            "",
-            from_base,
-            from_alphabet,
-        )?;
+        let nat = int_from_base_str_big_alphabet("", from_base, from_alphabet)?;
         let formatted =
             int_to_base_str_big_alphabet(nat, to_base, to_alphabet)?;
         out.push(formatted);
@@ -1527,13 +1523,9 @@ mod tests {
             ..Default::default()
         };
         // 0 -> 'AAA', 1 -> 'AAB', 63 -> 'AA/', 64 -> 'ABA', 255 -> 'AD/'
-        let (res, log) = base_to_base_string(
-            "0 1 63 64 255",
-            10,
-            64,
-            &b64_out_settings,
-        )
-        .unwrap();
+        let (res, log) =
+            base_to_base_string("0 1 63 64 255", 10, 64, &b64_out_settings)
+                .unwrap();
         assert_eq!(res, "64#AAA, 64#AAB, 64#AA/, 64#ABA, 64#AD/");
         assert!(!log.has_warnings());
 

@@ -26,7 +26,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-
 #[cfg(test)]
 pub(crate) fn get_dct_el_data(key: &str) -> Option<Vec<u8>> {
     ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
@@ -48,5 +47,4 @@ mod tests {
     use ctb_formats_utilities::assert_string_ok_eq;
 
     use super::*;
-
 }

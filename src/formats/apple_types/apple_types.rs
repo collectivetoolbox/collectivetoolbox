@@ -59,9 +59,10 @@ pub fn is_valid_apple_uti(s: &str) -> bool {
         || trimmed.starts_with("dyn.");
 
     let is_dot_separated = trimmed.contains('.')
-        && trimmed
-            .split('.')
-            .all(|seg| !seg.is_empty() && seg.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'));
+        && trimmed.split('.').all(|seg| {
+            !seg.is_empty()
+                && seg.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        });
 
     is_known_prefix || is_dot_separated
 }

@@ -33,59 +33,67 @@ pub mod converters;
 pub mod dc_char;
 pub mod dc_mixed;
 pub mod dc_mixed_serde;
-pub mod dc_writer;
 pub mod dc_number;
 pub mod dc_source;
 pub mod dc_str;
+pub mod dc_writer;
 pub mod dcstring_impl;
+mod encapsulation;
 pub mod error;
 pub mod kv_map;
 pub mod navigator;
 pub mod shared;
 pub mod source_edit;
-mod encapsulation;
 
 pub use converters::dctext::DcList;
-pub use converters::{dcal, dcts, dctext, eite, utf8};
-pub use dc_char::{DcChar, DcCharExt};
-pub use dc_writer::{DcBinaryReader, DcBinarySource, DcBinarySourceError, DcWriter, validate_and_write_dc_record};
-pub use dc_mixed::{
-    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DCMM_UUID_V1, DcmmStreamOptions, DcMixed,
-    DcMixedChunk, DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice,
-    dcmm1_to_dcmstring, dcmm1_to_dcmstring_with_options, dcmm2_to_dcmstring,
-    dcmm2_to_dcmstring_with_options, dcmm_to_dcmstring, dcmm_to_dcmstring_with_options,
-    dcmstring_to_dcmm, dcmstring_to_dcmm1, dcmstring_to_dcmm2,
-    validate_and_copy_dcmm_stream, validate_and_copy_dcmm_stream_with_options,
-    validate_dcmst,
-};
+pub use converters::{dcal, dctext, dcts, eite, utf8};
 pub use ctb_dc_macro::DcMixed;
-pub use dc_mixed_serde::{
-    BinaryPayload, LazyBinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedFlattened, DcMixedNumber,
-    DcProjectionContext, DcRawValue, LosslessWithContext,
-    assert_dc_document_roundtrip, assert_dc_roundtrip,
+pub use ctb_formats_dcdata::dc;
+pub use ctb_formats_dcdata::syntax::{self, DcRole, SyntaxRuleResolver};
+pub use ctb_formats_utilities::FormatLog;
+pub use dc_char::{DcChar, DcCharExt};
+pub use dc_mixed::{
+    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DCMM_UUID_V1, DcMixed,
+    DcMixedChunk, DcMixedError, DcMixedOwned, DcMstSlice, DcMstr, DcMstring,
+    DcmmStreamOptions, dcmm_to_dcmstring, dcmm_to_dcmstring_with_options,
+    dcmm1_to_dcmstring, dcmm1_to_dcmstring_with_options, dcmm2_to_dcmstring,
+    dcmm2_to_dcmstring_with_options, dcmstring_to_dcmm, dcmstring_to_dcmm1,
+    dcmstring_to_dcmm2, validate_and_copy_dcmm_stream,
+    validate_and_copy_dcmm_stream_with_options, validate_dcmst,
 };
-pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dctf, validate_dcutf};
-pub use dc_source::{DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields, DcSource};
+pub use dc_mixed_serde::{
+    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedFlattened,
+    DcMixedNumber, DcProjectionContext, DcRawValue, LazyBinaryPayload,
+    LosslessWithContext, assert_dc_document_roundtrip, assert_dc_roundtrip,
+};
+pub use dc_source::{
+    DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields, DcSource,
+};
+pub use dc_str::{
+    DcCharIndices, DcChars, DcStr, validate_dctf, validate_dcutf,
+};
+pub use dc_writer::{
+    DcBinaryReader, DcBinarySource, DcBinarySourceError, DcWriter,
+    validate_and_write_dc_record,
+};
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
 pub use kv_map::DcKvMapEncoding;
+pub use malachite::{Integer, Natural};
 pub use navigator::{
     BinaryPayloadRef, DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
     DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES, DEFAULT_MAX_PROJECTION_DEPTH,
-    DcBinaryResolver,
-    DcByteSpan, DcDocumentNavigator, DcEvaluatedValue, DcExpressionEvaluator,
-    DcForgivingDefault, DcFrameHeaderInfo, DcFrameStub, DcProjectionPolicy,
-    DcSyntaxArena, DcSyntaxKind, DcSyntaxNode, DefaultDcExpressionEvaluator,
-    DiagnosticAction, FormatSyntaxRule, INLINE_BINARY_THRESHOLD,
-    MAX_SYNTAX_EXPANSION_DEPTH, NodeId, SyntaxEvalContext,
-    SyntaxRuntimeRegistry, SyntaxRuntimeResolver, ValueRequirement,
-    validate_dc_mixed_strict, validate_dc_str_strict, validate_dc_tokens_strict,
+    DcBinaryResolver, DcByteSpan, DcDocumentNavigator, DcEvaluatedValue,
+    DcExpressionEvaluator, DcForgivingDefault, DcFrameHeaderInfo, DcFrameStub,
+    DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
+    DefaultDcExpressionEvaluator, DiagnosticAction, FormatSyntaxRule,
+    INLINE_BINARY_THRESHOLD, MAX_SYNTAX_EXPANSION_DEPTH, NodeId,
+    SyntaxEvalContext, SyntaxRuntimeRegistry, SyntaxRuntimeResolver,
+    ValueRequirement, validate_dc_mixed_strict, validate_dc_str_strict,
+    validate_dc_tokens_strict,
 };
 pub use shared::{
     SharedJson, SharedValueContext, decode_dc_identifier, decode_identifier,
-    encode_dc_identifier, encode_dc_identifier_to, encode_identifier, encode_identifier_to,
+    encode_dc_identifier, encode_dc_identifier_to, encode_identifier,
+    encode_identifier_to,
 };
-pub use malachite::{Integer, Natural};
-pub use ctb_formats_utilities::FormatLog;
-pub use ctb_formats_dcdata::dc;
-pub use ctb_formats_dcdata::syntax::{self, DcRole, SyntaxRuleResolver};

@@ -172,9 +172,7 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
     }
     settings.argv = argv;
 
-    let builder = InterpreterBuilder::new()
-        .settings(settings)
-        .init_stdlib();
+    let builder = InterpreterBuilder::new().settings(settings).init_stdlib();
     let interp = builder.build();
 
     let exit_code = interp.run(move |vm| {
@@ -363,7 +361,10 @@ assert sys.argv[2] == "--world"
     #[crate::ctb_test]
     fn test_python_cli_command_with_argv() -> Result<()> {
         let args = PythonArgs {
-            command: Some("import sys; assert sys.argv == ['-c', 'arg1', 'arg2']".to_string()),
+            command: Some(
+                "import sys; assert sys.argv == ['-c', 'arg1', 'arg2']"
+                    .to_string(),
+            ),
             script: Some("arg1".to_string()),
             args: vec!["arg2".to_string()],
             ..Default::default()
@@ -397,7 +398,10 @@ assert sys.argv[2] == "--world"
     #[crate::ctb_test]
     fn test_python_cli_flags_ignore_environment() -> Result<()> {
         let args = PythonArgs {
-            command: Some("import sys; assert sys.flags.ignore_environment == 1".to_string()),
+            command: Some(
+                "import sys; assert sys.flags.ignore_environment == 1"
+                    .to_string(),
+            ),
             ignore_environment: true,
             ..Default::default()
         };

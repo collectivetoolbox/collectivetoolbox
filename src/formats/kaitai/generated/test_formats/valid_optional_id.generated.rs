@@ -102,7 +102,11 @@ impl KStruct for ValidOptionalId {
     type Root = ValidOptionalId;
     type Parent = ValidOptionalId;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,29 +119,39 @@ impl KStruct for ValidOptionalId {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.unnamed0.borrow_mut() = _io.read_bytes(6_usize)?;
-        if !(*self_rc.unnamed0() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x31u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
+        if !(*self_rc.unnamed0()
+            == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x31u8])
+        {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed1.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (255).try_into()?;
         if !(*self_rc.unnamed1() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotEqual,
+                src_path: "/seq/1".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed2.borrow_mut() = _io.read_s1()?;
         let _borrowed = self_rc.unnamed2();
         let _tmpa = *_borrowed;
-        if !(((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1)))))) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/2".to_string() }));
+        if !((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1))))) {
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::Expr,
+                src_path: "/seq/2".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidOptionalId {
-}
+impl ValidOptionalId {}
 impl ValidOptionalId {
     pub fn unnamed0(&self) -> Ref<'_, Vec<u8>> {
         self.unnamed0.borrow()

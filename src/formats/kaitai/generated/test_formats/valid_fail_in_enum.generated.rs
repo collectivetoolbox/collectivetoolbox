@@ -100,7 +100,11 @@ impl KStruct for ValidFailInEnum {
     type Root = ValidFailInEnum;
     type Parent = ValidFailInEnum;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,15 +118,17 @@ impl KStruct for ValidFailInEnum {
         let _io = io;
         *self_rc.foo.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         if matches!(*self_rc.foo(), ValidFailInEnum_Animal::Unknown(_)) {
-            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/seq/0".to_string() }));
+            return Err(KError::ValidationFailed(ValidationFailedError {
+                kind: ValidationKind::NotInEnum,
+                src_path: "/seq/0".to_string(),
+            }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailInEnum {
-}
+impl ValidFailInEnum {}
 impl ValidFailInEnum {
     pub fn foo(&self) -> Ref<'_, ValidFailInEnum_Animal> {
         self.foo.borrow()
@@ -162,12 +168,13 @@ impl From<&ValidFailInEnum_Animal> for i64 {
         match *v {
             ValidFailInEnum_Animal::Dog => 4,
             ValidFailInEnum_Animal::Chicken => 12,
-            ValidFailInEnum_Animal::Unknown(v) => v
+            ValidFailInEnum_Animal::Unknown(v) => v,
         }
     }
 }
 
 impl Default for ValidFailInEnum_Animal {
-    fn default() -> Self { ValidFailInEnum_Animal::Unknown(0) }
+    fn default() -> Self {
+        ValidFailInEnum_Animal::Unknown(0)
+    }
 }
-

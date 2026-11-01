@@ -38,9 +38,13 @@ use anyhow::{Context, Result, bail, ensure};
 /// - Short Dc ID: `<digits>` (e.g. `246`, `0`)
 pub fn parse_target_token(token: &str) -> Option<CharTarget> {
     match ctb_storage_minimal::shorthand::DcShorthand::parse(token).ok()? {
-        ctb_storage_minimal::shorthand::DcShorthand::Short(id) => Some(CharTarget::Dc(id)),
+        ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
+            Some(CharTarget::Dc(id))
+        }
         ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
-            if let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(token) {
+            if let Some(fid) =
+                ctb_utilities::format_id::FormatId::from_shorthand(token)
+            {
                 Some(CharTarget::Format(fid))
             } else if id == ctb_storage_minimal::shorthand::MAX_FORMAT_ID {
                 Some(CharTarget::FormatRegionEnd)
@@ -60,10 +64,14 @@ pub fn parse_target_token(token: &str) -> Option<CharTarget> {
 fn parse_syntax_action(raw: &str) -> Result<SyntaxAction> {
     let trimmed = raw.trim();
     let Some(open_idx) = trimmed.find('(') else {
-        bail!("Action invocation is missing argument list opening '(': '{trimmed}'");
+        bail!(
+            "Action invocation is missing argument list opening '(': '{trimmed}'"
+        );
     };
     let Some(close_idx) = trimmed.rfind(')') else {
-        bail!("Action invocation is missing argument list closing ')': '{trimmed}'");
+        bail!(
+            "Action invocation is missing argument list closing ')': '{trimmed}'"
+        );
     };
     ensure!(
         open_idx < close_idx,
@@ -91,7 +99,8 @@ fn parse_syntax_action(raw: &str) -> Result<SyntaxAction> {
             if let Some(var_name) = arg_trim.strip_prefix('$') {
                 args.push(ActionArg::Variable(var_name.trim().to_string()));
             } else {
-                let clean_literal = arg_trim.trim_matches('"').trim_matches('\'');
+                let clean_literal =
+                    arg_trim.trim_matches('"').trim_matches('\'');
                 args.push(ActionArg::Literal(clean_literal.to_string()));
             }
         }
@@ -108,7 +117,9 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
     // Negated character set: [^248 255] or [^(314 | 312)]
     if let Some(rest) = trimmed.strip_prefix('^') {
         let rest_trimmed = rest.trim();
-        let tokens_str = if rest_trimmed.starts_with('(') && rest_trimmed.ends_with(')') {
+        let tokens_str = if rest_trimmed.starts_with('(')
+            && rest_trimmed.ends_with(')')
+        {
             match rest_trimmed.get(1..rest_trimmed.len().saturating_sub(1)) {
                 Some(s) => s.trim(),
                 None => "",
@@ -127,11 +138,15 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
             if tok.is_empty() {
                 continue;
             }
-            let target = parse_target_token(tok)
-                .with_context(|| format!("Invalid character token in negated set: '{tok}'"))?;
+            let target = parse_target_token(tok).with_context(|| {
+                format!("Invalid character token in negated set: '{tok}'")
+            })?;
             members.push(target);
         }
-        ensure!(!members.is_empty(), "Negated character set '[^]' cannot be empty");
+        ensure!(
+            !members.is_empty(),
+            "Negated character set '[^]' cannot be empty"
+        );
         return Ok(SyntaxElement::exact(SyntaxTerm::CharSet {
             negated: true,
             members,
@@ -141,13 +156,17 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
     // Rule macro expansion: [260:]
     if let Some(rule_tok) = trimmed.strip_suffix(':') {
         let target = parse_target_token(rule_tok).with_context(|| {
-            format!("Invalid rule reference target in '[{trimmed}]': '{rule_tok}'")
+            format!(
+                "Invalid rule reference target in '[{trimmed}]': '{rule_tok}'"
+            )
         })?;
         return Ok(SyntaxElement::exact(SyntaxTerm::RuleRef { target }));
     }
 
     // Range: [260-265] or [u41..u5a]
-    if let Some((start_tok, end_tok)) = trimmed.split_once("..").or_else(|| trimmed.split_once('-')) {
+    if let Some((start_tok, end_tok)) =
+        trimmed.split_once("..").or_else(|| trimmed.split_once('-'))
+    {
         if let (Some(start), Some(end)) = (
             parse_target_token(start_tok.trim()),
             parse_target_token(end_tok.trim()),
@@ -214,11 +233,16 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
     if let Some(colon_idx) = top_colon_idx {
         let name_part_raw = match trimmed.get(..colon_idx) {
             Some(s) => s,
-            None => bail!("Invalid name slice bounds in named construct '[{trimmed}]'"),
+            None => bail!(
+                "Invalid name slice bounds in named construct '[{trimmed}]'"
+            ),
         };
-        let subtype_part_raw = match trimmed.get(colon_idx.saturating_add(1)..) {
+        let subtype_part_raw = match trimmed.get(colon_idx.saturating_add(1)..)
+        {
             Some(s) => s,
-            None => bail!("Invalid subtype slice bounds in named construct '[{trimmed}]'"),
+            None => bail!(
+                "Invalid subtype slice bounds in named construct '[{trimmed}]'"
+            ),
         };
 
         let mut name_words = Vec::new();
@@ -231,15 +255,16 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
                     capture_var.is_none(),
                     "Multiple capture variables in named construct '[{trimmed}]'"
                 );
-                let (clean_var, q) = if let Some(stripped) = var.strip_suffix('?') {
-                    (stripped, Quantifier::Optional)
-                } else if let Some(stripped) = var.strip_suffix('*') {
-                    (stripped, Quantifier::ZeroOrMore)
-                } else if let Some(stripped) = var.strip_suffix('+') {
-                    (stripped, Quantifier::OneOrMore)
-                } else {
-                    (var, Quantifier::ExactOne)
-                };
+                let (clean_var, q) =
+                    if let Some(stripped) = var.strip_suffix('?') {
+                        (stripped, Quantifier::Optional)
+                    } else if let Some(stripped) = var.strip_suffix('*') {
+                        (stripped, Quantifier::ZeroOrMore)
+                    } else if let Some(stripped) = var.strip_suffix('+') {
+                        (stripped, Quantifier::OneOrMore)
+                    } else {
+                        (var, Quantifier::ExactOne)
+                    };
                 elem_quantifier = q;
                 capture_var = Some(clean_var.trim().to_string());
             } else {
@@ -460,7 +485,8 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
 
         if ch == '~' {
             idx = idx.saturating_add(1);
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
+            let (quantifier, next_idx) =
+                parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             elements.push(SyntaxElement::with_quantifier(
                 SyntaxTerm::SelfChar,
@@ -486,19 +512,19 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
                     end = end.saturating_add(1);
                 }
             }
-            ensure!(
-                depth == 0,
-                "Unclosed parenthesis in pattern: '{trimmed}'"
-            );
+            ensure!(depth == 0, "Unclosed parenthesis in pattern: '{trimmed}'");
 
             let Some(slice) = chars.get(start..end) else {
-                bail!("Invalid parenthesis slice bounds in pattern: '{trimmed}'");
+                bail!(
+                    "Invalid parenthesis slice bounds in pattern: '{trimmed}'"
+                );
             };
             let inner: String = slice.iter().collect();
             let sub_pattern = parse_pattern_expression(&inner)?;
             idx = end.saturating_add(1);
 
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
+            let (quantifier, next_idx) =
+                parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
 
             elements.push(SyntaxElement::with_quantifier(
@@ -534,7 +560,8 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             let mut element = parse_bracket_content(&inner)?;
             idx = end.saturating_add(1);
 
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
+            let (quantifier, next_idx) =
+                parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             if quantifier != Quantifier::ExactOne {
                 element.quantifier = quantifier;
@@ -550,23 +577,36 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             let Some(&c) = chars.get(idx) else {
                 break;
             };
-            if c.is_whitespace() || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == '|' {
+            if c.is_whitespace()
+                || c == '('
+                || c == ')'
+                || c == '['
+                || c == ']'
+                || c == '{'
+                || c == '}'
+                || c == '|'
+            {
                 break;
             }
             idx = idx.saturating_add(1);
         }
 
         let Some(token_slice) = chars.get(start..idx) else {
-            bail!("Invalid token slice bounds {start}..{idx} in pattern: '{trimmed}'");
+            bail!(
+                "Invalid token slice bounds {start}..{idx} in pattern: '{trimmed}'"
+            );
         };
         let token_str: String = token_slice.iter().collect();
         let token_trim = token_str.trim();
 
         if let Some(rule_tok) = token_trim.strip_suffix(':') {
             let target = parse_target_token(rule_tok).with_context(|| {
-                format!("Invalid bare rule reference in pattern: '{token_trim}'")
+                format!(
+                    "Invalid bare rule reference in pattern: '{token_trim}'"
+                )
             })?;
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
+            let (quantifier, next_idx) =
+                parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             elements.push(SyntaxElement::with_quantifier(
                 SyntaxTerm::RuleRef { target },
@@ -576,7 +616,8 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
         }
 
         if let Some(target) = parse_target_token(token_trim) {
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
+            let (quantifier, next_idx) =
+                parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             elements.push(SyntaxElement::with_quantifier(
                 SyntaxTerm::CharRef(target),
@@ -585,14 +626,19 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             continue;
         }
 
-        bail!("Unrecognized token in syntax pattern: '{token_trim}' in '{trimmed}'");
+        bail!(
+            "Unrecognized token in syntax pattern: '{token_trim}' in '{trimmed}'"
+        );
     }
 
     Ok(SyntaxPattern::Sequence(elements))
 }
 
 /// Helper to consume a trailing quantifier character (`+`, `*`, `?`, or `{...}`).
-fn parse_trailing_quantifier(chars: &[char], idx: usize) -> Result<(Quantifier, usize)> {
+fn parse_trailing_quantifier(
+    chars: &[char],
+    idx: usize,
+) -> Result<(Quantifier, usize)> {
     Ok(if let Some(&q_char) = chars.get(idx) {
         match q_char {
             '+' => (Quantifier::OneOrMore, idx.saturating_add(1)),
@@ -604,8 +650,12 @@ fn parse_trailing_quantifier(chars: &[char], idx: usize) -> Result<(Quantifier, 
                 while end < chars.len() && chars.get(end) != Some(&'}') {
                     end = end.saturating_add(1);
                 }
-                ensure!(end < chars.len(), "Unclosed quantifier at offset {idx}");
-                let sub = chars.get(start..end)
+                ensure!(
+                    end < chars.len(),
+                    "Unclosed quantifier at offset {idx}"
+                );
+                let sub = chars
+                    .get(start..end)
                     .context("Invalid quantifier bounds")?;
                 let content: String = sub.iter().collect();
                 let trimmed = content.trim();
@@ -616,7 +666,9 @@ fn parse_trailing_quantifier(chars: &[char], idx: usize) -> Result<(Quantifier, 
                         0
                     } else {
                         min_s.trim().parse::<usize>().with_context(|| {
-                            format!("Invalid minimum in quantifier '{{{content}}}'")
+                            format!(
+                                "Invalid minimum in quantifier '{{{content}}}'"
+                            )
                         })?
                     };
                     let max = if max_s.trim().is_empty() {
@@ -632,10 +684,16 @@ fn parse_trailing_quantifier(chars: &[char], idx: usize) -> Result<(Quantifier, 
                     );
                     Quantifier::Range { min, max }
                 } else {
-                    let count = trimmed.parse::<usize>().with_context(|| {
-                        format!("Invalid count in quantifier '{{{content}}}'")
-                    })?;
-                    Quantifier::Range { min: count, max: Some(count) }
+                    let count =
+                        trimmed.parse::<usize>().with_context(|| {
+                            format!(
+                                "Invalid count in quantifier '{{{content}}}'"
+                            )
+                        })?;
+                    Quantifier::Range {
+                        min: count,
+                        max: Some(count),
+                    }
                 };
                 (quantifier, end.saturating_add(1))
             }
@@ -669,12 +727,16 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
             ':' if depth_paren == 0 && depth_bracket == 0 => {
                 // Ensure this ':' is followed by an action expression like ' lang.action('
                 let Some(after_slice) = chars.get(i.saturating_add(1)..) else {
-                    bail!("Missing action slice after colon in syntax rule: '{clean}'");
+                    bail!(
+                        "Missing action slice after colon in syntax rule: '{clean}'"
+                    );
                 };
                 let after: String = after_slice.iter().collect();
                 if after.contains('(') && after.contains(')') {
                     let Some(before_slice) = chars.get(..i) else {
-                        bail!("Missing pattern slice before colon in syntax rule: '{clean}'");
+                        bail!(
+                            "Missing pattern slice before colon in syntax rule: '{clean}'"
+                        );
                     };
                     let before: String = before_slice.iter().collect();
                     pattern_str = before.trim().to_string();
@@ -701,9 +763,7 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
 pub fn is_extension_regex(entry: &str) -> bool {
     let trimmed = entry.trim();
     // Reason for fallback: when optional "case:" prefix is not present, use the already-trimmed entry directly.
-    let trimmed = trimmed
-        .strip_prefix("case:")
-        .map_or(trimmed, str::trim);
+    let trimmed = trimmed.strip_prefix("case:").map_or(trimmed, str::trim);
     trimmed.starts_with('~') && trimmed.ends_with('~') && trimmed.len() >= 2
 }
 
@@ -953,9 +1013,9 @@ fn parse_regex_sequence(chars: &[char]) -> Result<SyntaxPattern> {
                 {
                     start = start.saturating_add(2);
                 }
-                let inner_slice = chars
-                    .get(start..scan)
-                    .context("Invalid group slice in regex extension pattern")?;
+                let inner_slice = chars.get(start..scan).context(
+                    "Invalid group slice in regex extension pattern",
+                )?;
                 let inner_pattern = parse_regex_alternation(inner_slice)?;
                 (SyntaxTerm::Group(inner_pattern), scan.saturating_add(1))
             }
@@ -991,7 +1051,9 @@ fn parse_regex_sequence(chars: &[char]) -> Result<SyntaxPattern> {
                 );
             }
             '*' | '+' | '?' | '{' | '}' => {
-                bail!("Unexpected quantifier token '{ch}' without preceding term");
+                bail!(
+                    "Unexpected quantifier token '{ch}' without preceding term"
+                );
             }
             other => (
                 SyntaxTerm::CharRef(CharTarget::Unicode(u32::from(other))),
@@ -1081,7 +1143,9 @@ fn parse_regex_char_class(chars: &[char]) -> Result<SyntaxTerm> {
 /// Formats a `.Semantic:Pattern` [`SyntaxPattern`] compiled by [`parse_extension_regex`]
 /// back into its canonical `~...~` regex extension notation.
 #[must_use]
-pub fn format_extension_regex_pattern(pattern: &SyntaxPattern) -> Option<String> {
+pub fn format_extension_regex_pattern(
+    pattern: &SyntaxPattern,
+) -> Option<String> {
     let wildcard_short = crate::dc::DC_WILDCARD_PATTERN.to_short().ok()?;
     let is_wildcard_star = |elem: &SyntaxElement| -> bool {
         elem.quantifier == Quantifier::ZeroOrMore
@@ -1107,7 +1171,10 @@ pub fn format_extension_regex_pattern(pattern: &SyntaxPattern) -> Option<String>
         }
         SyntaxPattern::Alternation(_) => {
             let mut body = String::from("~^");
-            body.push_str(&format_regex_inner_pattern(pattern, wildcard_short)?);
+            body.push_str(&format_regex_inner_pattern(
+                pattern,
+                wildcard_short,
+            )?);
             body.push_str("$~");
             return Some(body);
         }

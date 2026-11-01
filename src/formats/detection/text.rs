@@ -442,7 +442,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
-
 //! Text and character encoding detection subsystem ported from `file`
 //! (`ascmagic.c`, `encoding.c`) and `PolyFile`.
 //!
@@ -458,12 +457,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::encoding::{CharEncoding, LineEndingKind};
-use crate::format_id::{FormatCategory, FormatId};
 use crate::detection::source::DetectionSource;
 use crate::detection::types::{
     ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
 };
+use crate::encoding::{CharEncoding, LineEndingKind};
+use crate::format_id::{FormatCategory, FormatId};
 
 /// Longest line length considered sane before flagging long lines.
 /// Ported from `MAXLINELEN` in `ascmagic.c`.
@@ -487,74 +486,77 @@ const CHAR_X: u8 = 3;
 /// Maps each 8-bit byte value to its text membership class.
 pub static TEXT_CHARS: [u8; 256] = [
     // 0x00-0x0F: BEL(7), BS(8), HT(9), LF(10), VT(11), FF(12), CR(13)
-    CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_T,
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_F, CHAR_F,
+    CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_F, CHAR_F,
     // 0x10-0x1F: SUB(26), ESC(27)
-    CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F,
-    CHAR_F, CHAR_F, CHAR_T, CHAR_T, CHAR_F, CHAR_F, CHAR_F, CHAR_F,
+    CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F, CHAR_F,
+    CHAR_F, CHAR_T, CHAR_T, CHAR_F, CHAR_F, CHAR_F, CHAR_F,
     // 0x20-0x2F: Printable ASCII
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
     // 0x30-0x3F: Printable ASCII
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
     // 0x40-0x4F: Printable ASCII
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
     // 0x50-0x5F: Printable ASCII
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
     // 0x60-0x6F: Printable ASCII
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
     // 0x70-0x7F: Printable ASCII, DEL(0x7F) is CHAR_F
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
-    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_F,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T,
+    CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_T, CHAR_F,
     // 0x80-0x8F: NEL(0x85) is CHAR_T
-    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_T, CHAR_X, CHAR_X,
-    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X,
+    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_T, CHAR_X, CHAR_X, CHAR_X,
+    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X,
     // 0x90-0x9F
-    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X,
-    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X,
+    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X,
+    CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X, CHAR_X,
     // 0xA0-0xAF: ISO-8859 printable characters
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
     // 0xB0-0xBF
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
     // 0xC0-0xCF
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
     // 0xD0-0xDF
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
     // 0xE0-0xEF
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
     // 0xF0-0xFF
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
-    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
+    CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I, CHAR_I,
 ];
 
 /// EBCDIC-to-ASCII mapping table ported from `ebcdic_to_ascii` in `encoding.c`.
 /// Based on POSIX P1003.2 draft 11.2 `dd(1)` rationale.
 pub static EBCDIC_TO_ASCII: [u8; 256] = [
-    0, 1, 2, 3, 156, 9, 134, 127, 151, 141, 142, 11, 12, 13, 14, 15,
-    16, 17, 18, 19, 157, 133, 8, 135, 24, 25, 146, 143, 28, 29, 30, 31,
-    128, 129, 130, 131, 132, 10, 23, 27, 136, 137, 138, 139, 140, 5, 6, 7,
-    144, 145, 22, 147, 148, 149, 150, 4, 152, 153, 154, 155, 20, 21, 158, 26,
-    b' ', 160, 161, 162, 163, 164, 165, 166, 167, 168, 213, b'.', b'<', b'(', b'+', b'|',
-    b'&', 169, 170, 171, 172, 173, 174, 175, 176, 177, b'!', b'$', b'*', b')', b';', b'~',
-    b'-', b'/', 178, 179, 180, 181, 182, 183, 184, 185, 203, b',', b'%', b'_', b'>', b'?',
-    186, 187, 188, 189, 190, 191, 192, 193, 194, b'`', b':', b'#', b'@', b'\'', b'=', b'"',
-    195, b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', 196, 197, 198, 199, 200, 201,
-    202, b'j', b'k', b'l', b'm', b'n', b'o', b'p', b'q', b'r', b'^', 204, 205, 206, 207, 208,
-    209, 229, b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', 210, 211, 212, b'[', 214, 215,
-    216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, b']', 230, 231,
-    b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', 232, 233, 234, 235, 236, 237,
-    b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P', b'Q', b'R', 238, 239, 240, 241, 242, 243,
-    b'\\', 159, b'S', b'T', b'U', b'V', b'W', b'X', b'Y', b'Z', 244, 245, 246, 247, 248, 249,
-    b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 250, 251, 252, 253, 254, 255,
+    0, 1, 2, 3, 156, 9, 134, 127, 151, 141, 142, 11, 12, 13, 14, 15, 16, 17,
+    18, 19, 157, 133, 8, 135, 24, 25, 146, 143, 28, 29, 30, 31, 128, 129, 130,
+    131, 132, 10, 23, 27, 136, 137, 138, 139, 140, 5, 6, 7, 144, 145, 22, 147,
+    148, 149, 150, 4, 152, 153, 154, 155, 20, 21, 158, 26, b' ', 160, 161, 162,
+    163, 164, 165, 166, 167, 168, 213, b'.', b'<', b'(', b'+', b'|', b'&', 169,
+    170, 171, 172, 173, 174, 175, 176, 177, b'!', b'$', b'*', b')', b';', b'~',
+    b'-', b'/', 178, 179, 180, 181, 182, 183, 184, 185, 203, b',', b'%', b'_',
+    b'>', b'?', 186, 187, 188, 189, 190, 191, 192, 193, 194, b'`', b':', b'#',
+    b'@', b'\'', b'=', b'"', 195, b'a', b'b', b'c', b'd', b'e', b'f', b'g',
+    b'h', b'i', 196, 197, 198, 199, 200, 201, 202, b'j', b'k', b'l', b'm',
+    b'n', b'o', b'p', b'q', b'r', b'^', 204, 205, 206, 207, 208, 209, 229,
+    b's', b't', b'u', b'v', b'w', b'x', b'y', b'z', 210, 211, 212, b'[', 214,
+    215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, b']',
+    230, 231, b'{', b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', b'I', 232,
+    233, 234, 235, 236, 237, b'}', b'J', b'K', b'L', b'M', b'N', b'O', b'P',
+    b'Q', b'R', 238, 239, 240, 241, 242, 243, b'\\', 159, b'S', b'T', b'U',
+    b'V', b'W', b'X', b'Y', b'Z', 244, 245, 246, 247, 248, 249, b'0', b'1',
+    b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 250, 251, 252, 253, 254,
+    255,
 ];
 
 /// Identified character set encoding family.
@@ -789,11 +791,12 @@ pub fn looks_utf8(buf: &[u8]) -> Option<(IdentifiedEncoding, bool)> {
     if buf.len() < 2 {
         return None;
     }
-    let (with_bom, content) = if let Some(rest) = buf.strip_prefix(b"\xEF\xBB\xBF") {
-        (true, rest)
-    } else {
-        (false, buf)
-    };
+    let (with_bom, content) =
+        if let Some(rest) = buf.strip_prefix(b"\xEF\xBB\xBF") {
+            (true, rest)
+        } else {
+            (false, buf)
+        };
 
     if content.is_empty() {
         if with_bom {
@@ -869,7 +872,9 @@ pub fn looks_utf16(buf: &[u8]) -> Option<IdentifiedEncoding> {
                 // Reason for fallback: slice beyond 2-byte BOM defaults to empty slice if buffer is truncated
                 let payload = buf.get(2..).unwrap_or(&[]);
                 if validate_utf16_content(payload, false) {
-                    return Some(IdentifiedEncoding::Utf16Le { with_bom: true });
+                    return Some(IdentifiedEncoding::Utf16Le {
+                        with_bom: true,
+                    });
                 }
             }
         } else if first == Some(0xFE) && second == Some(0xFF) {
@@ -906,14 +911,20 @@ pub fn looks_utf16(buf: &[u8]) -> Option<IdentifiedEncoding> {
 
             // UTF-16 LE: odd bytes are mostly 0 for ASCII text
             // Reason for fallback: division by non-zero pairs cannot fail on unsigned integers
-            let odd_ratio = odd_zeros.saturating_mul(100).checked_div(pairs).unwrap_or(0);
+            let odd_ratio = odd_zeros
+                .saturating_mul(100)
+                .checked_div(pairs)
+                .unwrap_or(0);
             if odd_ratio >= 40 && validate_utf16_content(slice, false) {
                 return Some(IdentifiedEncoding::Utf16Le { with_bom: false });
             }
 
             // UTF-16 BE: even bytes are mostly 0 for ASCII text
             // Reason for fallback: division by non-zero pairs cannot fail on unsigned integers
-            let even_ratio = even_zeros.saturating_mul(100).checked_div(pairs).unwrap_or(0);
+            let even_ratio = even_zeros
+                .saturating_mul(100)
+                .checked_div(pairs)
+                .unwrap_or(0);
             if even_ratio >= 40 && validate_utf16_content(slice, true) {
                 return Some(IdentifiedEncoding::Utf16Be { with_bom: false });
             }
@@ -970,7 +981,10 @@ fn validate_utf16_content(buf: &[u8], big_endian: bool) -> bool {
                 return false;
             };
             // Reason for fallback: index within 0..=255 bounds is always valid
-            let cls = TEXT_CHARS.get(usize::from(byte_val)).copied().unwrap_or(CHAR_F);
+            let cls = TEXT_CHARS
+                .get(usize::from(byte_val))
+                .copied()
+                .unwrap_or(CHAR_F);
             if cls != CHAR_T && byte_val != 0 {
                 return false;
             }
@@ -996,13 +1010,21 @@ pub fn looks_utf32(buf: &[u8]) -> Option<IdentifiedEncoding> {
         let b2 = buf.get(2).copied();
         let b3 = buf.get(3).copied();
 
-        if b0 == Some(0xFF) && b1 == Some(0xFE) && b2 == Some(0x00) && b3 == Some(0x00) {
+        if b0 == Some(0xFF)
+            && b1 == Some(0xFE)
+            && b2 == Some(0x00)
+            && b3 == Some(0x00)
+        {
             // Reason for fallback: slice beyond 4-byte BOM defaults to empty slice if buffer is truncated
             let payload = buf.get(4..).unwrap_or(&[]);
             if validate_utf32_content(payload, false) {
                 return Some(IdentifiedEncoding::Utf32Le { with_bom: true });
             }
-        } else if b0 == Some(0x00) && b1 == Some(0x00) && b2 == Some(0xFE) && b3 == Some(0xFF) {
+        } else if b0 == Some(0x00)
+            && b1 == Some(0x00)
+            && b2 == Some(0xFE)
+            && b3 == Some(0xFF)
+        {
             // Reason for fallback: slice beyond 4-byte BOM defaults to empty slice if buffer is truncated
             let payload = buf.get(4..).unwrap_or(&[]);
             if validate_utf32_content(payload, true) {
@@ -1035,13 +1057,19 @@ pub fn looks_utf32(buf: &[u8]) -> Option<IdentifiedEncoding> {
             }
 
             // Reason for fallback: division by non-zero quads cannot fail on unsigned integers
-            let le_ratio = le_matches.saturating_mul(100).checked_div(quads).unwrap_or(0);
+            let le_ratio = le_matches
+                .saturating_mul(100)
+                .checked_div(quads)
+                .unwrap_or(0);
             if le_ratio >= 40 && validate_utf32_content(slice, false) {
                 return Some(IdentifiedEncoding::Utf32Le { with_bom: false });
             }
 
             // Reason for fallback: division by non-zero quads cannot fail on unsigned integers
-            let be_ratio = be_matches.saturating_mul(100).checked_div(quads).unwrap_or(0);
+            let be_ratio = be_matches
+                .saturating_mul(100)
+                .checked_div(quads)
+                .unwrap_or(0);
             if be_ratio >= 40 && validate_utf32_content(slice, true) {
                 return Some(IdentifiedEncoding::Utf32Be { with_bom: false });
             }
@@ -1062,12 +1090,22 @@ fn validate_utf32_content(buf: &[u8], big_endian: bool) -> bool {
         let &[b0, b1, b2, b3] = chunk else { continue };
 
         let uc = if big_endian {
-            u32::from(b3) | (u32::from(b2) << 8) | (u32::from(b1) << 16) | (u32::from(b0) << 24)
+            u32::from(b3)
+                | (u32::from(b2) << 8)
+                | (u32::from(b1) << 16)
+                | (u32::from(b0) << 24)
         } else {
-            u32::from(b0) | (u32::from(b1) << 8) | (u32::from(b2) << 16) | (u32::from(b3) << 24)
+            u32::from(b0)
+                | (u32::from(b1) << 8)
+                | (u32::from(b2) << 16)
+                | (u32::from(b3) << 24)
         };
 
-        if uc > 0x0010_FFFF || (0xD800..=0xDFFF).contains(&uc) || uc == 0xFFFE || uc == 0xFFFF {
+        if uc > 0x0010_FFFF
+            || (0xD800..=0xDFFF).contains(&uc)
+            || uc == 0xFFFE
+            || uc == 0xFFFF
+        {
             return false;
         }
 
@@ -1076,7 +1114,10 @@ fn validate_utf32_content(buf: &[u8], big_endian: bool) -> bool {
                 return false;
             };
             // Reason for fallback: index within 0..=255 bounds is always valid
-            let cls = TEXT_CHARS.get(usize::from(byte_val)).copied().unwrap_or(CHAR_F);
+            let cls = TEXT_CHARS
+                .get(usize::from(byte_val))
+                .copied()
+                .unwrap_or(CHAR_F);
             if cls != CHAR_T && byte_val != 0 {
                 return false;
             }
@@ -1129,11 +1170,15 @@ pub fn looks_extended_ascii(buf: &[u8]) -> Option<IdentifiedEncoding> {
     if has_extended {
         // Evaluate likelihood of Windows-1252 vs MacRoman vs CP437
         // Windows-1252 has unused bytes at 0x81, 0x8D, 0x8F, 0x90, 0x9D
-        let has_win_unused = buf.iter().any(|&b| matches!(b, 0x81 | 0x8D | 0x8F | 0x90 | 0x9D));
+        let has_win_unused = buf
+            .iter()
+            .any(|&b| matches!(b, 0x81 | 0x8D | 0x8F | 0x90 | 0x9D));
         if has_win_unused {
             Some(IdentifiedEncoding::ExtendedAscii(CharEncoding::cp437()))
         } else {
-            Some(IdentifiedEncoding::ExtendedAscii(CharEncoding::windows_1252()))
+            Some(IdentifiedEncoding::ExtendedAscii(
+                CharEncoding::windows_1252(),
+            ))
         }
     } else {
         None
@@ -1152,9 +1197,13 @@ pub fn looks_ebcdic(buf: &[u8]) -> Option<IdentifiedEncoding> {
 
     for &b in buf {
         // Reason for fallback: index within 0..=255 bounds is always valid
-        let translated = EBCDIC_TO_ASCII.get(usize::from(b)).copied().unwrap_or(0);
+        let translated =
+            EBCDIC_TO_ASCII.get(usize::from(b)).copied().unwrap_or(0);
         // Reason for fallback: out-of-bounds byte class defaults to non-text CHAR_F
-        let cls = TEXT_CHARS.get(usize::from(translated)).copied().unwrap_or(CHAR_F);
+        let cls = TEXT_CHARS
+            .get(usize::from(translated))
+            .copied()
+            .unwrap_or(CHAR_F);
         if cls != CHAR_T {
             is_ascii = false;
             if cls != CHAR_I {
@@ -1223,7 +1272,10 @@ pub fn detect_text_encoding(data: &[u8]) -> Option<IdentifiedEncoding> {
 /// Profiles text layout conventions, line endings, long lines, and escape sequences.
 /// Ported from `file_ascmagic_with_encoding` in `ascmagic.c`.
 #[must_use]
-pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextProfile {
+pub fn profile_text_layout(
+    data: &[u8],
+    encoding: IdentifiedEncoding,
+) -> TextProfile {
     let trimmed = trim_nuls(data);
 
     let mut n_lf = 0usize;
@@ -1240,9 +1292,13 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
 
     // Decode or scan characters based on encoding
     match encoding {
-        IdentifiedEncoding::Utf16Le { .. } | IdentifiedEncoding::Utf16Be { .. } => {
-            let big_end = matches!(encoding, IdentifiedEncoding::Utf16Be { .. });
-            let offset = if data.starts_with(b"\xFF\xFE") || data.starts_with(b"\xFE\xFF") {
+        IdentifiedEncoding::Utf16Le { .. }
+        | IdentifiedEncoding::Utf16Be { .. } => {
+            let big_end =
+                matches!(encoding, IdentifiedEncoding::Utf16Be { .. });
+            let offset = if data.starts_with(b"\xFF\xFE")
+                || data.starts_with(b"\xFE\xFF")
+            {
                 2usize
             } else {
                 0usize
@@ -1274,10 +1330,12 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
                 );
             }
         }
-        IdentifiedEncoding::Ebcdic | IdentifiedEncoding::InternationalEbcdic => {
+        IdentifiedEncoding::Ebcdic
+        | IdentifiedEncoding::InternationalEbcdic => {
             for &b in trimmed {
                 // Reason for fallback: index within 0..=255 bounds is always valid
-                let translated = EBCDIC_TO_ASCII.get(usize::from(b)).copied().unwrap_or(0);
+                let translated =
+                    EBCDIC_TO_ASCII.get(usize::from(b)).copied().unwrap_or(0);
                 process_char_for_layout(
                     u32::from(translated),
                     &mut seen_cr,
@@ -1294,11 +1352,12 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
         }
         _ => {
             // ASCII, UTF-8, ISO-8859, Extended ASCII
-            let content = if let Some(stripped) = trimmed.strip_prefix(b"\xEF\xBB\xBF") {
-                stripped
-            } else {
-                trimmed
-            };
+            let content =
+                if let Some(stripped) = trimmed.strip_prefix(b"\xEF\xBB\xBF") {
+                    stripped
+                } else {
+                    trimmed
+                };
             for &b in content {
                 process_char_for_layout(
                     u32::from(b),
@@ -1324,7 +1383,8 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
     let has_long_lines = max_line_length > MAX_LINE_LENGTH;
 
     // Determine primary line ending convention
-    let primary_line_ending = if n_crlf >= n_lf && n_crlf >= n_cr && n_crlf > 0 {
+    let primary_line_ending = if n_crlf >= n_lf && n_crlf >= n_cr && n_crlf > 0
+    {
         Some(LineEndingKind::CrLf)
     } else if n_lf >= n_cr && n_lf > 0 {
         Some(LineEndingKind::Lf)
@@ -1438,14 +1498,20 @@ pub fn detect_text_syntax(data: &[u8]) -> Option<TextSyntaxKind> {
     }
 
     // 4. SGML declaration
-    if trimmed_sample.starts_with("<!doctype ") || trimmed_sample.starts_with("<!sgml") {
+    if trimmed_sample.starts_with("<!doctype ")
+        || trimmed_sample.starts_with("<!sgml")
+    {
         return Some(TextSyntaxKind::SgmlDocument);
     }
 
     // 5. roff/troff commands (.TH, .SH, .PP at start of line)
     for line in sample.lines().take(10) {
         let t = line.trim_start();
-        if t.starts_with(".TH ") || t.starts_with(".so ") || t.starts_with(".SH ") || t.starts_with(".PP") {
+        if t.starts_with(".TH ")
+            || t.starts_with(".so ")
+            || t.starts_with(".SH ")
+            || t.starts_with(".PP")
+        {
             return Some(TextSyntaxKind::RoffDocument);
         }
     }
@@ -1468,9 +1534,13 @@ pub fn detect_text_syntax(data: &[u8]) -> Option<TextSyntaxKind> {
     }
 
     // 8. C / C++ heuristics
-    let has_c_include = sample.contains("#include <") || sample.contains("#include \"");
-    let has_c_main = sample.contains("int main(") || sample.contains("void main(");
-    let has_c_define = sample.contains("#define ") || sample.contains("#ifdef ") || sample.contains("#ifndef ");
+    let has_c_include =
+        sample.contains("#include <") || sample.contains("#include \"");
+    let has_c_main =
+        sample.contains("int main(") || sample.contains("void main(");
+    let has_c_define = sample.contains("#define ")
+        || sample.contains("#ifdef ")
+        || sample.contains("#ifndef ");
     let has_cpp_features = sample.contains("namespace ")
         || sample.contains("std::")
         || sample.contains("class ")
@@ -1479,7 +1549,9 @@ pub fn detect_text_syntax(data: &[u8]) -> Option<TextSyntaxKind> {
         || sample.contains("#include <iostream>")
         || sample.contains("#include <vector>");
 
-    if (has_c_include && (has_c_main || has_c_define)) || (has_c_main && has_c_define) {
+    if (has_c_include && (has_c_main || has_c_define))
+        || (has_c_main && has_c_define)
+    {
         if has_cpp_features {
             return Some(TextSyntaxKind::CppSource);
         }
@@ -1489,22 +1561,32 @@ pub fn detect_text_syntax(data: &[u8]) -> Option<TextSyntaxKind> {
     // 9. Python heuristics
     let has_py_def = sample.contains("def ") && sample.contains(":\n");
     let has_py_import = sample.contains("import ") || sample.contains("from ");
-    let has_py_dunder = sample.contains("__name__ == '__main__'") || sample.contains("__name__ == \"__main__\"");
+    let has_py_dunder = sample.contains("__name__ == '__main__'")
+        || sample.contains("__name__ == \"__main__\"");
     let has_py_triple = sample.contains("\"\"\"") || sample.contains("'''");
-    if (has_py_def && has_py_import) || (has_py_dunder && has_py_import) || (has_py_def && has_py_triple) {
+    if (has_py_def && has_py_import)
+        || (has_py_dunder && has_py_import)
+        || (has_py_def && has_py_triple)
+    {
         return Some(TextSyntaxKind::PythonScript);
     }
 
     // 10. Shell script heuristics
-    let has_sh_fi = sample.contains("if [ ") && sample.contains("then") && sample.contains("fi");
-    let has_sh_case = sample.contains("case ") && sample.contains(" in\n") && sample.contains("esac");
-    let has_sh_export = sample.contains("export ") && (sample.contains("echo ") || sample.contains("exit "));
+    let has_sh_fi = sample.contains("if [ ")
+        && sample.contains("then")
+        && sample.contains("fi");
+    let has_sh_case = sample.contains("case ")
+        && sample.contains(" in\n")
+        && sample.contains("esac");
+    let has_sh_export = sample.contains("export ")
+        && (sample.contains("echo ") || sample.contains("exit "));
     if has_sh_fi || has_sh_case || has_sh_export {
         return Some(TextSyntaxKind::ShellScript);
     }
 
     // 11. Perl heuristics
-    let has_perl_strict = sample.contains("use strict;") || sample.contains("use warnings;");
+    let has_perl_strict =
+        sample.contains("use strict;") || sample.contains("use warnings;");
     let has_perl_my = sample.contains("my $") && sample.contains("sub ");
     if has_perl_strict || has_perl_my {
         return Some(TextSyntaxKind::PerlScript);
@@ -1512,20 +1594,30 @@ pub fn detect_text_syntax(data: &[u8]) -> Option<TextSyntaxKind> {
 
     // 12. Ruby heuristics
     let has_ruby_def = sample.contains("def ") && sample.contains("\nend");
-    let has_ruby_require = sample.contains("require '") || sample.contains("require \"");
-    let has_ruby_attr = sample.contains("attr_accessor") || sample.contains("attr_reader");
+    let has_ruby_require =
+        sample.contains("require '") || sample.contains("require \"");
+    let has_ruby_attr =
+        sample.contains("attr_accessor") || sample.contains("attr_reader");
     if (has_ruby_def && has_ruby_require) || has_ruby_attr {
         return Some(TextSyntaxKind::RubySource);
     }
 
     // 13. Lisp heuristics
-    if sample.contains("(defun ") || sample.contains("(defmacro ") || (sample.contains("(let ") && sample.contains(";;;")) {
+    if sample.contains("(defun ")
+        || sample.contains("(defmacro ")
+        || (sample.contains("(let ") && sample.contains(";;;"))
+    {
         return Some(TextSyntaxKind::LispSource);
     }
 
     // 14. Assembler heuristics
-    let has_asm_section = sample.contains(".global ") || sample.contains(".globl ") || sample.contains(".section ");
-    let has_asm_inst = sample.contains("mov ") || sample.contains("jmp ") || sample.contains("push ") || sample.contains("pop ");
+    let has_asm_section = sample.contains(".global ")
+        || sample.contains(".globl ")
+        || sample.contains(".section ");
+    let has_asm_inst = sample.contains("mov ")
+        || sample.contains("jmp ")
+        || sample.contains("push ")
+        || sample.contains("pop ");
     if has_asm_section && has_asm_inst {
         return Some(TextSyntaxKind::AssemblerSource);
     }
@@ -1536,9 +1628,15 @@ pub fn detect_text_syntax(data: &[u8]) -> Option<TextSyntaxKind> {
 /// Extracts interpreter details from a shebang line.
 fn extract_shebang(data: &[u8]) -> Option<TextSyntaxKind> {
     // Reason for fallback: if no newline delimiter is found, shebang line spans to the end of data
-    let line_end = data.iter().position(|&b| b == b'\n' || b == b'\r').unwrap_or(data.len());
+    let line_end = data
+        .iter()
+        .position(|&b| b == b'\n' || b == b'\r')
+        .unwrap_or(data.len());
     let line_bytes = data.get(..line_end)?;
-    let line_str = std::str::from_utf8(line_bytes).ok()?.trim_start_matches("#!").trim();
+    let line_str = std::str::from_utf8(line_bytes)
+        .ok()?
+        .trim_start_matches("#!")
+        .trim();
     if line_str.is_empty() {
         return None;
     }
@@ -1559,17 +1657,55 @@ fn extract_shebang(data: &[u8]) -> Option<TextSyntaxKind> {
 
     let interp_clean = interp.trim_start_matches(['-', '/']);
     let (fmt, mime, label) = match interp_clean {
-        "sh" => (Some(FormatId::Sh), "text/x-shellscript".to_string(), "POSIX shell script".to_string()),
-        "bash" => (Some(FormatId::Bash), "text/x-shellscript".to_string(), "Bourne-Again shell script".to_string()),
-        "zsh" => (Some(FormatId::Sh), "text/x-shellscript".to_string(), "Zsh shell script".to_string()),
-        "ksh" => (Some(FormatId::Sh), "text/x-shellscript".to_string(), "Korn shell script".to_string()),
-        "csh" | "tcsh" => (Some(FormatId::Sh), "text/x-shellscript".to_string(), "C shell script".to_string()),
-        "python" | "python3" | "python2" => (None, "text/x-python".to_string(), "Python script".to_string()),
-        "perl" | "perl5" => (Some(FormatId::Perl), "text/x-perl".to_string(), "Perl script".to_string()),
+        "sh" => (
+            Some(FormatId::Sh),
+            "text/x-shellscript".to_string(),
+            "POSIX shell script".to_string(),
+        ),
+        "bash" => (
+            Some(FormatId::Bash),
+            "text/x-shellscript".to_string(),
+            "Bourne-Again shell script".to_string(),
+        ),
+        "zsh" => (
+            Some(FormatId::Sh),
+            "text/x-shellscript".to_string(),
+            "Zsh shell script".to_string(),
+        ),
+        "ksh" => (
+            Some(FormatId::Sh),
+            "text/x-shellscript".to_string(),
+            "Korn shell script".to_string(),
+        ),
+        "csh" | "tcsh" => (
+            Some(FormatId::Sh),
+            "text/x-shellscript".to_string(),
+            "C shell script".to_string(),
+        ),
+        "python" | "python3" | "python2" => (
+            None,
+            "text/x-python".to_string(),
+            "Python script".to_string(),
+        ),
+        "perl" | "perl5" => (
+            Some(FormatId::Perl),
+            "text/x-perl".to_string(),
+            "Perl script".to_string(),
+        ),
         "ruby" => (None, "text/x-ruby".to_string(), "Ruby script".to_string()),
-        "node" | "nodejs" => (Some(FormatId::JavaScript), "application/javascript".to_string(), "Node.js script".to_string()),
-        "php" => (Some(FormatId::Php), "text/x-php".to_string(), "PHP script".to_string()),
-        "awk" | "gawk" | "nawk" | "mawk" => (None, "text/x-awk".to_string(), "AWK script".to_string()),
+        "node" | "nodejs" => (
+            Some(FormatId::JavaScript),
+            "application/javascript".to_string(),
+            "Node.js script".to_string(),
+        ),
+        "php" => (
+            Some(FormatId::Php),
+            "text/x-php".to_string(),
+            "PHP script".to_string(),
+        ),
+        "awk" | "gawk" | "nawk" | "mawk" => {
+            (None, "text/x-awk".to_string(), "AWK script".to_string())
+        }
         "sed" => (None, "text/x-sed".to_string(), "Sed script".to_string()),
         "lua" => (None, "text/x-lua".to_string(), "Lua script".to_string()),
         other => (None, "text/plain".to_string(), format!("{other} script")),
@@ -1604,11 +1740,18 @@ pub fn format_text_description(profile: &TextProfile) -> String {
 
     // 2. Very long lines clause
     if profile.has_long_lines {
-        desc.push_str(&format!(", with very long lines ({})", profile.max_line_length));
+        desc.push_str(&format!(
+            ", with very long lines ({})",
+            profile.max_line_length
+        ));
     }
 
     // 3. Line terminators clause (only reported if not standard single LF, or if none)
-    let n_total_lines = profile.n_crlf.saturating_add(profile.n_lf).saturating_add(profile.n_cr).saturating_add(profile.n_nel);
+    let n_total_lines = profile
+        .n_crlf
+        .saturating_add(profile.n_lf)
+        .saturating_add(profile.n_cr)
+        .saturating_add(profile.n_nel);
     if n_total_lines == 0 {
         desc.push_str(", with no line terminators");
     } else if profile.n_crlf > 0 || profile.n_cr > 0 || profile.n_nel > 0 {
@@ -1676,13 +1819,23 @@ pub fn detect_text_candidate_and_encoding(
 
     // Determine candidate FormatId and MIME type
     let (format_id, mime) = if let Some(syntax) = &profile.syntax {
-        (syntax.format_id().or_else(|| encoding.format_id()), Some(syntax.mime_type().to_string()))
+        (
+            syntax.format_id().or_else(|| encoding.format_id()),
+            Some(syntax.mime_type().to_string()),
+        )
     } else {
-        (encoding.format_id(), Some(format!("text/plain; charset={}", encoding.mime_charset())))
+        (
+            encoding.format_id(),
+            Some(format!("text/plain; charset={}", encoding.mime_charset())),
+        )
     };
 
     // Calculate score
-    let mut score = if profile.syntax.is_some() { 80u32 } else { 65u32 };
+    let mut score = if profile.syntax.is_some() {
+        80u32
+    } else {
+        65u32
+    };
     let mut evidence = Vec::new();
 
     evidence.push(DetectionEvidence::Encoding {
@@ -1710,13 +1863,30 @@ pub fn detect_text_candidate_and_encoding(
         if let Some(ext) = h.extension.as_deref().or(h.filename.as_deref()) {
             let ext_lower = ext.to_ascii_lowercase();
             let is_match = match profile.syntax {
-                Some(TextSyntaxKind::HtmlDocument) => ext_lower.ends_with(".html") || ext_lower.ends_with(".htm"),
-                Some(TextSyntaxKind::XmlDocument) => ext_lower.ends_with(".xml"),
-                Some(TextSyntaxKind::CSource) => ext_lower.ends_with(".c") || ext_lower.ends_with(".h"),
-                Some(TextSyntaxKind::CppSource) => ext_lower.ends_with(".cpp") || ext_lower.ends_with(".cc") || ext_lower.ends_with(".cxx") || ext_lower.ends_with(".hpp"),
-                Some(TextSyntaxKind::PythonScript) => ext_lower.ends_with(".py"),
-                Some(TextSyntaxKind::ShellScript) => ext_lower.ends_with(".sh") || ext_lower.ends_with(".bash"),
-                Some(TextSyntaxKind::PerlScript) => ext_lower.ends_with(".pl") || ext_lower.ends_with(".pm"),
+                Some(TextSyntaxKind::HtmlDocument) => {
+                    ext_lower.ends_with(".html") || ext_lower.ends_with(".htm")
+                }
+                Some(TextSyntaxKind::XmlDocument) => {
+                    ext_lower.ends_with(".xml")
+                }
+                Some(TextSyntaxKind::CSource) => {
+                    ext_lower.ends_with(".c") || ext_lower.ends_with(".h")
+                }
+                Some(TextSyntaxKind::CppSource) => {
+                    ext_lower.ends_with(".cpp")
+                        || ext_lower.ends_with(".cc")
+                        || ext_lower.ends_with(".cxx")
+                        || ext_lower.ends_with(".hpp")
+                }
+                Some(TextSyntaxKind::PythonScript) => {
+                    ext_lower.ends_with(".py")
+                }
+                Some(TextSyntaxKind::ShellScript) => {
+                    ext_lower.ends_with(".sh") || ext_lower.ends_with(".bash")
+                }
+                Some(TextSyntaxKind::PerlScript) => {
+                    ext_lower.ends_with(".pl") || ext_lower.ends_with(".pm")
+                }
                 Some(TextSyntaxKind::RubySource) => ext_lower.ends_with(".rb"),
                 _ => ext_lower.ends_with(".txt"),
             };
@@ -1749,16 +1919,19 @@ pub fn detect_text_candidate_and_encoding(
         ConfidenceTier::Moderate
     };
 
-    Ok(Some((DetectionCandidate {
-        format_id,
-        dc_id: None,
-        mime,
-        description,
-        confidence,
-        score,
-        evidence,
-        chain_layers: None,
-    }, encoding.format_id())))
+    Ok(Some((
+        DetectionCandidate {
+            format_id,
+            dc_id: None,
+            mime,
+            description,
+            confidence,
+            score,
+            evidence,
+            chain_layers: None,
+        },
+        encoding.format_id(),
+    )))
 }
 
 #[cfg(test)]
@@ -1779,7 +1952,10 @@ mod tests {
     fn test_looks_ascii_valid() {
         let ascii_data = b"Hello, world! 123 \t\r\n";
         assert!(looks_ascii(ascii_data));
-        assert_eq!(detect_text_encoding(ascii_data), Some(IdentifiedEncoding::Ascii));
+        assert_eq!(
+            detect_text_encoding(ascii_data),
+            Some(IdentifiedEncoding::Ascii)
+        );
     }
 
     #[crate::ctb_test]
@@ -1877,7 +2053,10 @@ mod tests {
     fn test_iso8859_latin1() {
         // 'café' in ISO-8859-1: 'é' is 0xE9 (in CHAR_I range 0xA0..=0xFF)
         let data = b"caf\xE9 au lait\n";
-        assert_eq!(detect_text_encoding(data), Some(IdentifiedEncoding::Iso8859_1));
+        assert_eq!(
+            detect_text_encoding(data),
+            Some(IdentifiedEncoding::Iso8859_1)
+        );
     }
 
     #[crate::ctb_test]
@@ -1918,7 +2097,9 @@ mod tests {
     fn test_shebang_detection() {
         let py_script = b"#!/usr/bin/env python3\nprint('hello')\n";
         let prof = profile_text_layout(py_script, IdentifiedEncoding::Ascii);
-        assert!(matches!(prof.syntax, Some(TextSyntaxKind::ShebangScript { ref interpreter, .. }) if interpreter == "python3"));
+        assert!(
+            matches!(prof.syntax, Some(TextSyntaxKind::ShebangScript { ref interpreter, .. }) if interpreter == "python3")
+        );
 
         let desc = format_text_description(&prof);
         assert_eq!(desc, "Python script, ASCII text executable");

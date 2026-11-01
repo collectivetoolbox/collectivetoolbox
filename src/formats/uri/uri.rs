@@ -112,15 +112,20 @@ fn list_iana_schemes_by_status(status: &str) -> Result<Vec<String>> {
     Ok(schemes)
 }
 
-static IANA_SCHEMES_SET: std::sync::LazyLock<Result<std::collections::HashSet<String>>> =
-    std::sync::LazyLock::new(|| {
-        let schemes = list_iana_schemes().context(
+static IANA_SCHEMES_SET: std::sync::LazyLock<
+    Result<std::collections::HashSet<String>>,
+> = std::sync::LazyLock::new(|| {
+    let schemes = list_iana_schemes().context(
             "IANA schemes database failed to load, but should be provided by asset bundle",
         )?;
-        Ok(schemes.into_iter().map(|s| s.to_ascii_lowercase()).collect())
-    });
+    Ok(schemes
+        .into_iter()
+        .map(|s| s.to_ascii_lowercase())
+        .collect())
+});
 
-fn get_iana_schemes_set() -> Result<&'static std::collections::HashSet<String>> {
+fn get_iana_schemes_set() -> Result<&'static std::collections::HashSet<String>>
+{
     IANA_SCHEMES_SET
         .as_ref()
         .map_err(|e| anyhow!("Failed to initialize IANA schemes set: {e}"))
@@ -176,10 +181,16 @@ pub fn detect_uri(s: &str) -> Result<Option<UriDetection>> {
     if let Some((scheme, rest)) = trimmed.split_once(':') {
         if !rest.is_empty() {
             let scheme_valid = !scheme.is_empty()
-                && scheme.bytes().next().is_some_and(|b| b.is_ascii_alphabetic())
                 && scheme
                     .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.');
+                    .next()
+                    .is_some_and(|b| b.is_ascii_alphabetic())
+                && scheme.bytes().all(|b| {
+                    b.is_ascii_alphanumeric()
+                        || b == b'+'
+                        || b == b'-'
+                        || b == b'.'
+                });
             if scheme_valid && is_known_scheme(scheme)? {
                 let lower_scheme = scheme.to_ascii_lowercase();
                 let fmt = if lower_scheme == "magnet" {
@@ -205,9 +216,9 @@ pub fn detect_uri(s: &str) -> Result<Option<UriDetection>> {
             .bytes()
             .next()
             .is_some_and(|b| b.is_ascii_alphabetic())
-        && scheme_candidate
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.');
+        && scheme_candidate.bytes().all(|b| {
+            b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.'
+        });
 
     if is_valid_scheme_syntax && is_known_scheme(scheme_candidate)? {
         let lower = scheme_candidate.to_ascii_lowercase();
@@ -353,7 +364,8 @@ mod tests {
         assert_eq!(https_scheme_colon.format_id, FormatId::UriProtocol);
         assert!(https_scheme_colon.is_scheme_only);
 
-        let full_uri = detect_uri("https://collectivetoolbox.com/path?q=1#top")?.unwrap();
+        let full_uri =
+            detect_uri("https://collectivetoolbox.com/path?q=1#top")?.unwrap();
         assert_eq!(full_uri.format_id, FormatId::Uri);
         assert!(!full_uri.is_scheme_only);
         assert_eq!(full_uri.scheme, "https");
@@ -362,7 +374,10 @@ mod tests {
         assert_eq!(mailto_uri.format_id, FormatId::Uri);
         assert!(!mailto_uri.is_scheme_only);
 
-        let magnet = detect_uri("magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a")?.unwrap();
+        let magnet = detect_uri(
+            "magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a",
+        )?
+        .unwrap();
         assert_eq!(magnet.format_id, FormatId::Magnet);
 
         assert!(detect_uri("not a uri with spaces")?.is_none());

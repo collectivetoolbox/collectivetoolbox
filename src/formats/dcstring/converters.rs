@@ -29,16 +29,18 @@ use crate::utilities::*;
 pub mod ascii;
 pub mod dcal;
 pub mod dceutils;
-pub mod dcts;
 pub mod dctext;
-pub mod utf8;
+pub mod dcts;
 pub mod eite;
+pub mod utf8;
 
 /// Produces DcUtf while retaining binary payload types and checksums.
 ///
 /// # Errors
 /// Returns an error for invalid input or invalid encapsulation metadata.
-pub(crate) fn document_dc_string(doc: &crate::DcMstring) -> Result<crate::DcString> {
+pub(crate) fn document_dc_string(
+    doc: &crate::DcMstring,
+) -> Result<crate::DcString> {
     crate::validate_dcmst(doc.as_bytes())?;
     doc.to_dc_string()
 }
@@ -52,16 +54,16 @@ pub use ascii::{
     dcmstring_to_ascii_with_settings,
 };
 pub use dcal::{dcal_to_dclist, dclist_to_dcal};
-pub use dcts::{
-    dcarray_to_dcts, dclist_to_dcts, dcstring_to_dcts, dcts_to_dcarray,
-    dcts_to_dclist, dcts_to_dcstring, dcts_to_dcutf, dcutf_to_dcts,
-};
 pub use dctext::{
     DcList, dcarray_to_dclist, dcarray_to_dcstring, dcarray_to_dctext,
     dclist_to_dcarray, dclist_to_dctext, dclist_to_dcutf, dcstring_to_dcarray,
     dcstring_to_dctext, dctext_to_dcarray, dctext_to_dclist,
     dctext_to_dcstring, dctext_to_dctf, dctext_to_dcutf, dctf_to_dctext,
     dcutf_to_dclist, dcutf_to_dctext, format_blob_preview,
+};
+pub use dcts::{
+    dcarray_to_dcts, dclist_to_dcts, dcstring_to_dcts, dcts_to_dcarray,
+    dcts_to_dclist, dcts_to_dcstring, dcts_to_dcutf, dcutf_to_dcts,
 };
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,

@@ -100,7 +100,11 @@ impl KStruct for RepeatEosStruct {
     type Root = RepeatEosStruct;
     type Parent = RepeatEosStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,7 +120,12 @@ impl KStruct for RepeatEosStruct {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, RepeatEosStruct_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RepeatEosStruct_Chunk>(
+                    &*_io,
+                    Some(self_rc._root.clone()),
+                    Some(self_rc._self_shared.clone()),
+                )?
+                .into();
                 self_rc.chunks.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -126,8 +135,7 @@ impl KStruct for RepeatEosStruct {
         Ok(())
     }
 }
-impl RepeatEosStruct {
-}
+impl RepeatEosStruct {}
 impl RepeatEosStruct {
     pub fn chunks(&self) -> Ref<'_, Vec<OptRc<RepeatEosStruct_Chunk>>> {
         self.chunks.borrow()
@@ -190,7 +198,11 @@ impl KStruct for RepeatEosStruct_Chunk {
     type Root = RepeatEosStruct;
     type Parent = RepeatEosStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
+    #[allow(
+        clippy::unnecessary_fallible_conversions,
+        clippy::absurd_extreme_comparisons,
+        reason = "Generic validation value conversion"
+    )]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,8 +222,7 @@ impl KStruct for RepeatEosStruct_Chunk {
         Ok(())
     }
 }
-impl RepeatEosStruct_Chunk {
-}
+impl RepeatEosStruct_Chunk {}
 impl RepeatEosStruct_Chunk {
     pub fn offset(&self) -> Ref<'_, u32> {
         self.offset.borrow()

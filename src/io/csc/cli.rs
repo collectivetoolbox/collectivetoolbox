@@ -52,14 +52,17 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     } else {
         // Reason for fallback: When neither HOME nor USERPROFILE is set, fall back to the system temporary directory to avoid writing state journals into the working directory.
         std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE")).map_or_else(|_| std::env::temp_dir(), PathBuf::from)
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .map_or_else(|_| std::env::temp_dir(), PathBuf::from)
     };
 
     let progress = Progress::new(args.should_show_progress());
 
     let (tasks, mut journal) = if let Some(ref resume_path) = args.resume {
         // Resume mode: recover state from journal
-        let journal_path = if resume_path.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+        let journal_path = if resume_path.extension().and_then(|e| e.to_str())
+            == Some("cscdesc")
+        {
             resume_path.with_extension("cscjournal")
         } else {
             resume_path.clone()
@@ -87,7 +90,11 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
             if !std::fs::symlink_metadata(&task.source_root)?.is_dir() {
                 continue;
             }
-            let source_entity = ctb_io::file::FileEntity::from_filesystem_metadata_only(&task.source_root, None)?;
+            let source_entity =
+                ctb_io::file::FileEntity::from_filesystem_metadata_only(
+                    &task.source_root,
+                    None,
+                )?;
             let recorded_root = snap.committed_entities.values().find(|entity| {
                 entity.is_dir() && matches!((&entity.identity.origin, &source_entity.identity.origin),
                     (ctb_io::file::FileOrigin::Filesystem { key, .. },
@@ -100,13 +107,16 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
                     None => snap.destination.clone(),
                 };
             } else {
-                anyhow::ensure!(task.copy_contents_only || !snap.destination.exists(),
-                    "Cannot safely recover the original directory destination from this journal");
+                anyhow::ensure!(
+                    task.copy_contents_only || !snap.destination.exists(),
+                    "Cannot safely recover the original directory destination from this journal"
+                );
             }
         }
         crate::path_resolution::validate_task_overlap(&resolved)?;
 
-        let jw = StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
+        let jw =
+            StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
         (resolved, jw)
     } else {
         // New run: resolve tasks from command-line arguments
@@ -116,12 +126,17 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         );
 
         let (resolved, dest_path) = resolve_tasks(&args.paths)?;
-        let sources: Vec<PathBuf> = resolved.iter().map(|t| t.source_root.clone()).collect();
+        let sources: Vec<PathBuf> =
+            resolved.iter().map(|t| t.source_root.clone()).collect();
 
         let jw = if let Some(ref custom_jp) = args.journal_path {
-            let journal_path = if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscdesc") {
+            let journal_path = if custom_jp.extension().and_then(|e| e.to_str())
+                == Some("cscdesc")
+            {
                 custom_jp.with_extension("cscjournal")
-            } else if custom_jp.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+            } else if custom_jp.extension().and_then(|e| e.to_str())
+                == Some("cscjournal")
+            {
                 custom_jp.clone()
             } else {
                 custom_jp.with_extension("cscjournal")
@@ -132,11 +147,19 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
                 "Journal file already exists at {}: will not overwrite existing file (pass --resume to resume an interrupted run)",
                 journal_path.display()
             );
-            StateJournal::create_at_path(&journal_path, &desc_path, &sources, &dest_path)?
+            StateJournal::create_at_path(
+                &journal_path,
+                &desc_path,
+                &sources,
+                &dest_path,
+            )?
         } else {
             StateJournal::create_new(&home_dir, &sources, &dest_path)?
         };
-        progress.message(&format!("State journal: {}", jw.journal_path().display()));
+        progress.message(&format!(
+            "State journal: {}",
+            jw.journal_path().display()
+        ));
         (resolved, jw)
     };
 
@@ -149,7 +172,8 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     ) {
         Ok(s) => s,
         Err(err) => {
-            if let Err(record_error) = journal.mark_failed(&format!("{err:#}")) {
+            if let Err(record_error) = journal.mark_failed(&format!("{err:#}"))
+            {
                 return Err(err).context(format!(
                     "Recording copy failure in {} also failed: {record_error:#}",
                     journal.journal_path().display()
@@ -168,20 +192,33 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     drop(journal);
 
     let has_errors = error_count > 0 || stats.files_failed > 0;
-    let retain_metadata_journal = warning_count > 0 || stats.copied_entities.iter().any(|(_, _, entity)|
-        crate::journal::entity_requires_metadata_retention(entity));
+    let retain_metadata_journal = warning_count > 0
+        || stats.copied_entities.iter().any(|(_, _, entity)| {
+            crate::journal::entity_requires_metadata_retention(entity)
+        });
     if args.delete_manifest_after && has_errors {
-        warn_fmt!("Retaining {}: it contains recorded error records", journal_path.display());
+        warn_fmt!(
+            "Retaining {}: it contains recorded error records",
+            journal_path.display()
+        );
     } else if args.delete_manifest_after && retain_metadata_journal {
-        warn_fmt!("Retaining {}: it contains original metadata that is not guaranteed to be reproducible", journal_path.display());
+        warn_fmt!(
+            "Retaining {}: it contains original metadata that is not guaranteed to be reproducible",
+            journal_path.display()
+        );
     } else if args.delete_manifest_after {
         if journal_path.exists() {
-            std::fs::remove_file(&journal_path)
-                .with_context(|| format!("Failed to remove journal {}", journal_path.display()))?;
+            std::fs::remove_file(&journal_path).with_context(|| {
+                format!("Failed to remove journal {}", journal_path.display())
+            })?;
         }
         if desc_path.exists() {
-            std::fs::remove_file(&desc_path)
-                .with_context(|| format!("Failed to remove journal description {}", desc_path.display()))?;
+            std::fs::remove_file(&desc_path).with_context(|| {
+                format!(
+                    "Failed to remove journal description {}",
+                    desc_path.display()
+                )
+            })?;
         }
     }
 
@@ -192,7 +229,11 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     use std::fmt::Write;
     writeln!(summary, "--- CSC Summary ---")?;
     if retain_metadata_journal || has_errors {
-        writeln!(summary, "Original metadata journal: {}", journal_path.display())?;
+        writeln!(
+            summary,
+            "Original metadata journal: {}",
+            journal_path.display()
+        )?;
     }
     writeln!(summary, "Files copied:             {}", stats.files_copied)?;
     if stats.files_failed > 0 || !errors.is_empty() {
@@ -220,8 +261,16 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     }
     writeln!(summary, "Bytes transferred:        {}", stats.bytes_copied)?;
     writeln!(summary, "Directories created:      {}", stats.dirs_created)?;
-    writeln!(summary, "Symlinks created:         {}", stats.symlinks_created)?;
-    writeln!(summary, "Hardlinks created:        {}", stats.hardlinks_created)?;
+    writeln!(
+        summary,
+        "Symlinks created:         {}",
+        stats.symlinks_created
+    )?;
+    writeln!(
+        summary,
+        "Hardlinks created:        {}",
+        stats.hardlinks_created
+    )?;
     if stats.special_files_created > 0 {
         writeln!(
             summary,
@@ -244,19 +293,37 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     if warning_count > 0 {
         writeln!(summary, "Warnings recorded:        {warning_count}")?;
         for warning in &warnings {
-            writeln!(summary, "  [Warning] {}: {}", warning.code, warning.message)?;
+            writeln!(
+                summary,
+                "  [Warning] {}: {}",
+                warning.code, warning.message
+            )?;
         }
     }
     if args.should_verify_after() {
-        writeln!(summary, "Files verified:           {}", stats.files_verified)?;
+        writeln!(
+            summary,
+            "Files verified:           {}",
+            stats.files_verified
+        )?;
     }
     writeln!(summary, "Duration:                 {elapsed:.2}s")?;
     if has_errors {
-        writeln!(summary, "Status:                   Completed with {error_count} error record(s) and {} failed file(s).", stats.files_failed)?;
+        writeln!(
+            summary,
+            "Status:                   Completed with {error_count} error record(s) and {} failed file(s).",
+            stats.files_failed
+        )?;
     } else if warning_count > 0 {
-        writeln!(summary, "Status:                   Completed with {warning_count} warning record(s); fidelity limitations are retained in the journal.")?;
+        writeln!(
+            summary,
+            "Status:                   Completed with {warning_count} warning record(s); fidelity limitations are retained in the journal."
+        )?;
     } else {
-        writeln!(summary, "Status:                   All operations verified successfully.")?;
+        writeln!(
+            summary,
+            "Status:                   All operations verified successfully."
+        )?;
     }
 
     if has_errors {
@@ -282,12 +349,12 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 )]
 mod tests {
     use super::*;
-    use crate::args::{default_test_args};
+    use crate::args::default_test_args;
     use crate::cli::run_csc;
     use crate::journal::find_cscjournal;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[crate::ctb_test]
@@ -355,7 +422,8 @@ mod tests {
             vec![src_file.clone(), dest_dir2.clone()],
             state2,
         );
-        run_csc(args2).expect("run csc single file to directory without trailing slash");
+        run_csc(args2)
+            .expect("run csc single file to directory without trailing slash");
         assert_eq!(
             fs::read(dest_dir2.join(".face")).expect("read copied file 2"),
             b"face icon bytes"
@@ -385,23 +453,32 @@ mod tests {
         let state = temp.path().join("state");
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state");
-        fs::write(src.join("test.txt"), b"Configurable journal test").expect("write test.txt");
+        fs::write(src.join("test.txt"), b"Configurable journal test")
+            .expect("write test.txt");
 
         let custom_journal = state.join("my_backup.cscjournal");
         let custom_desc = state.join("my_backup.cscdesc");
 
-        let mut args = default_test_args(vec![src.clone(), dest.clone()], state.clone());
+        let mut args =
+            default_test_args(vec![src.clone(), dest.clone()], state.clone());
         args.journal_path = Some(custom_journal.clone());
 
-        let res = run_csc(args.clone()).expect("run csc with explicit journal path");
+        let res =
+            run_csc(args.clone()).expect("run csc with explicit journal path");
         match res {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
             _ => panic!("Expected immediate tool result"),
         }
 
-        assert!(custom_journal.exists(), "Explicit .cscjournal must be created");
+        assert!(
+            custom_journal.exists(),
+            "Explicit .cscjournal must be created"
+        );
         assert!(custom_desc.exists(), "Explicit .cscdesc must be created");
-        assert!(dest.join("test.txt").exists(), "Destination file must exist");
+        assert!(
+            dest.join("test.txt").exists(),
+            "Destination file must exist"
+        );
 
         // Attempting to run again with the same journal path without --resume must fail
         let err = match run_csc(args) {
@@ -416,7 +493,6 @@ mod tests {
     }
 
     #[cfg(target_os = "linux")]
-
     #[crate::ctb_test]
     fn test_csc_delete_manifest_after() {
         let temp = tempdir().expect("create tempdir");
@@ -426,13 +502,14 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state dir");
 
-        fs::write(src.join("test.txt"), b"Manifest should be deleted after copy").expect("write file");
+        fs::write(
+            src.join("test.txt"),
+            b"Manifest should be deleted after copy",
+        )
+        .expect("write file");
 
         let mut args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         args.delete_manifest_after = true;
@@ -450,7 +527,12 @@ mod tests {
 
         let journal = find_cscjournal(&state);
         let snapshot = crate::journal::read_journal_snapshot(&journal).unwrap();
-        assert!(snapshot.committed_entities.values().any(|entity| entity.metadata.native.is_some()));
+        assert!(
+            snapshot
+                .committed_entities
+                .values()
+                .any(|entity| entity.metadata.native.is_some())
+        );
         assert!(journal.with_extension("cscdesc").exists());
     }
 
@@ -463,30 +545,36 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&state).expect("create state dir");
 
-        fs::write(src.join("test.txt"), b"Hello diagnostics").expect("write test.txt");
+        fs::write(src.join("test.txt"), b"Hello diagnostics")
+            .expect("write test.txt");
 
         let mut args = default_test_args(
-            vec![
-                PathBuf::from(format!("{}/", src.display())),
-                dest.clone(),
-            ],
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
             state.clone(),
         );
         args.continue_on_error = true;
 
         let res = run_csc(args).expect("run csc with continue_on_error");
         match res {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("--- CSC Summary ---"));
                 assert!(out.contains("Files copied:             1"));
                 let journal_path = find_cscjournal(&state);
-                let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
+                let snapshot =
+                    crate::journal::read_journal_snapshot(&journal_path)
+                        .unwrap();
                 if snapshot.warnings.is_empty() {
-                    assert!(out.contains("All operations verified successfully."));
+                    assert!(
+                        out.contains("All operations verified successfully.")
+                    );
                 } else {
-                    assert!(out.contains("fidelity limitations are retained in the journal"));
+                    assert!(out.contains(
+                        "fidelity limitations are retained in the journal"
+                    ));
                 }
             }
             _ => panic!("Expected Immediate ToolResult"),
@@ -497,19 +585,30 @@ mod tests {
         let journal_path = state.join("diagnostics.cscjournal");
         let desc_path = journal_path.with_extension("cscdesc");
         let mut journal = StateJournal::create_at_path(
-            &journal_path, &desc_path, &[source_file.clone()], &resumed_dest,
-        ).unwrap();
+            &journal_path,
+            &desc_path,
+            &[source_file.clone()],
+            &resumed_dest,
+        )
+        .unwrap();
         let message = "Destination filesystem does not support sparse files for resumed.txt";
-        journal.record_warning("FileMaterializationWarning", message).unwrap();
+        journal
+            .record_warning("FileMaterializationWarning", message)
+            .unwrap();
         for error_message in ["First recorded issue", "Second recorded issue"] {
-            journal.record_error(&crate::journal::JournalErrorRecord {
-                path: source_file.clone(),
-                raw_path: source_file.as_os_str().as_encoded_bytes().to_vec(),
-                stage: crate::journal::JournalErrorStage::MetadataRead,
-                error_message: error_message.to_owned(),
-                os_error: None,
-                timestamp_sec: 0,
-            }).unwrap();
+            journal
+                .record_error(&crate::journal::JournalErrorRecord {
+                    path: source_file.clone(),
+                    raw_path: source_file
+                        .as_os_str()
+                        .as_encoded_bytes()
+                        .to_vec(),
+                    stage: crate::journal::JournalErrorStage::MetadataRead,
+                    error_message: error_message.to_owned(),
+                    os_error: None,
+                    timestamp_sec: 0,
+                })
+                .unwrap();
         }
         drop(journal);
         let mut resume_args = default_test_args(Vec::new(), state);
@@ -517,10 +616,14 @@ mod tests {
         resume_args.continue_on_error = true;
         resume_args.delete_manifest_after = true;
         match run_csc(resume_args).unwrap() {
-            ToolResult::Immediate { stdout, exit_code, .. } => {
+            ToolResult::Immediate {
+                stdout, exit_code, ..
+            } => {
                 assert_ne!(exit_code, 0);
                 let out = String::from_utf8(stdout).unwrap();
-                assert!(out.contains(&format!("[Warning] FileMaterializationWarning: {message}")));
+                assert!(out.contains(&format!(
+                    "[Warning] FileMaterializationWarning: {message}"
+                )));
                 assert!(!out.contains("WINE sparse limitations"));
                 assert!(out.contains("Files failed (skipped):   0"));
                 assert!(out.contains("Errors recorded:          2"));

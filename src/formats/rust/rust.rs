@@ -59,5 +59,4 @@ mod tests {
     use ctb_formats_utilities::assert_string_ok_eq;
 
     use super::*;
-
 }

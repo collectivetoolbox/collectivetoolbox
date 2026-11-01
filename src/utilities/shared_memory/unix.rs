@@ -40,13 +40,18 @@ pub fn create_memfd(size: u64) -> Result<i32> {
     let off_size: libc::off_t =
         i64::try_from(size).context("size too large for off_t")?;
 
-    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "android"))]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "freebsd",
+        target_os = "android"
+    ))]
     {
         let name = CString::new("ctb-blob")
             .context("memfd name contained an interior NUL")?;
 
         // Safety: libc call; returns an owned fd on success.
-        let fd = unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };
+        let fd =
+            unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };
         if fd >= 0 {
             // SAFETY: ftruncate sizes the anonymous file backing.
             let rc = unsafe { libc::ftruncate(fd, off_size) };

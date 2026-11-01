@@ -53,7 +53,10 @@ pub fn gid_to_short(gid: u128) -> String {
     if gid <= UNICODE_REGION_END {
         format!("uni:{gid}")
     } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
-        format!("dc:{offset}", offset = gid.saturating_sub(SHORT_DC_REGION_START))
+        format!(
+            "dc:{offset}",
+            offset = gid.saturating_sub(SHORT_DC_REGION_START)
+        )
     } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
         format!(
             "fmt:{offset}",
@@ -63,4 +66,3 @@ pub fn gid_to_short(gid: u128) -> String {
         format!("gid:{gid}")
     }
 }
-

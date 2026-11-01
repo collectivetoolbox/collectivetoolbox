@@ -88,7 +88,8 @@ pub fn dclist_to_dcts_string_with_options(
                 }
             }
             output.push_str("@296@");
-        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dcid) {
+        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dcid)
+        {
             let short_id = dcid.saturating_sub(SHORT_DC_REGION_START);
             output.push_str(&format!("@{short_id}@"));
         } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&dcid) {
@@ -137,19 +138,37 @@ mod tests {
     fn test_dclist_to_dcts_plain_and_escapes() {
         // Plain text: "hello"
         let stream = vec![104, 101, 108, 108, 111];
-        assert_eq!(dclist_to_dcts_string_with_options(&stream, DctsOptions::default()), "hello");
+        assert_eq!(
+            dclist_to_dcts_string_with_options(&stream, DctsOptions::default()),
+            "hello"
+        );
 
         // Literal '@'
         let at_stream = vec![64];
-        assert_eq!(dclist_to_dcts_string_with_options(&at_stream, DctsOptions::default()), "@@");
+        assert_eq!(
+            dclist_to_dcts_string_with_options(
+                &at_stream,
+                DctsOptions::default()
+            ),
+            "@@"
+        );
 
         // Short Dc 123
         let short_dc = SHORT_DC_REGION_START.saturating_add(123);
-        assert_eq!(dclist_to_dcts_string_with_options(&[short_dc], DctsOptions::default()), "@123@");
+        assert_eq!(
+            dclist_to_dcts_string_with_options(
+                &[short_dc],
+                DctsOptions::default()
+            ),
+            "@123@"
+        );
 
         // Format 80
         let fmt = FORMAT_REGION_START.saturating_add(80);
-        assert_eq!(dclist_to_dcts_string_with_options(&[fmt], DctsOptions::default()), "@f80@");
+        assert_eq!(
+            dclist_to_dcts_string_with_options(&[fmt], DctsOptions::default()),
+            "@f80@"
+        );
     }
 
     #[crate::ctb_test]
@@ -157,13 +176,16 @@ mod tests {
         let stream = vec![10, 0, 9]; // '\n', '\0', '\t'
 
         // Default: raw control chars
-        let raw = dclist_to_dcts_string_with_options(&stream, DctsOptions::default());
+        let raw =
+            dclist_to_dcts_string_with_options(&stream, DctsOptions::default());
         assert_eq!(raw, "\n\0\t");
 
         // Escaped: control chars converted to @u...
         let escaped = dclist_to_dcts_string_with_options(
             &stream,
-            DctsOptions { escape_control_chars: true },
+            DctsOptions {
+                escape_control_chars: true,
+            },
         );
         assert_eq!(escaped, "@ua@@u0@@u9@");
     }

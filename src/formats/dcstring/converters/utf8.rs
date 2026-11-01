@@ -44,8 +44,8 @@ use ctb_formats_eite::encoding::basenb::{
 use ctb_formats_utf8::{UTF8_REPLACEMENT_CHARACTER, first_char_of_utf8_string};
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 
-use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
 use super::dctext::{DcList, dclist_to_dcutf, dcutf_to_dclist};
+use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
 
 /// Raw 16-byte array for Start UUID: `1880aba3-21df-42b2-9c96-e32cd647ffc5`
 pub const DCL_BASENB_START_UUID_RAW: [u8; 16] = [
@@ -115,9 +115,10 @@ pub fn dclist_to_utf8(
     let mut out = Vec::new();
     let mut unmappables: Vec<u128> = Vec::new();
     let mut found_any_unmappables = false;
-    let max_short_u128 =
-        u128::try_from(ctb_formats_dcdata::maximum_known_short_dc())
-            .map_err(|e| anyhow!("Failed to convert maximum_known_short_dc: {e}"))?;
+    let max_short_u128 = u128::try_from(
+        ctb_formats_dcdata::maximum_known_short_dc(),
+    )
+    .map_err(|e| anyhow!("Failed to convert maximum_known_short_dc: {e}"))?;
 
     let start_uuid_bytes = dcl_basenb_start_uuid_bytes()?;
     let end_uuid_bytes = dcl_basenb_end_uuid_bytes()?;
@@ -157,7 +158,9 @@ pub fn dclist_to_utf8(
 
                 if settings.canonicalize_equivalent_dcs {
                     // Sub-case 2a: Legacy base64 UTF-8 sequence starting with DcRole::StartEncapsulationUtf8 (191)
-                    if resolver.token_fills_role(dc, DcRole::StartEncapsulationUtf8) {
+                    if resolver
+                        .token_fills_role(dc, DcRole::StartEncapsulationUtf8)
+                    {
                         let mut j = i.saturating_add(1);
                         let mut truncated = true;
                         #[expect(
@@ -168,12 +171,19 @@ pub fn dclist_to_utf8(
                             let cur_dc = *dclist.get(j).expect(
                                 "j < dclist.len() guarantees in-bounds access",
                             );
-                            if resolver.token_fills_role(cur_dc, DcRole::EndEncapsulationUtf8) {
+                            if resolver.token_fills_role(
+                                cur_dc,
+                                DcRole::EndEncapsulationUtf8,
+                            ) {
                                 truncated = false;
                                 break;
                             }
-                            if resolver.token_fills_role(cur_dc, DcRole::Base64Digit)
-                                || resolver.token_fills_role(cur_dc, DcRole::Base64Padding)
+                            if resolver
+                                .token_fills_role(cur_dc, DcRole::Base64Digit)
+                                || resolver.token_fills_role(
+                                    cur_dc,
+                                    DcRole::Base64Padding,
+                                )
                             {
                                 j = j.saturating_add(1);
                             } else {
@@ -185,11 +195,16 @@ pub fn dclist_to_utf8(
                             let mut inner_dcs = Vec::new();
                             for k in i.saturating_add(1)..j {
                                 if let Some(&k_dc) = dclist.get(k) {
-                                    let canon_k_dc = resolver.canonical_token(k_dc);
-                                    if let Some(digit) = resolver.base64_digit_value(canon_k_dc) {
+                                    let canon_k_dc =
+                                        resolver.canonical_token(k_dc);
+                                    if let Some(digit) =
+                                        resolver.base64_digit_value(canon_k_dc)
+                                    {
                                         inner_dcs.push(ctb_formats_dcdata::dc_number_minimal::dc_base64_digit_to_char(digit).to_short()?);
                                     } else if let Ok(k_short) = u32::try_from(
-                                        canon_k_dc.saturating_sub(SHORT_DC_REGION_START),
+                                        canon_k_dc.saturating_sub(
+                                            SHORT_DC_REGION_START,
+                                        ),
                                     ) {
                                         inner_dcs.push(k_short);
                                     }
@@ -236,13 +251,17 @@ pub fn dclist_to_utf8(
                     }
                     let lookup_short = if canon_dc >= SHORT_DC_REGION_START {
                         // Reason for fallback: If offset from SHORT_DC_REGION_START exceeds u32, fallback to original short_dc.
-                        u32::try_from(canon_dc.saturating_sub(SHORT_DC_REGION_START)).unwrap_or(short_dc)
+                        u32::try_from(
+                            canon_dc.saturating_sub(SHORT_DC_REGION_START),
+                        )
+                        .unwrap_or(short_dc)
                     } else {
                         short_dc
                     };
                     if let Ok((mapped_bytes, dc_log)) =
                         ctb_formats_eite::formats::dc_to_format(
-                            "utf8", lookup_short,
+                            "utf8",
+                            lookup_short,
                         )
                     {
                         log.merge(&dc_log);
@@ -475,8 +494,8 @@ pub fn dclist_from_utf8(
                         } else {
                             remaining = &[];
                         }
-                    } else if let Some(rem) =
-                        remaining.get(pos.saturating_add(end_uuid_bytes.len())..)
+                    } else if let Some(rem) = remaining
+                        .get(pos.saturating_add(end_uuid_bytes.len())..)
                     {
                         remaining = rem;
                     } else {
@@ -529,7 +548,9 @@ pub fn utf8_to_dclist(
 }
 
 /// Converts UTF-8 text bytes to a `DcMstring`.
-pub fn utf8_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn utf8_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     utf8_to_dcmstring_with_options(bytes, false)
 }
 
@@ -541,14 +562,17 @@ pub fn utf8_to_dcmstring_with_options(
     if !permissive {
         let text = std::str::from_utf8(bytes)
             .map_err(|e| anyhow!("Input is not valid UTF-8 text: {e}"))?;
-        let dc_str = crate::DcStr::from_bytes(text.as_bytes())
-            .map_err(|e| anyhow!("UTF-8 text contains invalid Dc sequences: {e}"))?;
+        let dc_str =
+            crate::DcStr::from_bytes(text.as_bytes()).map_err(|e| {
+                anyhow!("UTF-8 text contains invalid Dc sequences: {e}")
+            })?;
         let doc = crate::DcMstring::from_dc_str(dc_str)?;
         return Ok((doc, FormatLog::default()));
     }
 
     let mut log = FormatLog::default();
-    let mut doc = crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
+    let mut doc =
+        crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
     let mut offset = 0usize;
     for chunk in bytes.utf8_chunks() {
         let valid = chunk.valid();
@@ -573,7 +597,9 @@ pub fn utf8_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` to UTF-8 bytes.
-pub fn dcmstring_to_utf8(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_utf8(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     let dclist = dc_string.to_dclist();
     let conv = dclist_to_utf8(&dclist, &DcListUtf8Settings::default())?;
@@ -581,7 +607,9 @@ pub fn dcmstring_to_utf8(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
 }
 
 /// Converts DcTF bytes to a `DcMstring`.
-pub fn dctf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn dctf_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     dctf_to_dcmstring_with_options(bytes, false)
 }
 
@@ -591,18 +619,23 @@ pub fn dctf_to_dcmstring_with_options(
     permissive: bool,
 ) -> Result<(crate::DcMstring, FormatLog)> {
     if !permissive {
-        let dc_str = crate::DcStr::from_bytes(bytes)
-            .map_err(|e| anyhow!("Input bytes do not conform to valid DcTF format: {e}"))?;
+        let dc_str = crate::DcStr::from_bytes(bytes).map_err(|e| {
+            anyhow!("Input bytes do not conform to valid DcTF format: {e}")
+        })?;
         let doc = crate::DcMstring::from_dc_str(dc_str)?;
         return Ok((doc, FormatLog::default()));
     }
 
     let mut log = FormatLog::default();
-    let mut doc = crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
+    let mut doc =
+        crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
     let mut offset = 0usize;
     while offset < bytes.len() {
-        let Some(slice) = bytes.get(offset..) else { break };
-        if let Some((val, char_len)) = ctb_formats_dctf::decode_dctf_buf(slice) {
+        let Some(slice) = bytes.get(offset..) else {
+            break;
+        };
+        if let Some((val, char_len)) = ctb_formats_dctf::decode_dctf_buf(slice)
+        {
             doc.push_char(crate::DcChar(val));
             offset = offset.saturating_add(char_len);
         } else {
@@ -625,13 +658,17 @@ pub fn dctf_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` to DcTF bytes.
-pub fn dcmstring_to_dctf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_dctf(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     Ok((dc_string.into_bytes(), FormatLog::default()))
 }
 
 /// Converts legacy DcUtf bytes to a `DcMstring`.
-pub fn dcutf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+pub fn dcutf_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
     dcutf_to_dcmstring_with_options(bytes, false)
 }
 
@@ -641,20 +678,28 @@ pub fn dcutf_to_dcmstring_with_options(
     permissive: bool,
 ) -> Result<(crate::DcMstring, FormatLog)> {
     if !permissive {
-        crate::validate_dcutf(bytes)
-            .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
-        let dc_string = crate::DcString::from_dcutf(bytes.to_vec())
-            .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
+        crate::validate_dcutf(bytes).map_err(|e| {
+            anyhow!("Input bytes do not conform to valid DcUtf format: {e}")
+        })?;
+        let dc_string =
+            crate::DcString::from_dcutf(bytes.to_vec()).map_err(|e| {
+                anyhow!("Input bytes do not conform to valid DcUtf format: {e}")
+            })?;
         let doc = crate::DcMstring::from_dc_string(&dc_string)?;
         return Ok((doc, FormatLog::default()));
     }
 
     let mut log = FormatLog::default();
-    let mut doc = crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
+    let mut doc =
+        crate::DcMstring::with_capacity(bytes.len().saturating_add(21));
     let mut offset = 0usize;
     while offset < bytes.len() {
-        let Some(slice) = bytes.get(offset..) else { break };
-        if let Some((val, char_len)) = ctb_formats_dctf::decode_utf_8e_128_buf(slice) {
+        let Some(slice) = bytes.get(offset..) else {
+            break;
+        };
+        if let Some((val, char_len)) =
+            ctb_formats_dctf::decode_utf_8e_128_buf(slice)
+        {
             doc.push_char(crate::DcChar(val));
             offset = offset.saturating_add(char_len);
         } else {
@@ -677,7 +722,9 @@ pub fn dcutf_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` to legacy DcUtf bytes.
-pub fn dcmstring_to_dcutf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+pub fn dcmstring_to_dcutf(
+    doc: &crate::DcMstring,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     let bytes = super::dctext::dclist_to_dcutf(&dc_string.to_dclist());
     Ok((bytes, FormatLog::default()))

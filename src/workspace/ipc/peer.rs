@@ -112,10 +112,16 @@ impl IpcPeer {
                         let (cancel_tx, cancel_rx) = oneshot::channel();
                         {
                             let mut active = peer.active_requests.lock().await;
-                            if let std::collections::hash_map::Entry::Vacant(entry) = active.entry(request_id) {
+                            if let std::collections::hash_map::Entry::Vacant(
+                                entry,
+                            ) = active.entry(request_id)
+                            {
                                 entry.insert(Some(cancel_tx));
                             } else {
-                                warn_fmt!("Duplicate active IPC request id: {}", request_id);
+                                warn_fmt!(
+                                    "Duplicate active IPC request id: {}",
+                                    request_id
+                                );
                                 continue;
                             }
                         }
@@ -147,7 +153,10 @@ impl IpcPeer {
                                     }
                                 }
                             };
-                            peer.active_requests.lock().await.remove(&request_id);
+                            peer.active_requests
+                                .lock()
+                                .await
+                                .remove(&request_id);
 
                             let _guard = peer.send_lock.lock().await;
                             if let Err(e) = peer
@@ -172,12 +181,23 @@ impl IpcPeer {
                         }
                     }
                     Message::Cancel(Cancel { id }) => {
-                        let cancel_tx = peer.active_requests.lock().await.get_mut(&id).and_then(Option::take);
+                        let cancel_tx = peer
+                            .active_requests
+                            .lock()
+                            .await
+                            .get_mut(&id)
+                            .and_then(Option::take);
                         if let Some(cancel_tx) = cancel_tx {
                             let _ = cancel_tx.send(());
                         }
-                        if let Err(error) = peer.router.observe_cancel(&peer.ctx, id).await {
-                            warn_fmt!("Failed to observe IPC cancellation {}: {:#}", id, error);
+                        if let Err(error) =
+                            peer.router.observe_cancel(&peer.ctx, id).await
+                        {
+                            warn_fmt!(
+                                "Failed to observe IPC cancellation {}: {:#}",
+                                id,
+                                error
+                            );
                         }
                     }
                     // Not handled by the peer today.
