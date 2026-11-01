@@ -3002,7 +3002,7 @@ mod tests {
             );
         }
 
-        // 5. Verify committed journal provenance and allocated .dcsh files across the repository.
+        // 5. Verify committed journal provenance and allocated .ctbnode-incoming files across the repository.
         let repo_root = crate::updater::find_repository_root()?;
         let prov_map =
             crate::graph_ledger::inbox::verify_repo_committed_node_provenance(

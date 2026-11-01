@@ -1692,7 +1692,273 @@ pub fn recover_pending_ledger_journal_with_guard(
     };
     append_journal_record(&journal_path, &committed, fault)?;
     stamp_journal_initialized_marker(repo_root)?;
+    let _ = compact_closed_ledger_chunks_with_guard(write_guard, repo_root)?;
     Ok(true)
+}
+
+/// Compacts `ledger-journal.jsonl` and removes closed-chunk `.ctbnode-incoming` (and legacy `.dcsh`)
+/// files from `src/formats/dcdata/data-src/nodes/allocated/` for all `.ctbnodes` chunk files that
+/// have reached `MAX_NODES_PER_CHUNK` (`100` nodes) and are therefore closed.
+///
+/// Any `Manual` provenance items (`provenance == "manual"`) in closed chunks are retained inside the
+/// compacted `bootstrap_checkpoint` record's `items` list (with `inbox_name`, `allocated_name`, and
+/// `inbox_sha256` cleared) so `Manual` node ownership is permanently preserved across compactions.
+pub fn compact_closed_ledger_chunks(repo_root: &Path) -> Result<usize> {
+    let write_guard = LedgerWriteGuard::acquire(repo_root)?;
+    compact_closed_ledger_chunks_with_guard(&write_guard, repo_root)
+}
+
+/// Internal closed-chunk compaction operating under an already-held [`LedgerWriteGuard`].
+pub fn compact_closed_ledger_chunks_with_guard(
+    write_guard: &LedgerWriteGuard,
+    repo_root: &Path,
+) -> Result<usize> {
+    let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
+    if !journal_path.is_file() {
+        return Ok(0);
+    }
+    let parsed = inspect_ledger_journal(&journal_path)?;
+    if parsed.open_pending.is_some()
+        || parsed.torn_trailing_fragment.is_some()
+        || parsed.committed_pairs.is_empty()
+    {
+        return Ok(0);
+    }
+
+    let graph_dir = repo_root.join("assets/data/graph");
+    let nodes =
+        load_ledger_nodes_from_dir_with_write_guard(write_guard, &graph_dir)?;
+    let closed_node_count = nodes
+        .len()
+        .checked_div(MAX_NODES_PER_CHUNK)
+        .unwrap_or(0)
+        .saturating_mul(MAX_NODES_PER_CHUNK);
+    if closed_node_count == 0 {
+        return Ok(0);
+    }
+    let Some(closed_nodes) = nodes.get(..closed_node_count) else {
+        return Ok(0);
+    };
+    let Some(last_closed_node) = closed_nodes.last() else {
+        return Ok(0);
+    };
+    let closed_cutoff_id = last_closed_node.id;
+
+    let existing_bootstrap_last_id = parsed
+        .committed_pairs
+        .iter()
+        .find(|(p, _)| p.kind == "bootstrap_checkpoint")
+        .map_or(0, |(p, _)| p.final_last_id);
+
+    let allocated_dir =
+        repo_root.join("src/formats/dcdata/data-src/nodes/allocated");
+    let mut removable_files: Vec<PathBuf> = Vec::new();
+    if allocated_dir.is_dir() {
+        for entry in fs::read_dir(&allocated_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let ext = path.extension().and_then(|e| e.to_str());
+            if ext != Some("ctbnode-incoming") && ext != Some("dcsh") {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if let Some((prefix, _)) = name.split_once('_')
+                && let Ok(file_node_id) = prefix.parse::<u128>()
+                && file_node_id <= closed_cutoff_id
+            {
+                removable_files.push(path);
+            }
+        }
+    }
+    removable_files.sort();
+
+    if closed_cutoff_id <= existing_bootstrap_last_id
+        && removable_files.is_empty()
+    {
+        return Ok(0);
+    }
+
+    if closed_cutoff_id > existing_bootstrap_last_id {
+        let mut node_by_id: HashMap<u128, &LedgerNode> =
+            HashMap::with_capacity(nodes.len());
+        for node in &nodes {
+            node_by_id.insert(node.id, node);
+        }
+
+        let mut manual_items_by_id: BTreeMap<u128, PlannedLedgerItem> =
+            BTreeMap::new();
+        for (pending, committed) in &parsed.committed_pairs {
+            for item in &pending.items {
+                let Some(&ledger_node) = node_by_id.get(&item.node_id) else {
+                    bail!(
+                        "CRITICAL: Cannot compact journal {}: node l{} from {} is missing from .ctbnodes",
+                        journal_path.display(),
+                        item.node_id,
+                        committed.batch_id
+                    );
+                };
+                let actual_line = ledger_node.format_line();
+                ensure!(
+                    actual_line == item.raw_line,
+                    "CRITICAL: Cannot compact journal {}: node l{} in .ctbnodes ({:?}) does not match {} ({:?})",
+                    journal_path.display(),
+                    item.node_id,
+                    actual_line,
+                    committed.batch_id,
+                    item.raw_line
+                );
+                if item.node_id <= closed_cutoff_id
+                    && item.provenance == "manual"
+                {
+                    let mut clean_item = item.normalized_for_journal();
+                    clean_item.inbox_name = None;
+                    clean_item.allocated_name = None;
+                    clean_item.inbox_sha256 = None;
+                    manual_items_by_id.insert(item.node_id, clean_item);
+                }
+            }
+        }
+
+        let closed_ledger_sha256 =
+            compute_nodes_slice_ledger_sha256(closed_nodes);
+        let mut remaining_pairs: Vec<(JournalRecord, JournalRecord)> =
+            Vec::new();
+
+        for (pending, committed) in &parsed.committed_pairs {
+            if pending.kind == "bootstrap_checkpoint"
+                || pending.final_last_id <= closed_cutoff_id
+            {
+                continue;
+            }
+            if pending.baseline_last_id < closed_cutoff_id {
+                let mut trimmed_pending = pending.clone();
+                trimmed_pending
+                    .items
+                    .retain(|item| item.node_id > closed_cutoff_id);
+                trimmed_pending.baseline_last_id = closed_cutoff_id;
+                trimmed_pending.baseline_ledger_sha256 =
+                    closed_ledger_sha256.clone();
+                trimmed_pending.manifest_sha256 = None;
+                trimmed_pending = trimmed_pending.with_computed_sha256()?;
+
+                let mut trimmed_committed = committed.clone();
+                trimmed_committed.baseline_last_id = closed_cutoff_id;
+                trimmed_committed.baseline_ledger_sha256 =
+                    closed_ledger_sha256.clone();
+                trimmed_committed.manifest_sha256 = None;
+                trimmed_committed = trimmed_committed.with_computed_sha256()?;
+
+                remaining_pairs.push((trimmed_pending, trimmed_committed));
+            } else {
+                remaining_pairs.push((pending.clone(), committed.clone()));
+            }
+        }
+
+        let compacted_manual_items: Vec<PlannedLedgerItem> =
+            manual_items_by_id.into_values().collect();
+        let batch_id = format!("bootstrap-compacted-{closed_cutoff_id}");
+        let (manifest_sha256, active_bundles_sha256, history_bundles_sha256) =
+            if remaining_pairs.is_empty()
+                && let Some(last_comm) = &parsed.last_committed
+            {
+                (
+                    last_comm.manifest_sha256.clone(),
+                    last_comm.active_bundles_sha256.clone(),
+                    last_comm.history_bundles_sha256.clone(),
+                )
+            } else {
+                (None, BTreeMap::new(), BTreeMap::new())
+            };
+
+        let ckpt_pending = JournalRecord {
+            state: "BATCH_PENDING".to_string(),
+            batch_id: batch_id.clone(),
+            kind: "bootstrap_checkpoint".to_string(),
+            baseline_last_id: closed_cutoff_id,
+            baseline_ledger_sha256: closed_ledger_sha256.clone(),
+            final_last_id: closed_cutoff_id,
+            final_ledger_sha256: closed_ledger_sha256.clone(),
+            manifest_sha256: manifest_sha256.clone(),
+            items: compacted_manual_items,
+            active_bundles_sha256: BTreeMap::new(),
+            history_bundles_sha256: BTreeMap::new(),
+            record_sha256: String::new(),
+        }
+        .with_computed_sha256()?;
+
+        let ckpt_committed = JournalRecord {
+            state: "BATCH_COMMITTED".to_string(),
+            batch_id,
+            kind: "bootstrap_checkpoint".to_string(),
+            baseline_last_id: closed_cutoff_id,
+            baseline_ledger_sha256: closed_ledger_sha256.clone(),
+            final_last_id: closed_cutoff_id,
+            final_ledger_sha256: closed_ledger_sha256,
+            manifest_sha256,
+            items: Vec::new(),
+            active_bundles_sha256,
+            history_bundles_sha256,
+            record_sha256: String::new(),
+        }
+        .with_computed_sha256()?;
+
+        let mut serialized = String::new();
+        serialized.push_str(&serde_json::to_string(&ckpt_pending)?);
+        serialized.push('\n');
+        serialized.push_str(&serde_json::to_string(&ckpt_committed)?);
+        serialized.push('\n');
+        for (p, c) in &remaining_pairs {
+            serialized.push_str(&serde_json::to_string(p)?);
+            serialized.push('\n');
+            serialized.push_str(&serde_json::to_string(c)?);
+            serialized.push('\n');
+        }
+
+        let tmp_path = journal_path.with_extension("jsonl.compact.tmp");
+        {
+            let mut f = OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .open(&tmp_path)
+                .with_context(|| {
+                    format!("Failed to create {}", tmp_path.display())
+                })?;
+            f.write_all(serialized.as_bytes())?;
+            f.sync_all()?;
+        }
+        fs::rename(&tmp_path, &journal_path).with_context(|| {
+            format!(
+                "Failed to replace {} with compacted journal {}",
+                journal_path.display(),
+                tmp_path.display()
+            )
+        })?;
+        fsync_file(&journal_path)?;
+        if let Some(parent) = journal_path.parent() {
+            fsync_dir(parent)?;
+        }
+    }
+
+    let removed_count = removable_files.len();
+    for path in removable_files {
+        fs::remove_file(&path).with_context(|| {
+            format!(
+                "Failed to remove closed-chunk allocated file {}",
+                path.display()
+            )
+        })?;
+    }
+    if removed_count > 0 {
+        fsync_dir(&allocated_dir)?;
+    }
+
+    Ok(removed_count)
 }
 
 /// External reader/packager gate: verifies under `LedgerReadGuard` (`LOCK_SH`) that:
@@ -1856,6 +2122,10 @@ where
         dry_run,
         fault,
     )?;
+
+    if !dry_run && manifest_ref.is_none() {
+        let _ = compact_closed_ledger_chunks_with_guard(&write_guard, repo_root)?;
+    }
 
     let parsed = inspect_ledger_journal(&journal_path)?;
     if dry_run && recovered_pending {

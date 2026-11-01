@@ -1383,6 +1383,8 @@ pub enum FormatId {
     CollectiveToolbox,
     /// Character encoding format variation (Short 650, Category: format_variant)
     EncodingVariant,
+    /// Collective Toolbox incoming graph node (shorthand text) (Short 651, Category: document)
+    CtbNodeIncoming,
 }
 
 impl FormatId {
@@ -1663,7 +1665,8 @@ impl FormatId {
             | Self::DcMixed2
             | Self::CtbNodeBundle1
             | Self::CtbNodeBundle2
-            | Self::CtbNodeV3 => FormatCategory::Document,
+            | Self::CtbNodeV3
+            | Self::CtbNodeIncoming => FormatCategory::Document,
             Self::Second
             | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
@@ -2701,6 +2704,7 @@ impl FormatId {
             "cscarchive2" | "csc_archive2" => Some(Self::CscArchive2),
             "collectivetoolbox" | "collective_toolbox" => Some(Self::CollectiveToolbox),
             "encodingvariant" | "encoding_variant" => Some(Self::EncodingVariant),
+            "ctbnodeincoming" | "ctb_node_incoming" | "ctbnode-incoming" => Some(Self::CtbNodeIncoming),
             _ => None,
         }
     }
@@ -3360,6 +3364,7 @@ impl FormatId {
             Self::CscArchive2 => "CscArchive2",
             Self::CollectiveToolbox => "CollectiveToolbox",
             Self::EncodingVariant => "EncodingVariant",
+            Self::CtbNodeIncoming => "CtbNodeIncoming",
         }
     }
 
@@ -3565,6 +3570,7 @@ impl FormatId {
             Self::CtbNodeBundle2 => &[Self::CtbNodeBundle],
             Self::CscJournal5 => &[Self::CscJournal],
             Self::CscArchive2 => &[Self::CscArchive],
+            Self::CtbNodeIncoming => &[Self::Text],
             _ => &[],
         }
     }
@@ -4224,6 +4230,7 @@ impl FormatId {
             Self::CscArchive2 => "f648",
             Self::CollectiveToolbox => "f649",
             Self::EncodingVariant => "f650",
+            Self::CtbNodeIncoming => "f651",
         }
     }
 
@@ -4883,6 +4890,7 @@ impl FormatId {
             "f648" => Some(Self::CscArchive2),
             "f649" => Some(Self::CollectiveToolbox),
             "f650" => Some(Self::EncodingVariant),
+            "f651" => Some(Self::CtbNodeIncoming),
             _ => None,
         }
     }
@@ -5542,6 +5550,7 @@ impl FormatId {
             Self::CscArchive2 => Some(2228872_u128),
             Self::CollectiveToolbox => Some(2228873_u128),
             Self::EncodingVariant => Some(2228874_u128),
+            Self::CtbNodeIncoming => Some(2228875_u128),
         }
     }
 
@@ -6213,6 +6222,7 @@ impl FormatId {
             2228872_u128 => Some(Self::CscArchive2),
             2228873_u128 => Some(Self::CollectiveToolbox),
             2228874_u128 => Some(Self::EncodingVariant),
+            2228875_u128 => Some(Self::CtbNodeIncoming),
             _ => None,
         }
     }
@@ -7520,3 +7530,5 @@ pub const DC_CSC_ARCHIVE2: DcChar = DcChar::from_format(648);
 pub const DC_COLLECTIVE_TOOLBOX: DcChar = DcChar::from_format(649);
 /// DcChar constant for Format `EncodingVariant` (Short f650, Category: format_variant): Character encoding format variation
 pub const DC_ENCODING_VARIANT: DcChar = DcChar::from_format(650);
+/// DcChar constant for Format `CtbNodeIncoming` (Short f651, Category: document): Collective Toolbox incoming graph node (shorthand text)
+pub const DC_CTB_NODE_INCOMING: DcChar = DcChar::from_format(651);

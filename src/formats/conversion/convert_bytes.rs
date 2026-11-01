@@ -248,6 +248,12 @@ pub fn convert_bytes_to_dcmstring(
                 options.permissive,
             )?
         }
+        SupportedDcInputFormat::CtbNodeIncoming => {
+            ctb_formats_dcstring::converters::dcal::ctbnode_incoming_to_dcmstring_with_options(
+                bytes,
+                options.permissive,
+            )?
+        }
         SupportedDcInputFormat::CtbNodes => {
             ctb_formats_dcstring::converters::dcal::ctbnodes_to_dcmstring_with_options(
                 bytes,
@@ -987,6 +993,44 @@ mod tests {
         )
         .expect("dcsh export");
         assert_eq!(dcsh_out.bytes, dcsh_in);
+
+        // 2b. CtbNodeIncoming autodetection and import (strict and permissive)
+        let incoming_in = b"# @provenance: manual\n# @rationale: Manual incoming node fixture\n# @comment: Sample node\nu41 296 f80 # inline comment\n";
+        let incoming_res = convert_bytes_to_dcmstring(
+            incoming_in,
+            Some("001_sample.ctbnode-incoming"),
+            &DcConversionOptions::default(),
+        )
+        .expect("ctbnode-incoming autodetect import");
+        assert_eq!(incoming_res.detected_format, FormatId::CtbNodeIncoming);
+        assert_eq!(incoming_res.document.as_bytes(), dcsh_res.document.as_bytes());
+
+        // Strict CtbNodeIncoming rejects missing # @provenance header, while permissive mode recovers tokens
+        let missing_prov = b"# @comment: Missing provenance\nu41 296 f80\n";
+        assert!(
+            convert_bytes_to_dcmstring(
+                missing_prov,
+                Some("bad.ctbnode-incoming"),
+                &DcConversionOptions {
+                    format: FormatSpec::Format(SupportedDcInputFormat::CtbNodeIncoming),
+                    permissive: false,
+                    ..Default::default()
+                },
+            )
+            .is_err()
+        );
+        let perm_incoming = convert_bytes_to_dcmstring(
+            missing_prov,
+            Some("bad.ctbnode-incoming"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::CtbNodeIncoming),
+                permissive: true,
+                ..Default::default()
+            },
+        )
+        .expect("permissive ctbnode-incoming import");
+        assert!(perm_incoming.log.has_warnings());
+        assert_eq!(perm_incoming.document.as_bytes(), dcsh_res.document.as_bytes());
 
         // 3. CscArchive roundtrip
         let arch_out = convert_dcmstring_to_bytes(

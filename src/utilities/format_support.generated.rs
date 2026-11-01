@@ -900,6 +900,9 @@ pub enum SupportedDcInputFormat {
     /// Collective Toolbox Node Bundle, version 2
     #[value(name = "ctbnbdl2", alias = "ctbnodebundle2", alias = "CtbNodeBundle2", alias = "f645")]
     CtbNodeBundle2,
+    /// Collective Toolbox incoming graph node (shorthand text)
+    #[value(name = "ctbnode-incoming", alias = "ctbnodeincoming", alias = "CtbNodeIncoming", alias = "f651")]
+    CtbNodeIncoming,
     /// Collective Toolbox graph nodes (shorthand text)
     #[value(name = "ctbnodes", alias = "CtbNodes", alias = "f639")]
     CtbNodes,
@@ -1019,6 +1022,7 @@ impl SupportedDcInputFormat {
         Self::CtbNodeBundle,
         Self::CtbNodeBundle1,
         Self::CtbNodeBundle2,
+        Self::CtbNodeIncoming,
         Self::CtbNodes,
         Self::DcIdList,
         Self::Dcal,
@@ -1076,6 +1080,7 @@ impl SupportedDcInputFormat {
         FormatId::CtbNodeBundle,
         FormatId::CtbNodeBundle1,
         FormatId::CtbNodeBundle2,
+        FormatId::CtbNodeIncoming,
         FormatId::CtbNodes,
         FormatId::DcIdList,
         FormatId::Dcal,
@@ -1138,6 +1143,7 @@ impl SupportedDcInputFormat {
             Self::CtbNodeBundle => "ctbnbdl",
             Self::CtbNodeBundle1 => "ctbnbdl1",
             Self::CtbNodeBundle2 => "ctbnbdl2",
+            Self::CtbNodeIncoming => "ctbnode-incoming",
             Self::CtbNodes => "ctbnodes",
             Self::DcIdList => "dc_id_list",
             Self::Dcal => "dcal",
@@ -1198,6 +1204,7 @@ impl SupportedDcInputFormat {
             Self::CtbNodeBundle => FormatId::CtbNodeBundle,
             Self::CtbNodeBundle1 => FormatId::CtbNodeBundle1,
             Self::CtbNodeBundle2 => FormatId::CtbNodeBundle2,
+            Self::CtbNodeIncoming => FormatId::CtbNodeIncoming,
             Self::CtbNodes => FormatId::CtbNodes,
             Self::DcIdList => FormatId::DcIdList,
             Self::Dcal => FormatId::Dcal,
@@ -1258,6 +1265,7 @@ impl SupportedDcInputFormat {
             FormatId::CtbNodeBundle => Some(Self::CtbNodeBundle),
             FormatId::CtbNodeBundle1 => Some(Self::CtbNodeBundle1),
             FormatId::CtbNodeBundle2 => Some(Self::CtbNodeBundle2),
+            FormatId::CtbNodeIncoming => Some(Self::CtbNodeIncoming),
             FormatId::CtbNodes => Some(Self::CtbNodes),
             FormatId::DcIdList => Some(Self::DcIdList),
             FormatId::Dcal => Some(Self::Dcal),

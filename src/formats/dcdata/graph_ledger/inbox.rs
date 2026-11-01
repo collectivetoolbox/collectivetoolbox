@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Manual and staged `.dcsh` node allocation pipeline (`nodes/inbox/` -> `nodes/allocated/`),
+//! Manual and staged `.ctbnode-incoming` node allocation pipeline (`nodes/inbox/` -> `nodes/allocated/`),
 //! dynamic effective-state prevalidation, `BATCH_COMMITTED` provenance verification, and
 //! cross-ownership protection between `csv` and `manual` graph nodes.
 
@@ -91,7 +91,7 @@ pub struct NodeProvenanceEntry {
     pub provenance: NodeProvenance,
     /// Optional human-readable rationale (required when `Manual`).
     pub rationale: Option<String>,
-    /// Allocated `.dcsh` filename in `nodes/allocated/`, if allocated via inbox.
+    /// Allocated `.ctbnode-incoming` filename in `nodes/allocated/`, if allocated via inbox in an open chunk.
     pub allocated_file: Option<String>,
 }
 
@@ -123,9 +123,9 @@ impl NodeProvenanceMap {
     }
 }
 
-/// Parsed contents of a single `.dcsh` file in `nodes/inbox/` or `nodes/allocated/`.
+/// Parsed contents of a single `.ctbnode-incoming` file in `nodes/inbox/` or `nodes/allocated/`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParsedDcshInboxFile {
+pub struct ParsedCtbNodeIncomingFile {
     /// Declared `# @provenance: csv | manual`.
     pub provenance: NodeProvenance,
     /// Optional `# @rationale: ...` (guaranteed `Some` when `provenance == Manual`).
@@ -138,11 +138,11 @@ pub struct ParsedDcshInboxFile {
     pub tokens: Vec<DcShorthand>,
 }
 
-/// Parses and validates the headers and body of a `.dcsh` inbox/allocated file.
-pub fn parse_dcsh_inbox_file(
+/// Parses and validates the headers and body of a `.ctbnode-incoming` inbox/allocated file.
+pub fn parse_ctbnode_incoming_file(
     content: &str,
     filename: &str,
-) -> Result<ParsedDcshInboxFile> {
+) -> Result<ParsedCtbNodeIncomingFile> {
     let mut provenance: Option<NodeProvenance> = None;
     let mut rationale: Option<String> = None;
     let mut header_comment: Option<String> = None;
@@ -244,7 +244,7 @@ pub fn parse_dcsh_inbox_file(
     allow_duplicate_of.sort_unstable();
     allow_duplicate_of.dedup();
 
-    Ok(ParsedDcshInboxFile {
+    Ok(ParsedCtbNodeIncomingFile {
         provenance: prov,
         rationale,
         comment: header_comment.or(inline_comment),
@@ -253,10 +253,10 @@ pub fn parse_dcsh_inbox_file(
     })
 }
 
-/// Validates that all committed nodes above `BOOTSTRAP_BASELINE_LAST_ID` in `nodes` have matching
-/// `BATCH_COMMITTED` entries in `committed_pairs` and (for `inbox_allocation` batches) matching
-/// `.dcsh` files in `src/formats/dcdata/data-src/nodes/allocated/`, with zero unrecorded `.dcsh`
-/// files in `nodes/allocated/`.
+/// Validates that all committed nodes above the `bootstrap_checkpoint` in `nodes` have matching
+/// `BATCH_COMMITTED` entries in `committed_pairs` and (for `inbox_allocation` batches in open chunks)
+/// matching `.ctbnode-incoming` files in `src/formats/dcdata/data-src/nodes/allocated/`, with zero
+/// unrecorded files in `nodes/allocated/`.
 ///
 /// Note: Here "committed entry" means a `BATCH_PENDING` + `BATCH_COMMITTED` pair in `ledger-journal.jsonl`,
 /// not a Git commit. Pending recovery (`recover_pending_ledger_journal_with_guard`) must always run
@@ -318,14 +318,14 @@ pub fn load_and_validate_node_provenance(
                 let expected_prefix = format!("{}_", item.node_id);
                 ensure!(
                     alloc_name.starts_with(&expected_prefix)
-                        && alloc_name.ends_with(".dcsh"),
-                    "Allocated filename {alloc_name:?} for l{} must start with {expected_prefix:?} and end with '.dcsh'",
+                        && alloc_name.ends_with(".ctbnode-incoming"),
+                    "Allocated filename {alloc_name:?} for l{} must start with {expected_prefix:?} and end with '.ctbnode-incoming'",
                     item.node_id
                 );
                 let alloc_path = allocated_dir.join(alloc_name);
                 ensure!(
                     alloc_path.is_file(),
-                    "CRITICAL: Allocated .dcsh file {} for committed node l{} is missing from disk!",
+                    "CRITICAL: Allocated .ctbnode-incoming file {} for committed node l{} is missing from disk!",
                     alloc_path.display(),
                     item.node_id
                 );
@@ -346,17 +346,18 @@ pub fn load_and_validate_node_provenance(
                     String::from_utf8(raw_bytes).with_context(|| {
                         format!("Invalid UTF-8 in {}", alloc_path.display())
                     })?;
-                let parsed_dcsh = parse_dcsh_inbox_file(&content, alloc_name)?;
+                let parsed_incoming =
+                    parse_ctbnode_incoming_file(&content, alloc_name)?;
                 ensure!(
-                    parsed_dcsh.provenance == prov,
+                    parsed_incoming.provenance == prov,
                     "CRITICAL: Provenance mismatch for l{} between {} ({:?}) and BATCH_COMMITTED ({:?})",
                     item.node_id,
                     alloc_path.display(),
-                    parsed_dcsh.provenance,
+                    parsed_incoming.provenance,
                     prov
                 );
                 ensure!(
-                    parsed_dcsh.tokens == ledger_node.tokens,
+                    parsed_incoming.tokens == ledger_node.tokens,
                     "CRITICAL: Token body mismatch for l{} between {} and .ctbnodes",
                     item.node_id,
                     alloc_path.display()
@@ -399,19 +400,20 @@ pub fn load_and_validate_node_provenance(
         }
     }
 
-    // Every .dcsh file in nodes/allocated/ must correspond to a BATCH_COMMITTED inbox_allocation item.
+    // Every .ctbnode-incoming (or legacy .dcsh) file in nodes/allocated/ must correspond to an open-chunk BATCH_COMMITTED inbox_allocation item.
     if allocated_dir.is_dir() {
         for entry in fs::read_dir(&allocated_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("dcsh") {
+            let ext = path.extension().and_then(|e| e.to_str());
+            if ext == Some("ctbnode-incoming") || ext == Some("dcsh") {
                 let Some(name) = path.file_name().and_then(|n| n.to_str())
                 else {
                     continue;
                 };
                 ensure!(
                     expected_allocated_files.contains(name),
-                    "CRITICAL: Unrecorded .dcsh file {} found in {} with no matching BATCH_COMMITTED journal entry!",
+                    "CRITICAL: Unrecorded incoming node file {} found in {} with no matching open-chunk BATCH_COMMITTED journal entry!",
                     path.display(),
                     allocated_dir.display()
                 );
@@ -482,7 +484,7 @@ pub fn prevalidate_and_plan_inbox_items(
     }
 
     for (inbox_name, inbox_sha256, content) in inbox_files {
-        let parsed = parse_dcsh_inbox_file(content, inbox_name)?;
+        let parsed = parse_ctbnode_incoming_file(content, inbox_name)?;
         let next_id = SYSTEM_REGION_START
             .saturating_add(u128::try_from(working_nodes.len())?);
         ensure!(
@@ -747,7 +749,7 @@ pub fn prevalidate_and_plan_inbox_items(
     Ok(planned_items)
 }
 
-/// Processes all `.dcsh` files in `<repo_root>/src/formats/dcdata/data-src/nodes/inbox/`
+/// Processes all `.ctbnode-incoming` files in `<repo_root>/src/formats/dcdata/data-src/nodes/inbox/`
 /// inside a single durable ledger transaction under `LedgerWriteGuard` (`LOCK_EX`).
 pub fn process_inbox_nodes(
     repo_root: &Path,
@@ -795,7 +797,8 @@ pub fn process_inbox_nodes_with_fault(
                     if !path.is_file() {
                         continue;
                     }
-                    if path.extension().and_then(|e| e.to_str()) != Some("dcsh")
+                    if path.extension().and_then(|e| e.to_str())
+                        != Some("ctbnode-incoming")
                     {
                         continue;
                     }
@@ -1047,7 +1050,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     "u61 u62\n".to_string()
                 )],
@@ -1061,7 +1064,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     "# @provenance: manual\nu61 u62\n".to_string()
                 )],
@@ -1075,7 +1078,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     format!("# @provenance: csv\n586 l{next_id} 571\n"),
                 )],
@@ -1087,7 +1090,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     format!("# @provenance: csv\n586 l{} 571\n", next_id + 1),
                 )],
@@ -1101,7 +1104,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     format!(
                         "# @provenance: csv\n348 310 275 l{SYSTEM_REGION_START} 311\n"
@@ -1115,7 +1118,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     format!(
                         "# @provenance: csv\n348 310 275 l{SYSTEM_REGION_START} 312 l{SYSTEM_REGION_START} 311\n"
@@ -1131,7 +1134,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     format!(
                         "# @provenance: csv\n610 l{SYSTEM_REGION_START} l{SYSTEM_REGION_START}\n"
@@ -1153,7 +1156,7 @@ mod tests {
                 &baseline_nodes,
                 &prov_map,
                 &[(
-                    "01.dcsh".to_string(),
+                    "01.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     format!("# @provenance: csv\n{dup_body}\n"),
                 )],
@@ -1166,7 +1169,7 @@ mod tests {
             &baseline_nodes,
             &prov_map,
             &[(
-                "01.dcsh".to_string(),
+                "01.ctbnode-incoming".to_string(),
                 "sha".to_string(),
                 format!(
                     "# @provenance: csv\n# @allow-duplicate-of: l{SYSTEM_REGION_START}\n{dup_body}\n"
@@ -1181,26 +1184,26 @@ mod tests {
         let mut batch = Vec::new();
         // Item 0 (`next_id`): new unique value node `u78 u79`
         batch.push((
-            "01_val.dcsh".to_string(),
+            "01_val.ctbnode-incoming".to_string(),
             "s1".to_string(),
             "# @provenance: csv\nu78 u79\n".to_string(),
         ));
         // Item 1 (`next_id + 1`): retract `next_id` (`592 615 l<next_id>`)
         batch.push((
-            "02_retract.dcsh".to_string(),
+            "02_retract.ctbnode-incoming".to_string(),
             "s2".to_string(),
             format!("# @provenance: csv\n592 615 l{next_id}\n"),
         ));
         // Item 2 (`next_id + 2`): cancel the retraction (`592 615 l<next_id + 1>`) -> reactivates `next_id`!
         batch.push((
-            "03_cancel_retract.dcsh".to_string(),
+            "03_cancel_retract.ctbnode-incoming".to_string(),
             "s3".to_string(),
             format!("# @provenance: csv\n592 615 l{}\n", next_id + 1),
         ));
         // Item 3 (`next_id + 3`): `u78 u79` WITHOUT `# @allow-duplicate-of` must FAIL because `next_id` is active again!
         let mut bad_batch = batch.clone();
         bad_batch.push((
-            "04_dup_unauth.dcsh".to_string(),
+            "04_dup_unauth.ctbnode-incoming".to_string(),
             "s4".to_string(),
             "# @provenance: csv\nu78 u79\n".to_string(),
         ));
@@ -1215,7 +1218,7 @@ mod tests {
 
         // With `# @allow-duplicate-of: l<next_id>`, item 3 succeeds!
         batch.push((
-            "04_dup_auth.dcsh".to_string(),
+            "04_dup_auth.ctbnode-incoming".to_string(),
             "s4".to_string(),
             format!(
                 "# @provenance: csv\n# @allow-duplicate-of: l{next_id}\nu78 u79\n"
@@ -1249,7 +1252,7 @@ mod tests {
         fs::write(&marker_path, &marker_bytes)?;
 
         fs::write(
-            root.join("src/formats/dcdata/data-src/nodes/inbox/cache.dcsh"),
+            root.join("src/formats/dcdata/data-src/nodes/inbox/cache.ctbnode-incoming"),
             "# @provenance: csv\nu61 u62\n",
         )?;
         assert_eq!(process_inbox_nodes(root, None, false)?.appended_count, 1);
@@ -1274,7 +1277,7 @@ mod tests {
                 let journal_path = root.join(LEDGER_JOURNAL_REL_PATH);
                 let baseline_journal = fs::read(&journal_path)?;
                 fs::write(
-                    inbox_dir.join("01_journal.dcsh"),
+                    inbox_dir.join("01_journal.ctbnode-incoming"),
                     format!("# @provenance: csv\n# @comment: \"{character}\"\nu61 u62\n"),
                 )?;
                 let err = process_inbox_nodes_with_fault(
@@ -1304,7 +1307,7 @@ mod tests {
                 assert_eq!(process_inbox_nodes(root, None, false)?.appended_count, 1);
 
                 fs::write(
-                    inbox_dir.join("02_chunk.dcsh"),
+                    inbox_dir.join("02_chunk.ctbnode-incoming"),
                     format!("# @provenance: csv\n# @comment: \"{character}\"\nu63 u64\n"),
                 )?;
                 let err = process_inbox_nodes_with_fault(
@@ -1375,25 +1378,25 @@ mod tests {
         let f3_content =
             "# @provenance: csv\n# @comment: \"item3\"\nu65 u66\n".to_string();
 
-        fs::write(inbox_dir.join("001_a.dcsh"), &f1_content)?;
-        fs::write(inbox_dir.join("002_b.dcsh"), &f2_content)?;
-        fs::write(inbox_dir.join("003_c.dcsh"), &f3_content)?;
+        fs::write(inbox_dir.join("001_a.ctbnode-incoming"), &f1_content)?;
+        fs::write(inbox_dir.join("002_b.ctbnode-incoming"), &f2_content)?;
+        fs::write(inbox_dir.join("003_c.ctbnode-incoming"), &f3_content)?;
 
         // Build an approved manifest for the 3-item inbox batch
         let prov_map = NodeProvenanceMap::default();
         let inbox_vec = vec![
             (
-                "001_a.dcsh".to_string(),
+                "001_a.ctbnode-incoming".to_string(),
                 sha256_bytes_hex(f1_content.as_bytes()),
                 f1_content.clone(),
             ),
             (
-                "002_b.dcsh".to_string(),
+                "002_b.ctbnode-incoming".to_string(),
                 sha256_bytes_hex(f2_content.as_bytes()),
                 f2_content.clone(),
             ),
             (
-                "003_c.dcsh".to_string(),
+                "003_c.ctbnode-incoming".to_string(),
                 sha256_bytes_hex(f3_content.as_bytes()),
                 f3_content.clone(),
             ),
@@ -1442,10 +1445,10 @@ mod tests {
             process_inbox_nodes(root, Some(&manifest_path), true)?;
         assert_eq!(dry_outcome.appended_count, 3);
         assert_eq!(dry_outcome.files_written, 0);
-        assert!(inbox_dir.join("001_a.dcsh").is_file());
+        assert!(inbox_dir.join("001_a.ctbnode-incoming").is_file());
 
-        // 2. Inject a crash after item 0 (`001_a.dcsh`) is appended to `.ctbnodes`, synced to shadows,
-        // AND moved from `nodes/inbox/001_a.dcsh` to `nodes/allocated/<id>_001_a.dcsh`!
+        // 2. Inject a crash after item 0 (`001_a.ctbnode-incoming`) is appended to `.ctbnodes`, synced to shadows,
+        // AND moved from `nodes/inbox/001_a.ctbnode-incoming` to `nodes/allocated/<id>_001_a.ctbnode-incoming`!
         let err = process_inbox_nodes_with_fault(
             root,
             Some(&manifest_path),
@@ -1458,21 +1461,21 @@ mod tests {
         assert!(format!("{err:#}").contains("Simulated fault injection"));
 
         // Verify item 0 was moved out of `inbox/` into `allocated/`, while items 1 and 2 remain in `inbox/`
-        assert!(!inbox_dir.join("001_a.dcsh").exists());
+        assert!(!inbox_dir.join("001_a.ctbnode-incoming").exists());
         assert!(
             alloc_dir
                 .join(planned[0].allocated_name.as_deref().unwrap())
                 .is_file()
         );
-        assert!(inbox_dir.join("002_b.dcsh").is_file());
-        assert!(inbox_dir.join("003_c.dcsh").is_file());
+        assert!(inbox_dir.join("002_b.ctbnode-incoming").is_file());
+        assert!(inbox_dir.join("003_c.ctbnode-incoming").is_file());
 
         // External gated reader (`load_ledger_nodes_from_dir`) MUST reject the open `BATCH_PENDING` journal!
         assert!(load_ledger_nodes_from_dir(&graph_dir).is_err());
 
         // 3. Retry the EXACT SAME `process_inbox_nodes(root, Some(&manifest_path), false)` call!
         // It must take the Manifest-Enforced Resume Path (accepting the partially appended ledger
-        // and the already-moved `001_a.dcsh` file without replanning or allocating new IDs) and finish!
+        // and the already-moved `001_a.ctbnode-incoming` file without replanning or allocating new IDs) and finish!
         let resumed_outcome =
             process_inbox_nodes(root, Some(&manifest_path), false)?;
         assert!(resumed_outcome.resumed_or_already_committed);
@@ -1480,8 +1483,8 @@ mod tests {
 
         // All 3 inbox files are now in `nodes/allocated/`, `nodes/inbox/` is empty,
         // and external gated reader + provenance validator succeed!
-        assert!(!inbox_dir.join("002_b.dcsh").exists());
-        assert!(!inbox_dir.join("003_c.dcsh").exists());
+        assert!(!inbox_dir.join("002_b.ctbnode-incoming").exists());
+        assert!(!inbox_dir.join("003_c.ctbnode-incoming").exists());
         let loaded = load_ledger_nodes_from_dir(&graph_dir)?;
         assert_eq!(loaded.len(), final_nodes.len());
         let prov = verify_repo_committed_node_provenance(root)?;
@@ -1497,8 +1500,8 @@ mod tests {
 
         // 5. Also test torn `BATCH_COMMITTED` recovery on a subsequent manual node
         let next_manual_id = final_nodes.last().unwrap().id + 1;
-        let manual_dcsh = "# @provenance: manual\n# @rationale: Manual test node\n# @comment: \"manual\"\nu6d u6e\n";
-        fs::write(inbox_dir.join("004_manual.dcsh"), manual_dcsh)?;
+        let manual_incoming = "# @provenance: manual\n# @rationale: Manual test node\n# @comment: \"manual\"\nu6d u6e\n";
+        fs::write(inbox_dir.join("004_manual.ctbnode-incoming"), manual_incoming)?;
         let err = process_inbox_nodes_with_fault(
             root,
             None,
@@ -1520,21 +1523,61 @@ mod tests {
             Some("Manual test node")
         );
 
-        // 6. Tampering with an allocated `.dcsh` file in `nodes/allocated/` is caught by `verify_repo_committed_node_provenance`!
+        // 6. Tampering with an allocated `.ctbnode-incoming` file in `nodes/allocated/` is caught by `verify_repo_committed_node_provenance`!
         let manual_alloc_path =
-            alloc_dir.join(format!("{next_manual_id}_004_manual.dcsh"));
+            alloc_dir.join(format!("{next_manual_id}_004_manual.ctbnode-incoming"));
         let orig_bytes = fs::read(&manual_alloc_path)?;
         fs::write(&manual_alloc_path, b"# tampered\n")?;
         assert!(verify_repo_committed_node_provenance(root).is_err());
         fs::write(&manual_alloc_path, orig_bytes)?;
         assert!(verify_repo_committed_node_provenance(root).is_ok());
 
-        // 7. Adding an unrecorded `.dcsh` file in `nodes/allocated/` is caught!
-        let rogue_path = alloc_dir.join("9999999999_rogue.dcsh");
-        fs::write(&rogue_path, manual_dcsh)?;
+        // 7. Adding an unrecorded `.ctbnode-incoming` file in `nodes/allocated/` is caught!
+        let rogue_path = alloc_dir.join("9999999999_rogue.ctbnode-incoming");
+        fs::write(&rogue_path, manual_incoming)?;
         assert!(verify_repo_committed_node_provenance(root).is_err());
         fs::remove_file(&rogue_path)?;
         assert!(verify_repo_committed_node_provenance(root).is_ok());
+
+        // 8. Pad chunk 1 to 100 nodes + 1 node in chunk 2 (101 total nodes), closing chunk 1!
+        // Verify that all allocated `.ctbnode-incoming` files from closed chunk 1 (nodes 1..=100)
+        // are automatically cleaned up from `nodes/allocated/`, `ledger-journal.jsonl` is truncated/compacted
+        // to the closed chunk boundary, only the 101st node's `.ctbnode-incoming` file in open chunk 2
+        // remains in `nodes/allocated/`, and `next_manual_id`'s `Manual` provenance + rationale are preserved!
+        let current_count = final_nodes.len() + 1;
+        let needed_for_101 = 101 - current_count;
+        for idx in 0..needed_for_101 {
+            let name = format!("pad_close_{idx:03}.ctbnode-incoming");
+            let body = format!(
+                "# @provenance: csv\n# @comment: \"pad-close-{idx}\"\nu{:x} u{:x}\n",
+                0x500 + idx,
+                0x600 + idx
+            );
+            fs::write(inbox_dir.join(name), body)?;
+        }
+        let close_outcome = process_inbox_nodes(root, None, false)?;
+        assert_eq!(close_outcome.total_nodes, 101);
+        assert!(!manual_alloc_path.exists());
+        let remaining_alloc_files: Vec<String> = fs::read_dir(&alloc_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.path().extension().and_then(|s| s.to_str())
+                    == Some("ctbnode-incoming")
+            })
+            .filter_map(|e| e.file_name().into_string().ok())
+            .collect();
+        assert_eq!(remaining_alloc_files.len(), 1);
+        let node_101_id = SYSTEM_REGION_START + 100;
+        assert!(
+            remaining_alloc_files[0].starts_with(&format!("{node_101_id}_"))
+        );
+        let prov3 = verify_repo_committed_node_provenance(root)?;
+        assert_eq!(prov3.owner(next_manual_id), NodeProvenance::Manual);
+        assert_eq!(
+            prov3.get(next_manual_id).unwrap().rationale.as_deref(),
+            Some("Manual test node")
+        );
+        assert_eq!(prov3.owner(node_101_id), NodeProvenance::Csv);
 
         Ok(())
     }
@@ -1565,7 +1608,9 @@ mod tests {
             node_id: manual_stmt_id,
             provenance: NodeProvenance::Manual,
             rationale: Some("Manual domain link".to_string()),
-            allocated_file: Some(format!("{manual_stmt_id}_manual.dcsh")),
+            allocated_file: Some(format!(
+                "{manual_stmt_id}_manual.ctbnode-incoming"
+            )),
         });
 
         // 1. Running CSV reconciliation preserves the `Manual` statement untouched (0 retractions!)
@@ -1588,7 +1633,7 @@ mod tests {
                 &nodes,
                 &prov_map,
                 &[(
-                    "bad_manual_retract.dcsh".to_string(),
+                    "bad_manual_retract.ctbnode-incoming".to_string(),
                     "sha".to_string(),
                     format!(
                         "# @provenance: manual\n# @rationale: try retract csv\n592 615 l{csv_node_id}\n"
@@ -1689,7 +1734,11 @@ mod tests {
                     let planned = prevalidate_and_plan_inbox_items(
                         &nodes,
                         &owned_prov,
-                        &[("ownership.dcsh".to_string(), "sha".to_string(), content)],
+                        &[(
+                            "ownership.ctbnode-incoming".to_string(),
+                            "sha".to_string(),
+                            content,
+                        )],
                     );
                     if input_provenance == provenance {
                         assert!(planned.is_ok(), "{body}: {planned:?}");
@@ -1734,7 +1783,7 @@ mod tests {
         assert!(baseline_nodes.len() < 99);
         let needed_for_99 = 99 - baseline_nodes.len();
         for idx in 0..needed_for_99 {
-            let name = format!("pad_{idx:03}.dcsh");
+            let name = format!("pad_{idx:03}.ctbnode-incoming");
             let body = format!(
                 "# @provenance: csv\n# @comment: \"pad-{idx}\"\nu{:x} u{:x}\n",
                 0x100 + idx,
@@ -1745,9 +1794,9 @@ mod tests {
         let outcome = process_inbox_nodes(root, None, false)?;
         assert_eq!(outcome.total_nodes, 99);
 
-        // Now stage the 100th node (`line_100.dcsh`) and inject a torn chunk write on item 0!
+        // Now stage the 100th node (`line_100.ctbnode-incoming`) and inject a torn chunk write on item 0!
         fs::write(
-            inbox_dir.join("line_100.dcsh"),
+            inbox_dir.join("line_100.ctbnode-incoming"),
             "# @provenance: csv\n# @comment: \"node-100\"\nu300 u301\n",
         )?;
         let err = process_inbox_nodes_with_fault(

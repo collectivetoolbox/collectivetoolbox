@@ -212,6 +212,54 @@ pub fn dcmstring_to_csdl(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)>
     Ok((output.into_bytes(), FormatLog::default()))
 }
 
+fn push_shorthand_token_to_dcmstring(
+    doc: &mut crate::DcMstring,
+    log: &mut FormatLog,
+    shorthand: ctb_storage_minimal::shorthand::DcShorthand,
+    raw_tok: &str,
+    permissive: bool,
+) -> Result<()> {
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    match shorthand {
+        DcShorthand::Local(int_val) => {
+            let malachite_val = malachite::Integer::from(int_val);
+            match crate::dc_number::integer_to_dc_number_global(&malachite_val) {
+                Ok(dc_num_gids) => {
+                    doc.push_char(crate::DcChar(1_114_408u128));
+                    for gid in dc_num_gids {
+                        doc.push_char(crate::DcChar(gid));
+                    }
+                }
+                Err(e) => {
+                    if !permissive {
+                        return Err(e).with_context(|| {
+                            format!("Failed to encode local node shorthand '{raw_tok}'")
+                        });
+                    }
+                    log.warn(&format!(
+                        "Failed to encode local node shorthand '{raw_tok}': {e}"
+                    ));
+                }
+            }
+        }
+        other => match other.to_global_id() {
+            Ok(gid) => doc.push_char(crate::DcChar(gid)),
+            Err(e) => {
+                if !permissive {
+                    return Err(e).with_context(|| {
+                        format!("Invalid Dc shorthand token '{raw_tok}'")
+                    });
+                }
+                log.warn(&format!(
+                    "Skipping out-of-range Dc shorthand token '{raw_tok}': {e}"
+                ));
+            }
+        },
+    }
+    Ok(())
+}
+
 /// Converts a Dcsh (Format 635: Dc shorthand ASCII list) document to `DcMstring`.
 pub fn dcsh_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
     dcsh_to_dcmstring_with_options(bytes, false)
@@ -241,46 +289,19 @@ pub fn dcsh_to_dcmstring_with_options(
 
     let mut doc = crate::DcMstring::new();
     for line in text_cow.lines() {
-        let code_part = match line.split_once('#') {
-            Some((before, _)) => before,
-            None => line,
+        let code_part = if permissive {
+            match line.split_once('#') {
+                Some((before, _)) => before,
+                None => line,
+            }
+        } else {
+            line
         };
         for tok in code_part.split_ascii_whitespace() {
             match DcShorthand::parse(tok) {
-                Ok(shorthand) => match shorthand {
-                    DcShorthand::Local(int_val) => {
-                        let malachite_val = malachite::Integer::from(int_val);
-                        match crate::dc_number::integer_to_dc_number_global(&malachite_val) {
-                            Ok(dc_num_gids) => {
-                                doc.push_char(crate::DcChar(1_114_408u128));
-                                for gid in dc_num_gids {
-                                    doc.push_char(crate::DcChar(gid));
-                                }
-                            }
-                            Err(e) => {
-                                if !permissive {
-                                    return Err(e).with_context(|| {
-                                        format!("Failed to encode local node shorthand '{tok}'")
-                                    });
-                                }
-                                log.warn(&format!(
-                                    "Failed to encode local node shorthand '{tok}': {e}"
-                                ));
-                            }
-                        }
-                    }
-                    other => match other.to_global_id() {
-                        Ok(gid) => doc.push_char(crate::DcChar(gid)),
-                        Err(e) => {
-                            if !permissive {
-                                return Err(e).with_context(|| {
-                                    format!("Invalid Dc shorthand token '{tok}'")
-                                });
-                            }
-                            log.warn(&format!("Skipping out-of-range Dcsh token '{tok}': {e}"));
-                        }
-                    },
-                },
+                Ok(shorthand) => {
+                    push_shorthand_token_to_dcmstring(&mut doc, &mut log, shorthand, tok, permissive)?;
+                }
                 Err(e) => {
                     if !permissive {
                         return Err(e).with_context(|| {
@@ -294,6 +315,89 @@ pub fn dcsh_to_dcmstring_with_options(
     }
 
     Ok((doc, log))
+}
+
+/// Converts a `.ctbnode-incoming` (Format 651: Collective Toolbox incoming graph node shorthand text)
+/// document to `DcMstring`.
+pub fn ctbnode_incoming_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(crate::DcMstring, FormatLog)> {
+    ctbnode_incoming_to_dcmstring_with_options(bytes, false)
+}
+
+/// Converts a `.ctbnode-incoming` document to `DcMstring`, optionally in permissive mode.
+pub fn ctbnode_incoming_to_dcmstring_with_options(
+    bytes: &[u8],
+    permissive: bool,
+) -> Result<(crate::DcMstring, FormatLog)> {
+    use ctb_formats_dcdata::graph_ledger::parse_ctbnode_incoming_file;
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    let mut log = FormatLog::default();
+    let text_cow = if permissive {
+        match std::str::from_utf8(bytes) {
+            Ok(s) => std::borrow::Cow::Borrowed(s),
+            Err(e) => {
+                log.warn(&format!("Invalid UTF-8 in .ctbnode-incoming input: {e}"));
+                String::from_utf8_lossy(bytes)
+            }
+        }
+    } else {
+        let s = std::str::from_utf8(bytes)
+            .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in .ctbnode-incoming input: {e}"))?;
+        std::borrow::Cow::Borrowed(s)
+    };
+
+    match parse_ctbnode_incoming_file(&text_cow, "<ctbnode-incoming>") {
+        Ok(parsed) => {
+            let mut doc = crate::DcMstring::new();
+            for sh_tok in parsed.tokens {
+                let raw_str = sh_tok.to_string();
+                push_shorthand_token_to_dcmstring(
+                    &mut doc,
+                    &mut log,
+                    sh_tok,
+                    &raw_str,
+                    permissive,
+                )?;
+            }
+            Ok((doc, log))
+        }
+        Err(e) => {
+            if !permissive {
+                return Err(e);
+            }
+            log.warn(&format!(
+                "Invalid .ctbnode-incoming structure ({e:#}); decoding shorthand tokens permissively"
+            ));
+            let mut doc = crate::DcMstring::new();
+            for line in text_cow.lines() {
+                let code_part = match line.split_once('#') {
+                    Some((before, _)) => before,
+                    None => line,
+                };
+                for tok in code_part.split_ascii_whitespace() {
+                    match DcShorthand::parse(tok) {
+                        Ok(shorthand) => {
+                            push_shorthand_token_to_dcmstring(
+                                &mut doc,
+                                &mut log,
+                                shorthand,
+                                tok,
+                                true,
+                            )?;
+                        }
+                        Err(err) => {
+                            log.warn(&format!(
+                                "Skipping invalid .ctbnode-incoming token '{tok}': {err}"
+                            ));
+                        }
+                    }
+                }
+            }
+            Ok((doc, log))
+        }
+    }
 }
 
 /// Converts a `DcMstring` to Dcsh (Dc shorthand ASCII list) bytes.

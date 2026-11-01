@@ -192,12 +192,13 @@ fn dcmstring_to_dceutils_short_dcs(
 
     for chunk in doc.chunks() {
         match chunk {
-            DcMixedChunk::Binary(bin) => {
+            DcMixedChunk::Binary { data, .. }
+            | DcMixedChunk::BinaryWithMetadata { data, .. } => {
                 log.export_warning(
                     char_idx,
                     &format!(
                         "Binary encapsulation ({} bytes) cannot be represented in dceutils format ({target_format}) and was omitted.",
-                        bin.data.len()
+                        data.len()
                     ),
                 );
                 char_idx = char_idx.saturating_add(1);
