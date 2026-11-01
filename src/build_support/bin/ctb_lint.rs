@@ -23,9 +23,7 @@ use std::env;
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
-use ctb_build_support::ctbnbdl::{
-    bootstrap_initial_ledger_journal, recover_pending_ledger_journal,
-};
+use ctb_build_support::ctbnbdl::recover_pending_ledger_journal;
 use ctb_build_support::find_repository_root;
 use ctb_build_support::lint::{
     deny_config, format_log, headers, helper, patches, runner, test_boilerplate,
@@ -46,8 +44,6 @@ Subcommands:
   test-boilerplate  Check standard repository test boilerplate
   unwrap-or         Check unwrap_or domain fallback comments
   vendor-versions   Check for newer versions of vendored crates
-  bootstrap-ledger-journal
-                    Validate existing graph ledger & bundles against Step 0 evidence and initialize ledger-journal.jsonl
   recover-ledger-journal
                     Recover an interrupted BATCH_PENDING or torn journal line in ledger-journal.jsonl
 
@@ -78,10 +74,6 @@ fn main() -> Result<()> {
         Some("test-boilerplate") => ("test-boilerplate", args.get(1..).unwrap_or(&[])),
         Some("unwrap-or") => ("unwrap-or", args.get(1..).unwrap_or(&[])),
         Some("vendor-versions") => ("vendor-versions", args.get(1..).unwrap_or(&[])),
-        Some("bootstrap-ledger-journal") => (
-            "bootstrap-ledger-journal",
-            args.get(1..).unwrap_or(&[]),
-        ),
         Some("recover-ledger-journal") => (
             "recover-ledger-journal",
             args.get(1..).unwrap_or(&[]),
@@ -150,14 +142,6 @@ fn main() -> Result<()> {
         "test-boilerplate" => test_boilerplate::run(&root, fix),
         "unwrap-or" => unwrap_or::run(&root),
         "vendor-versions" => vendor_versions::run(&root, offline),
-        "bootstrap-ledger-journal" => {
-            bootstrap_initial_ledger_journal(&root)?;
-            println!(
-                "Bootstrapped initial ledger journal at {}/src/formats/dcdata/data-src/nodes/allocated/ledger-journal.jsonl",
-                root.display()
-            );
-            Ok(())
-        }
         "recover-ledger-journal" => {
             let recovered = recover_pending_ledger_journal(
                 &root,

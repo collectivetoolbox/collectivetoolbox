@@ -131,3 +131,12 @@ Caused by:
 
 - Option to associate ctoolbox with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
 - Option to install shell completion helpers
+
+
+# Broken detection:
+
+$ ctb character-description -f assets/data/graph/85899_34592.ctbnbdl
+Error: Input bytes do not conform to valid DcMixed2 (.dcmm) format
+
+Caused by:
+    Encapsulation size 192097702246800632426538688442588496000 exceeds addressable memory at offset 124783

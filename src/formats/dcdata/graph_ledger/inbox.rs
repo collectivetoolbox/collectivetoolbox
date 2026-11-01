@@ -48,8 +48,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
-/// Highest node ID in the pre-journal `bootstrap-a90464028` baseline (`17,833` nodes).
-pub const BOOTSTRAP_BASELINE_LAST_ID: u128 = 8_589_952_424;
+/// Highest node ID in the initial pre-journal baseline (`17,833` nodes).
+pub const PRE_JOURNAL_BASELINE_LAST_ID: u128 = 8_589_952_424;
 
 /// Provenance ownership classification of a ledger node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -382,11 +382,11 @@ pub fn load_and_validate_node_provenance(
         }
     }
 
-    // Reason for fallback: when no bootstrap_checkpoint record is present in in-memory unit tests, default to BOOTSTRAP_BASELINE_LAST_ID.
+    // Reason for fallback: when no bootstrap_checkpoint record is present in in-memory unit tests, default to PRE_JOURNAL_BASELINE_LAST_ID.
     let bootstrap_last_id = committed_pairs
         .iter()
         .find(|(p, _)| p.kind == "bootstrap_checkpoint")
-        .map_or(BOOTSTRAP_BASELINE_LAST_ID, |(p, _)| p.final_last_id);
+        .map_or(PRE_JOURNAL_BASELINE_LAST_ID, |(p, _)| p.final_last_id);
 
     // Every node > bootstrap_last_id must have a committed journal record.
     for node in nodes {

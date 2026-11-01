@@ -18,8 +18,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Unified durable append-only journal (`ledger-journal.jsonl`), single-inode reader/writer
-//! `flock` guards on the repository's permanent ledger lock, initial journal checkpoint bootstrap,
-//! standalone pending-transaction recovery, and full `.ctbnbdl` bundle `(id, tokens)` verification.
+//! `flock` guards on the repository's permanent ledger lock, standalone pending-transaction
+//! recovery, and full `.ctbnbdl` bundle `(id, tokens)` verification.
 
 #[allow(
     unused_imports,
@@ -352,8 +352,6 @@ impl Drop for LedgerReadGuard {
 /// Fault-injection hook for deterministic crash and recovery unit tests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FaultInjectionPoint {
-    /// Abort immediately after writing and `fsync`ing `BATCH_PENDING` during bootstrap.
-    AfterBootstrapPending,
     /// Write only `bytes_to_keep` bytes of the `BATCH_PENDING` line (without trailing `\n`) and abort.
     TornPendingRecord {
         /// Number of prefix bytes of the serialized JSON line to write before aborting.
@@ -413,7 +411,7 @@ pub struct PlannedLedgerItem {
     /// Expected SHA-256 hex digest of the `.dcsh` source file (for `inbox_allocation`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inbox_sha256: Option<String>,
-    /// Optional full `.dcsh` file contents (used by Step 2a/2b staging scripts).
+    /// Optional full `.dcsh` file contents (used in precomputed transaction manifests).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dcsh_content: Option<String>,
 }
@@ -443,7 +441,7 @@ impl PlannedLedgerItem {
 /// Precomputed deterministic transaction manifest used with `--require-manifest`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TransactionManifest {
-    /// Human-readable manifest identifier (e.g. `"step2a"`, `"step2b"`, `"step3"`).
+    /// Human-readable manifest identifier.
     pub manifest_id: String,
     /// Transaction kind (`"inbox_allocation"` or `"csv_reconciliation"`).
     pub kind: String,
@@ -1157,213 +1155,6 @@ fn stamp_journal_initialized_marker(repo_root: &Path) -> Result<()> {
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
-struct Step0RecoverySummarySubset {
-    current_baseline_last_id: u128,
-    current_baseline_ledger_sha256: String,
-    current_baseline_node_count: usize,
-}
-
-/// Validates the existing `.ctbnodes` ledger and `.ctbnbdl` bundle partition against the pinned
-/// Step 0 evidence and creates the initial durable journal checkpoint (`batch_id: "bootstrap-a90464028"`)
-/// under `LedgerWriteGuard` (`LOCK_EX`), without appending any graph nodes.
-pub fn bootstrap_initial_ledger_journal(repo_root: &Path) -> Result<()> {
-    bootstrap_initial_ledger_journal_with_fault(repo_root, None)
-}
-
-/// Same as [`bootstrap_initial_ledger_journal`], with optional fault injection for unit testing
-/// crash recovery between bootstrap's `BATCH_PENDING` and `BATCH_COMMITTED` records.
-pub fn bootstrap_initial_ledger_journal_with_fault(
-    repo_root: &Path,
-    fault: Option<FaultInjectionPoint>,
-) -> Result<()> {
-    let write_guard = LedgerWriteGuard::acquire(repo_root)?;
-    let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
-    let init_marker = repo_root.join(JOURNAL_INITIALIZED_REL_PATH);
-    let graph_dir = repo_root.join("assets/data/graph");
-    let inbox_dir = repo_root.join("src/formats/dcdata/data-src/nodes/inbox");
-    let allocated_dir =
-        repo_root.join("src/formats/dcdata/data-src/nodes/allocated");
-
-    if journal_path.exists() {
-        let parsed = inspect_ledger_journal(&journal_path)?;
-        if parsed.torn_trailing_fragment.is_some()
-            && (parsed.records.is_empty()
-                || (parsed.records.len() == 1
-                    && parsed
-                        .open_pending
-                        .as_ref()
-                        .is_some_and(|p| p.kind == "bootstrap_checkpoint")))
-        {
-            repair_torn_journal_suffix(&journal_path, parsed.valid_prefix_len)?;
-        }
-        let parsed = inspect_ledger_journal(&journal_path)?;
-        if parsed.records.len() == 1
-            && parsed
-                .open_pending
-                .as_ref()
-                .is_some_and(|p| p.kind == "bootstrap_checkpoint")
-        {
-            recover_pending_ledger_journal_with_guard(
-                &write_guard,
-                repo_root,
-                None,
-                false,
-                fault,
-            )?;
-            return Ok(());
-        }
-        if !parsed.records.is_empty() {
-            bail!(
-                "Refusing to bootstrap ledger journal: {} already contains committed or non-bootstrap records",
-                journal_path.display()
-            );
-        }
-    }
-
-    ensure!(
-        !init_marker.exists(),
-        "CRITICAL: Ledger journal {} is missing after initialization marker {} was already created!",
-        journal_path.display(),
-        init_marker.display()
-    );
-
-    for dir in [&inbox_dir, &allocated_dir] {
-        if dir.is_dir() {
-            for entry in fs::read_dir(dir)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.extension().and_then(|e| e.to_str()) == Some("dcsh") {
-                    bail!(
-                        "Refusing to bootstrap ledger journal: unexpected .dcsh file {} present before bootstrap",
-                        path.display()
-                    );
-                }
-            }
-        }
-    }
-
-    let summary_path = repo_root.join(
-        "src/formats/dcdata/data-src/recovery-audit/step0_recovery_summary.json",
-    );
-    let summary_bytes = fs::read(&summary_path).with_context(|| {
-        format!(
-            "Failed to read Step 0 recovery summary at {}",
-            summary_path.display()
-        )
-    })?;
-    let summary: Step0RecoverySummarySubset =
-        serde_json::from_slice(&summary_bytes).with_context(|| {
-            format!("Failed to parse {}", summary_path.display())
-        })?;
-
-    let observed_run2_path = repo_root.join(
-        "src/formats/dcdata/data-src/recovery-audit/observed_run2_nodes_8589951799_8589952424.ctbnodes",
-    );
-    let observed_run2_text =
-        fs::read_to_string(&observed_run2_path).with_context(|| {
-            format!("Failed to read {}", observed_run2_path.display())
-        })?;
-
-    let nodes = load_ledger_nodes_from_dir_with_write_guard(&write_guard, &graph_dir)?;
-    ensure!(
-        nodes.len() == summary.current_baseline_node_count,
-        "Bootstrap validation failed: expected {} nodes from Step 0 summary, found {}",
-        summary.current_baseline_node_count,
-        nodes.len()
-    );
-    let last_id = nodes.last().map(|n| n.id).unwrap_or(0);
-    ensure!(
-        last_id == summary.current_baseline_last_id,
-        "Bootstrap validation failed: expected baseline_last_id {}, found {}",
-        summary.current_baseline_last_id,
-        last_id
-    );
-    let actual_ledger_sha256 = compute_ledger_dir_sha256(&graph_dir)?;
-    ensure!(
-        actual_ledger_sha256 == summary.current_baseline_ledger_sha256,
-        "Bootstrap validation failed: ledger SHA-256 {} does not match Step 0 baseline_ledger_sha256 {}",
-        actual_ledger_sha256,
-        summary.current_baseline_ledger_sha256
-    );
-
-    let run2_tail_start = nodes.len().saturating_sub(626);
-    let mut formatted_tail = String::new();
-    for node in nodes.get(run2_tail_start..).unwrap_or_default() {
-        formatted_tail.push_str(&node.format_line());
-        formatted_tail.push('\n');
-    }
-    ensure!(
-        formatted_tail == observed_run2_text,
-        "Bootstrap validation failed: tail 626 nodes in {} do not match observed_run2_nodes_8589951799_8589952424.ctbnodes byte-for-byte",
-        graph_dir.display()
-    );
-
-    for (label, shadow_dir) in highwater_shadow_dirs(repo_root) {
-        if shadow_dir.is_dir() && !list_chunk_files(&shadow_dir)?.is_empty() {
-            let shadow_sha = compute_ledger_dir_sha256(&shadow_dir)?;
-            ensure!(
-                shadow_sha == actual_ledger_sha256,
-                "Bootstrap validation failed: {label} ({}) SHA-256 {} does not match primary ledger SHA-256 {}",
-                shadow_dir.display(),
-                shadow_sha,
-                actual_ledger_sha256
-            );
-        }
-    }
-
-    let framing =
-        resolve_ctbnbdl_framing_dcs_from_nodes(&nodes)?;
-    let active_bundles_sha256 = compute_bundle_dir_sha256s(&graph_dir)?;
-    let history_bundles_sha256 =
-        compute_bundle_dir_sha256s(&graph_dir.join("system"))?;
-    verify_compiled_bundles_match_ledger(
-        &graph_dir,
-        &nodes,
-        framing,
-        Some(&active_bundles_sha256),
-        Some(&history_bundles_sha256),
-    )?;
-
-    let pending = JournalRecord {
-        state: "BATCH_PENDING".to_string(),
-        batch_id: "bootstrap-a90464028".to_string(),
-        kind: "bootstrap_checkpoint".to_string(),
-        baseline_last_id: last_id,
-        baseline_ledger_sha256: actual_ledger_sha256.clone(),
-        final_last_id: last_id,
-        final_ledger_sha256: actual_ledger_sha256.clone(),
-        manifest_sha256: None,
-        items: Vec::new(),
-        active_bundles_sha256: BTreeMap::new(),
-        history_bundles_sha256: BTreeMap::new(),
-        record_sha256: String::new(),
-    };
-    append_journal_record(&journal_path, &pending, fault)?;
-
-    if fault == Some(FaultInjectionPoint::AfterBootstrapPending) {
-        bail!("Simulated fault injection: crash after bootstrap BATCH_PENDING before BATCH_COMMITTED");
-    }
-
-    let committed = JournalRecord {
-        state: "BATCH_COMMITTED".to_string(),
-        batch_id: "bootstrap-a90464028".to_string(),
-        kind: "bootstrap_checkpoint".to_string(),
-        baseline_last_id: last_id,
-        baseline_ledger_sha256: actual_ledger_sha256.clone(),
-        final_last_id: last_id,
-        final_ledger_sha256: actual_ledger_sha256,
-        manifest_sha256: None,
-        items: Vec::new(),
-        active_bundles_sha256,
-        history_bundles_sha256,
-        record_sha256: String::new(),
-    };
-    append_journal_record(&journal_path, &committed, fault)?;
-    stamp_journal_initialized_marker(repo_root)?;
-    Ok(())
-}
-
 /// Loads all complete `.ctbnodes` nodes from `dir`, allowing at most a torn trailing line at the end
 /// of the final chunk file when recovering an interrupted `BATCH_PENDING` transaction.
 fn load_nodes_from_dir_allowing_torn_tail(
@@ -2029,7 +1820,7 @@ where
     let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
     ensure!(
         journal_path.is_file(),
-        "CRITICAL: Ledger journal {} is missing! Run `ctb-lint bootstrap-ledger-journal` first.",
+        "CRITICAL: Ledger journal {} is missing!",
         journal_path.display()
     );
 
@@ -2361,24 +2152,15 @@ mod tests {
         }
     }
 
-    fn copy_dir_shallow(src: &Path, dst: &Path) {
-        fs::create_dir_all(dst).unwrap();
-        for entry in fs::read_dir(src).unwrap() {
-            let entry = entry.unwrap();
-            let path = entry.path();
-            if path.is_file() {
-                fs::copy(&path, dst.join(entry.file_name())).unwrap();
-            }
-        }
-    }
-
-    fn setup_step0_checkout_fixture() -> TempDir {
+    fn setup_checkout_fixture() -> TempDir {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         let real_root = crate::find_repository_root_from(manifest_dir).unwrap();
-        let tmp = TempDir::new("step0");
+        let tmp = TempDir::new("checkout");
         let root = tmp.path();
 
         fs::create_dir_all(root.join(".git")).unwrap();
+        fs::write(root.join(".ctoolbox_workspace_root"), b"").unwrap();
+        fs::write(root.join("Cargo.toml"), b"[workspace]\n").unwrap();
         fs::create_dir_all(
             root.join("src/formats/dcdata/data-src/nodes/inbox"),
         )
@@ -2391,14 +2173,14 @@ mod tests {
         let all_nodes =
             load_ledger_nodes_from_dir_raw(&real_root.join("assets/data/graph"))
                 .unwrap();
-        let step0_nodes: Vec<LedgerNode> =
+        let baseline_nodes: Vec<LedgerNode> =
             all_nodes.into_iter().take(17_833).collect();
-        assert_eq!(step0_nodes.len(), 17_833);
-        assert_eq!(step0_nodes.last().unwrap().id, 8_589_952_424);
+        assert_eq!(baseline_nodes.len(), 17_833);
+        assert_eq!(baseline_nodes.last().unwrap().id, 8_589_952_424);
 
         let graph_dst = root.join("assets/data/graph");
         fs::create_dir_all(graph_dst.join("system")).unwrap();
-        for chunk in step0_nodes.chunks(100) {
+        for chunk in baseline_nodes.chunks(100) {
             let chunk_name = format_chunk_filename(chunk[0].id);
             let mut buf = String::new();
             for n in chunk {
@@ -2410,46 +2192,105 @@ mod tests {
         {
             let write_guard = LedgerWriteGuard::acquire(root).unwrap();
             let framing =
-                resolve_ctbnbdl_framing_dcs_from_nodes(&step0_nodes).unwrap();
+                resolve_ctbnbdl_framing_dcs_from_nodes(&baseline_nodes)
+                    .unwrap();
             compile_nodes_slice_to_ctbnbdl_with_write_guard(
                 &write_guard,
-                &step0_nodes,
+                &baseline_nodes,
                 &graph_dst,
                 framing,
             )
             .unwrap();
         }
-
-        let audit_src =
-            real_root.join("src/formats/dcdata/data-src/recovery-audit");
-        let audit_dst = root.join("src/formats/dcdata/data-src/recovery-audit");
-        fs::create_dir_all(&audit_dst).unwrap();
-        for fname in [
-            "step0_recovery_summary.json",
-            "observed_run2_nodes_8589951799_8589952424.ctbnodes",
-        ] {
-            fs::copy(audit_src.join(fname), audit_dst.join(fname)).unwrap();
-        }
         tmp
     }
 
+    fn write_initial_checkpoint_for_test(
+        repo_root: &Path,
+        commit_record: bool,
+    ) -> Result<()> {
+        let write_guard = LedgerWriteGuard::acquire(repo_root)?;
+        let journal_path = repo_root.join(LEDGER_JOURNAL_REL_PATH);
+        let init_marker = repo_root.join(JOURNAL_INITIALIZED_REL_PATH);
+        ensure!(
+            !init_marker.exists(),
+            "CRITICAL: Ledger journal {} is missing after initialization marker {} was already created!",
+            journal_path.display(),
+            init_marker.display()
+        );
+        let graph_dir = repo_root.join("assets/data/graph");
+        let nodes = load_ledger_nodes_from_dir_with_write_guard(
+            &write_guard,
+            &graph_dir,
+        )?;
+        let last_id = nodes.last().map(|n| n.id).unwrap_or(0);
+        let actual_ledger_sha256 = compute_ledger_dir_sha256(&graph_dir)?;
+        let framing = resolve_ctbnbdl_framing_dcs_from_nodes(&nodes)?;
+        let active_bundles_sha256 = compute_bundle_dir_sha256s(&graph_dir)?;
+        let history_bundles_sha256 =
+            compute_bundle_dir_sha256s(&graph_dir.join("system"))?;
+        verify_compiled_bundles_match_ledger(
+            &graph_dir,
+            &nodes,
+            framing,
+            Some(&active_bundles_sha256),
+            Some(&history_bundles_sha256),
+        )?;
+
+        let pending = JournalRecord {
+            state: "BATCH_PENDING".to_string(),
+            batch_id: "bootstrap-a90464028".to_string(),
+            kind: "bootstrap_checkpoint".to_string(),
+            baseline_last_id: last_id,
+            baseline_ledger_sha256: actual_ledger_sha256.clone(),
+            final_last_id: last_id,
+            final_ledger_sha256: actual_ledger_sha256.clone(),
+            manifest_sha256: None,
+            items: Vec::new(),
+            active_bundles_sha256: BTreeMap::new(),
+            history_bundles_sha256: BTreeMap::new(),
+            record_sha256: String::new(),
+        };
+        append_journal_record(&journal_path, &pending, None)?;
+        if !commit_record {
+            bail!("Simulated fault injection: crash after BATCH_PENDING before BATCH_COMMITTED");
+        }
+        let committed = JournalRecord {
+            state: "BATCH_COMMITTED".to_string(),
+            batch_id: "bootstrap-a90464028".to_string(),
+            kind: "bootstrap_checkpoint".to_string(),
+            baseline_last_id: last_id,
+            baseline_ledger_sha256: actual_ledger_sha256.clone(),
+            final_last_id: last_id,
+            final_ledger_sha256: actual_ledger_sha256,
+            manifest_sha256: None,
+            items: Vec::new(),
+            active_bundles_sha256,
+            history_bundles_sha256,
+            record_sha256: String::new(),
+        };
+        append_journal_record(&journal_path, &committed, None)?;
+        stamp_journal_initialized_marker(repo_root)?;
+        Ok(())
+    }
+
     #[test]
-    fn test_bootstrap_initial_journal_and_missing_journal_rejection() {
-        let tmp = setup_step0_checkout_fixture();
+    fn test_journal_initialization_and_missing_journal_rejection() {
+        let tmp = setup_checkout_fixture();
         let root = tmp.path();
         let graph_dir = root.join("assets/data/graph");
         let journal_path = root.join(LEDGER_JOURNAL_REL_PATH);
         let init_marker = root.join(JOURNAL_INITIALIZED_REL_PATH);
 
-        // Before bootstrap, gated readers must reject the uninitialized checkout (never trusting a missing journal).
+        // Before journal exists, gated readers must reject the uninitialized checkout (never trusting a missing journal).
         let err = load_ledger_nodes_from_dir(&graph_dir).unwrap_err();
         assert!(
             err.to_string().contains("is missing"),
-            "Expected missing journal error before bootstrap, got: {err}"
+            "Expected missing journal error before initialization, got: {err}"
         );
 
-        // Run bootstrap under LOCK_EX.
-        bootstrap_initial_ledger_journal(root).unwrap();
+        // Write initial journal checkpoint under LOCK_EX.
+        write_initial_checkpoint_for_test(root, true).unwrap();
         assert!(journal_path.is_file());
         assert!(init_marker.is_file());
 
@@ -2470,15 +2311,7 @@ mod tests {
         let dc_code = crate::dc_codegen::generate_dc_code(&graph_dir).unwrap();
         assert!(dc_code.contains("pub const DC_RANGE"));
 
-        // Re-running bootstrap on an already-bootstrapped journal must refuse.
-        let err_second = bootstrap_initial_ledger_journal(root).unwrap_err();
-        assert!(
-            err_second
-                .to_string()
-                .contains("already contains committed or non-bootstrap records")
-        );
-
-        // Delete ledger-journal.jsonl after initialization and verify BOTH gated readers and bootstrap reject!
+        // Delete ledger-journal.jsonl after initialization and verify gated readers reject!
         fs::remove_file(&journal_path).unwrap();
         let err_reader = load_ledger_nodes_from_dir(&graph_dir).unwrap_err();
         assert!(
@@ -2487,29 +2320,18 @@ mod tests {
                 .contains("initialized_marker=true"),
             "Expected post-initialization missing journal error, got: {err_reader}"
         );
-        let err_rebootstrap =
-            bootstrap_initial_ledger_journal(root).unwrap_err();
-        assert!(
-            err_rebootstrap
-                .to_string()
-                .contains("is missing after initialization marker"),
-            "Expected bootstrap rejection after journal deletion, got: {err_rebootstrap}"
-        );
     }
 
     #[test]
-    fn test_bootstrap_crash_recovery_via_standalone_build_support() {
-        let tmp = setup_step0_checkout_fixture();
+    fn test_pending_journal_crash_recovery_via_standalone_build_support() {
+        let tmp = setup_checkout_fixture();
         let root = tmp.path();
         let graph_dir = root.join("assets/data/graph");
 
-        // 1. Crash after bootstrap writes BATCH_PENDING before BATCH_COMMITTED.
-        let crash_err = bootstrap_initial_ledger_journal_with_fault(
-            root,
-            Some(FaultInjectionPoint::AfterBootstrapPending),
-        )
-        .unwrap_err();
-        assert!(crash_err.to_string().contains("AfterBootstrapPending") || crash_err.to_string().contains("Simulated fault injection"));
+        // 1. Crash after writing BATCH_PENDING before BATCH_COMMITTED.
+        let crash_err =
+            write_initial_checkpoint_for_test(root, false).unwrap_err();
+        assert!(crash_err.to_string().contains("Simulated fault injection"));
 
         // Verify dc_codegen / gated readers are blocked while BATCH_PENDING is open.
         let blocked_err =
@@ -2532,38 +2354,32 @@ mod tests {
     }
 
     #[test]
-    fn test_reject_arbitrary_uninitialized_ledger() {
-        let temp_dir = setup_step0_checkout_fixture();
+    fn test_reject_tampered_ledger_against_journal() {
+        let temp_dir = setup_checkout_fixture();
         let root = temp_dir.path();
+        write_initial_checkpoint_for_test(root, true).unwrap();
 
-        // Case A: Unexpected .dcsh file in nodes/inbox before bootstrap.
-        let stray_dcsh =
-            root.join("src/formats/dcdata/data-src/nodes/inbox/stray.dcsh");
-        fs::write(&stray_dcsh, "# @provenance: manual\n# @rationale: test\n65\n")
-            .unwrap();
-        let err_stray = bootstrap_initial_ledger_journal(root).unwrap_err();
-        assert!(err_stray.to_string().contains("unexpected .dcsh file"));
-        fs::remove_file(&stray_dcsh).unwrap();
-
-        // Case B: Tampered .ctbnodes chunk before bootstrap.
+        // Tamper with a .ctbnodes chunk after journal commit and verify gated reader rejects it.
         let tail_chunk = root.join("assets/data/graph/85899_52392.ctbnodes");
         let mut content = fs::read_to_string(&tail_chunk).unwrap();
         content.push_str("l8589952425: 65 # tampered\n");
         fs::write(&tail_chunk, content).unwrap();
-        let err_tampered = bootstrap_initial_ledger_journal(root).unwrap_err();
+        let read_guard = LedgerReadGuard::acquire(root).unwrap();
+        let err_tampered =
+            ensure_ledger_journal_clean(root, &read_guard).unwrap_err();
         assert!(
             err_tampered
                 .to_string()
-                .contains("Bootstrap validation failed")
+                .contains("does not match latest BATCH_COMMITTED")
         );
     }
 
     #[test]
     fn test_bundle_verification_catches_token_and_partition_corruption_at_same_max_id() {
-        let tmp = setup_step0_checkout_fixture();
+        let tmp = setup_checkout_fixture();
         let root = tmp.path();
         let graph_dir = root.join("assets/data/graph");
-        bootstrap_initial_ledger_journal(root).unwrap();
+        write_initial_checkpoint_for_test(root, true).unwrap();
 
         let nodes = load_ledger_nodes_from_dir_raw(&graph_dir).unwrap();
         let framing =

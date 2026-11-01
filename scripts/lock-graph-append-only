@@ -21,7 +21,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 REPO_ROOT="$(pwd)"
 GRAPH_DIR="${REPO_ROOT}/assets/data/graph"
-CANARY_FILE="${REPO_ROOT}/.git/ctb-append-only-canary"
+CANARY_FILE="${REPO_ROOT}/src/formats/dcdata/data-src/nodes/ledger.lock"
 HELPER_IMAGE="ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2"
 WATCHER_CONTAINER_NAME="ctb-graph-append-only-watcher"
 
@@ -92,7 +92,10 @@ def is_journal_pending(journal_dir: str | None) -> bool:
             return False
         import json
         last_rec = json.loads(lines[-1].decode("utf-8"))
-        return last_rec.get("status") == "BATCH_PENDING"
+        return (
+            last_rec.get("state") == "BATCH_PENDING"
+            or last_rec.get("status") == "BATCH_PENDING"
+        )
     except Exception:
         return True
 
@@ -108,7 +111,21 @@ def is_complete_100_line_chunk(path: str) -> bool:
         return False
     return all(line_re.match(ln) is not None for ln in lines)
 
-def lock_pass(graph_dir: str, canary_path: str, journal_dir: str | None = None) -> tuple[int, int]:
+def cleanup_legacy_git_canary(git_dir: str | None) -> None:
+    if not git_dir:
+        return
+    legacy_canary = os.path.join(git_dir, "ctb-append-only-canary")
+    if os.path.isfile(legacy_canary):
+        set_exact_lock_flags(legacy_canary, want_immutable=False, want_append=False)
+        os.unlink(legacy_canary)
+
+def lock_pass(
+    graph_dir: str,
+    canary_path: str,
+    journal_dir: str | None = None,
+    git_dir: str | None = None,
+) -> tuple[int, int]:
+    cleanup_legacy_git_canary(git_dir)
     if not os.path.isfile(canary_path):
         raise RuntimeError(f"Required lock inode does not exist: {canary_path}")
     lock_fd = os.open(canary_path, os.O_RDONLY)
@@ -132,7 +149,8 @@ def lock_pass(graph_dir: str, canary_path: str, journal_dir: str | None = None) 
     finally:
         os.close(lock_fd)
 
-def unlock_pass(graph_dir: str, canary_path: str) -> int:
+def unlock_pass(graph_dir: str, canary_path: str, git_dir: str | None = None) -> int:
+    cleanup_legacy_git_canary(git_dir)
     unlocked = 0
     if os.path.isfile(canary_path):
         set_exact_lock_flags(canary_path, want_immutable=False, want_append=False)
@@ -146,23 +164,23 @@ mode = sys.argv[1]
 graph_dir = sys.argv[2]
 canary_path = sys.argv[3]
 journal_dir = sys.argv[4] if len(sys.argv) > 4 else None
+git_dir = sys.argv[5] if len(sys.argv) > 5 else None
 
 if mode == "lock-once":
-    imm, app = lock_pass(graph_dir, canary_path, journal_dir)
+    imm, app = lock_pass(graph_dir, canary_path, journal_dir, git_dir)
     print(f"Locked graph ledger: {imm} full chunk(s) set FS_IMMUTABLE_FL (+i), {app} active tail chunk(s) + canary set FS_APPEND_FL (+a).")
 elif mode == "watch":
     while True:
-        lock_pass(graph_dir, canary_path, journal_dir)
+        lock_pass(graph_dir, canary_path, journal_dir, git_dir)
         time.sleep(2.0)
 elif mode == "unlock":
-    count = unlock_pass(graph_dir, canary_path)
+    count = unlock_pass(graph_dir, canary_path, git_dir)
     print(f"Unlocked {count} file(s) (cleared FS_IMMUTABLE_FL and FS_APPEND_FL).")
 else:
     raise ValueError(f"Unknown mode: {mode}")
 PYEOF
 
 ensure_canary_file() {
-    mkdir -p "${REPO_ROOT}/.git"
     mkdir -p "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated"
     if [ ! -f "${CANARY_FILE}" ]; then
         printf "ctb-append-only-canary initialized\n" > "${CANARY_FILE}"
@@ -189,8 +207,9 @@ run_host_init() {
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
         -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
+        -v "${REPO_ROOT}/.git:/git-dir" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" lock-once /graph /canary /journal-dir
+        python3 -c "${PYTHON_LOCK_SCRIPT}" lock-once /graph /canary /journal-dir /git-dir
 
     # 2. Ensure the detached watcher container is running so newly created .ctbnodes chunks are automatically locked.
     if docker ps -a --format '{{.Names}}' | grep -Fxq "${WATCHER_CONTAINER_NAME}"; then
@@ -231,8 +250,9 @@ run_unlock() {
         -v "${GRAPH_DIR}:/graph" \
         -v "${CANARY_FILE}:/canary" \
         -v "${REPO_ROOT}/src/formats/dcdata/data-src/nodes/allocated:/journal-dir:ro" \
+        -v "${REPO_ROOT}/.git:/git-dir" \
         "${HELPER_IMAGE}" \
-        python3 -c "${PYTHON_LOCK_SCRIPT}" unlock /graph /canary /journal-dir
+        python3 -c "${PYTHON_LOCK_SCRIPT}" unlock /graph /canary /journal-dir /git-dir
 }
 
 seed_highwater_from_head() {
@@ -311,10 +331,7 @@ run_container_init() {
     remove_legacy_wrappers
     ensure_canary_file
     install_git_pre_commit_hook
-    seed_highwater_from_head "${REPO_ROOT}/.git/ctb-graph-ledger-highwater"
-    if [ -d "/root/.gemini" ]; then
-        seed_highwater_from_head "/root/.gemini/ctb-graph-ledger-highwater"
-    fi
+    seed_highwater_from_head "${REPO_ROOT}/built/graph-ledger/highwater"
 }
 
 run_test_canary() {
@@ -397,10 +414,10 @@ try:
 except PermissionError:
     pass
 
-# 5. Verify O_APPEND write succeeds on canary
+# 5. Verify O_APPEND open succeeds on canary without dirtying the tracked lock file
 fd = os.open(canary, os.O_WRONLY | os.O_APPEND)
 try:
-    os.write(fd, b"canary append check ok\n")
+    os.write(fd, b"")
 finally:
     os.close(fd)
 
