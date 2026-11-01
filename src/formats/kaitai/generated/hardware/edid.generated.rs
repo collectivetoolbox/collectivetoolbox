@@ -147,7 +147,7 @@ impl Edid {
             return Ok(self.gamma.borrow());
         }
         self.f_gamma.set(true);
-        if ((to_i128(*self.gamma_mod())) != (to_i128(255))) {
+        if (to_i128(*self.gamma_mod())) != (to_i128(255)) {
             *self.gamma.borrow_mut() = (((to_f64((i32::from(*self.gamma_mod())).saturating_add(100_i32))) / (100.0))).try_into()?;
         }
         Ok(self.gamma.borrow())

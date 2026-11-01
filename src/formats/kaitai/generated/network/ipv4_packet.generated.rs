@@ -320,7 +320,7 @@ impl KStruct for Ipv4Packet_Ipv4Option {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if ((to_i128(*self_rc.len())) > (to_i128(2))) { (i32::from(*self_rc.len())).saturating_sub(2_i32) } else { 0_i32 })?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if (to_i128(*self_rc.len())) > (to_i128(2)) { (i32::from(*self_rc.len())).saturating_sub(2_i32) } else { 0_i32 })?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

@@ -1093,7 +1093,7 @@ fn validate_shorthand_expr(
 
     // Split by operational delimiters &, |, (, ) to validate atomic identifiers
     for token in expr
-        .split(|c: char| c == '&' || c == '|' || c == '(' || c == ')')
+        .split(['&', '|', '(', ')'])
         .map(str::trim)
         .filter(|t| !t.is_empty())
     {

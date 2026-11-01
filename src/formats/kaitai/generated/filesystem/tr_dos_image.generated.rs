@@ -1092,7 +1092,7 @@ impl TrDosImage_VolumeInfo {
             return Ok(self.num_sides.borrow());
         }
         self.f_num_sides.set(true);
-        *self.num_sides.borrow_mut() = (if ((to_i128(((i64::from(&*self.disk_type())) & (8_i64)))) != (to_i128(0))) { 1_i32 } else { 2_i32 }).try_into()?;
+        *self.num_sides.borrow_mut() = (if (to_i128((i64::from(&*self.disk_type())) & (8_i64))) != (to_i128(0)) { 1_i32 } else { 2_i32 }).try_into()?;
         Ok(self.num_sides.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1104,7 +1104,7 @@ impl TrDosImage_VolumeInfo {
             return Ok(self.num_tracks.borrow());
         }
         self.f_num_tracks.set(true);
-        *self.num_tracks.borrow_mut() = (if ((to_i128(((i64::from(&*self.disk_type())) & (1_i64)))) != (to_i128(0))) { 40_i32 } else { 80_i32 }).try_into()?;
+        *self.num_tracks.borrow_mut() = (if (to_i128((i64::from(&*self.disk_type())) & (1_i64))) != (to_i128(0)) { 40_i32 } else { 80_i32 }).try_into()?;
         Ok(self.num_tracks.borrow())
     }
 }

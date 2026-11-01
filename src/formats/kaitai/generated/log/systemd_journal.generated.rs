@@ -327,7 +327,7 @@ impl SystemdJournal_DataObject {
         if self.f_entry.get() {
             return Ok(self.entry.borrow());
         }
-        if ((to_i128(*self.ofs_entry())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_entry())) != (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_entry())?)?;
@@ -345,7 +345,7 @@ impl SystemdJournal_DataObject {
         if self.f_entry_array.get() {
             return Ok(self.entry_array.borrow());
         }
-        if ((to_i128(*self.ofs_entry_array())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_entry_array())) != (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_entry_array())?)?;
@@ -363,7 +363,7 @@ impl SystemdJournal_DataObject {
         if self.f_head_field.get() {
             return Ok(self.head_field.borrow());
         }
-        if ((to_i128(*self.ofs_head_field())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_head_field())) != (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_head_field())?)?;
@@ -381,7 +381,7 @@ impl SystemdJournal_DataObject {
         if self.f_next_hash.get() {
             return Ok(self.next_hash.borrow());
         }
-        if ((to_i128(*self.ofs_next_hash())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_next_hash())) != (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_next_hash())?)?;

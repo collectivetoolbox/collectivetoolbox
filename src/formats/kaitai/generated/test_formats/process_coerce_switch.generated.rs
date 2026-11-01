@@ -234,7 +234,7 @@ impl KStruct for ProcessCoerceSwitch {
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) == (to_i128(0)) {
             match *self_rc.buf_type() {
                 0 => {
                     *self_rc.buf_unproc_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
@@ -250,7 +250,7 @@ impl KStruct for ProcessCoerceSwitch {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) != (to_i128(0)) {
             match *self_rc.buf_type() {
                 0 => {
                     *self_rc.buf_proc_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
@@ -279,7 +279,7 @@ impl ProcessCoerceSwitch {
         if self.f_buf.get() {
             return Ok(self.buf.borrow());
         }
-        *self.buf.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(0))) { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_unproc()).as_ref().ok_or(KError::CastError)?)? } else { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_proc()).as_ref().ok_or(KError::CastError)?)? }.clone();
+        *self.buf.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(0)) { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_unproc()).as_ref().ok_or(KError::CastError)?)? } else { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_proc()).as_ref().ok_or(KError::CastError)?)? }.clone();
         Ok(self.buf.borrow())
     }
 }

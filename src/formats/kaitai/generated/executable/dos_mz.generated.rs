@@ -96,7 +96,7 @@ impl DosMz {
             return Ok(self.relocations.borrow());
         }
         self.f_relocations.set(true);
-        if ((to_i128(*self.header().mz().ofs_relocations())) != (to_i128(0))) {
+        if (to_i128(*self.header().mz().ofs_relocations())) != (to_i128(0)) {
             let io = KStream::clone(&*self.header()._io());
             let _pos = io.pos();
             io.seek(usize::from(*self.header().mz().ofs_relocations()))?;
@@ -217,7 +217,7 @@ impl DosMz_ExeHeader {
             return Ok(self.len_body.borrow());
         }
         self.f_len_body.set(true);
-        *self.len_body.borrow_mut() = ((if ((to_i128(*self.mz().last_page_extra_bytes())) == (to_i128(0))) { (i32::from(*self.mz().num_pages())).saturating_mul(512_i32) } else { (((i32::from(*self.mz().num_pages())).saturating_sub(1_i32)).saturating_mul(512_i32)).saturating_add(i32::from(*self.mz().last_page_extra_bytes())) }).saturating_sub(*self.mz().len_header()?)).try_into()?;
+        *self.len_body.borrow_mut() = ((if (to_i128(*self.mz().last_page_extra_bytes())) == (to_i128(0)) { (i32::from(*self.mz().num_pages())).saturating_mul(512_i32) } else { (((i32::from(*self.mz().num_pages())).saturating_sub(1_i32)).saturating_mul(512_i32)).saturating_add(i32::from(*self.mz().last_page_extra_bytes())) }).saturating_sub(*self.mz().len_header()?)).try_into()?;
         Ok(self.len_body.borrow())
     }
 }

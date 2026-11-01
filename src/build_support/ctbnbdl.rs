@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub mod journal;
 pub use journal::*;
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -789,10 +789,7 @@ pub fn decode_nodes_from_ctbnbdl_bytes_with(
         false
     } else {
         bail!(
-            "Invalid .ctbnbdl magic bytes: expected {:?} or {:?}, found {:?}",
-            CTBNBDL_MAGIC,
-            CTBNBDL_MAGIC_V1,
-            magic_part
+            "Invalid .ctbnbdl magic bytes: expected {CTBNBDL_MAGIC:?} or {CTBNBDL_MAGIC_V1:?}, found {magic_part:?}"
         );
     };
 

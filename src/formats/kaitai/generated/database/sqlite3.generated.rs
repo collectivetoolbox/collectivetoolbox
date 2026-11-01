@@ -172,7 +172,7 @@ impl Sqlite3 {
             return Ok(self.len_page.borrow());
         }
         self.f_len_page.set(true);
-        *self.len_page.borrow_mut() = (if ((to_i128(*self.len_page_mod())) == (to_i128(1))) { 65536_i32 } else { i32::from(*self.len_page_mod()) }).try_into()?;
+        *self.len_page.borrow_mut() = (if (to_i128(*self.len_page_mod())) == (to_i128(1)) { 65536_i32 } else { i32::from(*self.len_page_mod()) }).try_into()?;
         Ok(self.len_page.borrow())
     }
 }
@@ -515,7 +515,7 @@ impl KStruct for Sqlite3_BtreePage {
         *self_rc.num_frag_free_bytes.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if  ((((to_i128(*self_rc.page_type())) == (to_i128(2)))) || (((to_i128(*self_rc.page_type())) == (to_i128(5)))))  {
+        if  (((to_i128(*self_rc.page_type())) == (to_i128(2)))) || (((to_i128(*self_rc.page_type())) == (to_i128(5))))  {
             *self_rc.right_ptr.borrow_mut() = _io.read_u4be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1289,7 +1289,7 @@ impl KStruct for Sqlite3_ColumnContent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if  ((*self_rc.serial_type().code().value()? >= 1) && (*self_rc.serial_type().code().value()? <= 6))  {
+        if  (*self_rc.serial_type().code().value()? >= 1) && (*self_rc.serial_type().code().value()? <= 6)  {
             match *self_rc.serial_type().code().value()? {
                 1 => {
                     *self_rc.as_int.borrow_mut() = Some(_io.read_u1()?.into());

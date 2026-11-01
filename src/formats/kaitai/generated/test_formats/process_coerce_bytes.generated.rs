@@ -207,12 +207,12 @@ impl KStruct for ProcessCoerceBytes_Record {
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) == (to_i128(0)) {
             *self_rc.buf_unproc.borrow_mut() = _io.read_bytes(4_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) != (to_i128(0)) {
             *self_rc.buf_proc.borrow_mut() = process_xor_one(&_io.read_bytes(4_usize)?, 170_u8);
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -230,7 +230,7 @@ impl ProcessCoerceBytes_Record {
             return Ok(self.buf.borrow());
         }
         self.f_buf.set(true);
-        *self.buf.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(0))) { self.buf_unproc().to_vec() } else { self.buf_proc().to_vec() }.to_vec();
+        *self.buf.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(0)) { self.buf_unproc().to_vec() } else { self.buf_proc().to_vec() }.to_vec();
         Ok(self.buf.borrow())
     }
 }

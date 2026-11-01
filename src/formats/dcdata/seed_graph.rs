@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! and indexes active statements, supersessions (`Dc 591`), retractions (`Dc 592`),
 //! seed classification entities, value nodes, and `.Semantic:Pattern` rules at runtime.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -540,7 +540,9 @@ impl SeedGraphIndex {
             if let Some((verb, subj, obj)) = stmt_opt {
                 if verb == sh_has_value {
                     if let DcShorthand::Long(has_a_id) = subj {
-                        if !inactive_ids.contains(&has_a_id) {
+                        if inactive_ids.contains(&has_a_id) {
+                            inactive_ids.insert(node.id);
+                        } else {
                             let is_prop_has_a = node_index_by_id
                                 .get(&has_a_id)
                                 .and_then(|&idx| nodes.get(idx))
@@ -562,8 +564,6 @@ impl SeedGraphIndex {
                             } else {
                                 orphaned_stmt_ids.push(node.id);
                             }
-                        } else {
-                            inactive_ids.insert(node.id);
                         }
                     } else {
                         orphaned_stmt_ids.push(node.id);
@@ -584,13 +584,13 @@ impl SeedGraphIndex {
                                     })
                             });
                         if targets_has_a {
-                            if !inactive_ids.contains(&has_a_id) {
+                            if inactive_ids.contains(&has_a_id) {
+                                inactive_ids.insert(node.id);
+                            } else {
                                 active_pref_qual_by_stmt
                                     .entry(has_a_id)
                                     .or_default()
                                     .push(node.id);
-                            } else {
-                                inactive_ids.insert(node.id);
                             }
                         }
                     }
@@ -867,13 +867,8 @@ impl SeedGraphIndex {
                                     .entry((subj, val_tok))
                                     .or_default()
                                     .push((node.id, has_val_id, pref_id));
-                                if !active_preferred
-                                    .contains_key(&(subj, val_tok))
-                                {
-                                    active_preferred.insert(
-                                        (subj, val_tok),
-                                        (node.id, has_val_id, pref_id),
-                                    );
+                                if let std::collections::btree_map::Entry::Vacant(e) = active_preferred.entry((subj, val_tok)) {
+                                    e.insert((node.id, has_val_id, pref_id));
                                     preferred_by_subject
                                         .entry(subj)
                                         .or_default()

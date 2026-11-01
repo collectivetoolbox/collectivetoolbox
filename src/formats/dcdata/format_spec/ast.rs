@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! transmutation, transformation, conjunction, and alternation as outlined in
 //! `docs/file-info.md`.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -101,18 +101,13 @@ impl FormatOp {
     #[must_use]
     pub fn from_dc_id(id: u32) -> Option<Self> {
         let ch = DcChar::from_short(id);
-        for op in [
+        [
             Self::Union,
             Self::Transform,
             Self::Convert,
             Self::Transmute,
             Self::Intersection,
-        ] {
-            if ch == op.dc_char() {
-                return Some(op);
-            }
-        }
-        None
+        ].into_iter().find(|&op| ch == op.dc_char())
     }
 
     /// Returns the textual symbol for this operator.
@@ -239,7 +234,7 @@ impl FormatExpr {
         }
     }
 
-    /// Returns true if this expression is a leaf node (Dc or NamedType).
+    /// Returns true if this expression is a leaf node (Dc or `NamedType`).
     #[must_use]
     pub const fn is_leaf(&self) -> bool {
         matches!(self, Self::Dc(_) | Self::NamedType(_))

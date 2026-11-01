@@ -8797,7 +8797,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
         *self_rc.number_of_entries.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.number_of_entries())) > (to_i128(1))) {
+        if (to_i128(*self_rc.number_of_entries())) > (to_i128(1)) {
             *self_rc.curve_values.borrow_mut() = Vec::new();
             let l_curve_values = usize::try_from(*self_rc.number_of_entries())?;
             for _i in 0_usize..l_curve_values {
@@ -8806,7 +8806,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.number_of_entries())) == (to_i128(1))) {
+        if (to_i128(*self_rc.number_of_entries())) == (to_i128(1)) {
             *self_rc.curve_value.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -10710,7 +10710,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.input_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_input_channels()))).saturating_mul(i32::from(*self_rc.number_of_input_table_entries())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels()))))).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
+        *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels())))).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.output_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_output_channels()))).saturating_mul(i32::from(*self_rc.number_of_output_table_entries())))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -12529,7 +12529,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
         *self_rc.pcs_coordinates.borrow_mut() = _io.read_bytes(6_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())) > (to_i128(0))) {
+        if (to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())) > (to_i128(0)) {
             *self_rc.device_coordinates.borrow_mut() = Vec::new();
             let l_device_coordinates = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())?;
             for _i in 0_usize..l_device_coordinates {

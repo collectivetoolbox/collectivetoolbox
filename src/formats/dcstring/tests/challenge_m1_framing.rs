@@ -423,7 +423,7 @@ fn test_challenge_format_delimiters_followed_by_various_tokens() -> Result<()> {
     validate_dc_mixed_strict(&doc2)?;
 
     let mut nav2 = DcDocumentNavigator::from_mstr(&doc2);
-    for expected_name in ["alpha.bin", "beta.bin", "gamma.bin"] {
+    for _expected_name in ["alpha.bin", "beta.bin", "gamma.bin"] {
         let stub = nav2.next_sibling_stub(&policy)?.context("Expected format rep")?;
         ensure!(stub.head_dc == DC_BEGIN_FORMAT_REPRESENTATION);
         ensure!(stub.closer_dc == Some(DC_END_FORMAT_REPRESENTATION));
@@ -569,7 +569,7 @@ fn test_challenge_named_types_with_format_rules() -> Result<()> {
 
     // Verify named types are registered
     let filename_pat = resolver.resolve_named_type("filename").context("filename named type")?;
-    let filepath_pat = resolver.resolve_named_type("filepath").context("filepath named type")?;
+    let _filepath_pat = resolver.resolve_named_type("filepath").context("filepath named type")?;
     let ipaddr_pat = resolver.resolve_named_type("ipaddr").context("ipaddr named type")?;
 
     // 1. filename: 511 [f228:] 512

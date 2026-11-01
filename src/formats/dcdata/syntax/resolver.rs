@@ -977,12 +977,12 @@ impl DatasetRuleResolver {
 
         let mut candidate_targets: HashSet<CharTarget> = self.rules.keys().cloned().collect();
         candidate_targets.extend(self.opener_to_closer.keys().cloned());
-        for (&closer_tok, _) in &self.closing_delimiters {
+        for &closer_tok in self.closing_delimiters.keys() {
             if let Some(target) = CharTarget::from_u128(closer_tok) {
                 candidate_targets.insert(target);
             }
         }
-        for (&alias_tok, _) in &self.canonical_map {
+        for &alias_tok in self.canonical_map.keys() {
             if let Some(target) = CharTarget::from_u128(alias_tok) {
                 candidate_targets.insert(target);
             }
@@ -2120,7 +2120,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             {
                 return true;
             }
-            if let Some(suffix) = clean_name.split(':').last() {
+            if let Some(suffix) = clean_name.split(':').next_back() {
                 if suffix == clean_target && set.contains(&token) {
                     return true;
                 }
@@ -2140,7 +2140,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             if clean_name == clean_target || clean_name.starts_with(clean_target) {
                 return true;
             }
-            if let Some(suffix) = clean_name.split(':').last() {
+            if let Some(suffix) = clean_name.split(':').next_back() {
                 if suffix == clean_target {
                     return true;
                 }
@@ -2489,8 +2489,8 @@ mod tests {
             None,
         )?;
 
-        let tok_100 = DcChar::from_short(100).to_u128();
-        let tok_950 = DcChar::from_short(950).to_u128();
+        let _tok_100 = DcChar::from_short(100).to_u128();
+        let _tok_950 = DcChar::from_short(950).to_u128();
         let tok_110 = DcChar::from_short(110).to_u128();
         let tok_960 = DcChar::from_short(960).to_u128();
 

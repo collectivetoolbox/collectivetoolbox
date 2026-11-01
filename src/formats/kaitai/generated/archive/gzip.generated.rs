@@ -163,7 +163,7 @@ impl KStruct for Gzip {
             *self_rc.header_crc16.borrow_mut() = _io.read_u2le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from(i64::try_from(_io.size())?)?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body_crc32.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();

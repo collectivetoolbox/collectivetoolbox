@@ -401,13 +401,13 @@ impl KStruct for IfStruct_Operation {
         *self_rc.opcode.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.opcode())) == (to_i128(84))) {
+        if (to_i128(*self_rc.opcode())) == (to_i128(84)) {
             let t = Self::read_into::<_, IfStruct_ArgTuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arg_tuple.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.opcode())) == (to_i128(83))) {
+        if (to_i128(*self_rc.opcode())) == (to_i128(83)) {
             let t = Self::read_into::<_, IfStruct_ArgStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arg_str.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();

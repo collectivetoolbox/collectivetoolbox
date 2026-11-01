@@ -339,7 +339,7 @@ fn test_challenge_finder_info_boundary_values() -> Result<()> {
 
 #[crate::ctb_test]
 fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
-    let strict = DcProjectionPolicy::strict();
+    let _strict = DcProjectionPolicy::strict();
 
     // 1. Default ExtendedFinderInfo roundtrip (Dc 490 491)
     let default_ext = ExtendedFinderInfo::default();

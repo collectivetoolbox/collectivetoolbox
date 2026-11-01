@@ -2302,7 +2302,7 @@ impl Exif_ExifBody_Ifd {
         if self.f_next_ifd.get() {
             return Ok(self.next_ifd.borrow());
         }
-        if ((to_i128(*self.ofs_next_ifd())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_next_ifd())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_next_ifd())?)?;
             let f = |t : &mut Exif_ExifBody_Ifd| Ok(t.set_params(*self.is_gps_ifd()));
@@ -2822,7 +2822,7 @@ impl Exif_ExifBody_IfdField {
             return Ok(self.bytes_per_value.borrow());
         }
         self.f_bytes_per_value.set(true);
-        *self.bytes_per_value.borrow_mut() = (if  ((*self.field_type() == Exif_FieldType::Byte) || (*self.field_type() == Exif_FieldType::Ascii) || (*self.field_type() == Exif_FieldType::Sbyte) || (*self.field_type() == Exif_FieldType::Undefined) || (*self.field_type() == Exif_FieldType::Utf8))  { 1_i32 } else { if  ((*self.field_type() == Exif_FieldType::Short) || (*self.field_type() == Exif_FieldType::Sshort))  { 2_i32 } else { if  ((*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Slong) || (*self.field_type() == Exif_FieldType::Float) || (*self.field_type() == Exif_FieldType::Ifd))  { 4_i32 } else { if  ((*self.field_type() == Exif_FieldType::Rational) || (*self.field_type() == Exif_FieldType::Srational) || (*self.field_type() == Exif_FieldType::Double))  { 8_i32 } else { 0_i32 } } } }).try_into()?;
+        *self.bytes_per_value.borrow_mut() = (if  (*self.field_type() == Exif_FieldType::Byte) || (*self.field_type() == Exif_FieldType::Ascii) || (*self.field_type() == Exif_FieldType::Sbyte) || (*self.field_type() == Exif_FieldType::Undefined) || (*self.field_type() == Exif_FieldType::Utf8)  { 1_i32 } else { if  (*self.field_type() == Exif_FieldType::Short) || (*self.field_type() == Exif_FieldType::Sshort)  { 2_i32 } else { if  (*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Slong) || (*self.field_type() == Exif_FieldType::Float) || (*self.field_type() == Exif_FieldType::Ifd)  { 4_i32 } else { if  (*self.field_type() == Exif_FieldType::Rational) || (*self.field_type() == Exif_FieldType::Srational) || (*self.field_type() == Exif_FieldType::Double)  { 8_i32 } else { 0_i32 } } } }).try_into()?;
         Ok(self.bytes_per_value.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -3004,7 +3004,7 @@ impl Exif_ExifBody_IfdField {
         if self.f_sub_ifd.get() {
             return Ok(self.sub_ifd.borrow());
         }
-        if  ((((to_i128(*self.num_values())) == (to_i128(1)))) && ( ((*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Ifd) || ( ((*self.field_type() == Exif_FieldType::Slong) && (((to_i128(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)?)) >= (to_i128(0))))) )) ) && ( ((*self.tag()? == Exif_Tag::ExifOffset) || (*self.tag()? == Exif_Tag::InteropOffset) || (*self.tag()? == Exif_Tag::GpsInfo)) ))  {
+        if  (((to_i128(*self.num_values())) == (to_i128(1)))) && ( ((*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Ifd) || ( ((*self.field_type() == Exif_FieldType::Slong) && (((to_i128(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)?)) >= (to_i128(0))))) )) ) && ( ((*self.tag()? == Exif_Tag::ExifOffset) || (*self.tag()? == Exif_Tag::InteropOffset) || (*self.tag()? == Exif_Tag::GpsInfo)) )  {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(if *self.field_type() == Exif_FieldType::Slong { u32::try_from(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)?)? } else { *OptRc::<Exif_ExifBody_Longs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)? })?)?;
@@ -3256,7 +3256,7 @@ impl Exif_ExifBody_Rational {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        if ((to_i128(*self.value_den())) != (to_i128(0))) {
+        if (to_i128(*self.value_den())) != (to_i128(0)) {
             *self.value.borrow_mut() = (((((to_f64(*self.value_num())) + (0.0))) / (to_f64(*self.value_den())))).try_into()?;
         }
         Ok(self.value.borrow())
@@ -3750,7 +3750,7 @@ impl Exif_ExifBody_Srational {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        if ((to_i128(*self.value_den())) != (to_i128(0))) {
+        if (to_i128(*self.value_den())) != (to_i128(0)) {
             *self.value.borrow_mut() = (((((to_f64(*self.value_num())) + (0.0))) / (to_f64(*self.value_den())))).try_into()?;
         }
         Ok(self.value.borrow())

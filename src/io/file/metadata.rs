@@ -1434,7 +1434,7 @@ pub fn native_metadata_differences(
     destination: &std::path::Path,
     metadata: &FileMetadata,
     ignore_flags: bool,
-    strict: bool,
+    _strict: bool,
 ) -> Result<Vec<String>> {
     let mut differences = Vec::new();
     if let Some(native) = &metadata.native {

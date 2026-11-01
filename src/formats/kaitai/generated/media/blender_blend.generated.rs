@@ -849,7 +849,7 @@ impl BlenderBlend_FileBlock {
         if self.f_sdna_struct.get() {
             return Ok(self.sdna_struct.borrow());
         }
-        if ((to_i128(*self.sdna_index())) != (to_i128(0))) {
+        if (to_i128(*self.sdna_index())) != (to_i128(0)) {
             *self.sdna_struct.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sdna_structs()?.get(usize::try_from(*self.sdna_index())?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.sdna_struct.borrow())

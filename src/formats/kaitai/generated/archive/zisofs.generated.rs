@@ -391,7 +391,7 @@ impl Zisofs_Header {
             return Ok(self.num_blocks.borrow());
         }
         self.f_num_blocks.set(true);
-        *self.num_blocks.borrow_mut() = (((*self.uncompressed_size()).checked_div(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)?).saturating_add(u32::try_from(if ((to_i128((*self.uncompressed_size()).checked_rem(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)?)) != (to_i128(0))) { 1_i32 } else { 0_i32 })?)).try_into()?;
+        *self.num_blocks.borrow_mut() = (((*self.uncompressed_size()).checked_div(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)?).saturating_add(u32::try_from(if (to_i128((*self.uncompressed_size()).checked_rem(u32::try_from(*self.block_size()?)?).ok_or(KError::CastError)?)) != (to_i128(0)) { 1_i32 } else { 0_i32 })?)).try_into()?;
         Ok(self.num_blocks.borrow())
     }
 }

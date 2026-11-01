@@ -29,6 +29,10 @@ pub(crate) use ctb_utilities::*;
 pub(crate) use ctb_build_support::{
     fs2, sha2,
 };
+#[cfg(test)]
+pub(crate) use ctb_build_support::{
+    dc_codegen, find_repository_root_from,
+};
 
 pub use crate as ctb_formats_dc_data;
 
@@ -219,7 +223,7 @@ pub fn get_dc_magdir_dir() -> Option<&'static Dir<'static>> {
     DC_DATA_DIR.get_dir("magic/upstream/magic/Magdir")
 }
 
-/// Returns all embedded Magdir rule files as (relative_path, content_bytes) pairs.
+/// Returns all embedded Magdir rule files as (`relative_path`, `content_bytes`) pairs.
 pub fn get_dc_magdir_files() -> Vec<(&'static str, &'static [u8])> {
     if let Some(dir) = DC_DATA_DIR.get_dir("magic/upstream/magic/Magdir") {
         dir.files()
@@ -234,14 +238,14 @@ pub fn get_dc_magdir_files() -> Vec<(&'static str, &'static [u8])> {
 pub fn get_droid_signature_xml() -> Option<&'static [u8]> {
     DC_DATA_DIR
         .get_file("droid/signatures/DROID_SignatureFile_V125.xml")
-        .map(|f| f.contents())
+        .map(include_dir::File::contents)
 }
 
 /// Returns the canonical DROID container signature file as raw bytes.
 pub fn get_droid_container_signature_xml() -> Option<&'static [u8]> {
     DC_DATA_DIR
         .get_file("droid/signatures/container-signature-20260119.xml")
-        .map(|f| f.contents())
+        .map(include_dir::File::contents)
 }
 
 /// Returns the embedded DROID signatures directory containing canonical signature XMLs.

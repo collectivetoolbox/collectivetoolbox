@@ -295,7 +295,7 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.value_as_int.borrow());
         }
         self.f_value_as_int.set(true);
-        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { (((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?)) } else { if *self.len_bytes()? == 3 { (((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?)) } else { if *self.len_bytes()? == 4 { (((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?)) } else { (0_i32).saturating_sub(to_i32(1)) } } } }).try_into()?;
+        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { ((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?) } else { if *self.len_bytes()? == 3 { ((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?) } else { if *self.len_bytes()? == 4 { ((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?) } else { (0_i32).saturating_sub(to_i32(1)) } } } }).try_into()?;
         Ok(self.value_as_int.borrow())
     }
 }

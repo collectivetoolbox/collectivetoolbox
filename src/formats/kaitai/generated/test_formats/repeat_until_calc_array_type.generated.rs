@@ -128,7 +128,7 @@ impl KStruct for RepeatUntilCalcArrayType {
                 let _t_records = self_rc.records.borrow();
                 let Some(_tmpa) = _t_records.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.marker())) == (to_i128(170))) { break; }
+                if (to_i128(*_tmpa.marker())) == (to_i128(170)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();

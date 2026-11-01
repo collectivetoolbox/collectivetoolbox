@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Emits unambiguous format expression strings with minimal, necessary parentheses
 //! adhering to the associativity and grouping rules of `docs/file-info.md`.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

@@ -1576,7 +1576,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
     /// during grammar validation.
     #[crate::ctb_test]
     fn test_eval_term_single_lang_say_stream_splicing() -> Result<()> {
-        let policy = DcProjectionPolicy::strict();
+        let _policy = DcProjectionPolicy::strict();
         let resolver = default_syntax_resolver();
 
         // 256 (void lang.say(String))

@@ -3909,7 +3909,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.conf_alt.borrow());
         }
         self.f_conf_alt.set(true);
-        *self.conf_alt.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
+        *self.conf_alt.borrow_mut() = (((to_i128((*self.value()) & (8192_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.conf_alt.borrow())
     }
 
@@ -3925,7 +3925,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.direct.borrow());
         }
         self.f_direct.set(true);
-        *self.direct.borrow_mut() = (((to_i128(((*self.value()) & (256_u32)))) != (to_i128(0)))).try_into()?;
+        *self.direct.borrow_mut() = (((to_i128((*self.value()) & (256_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.direct.borrow())
     }
 
@@ -3941,7 +3941,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.disp_rel_dne.borrow());
         }
         self.f_disp_rel_dne.set(true);
-        *self.disp_rel_dne.borrow_mut() = (((to_i128(((*self.value()) & (32768_u32)))) != (to_i128(0)))).try_into()?;
+        *self.disp_rel_dne.borrow_mut() = (((to_i128((*self.value()) & (32768_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.disp_rel_dne.borrow())
     }
 
@@ -3957,7 +3957,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.disp_rel_pnd.borrow());
         }
         self.f_disp_rel_pnd.set(true);
-        *self.disp_rel_pnd.borrow_mut() = (((to_i128(((*self.value()) & (65536_u32)))) != (to_i128(0)))).try_into()?;
+        *self.disp_rel_pnd.borrow_mut() = (((to_i128((*self.value()) & (65536_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.disp_rel_pnd.borrow())
     }
 
@@ -3973,7 +3973,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.edited.borrow());
         }
         self.f_edited.set(true);
-        *self.edited.borrow_mut() = (((to_i128(((*self.value()) & (2097152_u32)))) != (to_i128(0)))).try_into()?;
+        *self.edited.borrow_mut() = (((to_i128((*self.value()) & (2097152_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.edited.borrow())
     }
 
@@ -3989,7 +3989,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.end_filtee.borrow());
         }
         self.f_end_filtee.set(true);
-        *self.end_filtee.borrow_mut() = (((to_i128(((*self.value()) & (16384_u32)))) != (to_i128(0)))).try_into()?;
+        *self.end_filtee.borrow_mut() = (((to_i128((*self.value()) & (16384_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.end_filtee.borrow())
     }
 
@@ -4005,7 +4005,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.glob_audit.borrow());
         }
         self.f_glob_audit.set(true);
-        *self.glob_audit.borrow_mut() = (((to_i128(((*self.value()) & (16777216_u32)))) != (to_i128(0)))).try_into()?;
+        *self.glob_audit.borrow_mut() = (((to_i128((*self.value()) & (16777216_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.glob_audit.borrow())
     }
 
@@ -4021,7 +4021,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
+        *self.group.borrow_mut() = (((to_i128((*self.value()) & (4_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.group.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -4033,7 +4033,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.ign_mul_def.borrow());
         }
         self.f_ign_mul_def.set(true);
-        *self.ign_mul_def.borrow_mut() = (((to_i128(((*self.value()) & (262144_u32)))) != (to_i128(0)))).try_into()?;
+        *self.ign_mul_def.borrow_mut() = (((to_i128((*self.value()) & (262144_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.ign_mul_def.borrow())
     }
 
@@ -4049,7 +4049,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.init_first.borrow());
         }
         self.f_init_first.set(true);
-        *self.init_first.borrow_mut() = (((to_i128(((*self.value()) & (32_u32)))) != (to_i128(0)))).try_into()?;
+        *self.init_first.borrow_mut() = (((to_i128((*self.value()) & (32_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.init_first.borrow())
     }
 
@@ -4065,7 +4065,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.interpose.borrow());
         }
         self.f_interpose.set(true);
-        *self.interpose.borrow_mut() = (((to_i128(((*self.value()) & (1024_u32)))) != (to_i128(0)))).try_into()?;
+        *self.interpose.borrow_mut() = (((to_i128((*self.value()) & (1024_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.interpose.borrow())
     }
 
@@ -4081,7 +4081,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.kmod.borrow());
         }
         self.f_kmod.set(true);
-        *self.kmod.borrow_mut() = (((to_i128(((*self.value()) & (268435456_u32)))) != (to_i128(0)))).try_into()?;
+        *self.kmod.borrow_mut() = (((to_i128((*self.value()) & (268435456_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.kmod.borrow())
     }
 
@@ -4097,7 +4097,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.load_fltr.borrow());
         }
         self.f_load_fltr.set(true);
-        *self.load_fltr.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
+        *self.load_fltr.borrow_mut() = (((to_i128((*self.value()) & (16_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.load_fltr.borrow())
     }
 
@@ -4114,7 +4114,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_common.borrow());
         }
         self.f_no_common.set(true);
-        *self.no_common.borrow_mut() = (((to_i128(((*self.value()) & (1073741824_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_common.borrow_mut() = (((to_i128((*self.value()) & (1073741824_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_common.borrow())
     }
 
@@ -4130,7 +4130,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_def_lib.borrow());
         }
         self.f_no_def_lib.set(true);
-        *self.no_def_lib.borrow_mut() = (((to_i128(((*self.value()) & (2048_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_def_lib.borrow_mut() = (((to_i128((*self.value()) & (2048_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_def_lib.borrow())
     }
 
@@ -4146,7 +4146,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_delete.borrow());
         }
         self.f_no_delete.set(true);
-        *self.no_delete.borrow_mut() = (((to_i128(((*self.value()) & (8_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_delete.borrow_mut() = (((to_i128((*self.value()) & (8_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_delete.borrow())
     }
 
@@ -4162,7 +4162,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_direct.borrow());
         }
         self.f_no_direct.set(true);
-        *self.no_direct.borrow_mut() = (((to_i128(((*self.value()) & (131072_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_direct.borrow_mut() = (((to_i128((*self.value()) & (131072_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_direct.borrow())
     }
 
@@ -4178,7 +4178,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_dump.borrow());
         }
         self.f_no_dump.set(true);
-        *self.no_dump.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_dump.borrow_mut() = (((to_i128((*self.value()) & (4096_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_dump.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -4190,7 +4190,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_hdr.borrow());
         }
         self.f_no_hdr.set(true);
-        *self.no_hdr.borrow_mut() = (((to_i128(((*self.value()) & (1048576_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_hdr.borrow_mut() = (((to_i128((*self.value()) & (1048576_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_hdr.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -4202,7 +4202,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_ksyms.borrow());
         }
         self.f_no_ksyms.set(true);
-        *self.no_ksyms.borrow_mut() = (((to_i128(((*self.value()) & (524288_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_ksyms.borrow_mut() = (((to_i128((*self.value()) & (524288_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_ksyms.borrow())
     }
 
@@ -4218,7 +4218,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_open.borrow());
         }
         self.f_no_open.set(true);
-        *self.no_open.borrow_mut() = (((to_i128(((*self.value()) & (64_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_open.borrow_mut() = (((to_i128((*self.value()) & (64_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_open.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -4230,7 +4230,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_reloc.borrow());
         }
         self.f_no_reloc.set(true);
-        *self.no_reloc.borrow_mut() = (((to_i128(((*self.value()) & (4194304_u32)))) != (to_i128(0)))).try_into()?;
+        *self.no_reloc.borrow_mut() = (((to_i128((*self.value()) & (4194304_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.no_reloc.borrow())
     }
 
@@ -4246,7 +4246,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.now.borrow());
         }
         self.f_now.set(true);
-        *self.now.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
+        *self.now.borrow_mut() = (((to_i128((*self.value()) & (1_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.now.borrow())
     }
 
@@ -4262,7 +4262,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = (((to_i128(((*self.value()) & (128_u32)))) != (to_i128(0)))).try_into()?;
+        *self.origin.borrow_mut() = (((to_i128((*self.value()) & (128_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.origin.borrow())
     }
 
@@ -4278,7 +4278,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.pie.borrow());
         }
         self.f_pie.set(true);
-        *self.pie.borrow_mut() = (((to_i128(((*self.value()) & (134217728_u32)))) != (to_i128(0)))).try_into()?;
+        *self.pie.borrow_mut() = (((to_i128((*self.value()) & (134217728_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.pie.borrow())
     }
 
@@ -4294,7 +4294,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.rtld_global.borrow());
         }
         self.f_rtld_global.set(true);
-        *self.rtld_global.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
+        *self.rtld_global.borrow_mut() = (((to_i128((*self.value()) & (2_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.rtld_global.borrow())
     }
 
@@ -4310,7 +4310,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.singleton.borrow());
         }
         self.f_singleton.set(true);
-        *self.singleton.borrow_mut() = (((to_i128(((*self.value()) & (33554432_u32)))) != (to_i128(0)))).try_into()?;
+        *self.singleton.borrow_mut() = (((to_i128((*self.value()) & (33554432_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.singleton.borrow())
     }
 
@@ -4327,7 +4327,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.stub.borrow());
         }
         self.f_stub.set(true);
-        *self.stub.borrow_mut() = (((to_i128(((*self.value()) & (67108864_u32)))) != (to_i128(0)))).try_into()?;
+        *self.stub.borrow_mut() = (((to_i128((*self.value()) & (67108864_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.stub.borrow())
     }
 
@@ -4343,7 +4343,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.sym_intpose.borrow());
         }
         self.f_sym_intpose.set(true);
-        *self.sym_intpose.borrow_mut() = (((to_i128(((*self.value()) & (8388608_u32)))) != (to_i128(0)))).try_into()?;
+        *self.sym_intpose.borrow_mut() = (((to_i128((*self.value()) & (8388608_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.sym_intpose.borrow())
     }
 
@@ -4359,7 +4359,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.trans.borrow());
         }
         self.f_trans.set(true);
-        *self.trans.borrow_mut() = (((to_i128(((*self.value()) & (512_u32)))) != (to_i128(0)))).try_into()?;
+        *self.trans.borrow_mut() = (((to_i128((*self.value()) & (512_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.trans.borrow())
     }
 
@@ -4375,7 +4375,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.weak_filter.borrow());
         }
         self.f_weak_filter.set(true);
-        *self.weak_filter.borrow_mut() = (((to_i128(((*self.value()) & (536870912_u32)))) != (to_i128(0)))).try_into()?;
+        *self.weak_filter.borrow_mut() = (((to_i128((*self.value()) & (536870912_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.weak_filter.borrow())
     }
 }
@@ -4492,7 +4492,7 @@ impl Elf_DtFlagValues {
             return Ok(self.bind_now.borrow());
         }
         self.f_bind_now.set(true);
-        *self.bind_now.borrow_mut() = (((to_i128(((*self.value()) & (8_u32)))) != (to_i128(0)))).try_into()?;
+        *self.bind_now.borrow_mut() = (((to_i128((*self.value()) & (8_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.bind_now.borrow())
     }
 
@@ -4508,7 +4508,7 @@ impl Elf_DtFlagValues {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
+        *self.origin.borrow_mut() = (((to_i128((*self.value()) & (1_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.origin.borrow())
     }
 
@@ -4524,7 +4524,7 @@ impl Elf_DtFlagValues {
             return Ok(self.static_tls.borrow());
         }
         self.f_static_tls.set(true);
-        *self.static_tls.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
+        *self.static_tls.borrow_mut() = (((to_i128((*self.value()) & (16_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.static_tls.borrow())
     }
 
@@ -4540,7 +4540,7 @@ impl Elf_DtFlagValues {
             return Ok(self.symbolic.borrow());
         }
         self.f_symbolic.set(true);
-        *self.symbolic.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
+        *self.symbolic.borrow_mut() = (((to_i128((*self.value()) & (2_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.symbolic.borrow())
     }
 
@@ -4556,7 +4556,7 @@ impl Elf_DtFlagValues {
             return Ok(self.textrel.borrow());
         }
         self.f_textrel.set(true);
-        *self.textrel.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
+        *self.textrel.borrow_mut() = (((to_i128((*self.value()) & (4_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.textrel.borrow())
     }
 }
@@ -4954,7 +4954,7 @@ impl Elf_EndianElf {
         if self.f_section_names.get() {
             return Ok(self.section_names.borrow());
         }
-        if  ((((to_i128(*self.section_names_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (*self.section_names_idx() < *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers()))  {
+        if  (((to_i128(*self.section_names_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (*self.section_names_idx() < *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers())  {
             let _pos = _io.pos();
             _io.seek(usize::try_from(self.section_headers()?.get(usize::from(*self.section_names_idx())).ok_or(KError::CastError)?.ofs_body())?)?;
             *self.section_names_raw.borrow_mut() = _io.read_bytes(usize::try_from(self.section_headers()?.get(usize::from(*self.section_names_idx())).ok_or(KError::CastError)?.len_body())?)?.into();
@@ -5359,7 +5359,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        if  ((((to_i128(*self.ofs_name())) != (to_i128(0)))) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
+        if  (((to_i128(*self.ofs_name())) != (to_i128(0)))) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?)  {
             let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
@@ -5417,7 +5417,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.visibility.borrow());
         }
         self.f_visibility.set(true);
-        *self.visibility.borrow_mut() = i64::from(((i32::from(*self.other())) & (7_i32))).try_into()?;
+        *self.visibility.borrow_mut() = i64::from((i32::from(*self.other())) & (7_i32)).try_into()?;
         Ok(self.visibility.borrow())
     }
 }
@@ -6852,7 +6852,7 @@ impl Elf_EndianElf_ProgramHeader {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        if ((to_i128(self.len_body())) != (to_i128(0))) {
+        if (to_i128(self.len_body())) != (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.ofs_body())?)?;
@@ -8399,7 +8399,7 @@ impl Elf_EndianElf_SectionHeader {
         if self.f_linked_section.get() {
             return Ok(self.linked_section.borrow());
         }
-        if  ((((to_i128(*self.linked_section_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (((to_i128(*self.linked_section_idx())) < (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers())))))  {
+        if  (((to_i128(*self.linked_section_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (((to_i128(*self.linked_section_idx())) < (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers()))))  {
             *self.linked_section.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().section_headers()?.get(usize::try_from(*self.linked_section_idx())?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.linked_section.borrow())
@@ -8913,7 +8913,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
             return Ok(self.value_str.borrow());
         }
         self.f_value_str.set(true);
-        if  ((*self.is_value_str()?) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
+        if  (*self.is_value_str()?) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?)  {
             let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.value_or_ptr())?)?;
@@ -9169,7 +9169,7 @@ impl Elf_EndianElf_VerdauxEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerdauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -9561,7 +9561,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerdefSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -9836,7 +9836,7 @@ impl Elf_EndianElf_VernauxEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VernauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -10252,7 +10252,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerneedSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -10878,7 +10878,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.execute.borrow());
         }
         self.f_execute.set(true);
-        *self.execute.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
+        *self.execute.borrow_mut() = (((to_i128((*self.value()) & (1_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.execute.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -10890,7 +10890,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() = (((to_i128(((*self.value()) & (4026531840_u32)))) != (to_i128(0)))).try_into()?;
+        *self.mask_proc.borrow_mut() = (((to_i128((*self.value()) & (4026531840_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_proc.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -10902,7 +10902,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.read.borrow());
         }
         self.f_read.set(true);
-        *self.read.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
+        *self.read.borrow_mut() = (((to_i128((*self.value()) & (4_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.read.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -10914,7 +10914,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
+        *self.write.borrow_mut() = (((to_i128((*self.value()) & (2_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.write.borrow())
     }
 }
@@ -11054,7 +11054,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.alloc.borrow());
         }
         self.f_alloc.set(true);
-        *self.alloc.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
+        *self.alloc.borrow_mut() = (((to_i128((*self.value()) & (2_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.alloc.borrow())
     }
 
@@ -11070,7 +11070,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.compressed.borrow());
         }
         self.f_compressed.set(true);
-        *self.compressed.borrow_mut() = (((to_i128(((*self.value()) & (2048_u32)))) != (to_i128(0)))).try_into()?;
+        *self.compressed.borrow_mut() = (((to_i128((*self.value()) & (2048_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.compressed.borrow())
     }
 
@@ -11086,7 +11086,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.exclude.borrow());
         }
         self.f_exclude.set(true);
-        *self.exclude.borrow_mut() = (((to_i128(((*self.value()) & (2147483648_u32)))) != (to_i128(0)))).try_into()?;
+        *self.exclude.borrow_mut() = (((to_i128((*self.value()) & (2147483648_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.exclude.borrow())
     }
 
@@ -11102,7 +11102,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.exec_instr.borrow());
         }
         self.f_exec_instr.set(true);
-        *self.exec_instr.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
+        *self.exec_instr.borrow_mut() = (((to_i128((*self.value()) & (4_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.exec_instr.borrow())
     }
 
@@ -11119,7 +11119,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.gnu_mbind.borrow());
         }
         self.f_gnu_mbind.set(true);
-        *self.gnu_mbind.borrow_mut() = (((to_i128(((*self.value()) & (16777216_u32)))) != (to_i128(0)))).try_into()?;
+        *self.gnu_mbind.borrow_mut() = (((to_i128((*self.value()) & (16777216_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.gnu_mbind.borrow())
     }
 
@@ -11135,7 +11135,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = (((to_i128(((*self.value()) & (512_u32)))) != (to_i128(0)))).try_into()?;
+        *self.group.borrow_mut() = (((to_i128((*self.value()) & (512_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.group.borrow())
     }
 
@@ -11151,7 +11151,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.info_link.borrow());
         }
         self.f_info_link.set(true);
-        *self.info_link.borrow_mut() = (((to_i128(((*self.value()) & (64_u32)))) != (to_i128(0)))).try_into()?;
+        *self.info_link.borrow_mut() = (((to_i128((*self.value()) & (64_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.info_link.borrow())
     }
 
@@ -11167,7 +11167,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.link_order.borrow());
         }
         self.f_link_order.set(true);
-        *self.link_order.borrow_mut() = (((to_i128(((*self.value()) & (128_u32)))) != (to_i128(0)))).try_into()?;
+        *self.link_order.borrow_mut() = (((to_i128((*self.value()) & (128_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.link_order.borrow())
     }
 
@@ -11183,7 +11183,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.mask_os.borrow());
         }
         self.f_mask_os.set(true);
-        *self.mask_os.borrow_mut() = (((to_i128(((*self.value()) & (267386880_u32)))) != (to_i128(0)))).try_into()?;
+        *self.mask_os.borrow_mut() = (((to_i128((*self.value()) & (267386880_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_os.borrow())
     }
 
@@ -11199,7 +11199,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() = (((to_i128(((*self.value()) & (4026531840_u32)))) != (to_i128(0)))).try_into()?;
+        *self.mask_proc.borrow_mut() = (((to_i128((*self.value()) & (4026531840_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_proc.borrow())
     }
 
@@ -11215,7 +11215,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.merge.borrow());
         }
         self.f_merge.set(true);
-        *self.merge.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
+        *self.merge.borrow_mut() = (((to_i128((*self.value()) & (16_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.merge.borrow())
     }
 
@@ -11239,7 +11239,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.ordered.borrow());
         }
         self.f_ordered.set(true);
-        *self.ordered.borrow_mut() = (((to_i128(((*self.value()) & (1073741824_u32)))) != (to_i128(0)))).try_into()?;
+        *self.ordered.borrow_mut() = (((to_i128((*self.value()) & (1073741824_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.ordered.borrow())
     }
 
@@ -11255,7 +11255,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.os_nonconforming.borrow());
         }
         self.f_os_nonconforming.set(true);
-        *self.os_nonconforming.borrow_mut() = (((to_i128(((*self.value()) & (256_u32)))) != (to_i128(0)))).try_into()?;
+        *self.os_nonconforming.borrow_mut() = (((to_i128((*self.value()) & (256_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.os_nonconforming.borrow())
     }
 
@@ -11273,7 +11273,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.retain.borrow());
         }
         self.f_retain.set(true);
-        *self.retain.borrow_mut() = (((to_i128(((*self.value()) & (2097152_u32)))) != (to_i128(0)))).try_into()?;
+        *self.retain.borrow_mut() = (((to_i128((*self.value()) & (2097152_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.retain.borrow())
     }
 
@@ -11289,7 +11289,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.strings.borrow());
         }
         self.f_strings.set(true);
-        *self.strings.borrow_mut() = (((to_i128(((*self.value()) & (32_u32)))) != (to_i128(0)))).try_into()?;
+        *self.strings.borrow_mut() = (((to_i128((*self.value()) & (32_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.strings.borrow())
     }
 
@@ -11307,7 +11307,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.tls.borrow());
         }
         self.f_tls.set(true);
-        *self.tls.borrow_mut() = (((to_i128(((*self.value()) & (1024_u32)))) != (to_i128(0)))).try_into()?;
+        *self.tls.borrow_mut() = (((to_i128((*self.value()) & (1024_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.tls.borrow())
     }
 
@@ -11323,7 +11323,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
+        *self.write.borrow_mut() = (((to_i128((*self.value()) & (1_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.write.borrow())
     }
 }

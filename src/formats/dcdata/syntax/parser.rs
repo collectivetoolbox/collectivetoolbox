@@ -301,7 +301,7 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
 
         return Ok(SyntaxElement::with_quantifier(
             SyntaxTerm::NamedConstruct {
-                name: name.to_string(),
+                name: name.clone(),
                 subtype: Some(subtype_str.to_string()),
                 capture_var,
             },

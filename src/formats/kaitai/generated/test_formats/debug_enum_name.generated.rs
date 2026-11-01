@@ -293,7 +293,7 @@ impl DebugEnumName_TestSubtype {
             return Ok(self.instance_field.borrow());
         }
         self.f_instance_field.set(true);
-        *self.instance_field.borrow_mut() = i64::from(((i32::from(*self.field2())) & (15_i32))).try_into()?;
+        *self.instance_field.borrow_mut() = i64::from((i32::from(*self.field2())) & (15_i32)).try_into()?;
         Ok(self.instance_field.borrow())
     }
 }

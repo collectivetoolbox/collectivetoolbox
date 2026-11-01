@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! `298 operator left right 299`
 //! as specified in `docs/file-info.md`.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -274,18 +274,13 @@ pub(crate) fn is_closing_token(token: &DcToken, resolver: &dyn SyntaxRuleResolve
 }
 
 fn format_op_from_token(token: &DcToken, resolver: &dyn SyntaxRuleResolver) -> Option<FormatOp> {
-    for op in [
+    [
         FormatOp::Union,
         FormatOp::Transform,
         FormatOp::Convert,
         FormatOp::Transmute,
         FormatOp::Intersection,
-    ] {
-        if token.fills_role_with(op.role(), resolver) {
-            return Some(op);
-        }
-    }
-    None
+    ].into_iter().find(|&op| token.fills_role_with(op.role(), resolver))
 }
 
 /// Decodes a slice of `DcToken`s into a `FormatExpr`.

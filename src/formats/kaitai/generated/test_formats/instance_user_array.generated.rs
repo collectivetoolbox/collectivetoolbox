@@ -137,7 +137,7 @@ impl InstanceUserArray {
             return Ok(self.user_entries.borrow());
         }
         self.f_user_entries.set(true);
-        if ((to_i128(*self.ofs())) > (to_i128(0))) {
+        if (to_i128(*self.ofs())) > (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs())?)?;
             *self.user_entries_raw.borrow_mut() = Vec::new();

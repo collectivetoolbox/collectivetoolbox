@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Comprehensive table validators for Document Characters (Dcs), Formats, and
 //! Global Graph Layout datasets.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+#[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
 use std::collections::{HashMap, HashSet};
@@ -282,7 +282,7 @@ pub fn validate_scripts_table(
             clippy::expect_used,
             reason = "Row is guaranteed non-empty by the is_empty() check above"
         )]
-        let script = row.get(0).expect("row is non-empty").trim();
+        let script = row.first().expect("row is non-empty").trim();
         if script.is_empty() {
             report.add_error(
                 file_path,
@@ -371,7 +371,7 @@ pub fn validate_decompositions_table(
             continue;
         };
 
-        let (Some(raw_tag), Some(raw_desc)) = (row.get(0), row.get(1)) else {
+        let (Some(raw_tag), Some(raw_desc)) = (row.first(), row.get(1)) else {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -440,7 +440,7 @@ pub fn extract_named_type_names(csv_bytes: &[u8]) -> HashSet<String> {
     let mut names = HashSet::new();
     for i in 0..table.row_count() {
         if let Some(row) = table.row(i) {
-            if let Some(name) = row.get(0) {
+            if let Some(name) = row.first() {
                 let trimmed = name.trim();
                 if !trimmed.is_empty() {
                     names.insert(trimmed.to_string());
@@ -497,7 +497,7 @@ pub fn validate_named_types_table(
             continue;
         };
 
-        let (Some(raw_name), Some(raw_syntax)) = (row.get(0), row.get(1)) else {
+        let (Some(raw_name), Some(raw_syntax)) = (row.first(), row.get(1)) else {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -1247,7 +1247,7 @@ pub fn validate_dc_category_file(
                 file_path,
                 Some(line_no),
                 Some("Aliases"),
-                format!("Document Character has '@roleDef()' but is missing an '@ident(\"...\")' declaration"),
+                "Document Character has '@roleDef()' but is missing an '@ident(\"...\")' declaration".to_string(),
                 Some("Add an '@ident(\"...\")' declaration to define the role variant name"),
             );
         }
@@ -1371,51 +1371,48 @@ fn validate_target_token(
 ) {
     let trimmed = token.trim();
     if trimmed.contains('(') && trimmed.ends_with(')') {
-        match crate::format_spec::parse_format_expr(trimmed) {
-            Ok(expr) => {
-                if let Err(e) = crate::format_spec::validate_format_expr(&expr) {
+        if let Ok(expr) = crate::format_spec::parse_format_expr(trimmed) {
+            if let Err(e) = crate::format_spec::validate_format_expr(&expr) {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Invalid format specification in '{trimmed}': {e}"),
+                    Some("Ensure valid format specification syntax and parameters"),
+                );
+            }
+            let mut fmt_ids = Vec::new();
+            collect_format_ids_from_expr(&expr, &mut fmt_ids);
+            for fmt_id in fmt_ids {
+                if !known_format_ids.contains(&fmt_id) {
                     report.add_error(
                         source_file,
                         Some(line_no),
                         Some(col_name),
-                        format!("Invalid format specification in '{trimmed}': {e}"),
-                        Some("Ensure valid format specification syntax and parameters"),
+                        format!(
+                            "Referenced Format ID 'f{fmt_id}' does not exist in formats registry"
+                        ),
+                        Some(
+                            "Ensure referenced format ID is defined in formats category files",
+                        ),
                     );
-                }
-                let mut fmt_ids = Vec::new();
-                collect_format_ids_from_expr(&expr, &mut fmt_ids);
-                for fmt_id in fmt_ids {
-                    if !known_format_ids.contains(&fmt_id) {
+                } else if let (Some(dep_fmts), Some(tag)) = (deprecated_format_ids, tag_name) {
+                    if dep_fmts.contains(&fmt_id) {
                         report.add_error(
                             source_file,
                             Some(line_no),
                             Some(col_name),
                             format!(
-                                "Referenced Format ID 'f{fmt_id}' does not exist in formats registry"
+                                "Canonical equivalency or approximate relationship '<{tag}>' references deprecated Format ID 'f{fmt_id}'"
                             ),
-                            Some(
-                                "Ensure referenced format ID is defined in formats category files",
-                            ),
+                            Some("Canonical equivalencies and approximations must target active, non-deprecated Formats"),
                         );
-                    } else if let (Some(dep_fmts), Some(tag)) = (deprecated_format_ids, tag_name) {
-                        if dep_fmts.contains(&fmt_id) {
-                            report.add_error(
-                                source_file,
-                                Some(line_no),
-                                Some(col_name),
-                                format!(
-                                    "Canonical equivalency or approximate relationship '<{tag}>' references deprecated Format ID 'f{fmt_id}'"
-                                ),
-                                Some("Canonical equivalencies and approximations must target active, non-deprecated Formats"),
-                            );
-                        }
                     }
                 }
-                return;
             }
-            Err(_) => {
-                // If it failed to parse as format spec, fall through to single token validation
-            }
+            return;
+        } else {
+            // If it failed to parse as format spec, fall through to single token validation
         }
     }
 

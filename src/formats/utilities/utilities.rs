@@ -78,9 +78,9 @@ pub use ctb_formats_dcdata::describe_general_category;
 /// Output wrapper for format conversion operations, returning the converted result
 /// alongside any accumulated conversion log warnings/errors.
 #[derive(Debug)]
+#[must_use]
 pub struct ConversionOutput<T> {
     pub result: T,
-    
     pub log: FormatLog,
 }
 

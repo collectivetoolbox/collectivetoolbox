@@ -184,7 +184,7 @@ impl KStruct for Dune2Pak_File {
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.ofs())) != (to_i128(0))) {
+        if (to_i128(*self_rc.ofs())) != (to_i128(0)) {
             *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -212,7 +212,7 @@ impl Dune2Pak_File {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        if ((to_i128(*self.ofs())) != (to_i128(0))) {
+        if (to_i128(*self.ofs())) != (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs())?)?;
@@ -230,8 +230,8 @@ impl Dune2Pak_File {
             return Ok(self.next_ofs.borrow());
         }
         self.f_next_ofs.set(true);
-        if ((to_i128(*self.ofs())) != (to_i128(0))) {
-            *self.next_ofs.borrow_mut() = (if ((to_i128(*self.next_ofs0()?)) == (to_i128(0))) { u64::try_from((i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io().size())?))? } else { u64::from(*self.next_ofs0()?) }).try_into()?;
+        if (to_i128(*self.ofs())) != (to_i128(0)) {
+            *self.next_ofs.borrow_mut() = (if (to_i128(*self.next_ofs0()?)) == (to_i128(0)) { u64::try_from(i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io().size())?)? } else { u64::from(*self.next_ofs0()?) }).try_into()?;
         }
         Ok(self.next_ofs.borrow())
     }
@@ -244,7 +244,7 @@ impl Dune2Pak_File {
             return Ok(self.next_ofs0.borrow());
         }
         self.f_next_ofs0.set(true);
-        if ((to_i128(*self.ofs())) != (to_i128(0))) {
+        if (to_i128(*self.ofs())) != (to_i128(0)) {
             *self.next_ofs0.borrow_mut() = (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.dir().files().get(usize::try_from((*self.idx()).saturating_add(1_u32))?).ok_or(KError::CastError)?.ofs()).try_into()?;
         }
         Ok(self.next_ofs0.borrow())

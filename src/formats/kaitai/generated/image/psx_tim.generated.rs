@@ -116,7 +116,7 @@ impl PsxTim {
             return Ok(self.has_clut.borrow());
         }
         self.f_has_clut.set(true);
-        *self.has_clut.borrow_mut() = (((to_i128(((*self.flags()) & (8_u32)))) != (to_i128(0)))).try_into()?;
+        *self.has_clut.borrow_mut() = (((to_i128((*self.flags()) & (8_u32))) != (to_i128(0)))).try_into()?;
         Ok(self.has_clut.borrow())
     }
 }

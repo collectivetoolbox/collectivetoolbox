@@ -159,7 +159,7 @@ pub fn build_format_validation_registry(format_rows: &[crate::DcDefn]) -> Format
                 has_export_support,
                 is_deprecated: row.is_deprecated,
                 syntax: row.syntax.clone(),
-                closes: row.closes.clone(),
+                closes: row.closes,
                 decompositions: row.decompositions.clone(),
             });
         }
@@ -181,13 +181,10 @@ fn check_target_reference(
     match target {
         CharTarget::Dc(id) => {
             if is_range_endpoint {
-                let max_short_dc = match u32::try_from(
+                let max_short_dc = u32::try_from(
                     ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_END
                         .saturating_sub(ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START),
-                ) {
-                    Ok(m) => m,
-                    Err(_) => u32::MAX,
-                };
+                ).unwrap_or(u32::MAX);
                 if *id > max_short_dc {
                     report.add_error(
                         source_file,
@@ -538,7 +535,7 @@ fn validate_syntax_element(
                     }
                 }
             } else if name == "script" {
-                if subtype.as_ref().is_none_or(|s| s.is_empty()) {
+                if subtype.as_ref().is_none_or(std::string::String::is_empty) {
                     report.add_error(
                         source_file,
                         Some(line_no),

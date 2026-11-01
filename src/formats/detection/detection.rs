@@ -683,7 +683,7 @@ pub fn guess_format_report(
 ) -> Result<DetectionReport> {
     let mut candidates = Vec::new();
     let mut bytes_evaluated = 0u64;
-    let mut read_error: Option<String> = None;
+    let read_error: Option<String> = None;
 
     // 0. Evaluate special filesystem entity hints (special.rs)
     if let Some(special_cand) = detect_special_entity(hint) {
@@ -2014,8 +2014,8 @@ mod tests {
     #[ctb_test]
     fn test_detect_brotli() {
         let brotli_data = [143, 5, 128, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 10, 3];
-        let mut slice: &[u8] = &brotli_data;
-        let hint = DetectionHint {
+        let _slice: &[u8] = &brotli_data;
+        let _hint = DetectionHint {
             filename: Some("/tmp/system_in.br".to_string()),
             expected_category: Some(FormatCategory::Compression),
             ..Default::default()

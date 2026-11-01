@@ -342,7 +342,7 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         evaluator: &dyn DcExpressionEvaluator,
         resolver: &dyn SyntaxRuleResolver,
-        policy: &DcProjectionPolicy,
+        _policy: &DcProjectionPolicy,
     ) -> Result<bool> {
         let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? else {
             return Ok(false);

@@ -194,7 +194,7 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
 
     // Construct a canonical FileEntity with full metadata
     let rel_path = PathBuf::from("docs/report.txt");
-    let mut regular_entity = FileEntity {
+    let regular_entity = FileEntity {
         identity: FileIdentity {
             origin: FileOrigin::Synthetic,
             relative_path: Some(rel_path.clone()),

@@ -235,7 +235,7 @@ impl Fallout2Dat_File {
             return Ok(self.contents.borrow());
         }
         self.f_contents.set(true);
-        if  ((*self.flags() == Fallout2Dat_Compression::Zlib) || (*self.flags() == Fallout2Dat_Compression::None))  {
+        if  (*self.flags() == Fallout2Dat_Compression::Zlib) || (*self.flags() == Fallout2Dat_Compression::None)  {
             *self.contents.borrow_mut() = if *self.flags() == Fallout2Dat_Compression::Zlib { self.contents_zlib()?.to_vec() } else { self.contents_raw()?.to_vec() }.to_vec();
         }
         Ok(self.contents.borrow())

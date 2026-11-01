@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! dynamic effective-state prevalidation, `BATCH_COMMITTED` provenance verification, and
 //! cross-ownership protection between `csv` and `manual` graph nodes.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -689,7 +689,12 @@ pub fn prevalidate_and_plan_inbox_items(
         }
 
         // 3. Validate `# @allow-duplicate-of` against currently active nodes with identical tokens.
-        if !is_revision_stmt {
+        if is_revision_stmt {
+            ensure!(
+                parsed.allow_duplicate_of.is_empty(),
+                "{inbox_name} (l{next_id}): revision statements (591/592) must not specify # @allow-duplicate-of"
+            );
+        } else {
             // Reason for fallback: token sequences with no existing active nodes have zero active duplicates.
             let mut active_matches = active_nodes_by_tokens
                 .get(&parsed.tokens)
@@ -703,11 +708,6 @@ pub fn prevalidate_and_plan_inbox_items(
                 parsed.tokens,
                 active_matches,
                 parsed.allow_duplicate_of
-            );
-        } else {
-            ensure!(
-                parsed.allow_duplicate_of.is_empty(),
-                "{inbox_name} (l{next_id}): revision statements (591/592) must not specify # @allow-duplicate-of"
             );
         }
 

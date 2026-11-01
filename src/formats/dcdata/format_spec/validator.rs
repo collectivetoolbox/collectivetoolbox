@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Transformation operands in `A : T` must reference valid transformation entities.
 //! - Rejects unverified nicknames or aliases in persisted expressions.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -125,8 +125,7 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
             ensure!(
                 matches!(
                     target.as_ref(),
-                    FormatExpr::Dc(DcShorthand::Format(_))
-                        | FormatExpr::Dc(DcShorthand::Short(9))
+                    FormatExpr::Dc(DcShorthand::Format(_) | DcShorthand::Short(9))
                 ),
                 "Application target must be a format Dc shorthand (e.g. 'f350'), found '{target}'"
             );

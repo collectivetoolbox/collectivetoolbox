@@ -85,7 +85,7 @@ impl KStruct for PcxDcx {
                 let _t_files = self_rc.files.borrow();
                 let Some(_tmpa) = _t_files.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.ofs_body())) == (to_i128(0))) { break; }
+                if (to_i128(*_tmpa.ofs_body())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -190,7 +190,7 @@ impl PcxDcx_PcxOffset {
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
-        if ((to_i128(*self.ofs_body())) != (to_i128(0))) {
+        if (to_i128(*self.ofs_body())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_body())?)?;
             let t = Self::read_into::<_, Pcx>(&*_io, None, None)?.into();

@@ -568,7 +568,7 @@ fn test_challenge_equivalent_list_strict_312_separation() -> Result<()> {
         ..FinderInfo::default()
     };
     let encoded = finfo.to_dc_mixed()?;
-    let tokens = encoded.to_dc_tokens()?;
+    let _tokens = encoded.to_dc_tokens()?;
 
     // Verify valid equivalent list roundtrips strictly:
     let decoded: FinderInfo = encoded.decode(&DcProjectionPolicy::strict())?;
@@ -678,9 +678,9 @@ fn test_challenge_equivalent_list_multi_element_separation() -> Result<()> {
     nav.parse_document_into_arena(&mut arena, &strict)?;
     let ctx = DcProjectionContext::new(&arena, &strict);
     let root = arena.roots()[0];
-    let unwrap_res = ctx.unwrap_equivalent_or_self(root);
+    let _unwrap_res = ctx.unwrap_equivalent_or_self(root);
 
-    let vec_res = bare_empty_equiv.decode::<Vec<u32>>(&strict);
+    let _vec_res = bare_empty_equiv.decode::<Vec<u32>>(&strict);
 
     Ok(())
 }

@@ -20,7 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Build script generating `dc.generated.rs` and `syntax/role.generated.rs`
 //! from the authoritative system graph in `assets/data/graph/`.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace crate prelude"

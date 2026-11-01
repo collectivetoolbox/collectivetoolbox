@@ -104,7 +104,7 @@ impl GranTurismoVol {
         }
         self.f_files.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((*self.ofs_dir()?) & (4294965248_u32)))?)?;
+        _io.seek(usize::try_from((*self.ofs_dir()?) & (4294965248_u32))?)?;
         *self.files.borrow_mut() = Vec::new();
         let l_files = usize::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.num_entries());
         for _i in 0_usize..l_files {
@@ -256,7 +256,7 @@ impl GranTurismoVol_FileInfo {
         self.f_body.set(true);
         if !(*self.is_dir()?) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::from(*self.offset_idx())).ok_or(KError::CastError)?)) & (4294965248_u32)))?)?;
+            _io.seek(usize::try_from((*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.offsets().get(usize::from(*self.offset_idx())).ok_or(KError::CastError)?)) & (4294965248_u32))?)?;
             *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size()?)?)?;
             _io.seek(_pos)?;
         }

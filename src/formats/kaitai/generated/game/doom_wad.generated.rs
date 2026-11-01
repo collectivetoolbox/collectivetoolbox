@@ -365,7 +365,7 @@ impl DoomWad_Blockmap_Blocklist {
                 let Some(_tmpa) = _t_linedefs.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if ((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1))))) { break; }
+                if (to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1)))) { break; }
             }
         }
         _io.seek(_pos)?;

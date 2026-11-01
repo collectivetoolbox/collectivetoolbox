@@ -109,7 +109,7 @@ impl KStruct for Gif {
                 let _t_blocks = self_rc.blocks.borrow();
                 let Some(_tmpa) = _t_blocks.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  ((_io.is_eof()) || (*_tmpa.block_type() == Gif_BlockType::EndOfFile))  { break; }
+                if  (_io.is_eof()) || (*_tmpa.block_type() == Gif_BlockType::EndOfFile)  { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -766,7 +766,7 @@ impl KStruct for Gif_ExtApplication {
                 let _t_subblocks = self_rc.subblocks.borrow();
                 let Some(_tmpa) = _t_subblocks.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.len_bytes())) == (to_i128(0))) { break; }
+                if (to_i128(*_tmpa.len_bytes())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1454,7 +1454,7 @@ impl Gif_LocalImageDescriptor {
             return Ok(self.color_table_size.borrow());
         }
         self.f_color_table_size.set(true);
-        *self.color_table_size.borrow_mut() = ((2_i32).wrapping_shl(to_shift_amt(((i32::from(*self.flags())) & (7_i32))))).try_into()?;
+        *self.color_table_size.borrow_mut() = ((2_i32).wrapping_shl(to_shift_amt((i32::from(*self.flags())) & (7_i32)))).try_into()?;
         Ok(self.color_table_size.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1638,7 +1638,7 @@ impl Gif_LogicalScreenDescriptorStruct {
             return Ok(self.color_table_size.borrow());
         }
         self.f_color_table_size.set(true);
-        *self.color_table_size.borrow_mut() = ((2_i32).wrapping_shl(to_shift_amt(((i32::from(*self.flags())) & (7_i32))))).try_into()?;
+        *self.color_table_size.borrow_mut() = ((2_i32).wrapping_shl(to_shift_amt((i32::from(*self.flags())) & (7_i32)))).try_into()?;
         Ok(self.color_table_size.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1851,7 +1851,7 @@ impl KStruct for Gif_Subblocks {
                 let _t_entries = self_rc.entries.borrow();
                 let Some(_tmpa) = _t_entries.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.len_bytes())) == (to_i128(0))) { break; }
+                if (to_i128(*_tmpa.len_bytes())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();

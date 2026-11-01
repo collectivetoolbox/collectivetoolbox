@@ -498,7 +498,7 @@ impl KStruct for Iso9660_DirEntries {
                 let _t_entries = self_rc.entries.borrow();
                 let Some(_tmpa) = _t_entries.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.len())) == (to_i128(0))) { break; }
+                if (to_i128(*_tmpa.len())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -586,7 +586,7 @@ impl KStruct for Iso9660_DirEntry {
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.len())) > (to_i128(0))) {
+        if (to_i128(*self_rc.len())) > (to_i128(0)) {
             let _raw_body = _io.read_bytes(usize::try_from((i32::from(*self_rc.len())).saturating_sub(1_i32))?)?;
             *self_rc.body_raw.borrow_mut() = _raw_body.clone();
             let _io_body = BytesReader::from(_raw_body);
@@ -1329,13 +1329,13 @@ impl KStruct for Iso9660_VolDesc {
         *self_rc.version.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) == (to_i128(0))) {
+        if (to_i128(*self_rc.r#type())) == (to_i128(0)) {
             let t = Self::read_into::<_, Iso9660_VolDescBootRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.vol_desc_boot_record.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) == (to_i128(1))) {
+        if (to_i128(*self_rc.r#type())) == (to_i128(1)) {
             let t = Self::read_into::<_, Iso9660_VolDescPrimary>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.vol_desc_primary.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();

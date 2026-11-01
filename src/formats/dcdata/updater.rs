@@ -638,7 +638,7 @@ pub fn check_category_csvs_need_no_id_updates(repo_root: &Path) -> Result<()> {
 pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     let mut stats = MergedGenerationStats::default();
     let canonical_header: Vec<String> =
-        UNIFIED_SCHEMA_HEADER.iter().map(|s| s.to_string()).collect();
+        UNIFIED_SCHEMA_HEADER.iter().map(std::string::ToString::to_string).collect();
 
     // 1. Generate formats.generated.csv
     let formats_dir = repo_root.join("src/formats/dcdata/data-src/categories/formats");

@@ -1191,7 +1191,7 @@ impl KStruct for Webp_Chunk {
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128((*self_rc.len_data()).checked_rem(2_u32).ok_or(KError::CastError)?)) != (to_i128(0))) {
+        if (to_i128((*self_rc.len_data()).checked_rem(2_u32).ok_or(KError::CastError)?)) != (to_i128(0)) {
             *self_rc.padding.borrow_mut() = _io.read_bytes(1_usize)?;
             if !(*self_rc.padding() == vec![0x0u8]) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/chunk/seq/3".to_string() }));

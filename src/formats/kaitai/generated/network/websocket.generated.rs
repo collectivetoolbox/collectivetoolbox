@@ -382,12 +382,12 @@ impl KStruct for Websocket_FrameHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.len_payload_primary())) == (to_i128(126))) {
+        if (to_i128(*self_rc.len_payload_primary())) == (to_i128(126)) {
             *self_rc.len_payload_extended_1.borrow_mut() = _io.read_u2be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.len_payload_primary())) == (to_i128(127))) {
+        if (to_i128(*self_rc.len_payload_primary())) == (to_i128(127)) {
             *self_rc.len_payload_extended_2.borrow_mut() = _io.read_u4be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -410,7 +410,7 @@ impl Websocket_FrameHeader {
             return Ok(self.len_payload.borrow());
         }
         self.f_len_payload.set(true);
-        *self.len_payload.borrow_mut() = (if ((to_i128(*self.len_payload_primary())) <= (to_i128(125))) { *self.len_payload_primary() } else { u64::from(if ((to_i128(*self.len_payload_primary())) == (to_i128(126))) { u32::from(*self.len_payload_extended_1()) } else { *self.len_payload_extended_2() }) }).try_into()?;
+        *self.len_payload.borrow_mut() = (if (to_i128(*self.len_payload_primary())) <= (to_i128(125)) { *self.len_payload_primary() } else { u64::from(if (to_i128(*self.len_payload_primary())) == (to_i128(126)) { u32::from(*self.len_payload_extended_1()) } else { *self.len_payload_extended_2() }) }).try_into()?;
         Ok(self.len_payload.borrow())
     }
 }

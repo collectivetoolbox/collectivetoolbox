@@ -4105,7 +4105,7 @@ mod tests {
         let best_effort_opts = DcmmStreamOptions { best_effort: true };
 
         // 1. Corrupted header is synthesized
-        let mut bad_header_data = b"NOT_A_VALID_HEADER___rest of stream".to_vec();
+        let bad_header_data = b"NOT_A_VALID_HEADER___rest of stream".to_vec();
         let mut out = Vec::new();
         let (written, log) = validate_and_copy_dcmm_stream_with_options(
             &mut bad_header_data.as_slice(),

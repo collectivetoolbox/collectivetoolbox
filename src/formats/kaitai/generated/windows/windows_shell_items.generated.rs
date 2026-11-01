@@ -85,7 +85,7 @@ impl KStruct for WindowsShellItems {
                 let _t_items = self_rc.items.borrow();
                 let Some(_tmpa) = _t_items.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.len_data())) == (to_i128(0))) { break; }
+                if (to_i128(*_tmpa.len_data())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -417,7 +417,7 @@ impl KStruct for WindowsShellItems_ShellItem {
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.len_data())) >= (to_i128(2))) {
+        if (to_i128(*self_rc.len_data())) >= (to_i128(2)) {
             let _raw_data = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_data())).saturating_sub(2_i32))?)?;
             *self_rc.data_raw.borrow_mut() = _raw_data.clone();
             let _io_data = BytesReader::from(_raw_data);
@@ -625,7 +625,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match ((i32::from(*self_rc.code())) & (112_i32)) {
+        match (i32::from(*self_rc.code())) & (112_i32) {
             32 => {
                 let t = Self::read_into::<_, WindowsShellItems_VolumeBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body2.borrow_mut() = Some(t);

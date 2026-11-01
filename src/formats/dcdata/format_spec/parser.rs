@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   without explicit parentheses.
 //! - Supports `@chain(...)` directive wrapper in source data.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -155,7 +155,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>> {
                 let mut escaped = false;
                 let mut closed = false;
                 let mut end = idx;
-                while let Some((next_idx, next_ch)) = chars.next() {
+                for (next_idx, next_ch) in chars.by_ref() {
                     end = next_idx.saturating_add(next_ch.len_utf8());
                     if escaped {
                         string_val.push(next_ch);
@@ -627,8 +627,7 @@ fn parse_param_bindings(
             }
             other => {
                 bail!(
-                    "Unexpected token {:?} for parameter value '{param_name}'",
-                    other
+                    "Unexpected token {other:?} for parameter value '{param_name}'"
                 );
             }
         };
@@ -657,8 +656,7 @@ fn parse_param_bindings(
             }
             other => {
                 bail!(
-                    "Expected ',' or ')' in parameter list, found {:?}",
-                    other
+                    "Expected ',' or ')' in parameter list, found {other:?}"
                 );
             }
         }

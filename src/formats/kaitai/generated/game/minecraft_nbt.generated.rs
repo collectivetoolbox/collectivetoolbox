@@ -140,7 +140,7 @@ impl KStruct for MinecraftNbt {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if ({ let _ = *self_rc.root_type()? == MinecraftNbt_Tag::End; false }) {
+        if { let _ = *self_rc.root_type()? == MinecraftNbt_Tag::End; false } {
             *self_rc.root_check.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -926,7 +926,7 @@ impl MinecraftNbt_TagCompound {
             return Ok(self.dump_num_tags.borrow());
         }
         self.f_dump_num_tags.set(true);
-        *self.dump_num_tags.borrow_mut() = ((self.tags().len()).saturating_sub(usize::try_from(if  ((self.tags().len() >= 1) && (*self.tags().last().ok_or(KError::EmptyIterator)?.is_tag_end()?))  { 1_i32 } else { 0_i32 })?)).try_into()?;
+        *self.dump_num_tags.borrow_mut() = ((self.tags().len()).saturating_sub(usize::try_from(if  (self.tags().len() >= 1) && (*self.tags().last().ok_or(KError::EmptyIterator)?.is_tag_end()?)  { 1_i32 } else { 0_i32 })?)).try_into()?;
         Ok(self.dump_num_tags.borrow())
     }
 }

@@ -222,7 +222,7 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        *self.name.borrow_mut() = if ((to_i128(*self.name_zeroes()?)) == (to_i128(0))) { self.name_from_offset()?.to_string() } else { self.name_from_short()?.to_string() }.to_string();
+        *self.name.borrow_mut() = if (to_i128(*self.name_zeroes()?)) == (to_i128(0)) { self.name_from_offset()?.to_string() } else { self.name_from_short()?.to_string() }.to_string();
         Ok(self.name.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -234,10 +234,10 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name_from_offset.borrow());
         }
         self.f_name_from_offset.set(true);
-        if ((to_i128(*self.name_zeroes()?)) == (to_i128(0))) {
+        if (to_i128(*self.name_zeroes()?)) == (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(if ((to_i128(*self.name_zeroes()?)) == (to_i128(0))) { (u32::try_from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.symbol_name_table_offset()?)?).saturating_add(*self.name_offset()?) } else { 0_u32 })?)?;
+            io.seek(usize::try_from(if (to_i128(*self.name_zeroes()?)) == (to_i128(0)) { (u32::try_from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.symbol_name_table_offset()?)?).saturating_add(*self.name_offset()?) } else { 0_u32 })?)?;
             *self.name_from_offset.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, false)?, "ascii")?;
             io.seek(_pos)?;
         }
@@ -252,7 +252,7 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name_from_short.borrow());
         }
         self.f_name_from_short.set(true);
-        if ((to_i128(*self.name_zeroes()?)) != (to_i128(0))) {
+        if (to_i128(*self.name_zeroes()?)) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(0_usize)?;
             *self.name_from_short.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, false)?, "ascii")?;
@@ -2337,7 +2337,7 @@ impl MicrosoftPe_PeHeader {
         if self.f_certificate_table.get() {
             return Ok(self.certificate_table.borrow());
         }
-        if ((to_i128(*self.optional_hdr().data_dirs().certificate_table().virtual_address())) != (to_i128(0))) {
+        if (to_i128(*self.optional_hdr().data_dirs().certificate_table().virtual_address())) != (to_i128(0)) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().virtual_address())?)?;
             *self.certificate_table_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().size())?)?.into();

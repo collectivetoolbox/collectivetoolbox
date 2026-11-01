@@ -24,6 +24,7 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 commit() {
+    cleanup_vendor
     pushd "$REPO_ROOT" || exit 1
     git add . || true
     git commit -m 'style: Format automatically' || true
@@ -60,17 +61,13 @@ for pkg in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | 
 done
 
 if [[ "$quick" == false ]]; then
-    cargo fix --workspace "${vendor_excludes[@]}" || { echo "ERROR: cargo fix --workspace failed"; exit 1; }
+    export RUSTFLAGS="${RUSTFLAGS:-} -A unused_imports -A unfulfilled_lint_expectations"
+    cargo fix --allow-dirty --allow-staged --workspace "${vendor_excludes[@]}" || { echo "ERROR: cargo fix --workspace failed"; exit 1; }
     commit
-    cargo fix --workspace "${vendor_excludes[@]}" --lib -p ctoolbox --tests || { echo "ERROR: cargo fix --lib -p ctoolbox --tests failed"; exit 1; }
+    cargo fix --allow-dirty --allow-staged --workspace "${vendor_excludes[@]}" --tests || { echo "ERROR: cargo fix --workspace --tests failed"; exit 1; }
     commit
-    cargo fix --workspace "${vendor_excludes[@]}" --lib -p ctoolbox || { echo "ERROR: cargo fix --lib -p ctoolbox failed"; exit 1; }
+    cargo clippy --workspace --fix --allow-dirty --allow-staged "${vendor_excludes[@]}" || { echo "ERROR: cargo clippy --fix failed"; exit 1; }
     commit
-    cargo clippy --workspace --fix "${vendor_excludes[@]}" || { echo "ERROR: cargo clippy --fix failed"; exit 1; }
-    commit
-    cargo clippy --workspace --fix "${vendor_excludes[@]}" --lib -p ctoolbox --tests || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox --tests failed"; exit 1; }
-    commit
-    cargo clippy --workspace --fix "${vendor_excludes[@]}" --lib -p ctoolbox || { echo "ERROR: cargo clippy --fix --lib -p ctoolbox failed"; exit 1; }
 fi
 
 commit

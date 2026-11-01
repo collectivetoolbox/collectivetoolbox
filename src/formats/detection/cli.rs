@@ -545,7 +545,7 @@ pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
         args.files.clone()
     };
 
-    let total_files = files.len();
+    let _total_files = files.len();
 
     for (idx, path) in files.iter().enumerate() {
         let is_stdin = path.as_os_str() == "-";

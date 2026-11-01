@@ -700,7 +700,7 @@ fn find_longest_match(
     lookahead_len: usize,
     hashtab: &[usize],
     next: &[usize],
-    win_size: usize,
+    _win_size: usize,
     win_mask: usize,
     max_dist: usize,
 ) -> Result<(usize, usize)> {

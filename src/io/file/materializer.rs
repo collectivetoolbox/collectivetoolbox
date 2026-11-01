@@ -3474,7 +3474,7 @@ mod tests {
             strict_lossless: false,
             ..MaterializeOptions::default()
         };
-        let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+        let _receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
         assert_eq!(std::fs::read(&dest_path).unwrap(), payload_bytes);
 
         #[cfg(windows)]
@@ -3491,7 +3491,7 @@ mod tests {
             check_sparse: true,
             ..EntityAuditOptions::default()
         };
-        let (diffs, ignored) = audit_entity_detailed(&dest_path, &entity, &audit_opts_be).unwrap();
+        let (diffs, _ignored) = audit_entity_detailed(&dest_path, &entity, &audit_opts_be).unwrap();
         assert!(diffs.is_empty(), "Best effort audit must pass: {diffs:?}");
 
         #[cfg(windows)]

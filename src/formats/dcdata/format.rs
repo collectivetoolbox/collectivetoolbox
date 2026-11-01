@@ -138,18 +138,15 @@ pub fn validate_formats_category_file(
             continue;
         }
 
-        let short_id = match ctb_storage_minimal::shorthand::parse_format_shorthand(&short_str) {
-            Ok(v) => v,
-            Err(_) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Short"),
-                    format!("Invalid Short format ID integer: '{short_str}'"),
-                    Some("Must be a non-negative integer or lowercase 'f<digits>'"),
-                );
-                continue;
-            }
+        let short_id = if let Ok(v) = ctb_storage_minimal::shorthand::parse_format_shorthand(&short_str) { v } else {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Short"),
+                format!("Invalid Short format ID integer: '{short_str}'"),
+                Some("Must be a non-negative integer or lowercase 'f<digits>'"),
+            );
+            continue;
         };
 
         let dc_id = if let Ok(v) = dc_str.parse::<u128>() {
@@ -719,7 +716,7 @@ where
                     }
                     ctb_storage_minimal::shorthand::DcShorthand::Short(sid) => {
                         // Reason for fallback: out-of-range integer IDs cannot match format IDs
-                        usize::try_from(*sid).map_or(false, |s| {
+                        usize::try_from(*sid).is_ok_and(|s| {
                             variant_format_short_ids.contains(&s)
                         })
                     }

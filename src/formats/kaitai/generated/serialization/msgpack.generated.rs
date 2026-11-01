@@ -807,7 +807,7 @@ impl Msgpack {
         }
         self.f_neg_int5_value.set(true);
         if *self.is_neg_int5()? {
-            *self.neg_int5_value.borrow_mut() = ((0_i32).saturating_sub(to_i32(((i32::from(*self.b1())) & (31_i32))))).try_into()?;
+            *self.neg_int5_value.borrow_mut() = ((0_i32).saturating_sub(to_i32((i32::from(*self.b1())) & (31_i32)))).try_into()?;
         }
         Ok(self.neg_int5_value.borrow())
     }
@@ -825,7 +825,7 @@ impl Msgpack {
         }
         self.f_num_array_elements.set(true);
         if *self.is_array()? {
-            *self.num_array_elements.borrow_mut() = (if *self.is_fix_array()? { u32::try_from(((i32::from(*self.b1())) & (15_i32)))? } else { if *self.is_array_16()? { u32::from(*self.num_array_elements_16()) } else { *self.num_array_elements_32() } }).try_into()?;
+            *self.num_array_elements.borrow_mut() = (if *self.is_fix_array()? { u32::try_from((i32::from(*self.b1())) & (15_i32))? } else { if *self.is_array_16()? { u32::from(*self.num_array_elements_16()) } else { *self.num_array_elements_32() } }).try_into()?;
         }
         Ok(self.num_array_elements.borrow())
     }
@@ -843,7 +843,7 @@ impl Msgpack {
         }
         self.f_num_map_elements.set(true);
         if *self.is_map()? {
-            *self.num_map_elements.borrow_mut() = (if *self.is_fix_map()? { u32::try_from(((i32::from(*self.b1())) & (15_i32)))? } else { if *self.is_map_16()? { u32::from(*self.num_map_elements_16()) } else { *self.num_map_elements_32() } }).try_into()?;
+            *self.num_map_elements.borrow_mut() = (if *self.is_fix_map()? { u32::try_from((i32::from(*self.b1())) & (15_i32))? } else { if *self.is_map_16()? { u32::from(*self.num_map_elements_16()) } else { *self.num_map_elements_32() } }).try_into()?;
         }
         Ok(self.num_map_elements.borrow())
     }
@@ -871,7 +871,7 @@ impl Msgpack {
         }
         self.f_str_len.set(true);
         if *self.is_str()? {
-            *self.str_len.borrow_mut() = (if *self.is_fix_str()? { u32::try_from(((i32::from(*self.b1())) & (31_i32)))? } else { if *self.is_str_8()? { u32::from(*self.str_len_8()) } else { if *self.is_str_16()? { u32::from(*self.str_len_16()) } else { *self.str_len_32() } } }).try_into()?;
+            *self.str_len.borrow_mut() = (if *self.is_fix_str()? { u32::try_from((i32::from(*self.b1())) & (31_i32))? } else { if *self.is_str_8()? { u32::from(*self.str_len_8()) } else { if *self.is_str_16()? { u32::from(*self.str_len_16()) } else { *self.str_len_32() } } }).try_into()?;
         }
         Ok(self.str_len.borrow())
     }

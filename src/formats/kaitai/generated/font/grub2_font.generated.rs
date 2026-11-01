@@ -82,7 +82,7 @@ impl KStruct for Grub2Font {
                 let _t_sections = self_rc.sections.borrow();
                 let Some(_tmpa) = _t_sections.last() else { break; };
                 _i = _i.saturating_add(1);
-                if (_tmpa.section_type().as_str() == "DATA") { break; }
+                if _tmpa.section_type().as_str() == "DATA" { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1442,7 +1442,7 @@ impl KStruct for Grub2Font_Section {
         *self_rc.len_body.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (self_rc.section_type().as_str() != "DATA") {
+        if self_rc.section_type().as_str() != "DATA" {
             match self_rc.section_type().as_str() {
                 "ASCE" => {
                     *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();

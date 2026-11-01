@@ -21,7 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! `flock` guards on the repository's permanent ledger lock, standalone pending-transaction
 //! recovery, and full `.ctbnbdl` bundle `(id, tokens)` verification.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -963,10 +963,8 @@ pub fn inspect_ledger_journal(journal_path: &Path) -> Result<ParsedJournal> {
                 records.push(rec);
             }
             valid_prefix_len = valid_prefix_len.saturating_add(line_bytes.len());
-        } else {
-            if !line_bytes.iter().all(u8::is_ascii_whitespace) {
-                torn_trailing_fragment = Some(line_bytes.to_vec());
-            }
+        } else if !line_bytes.iter().all(u8::is_ascii_whitespace) {
+            torn_trailing_fragment = Some(line_bytes.to_vec());
         }
     }
 
@@ -1656,7 +1654,7 @@ pub fn recover_pending_ledger_journal_with_guard(
         pending.batch_id,
         pending.final_ledger_sha256
     );
-    let actual_last_id = progressive_nodes.last().map(|n| n.id).unwrap_or(0);
+    let actual_last_id = progressive_nodes.last().map_or(0, |n| n.id);
     ensure!(
         actual_last_id == pending.final_last_id,
         "CRITICAL: Final node ID l{} after completing batch {} does not match expected l{}",
@@ -2012,7 +2010,7 @@ pub fn ensure_ledger_journal_clean(
     );
 
     let committed_nodes = load_ledger_nodes_from_dir_raw(&graph_dir)?;
-    let actual_last_id = committed_nodes.last().map(|n| n.id).unwrap_or(0);
+    let actual_last_id = committed_nodes.last().map_or(0, |n| n.id);
     ensure!(
         actual_last_id == last_committed.final_last_id,
         "CRITICAL: On-disk .ctbnodes highest node ID l{} does not match latest BATCH_COMMITTED ({}) final_last_id l{}",
@@ -2217,7 +2215,7 @@ where
         }
     }
 
-    let baseline_last_id = baseline_nodes.last().map(|n| n.id).unwrap_or(0);
+    let baseline_last_id = baseline_nodes.last().map_or(0, |n| n.id);
     let baseline_ledger_sha256 = compute_ledger_dir_sha256(&graph_dir)?;
     ensure!(
         baseline_last_id == last_committed.final_last_id
@@ -2260,7 +2258,7 @@ where
         &updated_nodes,
     )?;
 
-    let final_last_id = updated_nodes.last().map(|n| n.id).unwrap_or(0);
+    let final_last_id = updated_nodes.last().map_or(0, |n| n.id);
     let final_ledger_sha256 = compute_nodes_slice_ledger_sha256(&updated_nodes);
 
     if let Some((manifest, _)) = manifest_ref {

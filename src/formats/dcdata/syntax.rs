@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Provides AST definitions, lexer/parser, semantic and cross-reference validators,
 //! and resilient tag-soup pattern matchers for evaluating and processing DcText documents.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

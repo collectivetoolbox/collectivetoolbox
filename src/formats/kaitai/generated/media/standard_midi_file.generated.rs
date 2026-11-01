@@ -1541,13 +1541,13 @@ impl KStruct for StandardMidiFile_TrackEvent {
         *self_rc.event_header.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.event_header())) == (to_i128(255))) {
+        if (to_i128(*self_rc.event_header())) == (to_i128(255)) {
             let t = Self::read_into::<_, StandardMidiFile_MetaEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.meta_event_body.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.event_header())) == (to_i128(240))) {
+        if (to_i128(*self_rc.event_header())) == (to_i128(240)) {
             let t = Self::read_into::<_, StandardMidiFile_SysexEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.sysex_body.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();

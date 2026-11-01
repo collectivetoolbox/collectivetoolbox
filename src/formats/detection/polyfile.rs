@@ -481,7 +481,7 @@ pub struct ByteRangeAttribution {
 /// more distinct primary format specifications simultaneously.
 pub fn detect_polyglots<S: DetectionSource + ?Sized>(
     source: &mut S,
-    candidates: &[DetectionCandidate],
+    _candidates: &[DetectionCandidate],
 ) -> Result<Option<DetectionCandidate>> {
     let Some(total) = source.total_len() else {
         return Ok(None);

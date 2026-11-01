@@ -288,7 +288,7 @@ impl KStruct for ProcessCoerceUsertype1_Record {
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) == (to_i128(0)) {
             let _raw_buf_unproc = _io.read_bytes(4_usize)?;
             *self_rc.buf_unproc_raw.borrow_mut() = _raw_buf_unproc.clone();
             let _io_buf_unproc = BytesReader::from(_raw_buf_unproc);
@@ -297,7 +297,7 @@ impl KStruct for ProcessCoerceUsertype1_Record {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
+        if (to_i128(*self_rc.flag())) != (to_i128(0)) {
             let _raw_buf_proc = _io.read_bytes(4_usize)?;
             *self_rc.buf_proc_raw.borrow_mut() = _raw_buf_proc.clone();
             let _processed_buf_proc = process_xor_one(&_raw_buf_proc, 170_u8);
@@ -319,7 +319,7 @@ impl ProcessCoerceUsertype1_Record {
         if self.f_buf.get() {
             return Ok(self.buf.borrow());
         }
-        *self.buf.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(0))) { self.buf_unproc().clone() } else { self.buf_proc().clone() }.clone();
+        *self.buf.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(0)) { self.buf_unproc().clone() } else { self.buf_proc().clone() }.clone();
         Ok(self.buf.borrow())
     }
 }

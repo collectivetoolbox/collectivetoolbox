@@ -1880,7 +1880,7 @@ impl WindowsMinidump_SystemInfo {
         if self.f_service_pack.get() {
             return Ok(self.service_pack.borrow());
         }
-        if ((to_i128(*self.ofs_service_pack())) > (to_i128(0))) {
+        if (to_i128(*self.ofs_service_pack())) > (to_i128(0)) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_service_pack())?)?;

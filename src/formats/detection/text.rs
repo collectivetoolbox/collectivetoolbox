@@ -947,7 +947,7 @@ fn validate_utf16_content(buf: &[u8], big_endian: bool) -> bool {
             return false;
         }
 
-        if let Some(hi) = hi_surrogate {
+        if let Some(_hi) = hi_surrogate {
             // Must be low surrogate
             if !(0xDC00..=0xDFFF).contains(&uc) {
                 return false;

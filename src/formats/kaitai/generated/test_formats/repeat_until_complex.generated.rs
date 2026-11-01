@@ -123,7 +123,7 @@ impl KStruct for RepeatUntilComplex {
                 let _t_first = self_rc.first.borrow();
                 let Some(_tmpa) = _t_first.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.count())) == (to_i128(0))) { break; }
+                if (to_i128(*_tmpa.count())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -136,7 +136,7 @@ impl KStruct for RepeatUntilComplex {
                 let _t_second = self_rc.second.borrow();
                 let Some(_tmpa) = _t_second.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(*_tmpa.count())) == (to_i128(0))) { break; }
+                if (to_i128(*_tmpa.count())) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -149,7 +149,7 @@ impl KStruct for RepeatUntilComplex {
                 let Some(_tmpa) = _t_third.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if ((to_i128(_tmpa)) == (to_i128(0))) { break; }
+                if (to_i128(_tmpa)) == (to_i128(0)) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();

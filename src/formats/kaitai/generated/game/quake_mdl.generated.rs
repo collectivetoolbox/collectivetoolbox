@@ -242,19 +242,19 @@ impl KStruct for QuakeMdl_MdlFrame {
         *self_rc.r#type.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) != (to_i128(0))) {
+        if (to_i128(*self_rc.r#type())) != (to_i128(0)) {
             let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.min.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) != (to_i128(0))) {
+        if (to_i128(*self_rc.r#type())) != (to_i128(0)) {
             let t = Self::read_into::<_, QuakeMdl_MdlVertex>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.max.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.r#type())) != (to_i128(0))) {
+        if (to_i128(*self_rc.r#type())) != (to_i128(0)) {
             *self_rc.time.borrow_mut() = Vec::new();
             let l_time = usize::try_from(*self_rc.r#type())?;
             for _i in 0_usize..l_time {
@@ -283,7 +283,7 @@ impl QuakeMdl_MdlFrame {
             return Ok(self.num_simple_frames.borrow());
         }
         self.f_num_simple_frames.set(true);
-        *self.num_simple_frames.borrow_mut() = (if ((to_i128(*self.r#type())) == (to_i128(0))) { 1_i32 } else { *self.r#type() }).try_into()?;
+        *self.num_simple_frames.borrow_mut() = (if (to_i128(*self.r#type())) == (to_i128(0)) { 1_i32 } else { *self.r#type() }).try_into()?;
         Ok(self.num_simple_frames.borrow())
     }
 }
@@ -771,17 +771,17 @@ impl KStruct for QuakeMdl_MdlSkin {
         *self_rc.group.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) == (to_i128(0))) {
+        if (to_i128(*self_rc.group())) == (to_i128(0)) {
             *self_rc.single_texture_data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().skin_size()?)?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) != (to_i128(0))) {
+        if (to_i128(*self_rc.group())) != (to_i128(0)) {
             *self_rc.num_frames.borrow_mut() = _io.read_u4le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) != (to_i128(0))) {
+        if (to_i128(*self_rc.group())) != (to_i128(0)) {
             *self_rc.frame_times.borrow_mut() = Vec::new();
             let l_frame_times = usize::try_from(*self_rc.num_frames())?;
             for _i in 0_usize..l_frame_times {
@@ -790,7 +790,7 @@ impl KStruct for QuakeMdl_MdlSkin {
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.group())) != (to_i128(0))) {
+        if (to_i128(*self_rc.group())) != (to_i128(0)) {
             *self_rc.group_texture_data.borrow_mut() = Vec::new();
             let l_group_texture_data = usize::try_from(*self_rc.num_frames())?;
             for _i in 0_usize..l_group_texture_data {
