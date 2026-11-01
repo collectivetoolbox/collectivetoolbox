@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+while IFS= read -r rel_path; do
+    if [ -z "${rel_path}" ]; then
+        continue
+    fi
+    work_file="${REPO_ROOT}/${rel_path}"
+    if [ ! -f "${work_file}" ]; then
+        echo "FATAL [pre-commit]: Append-only graph chunk '${rel_path}' from HEAD is missing in the working tree!" >&2
+        exit 1
+    fi
+    head_tmp="$(mktemp)"
+    git show "HEAD:${rel_path}" > "${head_tmp}"
+    head_size="$(wc -c < "${head_tmp}" | tr -d '[:space:]')"
+    work_size="$(wc -c < "${work_file}" | tr -d '[:space:]')"
+    if [ "${work_size}" -lt "${head_size}" ]; then
+        rm "${head_tmp}"
+        echo "FATAL [pre-commit]: Append-only graph chunk '${rel_path}' shrank (${work_size} < ${head_size} bytes in HEAD)!" >&2
+        exit 1
+    fi
+    if ! cmp -n "${head_size}" -s "${head_tmp}" "${work_file}"; then
+        rm "${head_tmp}"
+        echo "FATAL [pre-commit]: Existing lines in append-only graph chunk '${rel_path}' were modified relative to HEAD!" >&2
+        exit 1
+    fi
+    rm "${head_tmp}"
+done < <(git ls-tree --name-only HEAD -- assets/data/graph/ | grep '\.ctbnodes$' || true)
