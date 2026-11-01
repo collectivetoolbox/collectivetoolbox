@@ -52,11 +52,7 @@ impl KStruct for Ext2 {
     type Root = Ext2;
     type Parent = Ext2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -73,48 +69,30 @@ impl KStruct for Ext2 {
     }
 }
 impl Ext2 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn bg1(&self) -> KResult<Ref<'_, OptRc<Ext2_BlockGroup>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn bg1(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Ext2_BlockGroup>>> {
         let _io = self._io.borrow();
         if self.f_bg1.get() {
             return Ok(self.bg1.borrow());
         }
         let _pos = _io.pos();
         _io.seek(1024_usize)?;
-        let t = Self::read_into::<_, Ext2_BlockGroup>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Ext2_BlockGroup>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.bg1.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.bg1.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn root_dir(&self) -> KResult<Ref<'_, OptRc<Ext2_Dir>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn root_dir(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Ext2_Dir>>> {
         let _io = self._io.borrow();
         if self.f_root_dir.get() {
             return Ok(self.root_dir.borrow());
         }
-        *self.root_dir.borrow_mut() = self
-            .bg1()?
-            .block_groups()
-            .get(0_usize)
-            .ok_or(KError::CastError)?
-            .inodes()?
-            .get(1_usize)
-            .ok_or(KError::CastError)?
-            .as_dir()?
-            .clone();
+        *self.root_dir.borrow_mut() = self.bg1()?.block_groups().get(0_usize).ok_or(KError::CastError)?.inodes()?.get(1_usize).ok_or(KError::CastError)?.as_dir()?.clone();
         Ok(self.root_dir.borrow())
     }
 }
@@ -187,11 +165,7 @@ impl KStruct for Ext2_Bgd {
     type Root = Ext2;
     type Parent = Ext2_BlockGroup;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -215,120 +189,58 @@ impl KStruct for Ext2_Bgd {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.used_dirs_count.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.pad_reserved.borrow_mut() =
-            _io.read_bytes(usize::try_from((2_i32).saturating_add(12_i32))?)?;
+        *self_rc.pad_reserved.borrow_mut() = _io.read_bytes(usize::try_from((2_i32).saturating_add(12_i32))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Ext2_Bgd {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn block_bitmap(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn block_bitmap(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_block_bitmap.get() {
             return Ok(self.block_bitmap.borrow());
         }
         self.f_block_bitmap.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (*self.block_bitmap_block()).saturating_mul(u32::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .bg1()?
-                    .super_block()
-                    .block_size()?,
-            )?),
-        )?)?;
+        _io.seek(usize::try_from((*self.block_bitmap_block()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
         *self.block_bitmap.borrow_mut() = _io.read_bytes(1024_usize)?;
         _io.seek(_pos)?;
         Ok(self.block_bitmap.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inode_bitmap(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inode_bitmap(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_inode_bitmap.get() {
             return Ok(self.inode_bitmap.borrow());
         }
         self.f_inode_bitmap.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (*self.inode_bitmap_block()).saturating_mul(u32::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .bg1()?
-                    .super_block()
-                    .block_size()?,
-            )?),
-        )?)?;
+        _io.seek(usize::try_from((*self.inode_bitmap_block()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
         *self.inode_bitmap.borrow_mut() = _io.read_bytes(1024_usize)?;
         _io.seek(_pos)?;
         Ok(self.inode_bitmap.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inodes(&self) -> KResult<Ref<'_, Vec<OptRc<Ext2_Inode>>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inodes(
+        &self
+    ) -> KResult<Ref<'_, Vec<OptRc<Ext2_Inode>>>> {
         let _io = self._io.borrow();
         if self.f_inodes.get() {
             return Ok(self.inodes.borrow());
         }
         self.f_inodes.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (*self.inode_table_block()).saturating_mul(u32::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .bg1()?
-                    .super_block()
-                    .block_size()?,
-            )?),
-        )?)?;
+        _io.seek(usize::try_from((*self.inode_table_block()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
         *self.inodes.borrow_mut() = Vec::new();
-        let l_inodes = usize::try_from(
-            *self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .bg1()?
-                .super_block()
-                .inodes_per_group(),
-        )?;
+        let l_inodes = usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group())?;
         for _i in 0_usize..l_inodes {
-            let t = Self::read_into::<_, Ext2_Inode>(
-                &*_io,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Ext2_Inode>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.inodes.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
@@ -433,11 +345,7 @@ impl KStruct for Ext2_BlockGroup {
     type Root = Ext2;
     type Parent = Ext2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -452,24 +360,13 @@ impl KStruct for Ext2_BlockGroup {
         let _raw_super_block = _io.read_bytes(1024_usize)?;
         *self_rc.super_block_raw.borrow_mut() = _raw_super_block.clone();
         let _io_super_block = BytesReader::from(_raw_super_block);
-        let t = Self::read_into::<BytesReader, Ext2_SuperBlockStruct>(
-            &_io_super_block,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Ext2_SuperBlockStruct>(&_io_super_block, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.super_block.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_groups.borrow_mut() = Vec::new();
-        let l_block_groups =
-            usize::try_from(*self_rc.super_block().block_group_count()?)?;
+        let l_block_groups = usize::try_from(*self_rc.super_block().block_group_count()?)?;
         for _i in 0_usize..l_block_groups {
-            let t = Self::read_into::<_, Ext2_Bgd>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Ext2_Bgd>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.block_groups.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -477,7 +374,8 @@ impl KStruct for Ext2_BlockGroup {
         Ok(())
     }
 }
-impl Ext2_BlockGroup {}
+impl Ext2_BlockGroup {
+}
 impl Ext2_BlockGroup {
     pub fn super_block(&self) -> Ref<'_, OptRc<Ext2_SuperBlockStruct>> {
         self.super_block.borrow()
@@ -552,11 +450,7 @@ impl KStruct for Ext2_BlockPtr {
     type Root = Ext2;
     type Parent = Ext2_Inode;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -575,53 +469,20 @@ impl KStruct for Ext2_BlockPtr {
     }
 }
 impl Ext2_BlockPtr {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn body(&self) -> KResult<Ref<'_, OptRc<Ext2_RawBlock>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn body(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Ext2_RawBlock>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (*self.ptr()).saturating_mul(u32::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .bg1()?
-                    .super_block()
-                    .block_size()?,
-            )?),
-        )?)?;
-        *self.body_raw.borrow_mut() = _io
-            .read_bytes(usize::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .bg1()?
-                    .super_block()
-                    .block_size()?,
-            )?)?
-            .into();
+        _io.seek(usize::try_from((*self.ptr()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?))?)?;
+        *self.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?)?.into();
         let body_raw = self.body_raw.borrow();
         let _t_body_raw_io = BytesReader::from(body_raw.clone());
-        let t = Self::read_into::<BytesReader, Ext2_RawBlock>(
-            &_t_body_raw_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Ext2_RawBlock>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.body.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.body.borrow())
@@ -693,11 +554,7 @@ impl KStruct for Ext2_Dir {
     type Root = Ext2;
     type Parent = Ext2_Inode;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -713,12 +570,7 @@ impl KStruct for Ext2_Dir {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Ext2_DirEntry>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Ext2_DirEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -728,7 +580,8 @@ impl KStruct for Ext2_Dir {
         Ok(())
     }
 }
-impl Ext2_Dir {}
+impl Ext2_Dir {
+}
 impl Ext2_Dir {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Ext2_DirEntry>>> {
         self.entries.borrow()
@@ -799,11 +652,7 @@ impl KStruct for Ext2_DirEntry {
     type Root = Ext2;
     type Parent = Ext2_Dir;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -821,82 +670,26 @@ impl KStruct for Ext2_DirEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.file_type.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.file_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.name_len()))?,
-            "UTF-8",
-        )?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.name_len()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(
-            (i32::from(
-                (*self_rc.rec_len())
-                    .saturating_sub(u16::from(*self_rc.name_len())),
-            ))
-            .saturating_sub(8_i32),
-        )?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((i32::from((*self_rc.rec_len()).saturating_sub(u16::from(*self_rc.name_len())))).saturating_sub(8_i32))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Ext2_DirEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inode(&self) -> KResult<Ref<'_, OptRc<Ext2_Inode>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inode(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Ext2_Inode>>> {
         let _io = self._io.borrow();
         if self.f_inode.get() {
             return Ok(self.inode.borrow());
         }
-        *self.inode.borrow_mut() = self
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bg1()?
-            .block_groups()
-            .get(usize::try_from(
-                ((*self.inode_ptr()).saturating_sub(1_u32))
-                    .checked_div(
-                        *self
-                            ._root
-                            .get_value()
-                            .borrow()
-                            .upgrade()
-                            .as_ref()
-                            .ok_or(KError::MissingRoot)?
-                            .bg1()?
-                            .super_block()
-                            .inodes_per_group(),
-                    )
-                    .ok_or(KError::CastError)?,
-            )?)
-            .ok_or(KError::CastError)?
-            .inodes()?
-            .get(usize::try_from(
-                ((*self.inode_ptr()).saturating_sub(1_u32))
-                    .checked_rem(
-                        *self
-                            ._root
-                            .get_value()
-                            .borrow()
-                            .upgrade()
-                            .as_ref()
-                            .ok_or(KError::MissingRoot)?
-                            .bg1()?
-                            .super_block()
-                            .inodes_per_group(),
-                    )
-                    .ok_or(KError::CastError)?,
-            )?)
-            .ok_or(KError::CastError)?
-            .clone();
+        *self.inode.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.block_groups().get(usize::try_from(((*self.inode_ptr()).saturating_sub(1_u32)).checked_div(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group()).ok_or(KError::CastError)?)?).ok_or(KError::CastError)?.inodes()?.get(usize::try_from(((*self.inode_ptr()).saturating_sub(1_u32)).checked_rem(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().inodes_per_group()).ok_or(KError::CastError)?)?).ok_or(KError::CastError)?.clone();
         Ok(self.inode.borrow())
     }
 }
@@ -992,16 +785,15 @@ impl From<&Ext2_DirEntry_FileTypeEnum> for i64 {
             Ext2_DirEntry_FileTypeEnum::Fifo => 5,
             Ext2_DirEntry_FileTypeEnum::Sock => 6,
             Ext2_DirEntry_FileTypeEnum::Symlink => 7,
-            Ext2_DirEntry_FileTypeEnum::UnknownVariant(v) => v,
+            Ext2_DirEntry_FileTypeEnum::UnknownVariant(v) => v
         }
     }
 }
 
 impl Default for Ext2_DirEntry_FileTypeEnum {
-    fn default() -> Self {
-        Ext2_DirEntry_FileTypeEnum::UnknownVariant(0)
-    }
+    fn default() -> Self { Ext2_DirEntry_FileTypeEnum::UnknownVariant(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Ext2_Inode {
@@ -1067,11 +859,7 @@ impl KStruct for Ext2_Inode {
     type Root = Ext2;
     type Parent = Ext2_Bgd;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1110,12 +898,7 @@ impl KStruct for Ext2_Inode {
         *self_rc.block.borrow_mut() = Vec::new();
         let l_block = 15_usize;
         for _i in 0_usize..l_block {
-            let t = Self::read_into::<_, Ext2_BlockPtr>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Ext2_BlockPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.block.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1134,32 +917,18 @@ impl KStruct for Ext2_Inode {
     }
 }
 impl Ext2_Inode {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn as_dir(&self) -> KResult<Ref<'_, OptRc<Ext2_Dir>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn as_dir(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Ext2_Dir>>> {
         let _io = self._io.borrow();
         if self.f_as_dir.get() {
             return Ok(self.as_dir.borrow());
         }
-        let io = KStream::clone(
-            &*self
-                .block()
-                .get(0_usize)
-                .ok_or(KError::CastError)?
-                .body()?
-                ._io(),
-        );
+        let io = KStream::clone(&*self.block().get(0_usize).ok_or(KError::CastError)?.body()?._io());
         let _pos = io.pos();
         io.seek(0_usize)?;
-        let t = Self::read_into::<_, Ext2_Dir>(
-            &io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Ext2_Dir>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.as_dir.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.as_dir.borrow())
@@ -1317,11 +1086,7 @@ impl KStruct for Ext2_RawBlock {
     type Root = Ext2;
     type Parent = Ext2_BlockPtr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1333,24 +1098,14 @@ impl KStruct for Ext2_RawBlock {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
-            *self_rc
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .bg1()?
-                .super_block()
-                .block_size()?,
-        )?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Ext2_RawBlock {}
+impl Ext2_RawBlock {
+}
 impl Ext2_RawBlock {
     pub fn body(&self) -> Ref<'_, Vec<u8>> {
         self.body.borrow()
@@ -1469,11 +1224,7 @@ impl KStruct for Ext2_SuperBlockStruct {
     type Root = Ext2;
     type Parent = Ext2_BlockGroup;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1517,16 +1268,12 @@ impl KStruct for Ext2_SuperBlockStruct {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x53u8, 0xefu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/super_block_struct/seq/15".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/super_block_struct/seq/15".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.state.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.errors.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.errors.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_rev_level.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1589,37 +1336,28 @@ impl KStruct for Ext2_SuperBlockStruct {
     }
 }
 impl Ext2_SuperBlockStruct {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn block_group_count(&self) -> KResult<Ref<'_, u32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn block_group_count(
+        &self
+    ) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_block_group_count.get() {
             return Ok(self.block_group_count.borrow());
         }
         self.f_block_group_count.set(true);
-        *self.block_group_count.borrow_mut() = ((*self.blocks_count())
-            .checked_div(*self.blocks_per_group())
-            .ok_or(KError::CastError)?)
-        .try_into()?;
+        *self.block_group_count.borrow_mut() = ((*self.blocks_count()).checked_div(*self.blocks_per_group()).ok_or(KError::CastError)?).try_into()?;
         Ok(self.block_group_count.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn block_size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn block_size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_block_size.get() {
             return Ok(self.block_size.borrow());
         }
         self.f_block_size.set(true);
-        *self.block_size.borrow_mut() = ((1024_i32)
-            .wrapping_shl(to_shift_amt(*self.log_block_size())))
-        .try_into()?;
+        *self.block_size.borrow_mut() = ((1024_i32).wrapping_shl(to_shift_amt(*self.log_block_size()))).try_into()?;
         Ok(self.block_size.borrow())
     }
 }
@@ -1905,15 +1643,13 @@ impl From<&Ext2_SuperBlockStruct_ErrorsEnum> for i64 {
             Ext2_SuperBlockStruct_ErrorsEnum::ActContinue => 1,
             Ext2_SuperBlockStruct_ErrorsEnum::ActRo => 2,
             Ext2_SuperBlockStruct_ErrorsEnum::ActPanic => 3,
-            Ext2_SuperBlockStruct_ErrorsEnum::Unknown(v) => v,
+            Ext2_SuperBlockStruct_ErrorsEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for Ext2_SuperBlockStruct_ErrorsEnum {
-    fn default() -> Self {
-        Ext2_SuperBlockStruct_ErrorsEnum::Unknown(0)
-    }
+    fn default() -> Self { Ext2_SuperBlockStruct_ErrorsEnum::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -1939,13 +1675,12 @@ impl From<&Ext2_SuperBlockStruct_StateEnum> for i64 {
         match *v {
             Ext2_SuperBlockStruct_StateEnum::ValidFs => 1,
             Ext2_SuperBlockStruct_StateEnum::ErrorFs => 2,
-            Ext2_SuperBlockStruct_StateEnum::Unknown(v) => v,
+            Ext2_SuperBlockStruct_StateEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for Ext2_SuperBlockStruct_StateEnum {
-    fn default() -> Self {
-        Ext2_SuperBlockStruct_StateEnum::Unknown(0)
-    }
+    fn default() -> Self { Ext2_SuperBlockStruct_StateEnum::Unknown(0) }
 }
+

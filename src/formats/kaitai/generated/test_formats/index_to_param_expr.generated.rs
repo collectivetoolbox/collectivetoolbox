@@ -102,11 +102,7 @@ impl KStruct for IndexToParamExpr {
     type Root = IndexToParamExpr;
     type Parent = IndexToParamExpr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,18 +125,8 @@ impl KStruct for IndexToParamExpr {
         *self_rc.blocks.borrow_mut() = Vec::new();
         let l_blocks = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_blocks {
-            let f = |t: &mut IndexToParamExpr_Block| {
-                Ok(t.set_params(
-                    (_i).try_into().map_err(|_| KError::CastError)?,
-                ))
-            };
-            let t = Self::read_into_with_init::<_, IndexToParamExpr_Block>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-                &f,
-            )?
-            .into();
+            let f = |t : &mut IndexToParamExpr_Block| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
+            let t = Self::read_into_with_init::<_, IndexToParamExpr_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -148,7 +134,8 @@ impl KStruct for IndexToParamExpr {
         Ok(())
     }
 }
-impl IndexToParamExpr {}
+impl IndexToParamExpr {
+}
 impl IndexToParamExpr {
     pub fn qty(&self) -> Ref<'_, u32> {
         self.qty.borrow()
@@ -222,11 +209,7 @@ impl KStruct for IndexToParamExpr_Block {
     type Root = IndexToParamExpr;
     type Parent = IndexToParamExpr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -238,21 +221,7 @@ impl KStruct for IndexToParamExpr_Block {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(
-                *(self_rc
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sizes()
-                    .get(usize::try_from(*self_rc.idx())?)
-                    .ok_or(KError::CastError)?),
-            )?)?,
-            "ASCII",
-        )?;
+        *self_rc.buf.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sizes().get(usize::try_from(*self_rc.idx())?).ok_or(KError::CastError)?))?)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -268,7 +237,8 @@ impl IndexToParamExpr_Block {
         *self.idx.borrow_mut() = idx;
     }
 }
-impl IndexToParamExpr_Block {}
+impl IndexToParamExpr_Block {
+}
 impl IndexToParamExpr_Block {
     pub fn buf(&self) -> Ref<'_, String> {
         self.buf.borrow()

@@ -54,11 +54,7 @@ impl KStruct for Id3v24 {
     type Root = Id3v24;
     type Parent = Id3v24;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -70,19 +66,15 @@ impl KStruct for Id3v24 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Id3v24_Tag>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_Tag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tag.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Id3v24 {}
+impl Id3v24 {
+}
 impl Id3v24 {
     pub fn tag(&self) -> Ref<'_, OptRc<Id3v24_Tag>> {
         self.tag.borrow()
@@ -148,11 +140,7 @@ impl KStruct for Id3v24_Footer {
     type Root = Id3v24;
     type Parent = Id3v24_Tag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -166,37 +154,25 @@ impl KStruct for Id3v24_Footer {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.magic() == vec![0x33u8, 0x44u8, 0x49u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/footer/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/footer/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_major.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_revision.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_Footer_Flags>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_Footer_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Id3v24_Footer {}
+impl Id3v24_Footer {
+}
 impl Id3v24_Footer {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -282,11 +258,7 @@ impl KStruct for Id3v24_Footer_Flags {
     type Root = Id3v24;
     type Parent = Id3v24_Footer;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -298,8 +270,7 @@ impl KStruct for Id3v24_Footer_Flags {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.flag_unsynchronization.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.flag_unsynchronization.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flag_headerex.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -313,7 +284,8 @@ impl KStruct for Id3v24_Footer_Flags {
         Ok(())
     }
 }
-impl Id3v24_Footer_Flags {}
+impl Id3v24_Footer_Flags {
+}
 impl Id3v24_Footer_Flags {
     pub fn flag_unsynchronization(&self) -> Ref<'_, bool> {
         self.flag_unsynchronization.borrow()
@@ -403,11 +375,7 @@ impl KStruct for Id3v24_Frame {
     type Root = Id3v24;
     type Parent = Id3v24_Tag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -419,54 +387,34 @@ impl KStruct for Id3v24_Frame {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.id.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_Frame_FlagsStatus>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_Frame_FlagsStatus>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags_status.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_Frame_FlagsFormat>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_Frame_FlagsFormat>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags_format.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.size().value()?)?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size().value()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Id3v24_Frame {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_invalid(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_invalid(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_invalid.get() {
             return Ok(self.is_invalid.borrow());
         }
         self.f_is_invalid.set(true);
-        *self.is_invalid.borrow_mut() =
-            (self.id().as_str() == "\0\0\0\0").try_into()?;
+        *self.is_invalid.borrow_mut() = ((self.id().as_str() == "\0\0\0\0")).try_into()?;
         Ok(self.is_invalid.borrow())
     }
 }
@@ -544,34 +492,22 @@ impl TryFrom<&&Id3v24_Frame_FlagsFormat> for OptRc<Id3v24_Frame_FlagsFormat> {
     }
 }
 impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for Id3v24_Frame_FlagsFormat {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for &Id3v24_Frame_FlagsFormat {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Id3v24_Frame_FlagsFormat>
-    for OptRc<Id3v24_Frame_FlagsFormat>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for OptRc<Id3v24_Frame_FlagsFormat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Id3v24_Frame_FlagsFormat>
-    for &OptRc<Id3v24_Frame_FlagsFormat>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for &OptRc<Id3v24_Frame_FlagsFormat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
         Ok((*self).clone())
     }
 }
@@ -579,11 +515,7 @@ impl KStruct for Id3v24_Frame_FlagsFormat {
     type Root = Id3v24;
     type Parent = Id3v24_Frame;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -605,8 +537,7 @@ impl KStruct for Id3v24_Frame_FlagsFormat {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flag_encrypted.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.flag_unsynchronisated.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.flag_unsynchronisated.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flag_indicator.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -614,7 +545,8 @@ impl KStruct for Id3v24_Frame_FlagsFormat {
         Ok(())
     }
 }
-impl Id3v24_Frame_FlagsFormat {}
+impl Id3v24_Frame_FlagsFormat {
+}
 impl Id3v24_Frame_FlagsFormat {
     pub fn reserved1(&self) -> Ref<'_, bool> {
         self.reserved1.borrow()
@@ -687,34 +619,22 @@ impl TryFrom<&&Id3v24_Frame_FlagsStatus> for OptRc<Id3v24_Frame_FlagsStatus> {
     }
 }
 impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for Id3v24_Frame_FlagsStatus {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for &Id3v24_Frame_FlagsStatus {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Id3v24_Frame_FlagsStatus>
-    for OptRc<Id3v24_Frame_FlagsStatus>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for OptRc<Id3v24_Frame_FlagsStatus> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Id3v24_Frame_FlagsStatus>
-    for &OptRc<Id3v24_Frame_FlagsStatus>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for &OptRc<Id3v24_Frame_FlagsStatus> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
         Ok((*self).clone())
     }
 }
@@ -722,11 +642,7 @@ impl KStruct for Id3v24_Frame_FlagsStatus {
     type Root = Id3v24;
     type Parent = Id3v24_Frame;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -740,11 +656,9 @@ impl KStruct for Id3v24_Frame_FlagsStatus {
         let _io = io;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.flag_discard_alter_tag.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.flag_discard_alter_tag.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.flag_discard_alter_file.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.flag_discard_alter_file.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flag_read_only.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -754,7 +668,8 @@ impl KStruct for Id3v24_Frame_FlagsStatus {
         Ok(())
     }
 }
-impl Id3v24_Frame_FlagsStatus {}
+impl Id3v24_Frame_FlagsStatus {
+}
 impl Id3v24_Frame_FlagsStatus {
     pub fn reserved1(&self) -> Ref<'_, bool> {
         self.reserved1.borrow()
@@ -840,11 +755,7 @@ impl KStruct for Id3v24_Header {
     type Root = Id3v24;
     type Parent = Id3v24_Tag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -858,37 +769,25 @@ impl KStruct for Id3v24_Header {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.magic() == vec![0x49u8, 0x44u8, 0x33u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_major.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_revision.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_Header_Flags>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_Header_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Id3v24_Header {}
+impl Id3v24_Header {
+}
 impl Id3v24_Header {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -974,11 +873,7 @@ impl KStruct for Id3v24_Header_Flags {
     type Root = Id3v24;
     type Parent = Id3v24_Header;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -990,8 +885,7 @@ impl KStruct for Id3v24_Header_Flags {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.flag_unsynchronization.borrow_mut() =
-            _io.read_bits_int_be(1)? != 0;
+        *self_rc.flag_unsynchronization.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flag_headerex.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1005,7 +899,8 @@ impl KStruct for Id3v24_Header_Flags {
         Ok(())
     }
 }
-impl Id3v24_Header_Flags {}
+impl Id3v24_Header_Flags {
+}
 impl Id3v24_Header_Flags {
     pub fn flag_unsynchronization(&self) -> Ref<'_, bool> {
         self.flag_unsynchronization.borrow()
@@ -1090,11 +985,7 @@ impl KStruct for Id3v24_HeaderEx {
     type Root = Id3v24;
     type Parent = Id3v24_Tag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1106,31 +997,20 @@ impl KStruct for Id3v24_HeaderEx {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U4beSynchsafe>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.size.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_HeaderEx_FlagsEx>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_HeaderEx_FlagsEx>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags_ex.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(
-            (*self_rc.size().value()?).saturating_sub(5_u64),
-        )?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.size().value()?).saturating_sub(5_u64))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Id3v24_HeaderEx {}
+impl Id3v24_HeaderEx {
+}
 impl Id3v24_HeaderEx {
     pub fn size(&self) -> Ref<'_, OptRc<Id3v24_U4beSynchsafe>> {
         self.size.borrow()
@@ -1202,9 +1082,7 @@ impl DowncastOptRc<Id3v24_HeaderEx_FlagsEx> for OptRc<Id3v24_HeaderEx_FlagsEx> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Id3v24_HeaderEx_FlagsEx>
-    for &OptRc<Id3v24_HeaderEx_FlagsEx>
-{
+impl DowncastOptRc<Id3v24_HeaderEx_FlagsEx> for &OptRc<Id3v24_HeaderEx_FlagsEx> {
     fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx_FlagsEx>, KError> {
         Ok((*self).clone())
     }
@@ -1213,11 +1091,7 @@ impl KStruct for Id3v24_HeaderEx_FlagsEx {
     type Root = Id3v24;
     type Parent = Id3v24_HeaderEx;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1243,7 +1117,8 @@ impl KStruct for Id3v24_HeaderEx_FlagsEx {
         Ok(())
     }
 }
-impl Id3v24_HeaderEx_FlagsEx {}
+impl Id3v24_HeaderEx_FlagsEx {
+}
 impl Id3v24_HeaderEx_FlagsEx {
     pub fn reserved1(&self) -> Ref<'_, bool> {
         self.reserved1.borrow()
@@ -1326,11 +1201,7 @@ impl KStruct for Id3v24_Padding {
     type Root = Id3v24;
     type Parent = Id3v24_Tag;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1342,28 +1213,14 @@ impl KStruct for Id3v24_Padding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(
-            (usize::try_from(
-                *self_rc
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .tag()
-                    .header()
-                    .size()
-                    .value()?,
-            )?)
-            .saturating_sub(_io.pos()),
-        )?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.tag().header().size().value()?)?).saturating_sub(_io.pos()))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Id3v24_Padding {}
+impl Id3v24_Padding {
+}
 impl Id3v24_Padding {
     pub fn padding(&self) -> Ref<'_, Vec<u8>> {
         self.padding.borrow()
@@ -1434,11 +1291,7 @@ impl KStruct for Id3v24_Tag {
     type Root = Id3v24;
     type Parent = Id3v24;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1450,22 +1303,12 @@ impl KStruct for Id3v24_Tag {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Id3v24_Header>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().flag_headerex() {
-            let t = Self::read_into::<_, Id3v24_HeaderEx>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Id3v24_HeaderEx>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header_ex.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1473,49 +1316,24 @@ impl KStruct for Id3v24_Tag {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, Id3v24_Frame>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Id3v24_Frame>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.frames.borrow_mut().push(t);
                 let _t_frames = self_rc.frames.borrow();
-                let Some(_tmpa) = _t_frames.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_frames.last() else { break; };
                 _i = _i.saturating_add(1);
-                if ((to_i128(
-                    (_io.pos()).saturating_add(usize::try_from(
-                        *_tmpa.size().value()?,
-                    )?),
-                )) > (to_i128(*self_rc.header().size().value()?)))
-                    || (*_tmpa.is_invalid()?)
-                {
-                    break;
-                }
+                if  ((((to_i128((_io.pos()).saturating_add(usize::try_from(*_tmpa.size().value()?)?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.header().flags().flag_footer()) {
-            let t = Self::read_into::<_, Id3v24_Padding>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Id3v24_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.padding.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().flag_footer() {
-            let t = Self::read_into::<_, Id3v24_Footer>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Id3v24_Footer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.footer.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1523,7 +1341,8 @@ impl KStruct for Id3v24_Tag {
         Ok(())
     }
 }
-impl Id3v24_Tag {}
+impl Id3v24_Tag {
+}
 impl Id3v24_Tag {
     pub fn header(&self) -> Ref<'_, OptRc<Id3v24_Header>> {
         self.header.borrow()
@@ -1606,11 +1425,7 @@ impl KStruct for Id3v24_U1beSynchsafe {
     type Root = Id3v24;
     type Parent = Id3v24_U2beSynchsafe;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1630,7 +1445,8 @@ impl KStruct for Id3v24_U1beSynchsafe {
         Ok(())
     }
 }
-impl Id3v24_U1beSynchsafe {}
+impl Id3v24_U1beSynchsafe {
+}
 impl Id3v24_U1beSynchsafe {
     pub fn padding(&self) -> Ref<'_, bool> {
         self.padding.borrow()
@@ -1700,11 +1516,7 @@ impl KStruct for Id3v24_U2beSynchsafe {
     type Root = Id3v24;
     type Parent = Id3v24_U4beSynchsafe;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1716,20 +1528,10 @@ impl KStruct for Id3v24_U2beSynchsafe {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Id3v24_U1beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U1beSynchsafe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.byte0.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_U1beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U1beSynchsafe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.byte1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -1737,21 +1539,16 @@ impl KStruct for Id3v24_U2beSynchsafe {
     }
 }
 impl Id3v24_U2beSynchsafe {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((u64::try_from(
-            (i32::try_from(*self.byte0().value())?).wrapping_shl(7_u32),
-        )?) | (*self.byte1().value()))
-        .try_into()?;
+        *self.value.borrow_mut() = (((u64::try_from((i32::try_from(*self.byte0().value())?).wrapping_shl(7_u32))?) | (*self.byte1().value()))).try_into()?;
         Ok(self.value.borrow())
     }
 }
@@ -1824,11 +1621,7 @@ impl KStruct for Id3v24_U4beSynchsafe {
     type Root = Id3v24;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1840,20 +1633,10 @@ impl KStruct for Id3v24_U4beSynchsafe {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Id3v24_U2beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U2beSynchsafe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.short0.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Id3v24_U2beSynchsafe>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Id3v24_U2beSynchsafe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.short1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -1861,21 +1644,16 @@ impl KStruct for Id3v24_U4beSynchsafe {
     }
 }
 impl Id3v24_U4beSynchsafe {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = ((u64::try_from(
-            (i32::try_from(*self.short0().value()?)?).wrapping_shl(14_u32),
-        )?) | (*self.short1().value()?))
-        .try_into()?;
+        *self.value.borrow_mut() = (((u64::try_from((i32::try_from(*self.short0().value()?)?).wrapping_shl(14_u32))?) | (*self.short1().value()?))).try_into()?;
         Ok(self.value.borrow())
     }
 }

@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use crate::generated::common::dos_datetime::DosDatetime;
-use crate::generated::common::dos_datetime::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use crate::generated::common::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::*;
 
 /**
  * LHA (LHarc, LZH) is a file format used by a popular freeware
@@ -61,11 +61,7 @@ impl KStruct for Lzh {
     type Root = Lzh;
     type Parent = Lzh;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -81,12 +77,7 @@ impl KStruct for Lzh {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Lzh_Record>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Lzh_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -96,7 +87,8 @@ impl KStruct for Lzh {
         Ok(())
     }
 }
-impl Lzh {}
+impl Lzh {
+}
 impl Lzh {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Lzh_Record>>> {
         self.entries.borrow()
@@ -162,11 +154,7 @@ impl KStruct for Lzh_FileRecord {
     type Root = Lzh;
     type Parent = Lzh_Record;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -178,43 +166,25 @@ impl KStruct for Lzh_FileRecord {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let _raw_header = _io.read_bytes(usize::try_from(
-            (i32::from(
-                *self_rc
-                    ._parent
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingParent)?
-                    .header_len(),
-            ))
-            .saturating_sub(1_i32),
-        )?)?;
+        let _raw_header = _io.read_bytes(usize::try_from((i32::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header_len())).saturating_sub(1_i32))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
-        let t = Self::read_into::<BytesReader, Lzh_Header>(
-            &_io_header,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Lzh_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header().header1().lha_level())) == (to_i128(0)) {
+        if ((to_i128(*self_rc.header().header1().lha_level())) == (to_i128(0))) {
             *self_rc.file_uncompr_crc16.borrow_mut() = _io.read_u2le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
-            *self_rc.header().header1().file_size_compr(),
-        )?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().header1().file_size_compr())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Lzh_FileRecord {}
+impl Lzh_FileRecord {
+}
 impl Lzh_FileRecord {
     pub fn header(&self) -> Ref<'_, OptRc<Lzh_Header>> {
         self.header.borrow()
@@ -302,11 +272,7 @@ impl KStruct for Lzh_Header {
     type Root = Lzh;
     type Parent = Lzh_FileRecord;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -318,39 +284,31 @@ impl KStruct for Lzh_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Lzh_Header1>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Lzh_Header1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header1().lha_level())) == (to_i128(0)) {
+        if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(0))) {
             *self_rc.filename_len.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header1().lha_level())) == (to_i128(0)) {
-            *self_rc.filename.borrow_mut() = bytes_to_str(
-                &_io.read_bytes(usize::from(*self_rc.filename_len()))?,
-                "ASCII",
-            )?;
+        if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(0))) {
+            *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.filename_len()))?, "ASCII")?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header1().lha_level())) == (to_i128(2)) {
+        if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(2))) {
             *self_rc.file_uncompr_crc16.borrow_mut() = _io.read_u2le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header1().lha_level())) == (to_i128(2)) {
+        if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(2))) {
             *self_rc.os.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header1().lha_level())) == (to_i128(2)) {
+        if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(2))) {
             *self_rc.ext_header_size.borrow_mut() = _io.read_u2le()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -358,7 +316,8 @@ impl KStruct for Lzh_Header {
         Ok(())
     }
 }
-impl Lzh_Header {}
+impl Lzh_Header {
+}
 
 /**
  * Level-neutral header, same for all LHA levels. Subsequent fields order and meaning varies, based on LHA level specified in this header.
@@ -462,11 +421,7 @@ impl KStruct for Lzh_Header1 {
     type Root = Lzh;
     type Parent = Lzh_Header;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -480,8 +435,7 @@ impl KStruct for Lzh_Header1 {
         let _io = io;
         *self_rc.header_checksum.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.method_id.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
+        *self_rc.method_id.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size_compr.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -490,12 +444,7 @@ impl KStruct for Lzh_Header1 {
         let _raw_file_timestamp = _io.read_bytes(4_usize)?;
         *self_rc.file_timestamp_raw.borrow_mut() = _raw_file_timestamp.clone();
         let _io_file_timestamp = BytesReader::from(_raw_file_timestamp);
-        let t = Self::read_into::<BytesReader, DosDatetime>(
-            &_io_file_timestamp,
-            None,
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, DosDatetime>(&_io_file_timestamp, None, None)?.into();
         *self_rc.file_timestamp.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attr.borrow_mut() = _io.read_u1()?;
@@ -506,7 +455,8 @@ impl KStruct for Lzh_Header1 {
         Ok(())
     }
 }
-impl Lzh_Header1 {}
+impl Lzh_Header1 {
+}
 impl Lzh_Header1 {
     pub fn header_checksum(&self) -> Ref<'_, u8> {
         self.header_checksum.borrow()
@@ -625,11 +575,7 @@ impl KStruct for Lzh_Record {
     type Root = Lzh;
     type Parent = Lzh;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -644,13 +590,8 @@ impl KStruct for Lzh_Record {
         *self_rc.header_len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.header_len())) > (to_i128(0)) {
-            let t = Self::read_into::<_, Lzh_FileRecord>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+        if ((to_i128(*self_rc.header_len())) > (to_i128(0))) {
+            let t = Self::read_into::<_, Lzh_FileRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.file_record.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -658,7 +599,8 @@ impl KStruct for Lzh_Record {
         Ok(())
     }
 }
-impl Lzh_Record {}
+impl Lzh_Record {
+}
 impl Lzh_Record {
     pub fn header_len(&self) -> Ref<'_, u8> {
         self.header_len.borrow()

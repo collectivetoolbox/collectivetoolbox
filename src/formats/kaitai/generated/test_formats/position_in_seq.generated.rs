@@ -102,11 +102,7 @@ impl KStruct for PositionInSeq {
     type Root = PositionInSeq;
     type Parent = PositionInSeq;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,24 +125,17 @@ impl KStruct for PositionInSeq {
     }
 }
 impl PositionInSeq {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn header(&self) -> KResult<Ref<'_, OptRc<PositionInSeq_HeaderObj>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn header(
+        &self
+    ) -> KResult<Ref<'_, OptRc<PositionInSeq_HeaderObj>>> {
         let _io = self._io.borrow();
         if self.f_header.get() {
             return Ok(self.header.borrow());
         }
         let _pos = _io.pos();
         _io.seek(16_usize)?;
-        let t = Self::read_into::<_, PositionInSeq_HeaderObj>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, PositionInSeq_HeaderObj>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.header.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.header.borrow())
@@ -204,9 +193,7 @@ impl DowncastOptRc<PositionInSeq_HeaderObj> for OptRc<PositionInSeq_HeaderObj> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<PositionInSeq_HeaderObj>
-    for &OptRc<PositionInSeq_HeaderObj>
-{
+impl DowncastOptRc<PositionInSeq_HeaderObj> for &OptRc<PositionInSeq_HeaderObj> {
     fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq_HeaderObj>, KError> {
         Ok((*self).clone())
     }
@@ -215,11 +202,7 @@ impl KStruct for PositionInSeq_HeaderObj {
     type Root = PositionInSeq;
     type Parent = PositionInSeq;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -237,7 +220,8 @@ impl KStruct for PositionInSeq_HeaderObj {
         Ok(())
     }
 }
-impl PositionInSeq_HeaderObj {}
+impl PositionInSeq_HeaderObj {
+}
 impl PositionInSeq_HeaderObj {
     pub fn qty_numbers(&self) -> Ref<'_, u32> {
         self.qty_numbers.borrow()

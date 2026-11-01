@@ -101,11 +101,7 @@ impl KStruct for EofExceptionBitsBe2 {
     type Root = EofExceptionBitsBe2;
     type Parent = EofExceptionBitsBe2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,7 +121,8 @@ impl KStruct for EofExceptionBitsBe2 {
         Ok(())
     }
 }
-impl EofExceptionBitsBe2 {}
+impl EofExceptionBitsBe2 {
+}
 impl EofExceptionBitsBe2 {
     pub fn pre_bits(&self) -> Ref<'_, u64> {
         self.pre_bits.borrow()

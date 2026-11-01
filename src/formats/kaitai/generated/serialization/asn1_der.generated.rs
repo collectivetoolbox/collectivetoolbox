@@ -97,16 +97,12 @@ impl TryFrom<&&Asn1Der_Body> for OptRc<Asn1Der_BodyPrintableString> {
     }
 }
 impl DowncastOptRc<Asn1Der_BodyPrintableString> for Asn1Der_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
         OptRc::<Asn1Der_BodyPrintableString>::try_from(self)
     }
 }
 impl DowncastOptRc<Asn1Der_BodyPrintableString> for &Asn1Der_Body {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -231,11 +227,7 @@ impl KStruct for Asn1Der {
     type Root = Asn1Der;
     type Parent = Asn1Der;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -247,110 +239,56 @@ impl KStruct for Asn1Der {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.type_tag.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.type_tag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Asn1Der_LenEncoded>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Asn1Der_LenEncoded>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.len.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.type_tag() {
             Asn1Der_TypeTag::ObjectId => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::from(*self_rc.len().result()?))?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len().result()?))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Asn1Der_BodyObjectId>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Asn1Der_BodyObjectId>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Asn1Der_TypeTag::PrintableString => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::from(*self_rc.len().result()?))?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len().result()?))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Asn1Der_BodyPrintableString,
-                >(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Asn1Der_BodyPrintableString>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Asn1Der_TypeTag::Sequence10 => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::from(*self_rc.len().result()?))?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len().result()?))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Asn1Der_BodySequence>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Asn1Der_BodySequence>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Asn1Der_TypeTag::Sequence30 => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::from(*self_rc.len().result()?))?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len().result()?))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Asn1Der_BodySequence>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Asn1Der_BodySequence>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Asn1Der_TypeTag::Set => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::from(*self_rc.len().result()?))?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len().result()?))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Asn1Der_BodySequence>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Asn1Der_BodySequence>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Asn1Der_TypeTag::Utf8string => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::from(*self_rc.len().result()?))?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len().result()?))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Asn1Der_BodyUtf8string>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Asn1Der_BodyUtf8string>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(
-                    _io.read_bytes(usize::from(*self_rc.len().result()?))?
-                        .into(),
-                );
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.len().result()?))?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -358,7 +296,8 @@ impl KStruct for Asn1Der {
         Ok(())
     }
 }
-impl Asn1Der {}
+impl Asn1Der {
+}
 impl Asn1Der {
     pub fn type_tag(&self) -> Ref<'_, Asn1Der_TypeTag> {
         self.type_tag.borrow()
@@ -464,16 +403,15 @@ impl From<&Asn1Der_TypeTag> for i64 {
             Asn1Der_TypeTag::Ia5string => 22,
             Asn1Der_TypeTag::Sequence30 => 48,
             Asn1Der_TypeTag::Set => 49,
-            Asn1Der_TypeTag::Unknown(v) => v,
+            Asn1Der_TypeTag::Unknown(v) => v
         }
     }
 }
 
 impl Default for Asn1Der_TypeTag {
-    fn default() -> Self {
-        Asn1Der_TypeTag::Unknown(0)
-    }
+    fn default() -> Self { Asn1Der_TypeTag::Unknown(0) }
 }
+
 
 /**
  * \sa <https://learn.microsoft.com/en-us/windows/win32/seccertenroll/about-object-identifier> Source
@@ -528,11 +466,7 @@ impl KStruct for Asn1Der_BodyObjectId {
     type Root = Asn1Der;
     type Parent = Asn1Der;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -553,38 +487,28 @@ impl KStruct for Asn1Der_BodyObjectId {
     }
 }
 impl Asn1Der_BodyObjectId {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn first(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn first(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_first.get() {
             return Ok(self.first.borrow());
         }
         self.f_first.set(true);
-        *self.first.borrow_mut() = ((i32::from(*self.first_and_second()))
-            .checked_div(40_i32)
-            .ok_or(KError::CastError)?)
-        .try_into()?;
+        *self.first.borrow_mut() = ((i32::from(*self.first_and_second())).checked_div(40_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.first.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn second(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn second(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_second.get() {
             return Ok(self.second.borrow());
         }
         self.f_second.set(true);
-        *self.second.borrow_mut() = ((i32::from(*self.first_and_second()))
-            .checked_rem(40_i32)
-            .ok_or(KError::CastError)?)
-        .try_into()?;
+        *self.second.borrow_mut() = ((i32::from(*self.first_and_second())).checked_rem(40_i32).ok_or(KError::CastError)?).try_into()?;
         Ok(self.second.borrow())
     }
 }
@@ -618,55 +542,35 @@ pub struct Asn1Der_BodyPrintableString {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Asn1Der_BodyPrintableString>
-    for OptRc<Asn1Der_BodyPrintableString>
-{
+impl TryFrom<&Asn1Der_BodyPrintableString> for OptRc<Asn1Der_BodyPrintableString> {
     type Error = KError;
     fn try_from(v: &Asn1Der_BodyPrintableString) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Asn1Der_BodyPrintableString>
-    for OptRc<Asn1Der_BodyPrintableString>
-{
+impl TryFrom<&&Asn1Der_BodyPrintableString> for OptRc<Asn1Der_BodyPrintableString> {
     type Error = KError;
     fn try_from(v: &&Asn1Der_BodyPrintableString) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Asn1Der_BodyPrintableString>
-    for Asn1Der_BodyPrintableString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for Asn1Der_BodyPrintableString {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Asn1Der_BodyPrintableString>
-    for &Asn1Der_BodyPrintableString
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for &Asn1Der_BodyPrintableString {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Asn1Der_BodyPrintableString>
-    for OptRc<Asn1Der_BodyPrintableString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for OptRc<Asn1Der_BodyPrintableString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Asn1Der_BodyPrintableString>
-    for &OptRc<Asn1Der_BodyPrintableString>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for &OptRc<Asn1Der_BodyPrintableString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
         Ok((*self).clone())
     }
 }
@@ -674,11 +578,7 @@ impl KStruct for Asn1Der_BodyPrintableString {
     type Root = Asn1Der;
     type Parent = Asn1Der;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -690,14 +590,14 @@ impl KStruct for Asn1Der_BodyPrintableString {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_full()?, "ASCII")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Asn1Der_BodyPrintableString {}
+impl Asn1Der_BodyPrintableString {
+}
 impl Asn1Der_BodyPrintableString {
     pub fn str(&self) -> Ref<'_, String> {
         self.str.borrow()
@@ -759,11 +659,7 @@ impl KStruct for Asn1Der_BodySequence {
     type Root = Asn1Der;
     type Parent = Asn1Der;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -779,12 +675,7 @@ impl KStruct for Asn1Der_BodySequence {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Asn1Der>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._root.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Asn1Der>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -794,7 +685,8 @@ impl KStruct for Asn1Der_BodySequence {
         Ok(())
     }
 }
-impl Asn1Der_BodySequence {}
+impl Asn1Der_BodySequence {
+}
 impl Asn1Der_BodySequence {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Asn1Der>>> {
         self.entries.borrow()
@@ -856,11 +748,7 @@ impl KStruct for Asn1Der_BodyUtf8string {
     type Root = Asn1Der;
     type Parent = Asn1Der;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -872,14 +760,14 @@ impl KStruct for Asn1Der_BodyUtf8string {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Asn1Der_BodyUtf8string {}
+impl Asn1Der_BodyUtf8string {
+}
 impl Asn1Der_BodyUtf8string {
     pub fn str(&self) -> Ref<'_, String> {
         self.str.borrow()
@@ -945,11 +833,7 @@ impl KStruct for Asn1Der_LenEncoded {
     type Root = Asn1Der;
     type Parent = Asn1Der;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -964,12 +848,12 @@ impl KStruct for Asn1Der_LenEncoded {
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.b1())) == (to_i128(130)) {
+        if ((to_i128(*self_rc.b1())) == (to_i128(130))) {
             *self_rc.int2.borrow_mut() = _io.read_u2be()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.b1())) == (to_i128(129)) {
+        if ((to_i128(*self_rc.b1())) == (to_i128(129))) {
             *self_rc.int1.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -978,28 +862,16 @@ impl KStruct for Asn1Der_LenEncoded {
     }
 }
 impl Asn1Der_LenEncoded {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn result(&self) -> KResult<Ref<'_, u16>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn result(
+        &self
+    ) -> KResult<Ref<'_, u16>> {
         let _io = self._io.borrow();
         if self.f_result.get() {
             return Ok(self.result.borrow());
         }
         self.f_result.set(true);
-        *self.result.borrow_mut() = (if (to_i128(*self.b1())) == (to_i128(129))
-        {
-            u16::from(*self.int1())
-        } else {
-            if (to_i128(*self.b1())) == (to_i128(130)) {
-                *self.int2()
-            } else {
-                u16::from(*self.b1())
-            }
-        })
-        .try_into()?;
+        *self.result.borrow_mut() = (if ((to_i128(*self.b1())) == (to_i128(129))) { u16::from(*self.int1()) } else { if ((to_i128(*self.b1())) == (to_i128(130))) { *self.int2() } else { u16::from(*self.b1()) } }).try_into()?;
         Ok(self.result.borrow())
     }
 }

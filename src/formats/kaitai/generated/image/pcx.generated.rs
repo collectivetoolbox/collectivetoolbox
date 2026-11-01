@@ -70,11 +70,7 @@ impl KStruct for Pcx {
     type Root = Pcx;
     type Parent = Pcx;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,12 +85,7 @@ impl KStruct for Pcx {
         let _raw_hdr = _io.read_bytes(128_usize)?;
         *self_rc.hdr_raw.borrow_mut() = _raw_hdr.clone();
         let _io_hdr = BytesReader::from(_raw_hdr);
-        let t = Self::read_into::<BytesReader, Pcx_Header>(
-            &_io_hdr,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Pcx_Header>(&_io_hdr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -102,33 +93,22 @@ impl KStruct for Pcx {
     }
 }
 impl Pcx {
+
     /**
      * \sa https://web.archive.org/web/20100206055706/http://www.qzx.com/pc-gpe/pcx.txt - "VGA 256 Color Palette Information"
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn palette_256(&self) -> KResult<Ref<'_, OptRc<Pcx_TPalette256>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn palette_256(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Pcx_TPalette256>>> {
         let _io = self._io.borrow();
         if self.f_palette_256.get() {
             return Ok(self.palette_256.borrow());
         }
-        if (*self.hdr().version() == Pcx_Versions::V30)
-            && ((to_i128(*self.hdr().bits_per_pixel())) == (to_i128(8)))
-            && ((to_i128(*self.hdr().num_planes())) == (to_i128(1)))
-        {
+        if  ((*self.hdr().version() == Pcx_Versions::V30) && (((to_i128(*self.hdr().bits_per_pixel())) == (to_i128(8)))) && (((to_i128(*self.hdr().num_planes())) == (to_i128(1)))))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (i64::try_from(_io.size())?).saturating_sub(769_i64),
-            )?)?;
-            let t = Self::read_into::<_, Pcx_TPalette256>(
-                &*_io,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-            )?
-            .into();
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(769_i64))?)?;
+            let t = Self::read_into::<_, Pcx_TPalette256>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.palette_256.borrow_mut() = t;
             _io.seek(_pos)?;
         }
@@ -176,15 +156,13 @@ impl From<&Pcx_Encodings> for i64 {
     fn from(v: &Pcx_Encodings) -> Self {
         match *v {
             Pcx_Encodings::Rle => 1,
-            Pcx_Encodings::Unknown(v) => v,
+            Pcx_Encodings::Unknown(v) => v
         }
     }
 }
 
 impl Default for Pcx_Encodings {
-    fn default() -> Self {
-        Pcx_Encodings::Unknown(0)
-    }
+    fn default() -> Self { Pcx_Encodings::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -219,16 +197,15 @@ impl From<&Pcx_Versions> for i64 {
             Pcx_Versions::V28WithoutPalette => 3,
             Pcx_Versions::PaintbrushForWindows => 4,
             Pcx_Versions::V30 => 5,
-            Pcx_Versions::Unknown(v) => v,
+            Pcx_Versions::Unknown(v) => v
         }
     }
 }
 
 impl Default for Pcx_Versions {
-    fn default() -> Self {
-        Pcx_Versions::Unknown(0)
-    }
+    fn default() -> Self { Pcx_Versions::Unknown(0) }
 }
+
 
 /**
  * \sa https://web.archive.org/web/20100206055706/http://www.qzx.com/pc-gpe/pcx.txt - "ZSoft .PCX FILE HEADER FORMAT"
@@ -295,11 +272,7 @@ impl KStruct for Pcx_Header {
     type Root = Pcx;
     type Parent = Pcx;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -313,16 +286,12 @@ impl KStruct for Pcx_Header {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic() == vec![0xau8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.encoding.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.encoding.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits_per_pixel.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -342,10 +311,7 @@ impl KStruct for Pcx_Header {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header/seq/11".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/11".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_planes.borrow_mut() = _io.read_u1()?;
@@ -362,7 +328,8 @@ impl KStruct for Pcx_Header {
         Ok(())
     }
 }
-impl Pcx_Header {}
+impl Pcx_Header {
+}
 
 /**
  * Technically, this field was supposed to be "manufacturer"
@@ -519,11 +486,7 @@ impl KStruct for Pcx_Rgb {
     type Root = Pcx;
     type Parent = Pcx_TPalette256;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -545,7 +508,8 @@ impl KStruct for Pcx_Rgb {
         Ok(())
     }
 }
-impl Pcx_Rgb {}
+impl Pcx_Rgb {
+}
 impl Pcx_Rgb {
     pub fn r(&self) -> Ref<'_, u8> {
         self.r.borrow()
@@ -618,11 +582,7 @@ impl KStruct for Pcx_TPalette256 {
     type Root = Pcx;
     type Parent = Pcx;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -636,21 +596,13 @@ impl KStruct for Pcx_TPalette256 {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.magic() == vec![0xcu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/t_palette_256/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/t_palette_256/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.colors.borrow_mut() = Vec::new();
         let l_colors = 256_usize;
         for _i in 0_usize..l_colors {
-            let t = Self::read_into::<_, Pcx_Rgb>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Pcx_Rgb>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -658,7 +610,8 @@ impl KStruct for Pcx_TPalette256 {
         Ok(())
     }
 }
-impl Pcx_TPalette256 {}
+impl Pcx_TPalette256 {
+}
 impl Pcx_TPalette256 {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()

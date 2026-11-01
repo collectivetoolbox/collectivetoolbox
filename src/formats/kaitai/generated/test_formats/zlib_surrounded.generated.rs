@@ -105,11 +105,7 @@ impl KStruct for ZlibSurrounded {
     type Root = ZlibSurrounded;
     type Parent = ZlibSurrounded;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -127,12 +123,7 @@ impl KStruct for ZlibSurrounded {
         *self_rc.zlib_raw.borrow_mut() = _raw_zlib.clone();
         let _processed_zlib = process_zlib(&_raw_zlib)?;
         let _io_zlib = BytesReader::from(_processed_zlib);
-        let t = Self::read_into::<BytesReader, ZlibSurrounded_Inflated>(
-            &_io_zlib,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ZlibSurrounded_Inflated>(&_io_zlib, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.zlib.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.post.borrow_mut() = _io.read_bytes(4_usize)?;
@@ -141,7 +132,8 @@ impl KStruct for ZlibSurrounded {
         Ok(())
     }
 }
-impl ZlibSurrounded {}
+impl ZlibSurrounded {
+}
 impl ZlibSurrounded {
     pub fn pre(&self) -> Ref<'_, Vec<u8>> {
         self.pre.borrow()
@@ -219,9 +211,7 @@ impl DowncastOptRc<ZlibSurrounded_Inflated> for OptRc<ZlibSurrounded_Inflated> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ZlibSurrounded_Inflated>
-    for &OptRc<ZlibSurrounded_Inflated>
-{
+impl DowncastOptRc<ZlibSurrounded_Inflated> for &OptRc<ZlibSurrounded_Inflated> {
     fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded_Inflated>, KError> {
         Ok((*self).clone())
     }
@@ -230,11 +220,7 @@ impl KStruct for ZlibSurrounded_Inflated {
     type Root = ZlibSurrounded;
     type Parent = ZlibSurrounded;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -252,7 +238,8 @@ impl KStruct for ZlibSurrounded_Inflated {
         Ok(())
     }
 }
-impl ZlibSurrounded_Inflated {}
+impl ZlibSurrounded_Inflated {
+}
 impl ZlibSurrounded_Inflated {
     pub fn num(&self) -> Ref<'_, i32> {
         self.num.borrow()

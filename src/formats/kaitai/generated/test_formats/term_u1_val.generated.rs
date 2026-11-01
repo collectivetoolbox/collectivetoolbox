@@ -101,11 +101,7 @@ impl KStruct for TermU1Val {
     type Root = TermU1Val;
     type Parent = TermU1Val;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,19 +113,16 @@ impl KStruct for TermU1Val {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.foo.borrow_mut() =
-            _io.read_bytes_term(227, false, false, true)?;
+        *self_rc.foo.borrow_mut() = _io.read_bytes_term(227, false, false, true)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.bar.borrow_mut() = bytes_to_str(
-            &_io.read_bytes_term(171, true, true, true)?,
-            "UTF-8",
-        )?;
+        *self_rc.bar.borrow_mut() = bytes_to_str(&_io.read_bytes_term(171, true, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermU1Val {}
+impl TermU1Val {
+}
 impl TermU1Val {
     pub fn foo(&self) -> Ref<'_, Vec<u8>> {
         self.foo.borrow()

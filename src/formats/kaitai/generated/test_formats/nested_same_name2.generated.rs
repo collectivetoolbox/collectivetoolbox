@@ -102,11 +102,7 @@ impl KStruct for NestedSameName2 {
     type Root = NestedSameName2;
     type Parent = NestedSameName2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,27 +116,18 @@ impl KStruct for NestedSameName2 {
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedSameName2_Main>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, NestedSameName2_Main>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main_data.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedSameName2_DummyObj>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, NestedSameName2_DummyObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dummy.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedSameName2 {}
+impl NestedSameName2 {
+}
 impl NestedSameName2 {
     pub fn version(&self) -> Ref<'_, u32> {
         self.version.borrow()
@@ -190,34 +177,22 @@ impl TryFrom<&&NestedSameName2_DummyObj> for OptRc<NestedSameName2_DummyObj> {
     }
 }
 impl DowncastOptRc<NestedSameName2_DummyObj> for NestedSameName2_DummyObj {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<NestedSameName2_DummyObj> for &NestedSameName2_DummyObj {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NestedSameName2_DummyObj>
-    for OptRc<NestedSameName2_DummyObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+impl DowncastOptRc<NestedSameName2_DummyObj> for OptRc<NestedSameName2_DummyObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NestedSameName2_DummyObj>
-    for &OptRc<NestedSameName2_DummyObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+impl DowncastOptRc<NestedSameName2_DummyObj> for &OptRc<NestedSameName2_DummyObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
         Ok((*self).clone())
     }
 }
@@ -225,11 +200,7 @@ impl KStruct for NestedSameName2_DummyObj {
     type Root = NestedSameName2;
     type Parent = NestedSameName2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -243,19 +214,15 @@ impl KStruct for NestedSameName2_DummyObj {
         let _io = io;
         *self_rc.dummy_size.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedSameName2_DummyObj_FooObj>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, NestedSameName2_DummyObj_FooObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.foo.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedSameName2_DummyObj {}
+impl NestedSameName2_DummyObj {
+}
 impl NestedSameName2_DummyObj {
     pub fn dummy_size(&self) -> Ref<'_, i32> {
         self.dummy_size.borrow()
@@ -287,59 +254,35 @@ pub struct NestedSameName2_DummyObj_FooObj {
     _io: RefCell<BytesReader>,
     data2_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&NestedSameName2_DummyObj_FooObj>
-    for OptRc<NestedSameName2_DummyObj_FooObj>
-{
+impl TryFrom<&NestedSameName2_DummyObj_FooObj> for OptRc<NestedSameName2_DummyObj_FooObj> {
     type Error = KError;
-    fn try_from(
-        v: &NestedSameName2_DummyObj_FooObj,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &NestedSameName2_DummyObj_FooObj) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NestedSameName2_DummyObj_FooObj>
-    for OptRc<NestedSameName2_DummyObj_FooObj>
-{
+impl TryFrom<&&NestedSameName2_DummyObj_FooObj> for OptRc<NestedSameName2_DummyObj_FooObj> {
     type Error = KError;
-    fn try_from(
-        v: &&NestedSameName2_DummyObj_FooObj,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&NestedSameName2_DummyObj_FooObj) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<NestedSameName2_DummyObj_FooObj>
-    for NestedSameName2_DummyObj_FooObj
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for NestedSameName2_DummyObj_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<NestedSameName2_DummyObj_FooObj>
-    for &NestedSameName2_DummyObj_FooObj
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for &NestedSameName2_DummyObj_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NestedSameName2_DummyObj_FooObj>
-    for OptRc<NestedSameName2_DummyObj_FooObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for OptRc<NestedSameName2_DummyObj_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NestedSameName2_DummyObj_FooObj>
-    for &OptRc<NestedSameName2_DummyObj_FooObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for &OptRc<NestedSameName2_DummyObj_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
         Ok((*self).clone())
     }
 }
@@ -347,11 +290,7 @@ impl KStruct for NestedSameName2_DummyObj_FooObj {
     type Root = NestedSameName2;
     type Parent = NestedSameName2_DummyObj;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -363,23 +302,14 @@ impl KStruct for NestedSameName2_DummyObj_FooObj {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data2.borrow_mut() = _io.read_bytes(usize::try_from(
-            (*self_rc
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .dummy_size())
-            .saturating_mul(2_i32),
-        )?)?;
+        *self_rc.data2.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.dummy_size()).saturating_mul(2_i32))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedSameName2_DummyObj_FooObj {}
+impl NestedSameName2_DummyObj_FooObj {
+}
 impl NestedSameName2_DummyObj_FooObj {
     pub fn data2(&self) -> Ref<'_, Vec<u8>> {
         self.data2.borrow()
@@ -447,11 +377,7 @@ impl KStruct for NestedSameName2_Main {
     type Root = NestedSameName2;
     type Parent = NestedSameName2;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -465,19 +391,15 @@ impl KStruct for NestedSameName2_Main {
         let _io = io;
         *self_rc.main_size.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, NestedSameName2_Main_FooObj>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, NestedSameName2_Main_FooObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.foo.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedSameName2_Main {}
+impl NestedSameName2_Main {
+}
 impl NestedSameName2_Main {
     pub fn main_size(&self) -> Ref<'_, i32> {
         self.main_size.borrow()
@@ -509,55 +431,35 @@ pub struct NestedSameName2_Main_FooObj {
     _io: RefCell<BytesReader>,
     data1_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&NestedSameName2_Main_FooObj>
-    for OptRc<NestedSameName2_Main_FooObj>
-{
+impl TryFrom<&NestedSameName2_Main_FooObj> for OptRc<NestedSameName2_Main_FooObj> {
     type Error = KError;
     fn try_from(v: &NestedSameName2_Main_FooObj) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&NestedSameName2_Main_FooObj>
-    for OptRc<NestedSameName2_Main_FooObj>
-{
+impl TryFrom<&&NestedSameName2_Main_FooObj> for OptRc<NestedSameName2_Main_FooObj> {
     type Error = KError;
     fn try_from(v: &&NestedSameName2_Main_FooObj) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<NestedSameName2_Main_FooObj>
-    for NestedSameName2_Main_FooObj
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for NestedSameName2_Main_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<NestedSameName2_Main_FooObj>
-    for &NestedSameName2_Main_FooObj
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for &NestedSameName2_Main_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<NestedSameName2_Main_FooObj>
-    for OptRc<NestedSameName2_Main_FooObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for OptRc<NestedSameName2_Main_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<NestedSameName2_Main_FooObj>
-    for &OptRc<NestedSameName2_Main_FooObj>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for &OptRc<NestedSameName2_Main_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
         Ok((*self).clone())
     }
 }
@@ -565,11 +467,7 @@ impl KStruct for NestedSameName2_Main_FooObj {
     type Root = NestedSameName2;
     type Parent = NestedSameName2_Main;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -581,23 +479,14 @@ impl KStruct for NestedSameName2_Main_FooObj {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data1.borrow_mut() = _io.read_bytes(usize::try_from(
-            (*self_rc
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .main_size())
-            .saturating_mul(2_i32),
-        )?)?;
+        *self_rc.data1.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.main_size()).saturating_mul(2_i32))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl NestedSameName2_Main_FooObj {}
+impl NestedSameName2_Main_FooObj {
+}
 impl NestedSameName2_Main_FooObj {
     pub fn data1(&self) -> Ref<'_, Vec<u8>> {
         self.data1.borrow()

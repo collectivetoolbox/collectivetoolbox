@@ -50,11 +50,7 @@ impl KStruct for ShapefileIndex {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -66,24 +62,14 @@ impl KStruct for ShapefileIndex {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ShapefileIndex_FileHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ShapefileIndex_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, ShapefileIndex_Record>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, ShapefileIndex_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -93,7 +79,8 @@ impl KStruct for ShapefileIndex {
         Ok(())
     }
 }
-impl ShapefileIndex {}
+impl ShapefileIndex {
+}
 impl ShapefileIndex {
     pub fn header(&self) -> Ref<'_, OptRc<ShapefileIndex_FileHeader>> {
         self.header.borrow()
@@ -178,16 +165,15 @@ impl From<&ShapefileIndex_ShapeType> for i64 {
             ShapefileIndex_ShapeType::PolygonM => 25,
             ShapefileIndex_ShapeType::MultiPointM => 28,
             ShapefileIndex_ShapeType::MultiPatch => 31,
-            ShapefileIndex_ShapeType::Unknown(v) => v,
+            ShapefileIndex_ShapeType::Unknown(v) => v
         }
     }
 }
 
 impl Default for ShapefileIndex_ShapeType {
-    fn default() -> Self {
-        ShapefileIndex_ShapeType::Unknown(0)
-    }
+    fn default() -> Self { ShapefileIndex_ShapeType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct ShapefileIndex_BoundingBoxXYZM {
@@ -200,59 +186,35 @@ pub struct ShapefileIndex_BoundingBoxXYZM {
     m: RefCell<OptRc<ShapefileIndex_BoundsMinMax>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ShapefileIndex_BoundingBoxXYZM>
-    for OptRc<ShapefileIndex_BoundingBoxXYZM>
-{
+impl TryFrom<&ShapefileIndex_BoundingBoxXYZM> for OptRc<ShapefileIndex_BoundingBoxXYZM> {
     type Error = KError;
-    fn try_from(
-        v: &ShapefileIndex_BoundingBoxXYZM,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ShapefileIndex_BoundingBoxXYZM) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ShapefileIndex_BoundingBoxXYZM>
-    for OptRc<ShapefileIndex_BoundingBoxXYZM>
-{
+impl TryFrom<&&ShapefileIndex_BoundingBoxXYZM> for OptRc<ShapefileIndex_BoundingBoxXYZM> {
     type Error = KError;
-    fn try_from(
-        v: &&ShapefileIndex_BoundingBoxXYZM,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ShapefileIndex_BoundingBoxXYZM) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM>
-    for ShapefileIndex_BoundingBoxXYZM
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM> for ShapefileIndex_BoundingBoxXYZM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM>
-    for &ShapefileIndex_BoundingBoxXYZM
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM> for &ShapefileIndex_BoundingBoxXYZM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM>
-    for OptRc<ShapefileIndex_BoundingBoxXYZM>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM> for OptRc<ShapefileIndex_BoundingBoxXYZM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM>
-    for &OptRc<ShapefileIndex_BoundingBoxXYZM>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundingBoxXYZM> for &OptRc<ShapefileIndex_BoundingBoxXYZM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundingBoxXYZM>, KError> {
         Ok((*self).clone())
     }
 }
@@ -260,11 +222,7 @@ impl KStruct for ShapefileIndex_BoundingBoxXYZM {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex_FileHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -276,43 +234,24 @@ impl KStruct for ShapefileIndex_BoundingBoxXYZM {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.x.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.y.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.z.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.m.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ShapefileIndex_BoundingBoxXYZM {}
+impl ShapefileIndex_BoundingBoxXYZM {
+}
 impl ShapefileIndex_BoundingBoxXYZM {
     pub fn x(&self) -> Ref<'_, OptRc<ShapefileIndex_BoundsMinMax>> {
         self.x.borrow()
@@ -354,55 +293,35 @@ pub struct ShapefileIndex_BoundsMinMax {
     max: RefCell<f64>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ShapefileIndex_BoundsMinMax>
-    for OptRc<ShapefileIndex_BoundsMinMax>
-{
+impl TryFrom<&ShapefileIndex_BoundsMinMax> for OptRc<ShapefileIndex_BoundsMinMax> {
     type Error = KError;
     fn try_from(v: &ShapefileIndex_BoundsMinMax) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ShapefileIndex_BoundsMinMax>
-    for OptRc<ShapefileIndex_BoundsMinMax>
-{
+impl TryFrom<&&ShapefileIndex_BoundsMinMax> for OptRc<ShapefileIndex_BoundsMinMax> {
     type Error = KError;
     fn try_from(v: &&ShapefileIndex_BoundsMinMax) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundsMinMax>
-    for ShapefileIndex_BoundsMinMax
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundsMinMax> for ShapefileIndex_BoundsMinMax {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundsMinMax>
-    for &ShapefileIndex_BoundsMinMax
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundsMinMax> for &ShapefileIndex_BoundsMinMax {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundsMinMax>
-    for OptRc<ShapefileIndex_BoundsMinMax>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundsMinMax> for OptRc<ShapefileIndex_BoundsMinMax> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ShapefileIndex_BoundsMinMax>
-    for &OptRc<ShapefileIndex_BoundsMinMax>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
+impl DowncastOptRc<ShapefileIndex_BoundsMinMax> for &OptRc<ShapefileIndex_BoundsMinMax> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_BoundsMinMax>, KError> {
         Ok((*self).clone())
     }
 }
@@ -410,11 +329,7 @@ impl KStruct for ShapefileIndex_BoundsMinMax {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex_BoundingBoxXYZM;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -434,7 +349,8 @@ impl KStruct for ShapefileIndex_BoundsMinMax {
         Ok(())
     }
 }
-impl ShapefileIndex_BoundsMinMax {}
+impl ShapefileIndex_BoundsMinMax {
+}
 impl ShapefileIndex_BoundsMinMax {
     pub fn min(&self) -> Ref<'_, f64> {
         self.min.borrow()
@@ -487,34 +403,22 @@ impl TryFrom<&&ShapefileIndex_FileHeader> for OptRc<ShapefileIndex_FileHeader> {
     }
 }
 impl DowncastOptRc<ShapefileIndex_FileHeader> for ShapefileIndex_FileHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ShapefileIndex_FileHeader> for &ShapefileIndex_FileHeader {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ShapefileIndex_FileHeader>
-    for OptRc<ShapefileIndex_FileHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
+impl DowncastOptRc<ShapefileIndex_FileHeader> for OptRc<ShapefileIndex_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ShapefileIndex_FileHeader>
-    for &OptRc<ShapefileIndex_FileHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
+impl DowncastOptRc<ShapefileIndex_FileHeader> for &OptRc<ShapefileIndex_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileIndex_FileHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -522,11 +426,7 @@ impl KStruct for ShapefileIndex_FileHeader {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -540,78 +440,52 @@ impl KStruct for ShapefileIndex_FileHeader {
         let _io = io;
         *self_rc.file_code.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.file_code() == vec![0x0u8, 0x0u8, 0x27u8, 0xau8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_1() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_2() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/2".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_3.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_3() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/3".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/3".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_4.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_4() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/4".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/4".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_5.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_5() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/5".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/5".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_length.borrow_mut() = _io.read_s4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.version() == vec![0xe8u8, 0x3u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/7".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/7".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.shape_type.borrow_mut() =
-            i64::from(_io.read_s4le()?).try_into()?;
+        *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, ShapefileIndex_BoundingBoxXYZM>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ShapefileIndex_BoundingBoxXYZM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bounding_box.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ShapefileIndex_FileHeader {}
+impl ShapefileIndex_FileHeader {
+}
 
 /**
  * corresponds to s4be value of 9994
@@ -666,9 +540,7 @@ impl ShapefileIndex_FileHeader {
     }
 }
 impl ShapefileIndex_FileHeader {
-    pub fn bounding_box(
-        &self,
-    ) -> Ref<'_, OptRc<ShapefileIndex_BoundingBoxXYZM>> {
+    pub fn bounding_box(&self) -> Ref<'_, OptRc<ShapefileIndex_BoundingBoxXYZM>> {
         self.bounding_box.borrow()
     }
 }
@@ -729,11 +601,7 @@ impl KStruct for ShapefileIndex_Record {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -753,7 +621,8 @@ impl KStruct for ShapefileIndex_Record {
         Ok(())
     }
 }
-impl ShapefileIndex_Record {}
+impl ShapefileIndex_Record {
+}
 impl ShapefileIndex_Record {
     pub fn offset(&self) -> Ref<'_, i32> {
         self.offset.borrow()

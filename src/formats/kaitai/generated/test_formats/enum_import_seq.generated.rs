@@ -53,16 +53,16 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::enum_0::Enum0;
-use super::enum_0::Enum0_Animal;
-use super::enum_0::*;
-use super::enum_0::*;
-use super::enum_deep::EnumDeep;
-use super::enum_deep::EnumDeep_Container1_Container2_Animal;
-use super::enum_deep::*;
-use super::enum_deep::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::enum_deep::EnumDeep;
+use super::enum_deep::*;
+use super::enum_0::Enum0_Animal;
+use super::enum_0::*;
+use super::enum_0::Enum0;
+use super::enum_0::*;
+use super::enum_deep::EnumDeep_Container1_Container2_Animal;
+use super::enum_deep::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumImportSeq {
@@ -109,11 +109,7 @@ impl KStruct for EnumImportSeq {
     type Root = EnumImportSeq;
     type Parent = EnumImportSeq;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,7 +129,8 @@ impl KStruct for EnumImportSeq {
         Ok(())
     }
 }
-impl EnumImportSeq {}
+impl EnumImportSeq {
+}
 impl EnumImportSeq {
     pub fn pet_1(&self) -> Ref<'_, Enum0_Animal> {
         self.pet_1.borrow()

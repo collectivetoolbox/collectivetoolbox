@@ -67,11 +67,7 @@ impl KStruct for BlenderBlend {
     type Root = BlenderBlend;
     type Parent = BlenderBlend;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -83,24 +79,14 @@ impl KStruct for BlenderBlend {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, BlenderBlend_Header>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, BlenderBlend_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, BlenderBlend_FileBlock>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, BlenderBlend_FileBlock>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.blocks.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -111,31 +97,16 @@ impl KStruct for BlenderBlend {
     }
 }
 impl BlenderBlend {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sdna_structs(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Vec<OptRc<BlenderBlend_DnaStruct>>>> {
         let _io = self._io.borrow();
         if self.f_sdna_structs.get() {
             return Ok(self.sdna_structs.borrow());
         }
         self.f_sdna_structs.set(true);
-        *self.sdna_structs.borrow_mut() =
-            OptRc::<BlenderBlend_Dna1Body>::try_from(
-                &*((self
-                    .blocks()
-                    .get((self.blocks().len()).saturating_sub(2_usize))
-                    .ok_or(KError::CastError)?
-                    .body())
-                .as_ref()
-                .ok_or(KError::CastError)?),
-            )?
-            .structs()
-            .to_vec();
+        *self.sdna_structs.borrow_mut() = OptRc::<BlenderBlend_Dna1Body>::try_from(&*((self.blocks().get((self.blocks().len()).saturating_sub(2_usize)).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.structs().to_vec();
         Ok(self.sdna_structs.borrow())
     }
 }
@@ -183,15 +154,13 @@ impl From<&BlenderBlend_Endian> for i64 {
         match *v {
             BlenderBlend_Endian::Be => 86,
             BlenderBlend_Endian::Le => 118,
-            BlenderBlend_Endian::Unknown(v) => v,
+            BlenderBlend_Endian::Unknown(v) => v
         }
     }
 }
 
 impl Default for BlenderBlend_Endian {
-    fn default() -> Self {
-        BlenderBlend_Endian::Unknown(0)
-    }
+    fn default() -> Self { BlenderBlend_Endian::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -217,16 +186,15 @@ impl From<&BlenderBlend_PtrSize> for i64 {
         match *v {
             BlenderBlend_PtrSize::Bits64 => 45,
             BlenderBlend_PtrSize::Bits32 => 95,
-            BlenderBlend_PtrSize::Unknown(v) => v,
+            BlenderBlend_PtrSize::Unknown(v) => v
         }
     }
 }
 
 impl Default for BlenderBlend_PtrSize {
-    fn default() -> Self {
-        BlenderBlend_PtrSize::Unknown(0)
-    }
+    fn default() -> Self { BlenderBlend_PtrSize::Unknown(0) }
 }
+
 
 /**
  * DNA1, also known as "Structure DNA", is a special block in
@@ -304,11 +272,7 @@ impl KStruct for BlenderBlend_Dna1Body {
     type Root = BlenderBlend;
     type Parent = BlenderBlend_FileBlock;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -322,18 +286,12 @@ impl KStruct for BlenderBlend_Dna1Body {
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.id() == vec![0x53u8, 0x44u8, 0x4eu8, 0x41u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/dna1_body/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.name_magic() == vec![0x4eu8, 0x41u8, 0x4du8, 0x45u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/dna1_body/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_names.borrow_mut() = _io.read_u4le()?;
@@ -341,24 +299,14 @@ impl KStruct for BlenderBlend_Dna1Body {
         *self_rc.names.borrow_mut() = Vec::new();
         let l_names = usize::try_from(*self_rc.num_names())?;
         for _i in 0_usize..l_names {
-            self_rc.names.borrow_mut().push(bytes_to_str(
-                &_io.read_bytes_term(0, false, true, true)?,
-                "UTF-8",
-            )?);
+            self_rc.names.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding_1.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((4_usize).saturating_sub(_io.pos()))
-                .checked_rem(4_usize)
-                .ok_or(KError::CastError)?,
-        )?)?;
+        *self_rc.padding_1.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.type_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.type_magic() == vec![0x54u8, 0x59u8, 0x50u8, 0x45u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/dna1_body/seq/5".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/5".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_types.borrow_mut() = _io.read_u4le()?;
@@ -366,24 +314,14 @@ impl KStruct for BlenderBlend_Dna1Body {
         *self_rc.types.borrow_mut() = Vec::new();
         let l_types = usize::try_from(*self_rc.num_types())?;
         for _i in 0_usize..l_types {
-            self_rc.types.borrow_mut().push(bytes_to_str(
-                &_io.read_bytes_term(0, false, true, true)?,
-                "UTF-8",
-            )?);
+            self_rc.types.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding_2.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((4_usize).saturating_sub(_io.pos()))
-                .checked_rem(4_usize)
-                .ok_or(KError::CastError)?,
-        )?)?;
+        *self_rc.padding_2.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tlen_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.tlen_magic() == vec![0x54u8, 0x4cu8, 0x45u8, 0x4eu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/dna1_body/seq/9".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/9".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lengths.borrow_mut() = Vec::new();
@@ -392,18 +330,11 @@ impl KStruct for BlenderBlend_Dna1Body {
             self_rc.lengths.borrow_mut().push(_io.read_u2le()?);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding_3.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((4_usize).saturating_sub(_io.pos()))
-                .checked_rem(4_usize)
-                .ok_or(KError::CastError)?,
-        )?)?;
+        *self_rc.padding_3.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.strc_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.strc_magic() == vec![0x53u8, 0x54u8, 0x52u8, 0x43u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/dna1_body/seq/12".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/12".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_structs.borrow_mut() = _io.read_u4le()?;
@@ -411,12 +342,7 @@ impl KStruct for BlenderBlend_Dna1Body {
         *self_rc.structs.borrow_mut() = Vec::new();
         let l_structs = usize::try_from(*self_rc.num_structs())?;
         for _i in 0_usize..l_structs {
-            let t = Self::read_into::<_, BlenderBlend_DnaStruct>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, BlenderBlend_DnaStruct>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.structs.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -424,7 +350,8 @@ impl KStruct for BlenderBlend_Dna1Body {
         Ok(())
     }
 }
-impl BlenderBlend_Dna1Body {}
+impl BlenderBlend_Dna1Body {
+}
 impl BlenderBlend_Dna1Body {
     pub fn id(&self) -> Ref<'_, Vec<u8>> {
         self.id.borrow()
@@ -576,11 +503,7 @@ impl KStruct for BlenderBlend_DnaField {
     type Root = BlenderBlend;
     type Parent = BlenderBlend_DnaStruct;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -601,64 +524,28 @@ impl KStruct for BlenderBlend_DnaField {
     }
 }
 impl BlenderBlend_DnaField {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_name.get() {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        *self.name.borrow_mut() = self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .names()
-            .get(usize::from(*self.idx_name()))
-            .ok_or(KError::CastError)?
-            .to_string();
+        *self.name.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.names().get(usize::from(*self.idx_name())).ok_or(KError::CastError)?.to_string();
         Ok(self.name.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn r#type(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn r#type(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_type.get() {
             return Ok(self.r#type.borrow());
         }
         self.f_type.set(true);
-        *self.r#type.borrow_mut() = self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .types()
-            .get(usize::from(*self.idx_type()))
-            .ok_or(KError::CastError)?
-            .to_string();
+        *self.r#type.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.types().get(usize::from(*self.idx_type())).ok_or(KError::CastError)?.to_string();
         Ok(self.r#type.borrow())
     }
 }
@@ -737,11 +624,7 @@ impl KStruct for BlenderBlend_DnaStruct {
     type Root = BlenderBlend;
     type Parent = BlenderBlend_Dna1Body;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -760,12 +643,7 @@ impl KStruct for BlenderBlend_DnaStruct {
         *self_rc.fields.borrow_mut() = Vec::new();
         let l_fields = usize::from(*self_rc.num_fields());
         for _i in 0_usize..l_fields {
-            let t = Self::read_into::<_, BlenderBlend_DnaField>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, BlenderBlend_DnaField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.fields.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -774,28 +652,16 @@ impl KStruct for BlenderBlend_DnaStruct {
     }
 }
 impl BlenderBlend_DnaStruct {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn r#type(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn r#type(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_type.get() {
             return Ok(self.r#type.borrow());
         }
         self.f_type.set(true);
-        *self.r#type.borrow_mut() = self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .types()
-            .get(usize::from(*self.idx_type()))
-            .ok_or(KError::CastError)?
-            .to_string();
+        *self.r#type.borrow_mut() = self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.types().get(usize::from(*self.idx_type())).ok_or(KError::CastError)?.to_string();
         Ok(self.r#type.borrow())
     }
 }
@@ -935,11 +801,7 @@ impl KStruct for BlenderBlend_FileBlock {
     type Root = BlenderBlend;
     type Parent = BlenderBlend;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -951,22 +813,11 @@ impl KStruct for BlenderBlend_FileBlock {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.code.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.code.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.mem_addr.borrow_mut() = _io.read_bytes(usize::try_from(
-            *self_rc
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .hdr()
-                .psize()?,
-        )?)?;
+        *self_rc.mem_addr.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().psize()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sdna_index.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -974,24 +825,14 @@ impl KStruct for BlenderBlend_FileBlock {
         *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.code().as_str() {
             "DNA1" => {
-                *self_rc.body_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_body())?)?
-                    .into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, BlenderBlend_Dna1Body>(
-                    &_t_body_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, BlenderBlend_Dna1Body>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(*self_rc.len_body())?)?
-                        .into(),
-                );
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1000,30 +841,16 @@ impl KStruct for BlenderBlend_FileBlock {
     }
 }
 impl BlenderBlend_FileBlock {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sdna_struct(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<BlenderBlend_DnaStruct>>> {
         let _io = self._io.borrow();
         if self.f_sdna_struct.get() {
             return Ok(self.sdna_struct.borrow());
         }
-        if (to_i128(*self.sdna_index())) != (to_i128(0)) {
-            *self.sdna_struct.borrow_mut() = self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .sdna_structs()?
-                .get(usize::try_from(*self.sdna_index())?)
-                .ok_or(KError::CastError)?
-                .clone();
+        if ((to_i128(*self.sdna_index())) != (to_i128(0))) {
+            *self.sdna_struct.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sdna_structs()?.get(usize::try_from(*self.sdna_index())?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.sdna_struct.borrow())
     }
@@ -1155,11 +982,7 @@ impl KStruct for BlenderBlend_Header {
     type Root = BlenderBlend;
     type Parent = BlenderBlend;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1172,49 +995,35 @@ impl KStruct for BlenderBlend_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(7_usize)?;
-        if !(*self_rc.magic()
-            == vec![0x42u8, 0x4cu8, 0x45u8, 0x4eu8, 0x44u8, 0x45u8, 0x52u8])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header/seq/0".to_string(),
-            }));
+        if !(*self_rc.magic() == vec![0x42u8, 0x4cu8, 0x45u8, 0x4eu8, 0x44u8, 0x45u8, 0x52u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ptr_size_id.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.ptr_size_id.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.endian.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.version.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
+        *self_rc.version.borrow_mut() = bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl BlenderBlend_Header {
+
     /**
      * Number of bytes that a pointer occupies
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn psize(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn psize(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_psize.get() {
             return Ok(self.psize.borrow());
         }
         self.f_psize.set(true);
-        *self.psize.borrow_mut() =
-            (if *self.ptr_size_id() == BlenderBlend_PtrSize::Bits64 {
-                8_i32
-            } else {
-                4_i32
-            })
-            .try_into()?;
+        *self.psize.borrow_mut() = (if *self.ptr_size_id() == BlenderBlend_PtrSize::Bits64 { 8_i32 } else { 4_i32 }).try_into()?;
         Ok(self.psize.borrow())
     }
 }

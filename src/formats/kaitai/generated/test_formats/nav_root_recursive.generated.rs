@@ -103,11 +103,7 @@ impl KStruct for NavRootRecursive {
     type Root = NavRootRecursive;
     type Parent = NavRootRecursive;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,13 +118,8 @@ impl KStruct for NavRootRecursive {
         *self_rc.value.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.value())) == (to_i128(255)) {
-            let t = Self::read_into::<_, NavRootRecursive>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+        if ((to_i128(*self_rc.value())) == (to_i128(255))) {
+            let t = Self::read_into::<_, NavRootRecursive>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.next.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -137,26 +128,16 @@ impl KStruct for NavRootRecursive {
     }
 }
 impl NavRootRecursive {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn root_value(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn root_value(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_root_value.get() {
             return Ok(self.root_value.borrow());
         }
         self.f_root_value.set(true);
-        *self.root_value.borrow_mut() = (*self
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .value())
-        .try_into()?;
+        *self.root_value.borrow_mut() = (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.value()).try_into()?;
         Ok(self.root_value.borrow())
     }
 }

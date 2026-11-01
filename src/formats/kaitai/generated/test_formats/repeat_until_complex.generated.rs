@@ -102,11 +102,7 @@ impl KStruct for RepeatUntilComplex {
     type Root = RepeatUntilComplex;
     type Parent = RepeatUntilComplex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,21 +118,12 @@ impl KStruct for RepeatUntilComplex {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, RepeatUntilComplex_TypeU1>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, RepeatUntilComplex_TypeU1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.first.borrow_mut().push(t);
                 let _t_first = self_rc.first.borrow();
-                let Some(_tmpa) = _t_first.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_first.last() else { break; };
                 _i = _i.saturating_add(1);
-                if (to_i128(*_tmpa.count())) == (to_i128(0)) {
-                    break;
-                }
+                if ((to_i128(*_tmpa.count())) == (to_i128(0))) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -144,21 +131,12 @@ impl KStruct for RepeatUntilComplex {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, RepeatUntilComplex_TypeU2>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, RepeatUntilComplex_TypeU2>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.second.borrow_mut().push(t);
                 let _t_second = self_rc.second.borrow();
-                let Some(_tmpa) = _t_second.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_second.last() else { break; };
                 _i = _i.saturating_add(1);
-                if (to_i128(*_tmpa.count())) == (to_i128(0)) {
-                    break;
-                }
+                if ((to_i128(*_tmpa.count())) == (to_i128(0))) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -168,14 +146,10 @@ impl KStruct for RepeatUntilComplex {
             loop {
                 self_rc.third.borrow_mut().push(_io.read_u1()?);
                 let _t_third = self_rc.third.borrow();
-                let Some(_tmpa) = _t_third.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_third.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if (to_i128(_tmpa)) == (to_i128(0)) {
-                    break;
-                }
+                if ((to_i128(_tmpa)) == (to_i128(0))) { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -183,7 +157,8 @@ impl KStruct for RepeatUntilComplex {
         Ok(())
     }
 }
-impl RepeatUntilComplex {}
+impl RepeatUntilComplex {
+}
 impl RepeatUntilComplex {
     pub fn first(&self) -> Ref<'_, Vec<OptRc<RepeatUntilComplex_TypeU1>>> {
         self.first.borrow()
@@ -233,34 +208,22 @@ impl TryFrom<&&RepeatUntilComplex_TypeU1> for OptRc<RepeatUntilComplex_TypeU1> {
     }
 }
 impl DowncastOptRc<RepeatUntilComplex_TypeU1> for RepeatUntilComplex_TypeU1 {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<RepeatUntilComplex_TypeU1> for &RepeatUntilComplex_TypeU1 {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<RepeatUntilComplex_TypeU1>
-    for OptRc<RepeatUntilComplex_TypeU1>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
+impl DowncastOptRc<RepeatUntilComplex_TypeU1> for OptRc<RepeatUntilComplex_TypeU1> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatUntilComplex_TypeU1>
-    for &OptRc<RepeatUntilComplex_TypeU1>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
+impl DowncastOptRc<RepeatUntilComplex_TypeU1> for &OptRc<RepeatUntilComplex_TypeU1> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU1>, KError> {
         Ok((*self).clone())
     }
 }
@@ -268,11 +231,7 @@ impl KStruct for RepeatUntilComplex_TypeU1 {
     type Root = RepeatUntilComplex;
     type Parent = RepeatUntilComplex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -296,7 +255,8 @@ impl KStruct for RepeatUntilComplex_TypeU1 {
         Ok(())
     }
 }
-impl RepeatUntilComplex_TypeU1 {}
+impl RepeatUntilComplex_TypeU1 {
+}
 impl RepeatUntilComplex_TypeU1 {
     pub fn count(&self) -> Ref<'_, u8> {
         self.count.borrow()
@@ -341,34 +301,22 @@ impl TryFrom<&&RepeatUntilComplex_TypeU2> for OptRc<RepeatUntilComplex_TypeU2> {
     }
 }
 impl DowncastOptRc<RepeatUntilComplex_TypeU2> for RepeatUntilComplex_TypeU2 {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<RepeatUntilComplex_TypeU2> for &RepeatUntilComplex_TypeU2 {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<RepeatUntilComplex_TypeU2>
-    for OptRc<RepeatUntilComplex_TypeU2>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
+impl DowncastOptRc<RepeatUntilComplex_TypeU2> for OptRc<RepeatUntilComplex_TypeU2> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RepeatUntilComplex_TypeU2>
-    for &OptRc<RepeatUntilComplex_TypeU2>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
+impl DowncastOptRc<RepeatUntilComplex_TypeU2> for &OptRc<RepeatUntilComplex_TypeU2> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilComplex_TypeU2>, KError> {
         Ok((*self).clone())
     }
 }
@@ -376,11 +324,7 @@ impl KStruct for RepeatUntilComplex_TypeU2 {
     type Root = RepeatUntilComplex;
     type Parent = RepeatUntilComplex;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -404,7 +348,8 @@ impl KStruct for RepeatUntilComplex_TypeU2 {
         Ok(())
     }
 }
-impl RepeatUntilComplex_TypeU2 {}
+impl RepeatUntilComplex_TypeU2 {
+}
 impl RepeatUntilComplex_TypeU2 {
     pub fn count(&self) -> Ref<'_, u16> {
         self.count.borrow()

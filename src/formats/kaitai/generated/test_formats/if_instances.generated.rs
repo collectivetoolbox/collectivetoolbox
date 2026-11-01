@@ -101,11 +101,7 @@ impl KStruct for IfInstances {
     type Root = IfInstances;
     type Parent = IfInstances;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,12 +118,10 @@ impl KStruct for IfInstances {
     }
 }
 impl IfInstances {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn never_happens(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn never_happens(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_never_happens.get() {
             return Ok(self.never_happens.borrow());

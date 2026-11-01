@@ -66,59 +66,35 @@ pub struct ProcessRepeatUsertypeDynargXor {
     _io: RefCell<BytesReader>,
     blocks_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ProcessRepeatUsertypeDynargXor>
-    for OptRc<ProcessRepeatUsertypeDynargXor>
-{
+impl TryFrom<&ProcessRepeatUsertypeDynargXor> for OptRc<ProcessRepeatUsertypeDynargXor> {
     type Error = KError;
-    fn try_from(
-        v: &ProcessRepeatUsertypeDynargXor,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ProcessRepeatUsertypeDynargXor) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProcessRepeatUsertypeDynargXor>
-    for OptRc<ProcessRepeatUsertypeDynargXor>
-{
+impl TryFrom<&&ProcessRepeatUsertypeDynargXor> for OptRc<ProcessRepeatUsertypeDynargXor> {
     type Error = KError;
-    fn try_from(
-        v: &&ProcessRepeatUsertypeDynargXor,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ProcessRepeatUsertypeDynargXor) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor>
-    for ProcessRepeatUsertypeDynargXor
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for ProcessRepeatUsertypeDynargXor {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor>
-    for &ProcessRepeatUsertypeDynargXor
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for &ProcessRepeatUsertypeDynargXor {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor>
-    for OptRc<ProcessRepeatUsertypeDynargXor>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for OptRc<ProcessRepeatUsertypeDynargXor> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor>
-    for &OptRc<ProcessRepeatUsertypeDynargXor>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for &OptRc<ProcessRepeatUsertypeDynargXor> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
         Ok((*self).clone())
     }
 }
@@ -126,11 +102,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor {
     type Root = ProcessRepeatUsertypeDynargXor;
     type Parent = ProcessRepeatUsertypeDynargXor;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -146,57 +118,28 @@ impl KStruct for ProcessRepeatUsertypeDynargXor {
         let l_blocks = 2_usize;
         for _i in 0_usize..l_blocks {
             let _raw_blocks = _io.read_bytes(5_usize)?;
-            let _processed_blocks = process_xor_one(
-                &_raw_blocks,
-                u8::try_from(
-                    i64::try_from(
-                        (155_usize)
-                            ^ ((usize::try_from(
-                                (u64::try_from(_i)?).wrapping_shl(4_u32),
-                            )?) | (_io.pos())),
-                    )? & 0xff,
-                )?,
-            );
+            let _processed_blocks = process_xor_one(&_raw_blocks, u8::try_from(i64::try_from(((155_usize) ^ (((usize::try_from((u64::try_from(_i)?).wrapping_shl(4_u32))?) | (_io.pos())))))? & 0xff)?);
             let _io_blocks = BytesReader::from(_processed_blocks);
-            let t = Self::read_into::<
-                BytesReader,
-                ProcessRepeatUsertypeDynargXor_Block,
-            >(
-                &_io_blocks,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargXor_Block>(&_io_blocks, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<
-            _,
-            ProcessRepeatUsertypeDynargXor_BlocksBWrapper,
-        >(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ProcessRepeatUsertypeDynargXor_BlocksBWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.blocks_b.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ProcessRepeatUsertypeDynargXor {}
 impl ProcessRepeatUsertypeDynargXor {
-    pub fn blocks(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<ProcessRepeatUsertypeDynargXor_Block>>> {
+}
+impl ProcessRepeatUsertypeDynargXor {
+    pub fn blocks(&self) -> Ref<'_, Vec<OptRc<ProcessRepeatUsertypeDynargXor_Block>>> {
         self.blocks.borrow()
     }
 }
 impl ProcessRepeatUsertypeDynargXor {
-    pub fn blocks_b(
-        &self,
-    ) -> Ref<'_, OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>> {
+    pub fn blocks_b(&self) -> Ref<'_, OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>> {
         self.blocks_b.borrow()
     }
 }
@@ -225,59 +168,35 @@ pub struct ProcessRepeatUsertypeDynargXor_Block {
     a: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ProcessRepeatUsertypeDynargXor_Block>
-    for OptRc<ProcessRepeatUsertypeDynargXor_Block>
-{
+impl TryFrom<&ProcessRepeatUsertypeDynargXor_Block> for OptRc<ProcessRepeatUsertypeDynargXor_Block> {
     type Error = KError;
-    fn try_from(
-        v: &ProcessRepeatUsertypeDynargXor_Block,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ProcessRepeatUsertypeDynargXor_Block) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProcessRepeatUsertypeDynargXor_Block>
-    for OptRc<ProcessRepeatUsertypeDynargXor_Block>
-{
+impl TryFrom<&&ProcessRepeatUsertypeDynargXor_Block> for OptRc<ProcessRepeatUsertypeDynargXor_Block> {
     type Error = KError;
-    fn try_from(
-        v: &&ProcessRepeatUsertypeDynargXor_Block,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ProcessRepeatUsertypeDynargXor_Block) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block>
-    for ProcessRepeatUsertypeDynargXor_Block
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for ProcessRepeatUsertypeDynargXor_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block>
-    for &ProcessRepeatUsertypeDynargXor_Block
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for &ProcessRepeatUsertypeDynargXor_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block>
-    for OptRc<ProcessRepeatUsertypeDynargXor_Block>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for OptRc<ProcessRepeatUsertypeDynargXor_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block>
-    for &OptRc<ProcessRepeatUsertypeDynargXor_Block>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for &OptRc<ProcessRepeatUsertypeDynargXor_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
         Ok((*self).clone())
     }
 }
@@ -285,11 +204,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_Block {
     type Root = ProcessRepeatUsertypeDynargXor;
     type Parent = ProcessRepeatUsertypeDynargXor;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -307,7 +222,8 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_Block {
         Ok(())
     }
 }
-impl ProcessRepeatUsertypeDynargXor_Block {}
+impl ProcessRepeatUsertypeDynargXor_Block {
+}
 impl ProcessRepeatUsertypeDynargXor_Block {
     pub fn a(&self) -> Ref<'_, u32> {
         self.a.borrow()
@@ -337,63 +253,35 @@ pub struct ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     f_blocks_1_b: Cell<bool>,
     blocks_1_b: RefCell<u8>,
 }
-impl TryFrom<&ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-    for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-{
+impl TryFrom<&ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
     type Error = KError;
-    fn try_from(
-        v: &ProcessRepeatUsertypeDynargXor_BlocksBWrapper,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ProcessRepeatUsertypeDynargXor_BlocksBWrapper) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-    for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-{
+impl TryFrom<&&ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
     type Error = KError;
-    fn try_from(
-        v: &&ProcessRepeatUsertypeDynargXor_BlocksBWrapper,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ProcessRepeatUsertypeDynargXor_BlocksBWrapper) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-    for ProcessRepeatUsertypeDynargXor_BlocksBWrapper
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError>
-    {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-    for &ProcessRepeatUsertypeDynargXor_BlocksBWrapper
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError>
-    {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for &ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-    for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError>
-    {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-    for &OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError>
-    {
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for &OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -401,11 +289,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     type Root = ProcessRepeatUsertypeDynargXor;
     type Parent = ProcessRepeatUsertypeDynargXor;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -424,60 +308,32 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     }
 }
 impl ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn blocks_0_b(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn blocks_0_b(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_blocks_0_b.get() {
             return Ok(self.blocks_0_b.borrow());
         }
         self.f_blocks_0_b.set(true);
-        let io = KStream::clone(
-            &*self
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .blocks()
-                .get(0_usize)
-                .ok_or(KError::CastError)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.blocks().get(0_usize).ok_or(KError::CastError)?._io());
         let _pos = io.pos();
         io.seek(4_usize)?;
         *self.blocks_0_b.borrow_mut() = io.read_u1()?;
         io.seek(_pos)?;
         Ok(self.blocks_0_b.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn blocks_1_b(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn blocks_1_b(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_blocks_1_b.get() {
             return Ok(self.blocks_1_b.borrow());
         }
         self.f_blocks_1_b.set(true);
-        let io = KStream::clone(
-            &*self
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .blocks()
-                .get(1_usize)
-                .ok_or(KError::CastError)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.blocks().get(1_usize).ok_or(KError::CastError)?._io());
         let _pos = io.pos();
         io.seek(4_usize)?;
         *self.blocks_1_b.borrow_mut() = io.read_u1()?;

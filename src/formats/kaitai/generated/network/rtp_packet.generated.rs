@@ -73,11 +73,7 @@ impl KStruct for RtpPacket {
     type Root = RtpPacket;
     type Parent = RtpPacket;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -99,9 +95,7 @@ impl KStruct for RtpPacket {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.marker.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.payload_type.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(7)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.payload_type.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(7)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.sequence_number.borrow_mut() = _io.read_u2be()?;
@@ -112,49 +106,33 @@ impl KStruct for RtpPacket {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_extension() {
-            let t = Self::read_into::<_, RtpPacket_HeaderExtention>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, RtpPacket_HeaderExtention>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header_extension.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((usize::try_from(i64::try_from(_io.size())?)?)
-                .saturating_sub(_io.pos()))
-            .saturating_sub(usize::try_from(*self_rc.len_padding()?)?),
-        )?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(usize::try_from(*self_rc.len_padding()?)?))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.padding.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len_padding()?)?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_padding()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtpPacket {
+
     /**
      * Always returns number of padding bytes to in the payload.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn len_padding(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn len_padding(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_padding.get() {
             return Ok(self.len_padding.borrow());
         }
         self.f_len_padding.set(true);
-        *self.len_padding.borrow_mut() = (if *self.has_padding() {
-            i32::from(*self.len_padding_if_exists()?)
-        } else {
-            0_i32
-        })
-        .try_into()?;
+        *self.len_padding.borrow_mut() = (if *self.has_padding() { i32::from(*self.len_padding_if_exists()?) } else { 0_i32 }).try_into()?;
         Ok(self.len_padding.borrow())
     }
 
@@ -162,12 +140,10 @@ impl RtpPacket {
      * If padding bit is enabled, last byte of data contains number of
      * bytes appended to the payload as padding.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn len_padding_if_exists(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn len_padding_if_exists(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_len_padding_if_exists.get() {
             return Ok(self.len_padding_if_exists.borrow());
@@ -175,9 +151,7 @@ impl RtpPacket {
         self.f_len_padding_if_exists.set(true);
         if *self.has_padding() {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (i64::try_from(_io.size())?).saturating_sub(1_i64),
-            )?)?;
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(1_i64))?)?;
             *self.len_padding_if_exists.borrow_mut() = _io.read_u1()?;
             _io.seek(_pos)?;
         }
@@ -230,9 +204,7 @@ impl RtpPacket {
     }
 }
 impl RtpPacket {
-    pub fn header_extension(
-        &self,
-    ) -> Ref<'_, OptRc<RtpPacket_HeaderExtention>> {
+    pub fn header_extension(&self) -> Ref<'_, OptRc<RtpPacket_HeaderExtention>> {
         self.header_extension.borrow()
     }
 }
@@ -396,16 +368,15 @@ impl From<&RtpPacket_PayloadTypeEnum> for i64 {
             RtpPacket_PayloadTypeEnum::Mp2t => 33,
             RtpPacket_PayloadTypeEnum::H263 => 34,
             RtpPacket_PayloadTypeEnum::MpegPs => 96,
-            RtpPacket_PayloadTypeEnum::Unknown(v) => v,
+            RtpPacket_PayloadTypeEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for RtpPacket_PayloadTypeEnum {
-    fn default() -> Self {
-        RtpPacket_PayloadTypeEnum::Unknown(0)
-    }
+    fn default() -> Self { RtpPacket_PayloadTypeEnum::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct RtpPacket_HeaderExtention {
@@ -429,34 +400,22 @@ impl TryFrom<&&RtpPacket_HeaderExtention> for OptRc<RtpPacket_HeaderExtention> {
     }
 }
 impl DowncastOptRc<RtpPacket_HeaderExtention> for RtpPacket_HeaderExtention {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<RtpPacket_HeaderExtention> for &RtpPacket_HeaderExtention {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<RtpPacket_HeaderExtention>
-    for OptRc<RtpPacket_HeaderExtention>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+impl DowncastOptRc<RtpPacket_HeaderExtention> for OptRc<RtpPacket_HeaderExtention> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<RtpPacket_HeaderExtention>
-    for &OptRc<RtpPacket_HeaderExtention>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+impl DowncastOptRc<RtpPacket_HeaderExtention> for &OptRc<RtpPacket_HeaderExtention> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
         Ok((*self).clone())
     }
 }
@@ -464,11 +423,7 @@ impl KStruct for RtpPacket_HeaderExtention {
     type Root = RtpPacket;
     type Parent = RtpPacket;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -488,7 +443,8 @@ impl KStruct for RtpPacket_HeaderExtention {
         Ok(())
     }
 }
-impl RtpPacket_HeaderExtention {}
+impl RtpPacket_HeaderExtention {
+}
 impl RtpPacket_HeaderExtention {
     pub fn id(&self) -> Ref<'_, u16> {
         self.id.borrow()

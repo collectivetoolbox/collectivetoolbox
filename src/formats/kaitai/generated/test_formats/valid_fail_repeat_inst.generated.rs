@@ -103,11 +103,7 @@ impl KStruct for ValidFailRepeatInst {
     type Root = ValidFailRepeatInst;
     type Parent = ValidFailRepeatInst;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -129,12 +125,10 @@ impl KStruct for ValidFailRepeatInst {
     }
 }
 impl ValidFailRepeatInst {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst(&self) -> KResult<Ref<'_, Vec<u32>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst(
+        &self
+    ) -> KResult<Ref<'_, Vec<u32>>> {
         let _io = self._io.borrow();
         if self.f_inst.get() {
             return Ok(self.inst.borrow());
@@ -152,10 +146,7 @@ impl ValidFailRepeatInst {
         }
         let expected: u32 = (305419896).try_into()?;
         if !self.inst.borrow().iter().all(|_x| *_x == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/instances/inst".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/instances/inst".to_string() }));
         }
         _io.seek(_pos)?;
         Ok(self.inst.borrow())

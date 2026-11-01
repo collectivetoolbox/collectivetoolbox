@@ -104,11 +104,7 @@ impl KStruct for StrLiteralsLatin1 {
     type Root = StrLiteralsLatin1;
     type Parent = StrLiteralsLatin1;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,29 +118,23 @@ impl KStruct for StrLiteralsLatin1 {
         let _io = io;
         *self_rc.len_parsed.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.parsed.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(*self_rc.len_parsed()))?,
-            "UTF-8",
-        )?;
+        *self_rc.parsed.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_parsed()))?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl StrLiteralsLatin1 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn parsed_eq_literal(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn parsed_eq_literal(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_parsed_eq_literal.get() {
             return Ok(self.parsed_eq_literal.borrow());
         }
         self.f_parsed_eq_literal.set(true);
-        *self.parsed_eq_literal.borrow_mut() =
-            (self.parsed().as_str() == "£").try_into()?;
+        *self.parsed_eq_literal.borrow_mut() = ((self.parsed().as_str() == "£")).try_into()?;
         Ok(self.parsed_eq_literal.borrow())
     }
 }

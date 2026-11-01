@@ -105,11 +105,7 @@ impl KStruct for ExprToITrailing {
     type Root = ExprToITrailing;
     type Parent = ExprToITrailing;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,52 +122,40 @@ impl KStruct for ExprToITrailing {
     }
 }
 impl ExprToITrailing {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn to_i_garbage(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn to_i_garbage(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_to_i_garbage.get() {
             return Ok(self.to_i_garbage.borrow());
         }
         self.f_to_i_garbage.set(true);
-        *self.to_i_garbage.borrow_mut() =
-            ("123_.^".parse::<i32>().map_err(|_| KError::CastError)?)
-                .try_into()?;
+        *self.to_i_garbage.borrow_mut() = ("123_.^".parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_garbage.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn to_i_r10(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn to_i_r10(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_to_i_r10.get() {
             return Ok(self.to_i_r10.borrow());
         }
         self.f_to_i_r10.set(true);
-        *self.to_i_r10.borrow_mut() =
-            ("9173abc".parse::<i32>().map_err(|_| KError::CastError)?)
-                .try_into()?;
+        *self.to_i_r10.borrow_mut() = ("9173abc".parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_r10.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn to_i_r16(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn to_i_r16(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_to_i_r16.get() {
             return Ok(self.to_i_r16.borrow());
         }
         self.f_to_i_r16.set(true);
-        *self.to_i_r16.borrow_mut() = (i32::from_str_radix("9173abc", 16)
-            .map_err(|_| KError::CastError)?)
-        .try_into()?;
+        *self.to_i_r16.borrow_mut() = (i32::from_str_radix("9173abc", 16).map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_r16.borrow())
     }
 }

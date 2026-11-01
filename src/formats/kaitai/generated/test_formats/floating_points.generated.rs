@@ -110,11 +110,7 @@ impl KStruct for FloatingPoints {
     type Root = FloatingPoints;
     type Parent = FloatingPoints;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -141,49 +137,40 @@ impl KStruct for FloatingPoints {
     }
 }
 impl FloatingPoints {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn double_value_plus_float(&self) -> KResult<Ref<'_, f64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn double_value_plus_float(
+        &self
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_double_value_plus_float.get() {
             return Ok(self.double_value_plus_float.borrow());
         }
         self.f_double_value_plus_float.set(true);
-        *self.double_value_plus_float.borrow_mut() =
-            ((*self.double_value()) + (0.05)).try_into()?;
+        *self.double_value_plus_float.borrow_mut() = (((*self.double_value()) + (0.05))).try_into()?;
         Ok(self.double_value_plus_float.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn single_value_plus_float(&self) -> KResult<Ref<'_, f32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn single_value_plus_float(
+        &self
+    ) -> KResult<Ref<'_, f32>> {
         let _io = self._io.borrow();
         if self.f_single_value_plus_float.get() {
             return Ok(self.single_value_plus_float.borrow());
         }
         self.f_single_value_plus_float.set(true);
-        *self.single_value_plus_float.borrow_mut() =
-            ((*self.single_value()) + (to_f32(0.5))).try_into()?;
+        *self.single_value_plus_float.borrow_mut() = (((*self.single_value()) + (to_f32(0.5)))).try_into()?;
         Ok(self.single_value_plus_float.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn single_value_plus_int(&self) -> KResult<Ref<'_, f32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn single_value_plus_int(
+        &self
+    ) -> KResult<Ref<'_, f32>> {
         let _io = self._io.borrow();
         if self.f_single_value_plus_int.get() {
             return Ok(self.single_value_plus_int.borrow());
         }
         self.f_single_value_plus_int.set(true);
-        *self.single_value_plus_int.borrow_mut() =
-            ((*self.single_value()) + (to_f32(1))).try_into()?;
+        *self.single_value_plus_int.borrow_mut() = (((*self.single_value()) + (to_f32(1)))).try_into()?;
         Ok(self.single_value_plus_int.borrow())
     }
 }

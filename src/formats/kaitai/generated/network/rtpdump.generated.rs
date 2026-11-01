@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::rtp_packet::RtpPacket;
-use super::rtp_packet::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::rtp_packet::RtpPacket;
+use super::rtp_packet::*;
 
 /**
  * rtpdump is a format used by rtptools to record and replay
@@ -58,11 +58,7 @@ impl KStruct for Rtpdump {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -74,24 +70,14 @@ impl KStruct for Rtpdump {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Rtpdump_HeaderT>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Rtpdump_HeaderT>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.file_header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.packets.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Rtpdump_PacketT>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Rtpdump_PacketT>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.packets.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -101,7 +87,8 @@ impl KStruct for Rtpdump {
         Ok(())
     }
 }
-impl Rtpdump {}
+impl Rtpdump {
+}
 impl Rtpdump {
     pub fn file_header(&self) -> Ref<'_, OptRc<Rtpdump_HeaderT>> {
         self.file_header.borrow()
@@ -176,11 +163,7 @@ impl KStruct for Rtpdump_HeaderT {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -193,35 +176,18 @@ impl KStruct for Rtpdump_HeaderT {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.shebang.borrow_mut() = _io.read_bytes(12_usize)?;
-        if !(*self_rc.shebang()
-            == vec![
-                0x23u8, 0x21u8, 0x72u8, 0x74u8, 0x70u8, 0x70u8, 0x6cu8, 0x61u8,
-                0x79u8, 0x31u8, 0x2eu8, 0x30u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header_t/seq/0".to_string(),
-            }));
+        if !(*self_rc.shebang() == vec![0x23u8, 0x21u8, 0x72u8, 0x74u8, 0x70u8, 0x70u8, 0x6cu8, 0x61u8, 0x79u8, 0x31u8, 0x2eu8, 0x30u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_t/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.space.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.space() == vec![0x20u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header_t/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_t/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ip.borrow_mut() = bytes_to_str(
-            &_io.read_bytes_term(47, false, true, true)?,
-            "ascii",
-        )?;
+        *self_rc.ip.borrow_mut() = bytes_to_str(&_io.read_bytes_term(47, false, true, true)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.port.borrow_mut() = bytes_to_str(
-            &_io.read_bytes_term(10, false, true, true)?,
-            "ascii",
-        )?;
+        *self_rc.port.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_sec.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -237,7 +203,8 @@ impl KStruct for Rtpdump_HeaderT {
         Ok(())
     }
 }
-impl Rtpdump_HeaderT {}
+impl Rtpdump_HeaderT {
+}
 impl Rtpdump_HeaderT {
     pub fn shebang(&self) -> Ref<'_, Vec<u8>> {
         self.shebang.borrow()
@@ -363,11 +330,7 @@ impl KStruct for Rtpdump_PacketT {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -388,16 +351,15 @@ impl KStruct for Rtpdump_PacketT {
         let _raw_body = _io.read_bytes(usize::from(*self_rc.len_body()))?;
         *self_rc.body_raw.borrow_mut() = _raw_body.clone();
         let _io_body = BytesReader::from(_raw_body);
-        let t =
-            Self::read_into::<BytesReader, RtpPacket>(&_io_body, None, None)?
-                .into();
+        let t = Self::read_into::<BytesReader, RtpPacket>(&_io_body, None, None)?.into();
         *self_rc.body.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Rtpdump_PacketT {}
+impl Rtpdump_PacketT {
+}
 
 /**
  * packet length (including this header).

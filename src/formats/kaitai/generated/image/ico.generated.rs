@@ -59,11 +59,7 @@ impl KStruct for Ico {
     type Root = Ico;
     type Parent = Ico;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -77,10 +73,7 @@ impl KStruct for Ico {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x0u8, 0x0u8, 0x1u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_images.borrow_mut() = _io.read_u2le()?;
@@ -88,12 +81,7 @@ impl KStruct for Ico {
         *self_rc.images.borrow_mut() = Vec::new();
         let l_images = usize::from(*self_rc.num_images());
         for _i in 0_usize..l_images {
-            let t = Self::read_into::<_, Ico_IconDirEntry>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Ico_IconDirEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.images.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -101,7 +89,8 @@ impl KStruct for Ico {
         Ok(())
     }
 }
-impl Ico {}
+impl Ico {
+}
 impl Ico {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -190,11 +179,7 @@ impl KStruct for Ico_IconDirEntry {
     type Root = Ico;
     type Parent = Ico;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -214,10 +199,7 @@ impl KStruct for Ico_IconDirEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/icon_dir_entry/seq/3".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/icon_dir_entry/seq/3".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_planes.borrow_mut() = _io.read_u2le()?;
@@ -233,17 +215,16 @@ impl KStruct for Ico_IconDirEntry {
     }
 }
 impl Ico_IconDirEntry {
+
     /**
      * Raw image data. Use `is_png` to determine whether this is an
      * embedded PNG file (true) or a DIB bitmap (false) and call a
      * relevant parser, if needed to parse image data further.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn img(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn img(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_img.get() {
             return Ok(self.img.borrow());
@@ -251,8 +232,7 @@ impl Ico_IconDirEntry {
         self.f_img.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.ofs_img())?)?;
-        *self.img.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self.len_img())?)?;
+        *self.img.borrow_mut() = _io.read_bytes(usize::try_from(*self.len_img())?)?;
         _io.seek(_pos)?;
         Ok(self.img.borrow())
     }
@@ -260,22 +240,16 @@ impl Ico_IconDirEntry {
     /**
      * True if this image is in PNG format.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_png(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_png(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_png.get() {
             return Ok(self.is_png.borrow());
         }
         self.f_is_png.set(true);
-        *self.is_png.borrow_mut() = (*self.png_header()?
-            == vec![
-                0x89u8, 0x50u8, 0x4eu8, 0x47u8, 0xdu8, 0xau8, 0x1au8, 0xau8,
-            ])
-        .try_into()?;
+        *self.is_png.borrow_mut() = (*self.png_header()? == vec![0x89u8, 0x50u8, 0x4eu8, 0x47u8, 0xdu8, 0xau8, 0x1au8, 0xau8]).try_into()?;
         Ok(self.is_png.borrow())
     }
 
@@ -283,12 +257,10 @@ impl Ico_IconDirEntry {
      * Pre-reads first 8 bytes of the image to determine if it's an
      * embedded PNG file.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn png_header(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn png_header(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_png_header.get() {
             return Ok(self.png_header.borrow());

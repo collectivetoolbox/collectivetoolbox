@@ -59,11 +59,7 @@ impl KStruct for Bson {
     type Root = Bson;
     type Parent = Bson;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -77,32 +73,23 @@ impl KStruct for Bson {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_fields = _io.read_bytes(usize::try_from(
-            (*self_rc.len()).saturating_sub(5_i32),
-        )?)?;
+        let _raw_fields = _io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(5_i32))?)?;
         *self_rc.fields_raw.borrow_mut() = _raw_fields.clone();
         let _io_fields = BytesReader::from(_raw_fields);
-        let t = Self::read_into::<BytesReader, Bson_ElementsList>(
-            &_io_fields,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Bson_ElementsList>(&_io_fields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.fields.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/2".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson {}
+impl Bson {
+}
 
 /**
  * Total number of bytes comprising the document.
@@ -159,9 +146,7 @@ pub enum Bson_BinData_Content {
     Bson_BinData_ByteArrayDeprecated(OptRc<Bson_BinData_ByteArrayDeprecated>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&Bson_BinData_Content>
-    for OptRc<Bson_BinData_ByteArrayDeprecated>
-{
+impl TryFrom<&Bson_BinData_Content> for OptRc<Bson_BinData_ByteArrayDeprecated> {
     type Error = KError;
     fn try_from(v: &Bson_BinData_Content) -> Result<Self, Self::Error> {
         if let Bson_BinData_Content::Bson_BinData_ByteArrayDeprecated(x) = v {
@@ -170,25 +155,19 @@ impl TryFrom<&Bson_BinData_Content>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Bson_BinData_Content>
-    for OptRc<Bson_BinData_ByteArrayDeprecated>
-{
+impl TryFrom<&&Bson_BinData_Content> for OptRc<Bson_BinData_ByteArrayDeprecated> {
     type Error = KError;
     fn try_from(v: &&Bson_BinData_Content) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for Bson_BinData_Content {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
         OptRc::<Bson_BinData_ByteArrayDeprecated>::try_from(self)
     }
 }
 impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for &Bson_BinData_Content {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -253,11 +232,7 @@ impl KStruct for Bson_BinData {
     type Root = Bson;
     type Parent = Bson_Element;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -275,25 +250,14 @@ impl KStruct for Bson_BinData {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.subtype() {
             Bson_BinData_Subtype::ByteArrayDeprecated => {
-                *self_rc.content_raw.borrow_mut() =
-                    _io.read_bytes(usize::try_from(*self_rc.len())?)?.into();
+                *self_rc.content_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?.into();
                 let content_raw = self_rc.content_raw.borrow();
                 let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Bson_BinData_ByteArrayDeprecated,
-                >(
-                    &_t_content_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Bson_BinData_ByteArrayDeprecated>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.content.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(*self_rc.len())?)?.into(),
-                );
+                *self_rc.content.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len())?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -301,7 +265,8 @@ impl KStruct for Bson_BinData {
         Ok(())
     }
 }
-impl Bson_BinData {}
+impl Bson_BinData {
+}
 impl Bson_BinData {
     pub fn len(&self) -> Ref<'_, i32> {
         self.len.borrow()
@@ -371,16 +336,15 @@ impl From<&Bson_BinData_Subtype> for i64 {
             Bson_BinData_Subtype::Uuid => 4,
             Bson_BinData_Subtype::Md5 => 5,
             Bson_BinData_Subtype::Custom => 128,
-            Bson_BinData_Subtype::Unknown(v) => v,
+            Bson_BinData_Subtype::Unknown(v) => v
         }
     }
 }
 
 impl Default for Bson_BinData_Subtype {
-    fn default() -> Self {
-        Bson_BinData_Subtype::Unknown(0)
-    }
+    fn default() -> Self { Bson_BinData_Subtype::Unknown(0) }
 }
+
 
 /**
  * The BSON "binary" or "BinData" datatype is used to represent arrays of bytes. It is somewhat analogous to the Java notion of a ByteArray. BSON binary values have a subtype. This is used to indicate what kind of data is in the byte array. Subtypes from zero to 127 are predefined or reserved. Subtypes from 128-255 are user-defined.
@@ -396,59 +360,35 @@ pub struct Bson_BinData_ByteArrayDeprecated {
     _io: RefCell<BytesReader>,
     content_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Bson_BinData_ByteArrayDeprecated>
-    for OptRc<Bson_BinData_ByteArrayDeprecated>
-{
+impl TryFrom<&Bson_BinData_ByteArrayDeprecated> for OptRc<Bson_BinData_ByteArrayDeprecated> {
     type Error = KError;
-    fn try_from(
-        v: &Bson_BinData_ByteArrayDeprecated,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Bson_BinData_ByteArrayDeprecated) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Bson_BinData_ByteArrayDeprecated>
-    for OptRc<Bson_BinData_ByteArrayDeprecated>
-{
+impl TryFrom<&&Bson_BinData_ByteArrayDeprecated> for OptRc<Bson_BinData_ByteArrayDeprecated> {
     type Error = KError;
-    fn try_from(
-        v: &&Bson_BinData_ByteArrayDeprecated,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Bson_BinData_ByteArrayDeprecated) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated>
-    for Bson_BinData_ByteArrayDeprecated
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for Bson_BinData_ByteArrayDeprecated {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated>
-    for &Bson_BinData_ByteArrayDeprecated
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for &Bson_BinData_ByteArrayDeprecated {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated>
-    for OptRc<Bson_BinData_ByteArrayDeprecated>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for OptRc<Bson_BinData_ByteArrayDeprecated> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated>
-    for &OptRc<Bson_BinData_ByteArrayDeprecated>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for &OptRc<Bson_BinData_ByteArrayDeprecated> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
         Ok((*self).clone())
     }
 }
@@ -456,11 +396,7 @@ impl KStruct for Bson_BinData_ByteArrayDeprecated {
     type Root = Bson;
     type Parent = Bson_BinData;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -474,14 +410,14 @@ impl KStruct for Bson_BinData_ByteArrayDeprecated {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.content.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc.content.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson_BinData_ByteArrayDeprecated {}
+impl Bson_BinData_ByteArrayDeprecated {
+}
 impl Bson_BinData_ByteArrayDeprecated {
     pub fn len(&self) -> Ref<'_, i32> {
         self.len.borrow()
@@ -555,11 +491,7 @@ impl KStruct for Bson_CodeWithScope {
     type Root = Bson;
     type Parent = Bson_Element;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -573,27 +505,18 @@ impl KStruct for Bson_CodeWithScope {
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Bson_String>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.source.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Bson>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._root.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
         *self_rc.scope.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson_CodeWithScope {}
+impl Bson_CodeWithScope {
+}
 impl Bson_CodeWithScope {
     pub fn id(&self) -> Ref<'_, i32> {
         self.id.borrow()
@@ -669,11 +592,7 @@ impl KStruct for Bson_Cstring {
     type Root = Bson;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -685,14 +604,14 @@ impl KStruct for Bson_Cstring {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson_Cstring {}
+impl Bson_Cstring {
+}
 
 /**
  * MUST NOT contain '\x00', hence it is not full UTF-8.
@@ -759,11 +678,7 @@ impl KStruct for Bson_DbPointer {
     type Root = Bson;
     type Parent = Bson_Element;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -775,27 +690,18 @@ impl KStruct for Bson_DbPointer {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Bson_String>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.namespace.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Bson_ObjectId>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_ObjectId>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.id.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson_DbPointer {}
+impl Bson_DbPointer {
+}
 impl Bson_DbPointer {
     pub fn namespace(&self) -> Ref<'_, OptRc<Bson_String>> {
         self.namespace.borrow()
@@ -1230,11 +1136,7 @@ impl KStruct for Bson_Element {
     type Root = Bson;
     type Parent = Bson_ElementsList;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1246,82 +1148,41 @@ impl KStruct for Bson_Element {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.type_byte.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.type_byte.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Bson_Cstring>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.type_byte() {
             Bson_Element_BsonType::Array => {
-                let t = Self::read_into::<_, Bson>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._root.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::BinData => {
-                let t = Self::read_into::<_, Bson_BinData>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_BinData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::Boolean => {
                 *self_rc.content.borrow_mut() = Some(_io.read_u1()?.into());
             }
             Bson_Element_BsonType::CodeWithScope => {
-                let t = Self::read_into::<_, Bson_CodeWithScope>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_CodeWithScope>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::DbPointer => {
-                let t = Self::read_into::<_, Bson_DbPointer>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_DbPointer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::Document => {
-                let t = Self::read_into::<_, Bson>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._root.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::Javascript => {
-                let t = Self::read_into::<_, Bson_String>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::NumberDecimal => {
-                let t = Self::read_into::<_, Bson_F16>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_F16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::NumberDouble => {
@@ -1334,48 +1195,23 @@ impl KStruct for Bson_Element {
                 *self_rc.content.borrow_mut() = Some(_io.read_s8le()?.into());
             }
             Bson_Element_BsonType::ObjectId => {
-                let t = Self::read_into::<_, Bson_ObjectId>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_ObjectId>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::RegEx => {
-                let t = Self::read_into::<_, Bson_RegEx>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_RegEx>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::String => {
-                let t = Self::read_into::<_, Bson_String>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::Symbol => {
-                let t = Self::read_into::<_, Bson_String>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    None,
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::Timestamp => {
-                let t = Self::read_into::<_, Bson_Timestamp>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_Timestamp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::UtcDatetime => {
@@ -1388,7 +1224,8 @@ impl KStruct for Bson_Element {
         Ok(())
     }
 }
-impl Bson_Element {}
+impl Bson_Element {
+}
 impl Bson_Element {
     pub fn type_byte(&self) -> Ref<'_, Bson_Element_BsonType> {
         self.type_byte.borrow()
@@ -1498,16 +1335,15 @@ impl From<&Bson_Element_BsonType> for i64 {
             Bson_Element_BsonType::NumberLong => 18,
             Bson_Element_BsonType::NumberDecimal => 19,
             Bson_Element_BsonType::MaxKey => 127,
-            Bson_Element_BsonType::Unknown(v) => v,
+            Bson_Element_BsonType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Bson_Element_BsonType {
-    fn default() -> Self {
-        Bson_Element_BsonType::Unknown(0)
-    }
+    fn default() -> Self { Bson_Element_BsonType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Bson_ElementsList {
@@ -1553,11 +1389,7 @@ impl KStruct for Bson_ElementsList {
     type Root = Bson;
     type Parent = Bson;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1573,12 +1405,7 @@ impl KStruct for Bson_ElementsList {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Bson_Element>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Bson_Element>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.elements.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1588,7 +1415,8 @@ impl KStruct for Bson_ElementsList {
         Ok(())
     }
 }
-impl Bson_ElementsList {}
+impl Bson_ElementsList {
+}
 impl Bson_ElementsList {
     pub fn elements(&self) -> Ref<'_, Vec<OptRc<Bson_Element>>> {
         self.elements.borrow()
@@ -1657,11 +1485,7 @@ impl KStruct for Bson_F16 {
     type Root = Bson;
     type Parent = Bson_Element;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1686,7 +1510,8 @@ impl KStruct for Bson_F16 {
         Ok(())
     }
 }
-impl Bson_F16 {}
+impl Bson_F16 {
+}
 impl Bson_F16 {
     pub fn str(&self) -> Ref<'_, bool> {
         self.str.borrow()
@@ -1770,11 +1595,7 @@ impl KStruct for Bson_ObjectId {
     type Root = Bson;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1788,29 +1609,20 @@ impl KStruct for Bson_ObjectId {
         let _io = io;
         *self_rc.epoch_time.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Bson_U3>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_U3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.machine_id.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.process_id.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Bson_U3>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_U3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.counter.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson_ObjectId {}
+impl Bson_ObjectId {
+}
 
 /**
  * seconds since the Unix epoch
@@ -1896,11 +1708,7 @@ impl KStruct for Bson_RegEx {
     type Root = Bson;
     type Parent = Bson_Element;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1912,27 +1720,18 @@ impl KStruct for Bson_RegEx {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Bson_Cstring>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.pattern.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Bson_Cstring>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Bson_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.options.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson_RegEx {}
+impl Bson_RegEx {
+}
 impl Bson_RegEx {
     pub fn pattern(&self) -> Ref<'_, OptRc<Bson_Cstring>> {
         self.pattern.borrow()
@@ -2002,11 +1801,7 @@ impl KStruct for Bson_String {
     type Root = Bson;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2020,26 +1815,19 @@ impl KStruct for Bson_String {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(
-                (*self_rc.len()).saturating_sub(1_i32),
-            )?)?,
-            "UTF-8",
-        )?;
+        *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(1_i32))?)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/string/seq/2".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/string/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Bson_String {}
+impl Bson_String {
+}
 impl Bson_String {
     pub fn len(&self) -> Ref<'_, i32> {
         self.len.borrow()
@@ -2121,11 +1909,7 @@ impl KStruct for Bson_Timestamp {
     type Root = Bson;
     type Parent = Bson_Element;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2145,7 +1929,8 @@ impl KStruct for Bson_Timestamp {
         Ok(())
     }
 }
-impl Bson_Timestamp {}
+impl Bson_Timestamp {
+}
 impl Bson_Timestamp {
     pub fn increment(&self) -> Ref<'_, u32> {
         self.increment.borrow()
@@ -2220,11 +2005,7 @@ impl KStruct for Bson_U3 {
     type Root = Bson;
     type Parent = Bson_ObjectId;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2247,21 +2028,16 @@ impl KStruct for Bson_U3 {
     }
 }
 impl Bson_U3 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (((i32::from(*self.b1()))
-            | ((i32::from(*self.b2())).wrapping_shl(8_u32)))
-            | ((i32::from(*self.b3())).wrapping_shl(16_u32)))
-        .try_into()?;
+        *self.value.borrow_mut() = (((((i32::from(*self.b1())) | ((i32::from(*self.b2())).wrapping_shl(8_u32)))) | ((i32::from(*self.b3())).wrapping_shl(16_u32)))).try_into()?;
         Ok(self.value.borrow())
     }
 }

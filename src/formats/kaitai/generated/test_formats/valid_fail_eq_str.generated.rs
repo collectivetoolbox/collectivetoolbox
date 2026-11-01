@@ -101,11 +101,7 @@ impl KStruct for ValidFailEqStr {
     type Root = ValidFailEqStr;
     type Parent = ValidFailEqStr;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,20 +113,17 @@ impl KStruct for ValidFailEqStr {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.foo.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.foo.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         if !(*self_rc.foo() == "BACK") {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ValidFailEqStr {}
+impl ValidFailEqStr {
+}
 impl ValidFailEqStr {
     pub fn foo(&self) -> Ref<'_, String> {
         self.foo.borrow()

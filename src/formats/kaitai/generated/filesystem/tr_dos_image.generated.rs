@@ -72,11 +72,7 @@ impl KStruct for TrDosImage {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -92,21 +88,12 @@ impl KStruct for TrDosImage {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, TrDosImage_File>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, TrDosImage_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.files.borrow_mut().push(t);
                 let _t_files = self_rc.files.borrow();
-                let Some(_tmpa) = _t_files.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_files.last() else { break; };
                 _i = _i.saturating_add(1);
-                if *_tmpa.is_terminator()? {
-                    break;
-                }
+                if *_tmpa.is_terminator()? { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -115,13 +102,9 @@ impl KStruct for TrDosImage {
     }
 }
 impl TrDosImage {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn volume_info(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<TrDosImage_VolumeInfo>>> {
         let _io = self._io.borrow();
         if self.f_volume_info.get() {
@@ -129,12 +112,7 @@ impl TrDosImage {
         }
         let _pos = _io.pos();
         _io.seek(2048_usize)?;
-        let t = Self::read_into::<_, TrDosImage_VolumeInfo>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, TrDosImage_VolumeInfo>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.volume_info.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.volume_info.borrow())
@@ -185,16 +163,15 @@ impl From<&TrDosImage_DiskType> for i64 {
             TrDosImage_DiskType::Type40TracksDoubleSide => 23,
             TrDosImage_DiskType::Type80TracksSingleSide => 24,
             TrDosImage_DiskType::Type40TracksSingleSide => 25,
-            TrDosImage_DiskType::Unknown(v) => v,
+            TrDosImage_DiskType::Unknown(v) => v
         }
     }
 }
 
 impl Default for TrDosImage_DiskType {
-    fn default() -> Self {
-        TrDosImage_DiskType::Unknown(0)
-    }
+    fn default() -> Self { TrDosImage_DiskType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct TrDosImage_File {
@@ -221,198 +198,124 @@ pub enum TrDosImage_File_PositionAndLength {
     TrDosImage_PositionAndLengthPrint(OptRc<TrDosImage_PositionAndLengthPrint>),
     TrDosImage_PositionAndLengthBasic(OptRc<TrDosImage_PositionAndLengthBasic>),
     TrDosImage_PositionAndLengthCode(OptRc<TrDosImage_PositionAndLengthCode>),
-    TrDosImage_PositionAndLengthGeneric(
-        OptRc<TrDosImage_PositionAndLengthGeneric>,
-    ),
+    TrDosImage_PositionAndLengthGeneric(OptRc<TrDosImage_PositionAndLengthGeneric>),
 }
-impl TryFrom<&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthPrint>
-{
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthPrint> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthPrint(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthPrint>
-{
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthPrint> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthPrint>
-    for TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
         OptRc::<TrDosImage_PositionAndLengthPrint>::try_from(self)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthPrint>
-    for &TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<TrDosImage_PositionAndLengthPrint>>
-    for TrDosImage_File_PositionAndLength
-{
+impl From<OptRc<TrDosImage_PositionAndLengthPrint>> for TrDosImage_File_PositionAndLength {
     fn from(v: OptRc<TrDosImage_PositionAndLengthPrint>) -> Self {
         Self::TrDosImage_PositionAndLengthPrint(v)
     }
 }
-impl TryFrom<&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthBasic>
-{
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthBasic> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthBasic(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthBasic>
-{
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthBasic> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthBasic>
-    for TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
         OptRc::<TrDosImage_PositionAndLengthBasic>::try_from(self)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthBasic>
-    for &TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<TrDosImage_PositionAndLengthBasic>>
-    for TrDosImage_File_PositionAndLength
-{
+impl From<OptRc<TrDosImage_PositionAndLengthBasic>> for TrDosImage_File_PositionAndLength {
     fn from(v: OptRc<TrDosImage_PositionAndLengthBasic>) -> Self {
         Self::TrDosImage_PositionAndLengthBasic(v)
     }
 }
-impl TryFrom<&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthCode>
-{
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthCode> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthCode(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthCode>
-{
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthCode> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthCode>
-    for TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
         OptRc::<TrDosImage_PositionAndLengthCode>::try_from(self)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthCode>
-    for &TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<TrDosImage_PositionAndLengthCode>>
-    for TrDosImage_File_PositionAndLength
-{
+impl From<OptRc<TrDosImage_PositionAndLengthCode>> for TrDosImage_File_PositionAndLength {
     fn from(v: OptRc<TrDosImage_PositionAndLengthCode>) -> Self {
         Self::TrDosImage_PositionAndLengthCode(v)
     }
 }
-impl TryFrom<&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthGeneric>
-{
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthGeneric> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthGeneric(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&TrDosImage_File_PositionAndLength>
-    for OptRc<TrDosImage_PositionAndLengthGeneric>
-{
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthGeneric> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_File_PositionAndLength,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric>
-    for TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
         OptRc::<TrDosImage_PositionAndLengthGeneric>::try_from(self)
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric>
-    for &TrDosImage_File_PositionAndLength
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<TrDosImage_PositionAndLengthGeneric>>
-    for TrDosImage_File_PositionAndLength
-{
+impl From<OptRc<TrDosImage_PositionAndLengthGeneric>> for TrDosImage_File_PositionAndLength {
     fn from(v: OptRc<TrDosImage_PositionAndLengthGeneric>) -> Self {
         Self::TrDosImage_PositionAndLengthGeneric(v)
     }
@@ -453,11 +356,7 @@ impl KStruct for TrDosImage_File {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -472,54 +371,26 @@ impl KStruct for TrDosImage_File {
         let _raw_name = _io.read_bytes(8_usize)?;
         *self_rc.name_raw.borrow_mut() = _raw_name.clone();
         let _io_name = BytesReader::from(_raw_name);
-        let t = Self::read_into::<BytesReader, TrDosImage_Filename>(
-            &_io_name,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TrDosImage_Filename>(&_io_name, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.extension.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.extension() {
             35 => {
-                let t =
-                    Self::read_into::<_, TrDosImage_PositionAndLengthPrint>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthPrint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
             66 => {
-                let t =
-                    Self::read_into::<_, TrDosImage_PositionAndLengthBasic>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthBasic>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
             67 => {
-                let t = Self::read_into::<_, TrDosImage_PositionAndLengthCode>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthCode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
             _ => {
-                let t =
-                    Self::read_into::<_, TrDosImage_PositionAndLengthGeneric>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthGeneric>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
         }
@@ -535,61 +406,43 @@ impl KStruct for TrDosImage_File {
     }
 }
 impl TrDosImage_File {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn contents(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn contents(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_contents.get() {
             return Ok(self.contents.borrow());
         }
         self.f_contents.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (((i32::from(*self.starting_track())).saturating_mul(256_i32))
-                .saturating_mul(16_i32))
-            .saturating_add(
-                (i32::from(*self.starting_sector())).saturating_mul(256_i32),
-            ),
-        )?)?;
-        *self.contents.borrow_mut() = _io.read_bytes(usize::try_from(
-            (i32::from(*self.length_sectors())).saturating_mul(256_i32),
-        )?)?;
+        _io.seek(usize::try_from((((i32::from(*self.starting_track())).saturating_mul(256_i32)).saturating_mul(16_i32)).saturating_add((i32::from(*self.starting_sector())).saturating_mul(256_i32)))?)?;
+        *self.contents.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self.length_sectors())).saturating_mul(256_i32))?)?;
         _io.seek(_pos)?;
         Ok(self.contents.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_deleted(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_deleted(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_deleted.get() {
             return Ok(self.is_deleted.borrow());
         }
         self.f_is_deleted.set(true);
-        *self.is_deleted.borrow_mut() = ((to_i128(*self.name().first_byte()?))
-            == (to_i128(1)))
-        .try_into()?;
+        *self.is_deleted.borrow_mut() = (((to_i128(*self.name().first_byte()?)) == (to_i128(1)))).try_into()?;
         Ok(self.is_deleted.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_terminator(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_terminator(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_terminator.get() {
             return Ok(self.is_terminator.borrow());
         }
         self.f_is_terminator.set(true);
-        *self.is_terminator.borrow_mut() =
-            ((to_i128(*self.name().first_byte()?)) == (to_i128(0)))
-                .try_into()?;
+        *self.is_terminator.borrow_mut() = (((to_i128(*self.name().first_byte()?)) == (to_i128(0)))).try_into()?;
         Ok(self.is_terminator.borrow())
     }
 }
@@ -604,9 +457,7 @@ impl TrDosImage_File {
     }
 }
 impl TrDosImage_File {
-    pub fn position_and_length(
-        &self,
-    ) -> Ref<'_, Option<TrDosImage_File_PositionAndLength>> {
+    pub fn position_and_length(&self) -> Ref<'_, Option<TrDosImage_File_PositionAndLength>> {
         self.position_and_length.borrow()
     }
 }
@@ -689,11 +540,7 @@ impl KStruct for TrDosImage_Filename {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -712,12 +559,10 @@ impl KStruct for TrDosImage_Filename {
     }
 }
 impl TrDosImage_Filename {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn first_byte(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn first_byte(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_first_byte.get() {
             return Ok(self.first_byte.borrow());
@@ -761,59 +606,35 @@ pub struct TrDosImage_PositionAndLengthBasic {
     program_length: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&TrDosImage_PositionAndLengthBasic>
-    for OptRc<TrDosImage_PositionAndLengthBasic>
-{
+impl TryFrom<&TrDosImage_PositionAndLengthBasic> for OptRc<TrDosImage_PositionAndLengthBasic> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_PositionAndLengthBasic,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_PositionAndLengthBasic) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&TrDosImage_PositionAndLengthBasic>
-    for OptRc<TrDosImage_PositionAndLengthBasic>
-{
+impl TryFrom<&&TrDosImage_PositionAndLengthBasic> for OptRc<TrDosImage_PositionAndLengthBasic> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_PositionAndLengthBasic,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_PositionAndLengthBasic) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthBasic>
-    for TrDosImage_PositionAndLengthBasic
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for TrDosImage_PositionAndLengthBasic {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthBasic>
-    for &TrDosImage_PositionAndLengthBasic
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for &TrDosImage_PositionAndLengthBasic {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthBasic>
-    for OptRc<TrDosImage_PositionAndLengthBasic>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for OptRc<TrDosImage_PositionAndLengthBasic> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthBasic>
-    for &OptRc<TrDosImage_PositionAndLengthBasic>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for &OptRc<TrDosImage_PositionAndLengthBasic> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
         Ok((*self).clone())
     }
 }
@@ -821,11 +642,7 @@ impl KStruct for TrDosImage_PositionAndLengthBasic {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -845,7 +662,8 @@ impl KStruct for TrDosImage_PositionAndLengthBasic {
         Ok(())
     }
 }
-impl TrDosImage_PositionAndLengthBasic {}
+impl TrDosImage_PositionAndLengthBasic {
+}
 impl TrDosImage_PositionAndLengthBasic {
     pub fn program_and_data_length(&self) -> Ref<'_, u16> {
         self.program_and_data_length.borrow()
@@ -877,59 +695,35 @@ pub struct TrDosImage_PositionAndLengthCode {
     length: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&TrDosImage_PositionAndLengthCode>
-    for OptRc<TrDosImage_PositionAndLengthCode>
-{
+impl TryFrom<&TrDosImage_PositionAndLengthCode> for OptRc<TrDosImage_PositionAndLengthCode> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_PositionAndLengthCode,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_PositionAndLengthCode) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&TrDosImage_PositionAndLengthCode>
-    for OptRc<TrDosImage_PositionAndLengthCode>
-{
+impl TryFrom<&&TrDosImage_PositionAndLengthCode> for OptRc<TrDosImage_PositionAndLengthCode> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_PositionAndLengthCode,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_PositionAndLengthCode) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthCode>
-    for TrDosImage_PositionAndLengthCode
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for TrDosImage_PositionAndLengthCode {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthCode>
-    for &TrDosImage_PositionAndLengthCode
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for &TrDosImage_PositionAndLengthCode {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthCode>
-    for OptRc<TrDosImage_PositionAndLengthCode>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for OptRc<TrDosImage_PositionAndLengthCode> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthCode>
-    for &OptRc<TrDosImage_PositionAndLengthCode>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for &OptRc<TrDosImage_PositionAndLengthCode> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
         Ok((*self).clone())
     }
 }
@@ -937,11 +731,7 @@ impl KStruct for TrDosImage_PositionAndLengthCode {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -961,7 +751,8 @@ impl KStruct for TrDosImage_PositionAndLengthCode {
         Ok(())
     }
 }
-impl TrDosImage_PositionAndLengthCode {}
+impl TrDosImage_PositionAndLengthCode {
+}
 
 /**
  * Default memory address to load this byte array into
@@ -997,59 +788,35 @@ pub struct TrDosImage_PositionAndLengthGeneric {
     length: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&TrDosImage_PositionAndLengthGeneric>
-    for OptRc<TrDosImage_PositionAndLengthGeneric>
-{
+impl TryFrom<&TrDosImage_PositionAndLengthGeneric> for OptRc<TrDosImage_PositionAndLengthGeneric> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_PositionAndLengthGeneric,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_PositionAndLengthGeneric) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&TrDosImage_PositionAndLengthGeneric>
-    for OptRc<TrDosImage_PositionAndLengthGeneric>
-{
+impl TryFrom<&&TrDosImage_PositionAndLengthGeneric> for OptRc<TrDosImage_PositionAndLengthGeneric> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_PositionAndLengthGeneric,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_PositionAndLengthGeneric) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric>
-    for TrDosImage_PositionAndLengthGeneric
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for TrDosImage_PositionAndLengthGeneric {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric>
-    for &TrDosImage_PositionAndLengthGeneric
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for &TrDosImage_PositionAndLengthGeneric {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric>
-    for OptRc<TrDosImage_PositionAndLengthGeneric>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for OptRc<TrDosImage_PositionAndLengthGeneric> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric>
-    for &OptRc<TrDosImage_PositionAndLengthGeneric>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for &OptRc<TrDosImage_PositionAndLengthGeneric> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1057,11 +824,7 @@ impl KStruct for TrDosImage_PositionAndLengthGeneric {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1081,7 +844,8 @@ impl KStruct for TrDosImage_PositionAndLengthGeneric {
         Ok(())
     }
 }
-impl TrDosImage_PositionAndLengthGeneric {}
+impl TrDosImage_PositionAndLengthGeneric {
+}
 impl TrDosImage_PositionAndLengthGeneric {
     pub fn reserved(&self) -> Ref<'_, u16> {
         self.reserved.borrow()
@@ -1114,59 +878,35 @@ pub struct TrDosImage_PositionAndLengthPrint {
     length: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&TrDosImage_PositionAndLengthPrint>
-    for OptRc<TrDosImage_PositionAndLengthPrint>
-{
+impl TryFrom<&TrDosImage_PositionAndLengthPrint> for OptRc<TrDosImage_PositionAndLengthPrint> {
     type Error = KError;
-    fn try_from(
-        v: &TrDosImage_PositionAndLengthPrint,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &TrDosImage_PositionAndLengthPrint) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&TrDosImage_PositionAndLengthPrint>
-    for OptRc<TrDosImage_PositionAndLengthPrint>
-{
+impl TryFrom<&&TrDosImage_PositionAndLengthPrint> for OptRc<TrDosImage_PositionAndLengthPrint> {
     type Error = KError;
-    fn try_from(
-        v: &&TrDosImage_PositionAndLengthPrint,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&TrDosImage_PositionAndLengthPrint) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthPrint>
-    for TrDosImage_PositionAndLengthPrint
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for TrDosImage_PositionAndLengthPrint {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthPrint>
-    for &TrDosImage_PositionAndLengthPrint
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for &TrDosImage_PositionAndLengthPrint {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthPrint>
-    for OptRc<TrDosImage_PositionAndLengthPrint>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for OptRc<TrDosImage_PositionAndLengthPrint> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<TrDosImage_PositionAndLengthPrint>
-    for &OptRc<TrDosImage_PositionAndLengthPrint>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for &OptRc<TrDosImage_PositionAndLengthPrint> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1174,11 +914,7 @@ impl KStruct for TrDosImage_PositionAndLengthPrint {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1200,7 +936,8 @@ impl KStruct for TrDosImage_PositionAndLengthPrint {
         Ok(())
     }
 }
-impl TrDosImage_PositionAndLengthPrint {}
+impl TrDosImage_PositionAndLengthPrint {
+}
 impl TrDosImage_PositionAndLengthPrint {
     pub fn extent_no(&self) -> Ref<'_, u8> {
         self.extent_no.borrow()
@@ -1295,11 +1032,7 @@ impl KStruct for TrDosImage_VolumeInfo {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1313,10 +1046,7 @@ impl KStruct for TrDosImage_VolumeInfo {
         let _io = io;
         *self_rc.catalog_end.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.catalog_end() == vec![0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/volume_info/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/volume_info/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused.borrow_mut() = _io.read_bytes(224_usize)?;
@@ -1325,8 +1055,7 @@ impl KStruct for TrDosImage_VolumeInfo {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_free_sector_track.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.disk_type.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.disk_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_files.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1334,10 +1063,7 @@ impl KStruct for TrDosImage_VolumeInfo {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tr_dos_id.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.tr_dos_id() == vec![0x10u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/volume_info/seq/7".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/volume_info/seq/7".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_2.borrow_mut() = _io.read_bytes(2_usize)?;
@@ -1357,48 +1083,28 @@ impl KStruct for TrDosImage_VolumeInfo {
     }
 }
 impl TrDosImage_VolumeInfo {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn num_sides(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn num_sides(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_num_sides.get() {
             return Ok(self.num_sides.borrow());
         }
         self.f_num_sides.set(true);
-        *self.num_sides.borrow_mut() =
-            (if (to_i128((i64::from(&*self.disk_type())) & (8_i64)))
-                != (to_i128(0))
-            {
-                1_i32
-            } else {
-                2_i32
-            })
-            .try_into()?;
+        *self.num_sides.borrow_mut() = (if ((to_i128(((i64::from(&*self.disk_type())) & (8_i64)))) != (to_i128(0))) { 1_i32 } else { 2_i32 }).try_into()?;
         Ok(self.num_sides.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn num_tracks(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn num_tracks(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_num_tracks.get() {
             return Ok(self.num_tracks.borrow());
         }
         self.f_num_tracks.set(true);
-        *self.num_tracks.borrow_mut() =
-            (if (to_i128((i64::from(&*self.disk_type())) & (1_i64)))
-                != (to_i128(0))
-            {
-                40_i32
-            } else {
-                80_i32
-            })
-            .try_into()?;
+        *self.num_tracks.borrow_mut() = (if ((to_i128(((i64::from(&*self.disk_type())) & (1_i64)))) != (to_i128(0))) { 40_i32 } else { 80_i32 }).try_into()?;
         Ok(self.num_tracks.borrow())
     }
 }

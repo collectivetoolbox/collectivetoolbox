@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::hello_world::HelloWorld;
-use super::hello_world::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct Imports0 {
@@ -105,11 +105,7 @@ impl KStruct for Imports0 {
     type Root = Imports0;
     type Parent = Imports0;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,12 +127,10 @@ impl KStruct for Imports0 {
     }
 }
 impl Imports0 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn hw_one(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn hw_one(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_hw_one.get() {
             return Ok(self.hw_one.borrow());

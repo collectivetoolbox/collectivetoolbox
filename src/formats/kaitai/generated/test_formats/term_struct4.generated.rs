@@ -107,11 +107,7 @@ impl KStruct for TermStruct4 {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,12 +122,7 @@ impl KStruct for TermStruct4 {
         let _raw_s1 = _io.read_bytes(3_usize)?;
         *self_rc.s1_raw.borrow_mut() = _raw_s1.clone();
         let _io_s1 = BytesReader::from(_raw_s1);
-        let t = Self::read_into::<BytesReader, TermStruct4_S1Type>(
-            &_io_s1,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStruct4_S1Type>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skip_term1.borrow_mut() = _io.read_u1()?;
@@ -139,12 +130,7 @@ impl KStruct for TermStruct4 {
         let _raw_s2 = _io.read_bytes(3_usize)?;
         *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
         let _io_s2 = BytesReader::from(_raw_s2);
-        let t = Self::read_into::<BytesReader, TermStruct4_S2Type>(
-            &_io_s2,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStruct4_S2Type>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skip_term2.borrow_mut() = _io.read_u1()?;
@@ -152,19 +138,15 @@ impl KStruct for TermStruct4 {
         let _raw_s3 = _io.read_bytes(3_usize)?;
         *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
         let _io_s3 = BytesReader::from(_raw_s3);
-        let t = Self::read_into::<BytesReader, TermStruct4_S3Type>(
-            &_io_s3,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStruct4_S3Type>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStruct4 {}
+impl TermStruct4 {
+}
 impl TermStruct4 {
     pub fn s1(&self) -> Ref<'_, OptRc<TermStruct4_S1Type>> {
         self.s1.borrow()
@@ -238,34 +220,22 @@ impl TryFrom<&&TermStruct4_BytesWrapper> for OptRc<TermStruct4_BytesWrapper> {
     }
 }
 impl DowncastOptRc<TermStruct4_BytesWrapper> for TermStruct4_BytesWrapper {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<TermStruct4_BytesWrapper> for &TermStruct4_BytesWrapper {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<TermStruct4_BytesWrapper>
-    for OptRc<TermStruct4_BytesWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
+impl DowncastOptRc<TermStruct4_BytesWrapper> for OptRc<TermStruct4_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<TermStruct4_BytesWrapper>
-    for &OptRc<TermStruct4_BytesWrapper>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
+impl DowncastOptRc<TermStruct4_BytesWrapper> for &OptRc<TermStruct4_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct4_BytesWrapper>, KError> {
         Ok((*self).clone())
     }
 }
@@ -273,11 +243,7 @@ impl KStruct for TermStruct4_BytesWrapper {
     type Root = TermStruct4;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -295,7 +261,8 @@ impl KStruct for TermStruct4_BytesWrapper {
         Ok(())
     }
 }
-impl TermStruct4_BytesWrapper {}
+impl TermStruct4_BytesWrapper {
+}
 impl TermStruct4_BytesWrapper {
     pub fn value(&self) -> Ref<'_, Vec<u8>> {
         self.value.borrow()
@@ -358,11 +325,7 @@ impl KStruct for TermStruct4_S1Type {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -377,19 +340,15 @@ impl KStruct for TermStruct4_S1Type {
         let _raw_value = _io.read_bytes_term(124, false, true, false)?;
         *self_rc.value_raw.borrow_mut() = _raw_value.clone();
         let _io_value = BytesReader::from(_raw_value);
-        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(
-            &_io_value,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(&_io_value, Some(self_rc._root.clone()), None)?.into();
         *self_rc.value.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStruct4_S1Type {}
+impl TermStruct4_S1Type {
+}
 impl TermStruct4_S1Type {
     pub fn value(&self) -> Ref<'_, OptRc<TermStruct4_BytesWrapper>> {
         self.value.borrow()
@@ -457,11 +416,7 @@ impl KStruct for TermStruct4_S2Type {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -476,19 +431,15 @@ impl KStruct for TermStruct4_S2Type {
         let _raw_value = _io.read_bytes_term(124, false, false, false)?;
         *self_rc.value_raw.borrow_mut() = _raw_value.clone();
         let _io_value = BytesReader::from(_raw_value);
-        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(
-            &_io_value,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(&_io_value, Some(self_rc._root.clone()), None)?.into();
         *self_rc.value.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStruct4_S2Type {}
+impl TermStruct4_S2Type {
+}
 impl TermStruct4_S2Type {
     pub fn value(&self) -> Ref<'_, OptRc<TermStruct4_BytesWrapper>> {
         self.value.borrow()
@@ -556,11 +507,7 @@ impl KStruct for TermStruct4_S3Type {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -575,19 +522,15 @@ impl KStruct for TermStruct4_S3Type {
         let _raw_value = _io.read_bytes_term(64, true, true, false)?;
         *self_rc.value_raw.borrow_mut() = _raw_value.clone();
         let _io_value = BytesReader::from(_raw_value);
-        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(
-            &_io_value,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(&_io_value, Some(self_rc._root.clone()), None)?.into();
         *self_rc.value.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl TermStruct4_S3Type {}
+impl TermStruct4_S3Type {
+}
 impl TermStruct4_S3Type {
     pub fn value(&self) -> Ref<'_, OptRc<TermStruct4_BytesWrapper>> {
         self.value.borrow()

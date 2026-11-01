@@ -101,11 +101,7 @@ impl KStruct for EnumDeep {
     type Root = EnumDeep;
     type Parent = EnumDeep;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,7 +121,8 @@ impl KStruct for EnumDeep {
         Ok(())
     }
 }
-impl EnumDeep {}
+impl EnumDeep {
+}
 impl EnumDeep {
     pub fn pet_1(&self) -> Ref<'_, EnumDeep_Container1_Animal> {
         self.pet_1.borrow()
@@ -191,11 +188,7 @@ impl KStruct for EnumDeep_Container1 {
     type Root = EnumDeep;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -211,7 +204,8 @@ impl KStruct for EnumDeep_Container1 {
         Ok(())
     }
 }
-impl EnumDeep_Container1 {}
+impl EnumDeep_Container1 {
+}
 impl EnumDeep_Container1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -249,16 +243,15 @@ impl From<&EnumDeep_Container1_Animal> for i64 {
             EnumDeep_Container1_Animal::Dog => 4,
             EnumDeep_Container1_Animal::Cat => 7,
             EnumDeep_Container1_Animal::Chicken => 12,
-            EnumDeep_Container1_Animal::Unknown(v) => v,
+            EnumDeep_Container1_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumDeep_Container1_Animal {
-    fn default() -> Self {
-        EnumDeep_Container1_Animal::Unknown(0)
-    }
+    fn default() -> Self { EnumDeep_Container1_Animal::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumDeep_Container1_Container2 {
@@ -267,59 +260,35 @@ pub struct EnumDeep_Container1_Container2 {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&EnumDeep_Container1_Container2>
-    for OptRc<EnumDeep_Container1_Container2>
-{
+impl TryFrom<&EnumDeep_Container1_Container2> for OptRc<EnumDeep_Container1_Container2> {
     type Error = KError;
-    fn try_from(
-        v: &EnumDeep_Container1_Container2,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &EnumDeep_Container1_Container2) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&EnumDeep_Container1_Container2>
-    for OptRc<EnumDeep_Container1_Container2>
-{
+impl TryFrom<&&EnumDeep_Container1_Container2> for OptRc<EnumDeep_Container1_Container2> {
     type Error = KError;
-    fn try_from(
-        v: &&EnumDeep_Container1_Container2,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&EnumDeep_Container1_Container2) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<EnumDeep_Container1_Container2>
-    for EnumDeep_Container1_Container2
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeep_Container1_Container2> for EnumDeep_Container1_Container2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<EnumDeep_Container1_Container2>
-    for &EnumDeep_Container1_Container2
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeep_Container1_Container2> for &EnumDeep_Container1_Container2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<EnumDeep_Container1_Container2>
-    for OptRc<EnumDeep_Container1_Container2>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeep_Container1_Container2> for OptRc<EnumDeep_Container1_Container2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<EnumDeep_Container1_Container2>
-    for &OptRc<EnumDeep_Container1_Container2>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+impl DowncastOptRc<EnumDeep_Container1_Container2> for &OptRc<EnumDeep_Container1_Container2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
         Ok((*self).clone())
     }
 }
@@ -327,11 +296,7 @@ impl KStruct for EnumDeep_Container1_Container2 {
     type Root = EnumDeep;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -347,7 +312,8 @@ impl KStruct for EnumDeep_Container1_Container2 {
         Ok(())
     }
 }
-impl EnumDeep_Container1_Container2 {}
+impl EnumDeep_Container1_Container2 {
+}
 impl EnumDeep_Container1_Container2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
@@ -385,13 +351,12 @@ impl From<&EnumDeep_Container1_Container2_Animal> for i64 {
             EnumDeep_Container1_Container2_Animal::Canary => 4,
             EnumDeep_Container1_Container2_Animal::Turtle => 7,
             EnumDeep_Container1_Container2_Animal::Hare => 12,
-            EnumDeep_Container1_Container2_Animal::Unknown(v) => v,
+            EnumDeep_Container1_Container2_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumDeep_Container1_Container2_Animal {
-    fn default() -> Self {
-        EnumDeep_Container1_Container2_Animal::Unknown(0)
-    }
+    fn default() -> Self { EnumDeep_Container1_Container2_Animal::Unknown(0) }
 }
+

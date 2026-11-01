@@ -71,11 +71,7 @@ impl KStruct for Stl {
     type Root = Stl;
     type Parent = Stl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -94,12 +90,7 @@ impl KStruct for Stl {
         *self_rc.triangles.borrow_mut() = Vec::new();
         let l_triangles = usize::try_from(*self_rc.num_triangles())?;
         for _i in 0_usize..l_triangles {
-            let t = Self::read_into::<_, Stl_Triangle>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Stl_Triangle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.triangles.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -107,7 +98,8 @@ impl KStruct for Stl {
         Ok(())
     }
 }
-impl Stl {}
+impl Stl {
+}
 impl Stl {
     pub fn header(&self) -> Ref<'_, Vec<u8>> {
         self.header.borrow()
@@ -192,11 +184,7 @@ impl KStruct for Stl_Triangle {
     type Root = Stl;
     type Parent = Stl;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -208,23 +196,13 @@ impl KStruct for Stl_Triangle {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Stl_Vec3d>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.normal.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertices.borrow_mut() = Vec::new();
         let l_vertices = 3_usize;
         for _i in 0_usize..l_vertices {
-            let t = Self::read_into::<_, Stl_Vec3d>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -234,7 +212,8 @@ impl KStruct for Stl_Triangle {
         Ok(())
     }
 }
-impl Stl_Triangle {}
+impl Stl_Triangle {
+}
 impl Stl_Triangle {
     pub fn normal(&self) -> Ref<'_, OptRc<Stl_Vec3d>> {
         self.normal.borrow()
@@ -319,11 +298,7 @@ impl KStruct for Stl_Vec3d {
     type Root = Stl;
     type Parent = Stl_Triangle;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -345,7 +320,8 @@ impl KStruct for Stl_Vec3d {
         Ok(())
     }
 }
-impl Stl_Vec3d {}
+impl Stl_Vec3d {
+}
 impl Stl_Vec3d {
     pub fn x(&self) -> Ref<'_, f32> {
         self.x.borrow()

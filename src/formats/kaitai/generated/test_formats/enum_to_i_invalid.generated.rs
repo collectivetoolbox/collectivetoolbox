@@ -113,11 +113,7 @@ impl KStruct for EnumToIInvalid {
     type Root = EnumToIInvalid;
     type Parent = EnumToIInvalid;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -138,60 +134,46 @@ impl KStruct for EnumToIInvalid {
     }
 }
 impl EnumToIInvalid {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn one_lt_two(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn one_lt_two(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_one_lt_two.get() {
             return Ok(self.one_lt_two.borrow());
         }
         self.f_one_lt_two.set(true);
-        *self.one_lt_two.borrow_mut() = (i64::from(&*self.pet_1())
-            < i64::from(&*self.pet_2()))
-        .try_into()?;
+        *self.one_lt_two.borrow_mut() = (i64::from(&*self.pet_1()) < i64::from(&*self.pet_2())).try_into()?;
         Ok(self.one_lt_two.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pet_2_eq_int_f(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pet_2_eq_int_f(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_pet_2_eq_int_f.get() {
             return Ok(self.pet_2_eq_int_f.borrow());
         }
         self.f_pet_2_eq_int_f.set(true);
-        *self.pet_2_eq_int_f.borrow_mut() =
-            ((to_i128(i64::from(&*self.pet_2()))) == (to_i128(110)))
-                .try_into()?;
+        *self.pet_2_eq_int_f.borrow_mut() = (((to_i128(i64::from(&*self.pet_2()))) == (to_i128(110)))).try_into()?;
         Ok(self.pet_2_eq_int_f.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pet_2_eq_int_t(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pet_2_eq_int_t(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_pet_2_eq_int_t.get() {
             return Ok(self.pet_2_eq_int_t.borrow());
         }
         self.f_pet_2_eq_int_t.set(true);
-        *self.pet_2_eq_int_t.borrow_mut() =
-            ((to_i128(i64::from(&*self.pet_2()))) == (to_i128(111)))
-                .try_into()?;
+        *self.pet_2_eq_int_t.borrow_mut() = (((to_i128(i64::from(&*self.pet_2()))) == (to_i128(111)))).try_into()?;
         Ok(self.pet_2_eq_int_t.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pet_2_i(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pet_2_i(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_pet_2_i.get() {
             return Ok(self.pet_2_i.borrow());
@@ -200,35 +182,28 @@ impl EnumToIInvalid {
         *self.pet_2_i.borrow_mut() = (i64::from(&*self.pet_2())).try_into()?;
         Ok(self.pet_2_i.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pet_2_i_to_s(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pet_2_i_to_s(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_pet_2_i_to_s.get() {
             return Ok(self.pet_2_i_to_s.borrow());
         }
         self.f_pet_2_i_to_s.set(true);
-        *self.pet_2_i_to_s.borrow_mut() =
-            i64::from(&*self.pet_2()).to_string().to_string();
+        *self.pet_2_i_to_s.borrow_mut() = i64::from(&*self.pet_2()).to_string().to_string();
         Ok(self.pet_2_i_to_s.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pet_2_mod(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pet_2_mod(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_pet_2_mod.get() {
             return Ok(self.pet_2_mod.borrow());
         }
         self.f_pet_2_mod.set(true);
-        *self.pet_2_mod.borrow_mut() = ((i64::from(&*self.pet_2()))
-            .saturating_add(32768_i64))
-        .try_into()?;
+        *self.pet_2_mod.borrow_mut() = ((i64::from(&*self.pet_2())).saturating_add(32768_i64)).try_into()?;
         Ok(self.pet_2_mod.borrow())
     }
 }
@@ -276,13 +251,12 @@ impl From<&EnumToIInvalid_Animal> for i64 {
         match *v {
             EnumToIInvalid_Animal::Dog => 102,
             EnumToIInvalid_Animal::Cat => 124,
-            EnumToIInvalid_Animal::Unknown(v) => v,
+            EnumToIInvalid_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for EnumToIInvalid_Animal {
-    fn default() -> Self {
-        EnumToIInvalid_Animal::Unknown(0)
-    }
+    fn default() -> Self { EnumToIInvalid_Animal::Unknown(0) }
 }
+

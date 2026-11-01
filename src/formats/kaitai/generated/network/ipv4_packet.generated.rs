@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use super::protocol_body::ProtocolBody;
-use super::protocol_body::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use super::protocol_body::ProtocolBody;
+use super::protocol_body::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct Ipv4Packet {
@@ -72,11 +72,7 @@ impl KStruct for Ipv4Packet {
     type Root = Ipv4Packet;
     type Parent = Ipv4Packet;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -108,36 +104,17 @@ impl KStruct for Ipv4Packet {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dst_ip_addr.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_options = _io.read_bytes(usize::try_from(
-            (*self_rc.ihl_bytes()?).saturating_sub(20_i32),
-        )?)?;
+        let _raw_options = _io.read_bytes(usize::try_from((*self_rc.ihl_bytes()?).saturating_sub(20_i32))?)?;
         *self_rc.options_raw.borrow_mut() = _raw_options.clone();
         let _io_options = BytesReader::from(_raw_options);
-        let t = Self::read_into::<BytesReader, Ipv4Packet_Ipv4Options>(
-            &_io_options,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Ipv4Packet_Ipv4Options>(&_io_options, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_body = _io.read_bytes(usize::try_from(
-            (i32::from(*self_rc.total_length()))
-                .saturating_sub(*self_rc.ihl_bytes()?),
-        )?)?;
+        let _raw_body = _io.read_bytes(usize::try_from((i32::from(*self_rc.total_length())).saturating_sub(*self_rc.ihl_bytes()?))?)?;
         *self_rc.body_raw.borrow_mut() = _raw_body.clone();
         let _io_body = BytesReader::from(_raw_body);
-        let f = |t: &mut ProtocolBody| {
-            Ok(t.set_params(
-                (*self_rc.protocol())
-                    .try_into()
-                    .map_err(|_| KError::CastError)?,
-            ))
-        };
-        let t = Self::read_into_with_init::<BytesReader, ProtocolBody>(
-            &_io_body, None, None, &f,
-        )?
-        .into();
+        let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.protocol()).try_into().map_err(|_| KError::CastError)?));
+        let t = Self::read_into_with_init::<BytesReader, ProtocolBody>(&_io_body, None, None, &f)?.into();
         *self_rc.body.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -145,50 +122,40 @@ impl KStruct for Ipv4Packet {
     }
 }
 impl Ipv4Packet {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ihl(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ihl(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ihl.get() {
             return Ok(self.ihl.borrow());
         }
         self.f_ihl.set(true);
-        *self.ihl.borrow_mut() =
-            ((i32::from(*self.b1())) & (15_i32)).try_into()?;
+        *self.ihl.borrow_mut() = (((i32::from(*self.b1())) & (15_i32))).try_into()?;
         Ok(self.ihl.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ihl_bytes(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ihl_bytes(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ihl_bytes.get() {
             return Ok(self.ihl_bytes.borrow());
         }
         self.f_ihl_bytes.set(true);
-        *self.ihl_bytes.borrow_mut() =
-            ((*self.ihl()?).saturating_mul(4_i32)).try_into()?;
+        *self.ihl_bytes.borrow_mut() = ((*self.ihl()?).saturating_mul(4_i32)).try_into()?;
         Ok(self.ihl_bytes.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn version(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn version(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_version.get() {
             return Ok(self.version.borrow());
         }
         self.f_version.set(true);
-        *self.version.borrow_mut() = (((i32::from(*self.b1())) & (240_i32))
-            .wrapping_shr(4_u32))
-        .try_into()?;
+        *self.version.borrow_mut() = ((((i32::from(*self.b1())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.version.borrow())
     }
 }
@@ -337,11 +304,7 @@ impl KStruct for Ipv4Packet_Ipv4Option {
     type Root = Ipv4Packet;
     type Parent = Ipv4Packet_Ipv4Options;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -357,64 +320,47 @@ impl KStruct for Ipv4Packet_Ipv4Option {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
-            if (to_i128(*self_rc.len())) > (to_i128(2)) {
-                (i32::from(*self_rc.len())).saturating_sub(2_i32)
-            } else {
-                0_i32
-            },
-        )?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if ((to_i128(*self_rc.len())) > (to_i128(2))) { (i32::from(*self_rc.len())).saturating_sub(2_i32) } else { 0_i32 })?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Ipv4Packet_Ipv4Option {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn copy(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn copy(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_copy.get() {
             return Ok(self.copy.borrow());
         }
         self.f_copy.set(true);
-        *self.copy.borrow_mut() = (((i32::from(*self.b1())) & (128_i32))
-            .wrapping_shr(7_u32))
-        .try_into()?;
+        *self.copy.borrow_mut() = ((((i32::from(*self.b1())) & (128_i32))).wrapping_shr(7_u32)).try_into()?;
         Ok(self.copy.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn number(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn number(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_number.get() {
             return Ok(self.number.borrow());
         }
         self.f_number.set(true);
-        *self.number.borrow_mut() =
-            ((i32::from(*self.b1())) & (31_i32)).try_into()?;
+        *self.number.borrow_mut() = (((i32::from(*self.b1())) & (31_i32))).try_into()?;
         Ok(self.number.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn opt_class(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn opt_class(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_opt_class.get() {
             return Ok(self.opt_class.borrow());
         }
         self.f_opt_class.set(true);
-        *self.opt_class.borrow_mut() = (((i32::from(*self.b1())) & (96_i32))
-            .wrapping_shr(5_u32))
-        .try_into()?;
+        *self.opt_class.borrow_mut() = ((((i32::from(*self.b1())) & (96_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.opt_class.borrow())
     }
 }
@@ -494,11 +440,7 @@ impl KStruct for Ipv4Packet_Ipv4Options {
     type Root = Ipv4Packet;
     type Parent = Ipv4Packet;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -514,12 +456,7 @@ impl KStruct for Ipv4Packet_Ipv4Options {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Ipv4Packet_Ipv4Option>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Ipv4Packet_Ipv4Option>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -529,7 +466,8 @@ impl KStruct for Ipv4Packet_Ipv4Options {
         Ok(())
     }
 }
-impl Ipv4Packet_Ipv4Options {}
+impl Ipv4Packet_Ipv4Options {
+}
 impl Ipv4Packet_Ipv4Options {
     pub fn entries(&self) -> Ref<'_, Vec<OptRc<Ipv4Packet_Ipv4Option>>> {
         self.entries.borrow()

@@ -108,11 +108,7 @@ impl KStruct for Docstrings {
     type Root = Docstrings;
     type Parent = Docstrings;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,15 +127,14 @@ impl KStruct for Docstrings {
     }
 }
 impl Docstrings {
+
     /**
      * And yet another one for value instance "three"
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn three(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn three(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_three.get() {
             return Ok(self.three.borrow());
@@ -152,12 +147,10 @@ impl Docstrings {
     /**
      * Another description for parse instance "two"
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn two(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn two(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_two.get() {
             return Ok(self.two.borrow());
@@ -227,34 +220,22 @@ impl TryFrom<&&Docstrings_ComplexSubtype> for OptRc<Docstrings_ComplexSubtype> {
     }
 }
 impl DowncastOptRc<Docstrings_ComplexSubtype> for Docstrings_ComplexSubtype {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Docstrings_ComplexSubtype> for &Docstrings_ComplexSubtype {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Docstrings_ComplexSubtype>
-    for OptRc<Docstrings_ComplexSubtype>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+impl DowncastOptRc<Docstrings_ComplexSubtype> for OptRc<Docstrings_ComplexSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Docstrings_ComplexSubtype>
-    for &OptRc<Docstrings_ComplexSubtype>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+impl DowncastOptRc<Docstrings_ComplexSubtype> for &OptRc<Docstrings_ComplexSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
         Ok((*self).clone())
     }
 }
@@ -262,11 +243,7 @@ impl KStruct for Docstrings_ComplexSubtype {
     type Root = Docstrings;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -282,7 +259,8 @@ impl KStruct for Docstrings_ComplexSubtype {
         Ok(())
     }
 }
-impl Docstrings_ComplexSubtype {}
+impl Docstrings_ComplexSubtype {
+}
 impl Docstrings_ComplexSubtype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

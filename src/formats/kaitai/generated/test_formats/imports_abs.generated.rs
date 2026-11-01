@@ -53,10 +53,10 @@ SOFTWARE.
 */
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use crate::generated::common::vlq_base128_le::VlqBase128Le;
-use crate::generated::common::vlq_base128_le::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use crate::generated::common::vlq_base128_le::VlqBase128Le;
+use crate::generated::common::vlq_base128_le::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsAbs {
@@ -104,11 +104,7 @@ impl KStruct for ImportsAbs {
     type Root = ImportsAbs;
     type Parent = ImportsAbs;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,14 +119,14 @@ impl KStruct for ImportsAbs {
         let t = Self::read_into::<_, VlqBase128Le>(&*_io, None, None)?.into();
         *self_rc.len.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ImportsAbs {}
+impl ImportsAbs {
+}
 impl ImportsAbs {
     pub fn len(&self) -> Ref<'_, OptRc<VlqBase128Le>> {
         self.len.borrow()

@@ -57,11 +57,7 @@ impl KStruct for Webp {
     type Root = Webp;
     type Parent = Webp;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -75,40 +71,28 @@ impl KStruct for Webp {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x52u8, 0x49u8, 0x46u8, 0x46u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.webp.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.webp() == vec![0x57u8, 0x45u8, 0x42u8, 0x50u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/2".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_payload = _io.read_bytes(usize::try_from(
-            (*self_rc.len_data()).saturating_sub(u32::try_from(4_i32)?),
-        )?)?;
+        let _raw_payload = _io.read_bytes(usize::try_from((*self_rc.len_data()).saturating_sub(u32::try_from(4_i32)?))?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
-        let t = Self::read_into::<BytesReader, Webp_Chunks>(
-            &_io_payload,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, Webp_Chunks>(&_io_payload, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.payload.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Webp {}
+impl Webp {
+}
 impl Webp {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -195,15 +179,13 @@ impl From<&Webp_ChunkNames> for i64 {
             Webp_ChunkNames::Anim => 1296649793,
             Webp_ChunkNames::Iccp => 1346585417,
             Webp_ChunkNames::Vp8x => 1480085590,
-            Webp_ChunkNames::Unknown(v) => v,
+            Webp_ChunkNames::Unknown(v) => v
         }
     }
 }
 
 impl Default for Webp_ChunkNames {
-    fn default() -> Self {
-        Webp_ChunkNames::Unknown(0)
-    }
+    fn default() -> Self { Webp_ChunkNames::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -229,15 +211,13 @@ impl From<&Webp_CompressionMethod> for i64 {
         match *v {
             Webp_CompressionMethod::None => 0,
             Webp_CompressionMethod::WebpLossless => 1,
-            Webp_CompressionMethod::Unknown(v) => v,
+            Webp_CompressionMethod::Unknown(v) => v
         }
     }
 }
 
 impl Default for Webp_CompressionMethod {
-    fn default() -> Self {
-        Webp_CompressionMethod::Unknown(0)
-    }
+    fn default() -> Self { Webp_CompressionMethod::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -269,15 +249,13 @@ impl From<&Webp_FilteringMethod> for i64 {
             Webp_FilteringMethod::Horizontal => 1,
             Webp_FilteringMethod::Vertical => 2,
             Webp_FilteringMethod::Gradient => 3,
-            Webp_FilteringMethod::Unknown(v) => v,
+            Webp_FilteringMethod::Unknown(v) => v
         }
     }
 }
 
 impl Default for Webp_FilteringMethod {
-    fn default() -> Self {
-        Webp_FilteringMethod::Unknown(0)
-    }
+    fn default() -> Self { Webp_FilteringMethod::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -303,16 +281,15 @@ impl From<&Webp_Preprocessing> for i64 {
         match *v {
             Webp_Preprocessing::None => 0,
             Webp_Preprocessing::LevelReduction => 1,
-            Webp_Preprocessing::Unknown(v) => v,
+            Webp_Preprocessing::Unknown(v) => v
         }
     }
 }
 
 impl Default for Webp_Preprocessing {
-    fn default() -> Self {
-        Webp_Preprocessing::Unknown(0)
-    }
+    fn default() -> Self { Webp_Preprocessing::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Webp_Alph {
@@ -362,11 +339,7 @@ impl KStruct for Webp_Alph {
     type Root = Webp;
     type Parent = Webp_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -381,35 +354,19 @@ impl KStruct for Webp_Alph {
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(2)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.reserved() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/alph/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/alph/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.preprocessing.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.preprocessing.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         if matches!(*self_rc.preprocessing(), Webp_Preprocessing::Unknown(_)) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotInEnum,
-                src_path: "/types/alph/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/alph/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.filtering.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.filtering.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.compression.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes())
-                .try_into()?;
-        if matches!(*self_rc.compression(), Webp_CompressionMethod::Unknown(_))
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotInEnum,
-                src_path: "/types/alph/seq/3".to_string(),
-            }));
+        *self_rc.compression.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
+        if matches!(*self_rc.compression(), Webp_CompressionMethod::Unknown(_)) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/alph/seq/3".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
@@ -419,7 +376,8 @@ impl KStruct for Webp_Alph {
         Ok(())
     }
 }
-impl Webp_Alph {}
+impl Webp_Alph {
+}
 impl Webp_Alph {
     pub fn reserved(&self) -> Ref<'_, u64> {
         self.reserved.borrow()
@@ -506,11 +464,7 @@ impl KStruct for Webp_Anim {
     type Root = Webp;
     type Parent = Webp_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -522,12 +476,7 @@ impl KStruct for Webp_Anim {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Webp_Anim_BgColor>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Webp_Anim_BgColor>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.background_color.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.loop_count.borrow_mut() = _io.read_u2le()?;
@@ -536,7 +485,8 @@ impl KStruct for Webp_Anim {
         Ok(())
     }
 }
-impl Webp_Anim {}
+impl Webp_Anim {
+}
 impl Webp_Anim {
     pub fn background_color(&self) -> Ref<'_, OptRc<Webp_Anim_BgColor>> {
         self.background_color.borrow()
@@ -606,11 +556,7 @@ impl KStruct for Webp_Anim_BgColor {
     type Root = Webp;
     type Parent = Webp_Anim;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -634,7 +580,8 @@ impl KStruct for Webp_Anim_BgColor {
         Ok(())
     }
 }
-impl Webp_Anim_BgColor {}
+impl Webp_Anim_BgColor {
+}
 impl Webp_Anim_BgColor {
     pub fn blue(&self) -> Ref<'_, u8> {
         self.blue.borrow()
@@ -727,11 +674,7 @@ impl KStruct for Webp_Anmf {
     type Root = Webp;
     type Parent = Webp_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -749,18 +692,14 @@ impl KStruct for Webp_Anmf {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_width_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.frame_height_minus_1.borrow_mut() =
-            _io.read_bits_int_le(24)?;
+        *self_rc.frame_height_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.duration.borrow_mut() = _io.read_bits_int_le(24)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(6)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.reserved() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/anmf/seq/5".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/anmf/seq/5".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blending_method.borrow_mut() = _io.read_bits_int_be(1)? != 0;
@@ -775,65 +714,52 @@ impl KStruct for Webp_Anmf {
     }
 }
 impl Webp_Anmf {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn frame_height(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn frame_height(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_frame_height.get() {
             return Ok(self.frame_height.borrow());
         }
         self.f_frame_height.set(true);
-        *self.frame_height.borrow_mut() = ((*self.frame_height_minus_1())
-            .saturating_add(1_u64))
-        .try_into()?;
+        *self.frame_height.borrow_mut() = ((*self.frame_height_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.frame_height.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn frame_width(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn frame_width(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_frame_width.get() {
             return Ok(self.frame_width.borrow());
         }
         self.f_frame_width.set(true);
-        *self.frame_width.borrow_mut() =
-            ((*self.frame_width_minus_1()).saturating_add(1_u64)).try_into()?;
+        *self.frame_width.borrow_mut() = ((*self.frame_width_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.frame_width.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn frame_x(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn frame_x(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_frame_x.get() {
             return Ok(self.frame_x.borrow());
         }
         self.f_frame_x.set(true);
-        *self.frame_x.borrow_mut() =
-            ((*self.frame_x_div_2()).saturating_mul(2_u64)).try_into()?;
+        *self.frame_x.borrow_mut() = ((*self.frame_x_div_2()).saturating_mul(2_u64)).try_into()?;
         Ok(self.frame_x.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn frame_y(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn frame_y(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_frame_y.get() {
             return Ok(self.frame_y.borrow());
         }
         self.f_frame_y.set(true);
-        *self.frame_y.borrow_mut() =
-            ((*self.frame_y_div_2()).saturating_mul(2_u64)).try_into()?;
+        *self.frame_y.borrow_mut() = ((*self.frame_y_div_2()).saturating_mul(2_u64)).try_into()?;
         Ok(self.frame_y.borrow())
     }
 }
@@ -1183,11 +1109,7 @@ impl KStruct for Webp_Chunk {
     type Root = Webp;
     type Parent = Webp_Chunks;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1201,148 +1123,78 @@ impl KStruct for Webp_Chunk {
         let _io = io;
         *self_rc.name.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         if matches!(*self_rc.name(), Webp_ChunkNames::Unknown(_)) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotInEnum,
-                src_path: "/types/chunk/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/chunk/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.name() {
             Webp_ChunkNames::Alph => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Alph>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Alph>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Webp_ChunkNames::Anim => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Anim>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Anim>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Webp_ChunkNames::Anmf => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Anmf>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Anmf>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Webp_ChunkNames::Vp8 => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Vp8>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Vp8>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Webp_ChunkNames::Vp8l => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Vp8l>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Vp8l>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Webp_ChunkNames::Vp8x => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Vp8x>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Vp8x>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Webp_ChunkNames::Xmp => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Xmp>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Xmp>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Webp_ChunkNames::XmpVar => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(*self_rc.len_data())?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, Webp_Xmp>(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Webp_Xmp>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.data.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(*self_rc.len_data())?)?
-                        .into(),
-                );
+                *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(
-            (*self_rc.len_data())
-                .checked_rem(2_u32)
-                .ok_or(KError::CastError)?,
-        )) != (to_i128(0))
-        {
+        if ((to_i128((*self_rc.len_data()).checked_rem(2_u32).ok_or(KError::CastError)?)) != (to_i128(0))) {
             *self_rc.padding.borrow_mut() = _io.read_bytes(1_usize)?;
             if !(*self_rc.padding() == vec![0x0u8]) {
-                return Err(KError::ValidationFailed(ValidationFailedError {
-                    kind: ValidationKind::NotEqual,
-                    src_path: "/types/chunk/seq/3".to_string(),
-                }));
+                return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/chunk/seq/3".to_string() }));
             }
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -1350,7 +1202,8 @@ impl KStruct for Webp_Chunk {
         Ok(())
     }
 }
-impl Webp_Chunk {}
+impl Webp_Chunk {
+}
 impl Webp_Chunk {
     pub fn name(&self) -> Ref<'_, Webp_ChunkNames> {
         self.name.borrow()
@@ -1432,11 +1285,7 @@ impl KStruct for Webp_Chunks {
     type Root = Webp;
     type Parent = Webp;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1452,12 +1301,7 @@ impl KStruct for Webp_Chunks {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Webp_Chunk>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Webp_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.chunks.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -1467,7 +1311,8 @@ impl KStruct for Webp_Chunks {
         Ok(())
     }
 }
-impl Webp_Chunks {}
+impl Webp_Chunks {
+}
 impl Webp_Chunks {
     pub fn chunks(&self) -> Ref<'_, Vec<OptRc<Webp_Chunk>>> {
         self.chunks.borrow()
@@ -1542,11 +1387,7 @@ impl KStruct for Webp_Vp8 {
     type Root = Webp;
     type Parent = Webp_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1560,19 +1401,13 @@ impl KStruct for Webp_Vp8 {
         let _io = io;
         *self_rc.frame_type.borrow_mut() = _io.read_bits_int_le(1)? != 0;
         if !(*self_rc.frame_type() == false) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/vp8/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bits_int_le(3)?;
         let max_val: u64 = (3).try_into()?;
         if !(*self_rc.version() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::GreaterThan,
-                src_path: "/types/vp8/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/vp8/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.show_frame.borrow_mut() = _io.read_bits_int_le(1)? != 0;
@@ -1582,10 +1417,7 @@ impl KStruct for Webp_Vp8 {
         io.align_to_byte()?;
         *self_rc.start_code.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.start_code() == vec![0x9du8, 0x1u8, 0x2au8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/vp8/seq/4".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8/seq/4".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_bits_int_le(14)?;
@@ -1603,7 +1435,8 @@ impl KStruct for Webp_Vp8 {
         Ok(())
     }
 }
-impl Webp_Vp8 {}
+impl Webp_Vp8 {
+}
 impl Webp_Vp8 {
     pub fn frame_type(&self) -> Ref<'_, bool> {
         self.frame_type.borrow()
@@ -1723,11 +1556,7 @@ impl KStruct for Webp_Vp8l {
     type Root = Webp;
     type Parent = Webp_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1742,26 +1571,19 @@ impl KStruct for Webp_Vp8l {
         *self_rc.signature.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (47).try_into()?;
         if !(*self_rc.signature() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/vp8l/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8l/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_width_minus_1.borrow_mut() = _io.read_bits_int_le(14)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.image_height_minus_1.borrow_mut() =
-            _io.read_bits_int_le(14)?;
+        *self_rc.image_height_minus_1.borrow_mut() = _io.read_bits_int_le(14)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.alpha_is_used.borrow_mut() = _io.read_bits_int_le(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_number.borrow_mut() = _io.read_bits_int_le(3)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.version_number() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/vp8l/seq/4".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8l/seq/4".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
@@ -1772,35 +1594,28 @@ impl KStruct for Webp_Vp8l {
     }
 }
 impl Webp_Vp8l {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn image_height(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn image_height(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_image_height.get() {
             return Ok(self.image_height.borrow());
         }
         self.f_image_height.set(true);
-        *self.image_height.borrow_mut() = ((*self.image_height_minus_1())
-            .saturating_add(1_u64))
-        .try_into()?;
+        *self.image_height.borrow_mut() = ((*self.image_height_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.image_height.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn image_width(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn image_width(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_image_width.get() {
             return Ok(self.image_width.borrow());
         }
         self.f_image_width.set(true);
-        *self.image_width.borrow_mut() =
-            ((*self.image_width_minus_1()).saturating_add(1_u64)).try_into()?;
+        *self.image_width.borrow_mut() = ((*self.image_width_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.image_width.borrow())
     }
 }
@@ -1908,11 +1723,7 @@ impl KStruct for Webp_Vp8x {
     type Root = Webp;
     type Parent = Webp_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1927,10 +1738,7 @@ impl KStruct for Webp_Vp8x {
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(2)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.reserved1() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/vp8x/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8x/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.icc_profile.borrow_mut() = _io.read_bits_int_be(1)? != 0;
@@ -1945,36 +1753,21 @@ impl KStruct for Webp_Vp8x {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         if !(*self_rc.reserved2() == false) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/vp8x/seq/6".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8x/seq/6".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved3.borrow_mut() = _io.read_bits_int_be(24)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.reserved3() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/vp8x/seq/7".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8x/seq/7".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.canvas_width_minus_1.borrow_mut() =
-            _io.read_bits_int_le(24)?;
+        *self_rc.canvas_width_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.canvas_height_minus_1.borrow_mut() =
-            _io.read_bits_int_le(24)?;
-        let max_val: u64 = (((4294967295_u64)
-            .checked_div(*self_rc.canvas_width()?)
-            .ok_or(KError::CastError)?)
-        .saturating_sub(1_u64))
-        .try_into()?;
+        *self_rc.canvas_height_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
+        let max_val: u64 = (((4294967295_u64).checked_div(*self_rc.canvas_width()?).ok_or(KError::CastError)?).saturating_sub(1_u64)).try_into()?;
         if !(*self_rc.canvas_height_minus_1() <= max_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::GreaterThan,
-                src_path: "/types/vp8x/seq/9".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/vp8x/seq/9".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -1982,36 +1775,28 @@ impl KStruct for Webp_Vp8x {
     }
 }
 impl Webp_Vp8x {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn canvas_height(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn canvas_height(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_canvas_height.get() {
             return Ok(self.canvas_height.borrow());
         }
         self.f_canvas_height.set(true);
-        *self.canvas_height.borrow_mut() = ((*self.canvas_height_minus_1())
-            .saturating_add(1_u64))
-        .try_into()?;
+        *self.canvas_height.borrow_mut() = ((*self.canvas_height_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.canvas_height.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn canvas_width(&self) -> KResult<Ref<'_, u64>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn canvas_width(
+        &self
+    ) -> KResult<Ref<'_, u64>> {
         let _io = self._io.borrow();
         if self.f_canvas_width.get() {
             return Ok(self.canvas_width.borrow());
         }
         self.f_canvas_width.set(true);
-        *self.canvas_width.borrow_mut() = ((*self.canvas_width_minus_1())
-            .saturating_add(1_u64))
-        .try_into()?;
+        *self.canvas_width.borrow_mut() = ((*self.canvas_width_minus_1()).saturating_add(1_u64)).try_into()?;
         Ok(self.canvas_width.borrow())
     }
 }
@@ -2121,11 +1906,7 @@ impl KStruct for Webp_Xmp {
     type Root = Webp;
     type Parent = Webp_Chunk;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2137,14 +1918,14 @@ impl KStruct for Webp_Xmp {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Webp_Xmp {}
+impl Webp_Xmp {
+}
 impl Webp_Xmp {
     pub fn data(&self) -> Ref<'_, String> {
         self.data.borrow()

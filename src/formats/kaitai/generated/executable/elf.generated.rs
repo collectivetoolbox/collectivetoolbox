@@ -75,11 +75,7 @@ impl KStruct for Elf {
     type Root = Elf;
     type Parent = Elf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -93,10 +89,7 @@ impl KStruct for Elf {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x7fu8, 0x45u8, 0x4cu8, 0x46u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
@@ -106,10 +99,7 @@ impl KStruct for Elf {
         *self_rc.ei_version.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (1).try_into()?;
         if !(*self_rc.ei_version() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/3".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.abi.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
@@ -117,21 +107,11 @@ impl KStruct for Elf {
         *self_rc.abi_version.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pad.borrow_mut() = _io.read_bytes(7_usize)?;
-        if !(*self_rc.pad()
-            == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/6".to_string(),
-            }));
+        if !(*self_rc.pad() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/6".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Elf_EndianElf>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Elf_EndianElf>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -139,12 +119,10 @@ impl KStruct for Elf {
     }
 }
 impl Elf {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sh_idx_hi_os(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sh_idx_hi_os(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sh_idx_hi_os.get() {
             return Ok(self.sh_idx_hi_os.borrow());
@@ -153,12 +131,10 @@ impl Elf {
         *self.sh_idx_hi_os.borrow_mut() = (65343).try_into()?;
         Ok(self.sh_idx_hi_os.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sh_idx_hi_proc(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sh_idx_hi_proc(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sh_idx_hi_proc.get() {
             return Ok(self.sh_idx_hi_proc.borrow());
@@ -167,12 +143,10 @@ impl Elf {
         *self.sh_idx_hi_proc.borrow_mut() = (65311).try_into()?;
         Ok(self.sh_idx_hi_proc.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sh_idx_hi_reserved(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sh_idx_hi_reserved(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sh_idx_hi_reserved.get() {
             return Ok(self.sh_idx_hi_reserved.borrow());
@@ -181,12 +155,10 @@ impl Elf {
         *self.sh_idx_hi_reserved.borrow_mut() = (65535).try_into()?;
         Ok(self.sh_idx_hi_reserved.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sh_idx_lo_os(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sh_idx_lo_os(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sh_idx_lo_os.get() {
             return Ok(self.sh_idx_lo_os.borrow());
@@ -195,12 +167,10 @@ impl Elf {
         *self.sh_idx_lo_os.borrow_mut() = (65312).try_into()?;
         Ok(self.sh_idx_lo_os.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sh_idx_lo_proc(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sh_idx_lo_proc(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sh_idx_lo_proc.get() {
             return Ok(self.sh_idx_lo_proc.borrow());
@@ -209,12 +179,10 @@ impl Elf {
         *self.sh_idx_lo_proc.borrow_mut() = (65280).try_into()?;
         Ok(self.sh_idx_lo_proc.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sh_idx_lo_reserved(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sh_idx_lo_reserved(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sh_idx_lo_reserved.get() {
             return Ok(self.sh_idx_lo_reserved.borrow());
@@ -331,19 +299,18 @@ impl From<&Elf_Bits> for i64 {
         match *v {
             Elf_Bits::B32 => 1,
             Elf_Bits::B64 => 2,
-            Elf_Bits::Unknown(v) => v,
+            Elf_Bits::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_Bits {
-    fn default() -> Self {
-        Elf_Bits::Unknown(0)
-    }
+    fn default() -> Self { Elf_Bits::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_DynamicArrayTags {
+
     /**
      * Marks end of dynamic section
      */
@@ -710,15 +677,13 @@ impl From<&Elf_DynamicArrayTags> for i64 {
             Elf_DynamicArrayTags::Auxiliary => 2147483645,
             Elf_DynamicArrayTags::Used => 2147483646,
             Elf_DynamicArrayTags::Filter => 2147483647,
-            Elf_DynamicArrayTags::Unknown(v) => v,
+            Elf_DynamicArrayTags::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_DynamicArrayTags {
-    fn default() -> Self {
-        Elf_DynamicArrayTags::Unknown(0)
-    }
+    fn default() -> Self { Elf_DynamicArrayTags::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -744,19 +709,18 @@ impl From<&Elf_Endian> for i64 {
         match *v {
             Elf_Endian::Le => 1,
             Elf_Endian::Be => 2,
-            Elf_Endian::Unknown(v) => v,
+            Elf_Endian::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_Endian {
-    fn default() -> Self {
-        Elf_Endian::Unknown(0)
-    }
+    fn default() -> Self { Elf_Endian::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_Machine {
+
     /**
      * No machine
      */
@@ -2477,15 +2441,13 @@ impl From<&Elf_Machine> for i64 {
             Elf_Machine::Iq2000 => 65210,
             Elf_Machine::Nios32 => 65211,
             Elf_Machine::MoxieOld => 65261,
-            Elf_Machine::Unknown(v) => v,
+            Elf_Machine::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_Machine {
-    fn default() -> Self {
-        Elf_Machine::Unknown(0)
-    }
+    fn default() -> Self { Elf_Machine::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -2520,19 +2482,18 @@ impl From<&Elf_ObjType> for i64 {
             Elf_ObjType::Executable => 2,
             Elf_ObjType::Shared => 3,
             Elf_ObjType::Core => 4,
-            Elf_ObjType::Unknown(v) => v,
+            Elf_ObjType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_ObjType {
-    fn default() -> Self {
-        Elf_ObjType::Unknown(0)
-    }
+    fn default() -> Self { Elf_ObjType::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_OsAbi {
+
     /**
      * UNIX System V ABI
      */
@@ -2713,19 +2674,18 @@ impl From<&Elf_OsAbi> for i64 {
             Elf_OsAbi::AmdgpuMesa3d => 66,
             Elf_OsAbi::Arm => 97,
             Elf_OsAbi::Standalone => 255,
-            Elf_OsAbi::Unknown(v) => v,
+            Elf_OsAbi::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_OsAbi {
-    fn default() -> Self {
-        Elf_OsAbi::Unknown(0)
-    }
+    fn default() -> Self { Elf_OsAbi::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_PhType {
+
     /**
      * Program header table entry unused
      */
@@ -2968,15 +2928,13 @@ impl From<&Elf_PhType> for i64 {
             Elf_PhType::ArmExidx => 1879048193,
             Elf_PhType::Aarch64MemtagMte => 1879048194,
             Elf_PhType::RiscvAttributes => 1879048195,
-            Elf_PhType::Unknown(v) => v,
+            Elf_PhType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_PhType {
-    fn default() -> Self {
-        Elf_PhType::Unknown(0)
-    }
+    fn default() -> Self { Elf_PhType::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -3020,19 +2978,18 @@ impl From<&Elf_SectionHeaderIdxSpecial> for i64 {
             Elf_SectionHeaderIdxSpecial::Abs => 65521,
             Elf_SectionHeaderIdxSpecial::Common => 65522,
             Elf_SectionHeaderIdxSpecial::Xindex => 65535,
-            Elf_SectionHeaderIdxSpecial::Unknown(v) => v,
+            Elf_SectionHeaderIdxSpecial::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_SectionHeaderIdxSpecial {
-    fn default() -> Self {
-        Elf_SectionHeaderIdxSpecial::Unknown(0)
-    }
+    fn default() -> Self { Elf_SectionHeaderIdxSpecial::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_ShType {
+
     /**
      * Section header table entry unused
      */
@@ -3464,19 +3421,18 @@ impl From<&Elf_ShType> for i64 {
             Elf_ShType::ArmOverlaysection => 1879048197,
             Elf_ShType::Aarch64MemtagGlobalsStatic => 1879048199,
             Elf_ShType::Aarch64MemtagGlobalsDynamic => 1879048200,
-            Elf_ShType::Unknown(v) => v,
+            Elf_ShType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_ShType {
-    fn default() -> Self {
-        Elf_ShType::Unknown(0)
-    }
+    fn default() -> Self { Elf_ShType::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_SymbolBinding {
+
     /**
      * not visible outside the object file containing their definition
      */
@@ -3557,15 +3513,13 @@ impl From<&Elf_SymbolBinding> for i64 {
             Elf_SymbolBinding::Proc13 => 13,
             Elf_SymbolBinding::Proc14 => 14,
             Elf_SymbolBinding::Proc15 => 15,
-            Elf_SymbolBinding::Unknown(v) => v,
+            Elf_SymbolBinding::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_SymbolBinding {
-    fn default() -> Self {
-        Elf_SymbolBinding::Unknown(0)
-    }
+    fn default() -> Self { Elf_SymbolBinding::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -3690,15 +3644,13 @@ impl From<&Elf_SymbolType> for i64 {
             Elf_SymbolType::Proc13 => 13,
             Elf_SymbolType::Proc14 => 14,
             Elf_SymbolType::Proc15 => 15,
-            Elf_SymbolType::Unknown(v) => v,
+            Elf_SymbolType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_SymbolType {
-    fn default() -> Self {
-        Elf_SymbolType::Unknown(0)
-    }
+    fn default() -> Self { Elf_SymbolType::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -3739,19 +3691,18 @@ impl From<&Elf_SymbolVisibility> for i64 {
             Elf_SymbolVisibility::Exported => 4,
             Elf_SymbolVisibility::Singleton => 5,
             Elf_SymbolVisibility::Eliminate => 6,
-            Elf_SymbolVisibility::Unknown(v) => v,
+            Elf_SymbolVisibility::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_SymbolVisibility {
-    fn default() -> Self {
-        Elf_SymbolVisibility::Unknown(0)
-    }
+    fn default() -> Self { Elf_SymbolVisibility::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_VersionIndexSpecial {
+
     /**
      * The symbol is local, not available outside the object.
      */
@@ -3796,16 +3747,15 @@ impl From<&Elf_VersionIndexSpecial> for i64 {
             Elf_VersionIndexSpecial::Local => 0,
             Elf_VersionIndexSpecial::GlobalSymbol => 1,
             Elf_VersionIndexSpecial::Eliminate => 65281,
-            Elf_VersionIndexSpecial::Unknown(v) => v,
+            Elf_VersionIndexSpecial::Unknown(v) => v
         }
     }
 }
 
 impl Default for Elf_VersionIndexSpecial {
-    fn default() -> Self {
-        Elf_VersionIndexSpecial::Unknown(0)
-    }
+    fn default() -> Self { Elf_VersionIndexSpecial::Unknown(0) }
 }
+
 
 /**
  * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L1008> Source
@@ -3918,11 +3868,7 @@ impl KStruct for Elf_DtFlag1Values {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3949,260 +3895,209 @@ impl Elf_DtFlag1Values {
     }
 }
 impl Elf_DtFlag1Values {
+
     /**
      * Configuration alternative created.
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L1023> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn conf_alt(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn conf_alt(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_conf_alt.get() {
             return Ok(self.conf_alt.borrow());
         }
         self.f_conf_alt.set(true);
-        *self.conf_alt.borrow_mut() = ((to_i128((*self.value()) & (8192_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.conf_alt.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.conf_alt.borrow())
     }
 
     /**
      * Direct binding enabled.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn direct(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn direct(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_direct.get() {
             return Ok(self.direct.borrow());
         }
         self.f_direct.set(true);
-        *self.direct.borrow_mut() = ((to_i128((*self.value()) & (256_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.direct.borrow_mut() = (((to_i128(((*self.value()) & (256_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.direct.borrow())
     }
 
     /**
      * Displacement relocation done (applied at build time).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn disp_rel_dne(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn disp_rel_dne(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_disp_rel_dne.get() {
             return Ok(self.disp_rel_dne.borrow());
         }
         self.f_disp_rel_dne.set(true);
-        *self.disp_rel_dne.borrow_mut() =
-            ((to_i128((*self.value()) & (32768_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.disp_rel_dne.borrow_mut() = (((to_i128(((*self.value()) & (32768_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.disp_rel_dne.borrow())
     }
 
     /**
      * Displacement relocation pending (applied at runtime).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn disp_rel_pnd(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn disp_rel_pnd(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_disp_rel_pnd.get() {
             return Ok(self.disp_rel_pnd.borrow());
         }
         self.f_disp_rel_pnd.set(true);
-        *self.disp_rel_pnd.borrow_mut() =
-            ((to_i128((*self.value()) & (65536_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.disp_rel_pnd.borrow_mut() = (((to_i128(((*self.value()) & (65536_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.disp_rel_pnd.borrow())
     }
 
     /**
      * Object is modified after built.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn edited(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn edited(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_edited.get() {
             return Ok(self.edited.borrow());
         }
         self.f_edited.set(true);
-        *self.edited.borrow_mut() =
-            ((to_i128((*self.value()) & (2097152_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.edited.borrow_mut() = (((to_i128(((*self.value()) & (2097152_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.edited.borrow())
     }
 
     /**
      * Filtee terminates filters search.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn end_filtee(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn end_filtee(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_end_filtee.get() {
             return Ok(self.end_filtee.borrow());
         }
         self.f_end_filtee.set(true);
-        *self.end_filtee.borrow_mut() =
-            ((to_i128((*self.value()) & (16384_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.end_filtee.borrow_mut() = (((to_i128(((*self.value()) & (16384_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.end_filtee.borrow())
     }
 
     /**
      * Global auditing required.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn glob_audit(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn glob_audit(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_glob_audit.get() {
             return Ok(self.glob_audit.borrow());
         }
         self.f_glob_audit.set(true);
-        *self.glob_audit.borrow_mut() =
-            ((to_i128((*self.value()) & (16777216_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.glob_audit.borrow_mut() = (((to_i128(((*self.value()) & (16777216_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.glob_audit.borrow())
     }
 
     /**
      * Set `RTLD_GROUP` for this object.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn group(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn group(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_group.get() {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = ((to_i128((*self.value()) & (4_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.group.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.group.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ign_mul_def(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ign_mul_def(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_ign_mul_def.get() {
             return Ok(self.ign_mul_def.borrow());
         }
         self.f_ign_mul_def.set(true);
-        *self.ign_mul_def.borrow_mut() =
-            ((to_i128((*self.value()) & (262144_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.ign_mul_def.borrow_mut() = (((to_i128(((*self.value()) & (262144_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.ign_mul_def.borrow())
     }
 
     /**
      * Set `RTLD_INITFIRST` for this object.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn init_first(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn init_first(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_init_first.get() {
             return Ok(self.init_first.borrow());
         }
         self.f_init_first.set(true);
-        *self.init_first.borrow_mut() = ((to_i128((*self.value()) & (32_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.init_first.borrow_mut() = (((to_i128(((*self.value()) & (32_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.init_first.borrow())
     }
 
     /**
      * Object is used to interpose.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn interpose(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn interpose(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_interpose.get() {
             return Ok(self.interpose.borrow());
         }
         self.f_interpose.set(true);
-        *self.interpose.borrow_mut() =
-            ((to_i128((*self.value()) & (1024_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.interpose.borrow_mut() = (((to_i128(((*self.value()) & (1024_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.interpose.borrow())
     }
 
     /**
      * Object is a kernel module.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn kmod(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn kmod(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_kmod.get() {
             return Ok(self.kmod.borrow());
         }
         self.f_kmod.set(true);
-        *self.kmod.borrow_mut() =
-            ((to_i128((*self.value()) & (268435456_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.kmod.borrow_mut() = (((to_i128(((*self.value()) & (268435456_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.kmod.borrow())
     }
 
     /**
      * Trigger filtee loading at runtime.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn load_fltr(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn load_fltr(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_load_fltr.get() {
             return Ok(self.load_fltr.borrow());
         }
         self.f_load_fltr.set(true);
-        *self.load_fltr.borrow_mut() = ((to_i128((*self.value()) & (16_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.load_fltr.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.load_fltr.borrow())
     }
 
@@ -4210,268 +4105,212 @@ impl Elf_DtFlag1Values {
      * No COMMON symbols exist.
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L1040> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_common(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_common(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_common.get() {
             return Ok(self.no_common.borrow());
         }
         self.f_no_common.set(true);
-        *self.no_common.borrow_mut() =
-            ((to_i128((*self.value()) & (1073741824_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.no_common.borrow_mut() = (((to_i128(((*self.value()) & (1073741824_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_common.borrow())
     }
 
     /**
      * Ignore the default library search path.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_def_lib(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_def_lib(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_def_lib.get() {
             return Ok(self.no_def_lib.borrow());
         }
         self.f_no_def_lib.set(true);
-        *self.no_def_lib.borrow_mut() =
-            ((to_i128((*self.value()) & (2048_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.no_def_lib.borrow_mut() = (((to_i128(((*self.value()) & (2048_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_def_lib.borrow())
     }
 
     /**
      * Set `RTLD_NODELETE` for this object.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_delete(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_delete(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_delete.get() {
             return Ok(self.no_delete.borrow());
         }
         self.f_no_delete.set(true);
-        *self.no_delete.borrow_mut() = ((to_i128((*self.value()) & (8_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.no_delete.borrow_mut() = (((to_i128(((*self.value()) & (8_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_delete.borrow())
     }
 
     /**
      * Object contains non-direct bindings.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_direct(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_direct(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_direct.get() {
             return Ok(self.no_direct.borrow());
         }
         self.f_no_direct.set(true);
-        *self.no_direct.borrow_mut() =
-            ((to_i128((*self.value()) & (131072_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.no_direct.borrow_mut() = (((to_i128(((*self.value()) & (131072_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_direct.borrow())
     }
 
     /**
      * Object can't be dldump'ed.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_dump(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_dump(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_dump.get() {
             return Ok(self.no_dump.borrow());
         }
         self.f_no_dump.set(true);
-        *self.no_dump.borrow_mut() = ((to_i128((*self.value()) & (4096_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.no_dump.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_dump.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_hdr(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_hdr(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_hdr.get() {
             return Ok(self.no_hdr.borrow());
         }
         self.f_no_hdr.set(true);
-        *self.no_hdr.borrow_mut() =
-            ((to_i128((*self.value()) & (1048576_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.no_hdr.borrow_mut() = (((to_i128(((*self.value()) & (1048576_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_hdr.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_ksyms(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_ksyms(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_ksyms.get() {
             return Ok(self.no_ksyms.borrow());
         }
         self.f_no_ksyms.set(true);
-        *self.no_ksyms.borrow_mut() =
-            ((to_i128((*self.value()) & (524288_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.no_ksyms.borrow_mut() = (((to_i128(((*self.value()) & (524288_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_ksyms.borrow())
     }
 
     /**
      * Set `RTLD_NOOPEN` for this object.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_open(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_open(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_open.get() {
             return Ok(self.no_open.borrow());
         }
         self.f_no_open.set(true);
-        *self.no_open.borrow_mut() = ((to_i128((*self.value()) & (64_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.no_open.borrow_mut() = (((to_i128(((*self.value()) & (64_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_open.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn no_reloc(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn no_reloc(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_no_reloc.get() {
             return Ok(self.no_reloc.borrow());
         }
         self.f_no_reloc.set(true);
-        *self.no_reloc.borrow_mut() =
-            ((to_i128((*self.value()) & (4194304_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.no_reloc.borrow_mut() = (((to_i128(((*self.value()) & (4194304_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_reloc.borrow())
     }
 
     /**
      * Set `RTLD_NOW` for this object.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn now(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn now(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_now.get() {
             return Ok(self.now.borrow());
         }
         self.f_now.set(true);
-        *self.now.borrow_mut() = ((to_i128((*self.value()) & (1_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.now.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.now.borrow())
     }
 
     /**
      * `$ORIGIN` must be handled.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn origin(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn origin(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_origin.get() {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = ((to_i128((*self.value()) & (128_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.origin.borrow_mut() = (((to_i128(((*self.value()) & (128_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.origin.borrow())
     }
 
     /**
      * Object is a Position Independent Executable (PIE).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn pie(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn pie(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_pie.get() {
             return Ok(self.pie.borrow());
         }
         self.f_pie.set(true);
-        *self.pie.borrow_mut() = ((to_i128((*self.value()) & (134217728_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.pie.borrow_mut() = (((to_i128(((*self.value()) & (134217728_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.pie.borrow())
     }
 
     /**
      * Set `RTLD_GLOBAL` for this object.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn rtld_global(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn rtld_global(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_rtld_global.get() {
             return Ok(self.rtld_global.borrow());
         }
         self.f_rtld_global.set(true);
-        *self.rtld_global.borrow_mut() = ((to_i128((*self.value()) & (2_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.rtld_global.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.rtld_global.borrow())
     }
 
     /**
      * Singleton symbols are used.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn singleton(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn singleton(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_singleton.get() {
             return Ok(self.singleton.borrow());
         }
         self.f_singleton.set(true);
-        *self.singleton.borrow_mut() =
-            ((to_i128((*self.value()) & (33554432_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.singleton.borrow_mut() = (((to_i128(((*self.value()) & (33554432_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.singleton.borrow())
     }
 
@@ -4479,80 +4318,64 @@ impl Elf_DtFlag1Values {
      * Object is a stub.
      * See [Stub Objects](https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/stub-objects.html).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn stub(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn stub(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_stub.get() {
             return Ok(self.stub.borrow());
         }
         self.f_stub.set(true);
-        *self.stub.borrow_mut() = ((to_i128((*self.value()) & (67108864_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.stub.borrow_mut() = (((to_i128(((*self.value()) & (67108864_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.stub.borrow())
     }
 
     /**
      * Object has individual symbol interposers.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sym_intpose(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sym_intpose(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_sym_intpose.get() {
             return Ok(self.sym_intpose.borrow());
         }
         self.f_sym_intpose.set(true);
-        *self.sym_intpose.borrow_mut() =
-            ((to_i128((*self.value()) & (8388608_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.sym_intpose.borrow_mut() = (((to_i128(((*self.value()) & (8388608_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.sym_intpose.borrow())
     }
 
     /**
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L1019> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn trans(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn trans(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_trans.get() {
             return Ok(self.trans.borrow());
         }
         self.f_trans.set(true);
-        *self.trans.borrow_mut() = ((to_i128((*self.value()) & (512_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.trans.borrow_mut() = (((to_i128(((*self.value()) & (512_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.trans.borrow())
     }
 
     /**
      * Object is a weak standard filter.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn weak_filter(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn weak_filter(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_weak_filter.get() {
             return Ok(self.weak_filter.borrow());
         }
         self.f_weak_filter.set(true);
-        *self.weak_filter.borrow_mut() =
-            ((to_i128((*self.value()) & (536870912_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.weak_filter.borrow_mut() = (((to_i128(((*self.value()) & (536870912_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.weak_filter.borrow())
     }
 }
@@ -4628,11 +4451,7 @@ impl KStruct for Elf_DtFlagValues {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4659,104 +4478,85 @@ impl Elf_DtFlagValues {
     }
 }
 impl Elf_DtFlagValues {
+
     /**
      * all relocations for this object must be processed before returning
      * control to the program
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn bind_now(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn bind_now(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_bind_now.get() {
             return Ok(self.bind_now.borrow());
         }
         self.f_bind_now.set(true);
-        *self.bind_now.borrow_mut() = ((to_i128((*self.value()) & (8_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.bind_now.borrow_mut() = (((to_i128(((*self.value()) & (8_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.bind_now.borrow())
     }
 
     /**
      * object may reference the $ORIGIN substitution string
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn origin(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn origin(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_origin.get() {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = ((to_i128((*self.value()) & (1_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.origin.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.origin.borrow())
     }
 
     /**
      * object uses static thread-local storage scheme
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn static_tls(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn static_tls(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_static_tls.get() {
             return Ok(self.static_tls.borrow());
         }
         self.f_static_tls.set(true);
-        *self.static_tls.borrow_mut() = ((to_i128((*self.value()) & (16_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.static_tls.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.static_tls.borrow())
     }
 
     /**
      * symbolic linking
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn symbolic(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn symbolic(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_symbolic.get() {
             return Ok(self.symbolic.borrow());
         }
         self.f_symbolic.set(true);
-        *self.symbolic.borrow_mut() = ((to_i128((*self.value()) & (2_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.symbolic.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.symbolic.borrow())
     }
 
     /**
      * relocation entries might request modifications to a non-writable segment
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn textrel(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn textrel(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_textrel.get() {
             return Ok(self.textrel.borrow());
         }
         self.f_textrel.set(true);
-        *self.textrel.borrow_mut() = ((to_i128((*self.value()) & (4_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.textrel.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.textrel.borrow())
     }
 }
@@ -4825,10 +4625,7 @@ impl From<u64> for Elf_EndianElf_EntryPoint {
 }
 impl TryFrom<&Elf_EndianElf_EntryPoint> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Elf_EndianElf_EntryPoint) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_EntryPoint::U4(v) => Ok(i64::try_from(*v)?),
@@ -4838,10 +4635,7 @@ impl TryFrom<&Elf_EndianElf_EntryPoint> for i64 {
 }
 impl TryFrom<&Elf_EndianElf_EntryPoint> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Elf_EndianElf_EntryPoint) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_EntryPoint::U4(v) => Ok(u32::try_from(*v)?),
@@ -4851,10 +4645,7 @@ impl TryFrom<&Elf_EndianElf_EntryPoint> for u32 {
 }
 impl TryFrom<&Elf_EndianElf_EntryPoint> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &Elf_EndianElf_EntryPoint) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_EntryPoint::U4(v) => Ok(u64::try_from(*v)?),
@@ -4889,13 +4680,8 @@ impl From<u64> for Elf_EndianElf_OfsProgramHeaders {
 }
 impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_OfsProgramHeaders,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(i64::try_from(*v)?),
             Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(i64::try_from(*v)?),
@@ -4904,13 +4690,8 @@ impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for i64 {
 }
 impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_OfsProgramHeaders,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(u32::try_from(*v)?),
             Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(u32::try_from(*v)?),
@@ -4919,13 +4700,8 @@ impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for u32 {
 }
 impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_OfsProgramHeaders,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(u64::try_from(*v)?),
             Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(u64::try_from(*v)?),
@@ -4934,9 +4710,7 @@ impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for u64 {
 }
 impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_OfsProgramHeaders,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(usize::try_from(*v)?),
             Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(usize::try_from(*v)?),
@@ -4961,13 +4735,8 @@ impl From<u64> for Elf_EndianElf_OfsSectionHeaders {
 }
 impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_OfsSectionHeaders,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(i64::try_from(*v)?),
             Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(i64::try_from(*v)?),
@@ -4976,13 +4745,8 @@ impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for i64 {
 }
 impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_OfsSectionHeaders,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(u32::try_from(*v)?),
             Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(u32::try_from(*v)?),
@@ -4991,13 +4755,8 @@ impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for u32 {
 }
 impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_OfsSectionHeaders,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(u64::try_from(*v)?),
             Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(u64::try_from(*v)?),
@@ -5006,9 +4765,7 @@ impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for u64 {
 }
 impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_OfsSectionHeaders,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(usize::try_from(*v)?),
             Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(usize::try_from(*v)?),
@@ -5052,11 +4809,7 @@ impl KStruct for Elf_EndianElf {
     type Root = Elf;
     type Parent = Elf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5068,15 +4821,7 @@ impl KStruct for Elf_EndianElf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .endian()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.endian() {
             Elf_Endian::Le => {
                 *self_rc._is_le.borrow_mut() = 1_i32;
             }
@@ -5086,164 +4831,60 @@ impl KStruct for Elf_EndianElf {
             _ => {}
         }
         if *self_rc._is_le.borrow() == 0 {
-            return Err(KError::UndecidedEndianness {
-                src_path: "/types/endian_elf".to_string(),
-            });
+            return Err(KError::UndecidedEndianness { src_path: "/types/endian_elf".to_string() });
         }
         *self_rc.e_type.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.machine.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
         if matches!(*self_rc.machine(), Elf_Machine::Unknown(_)) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotInEnum,
-                src_path: "/types/endian_elf/seq/1".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/endian_elf/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.e_version.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.e_version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.entry_point.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.entry_point.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.entry_point.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.entry_point.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.ofs_program_headers.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_program_headers.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.ofs_program_headers.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_program_headers.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.ofs_section_headers.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_section_headers.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.ofs_section_headers.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_section_headers.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.e_ehsize.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.e_ehsize.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.program_header_size.borrow_mut() =
-            if *self_rc._is_le.borrow() == 1 {
-                _io.read_u2le()?
-            } else {
-                _io.read_u2be()?
-            };
+        *self_rc.program_header_size.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.num_program_headers.borrow_mut() =
-            if *self_rc._is_le.borrow() == 1 {
-                _io.read_u2le()?
-            } else {
-                _io.read_u2be()?
-            };
+        *self_rc.num_program_headers.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.section_header_size.borrow_mut() =
-            if *self_rc._is_le.borrow() == 1 {
-                _io.read_u2le()?
-            } else {
-                _io.read_u2be()?
-            };
+        *self_rc.section_header_size.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.num_section_headers.borrow_mut() =
-            if *self_rc._is_le.borrow() == 1 {
-                _io.read_u2le()?
-            } else {
-                _io.read_u2be()?
-            };
+        *self_rc.num_section_headers.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.section_names_idx.borrow_mut() =
-            if *self_rc._is_le.borrow() == 1 {
-                _io.read_u2le()?
-            } else {
-                _io.read_u2be()?
-            };
+        *self_rc.section_names_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -5255,13 +4896,9 @@ impl Elf_EndianElf {
     }
 }
 impl Elf_EndianElf {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn program_headers(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Vec<OptRc<Elf_EndianElf_ProgramHeader>>>> {
         let _io = self._io.borrow();
         if self.f_program_headers.get() {
@@ -5274,42 +4911,19 @@ impl Elf_EndianElf {
         *self.program_headers.borrow_mut() = Vec::new();
         let l_program_headers = usize::from(*self.num_program_headers());
         for _i in 0_usize..l_program_headers {
-            self.program_headers_raw.borrow_mut().push(
-                _io.read_bytes(usize::from(*self.program_header_size()))?
-                    .into(),
-            );
+            self.program_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.program_header_size()))?.into());
             let program_headers_raw = self.program_headers_raw.borrow();
-            let _io_program_headers_raw = BytesReader::from(
-                program_headers_raw
-                    .last()
-                    .ok_or(KError::EmptyIterator)?
-                    .clone(),
-            );
-            let f = |t: &mut Elf_EndianElf_ProgramHeader| {
-                Ok(t.set_endian(*self._is_le.borrow()))
-            };
-            let t = Self::read_into_with_init::<
-                BytesReader,
-                Elf_EndianElf_ProgramHeader,
-            >(
-                &_io_program_headers_raw,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-                &f,
-            )?
-            .into();
+            let _io_program_headers_raw = BytesReader::from(program_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let f = |t : &mut Elf_EndianElf_ProgramHeader| Ok(t.set_endian(*self._is_le.borrow()));
+            let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_ProgramHeader>(&_io_program_headers_raw, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
             self.program_headers.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
         Ok(self.program_headers.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn section_headers(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Vec<OptRc<Elf_EndianElf_SectionHeader>>>> {
         let _io = self._io.borrow();
         if self.f_section_headers.get() {
@@ -5322,91 +4936,32 @@ impl Elf_EndianElf {
         *self.section_headers.borrow_mut() = Vec::new();
         let l_section_headers = usize::from(*self.num_section_headers());
         for _i in 0_usize..l_section_headers {
-            self.section_headers_raw.borrow_mut().push(
-                _io.read_bytes(usize::from(*self.section_header_size()))?
-                    .into(),
-            );
+            self.section_headers_raw.borrow_mut().push(_io.read_bytes(usize::from(*self.section_header_size()))?.into());
             let section_headers_raw = self.section_headers_raw.borrow();
-            let _io_section_headers_raw = BytesReader::from(
-                section_headers_raw
-                    .last()
-                    .ok_or(KError::EmptyIterator)?
-                    .clone(),
-            );
-            let f = |t: &mut Elf_EndianElf_SectionHeader| {
-                Ok(t.set_endian(*self._is_le.borrow()))
-            };
-            let t = Self::read_into_with_init::<
-                BytesReader,
-                Elf_EndianElf_SectionHeader,
-            >(
-                &_io_section_headers_raw,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-                &f,
-            )?
-            .into();
+            let _io_section_headers_raw = BytesReader::from(section_headers_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let f = |t : &mut Elf_EndianElf_SectionHeader| Ok(t.set_endian(*self._is_le.borrow()));
+            let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_SectionHeader>(&_io_section_headers_raw, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
             self.section_headers.borrow_mut().push(t);
         }
         _io.seek(_pos)?;
         Ok(self.section_headers.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn section_names(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_StringsStruct>>> {
         let _io = self._io.borrow();
         if self.f_section_names.get() {
             return Ok(self.section_names.borrow());
         }
-        if ((to_i128(*self.section_names_idx()))
-            != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))
-            && (*self.section_names_idx()
-                < *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .header()
-                    .num_section_headers())
-        {
+        if  ((((to_i128(*self.section_names_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (*self.section_names_idx() < *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers()))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                self.section_headers()?
-                    .get(usize::from(*self.section_names_idx()))
-                    .ok_or(KError::CastError)?
-                    .ofs_body(),
-            )?)?;
-            *self.section_names_raw.borrow_mut() = _io
-                .read_bytes(usize::try_from(
-                    self.section_headers()?
-                        .get(usize::from(*self.section_names_idx()))
-                        .ok_or(KError::CastError)?
-                        .len_body(),
-                )?)?
-                .into();
+            _io.seek(usize::try_from(self.section_headers()?.get(usize::from(*self.section_names_idx())).ok_or(KError::CastError)?.ofs_body())?)?;
+            *self.section_names_raw.borrow_mut() = _io.read_bytes(usize::try_from(self.section_headers()?.get(usize::from(*self.section_names_idx())).ok_or(KError::CastError)?.len_body())?)?.into();
             let section_names_raw = self.section_names_raw.borrow();
-            let _t_section_names_raw_io =
-                BytesReader::from(section_names_raw.clone());
-            let f = |t: &mut Elf_EndianElf_StringsStruct| {
-                Ok(t.set_endian(*self._is_le.borrow()))
-            };
-            let t = Self::read_into_with_init::<
-                BytesReader,
-                Elf_EndianElf_StringsStruct,
-            >(
-                &_t_section_names_raw_io,
-                Some(self._root.clone()),
-                None,
-                &f,
-            )?
-            .into();
+            let _t_section_names_raw_io = BytesReader::from(section_names_raw.clone());
+            let f = |t : &mut Elf_EndianElf_StringsStruct| Ok(t.set_endian(*self._is_le.borrow()));
+            let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_StringsStruct>(&_t_section_names_raw_io, Some(self._root.clone()), None, &f)?.into();
             *self.section_names.borrow_mut() = t;
             _io.seek(_pos)?;
         }
@@ -5431,45 +4986,27 @@ impl Elf_EndianElf {
 impl Elf_EndianElf {
     pub fn entry_point(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.entry_point
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.entry_point.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn entry_point_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_EntryPoint>> {
+    pub fn entry_point_enum(&self) -> Ref<'_, Option<Elf_EndianElf_EntryPoint>> {
         self.entry_point.borrow()
     }
 }
 impl Elf_EndianElf {
     pub fn ofs_program_headers(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_program_headers
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.ofs_program_headers.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn ofs_program_headers_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_OfsProgramHeaders>> {
+    pub fn ofs_program_headers_enum(&self) -> Ref<'_, Option<Elf_EndianElf_OfsProgramHeaders>> {
         self.ofs_program_headers.borrow()
     }
 }
 impl Elf_EndianElf {
     pub fn ofs_section_headers(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_section_headers
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.ofs_section_headers.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn ofs_section_headers_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_OfsSectionHeaders>> {
+    pub fn ofs_section_headers_enum(&self) -> Ref<'_, Option<Elf_EndianElf_OfsSectionHeaders>> {
         self.ofs_section_headers.borrow()
     }
 }
@@ -5551,55 +5088,35 @@ pub struct Elf_EndianElf_DynsymSection {
     is_string_table_linked: RefCell<bool>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_DynsymSection>
-    for OptRc<Elf_EndianElf_DynsymSection>
-{
+impl TryFrom<&Elf_EndianElf_DynsymSection> for OptRc<Elf_EndianElf_DynsymSection> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_DynsymSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_DynsymSection>
-    for OptRc<Elf_EndianElf_DynsymSection>
-{
+impl TryFrom<&&Elf_EndianElf_DynsymSection> for OptRc<Elf_EndianElf_DynsymSection> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_DynsymSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSection>
-    for Elf_EndianElf_DynsymSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for Elf_EndianElf_DynsymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSection>
-    for &Elf_EndianElf_DynsymSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for &Elf_EndianElf_DynsymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSection>
-    for OptRc<Elf_EndianElf_DynsymSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for OptRc<Elf_EndianElf_DynsymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSection>
-    for &OptRc<Elf_EndianElf_DynsymSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for &OptRc<Elf_EndianElf_DynsymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -5607,11 +5124,7 @@ impl KStruct for Elf_EndianElf_DynsymSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5627,19 +5140,8 @@ impl KStruct for Elf_EndianElf_DynsymSection {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let f = |t: &mut Elf_EndianElf_DynsymSectionEntry| {
-                    Ok(t.set_endian(*self_rc._is_le.borrow()))
-                };
-                let t = Self::read_into_with_init::<
-                    _,
-                    Elf_EndianElf_DynsymSectionEntry,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                    &f,
-                )?
-                .into();
+                let f = |t : &mut Elf_EndianElf_DynsymSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
+                let t = Self::read_into_with_init::<_, Elf_EndianElf_DynsymSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -5655,35 +5157,21 @@ impl Elf_EndianElf_DynsymSection {
     }
 }
 impl Elf_EndianElf_DynsymSection {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_string_table_linked(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_string_table_linked(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_string_table_linked.get() {
             return Ok(self.is_string_table_linked.borrow());
         }
         self.f_is_string_table_linked.set(true);
-        *self.is_string_table_linked.borrow_mut() = (*self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .linked_section()?
-            .r#type()
-            == Elf_ShType::Strtab)
-            .try_into()?;
+        *self.is_string_table_linked.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.r#type() == Elf_ShType::Strtab).try_into()?;
         Ok(self.is_string_table_linked.borrow())
     }
 }
 impl Elf_EndianElf_DynsymSection {
-    pub fn entries(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Elf_EndianElf_DynsymSectionEntry>>> {
+    pub fn entries(&self) -> Ref<'_, Vec<OptRc<Elf_EndianElf_DynsymSectionEntry>>> {
         self.entries.borrow()
     }
 }
@@ -5737,59 +5225,35 @@ pub struct Elf_EndianElf_DynsymSectionEntry {
     visibility: RefCell<Elf_SymbolVisibility>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_DynsymSectionEntry>
-    for OptRc<Elf_EndianElf_DynsymSectionEntry>
-{
+impl TryFrom<&Elf_EndianElf_DynsymSectionEntry> for OptRc<Elf_EndianElf_DynsymSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_DynsymSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_DynsymSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_DynsymSectionEntry>
-    for OptRc<Elf_EndianElf_DynsymSectionEntry>
-{
+impl TryFrom<&&Elf_EndianElf_DynsymSectionEntry> for OptRc<Elf_EndianElf_DynsymSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_DynsymSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_DynsymSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry>
-    for Elf_EndianElf_DynsymSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for Elf_EndianElf_DynsymSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry>
-    for &Elf_EndianElf_DynsymSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for &Elf_EndianElf_DynsymSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry>
-    for OptRc<Elf_EndianElf_DynsymSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for OptRc<Elf_EndianElf_DynsymSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry>
-    for &OptRc<Elf_EndianElf_DynsymSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for &OptRc<Elf_EndianElf_DynsymSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -5797,11 +5261,7 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_DynsymSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5813,99 +5273,35 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B32
-        {
-            *self_rc.value_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-                _io.read_u4le()?
-            } else {
-                _io.read_u4be()?
-            };
+        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 {
+            *self_rc.value_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B32
-        {
-            *self_rc.size_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-                _io.read_u4le()?
-            } else {
-                _io.read_u4be()?
-            };
+        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 {
+            *self_rc.size_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.bind.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.bind.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.other.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.sh_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.sh_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B64
-        {
-            *self_rc.value_b64.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-                _io.read_u8le()?
-            } else {
-                _io.read_u8be()?
-            };
+        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
+            *self_rc.value_b64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? };
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B64
-        {
-            *self_rc.size_b64.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-                _io.read_u8le()?
-            } else {
-                _io.read_u8be()?
-            };
+        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
+            *self_rc.size_b64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? };
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -5918,283 +5314,110 @@ impl Elf_EndianElf_DynsymSectionEntry {
     }
 }
 impl Elf_EndianElf_DynsymSectionEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_sh_idx_os(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_sh_idx_os(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_sh_idx_os.get() {
             return Ok(self.is_sh_idx_os.borrow());
         }
         self.f_is_sh_idx_os.set(true);
-        *self.is_sh_idx_os.borrow_mut() = (((to_i128(*self.sh_idx()))
-            >= (to_i128(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sh_idx_lo_os()?,
-            )))
-            && ((to_i128(*self.sh_idx()))
-                <= (to_i128(
-                    *self
-                        ._root
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingRoot)?
-                        .sh_idx_hi_os()?,
-                ))))
-        .try_into()?;
+        *self.is_sh_idx_os.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_os()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_os()?))))) ).try_into()?;
         Ok(self.is_sh_idx_os.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_sh_idx_proc(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_sh_idx_proc(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_sh_idx_proc.get() {
             return Ok(self.is_sh_idx_proc.borrow());
         }
         self.f_is_sh_idx_proc.set(true);
-        *self.is_sh_idx_proc.borrow_mut() = (((to_i128(*self.sh_idx()))
-            >= (to_i128(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sh_idx_lo_proc()?,
-            )))
-            && ((to_i128(*self.sh_idx()))
-                <= (to_i128(
-                    *self
-                        ._root
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingRoot)?
-                        .sh_idx_hi_proc()?,
-                ))))
-        .try_into()?;
+        *self.is_sh_idx_proc.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_proc()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_proc()?))))) ).try_into()?;
         Ok(self.is_sh_idx_proc.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_sh_idx_reserved(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_sh_idx_reserved(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_sh_idx_reserved.get() {
             return Ok(self.is_sh_idx_reserved.borrow());
         }
         self.f_is_sh_idx_reserved.set(true);
-        *self.is_sh_idx_reserved.borrow_mut() = (((to_i128(*self.sh_idx()))
-            >= (to_i128(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sh_idx_lo_reserved()?,
-            )))
-            && ((to_i128(*self.sh_idx()))
-                <= (to_i128(
-                    *self
-                        ._root
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingRoot)?
-                        .sh_idx_hi_reserved()?,
-                ))))
-        .try_into()?;
+        *self.is_sh_idx_reserved.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_reserved()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_reserved()?))))) ).try_into()?;
         Ok(self.is_sh_idx_reserved.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_name.get() {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        if ((to_i128(*self.ofs_name())) != (to_i128(0)))
-            && (*self
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .is_string_table_linked()?)
-        {
-            let io = KStream::clone(
-                &*OptRc::<Elf_EndianElf_StringsStruct>::try_from(
-                    &*(self
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .linked_section()?
-                        .body()?
-                        .as_ref()
-                        .ok_or(KError::CastError)?),
-                )?
-                ._io(),
-            );
+        if  ((((to_i128(*self.ofs_name())) != (to_i128(0)))) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
-            *self.name.borrow_mut() = bytes_to_str(
-                &io.read_bytes_term(0, false, true, true)?,
-                "UTF-8",
-            )?;
+            *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
             io.seek(_pos)?;
         }
         Ok(self.name.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_special(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Elf_SectionHeaderIdxSpecial>> {
         let _io = self._io.borrow();
         if self.f_sh_idx_special.get() {
             return Ok(self.sh_idx_special.borrow());
         }
         self.f_sh_idx_special.set(true);
-        *self.sh_idx_special.borrow_mut() =
-            i64::from(*self.sh_idx()).try_into()?;
+        *self.sh_idx_special.borrow_mut() = i64::from(*self.sh_idx()).try_into()?;
         Ok(self.sh_idx_special.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_size.get() {
             return Ok(self.size.borrow());
         }
         self.f_size.set(true);
-        *self.size.borrow_mut() = (if *self
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B32
-        {
-            u64::from(*self.size_b32())
-        } else {
-            if *self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .bits()
-                == Elf_Bits::B64
-            {
-                *self.size_b64()
-            } else {
-                0_u64
-            }
-        })
-        .try_into()?;
+        *self.size.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 { u64::from(*self.size_b32()) } else { if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 { *self.size_b64() } else { 0_u64 } }).try_into()?;
         Ok(self.size.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() = (if *self
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B32
-        {
-            u64::from(*self.value_b32())
-        } else {
-            if *self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .bits()
-                == Elf_Bits::B64
-            {
-                *self.value_b64()
-            } else {
-                0_u64
-            }
-        })
-        .try_into()?;
+        *self.value.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 { u64::from(*self.value_b32()) } else { if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 { *self.value_b64() } else { 0_u64 } }).try_into()?;
         Ok(self.value.borrow())
     }
 
     /**
      * \sa <https://github.com/xinuos/gabi/commit/acd5ebb2962cf243dca4983bc934442b42ef96f5> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn visibility(&self) -> KResult<Ref<'_, Elf_SymbolVisibility>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn visibility(
+        &self
+    ) -> KResult<Ref<'_, Elf_SymbolVisibility>> {
         let _io = self._io.borrow();
         if self.f_visibility.get() {
             return Ok(self.visibility.borrow());
         }
         self.f_visibility.set(true);
-        *self.visibility.borrow_mut() =
-            i64::from((i32::from(*self.other())) & (7_i32)).try_into()?;
+        *self.visibility.borrow_mut() = i64::from(((i32::from(*self.other())) & (7_i32))).try_into()?;
         Ok(self.visibility.borrow())
     }
 }
@@ -6285,34 +5508,22 @@ impl TryFrom<&&Elf_EndianElf_NoteSection> for OptRc<Elf_EndianElf_NoteSection> {
     }
 }
 impl DowncastOptRc<Elf_EndianElf_NoteSection> for Elf_EndianElf_NoteSection {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_NoteSection> for &Elf_EndianElf_NoteSection {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSection>
-    for OptRc<Elf_EndianElf_NoteSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for OptRc<Elf_EndianElf_NoteSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSection>
-    for &OptRc<Elf_EndianElf_NoteSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for &OptRc<Elf_EndianElf_NoteSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -6320,11 +5531,7 @@ impl KStruct for Elf_EndianElf_NoteSection {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6340,19 +5547,8 @@ impl KStruct for Elf_EndianElf_NoteSection {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let f = |t: &mut Elf_EndianElf_NoteSectionEntry| {
-                    Ok(t.set_endian(*self_rc._is_le.borrow()))
-                };
-                let t = Self::read_into_with_init::<
-                    _,
-                    Elf_EndianElf_NoteSectionEntry,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                    &f,
-                )?
-                .into();
+                let f = |t : &mut Elf_EndianElf_NoteSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
+                let t = Self::read_into_with_init::<_, Elf_EndianElf_NoteSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -6367,11 +5563,10 @@ impl Elf_EndianElf_NoteSection {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_NoteSection {}
 impl Elf_EndianElf_NoteSection {
-    pub fn entries(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Elf_EndianElf_NoteSectionEntry>>> {
+}
+impl Elf_EndianElf_NoteSection {
+    pub fn entries(&self) -> Ref<'_, Vec<OptRc<Elf_EndianElf_NoteSectionEntry>>> {
         self.entries.borrow()
     }
 }
@@ -6411,59 +5606,35 @@ pub struct Elf_EndianElf_NoteSectionEntry {
     descriptor_padding_raw: RefCell<Vec<u8>>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_NoteSectionEntry>
-    for OptRc<Elf_EndianElf_NoteSectionEntry>
-{
+impl TryFrom<&Elf_EndianElf_NoteSectionEntry> for OptRc<Elf_EndianElf_NoteSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_NoteSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_NoteSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_NoteSectionEntry>
-    for OptRc<Elf_EndianElf_NoteSectionEntry>
-{
+impl TryFrom<&&Elf_EndianElf_NoteSectionEntry> for OptRc<Elf_EndianElf_NoteSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_NoteSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_NoteSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry>
-    for Elf_EndianElf_NoteSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for Elf_EndianElf_NoteSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry>
-    for &Elf_EndianElf_NoteSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for &Elf_EndianElf_NoteSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry>
-    for OptRc<Elf_EndianElf_NoteSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for OptRc<Elf_EndianElf_NoteSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry>
-    for &OptRc<Elf_EndianElf_NoteSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for &OptRc<Elf_EndianElf_NoteSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -6471,11 +5642,7 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_NoteSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6487,48 +5654,19 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.len_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.len_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.len_descriptor.borrow_mut() = if *self_rc._is_le.borrow() == 1
-        {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.len_descriptor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.r#type.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(usize::try_from(*self_rc.len_name())?)?,
-            Some(0),
-            false,
-            None,
-        );
+        *self_rc.name.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(usize::try_from(*self_rc.len_name())?)?, Some(0), false, None);
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.name_padding.borrow_mut() =
-            _io.read_bytes(usize::try_from(modulo(
-                i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_name()))),
-                4_i64,
-            ))?)?;
+        *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_name()))), 4_i64))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.descriptor.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len_descriptor())?)?;
+        *self_rc.descriptor.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_descriptor())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.descriptor_padding.borrow_mut() =
-            _io.read_bytes(usize::try_from(modulo(
-                i64::from(
-                    (0_i32).saturating_sub(to_i32(*self_rc.len_descriptor())),
-                ),
-                4_i64,
-            ))?)?;
+        *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_descriptor()))), 4_i64))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -6539,7 +5677,8 @@ impl Elf_EndianElf_NoteSectionEntry {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_NoteSectionEntry {}
+impl Elf_EndianElf_NoteSectionEntry {
+}
 impl Elf_EndianElf_NoteSectionEntry {
     pub fn len_name(&self) -> Ref<'_, u32> {
         self.len_name.borrow()
@@ -6653,59 +5792,35 @@ pub struct Elf_EndianElf_PhDynamicSection {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_PhDynamicSection>
-    for OptRc<Elf_EndianElf_PhDynamicSection>
-{
+impl TryFrom<&Elf_EndianElf_PhDynamicSection> for OptRc<Elf_EndianElf_PhDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_PhDynamicSection,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_PhDynamicSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_PhDynamicSection>
-    for OptRc<Elf_EndianElf_PhDynamicSection>
-{
+impl TryFrom<&&Elf_EndianElf_PhDynamicSection> for OptRc<Elf_EndianElf_PhDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_PhDynamicSection,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_PhDynamicSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSection>
-    for Elf_EndianElf_PhDynamicSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for Elf_EndianElf_PhDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSection>
-    for &Elf_EndianElf_PhDynamicSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for &Elf_EndianElf_PhDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSection>
-    for OptRc<Elf_EndianElf_PhDynamicSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for OptRc<Elf_EndianElf_PhDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSection>
-    for &OptRc<Elf_EndianElf_PhDynamicSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for &OptRc<Elf_EndianElf_PhDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -6713,11 +5828,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6733,28 +5844,13 @@ impl KStruct for Elf_EndianElf_PhDynamicSection {
         {
             let mut _i = 0_usize;
             loop {
-                let f = |t: &mut Elf_EndianElf_PhDynamicSectionEntry| {
-                    Ok(t.set_endian(*self_rc._is_le.borrow()))
-                };
-                let t = Self::read_into_with_init::<
-                    _,
-                    Elf_EndianElf_PhDynamicSectionEntry,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                    &f,
-                )?
-                .into();
+                let f = |t : &mut Elf_EndianElf_PhDynamicSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
+                let t = Self::read_into_with_init::<_, Elf_EndianElf_PhDynamicSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 let _t_entries = self_rc.entries.borrow();
-                let Some(_tmpa) = _t_entries.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_entries.last() else { break; };
                 _i = _i.saturating_add(1);
-                if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null {
-                    break;
-                }
+                if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -6767,11 +5863,10 @@ impl Elf_EndianElf_PhDynamicSection {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_PhDynamicSection {}
 impl Elf_EndianElf_PhDynamicSection {
-    pub fn entries(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Elf_EndianElf_PhDynamicSectionEntry>>> {
+}
+impl Elf_EndianElf_PhDynamicSection {
+    pub fn entries(&self) -> Ref<'_, Vec<OptRc<Elf_EndianElf_PhDynamicSectionEntry>>> {
         self.entries.borrow()
     }
 }
@@ -6801,8 +5896,7 @@ pub struct Elf_EndianElf_PhDynamicSectionEntry {
     pub(crate) _parent: SharedType<Elf_EndianElf_PhDynamicSection>,
     pub(crate) _self_shared: SharedType<Self>,
     tag: RefCell<Option<Elf_EndianElf_PhDynamicSectionEntry_Tag>>,
-    value_or_ptr:
-        RefCell<Option<Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr>>,
+    value_or_ptr: RefCell<Option<Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr>>,
     _io: RefCell<BytesReader>,
     f_flag_1_values: Cell<bool>,
     flag_1_values: RefCell<OptRc<Elf_DtFlag1Values>>,
@@ -6831,73 +5925,40 @@ impl From<u64> for Elf_EndianElf_PhDynamicSectionEntry_Tag {
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6919,130 +5980,73 @@ impl From<u64> for Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr {
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
 
-impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry>
-    for OptRc<Elf_EndianElf_PhDynamicSectionEntry>
-{
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry> for OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_PhDynamicSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_PhDynamicSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_PhDynamicSectionEntry>
-    for OptRc<Elf_EndianElf_PhDynamicSectionEntry>
-{
+impl TryFrom<&&Elf_EndianElf_PhDynamicSectionEntry> for OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_PhDynamicSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_PhDynamicSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry>
-    for Elf_EndianElf_PhDynamicSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for Elf_EndianElf_PhDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry>
-    for &Elf_EndianElf_PhDynamicSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for &Elf_EndianElf_PhDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry>
-    for OptRc<Elf_EndianElf_PhDynamicSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry>
-    for &OptRc<Elf_EndianElf_PhDynamicSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for &OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -7050,11 +6054,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_PhDynamicSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7066,66 +6066,22 @@ impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.tag.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.tag.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.tag.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.tag.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.value_or_ptr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.value_or_ptr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.value_or_ptr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.value_or_ptr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
@@ -7140,134 +6096,76 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_PhDynamicSectionEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn flag_1_values(&self) -> KResult<Ref<'_, OptRc<Elf_DtFlag1Values>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn flag_1_values(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Elf_DtFlag1Values>>> {
         let _io = self._io.borrow();
         if self.f_flag_1_values.get() {
             return Ok(self.flag_1_values.borrow());
         }
         if *self.tag_enum()? == Elf_DynamicArrayTags::Flags1 {
-            let f = |t: &mut Elf_DtFlag1Values| {
-                Ok(t.set_params(
-                    (self.value_or_ptr())
-                        .try_into()
-                        .map_err(|_| KError::CastError)?,
-                ))
-            };
-            let t = Self::read_into_with_init::<_, Elf_DtFlag1Values>(
-                &*_io,
-                Some(self._root.clone()),
-                None,
-                &f,
-            )?
-            .into();
+            let f = |t : &mut Elf_DtFlag1Values| Ok(t.set_params((self.value_or_ptr()).try_into().map_err(|_| KError::CastError)?));
+            let t = Self::read_into_with_init::<_, Elf_DtFlag1Values>(&*_io, Some(self._root.clone()), None, &f)?.into();
             *self.flag_1_values.borrow_mut() = t;
         }
         Ok(self.flag_1_values.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn flag_values(&self) -> KResult<Ref<'_, OptRc<Elf_DtFlagValues>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn flag_values(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Elf_DtFlagValues>>> {
         let _io = self._io.borrow();
         if self.f_flag_values.get() {
             return Ok(self.flag_values.borrow());
         }
         if *self.tag_enum()? == Elf_DynamicArrayTags::Flags {
-            let f = |t: &mut Elf_DtFlagValues| {
-                Ok(t.set_params(
-                    (self.value_or_ptr())
-                        .try_into()
-                        .map_err(|_| KError::CastError)?,
-                ))
-            };
-            let t = Self::read_into_with_init::<_, Elf_DtFlagValues>(
-                &*_io,
-                Some(self._root.clone()),
-                None,
-                &f,
-            )?
-            .into();
+            let f = |t : &mut Elf_DtFlagValues| Ok(t.set_params((self.value_or_ptr()).try_into().map_err(|_| KError::CastError)?));
+            let t = Self::read_into_with_init::<_, Elf_DtFlagValues>(&*_io, Some(self._root.clone()), None, &f)?.into();
             *self.flag_values.borrow_mut() = t;
         }
         Ok(self.flag_values.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_value_str(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_value_str(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_value_str.get() {
             return Ok(self.is_value_str.borrow());
         }
         self.f_is_value_str.set(true);
-        *self.is_value_str.borrow_mut() = (((to_i128(self.value_or_ptr()))
-            != (to_i128(0)))
-            && ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Config)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)))
-            .try_into()?;
+        *self.is_value_str.borrow_mut() = ( ((((to_i128(self.value_or_ptr())) != (to_i128(0)))) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
         Ok(self.is_value_str.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn tag_enum(&self) -> KResult<Ref<'_, Elf_DynamicArrayTags>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn tag_enum(
+        &self
+    ) -> KResult<Ref<'_, Elf_DynamicArrayTags>> {
         let _io = self._io.borrow();
         if self.f_tag_enum.get() {
             return Ok(self.tag_enum.borrow());
         }
         self.f_tag_enum.set(true);
-        *self.tag_enum.borrow_mut() =
-            i64::from_le_bytes((self.tag()).to_le_bytes()).try_into()?;
+        *self.tag_enum.borrow_mut() = i64::from_le_bytes((self.tag()).to_le_bytes()).try_into()?;
         Ok(self.tag_enum.borrow())
     }
 }
 impl Elf_EndianElf_PhDynamicSectionEntry {
     pub fn tag(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.tag
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.tag.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn tag_switch_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_PhDynamicSectionEntry_Tag>> {
+    pub fn tag_switch_enum(&self) -> Ref<'_, Option<Elf_EndianElf_PhDynamicSectionEntry_Tag>> {
         self.tag.borrow()
     }
 }
 impl Elf_EndianElf_PhDynamicSectionEntry {
     pub fn value_or_ptr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.value_or_ptr
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.value_or_ptr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn value_or_ptr_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr>> {
+    pub fn value_or_ptr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr>> {
         self.value_or_ptr.borrow()
     }
 }
@@ -7327,73 +6225,40 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_OfsBody {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7415,73 +6280,40 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_VirtAddr {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_VirtAddr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_VirtAddr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_VirtAddr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_VirtAddr,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7503,73 +6335,40 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_PhysAddr {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_PhysAddr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_PhysAddr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_PhysAddr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_PhysAddr,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7591,73 +6390,40 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_LenBody {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7679,73 +6445,40 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_MemorySize {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_MemorySize,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_MemorySize,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_MemorySize,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_MemorySize,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7767,13 +6500,8 @@ impl From<u64> for Elf_EndianElf_ProgramHeader_Align {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(i64::try_from(*v)?),
             Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(i64::try_from(*v)?),
@@ -7782,13 +6510,8 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for i64 {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(u32::try_from(*v)?),
             Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(u32::try_from(*v)?),
@@ -7797,13 +6520,8 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for u32 {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(u64::try_from(*v)?),
             Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(u64::try_from(*v)?),
@@ -7812,16 +6530,10 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for u64 {
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ProgramHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ProgramHeader_Align::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ProgramHeader_Align::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7829,163 +6541,103 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for usize {
 #[derive(Debug, Clone)]
 pub enum Elf_EndianElf_ProgramHeader_Body {
     Elf_EndianElf_PhDynamicSection(OptRc<Elf_EndianElf_PhDynamicSection>),
-    Elf_EndianElf_ProgramHeader_PhInterpreter(
-        OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>,
-    ),
+    Elf_EndianElf_ProgramHeader_PhInterpreter(OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>),
     Elf_EndianElf_NoteSection(OptRc<Elf_EndianElf_NoteSection>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&Elf_EndianElf_ProgramHeader_Body>
-    for OptRc<Elf_EndianElf_PhDynamicSection>
-{
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_PhDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_PhDynamicSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body>
-    for OptRc<Elf_EndianElf_PhDynamicSection>
-{
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_PhDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSection>
-    for Elf_EndianElf_ProgramHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
         OptRc::<Elf_EndianElf_PhDynamicSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_PhDynamicSection>
-    for &Elf_EndianElf_ProgramHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for &Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_PhDynamicSection>>
-    for Elf_EndianElf_ProgramHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_PhDynamicSection>> for Elf_EndianElf_ProgramHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_PhDynamicSection>) -> Self {
         Self::Elf_EndianElf_PhDynamicSection(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_ProgramHeader_Body>
-    for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-{
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_ProgramHeader_PhInterpreter(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body>
-    for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-{
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for Elf_EndianElf_ProgramHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
         OptRc::<Elf_EndianElf_ProgramHeader_PhInterpreter>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for &Elf_EndianElf_ProgramHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for &Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>>
-    for Elf_EndianElf_ProgramHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>> for Elf_EndianElf_ProgramHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>) -> Self {
         Self::Elf_EndianElf_ProgramHeader_PhInterpreter(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_ProgramHeader_Body>
-    for OptRc<Elf_EndianElf_NoteSection>
-{
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
-        if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_NoteSection(x) =
-            v
-        {
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_NoteSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body>
-    for OptRc<Elf_EndianElf_NoteSection>
-{
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSection>
-    for Elf_EndianElf_ProgramHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         OptRc::<Elf_EndianElf_NoteSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSection>
-    for &Elf_EndianElf_ProgramHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for &Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_NoteSection>>
-    for Elf_EndianElf_ProgramHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_ProgramHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_NoteSection>) -> Self {
         Self::Elf_EndianElf_NoteSection(v)
     }
 }
 impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_Body::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -7994,9 +6646,7 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
 }
 impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ProgramHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -8009,26 +6659,18 @@ impl From<Vec<u8>> for Elf_EndianElf_ProgramHeader_Body {
 pub enum Elf_EndianElf_ProgramHeader_FlagsObj {
     Elf_PhdrTypeFlags(OptRc<Elf_PhdrTypeFlags>),
 }
-impl TryFrom<&Elf_EndianElf_ProgramHeader_FlagsObj>
-    for OptRc<Elf_PhdrTypeFlags>
-{
+impl TryFrom<&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ProgramHeader_FlagsObj,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_FlagsObj) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_FlagsObj::Elf_PhdrTypeFlags(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_ProgramHeader_FlagsObj>
-    for OptRc<Elf_PhdrTypeFlags>
-{
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ProgramHeader_FlagsObj,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_FlagsObj) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -8037,9 +6679,7 @@ impl DowncastOptRc<Elf_PhdrTypeFlags> for Elf_EndianElf_ProgramHeader_FlagsObj {
         OptRc::<Elf_PhdrTypeFlags>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_PhdrTypeFlags>
-    for &Elf_EndianElf_ProgramHeader_FlagsObj
-{
+impl DowncastOptRc<Elf_PhdrTypeFlags> for &Elf_EndianElf_ProgramHeader_FlagsObj {
     fn downcast_optrc(&self) -> Result<OptRc<Elf_PhdrTypeFlags>, KError> {
         (*self).downcast_optrc()
     }
@@ -8049,55 +6689,35 @@ impl From<OptRc<Elf_PhdrTypeFlags>> for Elf_EndianElf_ProgramHeader_FlagsObj {
         Self::Elf_PhdrTypeFlags(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_ProgramHeader>
-    for OptRc<Elf_EndianElf_ProgramHeader>
-{
+impl TryFrom<&Elf_EndianElf_ProgramHeader> for OptRc<Elf_EndianElf_ProgramHeader> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_ProgramHeader) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_ProgramHeader>
-    for OptRc<Elf_EndianElf_ProgramHeader>
-{
+impl TryFrom<&&Elf_EndianElf_ProgramHeader> for OptRc<Elf_EndianElf_ProgramHeader> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_ProgramHeader) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader>
-    for Elf_EndianElf_ProgramHeader
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for Elf_EndianElf_ProgramHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader>
-    for &Elf_EndianElf_ProgramHeader
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for &Elf_EndianElf_ProgramHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader>
-    for OptRc<Elf_EndianElf_ProgramHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for OptRc<Elf_EndianElf_ProgramHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader>
-    for &OptRc<Elf_EndianElf_ProgramHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for &OptRc<Elf_EndianElf_ProgramHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8105,11 +6725,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
     type Root = Elf;
     type Parent = Elf_EndianElf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8124,229 +6740,71 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B64
-        {
-            *self_rc.flags64.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-                _io.read_u4le()?
-            } else {
-                _io.read_u4be()?
-            };
+        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
+            *self_rc.flags64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.ofs_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.ofs_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.virt_addr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.virt_addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.virt_addr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.virt_addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.phys_addr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.phys_addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.phys_addr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.phys_addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.len_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.len_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.len_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.len_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.memory_size.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.memory_size.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.memory_size.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.memory_size.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-            == Elf_Bits::B32
-        {
-            *self_rc.flags32.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-                _io.read_u4le()?
-            } else {
-                _io.read_u4be()?
-            };
+        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 {
+            *self_rc.flags32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.align.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.align.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.align.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.align.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
@@ -8361,6 +6819,7 @@ impl Elf_EndianElf_ProgramHeader {
     }
 }
 impl Elf_EndianElf_ProgramHeader {
+
     /**
      * Note: a program header may not have a valid body in the same ELF
      * file, so accessing `body` may result in reading garbage or
@@ -8384,160 +6843,70 @@ impl Elf_EndianElf_ProgramHeader {
      * which zeroes `len_body` for segments whose contents were omitted
      * (which reliably tells us that there is no `body`).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Option<Elf_EndianElf_ProgramHeader_Body>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        if (to_i128(self.len_body())) != (to_i128(0)) {
-            let io = KStream::clone(
-                &*self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    ._io(),
-            );
+        if ((to_i128(self.len_body())) != (to_i128(0))) {
+            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.ofs_body())?)?;
             match *self.r#type() {
                 Elf_PhType::Dynamic => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_PhDynamicSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_PhDynamicSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_PhDynamicSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_PhDynamicSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_PhType::Interp => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f =
-                        |t: &mut Elf_EndianElf_ProgramHeader_PhInterpreter| {
-                            Ok(t.set_endian(*self._is_le.borrow()))
-                        };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_ProgramHeader_PhInterpreter,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_ProgramHeader_PhInterpreter| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_ProgramHeader_PhInterpreter>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_PhType::Note => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_NoteSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t =
-                        Self::read_into_with_init::<
-                            BytesReader,
-                            Elf_EndianElf_NoteSection,
-                        >(
-                            &_t_body_raw_io, Some(self._root.clone()), None, &f
-                        )?
-                        .into();
+                    let f = |t : &mut Elf_EndianElf_NoteSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_NoteSection>(&_t_body_raw_io, Some(self._root.clone()), None, &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self.body.borrow_mut() = Some(
-                        io.read_bytes(usize::try_from(self.len_body())?)?
-                            .into(),
-                    );
+                    *self.body.borrow_mut() = Some(io.read_bytes(usize::try_from(self.len_body())?)?.into());
                 }
             }
             io.seek(_pos)?;
         }
         Ok(self.body.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flags_obj(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Option<Elf_EndianElf_ProgramHeader_FlagsObj>>> {
         let _io = self._io.borrow();
         if self.f_flags_obj.get() {
             return Ok(self.flags_obj.borrow());
         }
         self.f_flags_obj.set(true);
-        match *self
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                let f = |t: &mut Elf_PhdrTypeFlags| {
-                    Ok(t.set_params(
-                        (*self.flags32())
-                            .try_into()
-                            .map_err(|_| KError::CastError)?,
-                    ))
-                };
-                let t = Self::read_into_with_init::<_, Elf_PhdrTypeFlags>(
-                    &*_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                    &f,
-                )?
-                .into();
+                let f = |t : &mut Elf_PhdrTypeFlags| Ok(t.set_params((*self.flags32()).try_into().map_err(|_| KError::CastError)?));
+                let t = Self::read_into_with_init::<_, Elf_PhdrTypeFlags>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                 *self.flags_obj.borrow_mut() = Some(t);
             }
             Elf_Bits::B64 => {
-                let f = |t: &mut Elf_PhdrTypeFlags| {
-                    Ok(t.set_params(
-                        (*self.flags64())
-                            .try_into()
-                            .map_err(|_| KError::CastError)?,
-                    ))
-                };
-                let t = Self::read_into_with_init::<_, Elf_PhdrTypeFlags>(
-                    &*_io,
-                    Some(self._root.clone()),
-                    Some(self._self_shared.clone()),
-                    &f,
-                )?
-                .into();
+                let f = |t : &mut Elf_PhdrTypeFlags| Ok(t.set_params((*self.flags64()).try_into().map_err(|_| KError::CastError)?));
+                let t = Self::read_into_with_init::<_, Elf_PhdrTypeFlags>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                 *self.flags_obj.borrow_mut() = Some(t);
             }
             _ => {}
@@ -8558,75 +6927,45 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn ofs_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_body
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.ofs_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn ofs_body_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_OfsBody>> {
+    pub fn ofs_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_OfsBody>> {
         self.ofs_body.borrow()
     }
 }
 impl Elf_EndianElf_ProgramHeader {
     pub fn virt_addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.virt_addr
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.virt_addr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn virt_addr_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_VirtAddr>> {
+    pub fn virt_addr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_VirtAddr>> {
         self.virt_addr.borrow()
     }
 }
 impl Elf_EndianElf_ProgramHeader {
     pub fn phys_addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.phys_addr
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.phys_addr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn phys_addr_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_PhysAddr>> {
+    pub fn phys_addr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_PhysAddr>> {
         self.phys_addr.borrow()
     }
 }
 impl Elf_EndianElf_ProgramHeader {
     pub fn len_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.len_body
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.len_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn len_body_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_LenBody>> {
+    pub fn len_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_LenBody>> {
         self.len_body.borrow()
     }
 }
 impl Elf_EndianElf_ProgramHeader {
     pub fn memory_size(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.memory_size
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.memory_size.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn memory_size_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_MemorySize>> {
+    pub fn memory_size_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_MemorySize>> {
         self.memory_size.borrow()
     }
 }
@@ -8638,15 +6977,9 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn align(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.align
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.align.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn align_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_Align>> {
+    pub fn align_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_Align>> {
         self.align.borrow()
     }
 }
@@ -8681,59 +7014,35 @@ pub struct Elf_EndianElf_ProgramHeader_PhInterpreter {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-{
+impl TryFrom<&Elf_EndianElf_ProgramHeader_PhInterpreter> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ProgramHeader_PhInterpreter,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_PhInterpreter) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-{
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_PhInterpreter> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ProgramHeader_PhInterpreter,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_PhInterpreter) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for Elf_EndianElf_ProgramHeader_PhInterpreter
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for Elf_EndianElf_ProgramHeader_PhInterpreter {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for &Elf_EndianElf_ProgramHeader_PhInterpreter
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for &Elf_EndianElf_ProgramHeader_PhInterpreter {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-    for &OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for &OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8741,11 +7050,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader_PhInterpreter {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8757,8 +7062,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader_PhInterpreter {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.path_name.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc.path_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -8769,7 +7073,8 @@ impl Elf_EndianElf_ProgramHeader_PhInterpreter {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_ProgramHeader_PhInterpreter {}
+impl Elf_EndianElf_ProgramHeader_PhInterpreter {
+}
 impl Elf_EndianElf_ProgramHeader_PhInterpreter {
     pub fn path_name(&self) -> Ref<'_, String> {
         self.path_name.borrow()
@@ -8802,59 +7107,35 @@ pub struct Elf_EndianElf_RelocationSection {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_RelocationSection>
-    for OptRc<Elf_EndianElf_RelocationSection>
-{
+impl TryFrom<&Elf_EndianElf_RelocationSection> for OptRc<Elf_EndianElf_RelocationSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_RelocationSection,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_RelocationSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_RelocationSection>
-    for OptRc<Elf_EndianElf_RelocationSection>
-{
+impl TryFrom<&&Elf_EndianElf_RelocationSection> for OptRc<Elf_EndianElf_RelocationSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_RelocationSection,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_RelocationSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSection>
-    for Elf_EndianElf_RelocationSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for Elf_EndianElf_RelocationSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSection>
-    for &Elf_EndianElf_RelocationSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for &Elf_EndianElf_RelocationSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSection>
-    for OptRc<Elf_EndianElf_RelocationSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for OptRc<Elf_EndianElf_RelocationSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSection>
-    for &OptRc<Elf_EndianElf_RelocationSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for &OptRc<Elf_EndianElf_RelocationSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -8862,11 +7143,7 @@ impl KStruct for Elf_EndianElf_RelocationSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8882,19 +7159,8 @@ impl KStruct for Elf_EndianElf_RelocationSection {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let f = |t: &mut Elf_EndianElf_RelocationSectionEntry| {
-                    Ok(t.set_endian(*self_rc._is_le.borrow()))
-                };
-                let t = Self::read_into_with_init::<
-                    _,
-                    Elf_EndianElf_RelocationSectionEntry,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                    &f,
-                )?
-                .into();
+                let f = |t : &mut Elf_EndianElf_RelocationSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
+                let t = Self::read_into_with_init::<_, Elf_EndianElf_RelocationSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -8919,11 +7185,10 @@ impl Elf_EndianElf_RelocationSection {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_RelocationSection {}
 impl Elf_EndianElf_RelocationSection {
-    pub fn entries(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Elf_EndianElf_RelocationSectionEntry>>> {
+}
+impl Elf_EndianElf_RelocationSection {
+    pub fn entries(&self) -> Ref<'_, Vec<OptRc<Elf_EndianElf_RelocationSectionEntry>>> {
         self.entries.borrow()
     }
 }
@@ -8967,73 +7232,40 @@ impl From<u64> for Elf_EndianElf_RelocationSectionEntry_Offset {
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Offset,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Offset,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Offset,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Offset,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -9055,73 +7287,40 @@ impl From<u64> for Elf_EndianElf_RelocationSectionEntry_Info {
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Info,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Info,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Info,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Info,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -9143,130 +7342,73 @@ impl From<i64> for Elf_EndianElf_RelocationSectionEntry_Addend {
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for i32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Addend,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => {
-                Ok(i32::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => {
-                Ok(i32::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(i32::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(i32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Addend,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Addend,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_RelocationSectionEntry_Addend,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
 
-impl TryFrom<&Elf_EndianElf_RelocationSectionEntry>
-    for OptRc<Elf_EndianElf_RelocationSectionEntry>
-{
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry> for OptRc<Elf_EndianElf_RelocationSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_RelocationSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_RelocationSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_RelocationSectionEntry>
-    for OptRc<Elf_EndianElf_RelocationSectionEntry>
-{
+impl TryFrom<&&Elf_EndianElf_RelocationSectionEntry> for OptRc<Elf_EndianElf_RelocationSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_RelocationSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_RelocationSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry>
-    for Elf_EndianElf_RelocationSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for Elf_EndianElf_RelocationSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry>
-    for &Elf_EndianElf_RelocationSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for &Elf_EndianElf_RelocationSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry>
-    for OptRc<Elf_EndianElf_RelocationSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for OptRc<Elf_EndianElf_RelocationSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry>
-    for &OptRc<Elf_EndianElf_RelocationSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for &OptRc<Elf_EndianElf_RelocationSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -9274,11 +7416,7 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_RelocationSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9290,108 +7428,34 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.offset.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.offset.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.offset.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.offset.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.info.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.info.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.info.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.info.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .has_addend()
-        {
-            match *self_rc
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .bits()
-            {
+        if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.has_addend() {
+            match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
                 Elf_Bits::B32 => {
-                    *self_rc.addend.borrow_mut() = Some(
-                        if *self_rc._is_le.borrow() == 1 {
-                            _io.read_s4le()?
-                        } else {
-                            _io.read_s4be()?
-                        }
-                        .into(),
-                    );
+                    *self_rc.addend.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? }.into());
                 }
                 Elf_Bits::B64 => {
-                    *self_rc.addend.borrow_mut() = Some(
-                        if *self_rc._is_le.borrow() == 1 {
-                            _io.read_s8le()?
-                        } else {
-                            _io.read_s8be()?
-                        }
-                        .into(),
-                    );
+                    *self_rc.addend.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_s8le()? } else { _io.read_s8be()? }.into());
                 }
                 _ => {}
             }
@@ -9406,49 +7470,32 @@ impl Elf_EndianElf_RelocationSectionEntry {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_RelocationSectionEntry {}
+impl Elf_EndianElf_RelocationSectionEntry {
+}
 impl Elf_EndianElf_RelocationSectionEntry {
     pub fn offset(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.offset
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.offset.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn offset_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Offset>> {
+    pub fn offset_enum(&self) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Offset>> {
         self.offset.borrow()
     }
 }
 impl Elf_EndianElf_RelocationSectionEntry {
     pub fn info(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.info
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.info.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn info_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Info>> {
+    pub fn info_enum(&self) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Info>> {
         self.info.borrow()
     }
 }
 impl Elf_EndianElf_RelocationSectionEntry {
     pub fn addend(&self) -> i64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.addend
-            .borrow()
-            .as_ref()
-            .and_then(|v| i64::try_from(v).ok())
-            .unwrap_or(0)
+        self.addend.borrow().as_ref().and_then(|v| i64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn addend_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Addend>> {
+    pub fn addend_enum(&self) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Addend>> {
         self.addend.borrow()
     }
 }
@@ -9513,13 +7560,8 @@ impl From<u64> for Elf_EndianElf_SectionHeader_Flags {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Flags,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(i64::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(i64::try_from(*v)?),
@@ -9528,13 +7570,8 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for i64 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Flags,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(u32::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(u32::try_from(*v)?),
@@ -9543,13 +7580,8 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for u32 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Flags,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(u64::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(u64::try_from(*v)?),
@@ -9558,16 +7590,10 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for u64 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Flags,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_Flags::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_Flags::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -9589,13 +7615,8 @@ impl From<u64> for Elf_EndianElf_SectionHeader_Addr {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Addr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(i64::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(i64::try_from(*v)?),
@@ -9604,13 +7625,8 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for i64 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Addr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(u32::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(u32::try_from(*v)?),
@@ -9619,13 +7635,8 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for u32 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Addr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(u64::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(u64::try_from(*v)?),
@@ -9634,9 +7645,7 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for u64 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Addr,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(usize::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(usize::try_from(*v)?),
@@ -9661,73 +7670,40 @@ impl From<u64> for Elf_EndianElf_SectionHeader_OfsBody {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_OfsBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -9749,73 +7725,40 @@ impl From<u64> for Elf_EndianElf_SectionHeader_LenBody {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_LenBody::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_LenBody::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_LenBody::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_LenBody::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_LenBody::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_LenBody::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_LenBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_LenBody::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_LenBody::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -9837,13 +7780,8 @@ impl From<u64> for Elf_EndianElf_SectionHeader_Align {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(i64::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(i64::try_from(*v)?),
@@ -9852,13 +7790,8 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for i64 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(u32::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(u32::try_from(*v)?),
@@ -9867,13 +7800,8 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for u32 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
         match e {
             Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(u64::try_from(*v)?),
             Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(u64::try_from(*v)?),
@@ -9882,16 +7810,10 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for u64 {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_Align,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_Align::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_Align::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -9913,73 +7835,40 @@ impl From<u64> for Elf_EndianElf_SectionHeader_EntrySize {
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_EntrySize,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_EntrySize,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_EntrySize,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_SectionHeader_EntrySize,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -9996,163 +7885,99 @@ pub enum Elf_EndianElf_SectionHeader_Body {
     Elf_EndianElf_ShDynamicSection(OptRc<Elf_EndianElf_ShDynamicSection>),
     Elf_EndianElf_VersymSection(OptRc<Elf_EndianElf_VersymSection>),
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_DynsymSection>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_DynsymSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
-        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_DynsymSection(
-            x,
-        ) = v
-        {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_DynsymSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_DynsymSection>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_DynsymSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSection>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
         OptRc::<Elf_EndianElf_DynsymSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_DynsymSection>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_DynsymSection>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_DynsymSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_DynsymSection>) -> Self {
         Self::Elf_EndianElf_DynsymSection(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_VerneedSection>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerneedSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
-        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerneedSection(
-            x,
-        ) = v
-        {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerneedSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_VerneedSection>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerneedSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSection>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
         OptRc::<Elf_EndianElf_VerneedSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSection>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_VerneedSection>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_VerneedSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_VerneedSection>) -> Self {
         Self::Elf_EndianElf_VerneedSection(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_NoteSection>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
-        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_NoteSection(x) =
-            v
-        {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_NoteSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_NoteSection>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSection>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         OptRc::<Elf_EndianElf_NoteSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_NoteSection>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_NoteSection>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_NoteSection>) -> Self {
         Self::Elf_EndianElf_NoteSection(v)
     }
 }
 impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Bytes(x) = v {
             return Ok(x.clone());
         }
@@ -10161,9 +7986,7 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
 }
 impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
@@ -10172,304 +7995,185 @@ impl From<Vec<u8>> for Elf_EndianElf_SectionHeader_Body {
         Self::Bytes(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_StringsStruct>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_StringsStruct> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
-        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_StringsStruct(
-            x,
-        ) = v
-        {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_StringsStruct(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_StringsStruct>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_StringsStruct> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_StringsStruct>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
         OptRc::<Elf_EndianElf_StringsStruct>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_StringsStruct>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_StringsStruct>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_StringsStruct>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_StringsStruct>) -> Self {
         Self::Elf_EndianElf_StringsStruct(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_VerdefSection>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerdefSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
-        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerdefSection(
-            x,
-        ) = v
-        {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerdefSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_VerdefSection>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerdefSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSection>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
         OptRc::<Elf_EndianElf_VerdefSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSection>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_VerdefSection>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_VerdefSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_VerdefSection>) -> Self {
         Self::Elf_EndianElf_VerdefSection(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_RelocationSection>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_RelocationSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_RelocationSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_RelocationSection>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_RelocationSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSection>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
         OptRc::<Elf_EndianElf_RelocationSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_RelocationSection>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_RelocationSection>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_RelocationSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_RelocationSection>) -> Self {
         Self::Elf_EndianElf_RelocationSection(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_ShDynamicSection>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_ShDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_ShDynamicSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_ShDynamicSection>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_ShDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSection>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
         OptRc::<Elf_EndianElf_ShDynamicSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSection>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_ShDynamicSection>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_ShDynamicSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_ShDynamicSection>) -> Self {
         Self::Elf_EndianElf_ShDynamicSection(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_VersymSection>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VersymSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
-        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VersymSection(
-            x,
-        ) = v
-        {
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VersymSection(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader_Body>
-    for OptRc<Elf_EndianElf_VersymSection>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VersymSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_SectionHeader_Body,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersymSection>
-    for Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
         OptRc::<Elf_EndianElf_VersymSection>::try_from(self)
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersymSection>
-    for &Elf_EndianElf_SectionHeader_Body
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<Elf_EndianElf_VersymSection>>
-    for Elf_EndianElf_SectionHeader_Body
-{
+impl From<OptRc<Elf_EndianElf_VersymSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_VersymSection>) -> Self {
         Self::Elf_EndianElf_VersymSection(v)
     }
 }
-impl TryFrom<&Elf_EndianElf_SectionHeader>
-    for OptRc<Elf_EndianElf_SectionHeader>
-{
+impl TryFrom<&Elf_EndianElf_SectionHeader> for OptRc<Elf_EndianElf_SectionHeader> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_SectionHeader) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_SectionHeader>
-    for OptRc<Elf_EndianElf_SectionHeader>
-{
+impl TryFrom<&&Elf_EndianElf_SectionHeader> for OptRc<Elf_EndianElf_SectionHeader> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_SectionHeader) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_SectionHeader>
-    for Elf_EndianElf_SectionHeader
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for Elf_EndianElf_SectionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_SectionHeader>
-    for &Elf_EndianElf_SectionHeader
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for &Elf_EndianElf_SectionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_SectionHeader>
-    for OptRc<Elf_EndianElf_SectionHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for OptRc<Elf_EndianElf_SectionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_SectionHeader>
-    for &OptRc<Elf_EndianElf_SectionHeader>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for &OptRc<Elf_EndianElf_SectionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
         Ok((*self).clone())
     }
 }
@@ -10477,11 +8181,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
     type Root = Elf;
     type Parent = Elf_EndianElf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10493,215 +8193,70 @@ impl KStruct for Elf_EndianElf_SectionHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.flags.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.flags.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.flags.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.flags.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.addr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.addr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.ofs_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.ofs_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.ofs_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.len_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.len_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.len_body.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.len_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.linked_section_idx.borrow_mut() =
-            if *self_rc._is_le.borrow() == 1 {
-                _io.read_u4le()?
-            } else {
-                _io.read_u4be()?
-            };
+        *self_rc.linked_section_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.info.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.info.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.align.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.align.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.align.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.align.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.entry_size.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.entry_size.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.entry_size.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.entry_size.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
@@ -10716,13 +8271,9 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Option<Elf_EndianElf_SectionHeader_Body>>> {
         let _io = self._io.borrow();
         if self.f_body.get() {
@@ -10730,258 +8281,108 @@ impl Elf_EndianElf_SectionHeader {
         }
         self.f_body.set(true);
         if *self.r#type() != Elf_ShType::Nobits {
-            let io = KStream::clone(
-                &*self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    ._io(),
-            );
+            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.ofs_body())?)?;
             match *self.r#type() {
                 Elf_ShType::Dynamic => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_ShDynamicSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_ShDynamicSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_ShDynamicSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_ShDynamicSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::Dynsym => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_DynsymSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_DynsymSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_DynsymSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_DynsymSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::GnuVerdef => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_VerdefSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_VerdefSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_VerdefSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_VerdefSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::GnuVerneed => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_VerneedSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_VerneedSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_VerneedSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_VerneedSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::GnuVersym => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_VersymSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_VersymSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_VersymSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_VersymSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::Note => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_NoteSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t =
-                        Self::read_into_with_init::<
-                            BytesReader,
-                            Elf_EndianElf_NoteSection,
-                        >(
-                            &_t_body_raw_io, Some(self._root.clone()), None, &f
-                        )?
-                        .into();
+                    let f = |t : &mut Elf_EndianElf_NoteSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_NoteSection>(&_t_body_raw_io, Some(self._root.clone()), None, &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::Rel => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_RelocationSection| {
-                        Ok(t.set_params(false))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_RelocationSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_RelocationSection| Ok(t.set_params(false));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_RelocationSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::Rela => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_RelocationSection| {
-                        Ok(t.set_params(true))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_RelocationSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_RelocationSection| Ok(t.set_params(true));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_RelocationSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::Strtab => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_StringsStruct| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t =
-                        Self::read_into_with_init::<
-                            BytesReader,
-                            Elf_EndianElf_StringsStruct,
-                        >(
-                            &_t_body_raw_io, Some(self._root.clone()), None, &f
-                        )?
-                        .into();
+                    let f = |t : &mut Elf_EndianElf_StringsStruct| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_StringsStruct>(&_t_body_raw_io, Some(self._root.clone()), None, &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 Elf_ShType::Symtab => {
-                    *self.body_raw.borrow_mut() = io
-                        .read_bytes(usize::try_from(self.len_body())?)?
-                        .into();
+                    *self.body_raw.borrow_mut() = io.read_bytes(usize::try_from(self.len_body())?)?.into();
                     let body_raw = self.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                    let f = |t: &mut Elf_EndianElf_DynsymSection| {
-                        Ok(t.set_endian(*self._is_le.borrow()))
-                    };
-                    let t = Self::read_into_with_init::<
-                        BytesReader,
-                        Elf_EndianElf_DynsymSection,
-                    >(
-                        &_t_body_raw_io,
-                        Some(self._root.clone()),
-                        Some(self._self_shared.clone()),
-                        &f,
-                    )?
-                    .into();
+                    let f = |t : &mut Elf_EndianElf_DynsymSection| Ok(t.set_endian(*self._is_le.borrow()));
+                    let t = Self::read_into_with_init::<BytesReader, Elf_EndianElf_DynsymSection>(&_t_body_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
                     *self.body.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self.body.borrow_mut() = Some(
-                        io.read_bytes(usize::try_from(self.len_body())?)?
-                            .into(),
-                    );
+                    *self.body.borrow_mut() = Some(io.read_bytes(usize::try_from(self.len_body())?)?.into());
                 }
             }
             io.seek(_pos)?;
         }
         Ok(self.body.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn flags_obj(&self) -> KResult<Ref<'_, OptRc<Elf_SectionHeaderFlags>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn flags_obj(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Elf_SectionHeaderFlags>>> {
         let _io = self._io.borrow();
         if self.f_flags_obj.get() {
             return Ok(self.flags_obj.borrow());
         }
-        let f = |t: &mut Elf_SectionHeaderFlags| {
-            Ok(t.set_params(
-                (self.flags()).try_into().map_err(|_| KError::CastError)?,
-            ))
-        };
-        let t = Self::read_into_with_init::<_, Elf_SectionHeaderFlags>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-            &f,
-        )?
-        .into();
+        let f = |t : &mut Elf_SectionHeaderFlags| Ok(t.set_params((self.flags()).try_into().map_err(|_| KError::CastError)?));
+        let t = Self::read_into_with_init::<_, Elf_SectionHeaderFlags>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()), &f)?.into();
         *self.flags_obj.borrow_mut() = t;
         Ok(self.flags_obj.borrow())
     }
@@ -10990,75 +8391,32 @@ impl Elf_EndianElf_SectionHeader {
      * may reference a later section header, so don't try to access too early (use only lazy `instances`)
      * \sa <https://refspecs.linuxfoundation.org/elf/gabi4+/ch4.sheader.html#sh_link> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn linked_section(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_SectionHeader>>> {
         let _io = self._io.borrow();
         if self.f_linked_section.get() {
             return Ok(self.linked_section.borrow());
         }
-        if ((to_i128(*self.linked_section_idx()))
-            != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))
-            && ((to_i128(*self.linked_section_idx()))
-                < (to_i128(
-                    *self
-                        ._root
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingRoot)?
-                        .header()
-                        .num_section_headers(),
-                )))
-        {
-            *self.linked_section.borrow_mut() = self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .header()
-                .section_headers()?
-                .get(usize::try_from(*self.linked_section_idx())?)
-                .ok_or(KError::CastError)?
-                .clone();
+        if  ((((to_i128(*self.linked_section_idx())) != (to_i128(i64::from(&Elf_SectionHeaderIdxSpecial::Undefined))))) && (((to_i128(*self.linked_section_idx())) < (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().num_section_headers())))))  {
+            *self.linked_section.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().section_headers()?.get(usize::try_from(*self.linked_section_idx())?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.linked_section.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_name.get() {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .header()
-                .section_names()?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().section_names()?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs_name())?)?;
-        *self.name.borrow_mut() =
-            bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         io.seek(_pos)?;
         Ok(self.name.borrow())
     }
@@ -11076,60 +8434,36 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn flags(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.flags
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.flags.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn flags_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Flags>> {
+    pub fn flags_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Flags>> {
         self.flags.borrow()
     }
 }
 impl Elf_EndianElf_SectionHeader {
     pub fn addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.addr
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.addr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn addr_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Addr>> {
+    pub fn addr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Addr>> {
         self.addr.borrow()
     }
 }
 impl Elf_EndianElf_SectionHeader {
     pub fn ofs_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_body
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.ofs_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn ofs_body_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_OfsBody>> {
+    pub fn ofs_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_OfsBody>> {
         self.ofs_body.borrow()
     }
 }
 impl Elf_EndianElf_SectionHeader {
     pub fn len_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.len_body
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.len_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn len_body_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_LenBody>> {
+    pub fn len_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_LenBody>> {
         self.len_body.borrow()
     }
 }
@@ -11146,30 +8480,18 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn align(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.align
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.align.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn align_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Align>> {
+    pub fn align_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Align>> {
         self.align.borrow()
     }
 }
 impl Elf_EndianElf_SectionHeader {
     pub fn entry_size(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.entry_size
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.entry_size.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn entry_size_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_EntrySize>> {
+    pub fn entry_size_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_EntrySize>> {
         self.entry_size.borrow()
     }
 }
@@ -11210,59 +8532,35 @@ pub struct Elf_EndianElf_ShDynamicSection {
     is_string_table_linked: RefCell<bool>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_ShDynamicSection>
-    for OptRc<Elf_EndianElf_ShDynamicSection>
-{
+impl TryFrom<&Elf_EndianElf_ShDynamicSection> for OptRc<Elf_EndianElf_ShDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ShDynamicSection,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_ShDynamicSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_ShDynamicSection>
-    for OptRc<Elf_EndianElf_ShDynamicSection>
-{
+impl TryFrom<&&Elf_EndianElf_ShDynamicSection> for OptRc<Elf_EndianElf_ShDynamicSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ShDynamicSection,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ShDynamicSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSection>
-    for Elf_EndianElf_ShDynamicSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for Elf_EndianElf_ShDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSection>
-    for &Elf_EndianElf_ShDynamicSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for &Elf_EndianElf_ShDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSection>
-    for OptRc<Elf_EndianElf_ShDynamicSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for OptRc<Elf_EndianElf_ShDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSection>
-    for &OptRc<Elf_EndianElf_ShDynamicSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for &OptRc<Elf_EndianElf_ShDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11270,11 +8568,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11290,28 +8584,13 @@ impl KStruct for Elf_EndianElf_ShDynamicSection {
         {
             let mut _i = 0_usize;
             loop {
-                let f = |t: &mut Elf_EndianElf_ShDynamicSectionEntry| {
-                    Ok(t.set_endian(*self_rc._is_le.borrow()))
-                };
-                let t = Self::read_into_with_init::<
-                    _,
-                    Elf_EndianElf_ShDynamicSectionEntry,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                    &f,
-                )?
-                .into();
+                let f = |t : &mut Elf_EndianElf_ShDynamicSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
+                let t = Self::read_into_with_init::<_, Elf_EndianElf_ShDynamicSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 let _t_entries = self_rc.entries.borrow();
-                let Some(_tmpa) = _t_entries.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_entries.last() else { break; };
                 _i = _i.saturating_add(1);
-                if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null {
-                    break;
-                }
+                if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -11325,35 +8604,21 @@ impl Elf_EndianElf_ShDynamicSection {
     }
 }
 impl Elf_EndianElf_ShDynamicSection {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_string_table_linked(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_string_table_linked(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_string_table_linked.get() {
             return Ok(self.is_string_table_linked.borrow());
         }
         self.f_is_string_table_linked.set(true);
-        *self.is_string_table_linked.borrow_mut() = (*self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .linked_section()?
-            .r#type()
-            == Elf_ShType::Strtab)
-            .try_into()?;
+        *self.is_string_table_linked.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.r#type() == Elf_ShType::Strtab).try_into()?;
         Ok(self.is_string_table_linked.borrow())
     }
 }
 impl Elf_EndianElf_ShDynamicSection {
-    pub fn entries(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Elf_EndianElf_ShDynamicSectionEntry>>> {
+    pub fn entries(&self) -> Ref<'_, Vec<OptRc<Elf_EndianElf_ShDynamicSectionEntry>>> {
         self.entries.borrow()
     }
 }
@@ -11383,8 +8648,7 @@ pub struct Elf_EndianElf_ShDynamicSectionEntry {
     pub(crate) _parent: SharedType<Elf_EndianElf_ShDynamicSection>,
     pub(crate) _self_shared: SharedType<Self>,
     tag: RefCell<Option<Elf_EndianElf_ShDynamicSectionEntry_Tag>>,
-    value_or_ptr:
-        RefCell<Option<Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr>>,
+    value_or_ptr: RefCell<Option<Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr>>,
     _io: RefCell<BytesReader>,
     f_flag_1_values: Cell<bool>,
     flag_1_values: RefCell<OptRc<Elf_DtFlag1Values>>,
@@ -11415,73 +8679,40 @@ impl From<u64> for Elf_EndianElf_ShDynamicSectionEntry_Tag {
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_Tag,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -11503,130 +8734,73 @@ impl From<u64> for Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr {
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(i64::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(i64::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(i64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u32 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(u32::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(u32::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u32::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(u64::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(u64::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u64::try_from(*v)?),
         }
     }
 }
 impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for usize {
     type Error = KError;
-    fn try_from(
-        e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => {
-                Ok(usize::try_from(*v)?)
-            }
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => {
-                Ok(usize::try_from(*v)?)
-            }
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
 
-impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry>
-    for OptRc<Elf_EndianElf_ShDynamicSectionEntry>
-{
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry> for OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_ShDynamicSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_ShDynamicSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_ShDynamicSectionEntry>
-    for OptRc<Elf_EndianElf_ShDynamicSectionEntry>
-{
+impl TryFrom<&&Elf_EndianElf_ShDynamicSectionEntry> for OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_ShDynamicSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_ShDynamicSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry>
-    for Elf_EndianElf_ShDynamicSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for Elf_EndianElf_ShDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry>
-    for &Elf_EndianElf_ShDynamicSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for &Elf_EndianElf_ShDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry>
-    for OptRc<Elf_EndianElf_ShDynamicSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry>
-    for &OptRc<Elf_EndianElf_ShDynamicSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for &OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11634,11 +8808,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_ShDynamicSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11650,66 +8820,22 @@ impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.tag.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.tag.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.tag.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.tag.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        match *self_rc
-            ._root
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingRoot)?
-            .bits()
-        {
+        match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
-                *self_rc.value_or_ptr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u4le()?
-                    } else {
-                        _io.read_u4be()?
-                    }
-                    .into(),
-                );
+                *self_rc.value_or_ptr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
             }
             Elf_Bits::B64 => {
-                *self_rc.value_or_ptr.borrow_mut() = Some(
-                    if *self_rc._is_le.borrow() == 1 {
-                        _io.read_u8le()?
-                    } else {
-                        _io.read_u8be()?
-                    }
-                    .into(),
-                );
+                *self_rc.value_or_ptr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? }.into());
             }
             _ => {}
         }
@@ -11724,155 +8850,74 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_ShDynamicSectionEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn flag_1_values(&self) -> KResult<Ref<'_, OptRc<Elf_DtFlag1Values>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn flag_1_values(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Elf_DtFlag1Values>>> {
         let _io = self._io.borrow();
         if self.f_flag_1_values.get() {
             return Ok(self.flag_1_values.borrow());
         }
         if *self.tag_enum()? == Elf_DynamicArrayTags::Flags1 {
-            let f = |t: &mut Elf_DtFlag1Values| {
-                Ok(t.set_params(
-                    (self.value_or_ptr())
-                        .try_into()
-                        .map_err(|_| KError::CastError)?,
-                ))
-            };
-            let t = Self::read_into_with_init::<_, Elf_DtFlag1Values>(
-                &*_io,
-                Some(self._root.clone()),
-                None,
-                &f,
-            )?
-            .into();
+            let f = |t : &mut Elf_DtFlag1Values| Ok(t.set_params((self.value_or_ptr()).try_into().map_err(|_| KError::CastError)?));
+            let t = Self::read_into_with_init::<_, Elf_DtFlag1Values>(&*_io, Some(self._root.clone()), None, &f)?.into();
             *self.flag_1_values.borrow_mut() = t;
         }
         Ok(self.flag_1_values.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn flag_values(&self) -> KResult<Ref<'_, OptRc<Elf_DtFlagValues>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn flag_values(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Elf_DtFlagValues>>> {
         let _io = self._io.borrow();
         if self.f_flag_values.get() {
             return Ok(self.flag_values.borrow());
         }
         if *self.tag_enum()? == Elf_DynamicArrayTags::Flags {
-            let f = |t: &mut Elf_DtFlagValues| {
-                Ok(t.set_params(
-                    (self.value_or_ptr())
-                        .try_into()
-                        .map_err(|_| KError::CastError)?,
-                ))
-            };
-            let t = Self::read_into_with_init::<_, Elf_DtFlagValues>(
-                &*_io,
-                Some(self._root.clone()),
-                None,
-                &f,
-            )?
-            .into();
+            let f = |t : &mut Elf_DtFlagValues| Ok(t.set_params((self.value_or_ptr()).try_into().map_err(|_| KError::CastError)?));
+            let t = Self::read_into_with_init::<_, Elf_DtFlagValues>(&*_io, Some(self._root.clone()), None, &f)?.into();
             *self.flag_values.borrow_mut() = t;
         }
         Ok(self.flag_values.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_value_str(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_value_str(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_value_str.get() {
             return Ok(self.is_value_str.borrow());
         }
         self.f_is_value_str.set(true);
-        *self.is_value_str.borrow_mut() = (((to_i128(self.value_or_ptr()))
-            != (to_i128(0)))
-            && ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Config)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit)
-                || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)))
-            .try_into()?;
+        *self.is_value_str.borrow_mut() = ( ((((to_i128(self.value_or_ptr())) != (to_i128(0)))) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
         Ok(self.is_value_str.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn tag_enum(&self) -> KResult<Ref<'_, Elf_DynamicArrayTags>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn tag_enum(
+        &self
+    ) -> KResult<Ref<'_, Elf_DynamicArrayTags>> {
         let _io = self._io.borrow();
         if self.f_tag_enum.get() {
             return Ok(self.tag_enum.borrow());
         }
         self.f_tag_enum.set(true);
-        *self.tag_enum.borrow_mut() =
-            i64::from_le_bytes((self.tag()).to_le_bytes()).try_into()?;
+        *self.tag_enum.borrow_mut() = i64::from_le_bytes((self.tag()).to_le_bytes()).try_into()?;
         Ok(self.tag_enum.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value_str(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value_str(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_value_str.get() {
             return Ok(self.value_str.borrow());
         }
         self.f_value_str.set(true);
-        if (*self.is_value_str()?)
-            && (*self
-                ._parent
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingParent)?
-                .is_string_table_linked()?)
-        {
-            let io = KStream::clone(
-                &*OptRc::<Elf_EndianElf_StringsStruct>::try_from(
-                    &*(self
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .linked_section()?
-                        .body()?
-                        .as_ref()
-                        .ok_or(KError::CastError)?),
-                )?
-                ._io(),
-            );
+        if  ((*self.is_value_str()?) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.value_or_ptr())?)?;
-            *self.value_str.borrow_mut() = bytes_to_str(
-                &io.read_bytes_term(0, false, true, true)?,
-                "ASCII",
-            )?;
+            *self.value_str.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
             io.seek(_pos)?;
         }
         Ok(self.value_str.borrow())
@@ -11881,30 +8926,18 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
 impl Elf_EndianElf_ShDynamicSectionEntry {
     pub fn tag(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.tag
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.tag.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn tag_switch_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ShDynamicSectionEntry_Tag>> {
+    pub fn tag_switch_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ShDynamicSectionEntry_Tag>> {
         self.tag.borrow()
     }
 }
 impl Elf_EndianElf_ShDynamicSectionEntry {
     pub fn value_or_ptr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.value_or_ptr
-            .borrow()
-            .as_ref()
-            .and_then(|v| u64::try_from(v).ok())
-            .unwrap_or(0)
+        self.value_or_ptr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn value_or_ptr_enum(
-        &self,
-    ) -> Ref<'_, Option<Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr>> {
+    pub fn value_or_ptr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr>> {
         self.value_or_ptr.borrow()
     }
 }
@@ -11929,55 +8962,35 @@ pub struct Elf_EndianElf_StringsStruct {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_StringsStruct>
-    for OptRc<Elf_EndianElf_StringsStruct>
-{
+impl TryFrom<&Elf_EndianElf_StringsStruct> for OptRc<Elf_EndianElf_StringsStruct> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_StringsStruct) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_StringsStruct>
-    for OptRc<Elf_EndianElf_StringsStruct>
-{
+impl TryFrom<&&Elf_EndianElf_StringsStruct> for OptRc<Elf_EndianElf_StringsStruct> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_StringsStruct) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_StringsStruct>
-    for Elf_EndianElf_StringsStruct
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for Elf_EndianElf_StringsStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_StringsStruct>
-    for &Elf_EndianElf_StringsStruct
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for &Elf_EndianElf_StringsStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_StringsStruct>
-    for OptRc<Elf_EndianElf_StringsStruct>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for OptRc<Elf_EndianElf_StringsStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_StringsStruct>
-    for &OptRc<Elf_EndianElf_StringsStruct>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for &OptRc<Elf_EndianElf_StringsStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
         Ok((*self).clone())
     }
 }
@@ -11985,11 +8998,7 @@ impl KStruct for Elf_EndianElf_StringsStruct {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12005,10 +9014,7 @@ impl KStruct for Elf_EndianElf_StringsStruct {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.entries.borrow_mut().push(bytes_to_str(
-                    &_io.read_bytes_term(0, false, true, true)?,
-                    "UTF-8",
-                )?);
+                self_rc.entries.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
                 _i = _i.saturating_add(1);
             }
         }
@@ -12022,7 +9028,8 @@ impl Elf_EndianElf_StringsStruct {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_StringsStruct {}
+impl Elf_EndianElf_StringsStruct {
+}
 impl Elf_EndianElf_StringsStruct {
     pub fn entries(&self) -> Ref<'_, Vec<String>> {
         self.entries.borrow()
@@ -12064,51 +9071,35 @@ pub struct Elf_EndianElf_VerdauxEntry {
     ofs_start: RefCell<i32>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VerdauxEntry>
-    for OptRc<Elf_EndianElf_VerdauxEntry>
-{
+impl TryFrom<&Elf_EndianElf_VerdauxEntry> for OptRc<Elf_EndianElf_VerdauxEntry> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_VerdauxEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VerdauxEntry>
-    for OptRc<Elf_EndianElf_VerdauxEntry>
-{
+impl TryFrom<&&Elf_EndianElf_VerdauxEntry> for OptRc<Elf_EndianElf_VerdauxEntry> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_VerdauxEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for Elf_EndianElf_VerdauxEntry {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for &Elf_EndianElf_VerdauxEntry {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdauxEntry>
-    for OptRc<Elf_EndianElf_VerdauxEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for OptRc<Elf_EndianElf_VerdauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdauxEntry>
-    for &OptRc<Elf_EndianElf_VerdauxEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for &OptRc<Elf_EndianElf_VerdauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12116,11 +9107,7 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerdefSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12137,25 +9124,13 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
-        if !((_tmpa == 0_u32) || (_tmpa >= 8_u32)) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/types/endian_elf/types/verdaux_entry/seq/2"
-                    .to_string(),
-            }));
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 8_u32)) ) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdaux_entry/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -12168,103 +9143,46 @@ impl Elf_EndianElf_VerdauxEntry {
     }
 }
 impl Elf_EndianElf_VerdauxEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_name.get() {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        if *self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .is_string_table_linked()?
-        {
-            let io = KStream::clone(
-                &*OptRc::<Elf_EndianElf_StringsStruct>::try_from(
-                    &*(self
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .linked_section()?
-                        .body()?
-                        .as_ref()
-                        .ok_or(KError::CastError)?),
-                )?
-                ._io(),
-            );
+        if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
-            *self.name.borrow_mut() = bytes_to_str(
-                &io.read_bytes_term(0, false, true, true)?,
-                "UTF-8",
-            )?;
+            *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
             io.seek(_pos)?;
         }
         Ok(self.name.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn next(&self) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerdauxEntry>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn next(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerdauxEntry>>> {
         let _io = self._io.borrow();
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (u32::try_from(*self.ofs_start()?)?)
-                    .saturating_add(*self.ofs_next()),
-            )?)?;
-            let f = |t: &mut Elf_EndianElf_VerdauxEntry| {
-                Ok(t.set_endian(*self._is_le.borrow()))
-            };
-            let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdauxEntry>(
-                &*_io,
-                Some(self._root.clone()),
-                Some(SharedType::new(
-                    self._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .clone(),
-                )),
-                &f,
-            )?
-            .into();
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
+            let f = |t : &mut Elf_EndianElf_VerdauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
+            let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
             _io.seek(_pos)?;
         }
         Ok(self.next.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ofs_start(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ofs_start(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ofs_start.get() {
             return Ok(self.ofs_start.borrow());
@@ -12354,55 +9272,35 @@ pub struct Elf_EndianElf_VerdefSection {
     num_entries: RefCell<u32>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VerdefSection>
-    for OptRc<Elf_EndianElf_VerdefSection>
-{
+impl TryFrom<&Elf_EndianElf_VerdefSection> for OptRc<Elf_EndianElf_VerdefSection> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_VerdefSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VerdefSection>
-    for OptRc<Elf_EndianElf_VerdefSection>
-{
+impl TryFrom<&&Elf_EndianElf_VerdefSection> for OptRc<Elf_EndianElf_VerdefSection> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_VerdefSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSection>
-    for Elf_EndianElf_VerdefSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for Elf_EndianElf_VerdefSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSection>
-    for &Elf_EndianElf_VerdefSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for &Elf_EndianElf_VerdefSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSection>
-    for OptRc<Elf_EndianElf_VerdefSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for OptRc<Elf_EndianElf_VerdefSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSection>
-    for &OptRc<Elf_EndianElf_VerdefSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for &OptRc<Elf_EndianElf_VerdefSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12410,11 +9308,7 @@ impl KStruct for Elf_EndianElf_VerdefSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12426,17 +9320,8 @@ impl KStruct for Elf_EndianElf_VerdefSection {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let f = |t: &mut Elf_EndianElf_VerdefSectionEntry| {
-            Ok(t.set_endian(*self_rc._is_le.borrow()))
-        };
-        let t =
-            Self::read_into_with_init::<_, Elf_EndianElf_VerdefSectionEntry>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-                &f,
-            )?
-            .into();
+        let f = |t : &mut Elf_EndianElf_VerdefSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
+        let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdefSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.first_entry.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -12449,33 +9334,22 @@ impl Elf_EndianElf_VerdefSection {
     }
 }
 impl Elf_EndianElf_VerdefSection {
+
     /**
      * Indicates whether a string table is linked. This should always be
      * `true` in spec-compliant ELF files. If it is `false`, the string
      * offsets in this section will not be resolved to strings.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_string_table_linked(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_string_table_linked(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_string_table_linked.get() {
             return Ok(self.is_string_table_linked.borrow());
         }
         self.f_is_string_table_linked.set(true);
-        *self.is_string_table_linked.borrow_mut() = (*self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .linked_section()?
-            .r#type()
-            == Elf_ShType::Strtab)
-            .try_into()?;
+        *self.is_string_table_linked.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.r#type() == Elf_ShType::Strtab).try_into()?;
         Ok(self.is_string_table_linked.borrow())
     }
 
@@ -12483,33 +9357,21 @@ impl Elf_EndianElf_VerdefSection {
      * Number of entries (version definitions)
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/section-headers.html#GUID-2CBE4879-2E76-426E-BB7F-CF0CB1D87C52__CHAPTER6-47976> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn num_entries(&self) -> KResult<Ref<'_, u32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn num_entries(
+        &self
+    ) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_num_entries.get() {
             return Ok(self.num_entries.borrow());
         }
         self.f_num_entries.set(true);
-        *self.num_entries.borrow_mut() = (*self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .info())
-        .try_into()?;
+        *self.num_entries.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
         Ok(self.num_entries.borrow())
     }
 }
 impl Elf_EndianElf_VerdefSection {
-    pub fn first_entry(
-        &self,
-    ) -> Ref<'_, OptRc<Elf_EndianElf_VerdefSectionEntry>> {
+    pub fn first_entry(&self) -> Ref<'_, OptRc<Elf_EndianElf_VerdefSectionEntry>> {
         self.first_entry.borrow()
     }
 }
@@ -12558,59 +9420,35 @@ pub struct Elf_EndianElf_VerdefSectionEntry {
     version_index_special: RefCell<Elf_VersionIndexSpecial>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VerdefSectionEntry>
-    for OptRc<Elf_EndianElf_VerdefSectionEntry>
-{
+impl TryFrom<&Elf_EndianElf_VerdefSectionEntry> for OptRc<Elf_EndianElf_VerdefSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_VerdefSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_VerdefSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VerdefSectionEntry>
-    for OptRc<Elf_EndianElf_VerdefSectionEntry>
-{
+impl TryFrom<&&Elf_EndianElf_VerdefSectionEntry> for OptRc<Elf_EndianElf_VerdefSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_VerdefSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_VerdefSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry>
-    for Elf_EndianElf_VerdefSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for Elf_EndianElf_VerdefSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry>
-    for &Elf_EndianElf_VerdefSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for &Elf_EndianElf_VerdefSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry>
-    for OptRc<Elf_EndianElf_VerdefSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for OptRc<Elf_EndianElf_VerdefSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry>
-    for &OptRc<Elf_EndianElf_VerdefSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for &OptRc<Elf_EndianElf_VerdefSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -12618,11 +9456,7 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerdefSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -12639,89 +9473,40 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let expected: u16 = (1).try_into()?;
         if !(*self_rc.version() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/endian_elf/types/verdef_section_entry/seq/1"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/endian_elf/types/verdef_section_entry/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.version_index.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.version_index.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let _borrowed = self_rc.version_index();
         let _tmpa = *_borrowed;
-        if !((_tmpa & 32768_u16) == 0_u16) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/types/endian_elf/types/verdef_section_entry/seq/3"
-                    .to_string(),
-            }));
+        if !(((_tmpa & 32768_u16) == 0_u16)) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/3".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.num_aux_entries.borrow_mut() = if *self_rc._is_le.borrow() == 1
-        {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.num_aux_entries.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let min_val: u16 = (1).try_into()?;
         if !(*self_rc.num_aux_entries() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/types/endian_elf/types/verdef_section_entry/seq/4"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verdef_section_entry/seq/4".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.hash.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.hash.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_first_aux.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_first_aux.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let min_val: u32 = (20).try_into()?;
         if !(*self_rc.ofs_first_aux() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/types/endian_elf/types/verdef_section_entry/seq/6"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verdef_section_entry/seq/6".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
-        if !((_tmpa == 0_u32) || (_tmpa >= 20_u32)) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/types/endian_elf/types/verdef_section_entry/seq/7"
-                    .to_string(),
-            }));
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 20_u32)) ) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/7".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -12734,126 +9519,62 @@ impl Elf_EndianElf_VerdefSectionEntry {
     }
 }
 impl Elf_EndianElf_VerdefSectionEntry {
+
     /**
      * First auxiliary entry of type `verdaux_entry` (`Elfxx_Verdaux`).
      * The rest follow its `next` instance.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn first_aux(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerdauxEntry>>> {
         let _io = self._io.borrow();
         if self.f_first_aux.get() {
             return Ok(self.first_aux.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (u32::try_from(*self.ofs_start()?)?)
-                .saturating_add(*self.ofs_first_aux()),
-        )?)?;
-        let f = |t: &mut Elf_EndianElf_VerdauxEntry| {
-            Ok(t.set_endian(*self._is_le.borrow()))
-        };
-        let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdauxEntry>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(SharedType::new(
-                self._parent
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingParent)?
-                    .clone(),
-            )),
-            &f,
-        )?
-        .into();
+        _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_first_aux()))?)?;
+        let f = |t : &mut Elf_EndianElf_VerdauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
+        let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
         *self.first_aux.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.first_aux.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flags_obj(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VersionFlags>>> {
         let _io = self._io.borrow();
         if self.f_flags_obj.get() {
             return Ok(self.flags_obj.borrow());
         }
-        let f = |t: &mut Elf_EndianElf_VersionFlags| {
-            Ok(t.set_params(
-                (*self.flags()).try_into().map_err(|_| KError::CastError)?,
-            ))
-        };
-        let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionFlags>(
-            &*_io,
-            Some(self._root.clone()),
-            None,
-            &f,
-        )?
-        .into();
+        let f = |t : &mut Elf_EndianElf_VersionFlags| Ok(t.set_params((*self.flags()).try_into().map_err(|_| KError::CastError)?));
+        let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionFlags>(&*_io, Some(self._root.clone()), None, &f)?.into();
         *self.flags_obj.borrow_mut() = t;
         Ok(self.flags_obj.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn next(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerdefSectionEntry>>> {
         let _io = self._io.borrow();
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (u32::try_from(*self.ofs_start()?)?)
-                    .saturating_add(*self.ofs_next()),
-            )?)?;
-            let f = |t: &mut Elf_EndianElf_VerdefSectionEntry| {
-                Ok(t.set_endian(*self._is_le.borrow()))
-            };
-            let t = Self::read_into_with_init::<
-                _,
-                Elf_EndianElf_VerdefSectionEntry,
-            >(
-                &*_io,
-                Some(self._root.clone()),
-                Some(SharedType::new(
-                    self._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .clone(),
-                )),
-                &f,
-            )?
-            .into();
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
+            let f = |t : &mut Elf_EndianElf_VerdefSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
+            let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdefSectionEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
             _io.seek(_pos)?;
         }
         Ok(self.next.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ofs_start(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ofs_start(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ofs_start.get() {
             return Ok(self.ofs_start.borrow());
@@ -12862,21 +9583,16 @@ impl Elf_EndianElf_VerdefSectionEntry {
         *self.ofs_start.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.ofs_start.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn version_index_special(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Elf_VersionIndexSpecial>> {
         let _io = self._io.borrow();
         if self.f_version_index_special.get() {
             return Ok(self.version_index_special.borrow());
         }
         self.f_version_index_special.set(true);
-        *self.version_index_special.borrow_mut() =
-            i64::from(*self.version_index()).try_into()?;
+        *self.version_index_special.borrow_mut() = i64::from(*self.version_index()).try_into()?;
         Ok(self.version_index_special.borrow())
     }
 }
@@ -13001,51 +9717,35 @@ pub struct Elf_EndianElf_VernauxEntry {
     ofs_start: RefCell<i32>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VernauxEntry>
-    for OptRc<Elf_EndianElf_VernauxEntry>
-{
+impl TryFrom<&Elf_EndianElf_VernauxEntry> for OptRc<Elf_EndianElf_VernauxEntry> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_VernauxEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VernauxEntry>
-    for OptRc<Elf_EndianElf_VernauxEntry>
-{
+impl TryFrom<&&Elf_EndianElf_VernauxEntry> for OptRc<Elf_EndianElf_VernauxEntry> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_VernauxEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for Elf_EndianElf_VernauxEntry {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for &Elf_EndianElf_VernauxEntry {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VernauxEntry>
-    for OptRc<Elf_EndianElf_VernauxEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for OptRc<Elf_EndianElf_VernauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VernauxEntry>
-    for &OptRc<Elf_EndianElf_VernauxEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for &OptRc<Elf_EndianElf_VernauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -13053,11 +9753,7 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerneedSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -13074,49 +9770,21 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.hash.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.hash.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        let f = |t: &mut Elf_EndianElf_VersionIndex| {
-            Ok(t.set_endian(*self_rc._is_le.borrow()))
-        };
-        let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionIndex>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-            &f,
-        )?
-        .into();
+        let f = |t : &mut Elf_EndianElf_VersionIndex| Ok(t.set_endian(*self_rc._is_le.borrow()));
+        let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionIndex>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.version_index.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
-        if !((_tmpa == 0_u32) || (_tmpa >= 16_u32)) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/types/endian_elf/types/vernaux_entry/seq/5"
-                    .to_string(),
-            }));
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/vernaux_entry/seq/5".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -13129,130 +9797,59 @@ impl Elf_EndianElf_VernauxEntry {
     }
 }
 impl Elf_EndianElf_VernauxEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flags_obj(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VersionFlags>>> {
         let _io = self._io.borrow();
         if self.f_flags_obj.get() {
             return Ok(self.flags_obj.borrow());
         }
-        let f = |t: &mut Elf_EndianElf_VersionFlags| {
-            Ok(t.set_params(
-                (*self.flags()).try_into().map_err(|_| KError::CastError)?,
-            ))
-        };
-        let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionFlags>(
-            &*_io,
-            Some(self._root.clone()),
-            None,
-            &f,
-        )?
-        .into();
+        let f = |t : &mut Elf_EndianElf_VersionFlags| Ok(t.set_params((*self.flags()).try_into().map_err(|_| KError::CastError)?));
+        let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionFlags>(&*_io, Some(self._root.clone()), None, &f)?.into();
         *self.flags_obj.borrow_mut() = t;
         Ok(self.flags_obj.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_name.get() {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        if *self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .is_string_table_linked()?
-        {
-            let io = KStream::clone(
-                &*OptRc::<Elf_EndianElf_StringsStruct>::try_from(
-                    &*(self
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .linked_section()?
-                        .body()?
-                        .as_ref()
-                        .ok_or(KError::CastError)?),
-                )?
-                ._io(),
-            );
+        if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
-            *self.name.borrow_mut() = bytes_to_str(
-                &io.read_bytes_term(0, false, true, true)?,
-                "UTF-8",
-            )?;
+            *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
             io.seek(_pos)?;
         }
         Ok(self.name.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn next(&self) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VernauxEntry>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn next(
+        &self
+    ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VernauxEntry>>> {
         let _io = self._io.borrow();
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (u32::try_from(*self.ofs_start()?)?)
-                    .saturating_add(*self.ofs_next()),
-            )?)?;
-            let f = |t: &mut Elf_EndianElf_VernauxEntry| {
-                Ok(t.set_endian(*self._is_le.borrow()))
-            };
-            let t = Self::read_into_with_init::<_, Elf_EndianElf_VernauxEntry>(
-                &*_io,
-                Some(self._root.clone()),
-                Some(SharedType::new(
-                    self._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .clone(),
-                )),
-                &f,
-            )?
-            .into();
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
+            let f = |t : &mut Elf_EndianElf_VernauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
+            let t = Self::read_into_with_init::<_, Elf_EndianElf_VernauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
             _io.seek(_pos)?;
         }
         Ok(self.next.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ofs_start(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ofs_start(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ofs_start.get() {
             return Ok(self.ofs_start.borrow());
@@ -13374,57 +9971,35 @@ pub struct Elf_EndianElf_VerneedSection {
     num_entries: RefCell<u32>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VerneedSection>
-    for OptRc<Elf_EndianElf_VerneedSection>
-{
+impl TryFrom<&Elf_EndianElf_VerneedSection> for OptRc<Elf_EndianElf_VerneedSection> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_VerneedSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VerneedSection>
-    for OptRc<Elf_EndianElf_VerneedSection>
-{
+impl TryFrom<&&Elf_EndianElf_VerneedSection> for OptRc<Elf_EndianElf_VerneedSection> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_VerneedSection,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_VerneedSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSection>
-    for Elf_EndianElf_VerneedSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for Elf_EndianElf_VerneedSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSection>
-    for &Elf_EndianElf_VerneedSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for &Elf_EndianElf_VerneedSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSection>
-    for OptRc<Elf_EndianElf_VerneedSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for OptRc<Elf_EndianElf_VerneedSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSection>
-    for &OptRc<Elf_EndianElf_VerneedSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for &OptRc<Elf_EndianElf_VerneedSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -13432,11 +10007,7 @@ impl KStruct for Elf_EndianElf_VerneedSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -13448,17 +10019,8 @@ impl KStruct for Elf_EndianElf_VerneedSection {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let f = |t: &mut Elf_EndianElf_VerneedSectionEntry| {
-            Ok(t.set_endian(*self_rc._is_le.borrow()))
-        };
-        let t =
-            Self::read_into_with_init::<_, Elf_EndianElf_VerneedSectionEntry>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-                &f,
-            )?
-            .into();
+        let f = |t : &mut Elf_EndianElf_VerneedSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
+        let t = Self::read_into_with_init::<_, Elf_EndianElf_VerneedSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.first_entry.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -13471,33 +10033,22 @@ impl Elf_EndianElf_VerneedSection {
     }
 }
 impl Elf_EndianElf_VerneedSection {
+
     /**
      * Indicates whether a string table is linked. This should always be
      * `true` in spec-compliant ELF files. If it is `false`, the string
      * offsets in this section will not be resolved to strings.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_string_table_linked(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_string_table_linked(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_string_table_linked.get() {
             return Ok(self.is_string_table_linked.borrow());
         }
         self.f_is_string_table_linked.set(true);
-        *self.is_string_table_linked.borrow_mut() = (*self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .linked_section()?
-            .r#type()
-            == Elf_ShType::Strtab)
-            .try_into()?;
+        *self.is_string_table_linked.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.r#type() == Elf_ShType::Strtab).try_into()?;
         Ok(self.is_string_table_linked.borrow())
     }
 
@@ -13505,33 +10056,21 @@ impl Elf_EndianElf_VerneedSection {
      * Number of entries (dependency versions)
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/section-headers.html#GUID-2CBE4879-2E76-426E-BB7F-CF0CB1D87C52__CHAPTER6-47976> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn num_entries(&self) -> KResult<Ref<'_, u32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn num_entries(
+        &self
+    ) -> KResult<Ref<'_, u32>> {
         let _io = self._io.borrow();
         if self.f_num_entries.get() {
             return Ok(self.num_entries.borrow());
         }
         self.f_num_entries.set(true);
-        *self.num_entries.borrow_mut() = (*self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .info())
-        .try_into()?;
+        *self.num_entries.borrow_mut() = (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.info()).try_into()?;
         Ok(self.num_entries.borrow())
     }
 }
 impl Elf_EndianElf_VerneedSection {
-    pub fn first_entry(
-        &self,
-    ) -> Ref<'_, OptRc<Elf_EndianElf_VerneedSectionEntry>> {
+    pub fn first_entry(&self) -> Ref<'_, OptRc<Elf_EndianElf_VerneedSectionEntry>> {
         self.first_entry.borrow()
     }
 }
@@ -13576,59 +10115,35 @@ pub struct Elf_EndianElf_VerneedSectionEntry {
     ofs_start: RefCell<i32>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VerneedSectionEntry>
-    for OptRc<Elf_EndianElf_VerneedSectionEntry>
-{
+impl TryFrom<&Elf_EndianElf_VerneedSectionEntry> for OptRc<Elf_EndianElf_VerneedSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &Elf_EndianElf_VerneedSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Elf_EndianElf_VerneedSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VerneedSectionEntry>
-    for OptRc<Elf_EndianElf_VerneedSectionEntry>
-{
+impl TryFrom<&&Elf_EndianElf_VerneedSectionEntry> for OptRc<Elf_EndianElf_VerneedSectionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&Elf_EndianElf_VerneedSectionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Elf_EndianElf_VerneedSectionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry>
-    for Elf_EndianElf_VerneedSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for Elf_EndianElf_VerneedSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry>
-    for &Elf_EndianElf_VerneedSectionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for &Elf_EndianElf_VerneedSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry>
-    for OptRc<Elf_EndianElf_VerneedSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for OptRc<Elf_EndianElf_VerneedSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry>
-    for &OptRc<Elf_EndianElf_VerneedSectionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for &OptRc<Elf_EndianElf_VerneedSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -13636,11 +10151,7 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerneedSection;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -13657,68 +10168,31 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let expected: u16 = (1).try_into()?;
         if !(*self_rc.version() == expected) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/endian_elf/types/verneed_section_entry/seq/1"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/endian_elf/types/verneed_section_entry/seq/1".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.num_aux_entries.borrow_mut() = if *self_rc._is_le.borrow() == 1
-        {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.num_aux_entries.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let min_val: u16 = (1).try_into()?;
         if !(*self_rc.num_aux_entries() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/types/endian_elf/types/verneed_section_entry/seq/2"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verneed_section_entry/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_file_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_file_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_first_aux.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_first_aux.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let min_val: u32 = (16).try_into()?;
         if !(*self_rc.ofs_first_aux() >= min_val) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::LessThan,
-                src_path: "/types/endian_elf/types/verneed_section_entry/seq/4"
-                    .to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verneed_section_entry/seq/4".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u4le()?
-        } else {
-            _io.read_u4be()?
-        };
+        *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
-        if !((_tmpa == 0_u32) || (_tmpa >= 16_u32)) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::Expr,
-                src_path: "/types/endian_elf/types/verneed_section_entry/seq/5"
-                    .to_string(),
-            }));
+        if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verneed_section_entry/seq/5".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -13731,54 +10205,20 @@ impl Elf_EndianElf_VerneedSectionEntry {
     }
 }
 impl Elf_EndianElf_VerneedSectionEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn file_name(&self) -> KResult<Ref<'_, String>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn file_name(
+        &self
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_file_name.get() {
             return Ok(self.file_name.borrow());
         }
         self.f_file_name.set(true);
-        if *self
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .is_string_table_linked()?
-        {
-            let io = KStream::clone(
-                &*OptRc::<Elf_EndianElf_StringsStruct>::try_from(
-                    &*(self
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        ._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .linked_section()?
-                        .body()?
-                        .as_ref()
-                        .ok_or(KError::CastError)?),
-                )?
-                ._io(),
-            );
+        if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_file_name())?)?;
-            *self.file_name.borrow_mut() = bytes_to_str(
-                &io.read_bytes_term(0, false, true, true)?,
-                "UTF-8",
-            )?;
+            *self.file_name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
             io.seek(_pos)?;
         }
         Ok(self.file_name.borrow())
@@ -13788,95 +10228,44 @@ impl Elf_EndianElf_VerneedSectionEntry {
      * First auxiliary entry of type `vernaux_entry` (`Elfxx_Vernaux`).
      * The rest follow its `next` instance.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn first_aux(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VernauxEntry>>> {
         let _io = self._io.borrow();
         if self.f_first_aux.get() {
             return Ok(self.first_aux.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(
-            (u32::try_from(*self.ofs_start()?)?)
-                .saturating_add(*self.ofs_first_aux()),
-        )?)?;
-        let f = |t: &mut Elf_EndianElf_VernauxEntry| {
-            Ok(t.set_endian(*self._is_le.borrow()))
-        };
-        let t = Self::read_into_with_init::<_, Elf_EndianElf_VernauxEntry>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(SharedType::new(
-                self._parent
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingParent)?
-                    .clone(),
-            )),
-            &f,
-        )?
-        .into();
+        _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_first_aux()))?)?;
+        let f = |t : &mut Elf_EndianElf_VernauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
+        let t = Self::read_into_with_init::<_, Elf_EndianElf_VernauxEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
         *self.first_aux.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.first_aux.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn next(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerneedSectionEntry>>> {
         let _io = self._io.borrow();
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if (to_i128(*self.ofs_next())) != (to_i128(0)) {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(
-                (u32::try_from(*self.ofs_start()?)?)
-                    .saturating_add(*self.ofs_next()),
-            )?)?;
-            let f = |t: &mut Elf_EndianElf_VerneedSectionEntry| {
-                Ok(t.set_endian(*self._is_le.borrow()))
-            };
-            let t = Self::read_into_with_init::<
-                _,
-                Elf_EndianElf_VerneedSectionEntry,
-            >(
-                &*_io,
-                Some(self._root.clone()),
-                Some(SharedType::new(
-                    self._parent
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingParent)?
-                        .clone(),
-                )),
-                &f,
-            )?
-            .into();
+            _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
+            let f = |t : &mut Elf_EndianElf_VerneedSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
+            let t = Self::read_into_with_init::<_, Elf_EndianElf_VerneedSectionEntry>(&*_io, Some(self._root.clone()), Some(SharedType::new(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())), &f)?.into();
             *self.next.borrow_mut() = t;
             _io.seek(_pos)?;
         }
         Ok(self.next.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ofs_start(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ofs_start(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_ofs_start.get() {
             return Ok(self.ofs_start.borrow());
@@ -13981,51 +10370,35 @@ pub struct Elf_EndianElf_VersionFlags {
     weak: RefCell<bool>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VersionFlags>
-    for OptRc<Elf_EndianElf_VersionFlags>
-{
+impl TryFrom<&Elf_EndianElf_VersionFlags> for OptRc<Elf_EndianElf_VersionFlags> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_VersionFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VersionFlags>
-    for OptRc<Elf_EndianElf_VersionFlags>
-{
+impl TryFrom<&&Elf_EndianElf_VersionFlags> for OptRc<Elf_EndianElf_VersionFlags> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_VersionFlags) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VersionFlags> for Elf_EndianElf_VersionFlags {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VersionFlags> for &Elf_EndianElf_VersionFlags {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersionFlags>
-    for OptRc<Elf_EndianElf_VersionFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersionFlags> for OptRc<Elf_EndianElf_VersionFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersionFlags>
-    for &OptRc<Elf_EndianElf_VersionFlags>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersionFlags> for &OptRc<Elf_EndianElf_VersionFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14033,11 +10406,7 @@ impl KStruct for Elf_EndianElf_VersionFlags {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14069,22 +10438,20 @@ impl Elf_EndianElf_VersionFlags {
     }
 }
 impl Elf_EndianElf_VersionFlags {
+
     /**
      * Version definition of the file itself (the base definition).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn base(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn base(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_base.get() {
             return Ok(self.base.borrow());
         }
         self.f_base.set(true);
-        *self.base.borrow_mut() =
-            (((i32::from(*self.value())) & (1_i32)) != 0).try_into()?;
+        *self.base.borrow_mut() = (((i32::from(*self.value())) & (1_i32)) != 0).try_into()?;
         Ok(self.base.borrow())
     }
 
@@ -14093,19 +10460,16 @@ impl Elf_EndianElf_VersionFlags {
      * need to be validated at runtime.
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/version-dependency-section.html> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn info(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn info(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_info.get() {
             return Ok(self.info.borrow());
         }
         self.f_info.set(true);
-        *self.info.borrow_mut() =
-            (((i32::from(*self.value())) & (4_i32)) != 0).try_into()?;
+        *self.info.borrow_mut() = (((i32::from(*self.value())) & (4_i32)) != 0).try_into()?;
         Ok(self.info.borrow())
     }
 
@@ -14116,19 +10480,16 @@ impl Elf_EndianElf_VersionFlags {
      * version. See [Creating a Weak Version
      * Definition](https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/creating-weak-version-definition.html).
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn weak(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn weak(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_weak.get() {
             return Ok(self.weak.borrow());
         }
         self.f_weak.set(true);
-        *self.weak.borrow_mut() =
-            (((i32::from(*self.value())) & (2_i32)) != 0).try_into()?;
+        *self.weak.borrow_mut() = (((i32::from(*self.value())) & (2_i32)) != 0).try_into()?;
         Ok(self.weak.borrow())
     }
 }
@@ -14159,51 +10520,35 @@ pub struct Elf_EndianElf_VersionIndex {
     version_index_special: RefCell<Elf_VersionIndexSpecial>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VersionIndex>
-    for OptRc<Elf_EndianElf_VersionIndex>
-{
+impl TryFrom<&Elf_EndianElf_VersionIndex> for OptRc<Elf_EndianElf_VersionIndex> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_VersionIndex) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VersionIndex>
-    for OptRc<Elf_EndianElf_VersionIndex>
-{
+impl TryFrom<&&Elf_EndianElf_VersionIndex> for OptRc<Elf_EndianElf_VersionIndex> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_VersionIndex) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VersionIndex> for Elf_EndianElf_VersionIndex {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Elf_EndianElf_VersionIndex> for &Elf_EndianElf_VersionIndex {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersionIndex>
-    for OptRc<Elf_EndianElf_VersionIndex>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersionIndex> for OptRc<Elf_EndianElf_VersionIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersionIndex>
-    for &OptRc<Elf_EndianElf_VersionIndex>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersionIndex> for &OptRc<Elf_EndianElf_VersionIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14211,11 +10556,7 @@ impl KStruct for Elf_EndianElf_VersionIndex {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14227,11 +10568,7 @@ impl KStruct for Elf_EndianElf_VersionIndex {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.raw.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_u2le()?
-        } else {
-            _io.read_u2be()?
-        };
+        *self_rc.raw.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -14243,24 +10580,22 @@ impl Elf_EndianElf_VersionIndex {
     }
 }
 impl Elf_EndianElf_VersionIndex {
+
     /**
      * This bit is set if the symbol is hidden, and is only visible with
      * an explicit version number. This is a GNU extension.
      * \sa <https://forge.sourceware.org/binutils-gdb/binutils-gdb-mirror/src/tag/binutils-2_46_1/include/elf/common.h#L1379> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_hidden(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_hidden(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_hidden.get() {
             return Ok(self.is_hidden.borrow());
         }
         self.f_is_hidden.set(true);
-        *self.is_hidden.borrow_mut() =
-            (((i32::from(*self.raw())) & (32768_i32)) != 0).try_into()?;
+        *self.is_hidden.borrow_mut() = (((i32::from(*self.raw())) & (32768_i32)) != 0).try_into()?;
         Ok(self.is_hidden.borrow())
     }
 
@@ -14270,19 +10605,16 @@ impl Elf_EndianElf_VersionIndex {
      * The `version_index_special` value instance converts the integer
      * value to the `version_index_special` enum.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn value(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn value(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_value.get() {
             return Ok(self.value.borrow());
         }
         self.f_value.set(true);
-        *self.value.borrow_mut() =
-            ((i32::from(*self.raw())) & (32767_i32)).try_into()?;
+        *self.value.borrow_mut() = (((i32::from(*self.raw())) & (32767_i32))).try_into()?;
         Ok(self.value.borrow())
     }
 
@@ -14300,21 +10632,16 @@ impl Elf_EndianElf_VersionIndex {
      * be unreachable, because `value` contains only the lower 15 bits,
      * so its maximum possible value is `0x7fff`.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn version_index_special(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Elf_VersionIndexSpecial>> {
         let _io = self._io.borrow();
         if self.f_version_index_special.get() {
             return Ok(self.version_index_special.borrow());
         }
         self.f_version_index_special.set(true);
-        *self.version_index_special.borrow_mut() =
-            i64::from(*self.raw()).try_into()?;
+        *self.version_index_special.borrow_mut() = i64::from(*self.raw()).try_into()?;
         Ok(self.version_index_special.borrow())
     }
 }
@@ -14363,55 +10690,35 @@ pub struct Elf_EndianElf_VersymSection {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
-impl TryFrom<&Elf_EndianElf_VersymSection>
-    for OptRc<Elf_EndianElf_VersymSection>
-{
+impl TryFrom<&Elf_EndianElf_VersymSection> for OptRc<Elf_EndianElf_VersymSection> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_VersymSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Elf_EndianElf_VersymSection>
-    for OptRc<Elf_EndianElf_VersymSection>
-{
+impl TryFrom<&&Elf_EndianElf_VersymSection> for OptRc<Elf_EndianElf_VersymSection> {
     type Error = KError;
     fn try_from(v: &&Elf_EndianElf_VersymSection) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersymSection>
-    for Elf_EndianElf_VersymSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for Elf_EndianElf_VersymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersymSection>
-    for &Elf_EndianElf_VersymSection
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for &Elf_EndianElf_VersymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersymSection>
-    for OptRc<Elf_EndianElf_VersymSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for OptRc<Elf_EndianElf_VersymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Elf_EndianElf_VersymSection>
-    for &OptRc<Elf_EndianElf_VersymSection>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for &OptRc<Elf_EndianElf_VersymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
         Ok((*self).clone())
     }
 }
@@ -14419,11 +10726,7 @@ impl KStruct for Elf_EndianElf_VersymSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14439,16 +10742,8 @@ impl KStruct for Elf_EndianElf_VersymSection {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let f = |t: &mut Elf_EndianElf_VersionIndex| {
-                    Ok(t.set_endian(*self_rc._is_le.borrow()))
-                };
-                let t = Self::read_into_with_init::<
-                    _,
-                    Elf_EndianElf_VersionIndex,
-                >(
-                    &*_io, Some(self_rc._root.clone()), None, &f
-                )?
-                .into();
+                let f = |t : &mut Elf_EndianElf_VersionIndex| Ok(t.set_endian(*self_rc._is_le.borrow()));
+                let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionIndex>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -14463,7 +10758,8 @@ impl Elf_EndianElf_VersymSection {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl Elf_EndianElf_VersymSection {}
+impl Elf_EndianElf_VersymSection {
+}
 
 /**
  * Version indexes for the corresponding symbols in the Dynamic
@@ -14546,11 +10842,7 @@ impl KStruct for Elf_PhdrTypeFlags {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14577,68 +10869,52 @@ impl Elf_PhdrTypeFlags {
     }
 }
 impl Elf_PhdrTypeFlags {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn execute(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn execute(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_execute.get() {
             return Ok(self.execute.borrow());
         }
         self.f_execute.set(true);
-        *self.execute.borrow_mut() = ((to_i128((*self.value()) & (1_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.execute.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.execute.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mask_proc(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mask_proc(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_mask_proc.get() {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() =
-            ((to_i128((*self.value()) & (4026531840_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.mask_proc.borrow_mut() = (((to_i128(((*self.value()) & (4026531840_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_proc.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn read(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn read(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_read.get() {
             return Ok(self.read.borrow());
         }
         self.f_read.set(true);
-        *self.read.borrow_mut() = ((to_i128((*self.value()) & (4_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.read.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.read.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn write(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn write(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_write.get() {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = ((to_i128((*self.value()) & (2_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.write.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.write.borrow())
     }
 }
@@ -14738,11 +11014,7 @@ impl KStruct for Elf_SectionHeaderFlags {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -14769,83 +11041,68 @@ impl Elf_SectionHeaderFlags {
     }
 }
 impl Elf_SectionHeaderFlags {
+
     /**
      * Occupies memory during execution
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn alloc(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn alloc(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_alloc.get() {
             return Ok(self.alloc.borrow());
         }
         self.f_alloc.set(true);
-        *self.alloc.borrow_mut() = ((to_i128((*self.value()) & (2_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.alloc.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.alloc.borrow())
     }
 
     /**
      * Section with compressed data
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn compressed(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn compressed(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_compressed.get() {
             return Ok(self.compressed.borrow());
         }
         self.f_compressed.set(true);
-        *self.compressed.borrow_mut() =
-            ((to_i128((*self.value()) & (2048_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.compressed.borrow_mut() = (((to_i128(((*self.value()) & (2048_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.compressed.borrow())
     }
 
     /**
      * Section is excluded unless referenced or allocated (Solaris)
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn exclude(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn exclude(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_exclude.get() {
             return Ok(self.exclude.borrow());
         }
         self.f_exclude.set(true);
-        *self.exclude.borrow_mut() =
-            ((to_i128((*self.value()) & (2147483648_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.exclude.borrow_mut() = (((to_i128(((*self.value()) & (2147483648_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.exclude.borrow())
     }
 
     /**
      * Executable machine instructions
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn exec_instr(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn exec_instr(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_exec_instr.get() {
             return Ok(self.exec_instr.borrow());
         }
         self.f_exec_instr.set(true);
-        *self.exec_instr.borrow_mut() = ((to_i128((*self.value()) & (4_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.exec_instr.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.exec_instr.borrow())
     }
 
@@ -14853,140 +11110,112 @@ impl Elf_SectionHeaderFlags {
      * Mbind section
      * \sa <https://forge.sourceware.org/binutils-gdb/binutils-gdb-mirror/src/tag/binutils-2_46_1/include/elf/common.h#L631> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn gnu_mbind(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn gnu_mbind(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_gnu_mbind.get() {
             return Ok(self.gnu_mbind.borrow());
         }
         self.f_gnu_mbind.set(true);
-        *self.gnu_mbind.borrow_mut() =
-            ((to_i128((*self.value()) & (16777216_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.gnu_mbind.borrow_mut() = (((to_i128(((*self.value()) & (16777216_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.gnu_mbind.borrow())
     }
 
     /**
      * Member of a section group
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn group(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn group(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_group.get() {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = ((to_i128((*self.value()) & (512_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.group.borrow_mut() = (((to_i128(((*self.value()) & (512_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.group.borrow())
     }
 
     /**
      * Section header's `sh_info` field holds a section header table index
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn info_link(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn info_link(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_info_link.get() {
             return Ok(self.info_link.borrow());
         }
         self.f_info_link.set(true);
-        *self.info_link.borrow_mut() = ((to_i128((*self.value()) & (64_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.info_link.borrow_mut() = (((to_i128(((*self.value()) & (64_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.info_link.borrow())
     }
 
     /**
      * Preserve section ordering when linking
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn link_order(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn link_order(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_link_order.get() {
             return Ok(self.link_order.borrow());
         }
         self.f_link_order.set(true);
-        *self.link_order.borrow_mut() =
-            ((to_i128((*self.value()) & (128_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.link_order.borrow_mut() = (((to_i128(((*self.value()) & (128_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.link_order.borrow())
     }
 
     /**
      * OS-specific semantics
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mask_os(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mask_os(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_mask_os.get() {
             return Ok(self.mask_os.borrow());
         }
         self.f_mask_os.set(true);
-        *self.mask_os.borrow_mut() =
-            ((to_i128((*self.value()) & (267386880_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.mask_os.borrow_mut() = (((to_i128(((*self.value()) & (267386880_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_os.borrow())
     }
 
     /**
      * Processor-specific semantics
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn mask_proc(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn mask_proc(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_mask_proc.get() {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() =
-            ((to_i128((*self.value()) & (4026531840_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.mask_proc.borrow_mut() = (((to_i128(((*self.value()) & (4026531840_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_proc.borrow())
     }
 
     /**
      * Data in this section can be merged to eliminate duplication
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn merge(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn merge(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_merge.get() {
             return Ok(self.merge.borrow());
         }
         self.f_merge.set(true);
-        *self.merge.borrow_mut() = ((to_i128((*self.value()) & (16_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.merge.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.merge.borrow())
     }
 
@@ -15001,40 +11230,32 @@ impl Elf_SectionHeaderFlags {
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L485> Source
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/section-headers.html#GUID-2CBE4879-2E76-426E-BB7F-CF0CB1D87C52__CHAPTER6-10675> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn ordered(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn ordered(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_ordered.get() {
             return Ok(self.ordered.borrow());
         }
         self.f_ordered.set(true);
-        *self.ordered.borrow_mut() =
-            ((to_i128((*self.value()) & (1073741824_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.ordered.borrow_mut() = (((to_i128(((*self.value()) & (1073741824_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.ordered.borrow())
     }
 
     /**
      * Special OS-specific handling required
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn os_nonconforming(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn os_nonconforming(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_os_nonconforming.get() {
             return Ok(self.os_nonconforming.borrow());
         }
         self.f_os_nonconforming.set(true);
-        *self.os_nonconforming.borrow_mut() =
-            ((to_i128((*self.value()) & (256_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.os_nonconforming.borrow_mut() = (((to_i128(((*self.value()) & (256_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.os_nonconforming.borrow())
     }
 
@@ -15043,40 +11264,32 @@ impl Elf_SectionHeaderFlags {
      * \sa <https://forge.sourceware.org/binutils-gdb/binutils-gdb-mirror/src/tag/binutils-2_46_1/include/elf/common.h#L630> Source
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L484> Source
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn retain(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn retain(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_retain.get() {
             return Ok(self.retain.borrow());
         }
         self.f_retain.set(true);
-        *self.retain.borrow_mut() =
-            ((to_i128((*self.value()) & (2097152_u32))) != (to_i128(0)))
-                .try_into()?;
+        *self.retain.borrow_mut() = (((to_i128(((*self.value()) & (2097152_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.retain.borrow())
     }
 
     /**
      * Contains null-terminated character strings
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn strings(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn strings(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_strings.get() {
             return Ok(self.strings.borrow());
         }
         self.f_strings.set(true);
-        *self.strings.borrow_mut() = ((to_i128((*self.value()) & (32_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.strings.borrow_mut() = (((to_i128(((*self.value()) & (32_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.strings.borrow())
     }
 
@@ -15085,40 +11298,32 @@ impl Elf_SectionHeaderFlags {
      * Handling For Thread-Local
      * Storage](https://www.akkadia.org/drepper/tls.pdf))
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn tls(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn tls(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_tls.get() {
             return Ok(self.tls.borrow());
         }
         self.f_tls.set(true);
-        *self.tls.borrow_mut() = ((to_i128((*self.value()) & (1024_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.tls.borrow_mut() = (((to_i128(((*self.value()) & (1024_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.tls.borrow())
     }
 
     /**
      * Writable during execution
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn write(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn write(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_write.get() {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = ((to_i128((*self.value()) & (1_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.write.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.write.borrow())
     }
 }

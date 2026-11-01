@@ -2,10 +2,10 @@
 // license-linter:allow-non-AGPL
 // This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
 
-use crate::generated::common::vlq_base128_be::VlqBase128Be;
-use crate::generated::common::vlq_base128_be::*;
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
+use crate::generated::common::vlq_base128_be::VlqBase128Be;
+use crate::generated::common::vlq_base128_be::*;
 
 /**
  * Standard MIDI file, typically known just as "MID", is a standard way
@@ -69,11 +69,7 @@ impl KStruct for StandardMidiFile {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,23 +81,13 @@ impl KStruct for StandardMidiFile {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, StandardMidiFile_Header>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, StandardMidiFile_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tracks.borrow_mut() = Vec::new();
         let l_tracks = usize::from(*self_rc.hdr().num_tracks());
         for _i in 0_usize..l_tracks {
-            let t = Self::read_into::<_, StandardMidiFile_Track>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, StandardMidiFile_Track>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tracks.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -109,7 +95,8 @@ impl KStruct for StandardMidiFile {
         Ok(())
     }
 }
-impl StandardMidiFile {}
+impl StandardMidiFile {
+}
 impl StandardMidiFile {
     pub fn hdr(&self) -> Ref<'_, OptRc<StandardMidiFile_Header>> {
         self.hdr.borrow()
@@ -140,59 +127,35 @@ pub struct StandardMidiFile_ChannelPressureEvent {
     pressure: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StandardMidiFile_ChannelPressureEvent>
-    for OptRc<StandardMidiFile_ChannelPressureEvent>
-{
+impl TryFrom<&StandardMidiFile_ChannelPressureEvent> for OptRc<StandardMidiFile_ChannelPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_ChannelPressureEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_ChannelPressureEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_ChannelPressureEvent>
-    for OptRc<StandardMidiFile_ChannelPressureEvent>
-{
+impl TryFrom<&&StandardMidiFile_ChannelPressureEvent> for OptRc<StandardMidiFile_ChannelPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_ChannelPressureEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_ChannelPressureEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent>
-    for StandardMidiFile_ChannelPressureEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent> for StandardMidiFile_ChannelPressureEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent>
-    for &StandardMidiFile_ChannelPressureEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent> for &StandardMidiFile_ChannelPressureEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent>
-    for OptRc<StandardMidiFile_ChannelPressureEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent> for OptRc<StandardMidiFile_ChannelPressureEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent>
-    for &OptRc<StandardMidiFile_ChannelPressureEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent> for &OptRc<StandardMidiFile_ChannelPressureEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -200,11 +163,7 @@ impl KStruct for StandardMidiFile_ChannelPressureEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -222,7 +181,8 @@ impl KStruct for StandardMidiFile_ChannelPressureEvent {
         Ok(())
     }
 }
-impl StandardMidiFile_ChannelPressureEvent {}
+impl StandardMidiFile_ChannelPressureEvent {
+}
 impl StandardMidiFile_ChannelPressureEvent {
     pub fn pressure(&self) -> Ref<'_, u8> {
         self.pressure.borrow()
@@ -249,59 +209,35 @@ pub struct StandardMidiFile_ControllerEvent {
     value: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StandardMidiFile_ControllerEvent>
-    for OptRc<StandardMidiFile_ControllerEvent>
-{
+impl TryFrom<&StandardMidiFile_ControllerEvent> for OptRc<StandardMidiFile_ControllerEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_ControllerEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_ControllerEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_ControllerEvent>
-    for OptRc<StandardMidiFile_ControllerEvent>
-{
+impl TryFrom<&&StandardMidiFile_ControllerEvent> for OptRc<StandardMidiFile_ControllerEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_ControllerEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_ControllerEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ControllerEvent>
-    for StandardMidiFile_ControllerEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ControllerEvent> for StandardMidiFile_ControllerEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ControllerEvent>
-    for &StandardMidiFile_ControllerEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ControllerEvent> for &StandardMidiFile_ControllerEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ControllerEvent>
-    for OptRc<StandardMidiFile_ControllerEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ControllerEvent> for OptRc<StandardMidiFile_ControllerEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_ControllerEvent>
-    for &OptRc<StandardMidiFile_ControllerEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ControllerEvent> for &OptRc<StandardMidiFile_ControllerEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -309,11 +245,7 @@ impl KStruct for StandardMidiFile_ControllerEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -333,7 +265,8 @@ impl KStruct for StandardMidiFile_ControllerEvent {
         Ok(())
     }
 }
-impl StandardMidiFile_ControllerEvent {}
+impl StandardMidiFile_ControllerEvent {
+}
 impl StandardMidiFile_ControllerEvent {
     pub fn controller(&self) -> Ref<'_, u8> {
         self.controller.borrow()
@@ -395,9 +328,7 @@ impl DowncastOptRc<StandardMidiFile_Header> for OptRc<StandardMidiFile_Header> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_Header>
-    for &OptRc<StandardMidiFile_Header>
-{
+impl DowncastOptRc<StandardMidiFile_Header> for &OptRc<StandardMidiFile_Header> {
     fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_Header>, KError> {
         Ok((*self).clone())
     }
@@ -406,11 +337,7 @@ impl KStruct for StandardMidiFile_Header {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -424,10 +351,7 @@ impl KStruct for StandardMidiFile_Header {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x54u8, 0x68u8, 0x64u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_header.borrow_mut() = _io.read_u4be()?;
@@ -442,7 +366,8 @@ impl KStruct for StandardMidiFile_Header {
         Ok(())
     }
 }
-impl StandardMidiFile_Header {}
+impl StandardMidiFile_Header {
+}
 impl StandardMidiFile_Header {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -491,59 +416,35 @@ pub struct StandardMidiFile_MetaEventBody {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&StandardMidiFile_MetaEventBody>
-    for OptRc<StandardMidiFile_MetaEventBody>
-{
+impl TryFrom<&StandardMidiFile_MetaEventBody> for OptRc<StandardMidiFile_MetaEventBody> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_MetaEventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_MetaEventBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_MetaEventBody>
-    for OptRc<StandardMidiFile_MetaEventBody>
-{
+impl TryFrom<&&StandardMidiFile_MetaEventBody> for OptRc<StandardMidiFile_MetaEventBody> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_MetaEventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_MetaEventBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_MetaEventBody>
-    for StandardMidiFile_MetaEventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_MetaEventBody> for StandardMidiFile_MetaEventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_MetaEventBody>
-    for &StandardMidiFile_MetaEventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_MetaEventBody> for &StandardMidiFile_MetaEventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_MetaEventBody>
-    for OptRc<StandardMidiFile_MetaEventBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_MetaEventBody> for OptRc<StandardMidiFile_MetaEventBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_MetaEventBody>
-    for &OptRc<StandardMidiFile_MetaEventBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_MetaEventBody> for &OptRc<StandardMidiFile_MetaEventBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_MetaEventBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -551,11 +452,7 @@ impl KStruct for StandardMidiFile_MetaEventBody {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -567,24 +464,21 @@ impl KStruct for StandardMidiFile_MetaEventBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.meta_type.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.meta_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StandardMidiFile_MetaEventBody {}
 impl StandardMidiFile_MetaEventBody {
-    pub fn meta_type(
-        &self,
-    ) -> Ref<'_, StandardMidiFile_MetaEventBody_MetaTypeEnum> {
+}
+impl StandardMidiFile_MetaEventBody {
+    pub fn meta_type(&self) -> Ref<'_, StandardMidiFile_MetaEventBody_MetaTypeEnum> {
         self.meta_type.borrow()
     }
 }
@@ -636,9 +530,7 @@ pub enum StandardMidiFile_MetaEventBody_MetaTypeEnum {
 
 impl TryFrom<i64> for StandardMidiFile_MetaEventBody_MetaTypeEnum {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<StandardMidiFile_MetaEventBody_MetaTypeEnum> {
+    fn try_from(flag: i64) -> KResult<StandardMidiFile_MetaEventBody_MetaTypeEnum> {
         match flag {
             0 => Ok(StandardMidiFile_MetaEventBody_MetaTypeEnum::SequenceNumber),
             1 => Ok(StandardMidiFile_MetaEventBody_MetaTypeEnum::TextEvent),
@@ -684,10 +576,9 @@ impl From<&StandardMidiFile_MetaEventBody_MetaTypeEnum> for i64 {
 }
 
 impl Default for StandardMidiFile_MetaEventBody_MetaTypeEnum {
-    fn default() -> Self {
-        StandardMidiFile_MetaEventBody_MetaTypeEnum::Unknown(0)
-    }
+    fn default() -> Self { StandardMidiFile_MetaEventBody_MetaTypeEnum::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct StandardMidiFile_NoteOffEvent {
@@ -698,59 +589,35 @@ pub struct StandardMidiFile_NoteOffEvent {
     velocity: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StandardMidiFile_NoteOffEvent>
-    for OptRc<StandardMidiFile_NoteOffEvent>
-{
+impl TryFrom<&StandardMidiFile_NoteOffEvent> for OptRc<StandardMidiFile_NoteOffEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_NoteOffEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_NoteOffEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_NoteOffEvent>
-    for OptRc<StandardMidiFile_NoteOffEvent>
-{
+impl TryFrom<&&StandardMidiFile_NoteOffEvent> for OptRc<StandardMidiFile_NoteOffEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_NoteOffEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_NoteOffEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOffEvent>
-    for StandardMidiFile_NoteOffEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOffEvent> for StandardMidiFile_NoteOffEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOffEvent>
-    for &StandardMidiFile_NoteOffEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOffEvent> for &StandardMidiFile_NoteOffEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOffEvent>
-    for OptRc<StandardMidiFile_NoteOffEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOffEvent> for OptRc<StandardMidiFile_NoteOffEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOffEvent>
-    for &OptRc<StandardMidiFile_NoteOffEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOffEvent> for &OptRc<StandardMidiFile_NoteOffEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -758,11 +625,7 @@ impl KStruct for StandardMidiFile_NoteOffEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -782,7 +645,8 @@ impl KStruct for StandardMidiFile_NoteOffEvent {
         Ok(())
     }
 }
-impl StandardMidiFile_NoteOffEvent {}
+impl StandardMidiFile_NoteOffEvent {
+}
 impl StandardMidiFile_NoteOffEvent {
     pub fn note(&self) -> Ref<'_, u8> {
         self.note.borrow()
@@ -814,57 +678,35 @@ pub struct StandardMidiFile_NoteOnEvent {
     velocity: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StandardMidiFile_NoteOnEvent>
-    for OptRc<StandardMidiFile_NoteOnEvent>
-{
+impl TryFrom<&StandardMidiFile_NoteOnEvent> for OptRc<StandardMidiFile_NoteOnEvent> {
     type Error = KError;
     fn try_from(v: &StandardMidiFile_NoteOnEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_NoteOnEvent>
-    for OptRc<StandardMidiFile_NoteOnEvent>
-{
+impl TryFrom<&&StandardMidiFile_NoteOnEvent> for OptRc<StandardMidiFile_NoteOnEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_NoteOnEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_NoteOnEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOnEvent>
-    for StandardMidiFile_NoteOnEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOnEvent> for StandardMidiFile_NoteOnEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOnEvent>
-    for &StandardMidiFile_NoteOnEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOnEvent> for &StandardMidiFile_NoteOnEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOnEvent>
-    for OptRc<StandardMidiFile_NoteOnEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOnEvent> for OptRc<StandardMidiFile_NoteOnEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOnEvent>
-    for &OptRc<StandardMidiFile_NoteOnEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOnEvent> for &OptRc<StandardMidiFile_NoteOnEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -872,11 +714,7 @@ impl KStruct for StandardMidiFile_NoteOnEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -896,7 +734,8 @@ impl KStruct for StandardMidiFile_NoteOnEvent {
         Ok(())
     }
 }
-impl StandardMidiFile_NoteOnEvent {}
+impl StandardMidiFile_NoteOnEvent {
+}
 impl StandardMidiFile_NoteOnEvent {
     pub fn note(&self) -> Ref<'_, u8> {
         self.note.borrow()
@@ -932,59 +771,35 @@ pub struct StandardMidiFile_PitchBendEvent {
     f_bend_value: Cell<bool>,
     bend_value: RefCell<i32>,
 }
-impl TryFrom<&StandardMidiFile_PitchBendEvent>
-    for OptRc<StandardMidiFile_PitchBendEvent>
-{
+impl TryFrom<&StandardMidiFile_PitchBendEvent> for OptRc<StandardMidiFile_PitchBendEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_PitchBendEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_PitchBendEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_PitchBendEvent>
-    for OptRc<StandardMidiFile_PitchBendEvent>
-{
+impl TryFrom<&&StandardMidiFile_PitchBendEvent> for OptRc<StandardMidiFile_PitchBendEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_PitchBendEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_PitchBendEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_PitchBendEvent>
-    for StandardMidiFile_PitchBendEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PitchBendEvent> for StandardMidiFile_PitchBendEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_PitchBendEvent>
-    for &StandardMidiFile_PitchBendEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PitchBendEvent> for &StandardMidiFile_PitchBendEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_PitchBendEvent>
-    for OptRc<StandardMidiFile_PitchBendEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PitchBendEvent> for OptRc<StandardMidiFile_PitchBendEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_PitchBendEvent>
-    for &OptRc<StandardMidiFile_PitchBendEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PitchBendEvent> for &OptRc<StandardMidiFile_PitchBendEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -992,11 +807,7 @@ impl KStruct for StandardMidiFile_PitchBendEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1017,37 +828,28 @@ impl KStruct for StandardMidiFile_PitchBendEvent {
     }
 }
 impl StandardMidiFile_PitchBendEvent {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn adj_bend_value(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn adj_bend_value(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_adj_bend_value.get() {
             return Ok(self.adj_bend_value.borrow());
         }
         self.f_adj_bend_value.set(true);
-        *self.adj_bend_value.borrow_mut() =
-            ((*self.bend_value()?).saturating_sub(16384_i32)).try_into()?;
+        *self.adj_bend_value.borrow_mut() = ((*self.bend_value()?).saturating_sub(16384_i32)).try_into()?;
         Ok(self.adj_bend_value.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn bend_value(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn bend_value(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_bend_value.get() {
             return Ok(self.bend_value.borrow());
         }
         self.f_bend_value.set(true);
-        *self.bend_value.borrow_mut() = ((((i32::from(*self.b2()))
-            .wrapping_shl(7_u32))
-        .saturating_add(i32::from(*self.b1())))
-        .saturating_sub(16384_i32))
-        .try_into()?;
+        *self.bend_value.borrow_mut() = ((((i32::from(*self.b2())).wrapping_shl(7_u32)).saturating_add(i32::from(*self.b1()))).saturating_sub(16384_i32)).try_into()?;
         Ok(self.bend_value.borrow())
     }
 }
@@ -1082,59 +884,35 @@ pub struct StandardMidiFile_PolyphonicPressureEvent {
     pressure: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StandardMidiFile_PolyphonicPressureEvent>
-    for OptRc<StandardMidiFile_PolyphonicPressureEvent>
-{
+impl TryFrom<&StandardMidiFile_PolyphonicPressureEvent> for OptRc<StandardMidiFile_PolyphonicPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_PolyphonicPressureEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_PolyphonicPressureEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_PolyphonicPressureEvent>
-    for OptRc<StandardMidiFile_PolyphonicPressureEvent>
-{
+impl TryFrom<&&StandardMidiFile_PolyphonicPressureEvent> for OptRc<StandardMidiFile_PolyphonicPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_PolyphonicPressureEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_PolyphonicPressureEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent>
-    for StandardMidiFile_PolyphonicPressureEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent> for StandardMidiFile_PolyphonicPressureEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent>
-    for &StandardMidiFile_PolyphonicPressureEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent> for &StandardMidiFile_PolyphonicPressureEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent>
-    for OptRc<StandardMidiFile_PolyphonicPressureEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent> for OptRc<StandardMidiFile_PolyphonicPressureEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent>
-    for &OptRc<StandardMidiFile_PolyphonicPressureEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent> for &OptRc<StandardMidiFile_PolyphonicPressureEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1142,11 +920,7 @@ impl KStruct for StandardMidiFile_PolyphonicPressureEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1166,7 +940,8 @@ impl KStruct for StandardMidiFile_PolyphonicPressureEvent {
         Ok(())
     }
 }
-impl StandardMidiFile_PolyphonicPressureEvent {}
+impl StandardMidiFile_PolyphonicPressureEvent {
+}
 impl StandardMidiFile_PolyphonicPressureEvent {
     pub fn note(&self) -> Ref<'_, u8> {
         self.note.borrow()
@@ -1197,59 +972,35 @@ pub struct StandardMidiFile_ProgramChangeEvent {
     program: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StandardMidiFile_ProgramChangeEvent>
-    for OptRc<StandardMidiFile_ProgramChangeEvent>
-{
+impl TryFrom<&StandardMidiFile_ProgramChangeEvent> for OptRc<StandardMidiFile_ProgramChangeEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_ProgramChangeEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_ProgramChangeEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_ProgramChangeEvent>
-    for OptRc<StandardMidiFile_ProgramChangeEvent>
-{
+impl TryFrom<&&StandardMidiFile_ProgramChangeEvent> for OptRc<StandardMidiFile_ProgramChangeEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_ProgramChangeEvent,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_ProgramChangeEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent>
-    for StandardMidiFile_ProgramChangeEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent> for StandardMidiFile_ProgramChangeEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent>
-    for &StandardMidiFile_ProgramChangeEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent> for &StandardMidiFile_ProgramChangeEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent>
-    for OptRc<StandardMidiFile_ProgramChangeEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent> for OptRc<StandardMidiFile_ProgramChangeEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent>
-    for &OptRc<StandardMidiFile_ProgramChangeEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent> for &OptRc<StandardMidiFile_ProgramChangeEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1257,11 +1008,7 @@ impl KStruct for StandardMidiFile_ProgramChangeEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1279,7 +1026,8 @@ impl KStruct for StandardMidiFile_ProgramChangeEvent {
         Ok(())
     }
 }
-impl StandardMidiFile_ProgramChangeEvent {}
+impl StandardMidiFile_ProgramChangeEvent {
+}
 impl StandardMidiFile_ProgramChangeEvent {
     pub fn program(&self) -> Ref<'_, u8> {
         self.program.borrow()
@@ -1307,59 +1055,35 @@ pub struct StandardMidiFile_SysexEventBody {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&StandardMidiFile_SysexEventBody>
-    for OptRc<StandardMidiFile_SysexEventBody>
-{
+impl TryFrom<&StandardMidiFile_SysexEventBody> for OptRc<StandardMidiFile_SysexEventBody> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_SysexEventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_SysexEventBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_SysexEventBody>
-    for OptRc<StandardMidiFile_SysexEventBody>
-{
+impl TryFrom<&&StandardMidiFile_SysexEventBody> for OptRc<StandardMidiFile_SysexEventBody> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_SysexEventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_SysexEventBody) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_SysexEventBody>
-    for StandardMidiFile_SysexEventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_SysexEventBody> for StandardMidiFile_SysexEventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_SysexEventBody>
-    for &StandardMidiFile_SysexEventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_SysexEventBody> for &StandardMidiFile_SysexEventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_SysexEventBody>
-    for OptRc<StandardMidiFile_SysexEventBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_SysexEventBody> for OptRc<StandardMidiFile_SysexEventBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_SysexEventBody>
-    for &OptRc<StandardMidiFile_SysexEventBody>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
+impl DowncastOptRc<StandardMidiFile_SysexEventBody> for &OptRc<StandardMidiFile_SysexEventBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_SysexEventBody>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1367,11 +1091,7 @@ impl KStruct for StandardMidiFile_SysexEventBody {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1386,14 +1106,14 @@ impl KStruct for StandardMidiFile_SysexEventBody {
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StandardMidiFile_SysexEventBody {}
+impl StandardMidiFile_SysexEventBody {
+}
 impl StandardMidiFile_SysexEventBody {
     pub fn len(&self) -> Ref<'_, OptRc<VlqBase128Be>> {
         self.len.borrow()
@@ -1468,11 +1188,7 @@ impl KStruct for StandardMidiFile_Track {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1486,31 +1202,23 @@ impl KStruct for StandardMidiFile_Track {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x4du8, 0x54u8, 0x72u8, 0x6bu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/track/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/track/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_events.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let _raw_events =
-            _io.read_bytes(usize::try_from(*self_rc.len_events())?)?;
+        let _raw_events = _io.read_bytes(usize::try_from(*self_rc.len_events())?)?;
         *self_rc.events_raw.borrow_mut() = _raw_events.clone();
         let _io_events = BytesReader::from(_raw_events);
-        let t = Self::read_into::<BytesReader, StandardMidiFile_TrackEvents>(
-            &_io_events,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, StandardMidiFile_TrackEvents>(&_io_events, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.events.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl StandardMidiFile_Track {}
+impl StandardMidiFile_Track {
+}
 impl StandardMidiFile_Track {
     pub fn magic(&self) -> Ref<'_, Vec<u8>> {
         self.magic.borrow()
@@ -1563,403 +1271,251 @@ pub struct StandardMidiFile_TrackEvent {
 pub enum StandardMidiFile_TrackEvent_EventBody {
     StandardMidiFile_NoteOffEvent(OptRc<StandardMidiFile_NoteOffEvent>),
     StandardMidiFile_NoteOnEvent(OptRc<StandardMidiFile_NoteOnEvent>),
-    StandardMidiFile_PolyphonicPressureEvent(
-        OptRc<StandardMidiFile_PolyphonicPressureEvent>,
-    ),
+    StandardMidiFile_PolyphonicPressureEvent(OptRc<StandardMidiFile_PolyphonicPressureEvent>),
     StandardMidiFile_ControllerEvent(OptRc<StandardMidiFile_ControllerEvent>),
-    StandardMidiFile_ProgramChangeEvent(
-        OptRc<StandardMidiFile_ProgramChangeEvent>,
-    ),
-    StandardMidiFile_ChannelPressureEvent(
-        OptRc<StandardMidiFile_ChannelPressureEvent>,
-    ),
+    StandardMidiFile_ProgramChangeEvent(OptRc<StandardMidiFile_ProgramChangeEvent>),
+    StandardMidiFile_ChannelPressureEvent(OptRc<StandardMidiFile_ChannelPressureEvent>),
     StandardMidiFile_PitchBendEvent(OptRc<StandardMidiFile_PitchBendEvent>),
 }
-impl TryFrom<&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_NoteOffEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_NoteOffEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_NoteOffEvent(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_NoteOffEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_NoteOffEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOffEvent>
-    for StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOffEvent> for StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
         OptRc::<StandardMidiFile_NoteOffEvent>::try_from(self)
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOffEvent>
-    for &StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOffEvent> for &StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOffEvent>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<StandardMidiFile_NoteOffEvent>>
-    for StandardMidiFile_TrackEvent_EventBody
-{
+impl From<OptRc<StandardMidiFile_NoteOffEvent>> for StandardMidiFile_TrackEvent_EventBody {
     fn from(v: OptRc<StandardMidiFile_NoteOffEvent>) -> Self {
         Self::StandardMidiFile_NoteOffEvent(v)
     }
 }
-impl TryFrom<&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_NoteOnEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_NoteOnEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_NoteOnEvent(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_NoteOnEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_NoteOnEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOnEvent>
-    for StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOnEvent> for StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
         OptRc::<StandardMidiFile_NoteOnEvent>::try_from(self)
     }
 }
-impl DowncastOptRc<StandardMidiFile_NoteOnEvent>
-    for &StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_NoteOnEvent> for &StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_NoteOnEvent>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<StandardMidiFile_NoteOnEvent>>
-    for StandardMidiFile_TrackEvent_EventBody
-{
+impl From<OptRc<StandardMidiFile_NoteOnEvent>> for StandardMidiFile_TrackEvent_EventBody {
     fn from(v: OptRc<StandardMidiFile_NoteOnEvent>) -> Self {
         Self::StandardMidiFile_NoteOnEvent(v)
     }
 }
-impl TryFrom<&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_PolyphonicPressureEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_PolyphonicPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_PolyphonicPressureEvent(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_PolyphonicPressureEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_PolyphonicPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent>
-    for StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent> for StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
         OptRc::<StandardMidiFile_PolyphonicPressureEvent>::try_from(self)
     }
 }
-impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent>
-    for &StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PolyphonicPressureEvent> for &StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PolyphonicPressureEvent>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<StandardMidiFile_PolyphonicPressureEvent>>
-    for StandardMidiFile_TrackEvent_EventBody
-{
+impl From<OptRc<StandardMidiFile_PolyphonicPressureEvent>> for StandardMidiFile_TrackEvent_EventBody {
     fn from(v: OptRc<StandardMidiFile_PolyphonicPressureEvent>) -> Self {
         Self::StandardMidiFile_PolyphonicPressureEvent(v)
     }
 }
-impl TryFrom<&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_ControllerEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ControllerEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_ControllerEvent(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_ControllerEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ControllerEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<StandardMidiFile_ControllerEvent>
-    for StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ControllerEvent> for StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
         OptRc::<StandardMidiFile_ControllerEvent>::try_from(self)
     }
 }
-impl DowncastOptRc<StandardMidiFile_ControllerEvent>
-    for &StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ControllerEvent> for &StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ControllerEvent>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<StandardMidiFile_ControllerEvent>>
-    for StandardMidiFile_TrackEvent_EventBody
-{
+impl From<OptRc<StandardMidiFile_ControllerEvent>> for StandardMidiFile_TrackEvent_EventBody {
     fn from(v: OptRc<StandardMidiFile_ControllerEvent>) -> Self {
         Self::StandardMidiFile_ControllerEvent(v)
     }
 }
-impl TryFrom<&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_ProgramChangeEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ProgramChangeEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_ProgramChangeEvent(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_ProgramChangeEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ProgramChangeEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent>
-    for StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent> for StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
         OptRc::<StandardMidiFile_ProgramChangeEvent>::try_from(self)
     }
 }
-impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent>
-    for &StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ProgramChangeEvent> for &StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ProgramChangeEvent>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<StandardMidiFile_ProgramChangeEvent>>
-    for StandardMidiFile_TrackEvent_EventBody
-{
+impl From<OptRc<StandardMidiFile_ProgramChangeEvent>> for StandardMidiFile_TrackEvent_EventBody {
     fn from(v: OptRc<StandardMidiFile_ProgramChangeEvent>) -> Self {
         Self::StandardMidiFile_ProgramChangeEvent(v)
     }
 }
-impl TryFrom<&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_ChannelPressureEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ChannelPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_ChannelPressureEvent(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_ChannelPressureEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_ChannelPressureEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent>
-    for StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent> for StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
         OptRc::<StandardMidiFile_ChannelPressureEvent>::try_from(self)
     }
 }
-impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent>
-    for &StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_ChannelPressureEvent> for &StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_ChannelPressureEvent>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<StandardMidiFile_ChannelPressureEvent>>
-    for StandardMidiFile_TrackEvent_EventBody
-{
+impl From<OptRc<StandardMidiFile_ChannelPressureEvent>> for StandardMidiFile_TrackEvent_EventBody {
     fn from(v: OptRc<StandardMidiFile_ChannelPressureEvent>) -> Self {
         Self::StandardMidiFile_ChannelPressureEvent(v)
     }
 }
-impl TryFrom<&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_PitchBendEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_PitchBendEvent> {
     type Error = KError;
-    fn try_from(
-        v: &StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         if let StandardMidiFile_TrackEvent_EventBody::StandardMidiFile_PitchBendEvent(x) = v {
             return Ok(x.clone());
         }
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody>
-    for OptRc<StandardMidiFile_PitchBendEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent_EventBody> for OptRc<StandardMidiFile_PitchBendEvent> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvent_EventBody,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvent_EventBody) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<StandardMidiFile_PitchBendEvent>
-    for StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PitchBendEvent> for StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
         OptRc::<StandardMidiFile_PitchBendEvent>::try_from(self)
     }
 }
-impl DowncastOptRc<StandardMidiFile_PitchBendEvent>
-    for &StandardMidiFile_TrackEvent_EventBody
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_PitchBendEvent> for &StandardMidiFile_TrackEvent_EventBody {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_PitchBendEvent>, KError> {
         (*self).downcast_optrc()
     }
 }
-impl From<OptRc<StandardMidiFile_PitchBendEvent>>
-    for StandardMidiFile_TrackEvent_EventBody
-{
+impl From<OptRc<StandardMidiFile_PitchBendEvent>> for StandardMidiFile_TrackEvent_EventBody {
     fn from(v: OptRc<StandardMidiFile_PitchBendEvent>) -> Self {
         Self::StandardMidiFile_PitchBendEvent(v)
     }
 }
-impl TryFrom<&StandardMidiFile_TrackEvent>
-    for OptRc<StandardMidiFile_TrackEvent>
-{
+impl TryFrom<&StandardMidiFile_TrackEvent> for OptRc<StandardMidiFile_TrackEvent> {
     type Error = KError;
     fn try_from(v: &StandardMidiFile_TrackEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvent>
-    for OptRc<StandardMidiFile_TrackEvent>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvent> for OptRc<StandardMidiFile_TrackEvent> {
     type Error = KError;
     fn try_from(v: &&StandardMidiFile_TrackEvent) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvent>
-    for StandardMidiFile_TrackEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvent> for StandardMidiFile_TrackEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvent>
-    for &StandardMidiFile_TrackEvent
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvent> for &StandardMidiFile_TrackEvent {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvent>
-    for OptRc<StandardMidiFile_TrackEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvent> for OptRc<StandardMidiFile_TrackEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvent>
-    for &OptRc<StandardMidiFile_TrackEvent>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvent> for &OptRc<StandardMidiFile_TrackEvent> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvent>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1967,11 +1523,7 @@ impl KStruct for StandardMidiFile_TrackEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvents;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1989,96 +1541,44 @@ impl KStruct for StandardMidiFile_TrackEvent {
         *self_rc.event_header.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.event_header())) == (to_i128(255)) {
-            let t = Self::read_into::<_, StandardMidiFile_MetaEventBody>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+        if ((to_i128(*self_rc.event_header())) == (to_i128(255))) {
+            let t = Self::read_into::<_, StandardMidiFile_MetaEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.meta_event_body.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.event_header())) == (to_i128(240)) {
-            let t = Self::read_into::<_, StandardMidiFile_SysexEventBody>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+        if ((to_i128(*self_rc.event_header())) == (to_i128(240))) {
+            let t = Self::read_into::<_, StandardMidiFile_SysexEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.sysex_body.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc.event_type()? {
             128 => {
-                let t = Self::read_into::<_, StandardMidiFile_NoteOffEvent>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, StandardMidiFile_NoteOffEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.event_body.borrow_mut() = Some(t);
             }
             144 => {
-                let t = Self::read_into::<_, StandardMidiFile_NoteOnEvent>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, StandardMidiFile_NoteOnEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.event_body.borrow_mut() = Some(t);
             }
             160 => {
-                let t = Self::read_into::<
-                    _,
-                    StandardMidiFile_PolyphonicPressureEvent,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, StandardMidiFile_PolyphonicPressureEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.event_body.borrow_mut() = Some(t);
             }
             176 => {
-                let t = Self::read_into::<_, StandardMidiFile_ControllerEvent>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, StandardMidiFile_ControllerEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.event_body.borrow_mut() = Some(t);
             }
             192 => {
-                let t =
-                    Self::read_into::<_, StandardMidiFile_ProgramChangeEvent>(
-                        &*_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<_, StandardMidiFile_ProgramChangeEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.event_body.borrow_mut() = Some(t);
             }
             208 => {
-                let t = Self::read_into::<
-                    _,
-                    StandardMidiFile_ChannelPressureEvent,
-                >(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, StandardMidiFile_ChannelPressureEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.event_body.borrow_mut() = Some(t);
             }
             224 => {
-                let t = Self::read_into::<_, StandardMidiFile_PitchBendEvent>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, StandardMidiFile_PitchBendEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.event_body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -2089,36 +1589,30 @@ impl KStruct for StandardMidiFile_TrackEvent {
     }
 }
 impl StandardMidiFile_TrackEvent {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn channel(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn channel(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_channel.get() {
             return Ok(self.channel.borrow());
         }
         self.f_channel.set(true);
         if *self.event_type()? != 240 {
-            *self.channel.borrow_mut() =
-                ((i32::from(*self.event_header())) & (15_i32)).try_into()?;
+            *self.channel.borrow_mut() = (((i32::from(*self.event_header())) & (15_i32))).try_into()?;
         }
         Ok(self.channel.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn event_type(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn event_type(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_event_type.get() {
             return Ok(self.event_type.borrow());
         }
         self.f_event_type.set(true);
-        *self.event_type.borrow_mut() =
-            ((i32::from(*self.event_header())) & (240_i32)).try_into()?;
+        *self.event_type.borrow_mut() = (((i32::from(*self.event_header())) & (240_i32))).try_into()?;
         Ok(self.event_type.borrow())
     }
 }
@@ -2133,23 +1627,17 @@ impl StandardMidiFile_TrackEvent {
     }
 }
 impl StandardMidiFile_TrackEvent {
-    pub fn meta_event_body(
-        &self,
-    ) -> Ref<'_, OptRc<StandardMidiFile_MetaEventBody>> {
+    pub fn meta_event_body(&self) -> Ref<'_, OptRc<StandardMidiFile_MetaEventBody>> {
         self.meta_event_body.borrow()
     }
 }
 impl StandardMidiFile_TrackEvent {
-    pub fn sysex_body(
-        &self,
-    ) -> Ref<'_, OptRc<StandardMidiFile_SysexEventBody>> {
+    pub fn sysex_body(&self) -> Ref<'_, OptRc<StandardMidiFile_SysexEventBody>> {
         self.sysex_body.borrow()
     }
 }
 impl StandardMidiFile_TrackEvent {
-    pub fn event_body(
-        &self,
-    ) -> Ref<'_, Option<StandardMidiFile_TrackEvent_EventBody>> {
+    pub fn event_body(&self) -> Ref<'_, Option<StandardMidiFile_TrackEvent_EventBody>> {
         self.event_body.borrow()
     }
 }
@@ -2173,57 +1661,35 @@ pub struct StandardMidiFile_TrackEvents {
     event: RefCell<Vec<OptRc<StandardMidiFile_TrackEvent>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&StandardMidiFile_TrackEvents>
-    for OptRc<StandardMidiFile_TrackEvents>
-{
+impl TryFrom<&StandardMidiFile_TrackEvents> for OptRc<StandardMidiFile_TrackEvents> {
     type Error = KError;
     fn try_from(v: &StandardMidiFile_TrackEvents) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&StandardMidiFile_TrackEvents>
-    for OptRc<StandardMidiFile_TrackEvents>
-{
+impl TryFrom<&&StandardMidiFile_TrackEvents> for OptRc<StandardMidiFile_TrackEvents> {
     type Error = KError;
-    fn try_from(
-        v: &&StandardMidiFile_TrackEvents,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&StandardMidiFile_TrackEvents) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvents>
-    for StandardMidiFile_TrackEvents
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvents> for StandardMidiFile_TrackEvents {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvents>
-    for &StandardMidiFile_TrackEvents
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvents> for &StandardMidiFile_TrackEvents {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvents>
-    for OptRc<StandardMidiFile_TrackEvents>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvents> for OptRc<StandardMidiFile_TrackEvents> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<StandardMidiFile_TrackEvents>
-    for &OptRc<StandardMidiFile_TrackEvents>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
+impl DowncastOptRc<StandardMidiFile_TrackEvents> for &OptRc<StandardMidiFile_TrackEvents> {
+    fn downcast_optrc(&self) -> Result<OptRc<StandardMidiFile_TrackEvents>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2231,11 +1697,7 @@ impl KStruct for StandardMidiFile_TrackEvents {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_Track;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2251,12 +1713,7 @@ impl KStruct for StandardMidiFile_TrackEvents {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, StandardMidiFile_TrackEvent>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, StandardMidiFile_TrackEvent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.event.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -2266,7 +1723,8 @@ impl KStruct for StandardMidiFile_TrackEvents {
         Ok(())
     }
 }
-impl StandardMidiFile_TrackEvents {}
+impl StandardMidiFile_TrackEvents {
+}
 impl StandardMidiFile_TrackEvents {
     pub fn event(&self) -> Ref<'_, Vec<OptRc<StandardMidiFile_TrackEvent>>> {
         self.event.borrow()

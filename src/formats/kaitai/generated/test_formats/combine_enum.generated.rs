@@ -103,11 +103,7 @@ impl KStruct for CombineEnum {
     type Root = CombineEnum;
     type Parent = CombineEnum;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,33 +115,25 @@ impl KStruct for CombineEnum {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.enum_u4.borrow_mut() =
-            i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.enum_u4.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.enum_u2.borrow_mut() =
-            i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc.enum_u2.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl CombineEnum {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn enum_u4_u2(&self) -> KResult<Ref<'_, CombineEnum_Animal>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn enum_u4_u2(
+        &self
+    ) -> KResult<Ref<'_, CombineEnum_Animal>> {
         let _io = self._io.borrow();
         if self.f_enum_u4_u2.get() {
             return Ok(self.enum_u4_u2.borrow());
         }
         self.f_enum_u4_u2.set(true);
-        *self.enum_u4_u2.borrow_mut() = if false {
-            self.enum_u4().clone()
-        } else {
-            self.enum_u2().clone()
-        };
+        *self.enum_u4_u2.borrow_mut() = if false { self.enum_u4().clone() } else { self.enum_u2().clone() };
         Ok(self.enum_u4_u2.borrow())
     }
 }
@@ -193,13 +181,12 @@ impl From<&CombineEnum_Animal> for i64 {
         match *v {
             CombineEnum_Animal::Pig => 7,
             CombineEnum_Animal::Horse => 12,
-            CombineEnum_Animal::Unknown(v) => v,
+            CombineEnum_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for CombineEnum_Animal {
-    fn default() -> Self {
-        CombineEnum_Animal::Unknown(0)
-    }
+    fn default() -> Self { CombineEnum_Animal::Unknown(0) }
 }
+

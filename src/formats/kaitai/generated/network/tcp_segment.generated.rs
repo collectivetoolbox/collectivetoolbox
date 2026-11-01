@@ -68,11 +68,7 @@ impl KStruct for TcpSegment {
     type Root = TcpSegment;
     type Parent = TcpSegment;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -97,12 +93,7 @@ impl KStruct for TcpSegment {
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(4)?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
-        let t = Self::read_into::<_, TcpSegment_Flags>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, TcpSegment_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.window_size.borrow_mut() = _io.read_u2be()?;
@@ -112,15 +103,8 @@ impl KStruct for TcpSegment {
         *self_rc.urgent_pointer.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(
-            ((*self_rc.data_offset()).saturating_mul(4_u64))
-                .saturating_sub(20_u64),
-        )) != (to_i128(0))
-        {
-            *self_rc.options.borrow_mut() = _io.read_bytes(usize::try_from(
-                ((*self_rc.data_offset()).saturating_mul(4_u64))
-                    .saturating_sub(20_u64),
-            )?)?;
+        if ((to_i128(((*self_rc.data_offset()).saturating_mul(4_u64)).saturating_sub(20_u64))) != (to_i128(0))) {
+            *self_rc.options.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.data_offset()).saturating_mul(4_u64)).saturating_sub(20_u64))?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.body.borrow_mut() = _io.read_bytes_full()?;
@@ -129,7 +113,8 @@ impl KStruct for TcpSegment {
         Ok(())
     }
 }
-impl TcpSegment {}
+impl TcpSegment {
+}
 
 /**
  * Source port
@@ -282,11 +267,7 @@ impl KStruct for TcpSegment_Flags {
     type Root = TcpSegment;
     type Parent = TcpSegment;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -318,7 +299,8 @@ impl KStruct for TcpSegment_Flags {
         Ok(())
     }
 }
-impl TcpSegment_Flags {}
+impl TcpSegment_Flags {
+}
 
 /**
  * Congestion Window Reduced
@@ -404,70 +386,6 @@ impl TcpSegment_Flags {
 }
 impl std::fmt::Display for TcpSegment_Flags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            format!(
-                "{}{}",
-                format!(
-                    "{}{}",
-                    format!(
-                        "{}{}",
-                        format!(
-                            "{}{}",
-                            format!(
-                                "{}{}",
-                                format!(
-                                    "{}{}",
-                                    format!(
-                                        "{}{}",
-                                        if *self.cwr() {
-                                            "|CWR".to_string()
-                                        } else {
-                                            "".to_string()
-                                        },
-                                        if *self.ece() {
-                                            "|ECE".to_string()
-                                        } else {
-                                            "".to_string()
-                                        }
-                                    ),
-                                    if *self.urg() {
-                                        "|URG".to_string()
-                                    } else {
-                                        "".to_string()
-                                    }
-                                ),
-                                if *self.ack() {
-                                    "|ACK".to_string()
-                                } else {
-                                    "".to_string()
-                                }
-                            ),
-                            if *self.psh() {
-                                "|PSH".to_string()
-                            } else {
-                                "".to_string()
-                            }
-                        ),
-                        if *self.rst() {
-                            "|RST".to_string()
-                        } else {
-                            "".to_string()
-                        }
-                    ),
-                    if *self.syn() {
-                        "|SYN".to_string()
-                    } else {
-                        "".to_string()
-                    }
-                ),
-                if *self.fin() {
-                    "|FIN".to_string()
-                } else {
-                    "".to_string()
-                }
-            )
-        )
+        write!(f, "{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", if *self.cwr() { "|CWR".to_string() } else { "".to_string() }, if *self.ece() { "|ECE".to_string() } else { "".to_string() }), if *self.urg() { "|URG".to_string() } else { "".to_string() }), if *self.ack() { "|ACK".to_string() } else { "".to_string() }), if *self.psh() { "|PSH".to_string() } else { "".to_string() }), if *self.rst() { "|RST".to_string() } else { "".to_string() }), if *self.syn() { "|SYN".to_string() } else { "".to_string() }), if *self.fin() { "|FIN".to_string() } else { "".to_string() }))
     }
 }

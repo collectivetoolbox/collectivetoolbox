@@ -102,11 +102,7 @@ impl KStruct for BitsEnum {
     type Root = BitsEnum;
     type Parent = BitsEnum;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,23 +114,18 @@ impl KStruct for BitsEnum {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.one.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.one.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.two.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(8)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.two.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(8)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.three.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.three.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl BitsEnum {}
+impl BitsEnum {
+}
 impl BitsEnum {
     pub fn one(&self) -> Ref<'_, BitsEnum_Animal> {
         self.one.borrow()
@@ -190,13 +181,12 @@ impl From<&BitsEnum_Animal> for i64 {
             BitsEnum_Animal::Dog => 1,
             BitsEnum_Animal::Horse => 4,
             BitsEnum_Animal::Platypus => 5,
-            BitsEnum_Animal::Unknown(v) => v,
+            BitsEnum_Animal::Unknown(v) => v
         }
     }
 }
 
 impl Default for BitsEnum_Animal {
-    fn default() -> Self {
-        BitsEnum_Animal::Unknown(0)
-    }
+    fn default() -> Self { BitsEnum_Animal::Unknown(0) }
 }
+

@@ -102,11 +102,7 @@ impl KStruct for InstanceInRepeatUntil {
     type Root = InstanceInRepeatUntil;
     type Parent = InstanceInRepeatUntil;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,14 +120,10 @@ impl KStruct for InstanceInRepeatUntil {
             loop {
                 self_rc.entries.borrow_mut().push(_io.read_s2le()?);
                 let _t_entries = self_rc.entries.borrow();
-                let Some(_tmpa) = _t_entries.last() else {
-                    break;
-                };
+                let Some(_tmpa) = _t_entries.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if _tmpa == *self_rc.until_val()? {
-                    break;
-                }
+                if _tmpa == *self_rc.until_val()? { break; }
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -140,12 +132,10 @@ impl KStruct for InstanceInRepeatUntil {
     }
 }
 impl InstanceInRepeatUntil {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn until_val(&self) -> KResult<Ref<'_, i16>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn until_val(
+        &self
+    ) -> KResult<Ref<'_, i16>> {
         let _io = self._io.borrow();
         if self.f_until_val.get() {
             return Ok(self.until_val.borrow());

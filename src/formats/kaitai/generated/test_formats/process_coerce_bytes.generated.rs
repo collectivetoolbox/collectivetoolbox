@@ -100,11 +100,7 @@ impl KStruct for ProcessCoerceBytes {
     type Root = ProcessCoerceBytes;
     type Parent = ProcessCoerceBytes;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,12 +115,7 @@ impl KStruct for ProcessCoerceBytes {
         *self_rc.records.borrow_mut() = Vec::new();
         let l_records = 2_usize;
         for _i in 0_usize..l_records {
-            let t = Self::read_into::<_, ProcessCoerceBytes_Record>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, ProcessCoerceBytes_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -132,7 +123,8 @@ impl KStruct for ProcessCoerceBytes {
         Ok(())
     }
 }
-impl ProcessCoerceBytes {}
+impl ProcessCoerceBytes {
+}
 impl ProcessCoerceBytes {
     pub fn records(&self) -> Ref<'_, Vec<OptRc<ProcessCoerceBytes_Record>>> {
         self.records.borrow()
@@ -177,34 +169,22 @@ impl TryFrom<&&ProcessCoerceBytes_Record> for OptRc<ProcessCoerceBytes_Record> {
     }
 }
 impl DowncastOptRc<ProcessCoerceBytes_Record> for ProcessCoerceBytes_Record {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ProcessCoerceBytes_Record> for &ProcessCoerceBytes_Record {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ProcessCoerceBytes_Record>
-    for OptRc<ProcessCoerceBytes_Record>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
+impl DowncastOptRc<ProcessCoerceBytes_Record> for OptRc<ProcessCoerceBytes_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ProcessCoerceBytes_Record>
-    for &OptRc<ProcessCoerceBytes_Record>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
+impl DowncastOptRc<ProcessCoerceBytes_Record> for &OptRc<ProcessCoerceBytes_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceBytes_Record>, KError> {
         Ok((*self).clone())
     }
 }
@@ -212,11 +192,7 @@ impl KStruct for ProcessCoerceBytes_Record {
     type Root = ProcessCoerceBytes;
     type Parent = ProcessCoerceBytes;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -231,14 +207,13 @@ impl KStruct for ProcessCoerceBytes_Record {
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.flag())) == (to_i128(0)) {
+        if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
             *self_rc.buf_unproc.borrow_mut() = _io.read_bytes(4_usize)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.flag())) != (to_i128(0)) {
-            *self_rc.buf_proc.borrow_mut() =
-                process_xor_one(&_io.read_bytes(4_usize)?, 170_u8);
+        if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
+            *self_rc.buf_proc.borrow_mut() = process_xor_one(&_io.read_bytes(4_usize)?, 170_u8);
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -246,23 +221,16 @@ impl KStruct for ProcessCoerceBytes_Record {
     }
 }
 impl ProcessCoerceBytes_Record {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn buf(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn buf(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_buf.get() {
             return Ok(self.buf.borrow());
         }
         self.f_buf.set(true);
-        *self.buf.borrow_mut() = if (to_i128(*self.flag())) == (to_i128(0)) {
-            self.buf_unproc().to_vec()
-        } else {
-            self.buf_proc().to_vec()
-        }
-        .to_vec();
+        *self.buf.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(0))) { self.buf_unproc().to_vec() } else { self.buf_proc().to_vec() }.to_vec();
         Ok(self.buf.borrow())
     }
 }

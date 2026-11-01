@@ -101,11 +101,7 @@ impl KStruct for EofExceptionSized {
     type Root = EofExceptionSized;
     type Parent = EofExceptionSized;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,19 +116,15 @@ impl KStruct for EofExceptionSized {
         let _raw_buf = _io.read_bytes(13_usize)?;
         *self_rc.buf_raw.borrow_mut() = _raw_buf.clone();
         let _io_buf = BytesReader::from(_raw_buf);
-        let t = Self::read_into::<BytesReader, EofExceptionSized_Foo>(
-            &_io_buf,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, EofExceptionSized_Foo>(&_io_buf, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.buf.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl EofExceptionSized {}
+impl EofExceptionSized {
+}
 impl EofExceptionSized {
     pub fn buf(&self) -> Ref<'_, OptRc<EofExceptionSized_Foo>> {
         self.buf.borrow()
@@ -198,11 +190,7 @@ impl KStruct for EofExceptionSized_Foo {
     type Root = EofExceptionSized;
     type Parent = EofExceptionSized;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -218,7 +206,8 @@ impl KStruct for EofExceptionSized_Foo {
         Ok(())
     }
 }
-impl EofExceptionSized_Foo {}
+impl EofExceptionSized_Foo {
+}
 impl EofExceptionSized_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()

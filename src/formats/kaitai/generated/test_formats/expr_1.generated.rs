@@ -106,11 +106,7 @@ impl KStruct for Expr1 {
     type Root = Expr1;
     type Parent = Expr1;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,37 +120,29 @@ impl KStruct for Expr1 {
         let _io = io;
         *self_rc.len_of_1.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str1.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.len_of_1_mod()?)?)?,
-            "ASCII",
-        )?;
+        *self_rc.str1.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_of_1_mod()?)?)?, "ASCII")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Expr1 {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn len_of_1_mod(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn len_of_1_mod(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_len_of_1_mod.get() {
             return Ok(self.len_of_1_mod.borrow());
         }
         self.f_len_of_1_mod.set(true);
-        *self.len_of_1_mod.borrow_mut() =
-            ((i32::from(*self.len_of_1())).saturating_sub(2_i32)).try_into()?;
+        *self.len_of_1_mod.borrow_mut() = ((i32::from(*self.len_of_1())).saturating_sub(2_i32)).try_into()?;
         Ok(self.len_of_1_mod.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn str1_len(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn str1_len(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_str1_len.get() {
             return Ok(self.str1_len.borrow());

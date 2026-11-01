@@ -62,11 +62,7 @@ impl KStruct for WindowsSystemtime {
     type Root = WindowsSystemtime;
     type Parent = WindowsSystemtime;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -98,7 +94,8 @@ impl KStruct for WindowsSystemtime {
         Ok(())
     }
 }
-impl WindowsSystemtime {}
+impl WindowsSystemtime {
+}
 
 /**
  * Year

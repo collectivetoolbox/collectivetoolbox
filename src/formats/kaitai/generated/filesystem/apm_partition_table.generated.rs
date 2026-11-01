@@ -60,11 +60,7 @@ impl KStruct for ApmPartitionTable {
     type Root = ApmPartitionTable;
     type Parent = ApmPartitionTable;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -81,74 +77,26 @@ impl KStruct for ApmPartitionTable {
     }
 }
 impl ApmPartitionTable {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn partition_entries(
-        &self,
+        &self
     ) -> KResult<Ref<'_, Vec<OptRc<ApmPartitionTable_PartitionEntry>>>> {
         let _io = self._io.borrow();
         if self.f_partition_entries.get() {
             return Ok(self.partition_entries.borrow());
         }
         self.f_partition_entries.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(
-            *self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .sector_size()?,
-        )?)?;
+        io.seek(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?)?;
         *self.partition_entries_raw.borrow_mut() = Vec::new();
         *self.partition_entries.borrow_mut() = Vec::new();
-        let l_partition_entries = usize::try_from(
-            *self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .partition_lookup()?
-                .number_of_partitions(),
-        )?;
+        let l_partition_entries = usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.partition_lookup()?.number_of_partitions())?;
         for _i in 0_usize..l_partition_entries {
-            self.partition_entries_raw.borrow_mut().push(
-                io.read_bytes(usize::try_from(*self.sector_size()?)?)?
-                    .into(),
-            );
+            self.partition_entries_raw.borrow_mut().push(io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into());
             let partition_entries_raw = self.partition_entries_raw.borrow();
-            let _io_partition_entries_raw = BytesReader::from(
-                partition_entries_raw
-                    .last()
-                    .ok_or(KError::EmptyIterator)?
-                    .clone(),
-            );
-            let t = Self::read_into::<
-                BytesReader,
-                ApmPartitionTable_PartitionEntry,
-            >(
-                &_io_partition_entries_raw,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-            )?
-            .into();
+            let _io_partition_entries_raw = BytesReader::from(partition_entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            let t = Self::read_into::<BytesReader, ApmPartitionTable_PartitionEntry>(&_io_partition_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             self.partition_entries.borrow_mut().push(t);
         }
         io.seek(_pos)?;
@@ -160,52 +108,21 @@ impl ApmPartitionTable {
      * We parse the first entry, to know how many to parse, including the first one.
      * No logic is given what to do if other entries have a different number.
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn partition_lookup(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<ApmPartitionTable_PartitionEntry>>> {
         let _io = self._io.borrow();
         if self.f_partition_lookup.get() {
             return Ok(self.partition_lookup.borrow());
         }
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(
-            *self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                .sector_size()?,
-        )?)?;
-        *self.partition_lookup_raw.borrow_mut() = io
-            .read_bytes(usize::try_from(*self.sector_size()?)?)?
-            .into();
+        io.seek(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?)?;
+        *self.partition_lookup_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into();
         let partition_lookup_raw = self.partition_lookup_raw.borrow();
-        let _t_partition_lookup_raw_io =
-            BytesReader::from(partition_lookup_raw.clone());
-        let t =
-            Self::read_into::<BytesReader, ApmPartitionTable_PartitionEntry>(
-                &_t_partition_lookup_raw_io,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-            )?
-            .into();
+        let _t_partition_lookup_raw_io = BytesReader::from(partition_lookup_raw.clone());
+        let t = Self::read_into::<BytesReader, ApmPartitionTable_PartitionEntry>(&_t_partition_lookup_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.partition_lookup.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.partition_lookup.borrow())
@@ -215,12 +132,10 @@ impl ApmPartitionTable {
      * 0x200 (512) bytes for disks, 0x1000 (4096) bytes is not supported by APM
      * 0x800 (2048) bytes for CDROM
      */
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn sector_size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn sector_size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_sector_size.get() {
             return Ok(self.sector_size.borrow());
@@ -289,59 +204,35 @@ pub struct ApmPartitionTable_PartitionEntry {
     f_partition: Cell<bool>,
     partition: RefCell<Vec<u8>>,
 }
-impl TryFrom<&ApmPartitionTable_PartitionEntry>
-    for OptRc<ApmPartitionTable_PartitionEntry>
-{
+impl TryFrom<&ApmPartitionTable_PartitionEntry> for OptRc<ApmPartitionTable_PartitionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &ApmPartitionTable_PartitionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &ApmPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ApmPartitionTable_PartitionEntry>
-    for OptRc<ApmPartitionTable_PartitionEntry>
-{
+impl TryFrom<&&ApmPartitionTable_PartitionEntry> for OptRc<ApmPartitionTable_PartitionEntry> {
     type Error = KError;
-    fn try_from(
-        v: &&ApmPartitionTable_PartitionEntry,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&ApmPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ApmPartitionTable_PartitionEntry>
-    for ApmPartitionTable_PartitionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for ApmPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ApmPartitionTable_PartitionEntry>
-    for &ApmPartitionTable_PartitionEntry
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for &ApmPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ApmPartitionTable_PartitionEntry>
-    for OptRc<ApmPartitionTable_PartitionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for OptRc<ApmPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ApmPartitionTable_PartitionEntry>
-    for &OptRc<ApmPartitionTable_PartitionEntry>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for &OptRc<ApmPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
         Ok((*self).clone())
     }
 }
@@ -349,11 +240,7 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
     type Root = ApmPartitionTable;
     type Parent = ApmPartitionTable;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -367,10 +254,7 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x50u8, 0x4du8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/partition_entry/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_entry/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_1.borrow_mut() = _io.read_bytes(2_usize)?;
@@ -381,25 +265,9 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_size.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.partition_name.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(32_usize)?,
-                Some(0),
-                false,
-                None,
-            ),
-            "ascii",
-        )?;
+        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.partition_type.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(32_usize)?,
-                Some(0),
-                false,
-                None,
-            ),
-            "ascii",
-        )?;
+        *self_rc.partition_type.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_start.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -421,156 +289,59 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_code_cksum.borrow_mut() = _io.read_u4be()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.processor_type.borrow_mut() = bytes_to_str(
-            &bytes_terminate_pad(
-                &_io.read_bytes(16_usize)?,
-                Some(0),
-                false,
-                None,
-            ),
-            "ascii",
-        )?;
+        *self_rc.processor_type.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl ApmPartitionTable_PartitionEntry {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn boot_code(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn boot_code(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_boot_code.get() {
             return Ok(self.boot_code.borrow());
         }
         self.f_boot_code.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(
-            (*self.boot_code_start()).saturating_mul(u32::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sector_size()?,
-            )?),
-        )?)?;
-        *self.boot_code.borrow_mut() =
-            io.read_bytes(usize::try_from(*self.boot_code_size())?)?;
+        io.seek(usize::try_from((*self.boot_code_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
+        *self.boot_code.borrow_mut() = io.read_bytes(usize::try_from(*self.boot_code_size())?)?;
         io.seek(_pos)?;
         Ok(self.boot_code.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn data(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn data(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_data.get() {
             return Ok(self.data.borrow());
         }
         self.f_data.set(true);
-        let io = KStream::clone(
-            &*self
-                ._root
-                .get_value()
-                .borrow()
-                .upgrade()
-                .as_ref()
-                .ok_or(KError::MissingRoot)?
-                ._io(),
-        );
+        let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(
-            (*self.data_start()).saturating_mul(u32::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sector_size()?,
-            )?),
-        )?)?;
-        *self.data.borrow_mut() = io.read_bytes(usize::try_from(
-            (*self.data_size()).saturating_mul(u32::try_from(
-                *self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .sector_size()?,
-            )?),
-        )?)?;
+        io.seek(usize::try_from((*self.data_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
+        *self.data.borrow_mut() = io.read_bytes(usize::try_from((*self.data_size()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
         io.seek(_pos)?;
         Ok(self.data.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn partition(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn partition(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_partition.get() {
             return Ok(self.partition.borrow());
         }
         self.f_partition.set(true);
-        if (to_i128((*self.partition_status()) & (1_u32))) != (to_i128(0)) {
-            let io = KStream::clone(
-                &*self
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    ._io(),
-            );
+        if ((to_i128(((*self.partition_status()) & (1_u32)))) != (to_i128(0))) {
+            let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(
-                (*self.partition_start()).saturating_mul(u32::try_from(
-                    *self
-                        ._root
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingRoot)?
-                        .sector_size()?,
-                )?),
-            )?)?;
-            *self.partition.borrow_mut() = io.read_bytes(usize::try_from(
-                (*self.partition_size()).saturating_mul(u32::try_from(
-                    *self
-                        ._root
-                        .get_value()
-                        .borrow()
-                        .upgrade()
-                        .as_ref()
-                        .ok_or(KError::MissingRoot)?
-                        .sector_size()?,
-                )?),
-            )?)?;
+            io.seek(usize::try_from((*self.partition_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
+            *self.partition.borrow_mut() = io.read_bytes(usize::try_from((*self.partition_size()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
             io.seek(_pos)?;
         }
         Ok(self.partition.borrow())

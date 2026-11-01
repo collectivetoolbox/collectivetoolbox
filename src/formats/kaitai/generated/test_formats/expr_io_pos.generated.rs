@@ -103,11 +103,7 @@ impl KStruct for ExprIoPos {
     type Root = ExprIoPos;
     type Parent = ExprIoPos;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,30 +118,21 @@ impl KStruct for ExprIoPos {
         let _raw_substream1 = _io.read_bytes(16_usize)?;
         *self_rc.substream1_raw.borrow_mut() = _raw_substream1.clone();
         let _io_substream1 = BytesReader::from(_raw_substream1);
-        let t = Self::read_into::<BytesReader, ExprIoPos_AllPlusNumber>(
-            &_io_substream1,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ExprIoPos_AllPlusNumber>(&_io_substream1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream1.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         let _raw_substream2 = _io.read_bytes(14_usize)?;
         *self_rc.substream2_raw.borrow_mut() = _raw_substream2.clone();
         let _io_substream2 = BytesReader::from(_raw_substream2);
-        let t = Self::read_into::<BytesReader, ExprIoPos_AllPlusNumber>(
-            &_io_substream2,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, ExprIoPos_AllPlusNumber>(&_io_substream2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream2.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ExprIoPos {}
+impl ExprIoPos {
+}
 impl ExprIoPos {
     pub fn substream1(&self) -> Ref<'_, OptRc<ExprIoPos_AllPlusNumber>> {
         self.substream1.borrow()
@@ -216,9 +203,7 @@ impl DowncastOptRc<ExprIoPos_AllPlusNumber> for OptRc<ExprIoPos_AllPlusNumber> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ExprIoPos_AllPlusNumber>
-    for &OptRc<ExprIoPos_AllPlusNumber>
-{
+impl DowncastOptRc<ExprIoPos_AllPlusNumber> for &OptRc<ExprIoPos_AllPlusNumber> {
     fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos_AllPlusNumber>, KError> {
         Ok((*self).clone())
     }
@@ -227,11 +212,7 @@ impl KStruct for ExprIoPos_AllPlusNumber {
     type Root = ExprIoPos;
     type Parent = ExprIoPos;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -243,14 +224,9 @@ impl KStruct for ExprIoPos_AllPlusNumber {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.my_str.borrow_mut() =
-            bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.my_str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
-            ((usize::try_from(i64::try_from(_io.size())?)?)
-                .saturating_sub(_io.pos()))
-            .saturating_sub(2_usize),
-        )?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(2_usize))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -258,7 +234,8 @@ impl KStruct for ExprIoPos_AllPlusNumber {
         Ok(())
     }
 }
-impl ExprIoPos_AllPlusNumber {}
+impl ExprIoPos_AllPlusNumber {
+}
 impl ExprIoPos_AllPlusNumber {
     pub fn my_str(&self) -> Ref<'_, String> {
         self.my_str.borrow()

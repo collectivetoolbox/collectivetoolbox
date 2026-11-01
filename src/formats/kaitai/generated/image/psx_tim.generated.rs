@@ -62,11 +62,7 @@ impl KStruct for PsxTim {
     type Root = PsxTim;
     type Parent = PsxTim;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -80,31 +76,18 @@ impl KStruct for PsxTim {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x10u8, 0x0u8, 0x0u8, 0x0u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_clut()? {
-            let t = Self::read_into::<_, PsxTim_Bitmap>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, PsxTim_Bitmap>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.clut.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        let t = Self::read_into::<_, PsxTim_Bitmap>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, PsxTim_Bitmap>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.img.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -112,34 +95,28 @@ impl KStruct for PsxTim {
     }
 }
 impl PsxTim {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn bpp(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn bpp(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_bpp.get() {
             return Ok(self.bpp.borrow());
         }
         self.f_bpp.set(true);
-        *self.bpp.borrow_mut() = ((*self.flags()) & (3_u32)).try_into()?;
+        *self.bpp.borrow_mut() = (((*self.flags()) & (3_u32))).try_into()?;
         Ok(self.bpp.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn has_clut(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn has_clut(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_has_clut.get() {
             return Ok(self.has_clut.borrow());
         }
         self.f_has_clut.set(true);
-        *self.has_clut.borrow_mut() = ((to_i128((*self.flags()) & (8_u32)))
-            != (to_i128(0)))
-        .try_into()?;
+        *self.has_clut.borrow_mut() = (((to_i128(((*self.flags()) & (8_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_clut.borrow())
     }
 }
@@ -211,16 +188,15 @@ impl From<&PsxTim_BppType> for i64 {
             PsxTim_BppType::Bpp8 => 1,
             PsxTim_BppType::Bpp16 => 2,
             PsxTim_BppType::Bpp24 => 3,
-            PsxTim_BppType::Unknown(v) => v,
+            PsxTim_BppType::Unknown(v) => v
         }
     }
 }
 
 impl Default for PsxTim_BppType {
-    fn default() -> Self {
-        PsxTim_BppType::Unknown(0)
-    }
+    fn default() -> Self { PsxTim_BppType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct PsxTim_Bitmap {
@@ -272,11 +248,7 @@ impl KStruct for PsxTim_Bitmap {
     type Root = PsxTim;
     type Parent = PsxTim;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -298,15 +270,14 @@ impl KStruct for PsxTim_Bitmap {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(
-            (*self_rc.len()).saturating_sub(12_u32),
-        )?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(12_u32))?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl PsxTim_Bitmap {}
+impl PsxTim_Bitmap {
+}
 impl PsxTim_Bitmap {
     pub fn len(&self) -> Ref<'_, u32> {
         self.len.borrow()

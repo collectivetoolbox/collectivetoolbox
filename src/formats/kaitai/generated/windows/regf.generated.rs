@@ -70,11 +70,7 @@ impl KStruct for Regf {
     type Root = Regf;
     type Parent = Regf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -86,12 +82,7 @@ impl KStruct for Regf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Regf_FileHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Regf_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hive_bins.borrow_mut() = Vec::new();
@@ -100,12 +91,7 @@ impl KStruct for Regf {
             while !_io.is_eof() {
                 let _raw_hive_bins = _io.read_bytes(4096_usize)?;
                 let _io_hive_bins = BytesReader::from(_raw_hive_bins);
-                let t = Self::read_into::<BytesReader, Regf_HiveBin>(
-                    &_io_hive_bins,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBin>(&_io_hive_bins, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.hive_bins.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -115,7 +101,8 @@ impl KStruct for Regf {
         Ok(())
     }
 }
-impl Regf {}
+impl Regf {
+}
 impl Regf {
     pub fn header(&self) -> Ref<'_, OptRc<Regf_FileHeader>> {
         self.header.borrow()
@@ -206,11 +193,7 @@ impl KStruct for Regf_FileHeader {
     type Root = Regf;
     type Parent = Regf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -224,33 +207,23 @@ impl KStruct for Regf_FileHeader {
         let _io = io;
         *self_rc.signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.signature() == vec![0x72u8, 0x65u8, 0x67u8, 0x66u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/file_header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.primary_sequence_number.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.secondary_sequence_number.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Regf_Filetime>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.last_modification_date_and_time.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major_version.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_version.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() =
-            i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.format.borrow_mut() =
-            i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.format.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.root_key_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -274,7 +247,8 @@ impl KStruct for Regf_FileHeader {
         Ok(())
     }
 }
-impl Regf_FileHeader {}
+impl Regf_FileHeader {
+}
 impl Regf_FileHeader {
     pub fn signature(&self) -> Ref<'_, Vec<u8>> {
         self.signature.borrow()
@@ -291,9 +265,7 @@ impl Regf_FileHeader {
     }
 }
 impl Regf_FileHeader {
-    pub fn last_modification_date_and_time(
-        &self,
-    ) -> Ref<'_, OptRc<Regf_Filetime>> {
+    pub fn last_modification_date_and_time(&self) -> Ref<'_, OptRc<Regf_Filetime>> {
         self.last_modification_date_and_time.borrow()
     }
 }
@@ -408,15 +380,13 @@ impl From<&Regf_FileHeader_FileFormat> for i64 {
     fn from(v: &Regf_FileHeader_FileFormat) -> Self {
         match *v {
             Regf_FileHeader_FileFormat::DirectMemoryLoad => 1,
-            Regf_FileHeader_FileFormat::Unknown(v) => v,
+            Regf_FileHeader_FileFormat::Unknown(v) => v
         }
     }
 }
 
 impl Default for Regf_FileHeader_FileFormat {
-    fn default() -> Self {
-        Regf_FileHeader_FileFormat::Unknown(0)
-    }
+    fn default() -> Self { Regf_FileHeader_FileFormat::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -442,16 +412,15 @@ impl From<&Regf_FileHeader_FileType> for i64 {
         match *v {
             Regf_FileHeader_FileType::Normal => 0,
             Regf_FileHeader_FileType::TransactionLog => 1,
-            Regf_FileHeader_FileType::Unknown(v) => v,
+            Regf_FileHeader_FileType::Unknown(v) => v
         }
     }
 }
 
 impl Default for Regf_FileHeader_FileType {
-    fn default() -> Self {
-        Regf_FileHeader_FileType::Unknown(0)
-    }
+    fn default() -> Self { Regf_FileHeader_FileType::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Regf_Filetime {
@@ -497,11 +466,7 @@ impl KStruct for Regf_Filetime {
     type Root = Regf;
     type Parent = KStructUnit;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -519,7 +484,8 @@ impl KStruct for Regf_Filetime {
         Ok(())
     }
 }
-impl Regf_Filetime {}
+impl Regf_Filetime {
+}
 impl Regf_Filetime {
     pub fn value(&self) -> Ref<'_, u64> {
         self.value.borrow()
@@ -582,11 +548,7 @@ impl KStruct for Regf_HiveBin {
     type Root = Regf;
     type Parent = Regf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -598,24 +560,14 @@ impl KStruct for Regf_HiveBin {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Regf_HiveBinHeader>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, Regf_HiveBinHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.cells.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Regf_HiveBinCell>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, Regf_HiveBinCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.cells.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -625,7 +577,8 @@ impl KStruct for Regf_HiveBin {
         Ok(())
     }
 }
-impl Regf_HiveBin {}
+impl Regf_HiveBin {
+}
 impl Regf_HiveBin {
     pub fn header(&self) -> Ref<'_, OptRc<Regf_HiveBinHeader>> {
         self.header.borrow()
@@ -674,9 +627,7 @@ pub enum Regf_HiveBinCell_Data {
     Regf_HiveBinCell_SubKeyListVk(OptRc<Regf_HiveBinCell_SubKeyListVk>),
     Bytes(Vec<u8>),
 }
-impl TryFrom<&Regf_HiveBinCell_Data>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf>
-{
+impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
     type Error = KError;
     fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListLhLf(x) = v {
@@ -685,25 +636,19 @@ impl TryFrom<&Regf_HiveBinCell_Data>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_Data>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf>
-{
+impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
     type Error = KError;
     fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
         OptRc::<Regf_HiveBinCell_SubKeyListLhLf>::try_from(self)
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for &Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -728,16 +673,12 @@ impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
         OptRc::<Regf_HiveBinCell_SubKeyListLi>::try_from(self)
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for &Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -762,16 +703,12 @@ impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_NamedKey> {
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
         OptRc::<Regf_HiveBinCell_NamedKey>::try_from(self)
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for &Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -796,16 +733,12 @@ impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
         OptRc::<Regf_HiveBinCell_SubKeyListRi>::try_from(self)
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for &Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -830,16 +763,12 @@ impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
         OptRc::<Regf_HiveBinCell_SubKeyListSk>::try_from(self)
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for &Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -864,16 +793,12 @@ impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
         OptRc::<Regf_HiveBinCell_SubKeyListVk>::try_from(self)
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for &Regf_HiveBinCell_Data {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -938,11 +863,7 @@ impl KStruct for Regf_HiveBinCell {
     type Root = Regf;
     type Parent = Regf_HiveBin;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -956,156 +877,60 @@ impl KStruct for Regf_HiveBinCell {
         let _io = io;
         *self_rc.cell_size_raw.borrow_mut() = _io.read_s4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.identifier.borrow_mut() =
-            bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?;
+        *self_rc.identifier.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.identifier().as_str() {
             "lf" => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Regf_HiveBinCell_SubKeyListLhLf,
-                >(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListLhLf>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "lh" => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Regf_HiveBinCell_SubKeyListLhLf,
-                >(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListLhLf>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "li" => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Regf_HiveBinCell_SubKeyListLi,
-                >(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListLi>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "nk" => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t =
-                    Self::read_into::<BytesReader, Regf_HiveBinCell_NamedKey>(
-                        &_t_data_raw_io,
-                        Some(self_rc._root.clone()),
-                        Some(self_rc._self_shared.clone()),
-                    )?
-                    .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBinCell_NamedKey>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "ri" => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Regf_HiveBinCell_SubKeyListRi,
-                >(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListRi>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "sk" => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Regf_HiveBinCell_SubKeyListSk,
-                >(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListSk>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "vk" => {
-                *self_rc.data_raw.borrow_mut() = _io
-                    .read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<
-                    BytesReader,
-                    Regf_HiveBinCell_SubKeyListVk,
-                >(
-                    &_t_data_raw_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListVk>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.data.borrow_mut() = Some(
-                    _io.read_bytes(usize::try_from(
-                        ((*self_rc.cell_size()?).saturating_sub(2_i32))
-                            .saturating_sub(4_i32),
-                    )?)?
-                    .into(),
-                );
+                *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into());
             }
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1114,40 +939,28 @@ impl KStruct for Regf_HiveBinCell {
     }
 }
 impl Regf_HiveBinCell {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn cell_size(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn cell_size(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_cell_size.get() {
             return Ok(self.cell_size.borrow());
         }
         self.f_cell_size.set(true);
-        *self.cell_size.borrow_mut() =
-            ((if (to_i128(*self.cell_size_raw())) < (to_i128(0)) {
-                (0_i32).saturating_sub(to_i32(1))
-            } else {
-                1_i32
-            })
-            .saturating_mul(*self.cell_size_raw()))
-            .try_into()?;
+        *self.cell_size.borrow_mut() = ((if ((to_i128(*self.cell_size_raw())) < (to_i128(0))) { (0_i32).saturating_sub(to_i32(1)) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
         Ok(self.cell_size.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn is_allocated(&self) -> KResult<Ref<'_, bool>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn is_allocated(
+        &self
+    ) -> KResult<Ref<'_, bool>> {
         let _io = self._io.borrow();
         if self.f_is_allocated.get() {
             return Ok(self.is_allocated.borrow());
         }
         self.f_is_allocated.set(true);
-        *self.is_allocated.borrow_mut() =
-            ((to_i128(*self.cell_size_raw())) < (to_i128(0))).try_into()?;
+        *self.is_allocated.borrow_mut() = (((to_i128(*self.cell_size_raw())) < (to_i128(0)))).try_into()?;
         Ok(self.is_allocated.borrow())
     }
 }
@@ -1229,34 +1042,22 @@ impl TryFrom<&&Regf_HiveBinCell_NamedKey> for OptRc<Regf_HiveBinCell_NamedKey> {
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for Regf_HiveBinCell_NamedKey {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for &Regf_HiveBinCell_NamedKey {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_NamedKey>
-    for OptRc<Regf_HiveBinCell_NamedKey>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for OptRc<Regf_HiveBinCell_NamedKey> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_NamedKey>
-    for &OptRc<Regf_HiveBinCell_NamedKey>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for &OptRc<Regf_HiveBinCell_NamedKey> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1264,11 +1065,7 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1282,12 +1079,7 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
         let _io = io;
         *self_rc.flags.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Regf_Filetime>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.last_key_written_date_and_time.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown1.borrow_mut() = _io.read_u4le()?;
@@ -1310,8 +1102,7 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_sub_key_name_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.largest_sub_key_class_name_size.borrow_mut() =
-            _io.read_u4le()?;
+        *self_rc.largest_sub_key_class_name_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_value_name_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1325,25 +1116,21 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown_string_size.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.unknown_string.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.unknown_string_size())?)?,
-            "ascii",
-        )?;
+        *self_rc.unknown_string.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.unknown_string_size())?)?, "ascii")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Regf_HiveBinCell_NamedKey {}
+impl Regf_HiveBinCell_NamedKey {
+}
 impl Regf_HiveBinCell_NamedKey {
     pub fn flags(&self) -> Ref<'_, Regf_HiveBinCell_NamedKey_NkFlags> {
         self.flags.borrow()
     }
 }
 impl Regf_HiveBinCell_NamedKey {
-    pub fn last_key_written_date_and_time(
-        &self,
-    ) -> Ref<'_, OptRc<Regf_Filetime>> {
+    pub fn last_key_written_date_and_time(&self) -> Ref<'_, OptRc<Regf_Filetime>> {
         self.last_key_written_date_and_time.borrow()
     }
 }
@@ -1506,16 +1293,15 @@ impl From<&Regf_HiveBinCell_NamedKey_NkFlags> for i64 {
             Regf_HiveBinCell_NamedKey_NkFlags::KeyVirtualStore => 512,
             Regf_HiveBinCell_NamedKey_NkFlags::Unknown1 => 4096,
             Regf_HiveBinCell_NamedKey_NkFlags::Unknown2 => 16384,
-            Regf_HiveBinCell_NamedKey_NkFlags::Unknown(v) => v,
+            Regf_HiveBinCell_NamedKey_NkFlags::Unknown(v) => v
         }
     }
 }
 
 impl Default for Regf_HiveBinCell_NamedKey_NkFlags {
-    fn default() -> Self {
-        Regf_HiveBinCell_NamedKey_NkFlags::Unknown(0)
-    }
+    fn default() -> Self { Regf_HiveBinCell_NamedKey_NkFlags::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Regf_HiveBinCell_SubKeyListLhLf {
@@ -1526,59 +1312,35 @@ pub struct Regf_HiveBinCell_SubKeyListLhLf {
     items: RefCell<Vec<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListLhLf>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLhLf> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListLhLf,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLhLf) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListLhLf>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLhLf> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListLhLf,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLhLf) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf>
-    for Regf_HiveBinCell_SubKeyListLhLf
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for Regf_HiveBinCell_SubKeyListLhLf {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf>
-    for &Regf_HiveBinCell_SubKeyListLhLf
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for &Regf_HiveBinCell_SubKeyListLhLf {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf>
-    for &OptRc<Regf_HiveBinCell_SubKeyListLhLf>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for &OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1586,11 +1348,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1607,12 +1365,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
-            let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLhLf_Item>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLhLf_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1620,16 +1373,15 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListLhLf {}
+impl Regf_HiveBinCell_SubKeyListLhLf {
+}
 impl Regf_HiveBinCell_SubKeyListLhLf {
     pub fn count(&self) -> Ref<'_, u16> {
         self.count.borrow()
     }
 }
 impl Regf_HiveBinCell_SubKeyListLhLf {
-    pub fn items(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>>> {
+    pub fn items(&self) -> Ref<'_, Vec<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>>> {
         self.items.borrow()
     }
 }
@@ -1654,59 +1406,35 @@ pub struct Regf_HiveBinCell_SubKeyListLhLf_Item {
     hash_value: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListLhLf_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLhLf_Item> for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListLhLf_Item,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLhLf_Item) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListLhLf_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLhLf_Item> for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListLhLf_Item,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLhLf_Item) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-    for Regf_HiveBinCell_SubKeyListLhLf_Item
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for Regf_HiveBinCell_SubKeyListLhLf_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-    for &Regf_HiveBinCell_SubKeyListLhLf_Item
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for &Regf_HiveBinCell_SubKeyListLhLf_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-    for &OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for &OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1714,11 +1442,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListLhLf;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1738,7 +1462,8 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf_Item {
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListLhLf_Item {}
+impl Regf_HiveBinCell_SubKeyListLhLf_Item {
+}
 impl Regf_HiveBinCell_SubKeyListLhLf_Item {
     pub fn named_key_offset(&self) -> Ref<'_, u32> {
         self.named_key_offset.borrow()
@@ -1770,59 +1495,35 @@ pub struct Regf_HiveBinCell_SubKeyListLi {
     items: RefCell<Vec<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListLi>
-    for OptRc<Regf_HiveBinCell_SubKeyListLi>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLi> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListLi,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLi) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListLi>
-    for OptRc<Regf_HiveBinCell_SubKeyListLi>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLi> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListLi,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLi) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi>
-    for Regf_HiveBinCell_SubKeyListLi
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for Regf_HiveBinCell_SubKeyListLi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi>
-    for &Regf_HiveBinCell_SubKeyListLi
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for &Regf_HiveBinCell_SubKeyListLi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi>
-    for OptRc<Regf_HiveBinCell_SubKeyListLi>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi>
-    for &OptRc<Regf_HiveBinCell_SubKeyListLi>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for &OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1830,11 +1531,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1851,12 +1548,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
-            let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLi_Item>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -1864,16 +1556,15 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListLi {}
+impl Regf_HiveBinCell_SubKeyListLi {
+}
 impl Regf_HiveBinCell_SubKeyListLi {
     pub fn count(&self) -> Ref<'_, u16> {
         self.count.borrow()
     }
 }
 impl Regf_HiveBinCell_SubKeyListLi {
-    pub fn items(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>>> {
+    pub fn items(&self) -> Ref<'_, Vec<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>>> {
         self.items.borrow()
     }
 }
@@ -1897,59 +1588,35 @@ pub struct Regf_HiveBinCell_SubKeyListLi_Item {
     named_key_offset: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListLi_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLi_Item> for OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListLi_Item,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLi_Item) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListLi_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLi_Item> for OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListLi_Item,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLi_Item) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-    for Regf_HiveBinCell_SubKeyListLi_Item
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for Regf_HiveBinCell_SubKeyListLi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-    for &Regf_HiveBinCell_SubKeyListLi_Item
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for &Regf_HiveBinCell_SubKeyListLi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-    for &OptRc<Regf_HiveBinCell_SubKeyListLi_Item>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for &OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
         Ok((*self).clone())
     }
 }
@@ -1957,11 +1624,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListLi;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1979,7 +1642,8 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi_Item {
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListLi_Item {}
+impl Regf_HiveBinCell_SubKeyListLi_Item {
+}
 impl Regf_HiveBinCell_SubKeyListLi_Item {
     pub fn named_key_offset(&self) -> Ref<'_, u32> {
         self.named_key_offset.borrow()
@@ -2006,59 +1670,35 @@ pub struct Regf_HiveBinCell_SubKeyListRi {
     items: RefCell<Vec<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>>>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListRi>
-    for OptRc<Regf_HiveBinCell_SubKeyListRi>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListRi> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListRi,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListRi) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListRi>
-    for OptRc<Regf_HiveBinCell_SubKeyListRi>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListRi> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListRi,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListRi) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi>
-    for Regf_HiveBinCell_SubKeyListRi
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for Regf_HiveBinCell_SubKeyListRi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi>
-    for &Regf_HiveBinCell_SubKeyListRi
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for &Regf_HiveBinCell_SubKeyListRi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi>
-    for OptRc<Regf_HiveBinCell_SubKeyListRi>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi>
-    for &OptRc<Regf_HiveBinCell_SubKeyListRi>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for &OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2066,11 +1706,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2087,12 +1723,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
-            let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListRi_Item>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListRi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -2100,16 +1731,15 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListRi {}
+impl Regf_HiveBinCell_SubKeyListRi {
+}
 impl Regf_HiveBinCell_SubKeyListRi {
     pub fn count(&self) -> Ref<'_, u16> {
         self.count.borrow()
     }
 }
 impl Regf_HiveBinCell_SubKeyListRi {
-    pub fn items(
-        &self,
-    ) -> Ref<'_, Vec<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>>> {
+    pub fn items(&self) -> Ref<'_, Vec<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>>> {
         self.items.borrow()
     }
 }
@@ -2133,59 +1763,35 @@ pub struct Regf_HiveBinCell_SubKeyListRi_Item {
     sub_key_list_offset: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListRi_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListRi_Item> for OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListRi_Item,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListRi_Item) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListRi_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListRi_Item> for OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListRi_Item,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListRi_Item) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-    for Regf_HiveBinCell_SubKeyListRi_Item
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for Regf_HiveBinCell_SubKeyListRi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-    for &Regf_HiveBinCell_SubKeyListRi_Item
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for &Regf_HiveBinCell_SubKeyListRi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-    for OptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-    for &OptRc<Regf_HiveBinCell_SubKeyListRi_Item>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for &OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2193,11 +1799,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListRi;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2215,7 +1817,8 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi_Item {
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListRi_Item {}
+impl Regf_HiveBinCell_SubKeyListRi_Item {
+}
 impl Regf_HiveBinCell_SubKeyListRi_Item {
     pub fn sub_key_list_offset(&self) -> Ref<'_, u32> {
         self.sub_key_list_offset.borrow()
@@ -2244,59 +1847,35 @@ pub struct Regf_HiveBinCell_SubKeyListSk {
     reference_count: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListSk>
-    for OptRc<Regf_HiveBinCell_SubKeyListSk>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListSk> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListSk,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListSk) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListSk>
-    for OptRc<Regf_HiveBinCell_SubKeyListSk>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListSk> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListSk,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListSk) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk>
-    for Regf_HiveBinCell_SubKeyListSk
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for Regf_HiveBinCell_SubKeyListSk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk>
-    for &Regf_HiveBinCell_SubKeyListSk
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for &Regf_HiveBinCell_SubKeyListSk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk>
-    for OptRc<Regf_HiveBinCell_SubKeyListSk>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk>
-    for &OptRc<Regf_HiveBinCell_SubKeyListSk>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for &OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2304,11 +1883,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListSk {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2332,7 +1907,8 @@ impl KStruct for Regf_HiveBinCell_SubKeyListSk {
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListSk {}
+impl Regf_HiveBinCell_SubKeyListSk {
+}
 impl Regf_HiveBinCell_SubKeyListSk {
     pub fn unknown1(&self) -> Ref<'_, u16> {
         self.unknown1.borrow()
@@ -2380,59 +1956,35 @@ pub struct Regf_HiveBinCell_SubKeyListVk {
     _io: RefCell<BytesReader>,
     value_name_raw: RefCell<Vec<u8>>,
 }
-impl TryFrom<&Regf_HiveBinCell_SubKeyListVk>
-    for OptRc<Regf_HiveBinCell_SubKeyListVk>
-{
+impl TryFrom<&Regf_HiveBinCell_SubKeyListVk> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
     type Error = KError;
-    fn try_from(
-        v: &Regf_HiveBinCell_SubKeyListVk,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListVk) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&Regf_HiveBinCell_SubKeyListVk>
-    for OptRc<Regf_HiveBinCell_SubKeyListVk>
-{
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListVk> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
     type Error = KError;
-    fn try_from(
-        v: &&Regf_HiveBinCell_SubKeyListVk,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListVk) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk>
-    for Regf_HiveBinCell_SubKeyListVk
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for Regf_HiveBinCell_SubKeyListVk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk>
-    for &Regf_HiveBinCell_SubKeyListVk
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for &Regf_HiveBinCell_SubKeyListVk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk>
-    for OptRc<Regf_HiveBinCell_SubKeyListVk>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk>
-    for &OptRc<Regf_HiveBinCell_SubKeyListVk>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for &OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
         Ok((*self).clone())
     }
 }
@@ -2440,11 +1992,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListVk {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2462,28 +2010,23 @@ impl KStruct for Regf_HiveBinCell_SubKeyListVk {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.data_type.borrow_mut() =
-            i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc.data_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if *self_rc.flags()
-            == Regf_HiveBinCell_SubKeyListVk_VkFlags::ValueCompName
-        {
-            *self_rc.value_name.borrow_mut() = bytes_to_str(
-                &_io.read_bytes(usize::from(*self_rc.value_name_size()))?,
-                "ascii",
-            )?;
+        if *self_rc.flags() == Regf_HiveBinCell_SubKeyListVk_VkFlags::ValueCompName {
+            *self_rc.value_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.value_name_size()))?, "ascii")?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl Regf_HiveBinCell_SubKeyListVk {}
+impl Regf_HiveBinCell_SubKeyListVk {
+}
 impl Regf_HiveBinCell_SubKeyListVk {
     pub fn value_name_size(&self) -> Ref<'_, u16> {
         self.value_name_size.borrow()
@@ -2500,9 +2043,7 @@ impl Regf_HiveBinCell_SubKeyListVk {
     }
 }
 impl Regf_HiveBinCell_SubKeyListVk {
-    pub fn data_type(
-        &self,
-    ) -> Ref<'_, Regf_HiveBinCell_SubKeyListVk_DataTypeEnum> {
+    pub fn data_type(&self) -> Ref<'_, Regf_HiveBinCell_SubKeyListVk_DataTypeEnum> {
         self.data_type.borrow()
     }
 }
@@ -2556,9 +2097,7 @@ pub enum Regf_HiveBinCell_SubKeyListVk_DataTypeEnum {
 
 impl TryFrom<i64> for Regf_HiveBinCell_SubKeyListVk_DataTypeEnum {
     type Error = KError;
-    fn try_from(
-        flag: i64,
-    ) -> KResult<Regf_HiveBinCell_SubKeyListVk_DataTypeEnum> {
+    fn try_from(flag: i64) -> KResult<Regf_HiveBinCell_SubKeyListVk_DataTypeEnum> {
         match flag {
             0 => Ok(Regf_HiveBinCell_SubKeyListVk_DataTypeEnum::RegNone),
             1 => Ok(Regf_HiveBinCell_SubKeyListVk_DataTypeEnum::RegSz),
@@ -2598,9 +2137,7 @@ impl From<&Regf_HiveBinCell_SubKeyListVk_DataTypeEnum> for i64 {
 }
 
 impl Default for Regf_HiveBinCell_SubKeyListVk_DataTypeEnum {
-    fn default() -> Self {
-        Regf_HiveBinCell_SubKeyListVk_DataTypeEnum::Unknown(0)
-    }
+    fn default() -> Self { Regf_HiveBinCell_SubKeyListVk_DataTypeEnum::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -2623,16 +2160,15 @@ impl From<&Regf_HiveBinCell_SubKeyListVk_VkFlags> for i64 {
     fn from(v: &Regf_HiveBinCell_SubKeyListVk_VkFlags) -> Self {
         match *v {
             Regf_HiveBinCell_SubKeyListVk_VkFlags::ValueCompName => 1,
-            Regf_HiveBinCell_SubKeyListVk_VkFlags::Unknown(v) => v,
+            Regf_HiveBinCell_SubKeyListVk_VkFlags::Unknown(v) => v
         }
     }
 }
 
 impl Default for Regf_HiveBinCell_SubKeyListVk_VkFlags {
-    fn default() -> Self {
-        Regf_HiveBinCell_SubKeyListVk_VkFlags::Unknown(0)
-    }
+    fn default() -> Self { Regf_HiveBinCell_SubKeyListVk_VkFlags::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct Regf_HiveBinHeader {
@@ -2684,11 +2220,7 @@ impl KStruct for Regf_HiveBinHeader {
     type Root = Regf;
     type Parent = Regf_HiveBin;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2702,10 +2234,7 @@ impl KStruct for Regf_HiveBinHeader {
         let _io = io;
         *self_rc.signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.signature() == vec![0x68u8, 0x62u8, 0x69u8, 0x6eu8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/hive_bin_header/seq/0".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/hive_bin_header/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
@@ -2716,12 +2245,7 @@ impl KStruct for Regf_HiveBinHeader {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown2.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, Regf_Filetime>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            None,
-        )?
-        .into();
+        let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.timestamp.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown4.borrow_mut() = _io.read_u4le()?;
@@ -2730,7 +2254,8 @@ impl KStruct for Regf_HiveBinHeader {
         Ok(())
     }
 }
-impl Regf_HiveBinHeader {}
+impl Regf_HiveBinHeader {
+}
 impl Regf_HiveBinHeader {
     pub fn signature(&self) -> Ref<'_, Vec<u8>> {
         self.signature.borrow()

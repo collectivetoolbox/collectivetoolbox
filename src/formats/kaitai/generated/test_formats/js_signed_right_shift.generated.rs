@@ -103,11 +103,7 @@ impl KStruct for JsSignedRightShift {
     type Root = JsSignedRightShift;
     type Parent = JsSignedRightShift;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,34 +120,28 @@ impl KStruct for JsSignedRightShift {
     }
 }
 impl JsSignedRightShift {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn should_be_40000000(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn should_be_40000000(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_should_be_40000000.get() {
             return Ok(self.should_be_40000000.borrow());
         }
         self.f_should_be_40000000.set(true);
-        *self.should_be_40000000.borrow_mut() =
-            ((2147483648_u32).wrapping_shr(1_u32)).try_into()?;
+        *self.should_be_40000000.borrow_mut() = ((2147483648_u32).wrapping_shr(1_u32)).try_into()?;
         Ok(self.should_be_40000000.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn should_be_a00000(&self) -> KResult<Ref<'_, i32>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn should_be_a00000(
+        &self
+    ) -> KResult<Ref<'_, i32>> {
         let _io = self._io.borrow();
         if self.f_should_be_a00000.get() {
             return Ok(self.should_be_a00000.borrow());
         }
         self.f_should_be_a00000.set(true);
-        *self.should_be_a00000.borrow_mut() =
-            ((2684354560_u32).wrapping_shr(8_u32)).try_into()?;
+        *self.should_be_a00000.borrow_mut() = ((2684354560_u32).wrapping_shr(8_u32)).try_into()?;
         Ok(self.should_be_a00000.borrow())
     }
 }

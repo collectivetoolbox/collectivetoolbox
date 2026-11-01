@@ -58,11 +58,7 @@ impl KStruct for NtMdtPal {
     type Root = NtMdtPal;
     type Parent = NtMdtPal;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -75,18 +71,8 @@ impl KStruct for NtMdtPal {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.signature.borrow_mut() = _io.read_bytes(26_usize)?;
-        if !(*self_rc.signature()
-            == vec![
-                0x4eu8, 0x54u8, 0x2du8, 0x4du8, 0x44u8, 0x54u8, 0x20u8, 0x50u8,
-                0x61u8, 0x6cu8, 0x65u8, 0x74u8, 0x74u8, 0x65u8, 0x20u8, 0x46u8,
-                0x69u8, 0x6cu8, 0x65u8, 0x20u8, 0x20u8, 0x31u8, 0x2eu8, 0x30u8,
-                0x30u8, 0x21u8,
-            ])
-        {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/seq/0".to_string(),
-            }));
+        if !(*self_rc.signature() == vec![0x4eu8, 0x54u8, 0x2du8, 0x4du8, 0x44u8, 0x54u8, 0x20u8, 0x50u8, 0x61u8, 0x6cu8, 0x65u8, 0x74u8, 0x74u8, 0x65u8, 0x20u8, 0x46u8, 0x69u8, 0x6cu8, 0x65u8, 0x20u8, 0x20u8, 0x31u8, 0x2eu8, 0x30u8, 0x30u8, 0x21u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count.borrow_mut() = _io.read_u4be()?;
@@ -94,12 +80,7 @@ impl KStruct for NtMdtPal {
         *self_rc.meta.borrow_mut() = Vec::new();
         let l_meta = usize::try_from(*self_rc.count())?;
         for _i in 0_usize..l_meta {
-            let t = Self::read_into::<_, NtMdtPal_Meta>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, NtMdtPal_Meta>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.meta.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -108,18 +89,8 @@ impl KStruct for NtMdtPal {
         *self_rc.tables.borrow_mut() = Vec::new();
         let l_tables = usize::try_from(*self_rc.count())?;
         for _i in 0_usize..l_tables {
-            let f = |t: &mut NtMdtPal_ColTable| {
-                Ok(t.set_params(
-                    (_i).try_into().map_err(|_| KError::CastError)?,
-                ))
-            };
-            let t = Self::read_into_with_init::<_, NtMdtPal_ColTable>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-                &f,
-            )?
-            .into();
+            let f = |t : &mut NtMdtPal_ColTable| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?));
+            let t = Self::read_into_with_init::<_, NtMdtPal_ColTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.tables.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -127,7 +98,8 @@ impl KStruct for NtMdtPal {
         Ok(())
     }
 }
-impl NtMdtPal {}
+impl NtMdtPal {
+}
 impl NtMdtPal {
     pub fn signature(&self) -> Ref<'_, Vec<u8>> {
         self.signature.borrow()
@@ -220,11 +192,7 @@ impl KStruct for NtMdtPal_ColTable {
     type Root = NtMdtPal;
     type Parent = NtMdtPal;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -240,49 +208,14 @@ impl KStruct for NtMdtPal_ColTable {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.title.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::from(
-                *self_rc
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .meta()
-                    .get(usize::from(*self_rc.index()))
-                    .ok_or(KError::CastError)?
-                    .name_size(),
-            ))?,
-            "UTF-16LE",
-        )?;
+        *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.name_size()))?, "UTF-16LE")?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn1.borrow_mut() = _io.read_u2be()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = usize::try_from(
-            (i32::from(
-                *self_rc
-                    ._root
-                    .get_value()
-                    .borrow()
-                    .upgrade()
-                    .as_ref()
-                    .ok_or(KError::MissingRoot)?
-                    .meta()
-                    .get(usize::from(*self_rc.index()))
-                    .ok_or(KError::CastError)?
-                    .colors_count(),
-            ))
-            .saturating_sub(1_i32),
-        )?;
+        let l_colors = usize::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.colors_count())).saturating_sub(1_i32))?;
         for _i in 0_usize..l_colors {
-            let t = Self::read_into::<_, NtMdtPal_Color>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, NtMdtPal_Color>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -300,7 +233,8 @@ impl NtMdtPal_ColTable {
         *self.index.borrow_mut() = index;
     }
 }
-impl NtMdtPal_ColTable {}
+impl NtMdtPal_ColTable {
+}
 impl NtMdtPal_ColTable {
     pub fn size1(&self) -> Ref<'_, u8> {
         self.size1.borrow()
@@ -390,11 +324,7 @@ impl KStruct for NtMdtPal_Color {
     type Root = NtMdtPal;
     type Parent = NtMdtPal_ColTable;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -418,7 +348,8 @@ impl KStruct for NtMdtPal_Color {
         Ok(())
     }
 }
-impl NtMdtPal_Color {}
+impl NtMdtPal_Color {
+}
 impl NtMdtPal_Color {
     pub fn red(&self) -> Ref<'_, u8> {
         self.red.borrow()
@@ -510,11 +441,7 @@ impl KStruct for NtMdtPal_Meta {
     type Root = NtMdtPal;
     type Parent = NtMdtPal;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -548,7 +475,8 @@ impl KStruct for NtMdtPal_Meta {
         Ok(())
     }
 }
-impl NtMdtPal_Meta {}
+impl NtMdtPal_Meta {
+}
 
 /**
  * usually 0s

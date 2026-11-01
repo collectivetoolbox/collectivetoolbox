@@ -50,11 +50,7 @@ impl KStruct for FtlDat {
     type Root = FtlDat;
     type Parent = FtlDat;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -71,12 +67,7 @@ impl KStruct for FtlDat {
         *self_rc.files.borrow_mut() = Vec::new();
         let l_files = usize::try_from(*self_rc.num_files())?;
         for _i in 0_usize..l_files {
-            let t = Self::read_into::<_, FtlDat_File>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, FtlDat_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.files.borrow_mut().push(t);
         }
         *self_rc._io.borrow_mut() = _io.clone();
@@ -84,7 +75,8 @@ impl KStruct for FtlDat {
         Ok(())
     }
 }
-impl FtlDat {}
+impl FtlDat {
+}
 
 /**
  * Number of files in the archive
@@ -157,11 +149,7 @@ impl KStruct for FtlDat_File {
     type Root = FtlDat;
     type Parent = FtlDat;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -180,25 +168,18 @@ impl KStruct for FtlDat_File {
     }
 }
 impl FtlDat_File {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn meta(&self) -> KResult<Ref<'_, OptRc<FtlDat_Meta>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn meta(
+        &self
+    ) -> KResult<Ref<'_, OptRc<FtlDat_Meta>>> {
         let _io = self._io.borrow();
         if self.f_meta.get() {
             return Ok(self.meta.borrow());
         }
-        if (to_i128(*self.ofs_meta())) != (to_i128(0)) {
+        if ((to_i128(*self.ofs_meta())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_meta())?)?;
-            let t = Self::read_into::<_, FtlDat_Meta>(
-                &*_io,
-                Some(self._root.clone()),
-                Some(self._self_shared.clone()),
-            )?
-            .into();
+            let t = Self::read_into::<_, FtlDat_Meta>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.meta.borrow_mut() = t;
             _io.seek(_pos)?;
         }
@@ -271,11 +252,7 @@ impl KStruct for FtlDat_Meta {
     type Root = FtlDat;
     type Parent = FtlDat_File;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -291,19 +268,16 @@ impl KStruct for FtlDat_Meta {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_filename.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.filename.borrow_mut() = bytes_to_str(
-            &_io.read_bytes(usize::try_from(*self_rc.len_filename())?)?,
-            "UTF-8",
-        )?;
+        *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_filename())?)?, "UTF-8")?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.body.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.len_file())?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_file())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl FtlDat_Meta {}
+impl FtlDat_Meta {
+}
 impl FtlDat_Meta {
     pub fn len_file(&self) -> Ref<'_, u32> {
         self.len_file.borrow()

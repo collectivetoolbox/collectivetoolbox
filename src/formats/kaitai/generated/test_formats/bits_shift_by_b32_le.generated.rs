@@ -101,11 +101,7 @@ impl KStruct for BitsShiftByB32Le {
     type Root = BitsShiftByB32Le;
     type Parent = BitsShiftByB32Le;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,7 +121,8 @@ impl KStruct for BitsShiftByB32Le {
         Ok(())
     }
 }
-impl BitsShiftByB32Le {}
+impl BitsShiftByB32Le {
+}
 impl BitsShiftByB32Le {
     pub fn a(&self) -> Ref<'_, u64> {
         self.a.borrow()

@@ -85,10 +85,7 @@ impl From<i8> for ExprBits_SwitchOnType {
 }
 impl TryFrom<&ExprBits_SwitchOnType> for i64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
         match e {
             ExprBits_SwitchOnType::S1(v) => Ok(i64::try_from(*v)?),
@@ -97,10 +94,7 @@ impl TryFrom<&ExprBits_SwitchOnType> for i64 {
 }
 impl TryFrom<&ExprBits_SwitchOnType> for i8 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
         match e {
             ExprBits_SwitchOnType::S1(v) => Ok(i8::try_from(*v)?),
@@ -109,10 +103,7 @@ impl TryFrom<&ExprBits_SwitchOnType> for i8 {
 }
 impl TryFrom<&ExprBits_SwitchOnType> for u64 {
     type Error = KError;
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic TryFrom implementation over varied enum variant types"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
         match e {
             ExprBits_SwitchOnType::S1(v) => Ok(u64::try_from(*v)?),
@@ -164,11 +155,7 @@ impl KStruct for ExprBits {
     type Root = ExprBits;
     type Parent = ExprBits;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -180,15 +167,12 @@ impl KStruct for ExprBits {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.enum_seq.borrow_mut() =
-            i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes())
-                .try_into()?;
+        *self_rc.enum_seq.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a.borrow_mut() = _io.read_bits_int_be(3)?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
-        *self_rc.byte_size.borrow_mut() =
-            _io.read_bytes(usize::try_from(*self_rc.a())?)?;
+        *self_rc.byte_size.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.a())?)?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.repeat_expr.borrow_mut() = Vec::new();
         let l_repeat_expr = usize::try_from(*self_rc.a())?;
@@ -198,18 +182,12 @@ impl KStruct for ExprBits {
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.a() {
             2 => {
-                *self_rc.switch_on_type.borrow_mut() =
-                    Some(_io.read_s1()?.into());
+                *self_rc.switch_on_type.borrow_mut() = Some(_io.read_s1()?.into());
             }
             _ => {}
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, ExprBits_EndianSwitch>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, ExprBits_EndianSwitch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.switch_on_endian.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -217,27 +195,22 @@ impl KStruct for ExprBits {
     }
 }
 impl ExprBits {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn enum_inst(&self) -> KResult<Ref<'_, ExprBits_Items>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn enum_inst(
+        &self
+    ) -> KResult<Ref<'_, ExprBits_Items>> {
         let _io = self._io.borrow();
         if self.f_enum_inst.get() {
             return Ok(self.enum_inst.borrow());
         }
         self.f_enum_inst.set(true);
-        *self.enum_inst.borrow_mut() =
-            i64::from_le_bytes((*self.a()).to_le_bytes()).try_into()?;
+        *self.enum_inst.borrow_mut() = i64::from_le_bytes((*self.a()).to_le_bytes()).try_into()?;
         Ok(self.enum_inst.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst_pos(&self) -> KResult<Ref<'_, i8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst_pos(
+        &self
+    ) -> KResult<Ref<'_, i8>> {
         let _io = self._io.borrow();
         if self.f_inst_pos.get() {
             return Ok(self.inst_pos.borrow());
@@ -273,15 +246,9 @@ impl ExprBits {
 impl ExprBits {
     pub fn switch_on_type(&self) -> i8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.switch_on_type
-            .borrow()
-            .as_ref()
-            .and_then(|v| i8::try_from(v).ok())
-            .unwrap_or(0)
+        self.switch_on_type.borrow().as_ref().and_then(|v| i8::try_from(v).ok()).unwrap_or(0)
     }
-    pub fn switch_on_type_enum(
-        &self,
-    ) -> Ref<'_, Option<ExprBits_SwitchOnType>> {
+    pub fn switch_on_type_enum(&self) -> Ref<'_, Option<ExprBits_SwitchOnType>> {
         self.switch_on_type.borrow()
     }
 }
@@ -329,16 +296,15 @@ impl From<&ExprBits_Items> for i64 {
         match *v {
             ExprBits_Items::Foo => 1,
             ExprBits_Items::Bar => 2,
-            ExprBits_Items::Unknown(v) => v,
+            ExprBits_Items::Unknown(v) => v
         }
     }
 }
 
 impl Default for ExprBits_Items {
-    fn default() -> Self {
-        ExprBits_Items::Unknown(0)
-    }
+    fn default() -> Self { ExprBits_Items::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct ExprBits_EndianSwitch {
@@ -385,11 +351,7 @@ impl KStruct for ExprBits_EndianSwitch {
     type Root = ExprBits;
     type Parent = ExprBits;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -401,15 +363,7 @@ impl KStruct for ExprBits_EndianSwitch {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc
-            ._parent
-            .get_value()
-            .borrow()
-            .upgrade()
-            .as_ref()
-            .ok_or(KError::MissingParent)?
-            .a()
-        {
+        match *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.a() {
             1 => {
                 *self_rc._is_le.borrow_mut() = 1_i32;
             }
@@ -419,15 +373,9 @@ impl KStruct for ExprBits_EndianSwitch {
             _ => {}
         }
         if *self_rc._is_le.borrow() == 0 {
-            return Err(KError::UndecidedEndianness {
-                src_path: "/types/endian_switch".to_string(),
-            });
+            return Err(KError::UndecidedEndianness { src_path: "/types/endian_switch".to_string() });
         }
-        *self_rc.foo.borrow_mut() = if *self_rc._is_le.borrow() == 1 {
-            _io.read_s2le()?
-        } else {
-            _io.read_s2be()?
-        };
+        *self_rc.foo.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s2le()? } else { _io.read_s2be()? };
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -438,7 +386,8 @@ impl ExprBits_EndianSwitch {
         *self._is_le.borrow_mut() = _is_le;
     }
 }
-impl ExprBits_EndianSwitch {}
+impl ExprBits_EndianSwitch {
+}
 impl ExprBits_EndianSwitch {
     pub fn foo(&self) -> Ref<'_, i16> {
         self.foo.borrow()

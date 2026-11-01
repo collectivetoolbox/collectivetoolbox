@@ -107,11 +107,7 @@ impl KStruct for BytesPadTermRoundtrip {
     type Root = BytesPadTermRoundtrip;
     type Parent = BytesPadTermRoundtrip;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,39 +119,20 @@ impl KStruct for BytesPadTermRoundtrip {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str_pad.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(20_usize)?,
-            None,
-            false,
-            Some(64),
-        );
+        *self_rc.str_pad.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, None, false, Some(64));
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str_term.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(20_usize)?,
-            Some(64),
-            false,
-            Some(43),
-        );
+        *self_rc.str_term.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(43));
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str_term_and_pad.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(20_usize)?,
-            Some(64),
-            false,
-            Some(43),
-        );
+        *self_rc.str_term_and_pad.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(43));
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.str_term_include.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(20_usize)?,
-            Some(64),
-            true,
-            Some(46),
-        );
+        *self_rc.str_term_include.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, Some(46));
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl BytesPadTermRoundtrip {}
+impl BytesPadTermRoundtrip {
+}
 impl BytesPadTermRoundtrip {
     pub fn str_pad(&self) -> Ref<'_, Vec<u8>> {
         self.str_pad.borrow()

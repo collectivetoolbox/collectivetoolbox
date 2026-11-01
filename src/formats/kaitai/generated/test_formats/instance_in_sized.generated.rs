@@ -101,11 +101,7 @@ impl KStruct for InstanceInSized {
     type Root = InstanceInSized;
     type Parent = InstanceInSized;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,19 +116,15 @@ impl KStruct for InstanceInSized {
         let _raw_cont = _io.read_bytes(16_usize)?;
         *self_rc.cont_raw.borrow_mut() = _raw_cont.clone();
         let _io_cont = BytesReader::from(_raw_cont);
-        let t = Self::read_into::<BytesReader, InstanceInSized_Wrapper>(
-            &_io_cont,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, InstanceInSized_Wrapper>(&_io_cont, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.cont.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl InstanceInSized {}
+impl InstanceInSized {
+}
 impl InstanceInSized {
     pub fn cont(&self) -> Ref<'_, OptRc<InstanceInSized_Wrapper>> {
         self.cont.borrow()
@@ -201,11 +193,7 @@ impl KStruct for InstanceInSized_Bar {
     type Root = InstanceInSized;
     type Parent = InstanceInSized_Wrapper;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -224,12 +212,10 @@ impl KStruct for InstanceInSized_Bar {
     }
 }
 impl InstanceInSized_Bar {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_inst.get() {
             return Ok(self.inst.borrow());
@@ -305,11 +291,7 @@ impl KStruct for InstanceInSized_Baz {
     type Root = InstanceInSized;
     type Parent = InstanceInSized_Wrapper;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -328,12 +310,10 @@ impl KStruct for InstanceInSized_Baz {
     }
 }
 impl InstanceInSized_Baz {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_inst.get() {
             return Ok(self.inst.borrow());
@@ -411,11 +391,7 @@ impl KStruct for InstanceInSized_Qux {
     type Root = InstanceInSized;
     type Parent = InstanceInSized_Wrapper;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -428,7 +404,7 @@ impl KStruct for InstanceInSized_Qux {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.inst_invoked()?)) > (to_i128(0)) {
+        if ((to_i128(*self_rc.inst_invoked()?)) > (to_i128(0))) {
             *self_rc.seq_f.borrow_mut() = _io.read_u1()?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
@@ -437,12 +413,10 @@ impl KStruct for InstanceInSized_Qux {
     }
 }
 impl InstanceInSized_Qux {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst_invoked(&self) -> KResult<Ref<'_, u8>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst_invoked(
+        &self
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_inst_invoked.get() {
             return Ok(self.inst_invoked.borrow());
@@ -454,12 +428,10 @@ impl InstanceInSized_Qux {
         _io.seek(_pos)?;
         Ok(self.inst_invoked.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst_unused_by_seq(&self) -> KResult<Ref<'_, Vec<u8>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst_unused_by_seq(
+        &self
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_inst_unused_by_seq.get() {
             return Ok(self.inst_unused_by_seq.borrow());
@@ -531,9 +503,7 @@ impl DowncastOptRc<InstanceInSized_Wrapper> for OptRc<InstanceInSized_Wrapper> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<InstanceInSized_Wrapper>
-    for &OptRc<InstanceInSized_Wrapper>
-{
+impl DowncastOptRc<InstanceInSized_Wrapper> for &OptRc<InstanceInSized_Wrapper> {
     fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Wrapper>, KError> {
         Ok((*self).clone())
     }
@@ -542,11 +512,7 @@ impl KStruct for InstanceInSized_Wrapper {
     type Root = InstanceInSized;
     type Parent = InstanceInSized;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -561,20 +527,10 @@ impl KStruct for InstanceInSized_Wrapper {
         let _raw_seq_sized = _io.read_bytes(4_usize)?;
         *self_rc.seq_sized_raw.borrow_mut() = _raw_seq_sized.clone();
         let _io_seq_sized = BytesReader::from(_raw_seq_sized);
-        let t = Self::read_into::<BytesReader, InstanceInSized_Qux>(
-            &_io_seq_sized,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, InstanceInSized_Qux>(&_io_seq_sized, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seq_sized.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
-        let t = Self::read_into::<_, InstanceInSized_Bar>(
-            &*_io,
-            Some(self_rc._root.clone()),
-            Some(self_rc._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, InstanceInSized_Bar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seq_in_stream.borrow_mut() = t;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
@@ -582,13 +538,9 @@ impl KStruct for InstanceInSized_Wrapper {
     }
 }
 impl InstanceInSized_Wrapper {
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn inst_in_stream(
-        &self,
+        &self
     ) -> KResult<Ref<'_, OptRc<InstanceInSized_Baz>>> {
         let _io = self._io.borrow();
         if self.f_inst_in_stream.get() {
@@ -596,22 +548,15 @@ impl InstanceInSized_Wrapper {
         }
         let _pos = _io.pos();
         _io.seek(usize::try_from((_io.pos()).saturating_add(3_usize))?)?;
-        let t = Self::read_into::<_, InstanceInSized_Baz>(
-            &*_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<_, InstanceInSized_Baz>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.inst_in_stream.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.inst_in_stream.borrow())
     }
-    #[allow(
-        clippy::approx_constant,
-        clippy::unnecessary_fallible_conversions,
-        reason = "Generic instance calculation conversion"
-    )]
-    pub fn inst_sized(&self) -> KResult<Ref<'_, OptRc<InstanceInSized_Qux>>> {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
+    pub fn inst_sized(
+        &self
+    ) -> KResult<Ref<'_, OptRc<InstanceInSized_Qux>>> {
         let _io = self._io.borrow();
         if self.f_inst_sized.get() {
             return Ok(self.inst_sized.borrow());
@@ -621,12 +566,7 @@ impl InstanceInSized_Wrapper {
         *self.inst_sized_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
         let inst_sized_raw = self.inst_sized_raw.borrow();
         let _t_inst_sized_raw_io = BytesReader::from(inst_sized_raw.clone());
-        let t = Self::read_into::<BytesReader, InstanceInSized_Qux>(
-            &_t_inst_sized_raw_io,
-            Some(self._root.clone()),
-            Some(self._self_shared.clone()),
-        )?
-        .into();
+        let t = Self::read_into::<BytesReader, InstanceInSized_Qux>(&_t_inst_sized_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.inst_sized.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.inst_sized.borrow())

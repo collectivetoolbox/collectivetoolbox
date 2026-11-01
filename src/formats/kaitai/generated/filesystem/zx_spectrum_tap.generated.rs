@@ -59,11 +59,7 @@ impl KStruct for ZxSpectrumTap {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -79,12 +75,7 @@ impl KStruct for ZxSpectrumTap {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, ZxSpectrumTap_Block>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, ZxSpectrumTap_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.blocks.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -94,7 +85,8 @@ impl KStruct for ZxSpectrumTap {
         Ok(())
     }
 }
-impl ZxSpectrumTap {}
+impl ZxSpectrumTap {
+}
 impl ZxSpectrumTap {
     pub fn blocks(&self) -> Ref<'_, Vec<OptRc<ZxSpectrumTap_Block>>> {
         self.blocks.borrow()
@@ -134,15 +126,13 @@ impl From<&ZxSpectrumTap_FlagEnum> for i64 {
         match *v {
             ZxSpectrumTap_FlagEnum::Header => 0,
             ZxSpectrumTap_FlagEnum::Data => 255,
-            ZxSpectrumTap_FlagEnum::Unknown(v) => v,
+            ZxSpectrumTap_FlagEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for ZxSpectrumTap_FlagEnum {
-    fn default() -> Self {
-        ZxSpectrumTap_FlagEnum::Unknown(0)
-    }
+    fn default() -> Self { ZxSpectrumTap_FlagEnum::Unknown(0) }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -174,16 +164,15 @@ impl From<&ZxSpectrumTap_HeaderTypeEnum> for i64 {
             ZxSpectrumTap_HeaderTypeEnum::NumArray => 1,
             ZxSpectrumTap_HeaderTypeEnum::CharArray => 2,
             ZxSpectrumTap_HeaderTypeEnum::Bytes => 3,
-            ZxSpectrumTap_HeaderTypeEnum::Unknown(v) => v,
+            ZxSpectrumTap_HeaderTypeEnum::Unknown(v) => v
         }
     }
 }
 
 impl Default for ZxSpectrumTap_HeaderTypeEnum {
-    fn default() -> Self {
-        ZxSpectrumTap_HeaderTypeEnum::Unknown(0)
-    }
+    fn default() -> Self { ZxSpectrumTap_HeaderTypeEnum::Unknown(0) }
 }
+
 
 #[derive(Default, Debug, Clone)]
 pub struct ZxSpectrumTap_ArrayParams {
@@ -208,34 +197,22 @@ impl TryFrom<&&ZxSpectrumTap_ArrayParams> for OptRc<ZxSpectrumTap_ArrayParams> {
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for ZxSpectrumTap_ArrayParams {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for &ZxSpectrumTap_ArrayParams {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ArrayParams>
-    for OptRc<ZxSpectrumTap_ArrayParams>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for OptRc<ZxSpectrumTap_ArrayParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ArrayParams>
-    for &OptRc<ZxSpectrumTap_ArrayParams>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for &OptRc<ZxSpectrumTap_ArrayParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
         Ok((*self).clone())
     }
 }
@@ -243,11 +220,7 @@ impl KStruct for ZxSpectrumTap_ArrayParams {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Header;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -265,17 +238,15 @@ impl KStruct for ZxSpectrumTap_ArrayParams {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved1() == vec![0x0u8, 0x80u8]) {
-            return Err(KError::ValidationFailed(ValidationFailedError {
-                kind: ValidationKind::NotEqual,
-                src_path: "/types/array_params/seq/2".to_string(),
-            }));
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/array_params/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ZxSpectrumTap_ArrayParams {}
+impl ZxSpectrumTap_ArrayParams {
+}
 impl ZxSpectrumTap_ArrayParams {
     pub fn reserved(&self) -> Ref<'_, u8> {
         self.reserved.borrow()
@@ -357,11 +328,7 @@ impl KStruct for ZxSpectrumTap_Block {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -378,38 +345,27 @@ impl KStruct for ZxSpectrumTap_Block {
         *self_rc.flag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = _io.clone();
-        if ((to_i128(*self_rc.len_block())) == (to_i128(19)))
-            && (*self_rc.flag() == ZxSpectrumTap_FlagEnum::Header)
-        {
-            let t = Self::read_into::<_, ZxSpectrumTap_Header>(
-                &*_io,
-                Some(self_rc._root.clone()),
-                Some(self_rc._self_shared.clone()),
-            )?
-            .into();
+        if  ((((to_i128(*self_rc.len_block())) == (to_i128(19)))) && (*self_rc.flag() == ZxSpectrumTap_FlagEnum::Header))  {
+            let t = Self::read_into::<_, ZxSpectrumTap_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header.borrow_mut() = t;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        if (to_i128(*self_rc.len_block())) == (to_i128(19)) {
-            *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(
-                (i32::from(*self_rc.header().len_data())).saturating_add(4_i32),
-            )?)?;
+        if ((to_i128(*self_rc.len_block())) == (to_i128(19))) {
+            *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().len_data())).saturating_add(4_i32))?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flag() == ZxSpectrumTap_FlagEnum::Data {
-            *self_rc.headerless_data.borrow_mut() =
-                _io.read_bytes(usize::try_from(
-                    (i32::from(*self_rc.len_block())).saturating_sub(1_i32),
-                )?)?;
+            *self_rc.headerless_data.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_block())).saturating_sub(1_i32))?)?;
             *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
-impl ZxSpectrumTap_Block {}
+impl ZxSpectrumTap_Block {
+}
 impl ZxSpectrumTap_Block {
     pub fn len_block(&self) -> Ref<'_, u16> {
         self.len_block.borrow()
@@ -480,34 +436,22 @@ impl TryFrom<&&ZxSpectrumTap_BytesParams> for OptRc<ZxSpectrumTap_BytesParams> {
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_BytesParams> for ZxSpectrumTap_BytesParams {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_BytesParams> for &ZxSpectrumTap_BytesParams {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_BytesParams>
-    for OptRc<ZxSpectrumTap_BytesParams>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for OptRc<ZxSpectrumTap_BytesParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_BytesParams>
-    for &OptRc<ZxSpectrumTap_BytesParams>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for &OptRc<ZxSpectrumTap_BytesParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
         Ok((*self).clone())
     }
 }
@@ -515,11 +459,7 @@ impl KStruct for ZxSpectrumTap_BytesParams {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Header;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -539,7 +479,8 @@ impl KStruct for ZxSpectrumTap_BytesParams {
         Ok(())
     }
 }
-impl ZxSpectrumTap_BytesParams {}
+impl ZxSpectrumTap_BytesParams {
+}
 impl ZxSpectrumTap_BytesParams {
     pub fn start_address(&self) -> Ref<'_, u16> {
         self.start_address.borrow()
@@ -586,9 +527,7 @@ pub enum ZxSpectrumTap_Header_Params {
     ZxSpectrumTap_ArrayParams(OptRc<ZxSpectrumTap_ArrayParams>),
     ZxSpectrumTap_ProgramParams(OptRc<ZxSpectrumTap_ProgramParams>),
 }
-impl TryFrom<&ZxSpectrumTap_Header_Params>
-    for OptRc<ZxSpectrumTap_BytesParams>
-{
+impl TryFrom<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_BytesParams> {
     type Error = KError;
     fn try_from(v: &ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
         if let ZxSpectrumTap_Header_Params::ZxSpectrumTap_BytesParams(x) = v {
@@ -597,25 +536,19 @@ impl TryFrom<&ZxSpectrumTap_Header_Params>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&ZxSpectrumTap_Header_Params>
-    for OptRc<ZxSpectrumTap_BytesParams>
-{
+impl TryFrom<&&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_BytesParams> {
     type Error = KError;
     fn try_from(v: &&ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_BytesParams> for ZxSpectrumTap_Header_Params {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
         OptRc::<ZxSpectrumTap_BytesParams>::try_from(self)
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_BytesParams> for &ZxSpectrumTap_Header_Params {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -624,9 +557,7 @@ impl From<OptRc<ZxSpectrumTap_BytesParams>> for ZxSpectrumTap_Header_Params {
         Self::ZxSpectrumTap_BytesParams(v)
     }
 }
-impl TryFrom<&ZxSpectrumTap_Header_Params>
-    for OptRc<ZxSpectrumTap_ArrayParams>
-{
+impl TryFrom<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ArrayParams> {
     type Error = KError;
     fn try_from(v: &ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
         if let ZxSpectrumTap_Header_Params::ZxSpectrumTap_ArrayParams(x) = v {
@@ -635,25 +566,19 @@ impl TryFrom<&ZxSpectrumTap_Header_Params>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&ZxSpectrumTap_Header_Params>
-    for OptRc<ZxSpectrumTap_ArrayParams>
-{
+impl TryFrom<&&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ArrayParams> {
     type Error = KError;
     fn try_from(v: &&ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for ZxSpectrumTap_Header_Params {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
         OptRc::<ZxSpectrumTap_ArrayParams>::try_from(self)
     }
 }
 impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for &ZxSpectrumTap_Header_Params {
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -662,9 +587,7 @@ impl From<OptRc<ZxSpectrumTap_ArrayParams>> for ZxSpectrumTap_Header_Params {
         Self::ZxSpectrumTap_ArrayParams(v)
     }
 }
-impl TryFrom<&ZxSpectrumTap_Header_Params>
-    for OptRc<ZxSpectrumTap_ProgramParams>
-{
+impl TryFrom<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ProgramParams> {
     type Error = KError;
     fn try_from(v: &ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
         if let ZxSpectrumTap_Header_Params::ZxSpectrumTap_ProgramParams(x) = v {
@@ -673,29 +596,19 @@ impl TryFrom<&ZxSpectrumTap_Header_Params>
         Err(KError::CastError)
     }
 }
-impl TryFrom<&&ZxSpectrumTap_Header_Params>
-    for OptRc<ZxSpectrumTap_ProgramParams>
-{
+impl TryFrom<&&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ProgramParams> {
     type Error = KError;
     fn try_from(v: &&ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
         Self::try_from(*v)
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ProgramParams>
-    for ZxSpectrumTap_Header_Params
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
         OptRc::<ZxSpectrumTap_ProgramParams>::try_from(self)
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ProgramParams>
-    for &ZxSpectrumTap_Header_Params
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for &ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
         (*self).downcast_optrc()
     }
 }
@@ -740,11 +653,7 @@ impl KStruct for ZxSpectrumTap_Header {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Block;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -756,53 +665,27 @@ impl KStruct for ZxSpectrumTap_Header {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.header_type.borrow_mut() =
-            i64::from(_io.read_u1()?).try_into()?;
+        *self_rc.header_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.filename.borrow_mut() = bytes_terminate_pad(
-            &_io.read_bytes(10_usize)?,
-            None,
-            false,
-            Some(32),
-        );
+        *self_rc.filename.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(10_usize)?, None, false, Some(32));
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
         *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.header_type() {
             ZxSpectrumTap_HeaderTypeEnum::Bytes => {
-                let t = Self::read_into::<_, ZxSpectrumTap_BytesParams>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, ZxSpectrumTap_BytesParams>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             ZxSpectrumTap_HeaderTypeEnum::CharArray => {
-                let t = Self::read_into::<_, ZxSpectrumTap_ArrayParams>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, ZxSpectrumTap_ArrayParams>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             ZxSpectrumTap_HeaderTypeEnum::NumArray => {
-                let t = Self::read_into::<_, ZxSpectrumTap_ArrayParams>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, ZxSpectrumTap_ArrayParams>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             ZxSpectrumTap_HeaderTypeEnum::Program => {
-                let t = Self::read_into::<_, ZxSpectrumTap_ProgramParams>(
-                    &*_io,
-                    Some(self_rc._root.clone()),
-                    Some(self_rc._self_shared.clone()),
-                )?
-                .into();
+                let t = Self::read_into::<_, ZxSpectrumTap_ProgramParams>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.params.borrow_mut() = Some(t);
             }
             _ => {}
@@ -814,7 +697,8 @@ impl KStruct for ZxSpectrumTap_Header {
         Ok(())
     }
 }
-impl ZxSpectrumTap_Header {}
+impl ZxSpectrumTap_Header {
+}
 impl ZxSpectrumTap_Header {
     pub fn header_type(&self) -> Ref<'_, ZxSpectrumTap_HeaderTypeEnum> {
         self.header_type.borrow()
@@ -870,55 +754,35 @@ pub struct ZxSpectrumTap_ProgramParams {
     len_program: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
-impl TryFrom<&ZxSpectrumTap_ProgramParams>
-    for OptRc<ZxSpectrumTap_ProgramParams>
-{
+impl TryFrom<&ZxSpectrumTap_ProgramParams> for OptRc<ZxSpectrumTap_ProgramParams> {
     type Error = KError;
     fn try_from(v: &ZxSpectrumTap_ProgramParams) -> Result<Self, Self::Error> {
         Ok(OptRc::from(v.clone()))
     }
 }
-impl TryFrom<&&ZxSpectrumTap_ProgramParams>
-    for OptRc<ZxSpectrumTap_ProgramParams>
-{
+impl TryFrom<&&ZxSpectrumTap_ProgramParams> for OptRc<ZxSpectrumTap_ProgramParams> {
     type Error = KError;
     fn try_from(v: &&ZxSpectrumTap_ProgramParams) -> Result<Self, Self::Error> {
         Ok(OptRc::from((*v).clone()))
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ProgramParams>
-    for ZxSpectrumTap_ProgramParams
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for ZxSpectrumTap_ProgramParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
         Ok(OptRc::from(self.clone()))
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ProgramParams>
-    for &ZxSpectrumTap_ProgramParams
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for &ZxSpectrumTap_ProgramParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
         Ok(OptRc::from((*self).clone()))
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ProgramParams>
-    for OptRc<ZxSpectrumTap_ProgramParams>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for OptRc<ZxSpectrumTap_ProgramParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
         Ok(self.clone())
     }
 }
-impl DowncastOptRc<ZxSpectrumTap_ProgramParams>
-    for &OptRc<ZxSpectrumTap_ProgramParams>
-{
-    fn downcast_optrc(
-        &self,
-    ) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for &OptRc<ZxSpectrumTap_ProgramParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
         Ok((*self).clone())
     }
 }
@@ -926,11 +790,7 @@ impl KStruct for ZxSpectrumTap_ProgramParams {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Header;
 
-    #[allow(
-        clippy::unnecessary_fallible_conversions,
-        clippy::absurd_extreme_comparisons,
-        reason = "Generic validation value conversion"
-    )]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -950,7 +810,8 @@ impl KStruct for ZxSpectrumTap_ProgramParams {
         Ok(())
     }
 }
-impl ZxSpectrumTap_ProgramParams {}
+impl ZxSpectrumTap_ProgramParams {
+}
 impl ZxSpectrumTap_ProgramParams {
     pub fn autostart_line(&self) -> Ref<'_, u16> {
         self.autostart_line.borrow()
