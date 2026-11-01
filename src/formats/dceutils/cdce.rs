@@ -152,7 +152,7 @@ pub fn convert_legacy_cdce_to_dc(
                 txt.push_str(&format!("{val},"));
             } else {
                 log.import_warning(
-                    u64::try_from(i).unwrap_or(u64::MAX),
+                    u64::try_from(i)?,
                     &format!(
                         "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy CDCE import"
                     ),

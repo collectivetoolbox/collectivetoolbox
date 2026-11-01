@@ -219,7 +219,9 @@ pub fn convert_dc_to_3_01a_raw_output(
 
 pub fn dc_map_send_simple(dc_list: &str) -> String {
     let mut log = FormatLog::default();
-    dc_map_send_simple_with_log(dc_list, &mut log)
+    let res = dc_map_send_simple_with_log(dc_list, &mut log);
+    log.auto_log();
+    res
 }
 
 pub fn dc_map_send_simple_with_log(
@@ -238,6 +240,7 @@ pub fn dc_map_send_simple_with_log(
         if dc_id.is_empty() {
             continue;
         }
+        // Reason for fallback: in the event of an unexpected conversion error on non-standard architectures, fallback to u64::MAX preserves warning logging without panic.
         let idx_u64 = u64::try_from(idx).unwrap_or(u64::MAX);
         match dc_id.as_str() {
             "13" => {

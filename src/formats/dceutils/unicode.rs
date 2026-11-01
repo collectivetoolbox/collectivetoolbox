@@ -63,7 +63,7 @@ pub fn convert_utf8_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
             txt.push(',');
         } else {
             log.import_warning(
-                u64::try_from(idx).unwrap_or(u64::MAX),
+                u64::try_from(idx)?,
                 &format!(
                     "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy Unicode import"
                 ),
@@ -313,7 +313,7 @@ pub fn convert_dc_to_utf8_output(
             )
         {
             log.export_warning(
-                u64::try_from(idx).unwrap_or(u64::MAX),
+                u64::try_from(idx)?,
                 &format!(
                     "Short Dc {dc_id} has no Unicode mapping in dceutils and was replaced with U+FFFD"
                 ),

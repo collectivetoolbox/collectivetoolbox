@@ -921,6 +921,7 @@ pub fn classify_rule_framing_shape(
                     common_arity = Some(branch_arity);
                 }
             }
+            // Reason for fallback: when no branch was evaluated (e.g. empty choice list), prefix variable arity is assumed.
             return Some(common_arity.map_or(FramingShape::PrefixVariableArity, FramingShape::PrefixArity));
         }
         _ => {}

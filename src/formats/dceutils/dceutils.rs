@@ -564,7 +564,7 @@ pub fn decode_dce_preserving_controls(
                     "This document is not stored using the specified format."
                 );
             }
-            let ver_byte = raw_bytes.get(6).copied().unwrap_or(0);
+            let ver_byte = *raw_bytes.get(6).context("missing version byte")?;
             match (base_fmt, ver_byte) {
                 ("3_0a", 1) | ("dce", 1) => (false, 4_usize),
                 ("3_01a", 2) | ("dce", 2 | 3) => (true, 4_usize),
@@ -600,12 +600,13 @@ pub fn decode_dce_preserving_controls(
     let tables = tables::get_tables();
     let mut out = Vec::new();
     let mut state = "Core".to_string();
-    let slice = raw_bytes.get(start_offset..).unwrap_or(&[]);
+    let slice = raw_bytes
+        .get(start_offset..)
+        .context("raw_bytes shorter than start offset")?;
 
     for (idx, &byte) in slice.iter().enumerate() {
         let byte_hex = format!("{byte:02X}");
-        let idx_u64 = u64::try_from(idx.saturating_add(start_offset))
-            .unwrap_or(u64::MAX);
+        let idx_u64 = u64::try_from(idx.saturating_add(start_offset))?;
         match state.as_str() {
             "Core" => {
                 if byte == 0x01 {
@@ -780,7 +781,7 @@ pub fn encode_dce_preserving_controls(
         end = end.saturating_sub(1);
     }
 
-    let inner = dcs.get(start..end).unwrap_or(&[]);
+    let inner = dcs.get(start..end).context("dcs slice out of bounds")?;
     let tables = tables::get_tables();
     let mut hex_str = String::new();
 
@@ -798,8 +799,7 @@ pub fn encode_dce_preserving_controls(
 
     let mut state = "Core".to_string();
     for (idx, &dc) in inner.iter().enumerate() {
-        let idx_u64 =
-            u64::try_from(idx.saturating_add(start)).unwrap_or(u64::MAX);
+        let idx_u64 = u64::try_from(idx.saturating_add(start))?;
         match dc {
             13 => {
                 hex_str.push_str("fd");
