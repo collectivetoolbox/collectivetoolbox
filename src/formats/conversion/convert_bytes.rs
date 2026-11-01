@@ -386,6 +386,7 @@ pub fn convert_bytes_to_dcmstring(
         | SupportedDcInputFormat::Dce_3_01a_raw
         | SupportedDcInputFormat::Dce_3_01a_hex
         | SupportedDcInputFormat::Dce_3_01a_raw_hex
+        | SupportedDcInputFormat::Dce_3_02a
         | SupportedDcInputFormat::Utf8_Dc64
         | SupportedDcInputFormat::Utf8_Dc64_enc
         | SupportedDcInputFormat::Utf8_Dc64_bin
@@ -517,6 +518,7 @@ pub fn convert_dcmstring_to_bytes(
         | SupportedDcOutputFormat::Dce_3_01a_raw
         | SupportedDcOutputFormat::Dce_3_01a_hex
         | SupportedDcOutputFormat::Dce_3_01a_raw_hex
+        | SupportedDcOutputFormat::Dce_3_02a
         | SupportedDcOutputFormat::HtmlLegacyCdce
         | SupportedDcOutputFormat::HtmlLegacyCdceSnippet
         | SupportedDcOutputFormat::Utf8_Dc64
@@ -1242,8 +1244,8 @@ mod tests {
             "Expected warnings for unmappable short Dc 308 and long Dc 3000000"
         );
 
-        // 4. Verify all short Dcs 0..=115 in DCE 3.0a, 0..=199 in DCE 3.01a, and 0..=202 in DCE (3.02a)
-        // roundtrip losslessly via DcMstring.
+        // 4. Verify all mapped short Dcs in DCE 3.0a (0, 1, 13..=115; 2..=12 logged as unmappable),
+        // 0..=199 in DCE 3.01a, and 0..=202 in DCE 3.02a roundtrip losslessly via DcMstring.
         for short_id in 0..=115_u32 {
             let mut doc = DcMstring::new();
             doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
@@ -1253,6 +1255,14 @@ mod tests {
                 &DcExportOptions::default(),
             )
             .expect("export 0..=115 to Dce_3_0a");
+            if (2..=12).contains(&short_id) {
+                assert!(
+                    !exported.log.has_errors() && exported.log.has_warnings(),
+                    "Dce_3_0a export of unmapped short Dc {short_id} should emit a warning: {:?}",
+                    exported.log
+                );
+                continue;
+            }
             assert!(
                 !exported.log.has_errors() && !exported.log.has_warnings(),
                 "Dce_3_0a export of short Dc {short_id} emitted warnings/errors: {:?}",
@@ -1303,25 +1313,26 @@ mod tests {
             doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
             let exported = convert_dcmstring_to_bytes(
                 &doc,
-                SupportedDcOutputFormat::Dce,
+                SupportedDcOutputFormat::Dce_3_02a,
                 &DcExportOptions::default(),
             )
-            .expect("export 0..=202 to Dce");
+            .expect("export 0..=202 to Dce_3_02a");
             assert!(
                 !exported.log.has_errors() && !exported.log.has_warnings(),
-                "Dce export of short Dc {short_id} emitted warnings/errors: {:?}",
+                "Dce_3_02a export of short Dc {short_id} emitted warnings/errors: {:?}",
                 exported.log
             );
             let reimported = convert_bytes_to_dcmstring(
                 &exported.bytes,
-                Some("doc.dce"),
+                None,
                 &DcConversionOptions::default(),
             )
-            .expect("reimport Dce");
+            .expect("reimport Dce_3_02a");
+            assert_eq!(reimported.detected_format, FormatId::Dce_3_02a);
             let dcs = reimported.document.to_dc_string().unwrap().to_dclist();
             assert!(
                 dcs.contains(&short_start.saturating_add(u128::from(short_id))),
-                "Dce reimported DcMstring missing short Dc {short_id}"
+                "Dce_3_02a reimported DcMstring missing short Dc {short_id}"
             );
         }
     }

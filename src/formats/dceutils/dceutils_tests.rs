@@ -973,6 +973,32 @@ fn test_dceutils_format_log_error_detection() {
 #[crate::ctb_test]
 fn test_new_converter_3_0a_all_short_dcs_0_to_115() {
     for dc in 0..=crate::MAX_DCE_3_0A_SHORT_DC {
+        if (2..=12).contains(&dc) {
+            // Short Dcs 2..=12 had no byte mappings in DCE 3.0a (added in 3.01a);
+            // exporting to 3.0a must log an export warning in FormatLog and omit them.
+            let mut enc_log = crate::FormatLog::default();
+            let encoded = crate::converter::encode_dce_preserving_controls(
+                &[18, dc, 19],
+                "3_0a",
+                &mut enc_log,
+            )
+            .unwrap();
+            assert!(
+                !enc_log.has_errors() && enc_log.has_warnings(),
+                "3_0a encoding of unmapped short Dc {dc} should log a warning: {enc_log:?}"
+            );
+            let mut dec_log = crate::FormatLog::default();
+            let decoded = crate::converter::decode_dce_preserving_controls(
+                &encoded,
+                "3_0a",
+                &mut dec_log,
+            )
+            .unwrap();
+            assert!(!decoded.contains(&dc));
+            assert!(decoded.contains(&18) && decoded.contains(&19));
+            continue;
+        }
+
         for fmt in ["3_0a", "3_0a_raw", "hex_3_0a", "hex_3_0a_raw"] {
             let mut enc_log = crate::FormatLog::default();
             let encoded = crate::converter::encode_dce_preserving_controls(

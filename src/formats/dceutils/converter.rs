@@ -25,8 +25,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! upstream table and state-machine bugs:
 //!
 //! - **DCE 3.0a (`3_0a`, `3_0a_raw`, `hex_3_0a`, `hex_3_0a_raw`)**:
-//!   Losslessly encodes and decodes all allocated short Dcs in `0..=115`
-//!   ([`MAX_DCE_3_0A_SHORT_DC`]).
+//!   Losslessly encodes and decodes all mapped short Dcs in `0..=115`
+//!   ([`MAX_DCE_3_0A_SHORT_DC`], i.e. `0`, `1`, and `13..=115`; short Dcs `2..=12`
+//!   had no byte mappings in 3.0a and are logged as unmappable in `FormatLog` and omitted).
 //! - **DCE 3.01a (`3_01a`, `3_01a_raw`, `hex_3_01a`, `hex_3_01a_raw`)**:
 //!   Losslessly encodes and decodes all allocated short Dcs in `0..=199`
 //!   ([`MAX_DCE_3_01A_SHORT_DC`]), unlocking Base64 encapsulation
@@ -114,8 +115,7 @@ impl DceVersion {
     pub const fn supports_short_dc(self, short_dc: u32) -> bool {
         match self {
             Self::V3_0a => {
-                short_dc <= MAX_DCE_3_0A_SHORT_DC
-                    || matches!(short_dc, 197 | 198)
+                short_dc <= MAX_DCE_3_0A_SHORT_DC && !matches!(short_dc, 2..=12)
             }
             Self::V3_01a => short_dc <= MAX_DCE_3_01A_SHORT_DC,
             Self::V3_02a => {
@@ -620,11 +620,11 @@ pub fn decode_dce_preserving_controls(
                     out.push(196);
                     state = DceSheet::VariantSelectors;
                 }
-                0xC6 => {
+                0xC6 if ver >= DceVersion::V3_01a => {
                     out.push(197);
                     state = DceSheet::SemanticRecords;
                 }
-                0xC7 => {
+                0xC7 if ver >= DceVersion::V3_01a => {
                     out.push(198);
                     state = DceSheet::Mathematics;
                 }
@@ -725,10 +725,6 @@ pub fn decode_dce_preserving_controls(
             DceSheet::Mathematics => match byte {
                 0x00 => out.push(0),
                 0x01 => out.push(12),
-                0x02 if ver >= DceVersion::V3_02a => out.push(7),
-                0x03 if ver >= DceVersion::V3_02a => out.push(10),
-                0x04 if ver >= DceVersion::V3_02a => out.push(11),
-                0x05 if ver >= DceVersion::V3_02a => out.push(12),
                 0xFD => {
                     out.push(13);
                     state = DceSheet::Core;
@@ -937,7 +933,7 @@ fn encode_short_dcs_into_stream(
                 *state = DceSheet::VariantSelectors;
                 continue;
             }
-            197 => {
+            197 if ver >= DceVersion::V3_01a => {
                 if *state != DceSheet::Core {
                     raw_out.push(0xFD);
                 }
@@ -945,7 +941,7 @@ fn encode_short_dcs_into_stream(
                 *state = DceSheet::SemanticRecords;
                 continue;
             }
-            198 => {
+            198 if ver >= DceVersion::V3_01a => {
                 if *state != DceSheet::Core {
                     raw_out.push(0xFD);
                 }
@@ -1289,7 +1285,7 @@ fn decode_dce_content_short_dcs(
                 (16, Some(112 | 194 | 205))
                 | (196, Some(122..=126))
                 | (197, Some(2..=11))
-                | (198, Some(6 | 7 | 10..=12))
+                | (198, Some(12))
                 | (199, Some(119)) => true,
                 _ => false,
             };
