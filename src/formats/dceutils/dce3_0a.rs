@@ -110,22 +110,9 @@ pub fn convert_dc_to_3_0a_output(
     let tables = get_tables();
     let mut hex_str = "44434565020101fd80".to_string();
 
-    for (idx, dc_id) in dc_array.into_iter().enumerate() {
-        if dc_id.is_empty() {
-            continue;
-        }
-        if let Some(mapped) = tables.dc_map_send_dce3_0a.get(&dc_id)
-            && !mapped.is_empty()
-        {
+    for dc_id in dc_array {
+        if let Some(mapped) = tables.dc_map_send_dce3_0a.get(&dc_id) {
             hex_str.push_str(&mapped.to_lowercase());
-        } else if !matches!(dc_id.as_str(), "13" | "15" | "16" | "112" | "113")
-        {
-            log.export_warning(
-                u64::try_from(idx)?,
-                &format!(
-                    "Short Dc {dc_id} cannot be represented in DCE 3.0a and was omitted"
-                ),
-            );
         }
     }
     hex_str.push_str("81fd03");

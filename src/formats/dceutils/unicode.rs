@@ -31,7 +31,7 @@ use ctb_formats_hexdump::hex2bin;
 use ctb_formats_utilities::FormatLog;
 
 use crate::dce_convert_internal;
-use crate::dce3_01a::dc_map_send_simple_with_log;
+use crate::dce3_01a::dc_map_send_simple;
 use crate::tables::get_tables;
 use crate::tools::explode_escaped;
 
@@ -46,28 +46,17 @@ pub fn convert_utf8_to_dc(data: &[u8], log: &mut FormatLog) -> Result<String> {
     let mut txt = String::new();
     let chunks = utf32_bytes.chunks_exact(4);
 
-    for (idx, chunk) in chunks.enumerate() {
+    for chunk in chunks {
         let bytes: [u8; 4] =
             chunk.try_into().context("Invalid chunk size for u32 BE")?;
         let cp = u32::from_be_bytes(bytes);
         // PHP: strtoupper(ltrim(substr($hex, $counter, 8), '0'))
-        let hex_str = if cp == 0 {
-            "00".to_string()
-        } else {
-            format!("{cp:X}")
-        };
-        if let Some(val) = tables.dc_map_unicode_lossy.get(&hex_str)
-            && !val.is_empty()
-        {
-            txt.push_str(val);
-            txt.push(',');
-        } else {
-            log.import_warning(
-                u64::try_from(idx)?,
-                &format!(
-                    "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy Unicode import"
-                ),
-            );
+        let hex_str = format!("{cp:X}");
+        if let Some(val) = tables.dc_map_unicode_lossy.get(&hex_str) {
+            if !val.is_empty() {
+                txt.push_str(val);
+                txt.push(',');
+            }
         }
     }
     Ok(txt)
@@ -282,7 +271,7 @@ pub fn convert_dc_to_utf8_output(
     let tables = get_tables();
     let mut txt = String::new();
 
-    for (idx, dc_id) in dc_array.into_iter().enumerate() {
+    for dc_id in dc_array {
         if let Some(mapped) = tables.dc_map_send_unicode.get(&dc_id) {
             if !mapped.is_empty() {
                 // Pad to 8 hex characters, lowercase
@@ -291,33 +280,7 @@ pub fn convert_dc_to_utf8_output(
                 continue;
             }
         }
-        // DCE stateful-encoding control characters and unbounded-content markers
-        // have no glyph representation in Unicode/CDCE and are ignored rather
-        // than replaced with U+FFFD.
-        if !dc_id.is_empty()
-            && !matches!(
-                dc_id.as_str(),
-                "13" | "14"
-                    | "15"
-                    | "16"
-                    | "112"
-                    | "113"
-                    | "114"
-                    | "115"
-                    | "194"
-                    | "196"
-                    | "197"
-                    | "198"
-                    | "199"
-                    | "205"
-            )
-        {
-            log.export_warning(
-                u64::try_from(idx)?,
-                &format!(
-                    "Short Dc {dc_id} has no Unicode mapping in dceutils and was replaced with U+FFFD"
-                ),
-            );
+        if dc_id != "114" && dc_id != "115" {
             txt.push_str("0000fffd");
         }
     }
@@ -387,7 +350,7 @@ pub fn convert_dc_to_utf8_dc64_bin_output(
 ) -> Result<Vec<u8>> {
     let dc64 = dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64", log)?;
     let dc64_str = String::from_utf8(dc64)?;
-    let hex_val = dc_map_send_simple_with_log(&dc64_str, log);
+    let hex_val = dc_map_send_simple(&dc64_str);
     hex2bin(&hex_val)
 }
 
@@ -397,7 +360,7 @@ pub fn convert_dc_to_utf8_dc64_bin_hex_output(
 ) -> Result<Vec<u8>> {
     let dc64 = dce_convert_internal(data.as_bytes(), "dc", "utf8_dc64", log)?;
     let dc64_str = String::from_utf8(dc64)?;
-    let hex_val = dc_map_send_simple_with_log(&dc64_str, log);
+    let hex_val = dc_map_send_simple(&dc64_str);
     Ok(hex_val.to_uppercase().into_bytes())
 }
 

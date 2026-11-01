@@ -192,8 +192,7 @@ pub fn convert_dc_to_3_01a_output(
     data: &str,
     log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    let bounded = crate::convert_dc_to_dc_output(data, log);
-    let encoded = dc_map_send_simple_with_log(&bounded, log);
+    let encoded = dc_map_send_simple(data);
     let hex_str = format!("44434565020102fd{encoded}fd03");
     let bytes = hex2bin(&hex_str).map_err(|e| {
         log.error(&format!("invalid hex string generated: {e}"));
@@ -202,32 +201,7 @@ pub fn convert_dc_to_3_01a_output(
     Ok(bytes)
 }
 
-pub fn convert_dc_to_3_01a_raw_output(
-    data: &str,
-    log: &mut FormatLog,
-) -> Result<Vec<u8>> {
-    let full = dce_convert_internal(data.as_bytes(), "dc", "3_01a", log)?;
-    if full.len() >= 10 {
-        let sub = full
-            .get(8..full.len().saturating_sub(2))
-            .context("substring slice")?;
-        Ok(sub.to_vec())
-    } else {
-        bail!("Output too short")
-    }
-}
-
 pub fn dc_map_send_simple(dc_list: &str) -> String {
-    let mut log = FormatLog::default();
-    let res = dc_map_send_simple_with_log(dc_list, &mut log);
-    log.auto_log();
-    res
-}
-
-pub fn dc_map_send_simple_with_log(
-    dc_list: &str,
-    log: &mut FormatLog,
-) -> String {
     if dc_list.is_empty() {
         return String::new();
     }
@@ -235,130 +209,30 @@ pub fn dc_map_send_simple_with_log(
     let tables = get_tables();
     let mut mapped = String::new();
     let mut state = "Core".to_string();
+    let mut state_switch = String::new();
 
-    for (idx, dc_id) in dc_array.into_iter().enumerate() {
-        if dc_id.is_empty() {
-            continue;
-        }
-        // Reason for fallback: in the event of an unexpected conversion error on non-standard architectures, fallback to u64::MAX preserves warning logging without panic.
-        let idx_u64 = u64::try_from(idx).unwrap_or(u64::MAX);
-        match dc_id.as_str() {
-            "13" => {
-                mapped.push_str("FD");
-                state = "Core".to_string();
-                continue;
-            }
-            "14" => {
-                mapped.push_str("FE");
-                state = "Core".to_string();
-                continue;
-            }
-            "16" => {
-                if state != "Core" {
-                    mapped.push_str("FD");
-                }
-                mapped.push_str("01");
-                state = "DCE_Version_Selectors".to_string();
-                continue;
-            }
-            "196" => {
-                if state != "Core" {
-                    mapped.push_str("FD");
-                }
-                mapped.push_str("C5");
-                state = "Variant_Selectors".to_string();
-                continue;
-            }
-            "197" => {
-                if state != "Core" {
-                    mapped.push_str("FD");
-                }
-                mapped.push_str("C6");
-                state = "Semantic_Records".to_string();
-                continue;
-            }
-            "198" => {
-                if state != "Core" {
-                    mapped.push_str("FD");
-                }
-                mapped.push_str("C7");
-                state = "Mathematics".to_string();
-                continue;
-            }
-            "199" => {
-                if state != "Core" {
-                    mapped.push_str("FD");
-                }
-                mapped.push_str("C8");
-                state = "Punctuation_and_Whitespace".to_string();
-                continue;
-            }
-            "205" => {
-                if state != "DCE_Version_Selectors" {
-                    if state != "Core" {
-                        mapped.push_str("FD");
-                    }
-                    mapped.push_str("01");
-                    state = "DCE_Version_Selectors".to_string();
-                }
-                mapped.push_str("03");
-                continue;
-            }
-            _ => {}
-        }
-        if let Some(record) = tables.dc_map_send_dce3_01a_all.get(&dc_id)
-            && !record.is_empty()
-        {
+    for dc_id in dc_array {
+        if let Some(record) = tables.dc_map_send_dce3_01a_all.get(&dc_id) {
             if let Some((state_needed, append)) = record.split_once(':') {
                 if state_needed == state {
                     mapped.push_str(append);
-                } else if state_needed == "Core" {
-                    mapped.push_str("FD");
-                    mapped.push_str(append);
-                    state = "Core".to_string();
-                } else if state_needed == "DCE_Version_Selectors" {
-                    if state != "Core" {
-                        mapped.push_str("FD");
-                    }
-                    mapped.push_str("01");
-                    mapped.push_str(append);
-                    state = "DCE_Version_Selectors".to_string();
                 } else {
-                    let switch_query = format!(">{state_needed}");
-                    let mut state_switch = None;
+                    // Search mapping table for state switch command
                     for val in tables.dc_map_send_dce3_01a_all.values() {
-                        if val.contains(&switch_query)
-                            && let Some((_, switch_hex)) = val.split_once(':')
-                        {
-                            state_switch = Some(switch_hex.to_string());
-                            break;
+                        let switch_query = format!(">{state_needed}");
+                        if val.contains(&switch_query) {
+                            if let Some((_, switch_hex)) = val.split_once(':') {
+                                state_switch = switch_hex.to_string();
+                                break;
+                            }
                         }
                     }
-                    if let Some(switch_hex) = state_switch {
-                        if state != "Core" {
-                            mapped.push_str("FD");
-                        }
-                        mapped.push_str(&switch_hex);
-                        mapped.push_str(append);
-                        state = state_needed.to_string();
-                    } else {
-                        log.export_warning(
-                            idx_u64,
-                            &format!(
-                                "Short Dc {dc_id} (sheet {state_needed}) has no sheet switch in DCE 3.01a and was omitted"
-                            ),
-                        );
-                    }
+                    mapped.push_str(&state_switch);
+                    mapped.push_str(append);
+                    state = state_needed.to_string();
                 }
-                continue;
             }
         }
-        log.export_warning(
-            idx_u64,
-            &format!(
-                "Short Dc {dc_id} cannot be represented in DCE 3.01a and was omitted"
-            ),
-        );
     }
 
     mapped
