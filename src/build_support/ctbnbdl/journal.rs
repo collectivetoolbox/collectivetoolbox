@@ -2382,14 +2382,37 @@ mod tests {
         )
         .unwrap();
 
-        copy_dir_shallow(
-            &real_root.join("assets/data/graph"),
-            &root.join("assets/data/graph"),
-        );
-        copy_dir_shallow(
-            &real_root.join("assets/data/graph/system"),
-            &root.join("assets/data/graph/system"),
-        );
+        let all_nodes =
+            load_ledger_nodes_from_dir_raw(&real_root.join("assets/data/graph"))
+                .unwrap();
+        let step0_nodes: Vec<LedgerNode> =
+            all_nodes.into_iter().take(17_833).collect();
+        assert_eq!(step0_nodes.len(), 17_833);
+        assert_eq!(step0_nodes.last().unwrap().id, 8_589_952_424);
+
+        let graph_dst = root.join("assets/data/graph");
+        fs::create_dir_all(graph_dst.join("system")).unwrap();
+        for chunk in step0_nodes.chunks(100) {
+            let chunk_name = format_chunk_filename(chunk[0].id);
+            let mut buf = String::new();
+            for n in chunk {
+                buf.push_str(&n.format_line());
+                buf.push('\n');
+            }
+            fs::write(graph_dst.join(chunk_name), buf).unwrap();
+        }
+        {
+            let write_guard = LedgerWriteGuard::acquire(root).unwrap();
+            let framing =
+                resolve_ctbnbdl_framing_dcs_from_nodes(&step0_nodes).unwrap();
+            compile_nodes_slice_to_ctbnbdl_with_write_guard(
+                &write_guard,
+                &step0_nodes,
+                &graph_dst,
+                framing,
+            )
+            .unwrap();
+        }
 
         let audit_src =
             real_root.join("src/formats/dcdata/data-src/recovery-audit");

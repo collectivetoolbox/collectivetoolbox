@@ -2877,5 +2877,116 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_ambiguity_recovery_and_live_vs_history_invariants() -> Result<()> {
+        let active_index = SeedGraphIndex::shared()?;
+        let full_index = SeedGraphIndex::load_with_history_from_asset_bundle()?;
+
+        // 1. Exact node counts after Step 2a (2,465), Step 2b (2,838), and Step 3 (616 retractions):
+        // Active bundle (`assets/data/graph/85899_34592.ctbnbdl`): 17,147 active nodes (identical active count to commit a90464028)
+        // Full ledger (`assets/data/graph/*.ctbnodes` = active + history `system/85899_34942.ctbnbdl`): 23,752 total nodes (2,931 superseded/retracted targets)
+        assert_eq!(active_index.node_count(), 17_147);
+        assert_eq!(active_index.inactive_count(), 0);
+        assert_eq!(full_index.node_count(), 23_752);
+        assert_eq!(full_index.inactive_count(), 2_931);
+
+        // 2. Verify all 24 unambiguous overwritten IDs have no Dc 348 "Ambiguous values" candidates
+        let unambiguous_ids: Vec<u128> = (8_589_951_799..=8_589_951_801)
+            .chain(8_589_951_803..=8_589_951_812)
+            .chain(8_589_951_814..=8_589_951_824)
+            .collect();
+        assert_eq!(unambiguous_ids.len(), 24);
+        for &id in &unambiguous_ids {
+            assert_eq!(
+                full_index.get_ambiguous_candidates(id),
+                None,
+                "Unambiguous ID l{id} must not resolve to a Dc 348 'Ambiguous values' list"
+            );
+        }
+
+        // 3. Verify all 602 dependency-ambiguous overwritten IDs resolve to `[r1_eff(N), r2_eff(N)]`,
+        // where `r2_eff(N)` is active for all 602 IDs and `r1_eff(N)` is retracted for all 559 statements
+        // (and active for the 43 value nodes).
+        let ambiguous_ids: Vec<u128> = std::iter::once(8_589_951_802)
+            .chain(std::iter::once(8_589_951_813))
+            .chain(8_589_951_825..=8_589_952_424)
+            .collect();
+        assert_eq!(ambiguous_ids.len(), 602);
+        let mut r1_retracted_stmts = 0usize;
+        let mut r1_active_values = 0usize;
+        for &orig_id in &ambiguous_ids {
+            assert!(
+                !full_index.is_node_active(orig_id),
+                "Overwritten ID l{orig_id} must be superseded"
+            );
+            let cands = full_index
+                .get_ambiguous_candidates(orig_id)
+                .with_context(|| {
+                    format!(
+                        "Ambiguous ID l{orig_id} is missing Dc 348 'Ambiguous values' candidates"
+                    )
+                })?;
+            assert_eq!(
+                cands.len(),
+                2,
+                "Expected 2 Dc 348 candidates for l{orig_id}"
+            );
+            let r1_eff = cands[0];
+            let r2_eff = cands[1];
+            assert!(
+                full_index.is_node_active(r2_eff),
+                "Canonical Run 2 candidate l{r2_eff} (for l{orig_id}) must be active"
+            );
+            assert!(
+                active_index.get_node(r2_eff).is_some(),
+                "Canonical Run 2 candidate l{r2_eff} must be present in active bundle"
+            );
+            if full_index.is_node_active(r1_eff) {
+                r1_active_values += 1;
+            } else {
+                r1_retracted_stmts += 1;
+                assert!(
+                    active_index.get_node(r1_eff).is_none(),
+                    "Retracted Run 1 statement candidate l{r1_eff} must be excluded from active bundle"
+                );
+            }
+        }
+        assert_eq!(r1_retracted_stmts, 559);
+        assert_eq!(r1_active_values, 43);
+
+        // 4. Verify all 57 restored Run 1 tail nodes (`l8589952425`..`l8589952481`) are inactive in the
+        // live index (54 superseded by `l8589957620`..`l8589957727` and retracted in Step 3, plus 3 directly retracted in Step 3).
+        for tail_id in 8_589_952_425..=8_589_952_481 {
+            assert!(
+                full_index.get_node(tail_id).is_some(),
+                "Restored Run 1 tail node l{tail_id} must exist in historical index"
+            );
+            assert!(
+                !full_index.is_node_active(tail_id),
+                "Restored Run 1 tail node l{tail_id} must be inactive after Step 3"
+            );
+            assert!(
+                active_index.get_node(tail_id).is_none(),
+                "Restored Run 1 tail node l{tail_id} must not be in active bundle"
+            );
+        }
+
+        // 5. Verify committed journal provenance and allocated .dcsh files across the repository.
+        let repo_root = crate::updater::find_repository_root()?;
+        let prov_map =
+            crate::graph_ledger::inbox::verify_repo_committed_node_provenance(
+                &repo_root,
+            )?;
+        for node_id in 8_589_952_425..=8_589_958_343 {
+            assert_eq!(
+                prov_map.owner(node_id),
+                crate::graph_ledger::inbox::NodeProvenance::Csv,
+                "Expected recovered/reconciled node l{node_id} to have Csv provenance"
+            );
+        }
+
+        Ok(())
+    }
 }
 

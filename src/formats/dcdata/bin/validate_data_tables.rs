@@ -242,17 +242,15 @@ fn main() -> ExitCode {
         None,
     ) {
         Ok(stats) => {
-            if stats.nodes_appended > 0 || stats.files_written > 0 || dry_run {
-                println!(
-                    "System Graph Ledger{}: {} total nodes ({} appended, {} superseded, {} retracted, {} chunk files updated).",
-                    if dry_run { " (dry-run)" } else { "" },
-                    stats.total_nodes,
-                    stats.nodes_appended,
-                    stats.nodes_superseded,
-                    stats.nodes_retracted,
-                    stats.files_written
-                );
-            }
+            println!(
+                "System Graph Ledger{}: {} total nodes ({} appended, {} superseded, {} retracted, {} chunk files updated).",
+                if dry_run { " (dry-run)" } else { "" },
+                stats.total_nodes,
+                stats.nodes_appended,
+                stats.nodes_superseded,
+                stats.nodes_retracted,
+                stats.files_written
+            );
         }
         Err(e) => {
             eprintln!("Error updating System graph ledger (assets/data/graph/*.ctbnodes): {e:#}");
