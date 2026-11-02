@@ -141,3 +141,16 @@ Error: Input bytes do not conform to valid DcMixed2 (.dcmm) format
 Caused by:
     Encapsulation size 192097702246800632426538688442588496000 exceeds addressable memory at offset 124783
 
+utf8.rs:
+
+pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
+    dcmstr_to_utf8_with_options(
+        doc,
+        &DcListUtf8Settings {
+            canonicalize_equivalent_dcs: true,
+            ..Default::default()
+        },
+    )
+}
+
+This defaults to canonicalizing, rather than varying it depending on context (e.g. yes typically it should canonicalize and give warnings, but in a --strict mode it shouldn't).
