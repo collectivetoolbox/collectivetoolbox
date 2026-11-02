@@ -3101,6 +3101,7 @@ dependencies = [
  "anyhow",
  "clap",
  "ctb-formats-dcdata",
+ "ctb-formats-dceutils",
  "ctb-formats-dcstring",
  "ctb-formats-detection",
  "ctb-formats-encoding",
@@ -3147,6 +3148,7 @@ version = "0.0.0"
 dependencies = [
  "csv",
  "ctb-formats-base64",
+ "ctb-formats-dcstring",
  "ctb-formats-encoding",
  "ctb-formats-hexdump",
  "ctb-formats-utilities",
@@ -3163,7 +3165,6 @@ dependencies = [
  "ctb-dc-macro",
  "ctb-formats-checksum",
  "ctb-formats-dcdata",
- "ctb-formats-dceutils",
  "ctb-formats-dctf",
  "ctb-formats-eite",
  "ctb-formats-math",

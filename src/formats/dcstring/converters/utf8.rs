@@ -85,6 +85,9 @@ pub struct DcListUtf8Settings {
     /// When true, map short Dcs to their corresponding Unicode output character
     /// (if available), and parse legacy base64 UTF-8 embeds (`191..192`) in input documents.
     pub canonicalize_equivalent_dcs: bool,
+    /// Recover malformed encapsulated text with U+FFFD and warnings instead
+    /// of returning an error.
+    pub permissive: bool,
     /// Enable debug logging.
     pub debug: bool,
 }
@@ -102,6 +105,7 @@ impl ConstDefault for DcListUtf8Settings {
         dcl_basenb_fragment_strict: true,
         skip_unmappable: false,
         canonicalize_equivalent_dcs: false,
+        permissive: false,
         debug: false,
     };
 }
@@ -161,74 +165,26 @@ pub fn dclist_to_utf8(
                     if resolver
                         .token_fills_role(dc, DcRole::StartEncapsulationUtf8)
                     {
-                        let mut j = i.saturating_add(1);
-                        let mut truncated = true;
-                        #[expect(
-                            clippy::expect_used,
-                            reason = "j is bounded by dclist.len() loop condition, so dclist.get(j) is in bounds"
-                        )]
-                        while j < dclist.len() {
-                            let cur_dc = *dclist.get(j).expect(
-                                "j < dclist.len() guarantees in-bounds access",
-                            );
-                            if resolver.token_fills_role(
-                                cur_dc,
-                                DcRole::EndEncapsulationUtf8,
-                            ) {
-                                truncated = false;
-                                break;
-                            }
-                            if resolver
-                                .token_fills_role(cur_dc, DcRole::Base64Digit)
-                                || resolver.token_fills_role(
-                                    cur_dc,
-                                    DcRole::Base64Padding,
-                                )
-                            {
-                                j = j.saturating_add(1);
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if !truncated {
-                            let mut inner_dcs = Vec::new();
-                            for k in i.saturating_add(1)..j {
-                                if let Some(&k_dc) = dclist.get(k) {
-                                    let canon_k_dc =
-                                        resolver.canonical_token(k_dc);
-                                    if let Some(digit) =
-                                        resolver.base64_digit_value(canon_k_dc)
-                                    {
-                                        inner_dcs.push(ctb_formats_dcdata::dc_number_minimal::dc_base64_digit_to_char(digit).to_short()?);
-                                    } else if let Ok(k_short) = u32::try_from(
-                                        canon_k_dc.saturating_sub(
-                                            SHORT_DC_REGION_START,
-                                        ),
-                                    ) {
-                                        inner_dcs.push(k_short);
-                                    }
-                                }
-                            }
-                            let decoded_bytes =
-                                dc_encapsulated_raw_to_bytes(&inner_dcs)?;
-                            std::str::from_utf8(&decoded_bytes)
-                                .context("Invalid encapsulated UTF-8")?;
-                            {
-                                flush_unmappables(
-                                    &mut out,
-                                    &mut unmappables,
-                                    &mut found_any_unmappables,
-                                    false,
-                                    settings,
-                                    &start_uuid_bytes,
-                                )?;
-                                out.extend_from_slice(&decoded_bytes);
-                                i = j.saturating_add(1);
-                                continue;
-                            }
-                        }
-                        bail!("Unterminated or malformed encapsulated UTF-8 payload");
+                        let (decoded, next) = decode_utf8_encapsulation(
+                            dclist,
+                            i,
+                            settings.permissive,
+                            resolver.as_ref(),
+                            &mut log,
+                        )?;
+                        flush_unmappables(
+                            &mut out,
+                            &mut unmappables,
+                            &mut found_any_unmappables,
+                            false,
+                            settings,
+                            &start_uuid_bytes,
+                        )?;
+                        let (bytes, decoded_log) = dcmstring_to_utf8(&decoded)?;
+                        log.merge(&decoded_log);
+                        out.extend_from_slice(&bytes);
+                        i = next;
+                        continue;
                     }
 
                     // Sub-case 2b: Standard short Dc to UTF-8 mapping
@@ -323,6 +279,111 @@ pub fn dclist_to_utf8(
     }
 
     Ok(ConversionOutput::new(out, log))
+}
+
+fn decode_utf8_encapsulation(
+    dcs: &[u128],
+    start: usize,
+    permissive: bool,
+    resolver: &dyn SyntaxRuleResolver,
+    log: &mut FormatLog,
+) -> Result<(crate::DcMstring, usize)> {
+    let mut end = start.saturating_add(1);
+    let mut terminated = false;
+    let mut first_invalid = None;
+    let mut digits = Vec::new();
+    while let Some(&token) = dcs.get(end) {
+        if resolver.token_fills_role(token, DcRole::EndEncapsulationUtf8) {
+            terminated = true;
+            break;
+        }
+        if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) {
+            break;
+        }
+        if let Some(digit) = resolver.base64_digit_value(token) {
+            digits.push(
+                ctb_formats_dcdata::dc_number_minimal::dc_base64_digit_to_char(digit)
+                    .to_short()?,
+            );
+        } else if resolver.token_fills_role(token, DcRole::Base64Padding) {
+            digits.push(crate::DcChar::from_u128(resolver.canonical_token(token)).to_short()?);
+        } else {
+            first_invalid.get_or_insert(end);
+        }
+        end = end.saturating_add(1);
+    }
+    let next = if terminated {
+        end.saturating_add(1)
+    } else if let Some(invalid) = first_invalid {
+        invalid
+    } else {
+        end
+    };
+    let decoded = if !terminated || first_invalid.is_some() {
+        Err(anyhow!("Unterminated or malformed encapsulated UTF-8 payload"))
+    } else {
+        dc_encapsulated_raw_to_bytes(&digits)
+    };
+    let bytes = match decoded {
+        Ok(bytes) => bytes,
+        Err(error) if permissive => {
+            log.import_warning(
+                u64::try_from(start)?,
+                &format!("{error}; substituting U+FFFD"),
+            );
+            return Ok((crate::DcMstring::from("\u{FFFD}"), next));
+        }
+        Err(error) => return Err(error),
+    };
+    let (doc, decoded_log) = utf8_to_dcmstring_with_options(&bytes, permissive)
+        .context("Invalid encapsulated UTF-8")?;
+    log.merge(&decoded_log);
+    Ok((doc, next))
+}
+
+/// Validates legacy UTF-8 encapsulations, repairing damaged payloads only
+/// when permissive mode is enabled. Valid text, framing, and binary chunks
+/// are preserved without normalization.
+///
+/// # Errors
+/// Returns an error for malformed encapsulated text in strict mode or for
+/// invalid document data.
+pub fn repair_utf8_encapsulations(
+    doc: &crate::DcMstr,
+    permissive: bool,
+) -> Result<(crate::DcMstring, FormatLog)> {
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    let mut repaired = crate::DcMstring::new();
+    let mut log = FormatLog::default();
+    for chunk in doc.chunks() {
+        if let crate::DcMixedChunk::Text(text) = chunk {
+            let tokens: Vec<_> = text.chars().map(|ch| ch.to_long()).collect();
+            let mut cursor = 0;
+            while let Some(&token) = tokens.get(cursor) {
+                if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) {
+                    let warning_count = log.get_warnings().len();
+                    let (decoded, next) = decode_utf8_encapsulation(
+                        &tokens, cursor, permissive, resolver.as_ref(), &mut log,
+                    )?;
+                    if log.get_warnings().len() == warning_count {
+                        for &original in tokens.get(cursor..next)
+                            .context("Invalid UTF-8 encapsulation boundary")? {
+                            repaired.push_char(crate::DcChar::from_u128(original));
+                        }
+                    } else {
+                        repaired.push_dc_str(&decoded.to_dc_string()?);
+                    }
+                    cursor = next;
+                } else {
+                    repaired.push_char(crate::DcChar::from_u128(token));
+                    cursor = cursor.saturating_add(1);
+                }
+            }
+        } else {
+            repaired.push_chunk(&chunk)?;
+        }
+    }
+    Ok((repaired, log))
 }
 
 /// Flush accumulated unmappables using `dclist_to_dcutf` and `byte_array_to_basenb_17_utf8`.
@@ -843,7 +904,57 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_utf8_conversion_permissive_encapsulation() {
+        let settings = DcListUtf8Settings {
+            canonicalize_equivalent_dcs: true,
+            permissive: true,
+            ..Default::default()
+        };
+        for (payload, expected) in [
+            (vec![191, 151, 158, 188, 161, 192], "La\u{FFFD}bR"),
+            (vec![191, 127, 192], "L\u{FFFD}R"),
+            (vec![191, 50, 192], "L\u{FFFD}R"),
+            (vec![191, 143, 143, 195, 195], "L\u{FFFD}R"),
+        ] {
+            let mut doc = crate::DcMstring::from("L");
+            for short_dc in payload {
+                doc.push_char(crate::DcChar::from_short(short_dc));
+            }
+            doc.push_str("R");
+            let (bytes, log) = dcmstr_to_utf8_with_options(&doc, &settings).unwrap();
+            assert_eq!(bytes, expected.as_bytes());
+            assert!(log.has_warnings() && !log.has_errors());
+            let (repaired, log) = repair_utf8_encapsulations(&doc, true).unwrap();
+            assert!(log.has_warnings() && !log.has_errors());
+            assert_eq!(dcmstr_to_utf8_with_options(&repaired, &settings).unwrap().0, bytes);
+            assert!(repair_utf8_encapsulations(&doc, false).is_err());
+            let strict = DcListUtf8Settings {
+                permissive: false,
+                ..settings.clone()
+            };
+            assert!(dcmstr_to_utf8_with_options(&doc, &strict).is_err());
+        }
+        let mut valid = crate::DcMstring::new();
+        for short in [191, 143, 143, 195, 195, 192] {
+            valid.push_char(crate::DcChar::from_short(short));
+        }
+        valid.push_binary(b"\xff\x00");
+        let (repaired, log) = repair_utf8_encapsulations(&valid, true).unwrap();
+        assert_eq!(repaired, valid);
+        assert!(!log.has_warnings() && !log.has_errors());
+    }
+
+    #[crate::ctb_test]
     fn test_dclist_utf8_canonicalize_equivalent_dcs() {
+        let decimal = dclist_to_utf8(
+            &[crate::DcChar::from_short(12).to_long()],
+            &DcListUtf8Settings {
+                canonicalize_equivalent_dcs: true,
+                ..Default::default()
+            },
+        ).unwrap();
+        assert_eq!(decimal.result, b".");
+        assert!(!decimal.log.has_warnings() && !decimal.log.has_errors());
         // Short Dc 65 maps to 'P'
         let short_p = SHORT_DC_REGION_START + 65;
         let input: DcList = vec![short_p];

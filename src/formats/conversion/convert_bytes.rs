@@ -400,7 +400,7 @@ pub fn convert_bytes_to_dcmstring(
         | SupportedDcInputFormat::Utf8_Dc64_bin_hex
         | SupportedDcInputFormat::Utf8_Dc64_bin_enc
         | SupportedDcInputFormat::Utf8_Dc64_bin_enc_hex => {
-            ctb_formats_dcstring::converters::dceutils::dceutils_to_dcmstring_with_options(
+            ctb_formats_dceutils::document::dceutils_to_dcmstring_with_options(
                 bytes,
                 resolved_format.primary_cli_name(),
                 options.permissive,
@@ -533,7 +533,7 @@ pub fn convert_dcmstring_to_bytes(
         | SupportedDcOutputFormat::Utf8_Dc64_bin_hex
         | SupportedDcOutputFormat::Utf8_Dc64_bin_enc
         | SupportedDcOutputFormat::Utf8_Dc64_bin_enc_hex => {
-            ctb_formats_dcstring::converters::dceutils::dcmstring_to_dceutils(
+            ctb_formats_dceutils::document::dcmstring_to_dceutils(
                 doc,
                 format.primary_cli_name(),
             )?

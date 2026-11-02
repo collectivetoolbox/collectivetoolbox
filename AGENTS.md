@@ -160,3 +160,26 @@
   - Dynamic linking, `dlopen`, and system libraries on Linux are non-options.
   - Using X11/XWayland when Wayland is available is a non-option: a single statically linked `musl` binary that runs natively on Wayland (on Wayland or Wayland+X11 systems) and X11 (on X11-only systems) is the required target.
 
+## Task continuity
+
+When working on a task, treat new user messages as additional instructions or feedback
+on the current task—not as a request to end the task—unless the user explicitly says
+“stop,” “cancel,” “pause,” or replaces the task.
+
+If the user asks a question during execution:
+
+1. Answer it briefly.
+2. Apply its implications to the current work.
+3. Continue working toward completing the original task.
+4. Do not end your turn merely because you answered the question.
+
+If feedback reveals the current approach is wrong, revise the approach and continue
+implementation. Do not wait for the user to explicitly say “resume.”
+
+Before concluding, verify that the original requested deliverable is complete.
+
+## Progress updates
+
+Use concise progress updates only when useful. A progress update is not a completion
+message. Do not say or imply that work is finished until the requested changes have
+been implemented and verified.

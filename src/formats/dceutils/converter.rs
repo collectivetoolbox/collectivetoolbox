@@ -1055,9 +1055,25 @@ pub fn dce_convert_with_log(
     input_format: &str,
     output_format: &str,
 ) -> Result<(Vec<u8>, FormatLog)> {
+    dce_convert_with_options(data, input_format, output_format, false)
+}
+
+/// Converts formats with optional replacement-character recovery for damaged
+/// text, returning converted bytes and diagnostics.
+///
+/// # Errors
+/// Returns an error for unsupported formats or unrecoverable input. In strict
+/// mode, malformed encapsulated text also returns an error.
+pub fn dce_convert_with_options(
+    data: &[u8],
+    input_format: &str,
+    output_format: &str,
+    permissive: bool,
+) -> Result<(Vec<u8>, FormatLog)> {
     let mut log = FormatLog::default();
-    let res =
-        dce_convert_internal(data, input_format, output_format, &mut log)?;
+    let res = dce_convert_internal(
+        data, input_format, output_format, permissive, &mut log,
+    )?;
     Ok((res, log))
 }
 
@@ -1065,6 +1081,7 @@ pub(crate) fn dce_convert_internal(
     data: &[u8],
     input_format: &str,
     output_format: &str,
+    permissive: bool,
     log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
     // One-step legacy translators
@@ -1132,15 +1149,16 @@ pub(crate) fn dce_convert_internal(
             false,
             false,
             target_supports_b64,
+            permissive,
             log,
         )?,
         "legacy_cdce" | "cdce_legacy" => {
-            convert_cdce_to_dc_str(data, true, false, false, log)?
+            convert_cdce_to_dc_str(data, true, false, false, permissive, log)?
         }
         "cdce_lstrict" | "cdce_legacy_strict" => {
-            convert_cdce_to_dc_str(data, true, true, false, log)?
+            convert_cdce_to_dc_str(data, true, true, false, permissive, log)?
         }
-        "utf8" => convert_utf8_to_dc_str(data, target_supports_b64, log)?,
+        "utf8" => convert_utf8_to_dc_str(data, target_supports_b64, permissive, log)?,
         "utf32" => {
             let utf8_bytes = ctb_formats_encoding::unicode::utf32be_to_utf8(
                 data,
@@ -1153,7 +1171,7 @@ pub(crate) fn dce_convert_internal(
                     "This document is not stored using the specified format."
                 )
             })?;
-            convert_utf8_to_dc_str(&utf8_bytes, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&utf8_bytes, target_supports_b64, permissive, log)?
         }
         "utf8_base64" => {
             let b64_str = std::str::from_utf8(data).map_err(|_| {
@@ -1173,35 +1191,35 @@ pub(crate) fn dce_convert_internal(
                         "This document is not stored using the specified format."
                     )
                 })?;
-            convert_utf8_to_dc_str(&decoded, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&decoded, target_supports_b64, permissive, log)?
         }
         "utf8_dc64" => {
             let decoded_utf8 = decode_utf8_dc64_csv_to_bytes(data, false, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
         }
         "utf8_dc64_enc" => {
             let decoded_utf8 = decode_utf8_dc64_csv_to_bytes(data, true, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
         }
         "utf8_dc64_bin" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, false, false, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
         }
         "utf8_dc64_bin_hex" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, false, true, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
         }
         "utf8_dc64_bin_enc" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, true, false, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
         }
         "utf8_dc64_bin_enc_hex" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, true, true, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, log)?
+            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
         }
         _ => {
             log.error("Unknown input format.");
@@ -1228,16 +1246,16 @@ pub(crate) fn dce_convert_internal(
                 crate::convert_dc_to_dc_output(&join_short_dcs(&parsed), log);
             Ok(dc_out.into_bytes())
         }
-        "cdce" => convert_dc_str_to_cdce(&dc_cleaned, false, log),
+        "cdce" => convert_dc_str_to_cdce(&dc_cleaned, false, permissive, log),
         "legacy_cdce" | "cdce_legacy" => {
-            convert_dc_str_to_cdce(&dc_cleaned, true, log)
+            convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)
         }
         "html_l" | "html_legacy" | "html_legacy_cdce" => {
-            let cdce_bytes = convert_dc_str_to_cdce(&dc_cleaned, true, log)?;
+            let cdce_bytes = convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
             legacy::onestep_legacy_cdce_to_html_l(&cdce_bytes)
         }
         "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet" => {
-            let cdce_bytes = convert_dc_str_to_cdce(&dc_cleaned, true, log)?;
+            let cdce_bytes = convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
             legacy::onestep_legacy_cdce_to_html_snippet_l(&cdce_bytes)
         }
         "dce" | "hex_dce" | "dce_hex" | "3_0a" | "dce_3_0a" | "3_0a_raw"
@@ -1251,42 +1269,42 @@ pub(crate) fn dce_convert_internal(
             let dcs = parse_dc_csv_list(&dc_cleaned, log)?;
             encode_dce_preserving_controls(&dcs, output_format, log)
         }
-        "utf8" => convert_dc_str_to_utf8(&dc_cleaned, log),
+        "utf8" => convert_dc_str_to_utf8(&dc_cleaned, permissive, log),
         "utf32" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             ctb_formats_encoding::unicode::utf8_to_utf32be(&utf8_bytes)
         }
         "utf8_base64" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             Ok(ctb_formats_base64::base64_encode(&utf8_bytes).into_bytes())
         }
         "utf8_dc64" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             Ok(join_short_dcs(&dcs).into_bytes())
         }
         "utf8_dc64_enc" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_utf8_to_dc64_encapsulated(&utf8_bytes);
             Ok(join_short_dcs(&dcs).into_bytes())
         }
         "utf8_dc64_bin" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, false, false)
         }
         "utf8_dc64_bin_hex" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, false, true)
         }
         "utf8_dc64_bin_enc" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, true, false)
         }
         "utf8_dc64_bin_enc_hex" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, log)?;
+            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, true, true)
         }
@@ -1360,23 +1378,14 @@ fn convert_cdce_to_dc_str(
     legacy_only: bool,
     strict: bool,
     encapsulate_unmapped_utf8: bool,
+    permissive: bool,
     log: &mut FormatLog,
 ) -> Result<String> {
-    let utf32_bytes = ctb_formats_encoding::unicode::utf8_to_utf32be(data)
-        .map_err(|e| {
-            log.error(&format!("iconv conversion failed: {e}"));
-            anyhow!("iconv conversion failed: {e}")
-        })?;
-
-    let chunks = utf32_bytes.chunks_exact(4);
-    let codepoints: Vec<u32> = chunks
-        .map(|chunk| {
-            let Ok(bytes) = <[u8; 4]>::try_from(chunk) else {
-                unreachable!("chunks_exact(4) guarantees 4-byte chunks");
-            };
-            u32::from_be_bytes(bytes)
-        })
-        .collect();
+    let (doc, text_log) = ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(data, permissive)?;
+    log.merge(&text_log);
+    let codepoints: Vec<u32> = doc.to_dc_string()?.chars()
+        .map(|ch| u32::try_from(ch.to_long()).context("UTF-8 codepoint fits u32"))
+        .collect::<Result<_>>()?;
 
     let mut out_dcs: Vec<u32> = Vec::new();
     let mut unmapped_utf8_buf = String::new();
@@ -1402,7 +1411,7 @@ fn convert_cdce_to_dc_str(
                 i = i.saturating_add(consumed);
                 continue;
             }
-            if strict {
+            if strict && !permissive {
                 let message = format!(
                     "CDCE decoding error: invalid escape sequence at codepoint index {i}"
                 );
@@ -1482,22 +1491,16 @@ fn parse_at_escape(
 fn convert_utf8_to_dc_str(
     data: &[u8],
     encapsulate_unmapped_utf8: bool,
+    permissive: bool,
     log: &mut FormatLog,
 ) -> Result<String> {
-    let utf32_bytes = ctb_formats_encoding::unicode::utf8_to_utf32be(data)
-        .map_err(|e| {
-            log.error(&format!("Failed to convert UTF-8 to UTF-32: {e}"));
-            anyhow!("Failed to convert UTF-8 to UTF-32: {e}")
-        })?;
+    let (doc, text_log) = ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(data, permissive)?;
+    log.merge(&text_log);
 
     let mut out_dcs = Vec::new();
     let mut unmapped_utf8_buf = String::new();
-    let chunks = utf32_bytes.chunks_exact(4);
-
-    for (idx, chunk) in chunks.enumerate() {
-        let bytes: [u8; 4] =
-            chunk.try_into().context("Invalid chunk size for u32 BE")?;
-        let cp = u32::from_be_bytes(bytes);
+    for (idx, ch) in doc.to_dc_string()?.chars().enumerate() {
+        let cp = u32::try_from(ch.to_long()).context("UTF-8 codepoint fits u32")?;
         if let Some(short_dc) = if encapsulate_unmapped_utf8 {
             unicode_codepoint_to_short_dc(cp)
         } else {
@@ -1535,64 +1538,66 @@ fn convert_utf8_to_dc_str(
 fn decode_encapsulated_utf8(
     dcs: &[u32],
     start: usize,
+    permissive: bool,
     log: &mut FormatLog,
 ) -> Result<(Vec<u8>, usize)> {
-    let payload_start = start.saturating_add(1);
-    let remaining =
-        dcs.get(payload_start..).context("Missing UTF-8 payload")?;
-    let Some(length) = remaining.iter().position(|&dc| dc == 192) else {
-        log.error("Unterminated encapsulated UTF-8 payload.");
-        bail!("Unterminated encapsulated UTF-8 payload.");
+    let remaining = dcs.get(start..).context("Missing UTF-8 payload")?;
+    let length = if let Some(end) = remaining.iter().position(|&dc| dc == 192) {
+        end.saturating_add(1)
+    } else {
+        remaining.len()
     };
     let payload = remaining
         .get(..length)
         .context("Invalid UTF-8 payload range")?;
-    let decoded = decode_dc64_to_bytes(payload, log)?;
-    std::str::from_utf8(&decoded).context("Invalid encapsulated UTF-8")?;
-    Ok((
-        decoded,
-        payload_start.saturating_add(length).saturating_add(1),
-    ))
+    let decoded = short_dcs_to_utf8(payload, permissive, log)?;
+    Ok((decoded, start.saturating_add(length)))
 }
 
-fn convert_dc_str_to_utf8(data: &str, log: &mut FormatLog) -> Result<Vec<u8>> {
+fn convert_dc_str_to_utf8(
+    data: &str,
+    permissive: bool,
+    log: &mut FormatLog,
+) -> Result<Vec<u8>> {
     let dcs = parse_dc_csv_list(data, log)?;
-    let mut out = Vec::new();
-    let mut i = 0_usize;
+    short_dcs_to_utf8(&dcs, permissive, log)
+}
 
-    while i < dcs.len() {
-        let dc = *dcs.get(i).context("dcs index out of bounds")?;
-        // Decode encapsulated UTF-8 Base64 sequence: Dc 191 .. [127..=190 | 195]* .. Dc 192
-        if dc == 191 {
-            let (decoded, next) = decode_encapsulated_utf8(&dcs, i, log)?;
-            out.extend_from_slice(&decoded);
-            i = next;
+fn short_dcs_to_utf8(
+    dcs: &[u32],
+    permissive: bool,
+    log: &mut FormatLog,
+) -> Result<Vec<u8>> {
+    use ctb_formats_dcstring::converters::utf8::{
+        DcListUtf8Settings, dcmstr_to_utf8_with_options,
+    };
+    use ctb_formats_dcstring::{DcChar, DcMstring};
+
+    let mut doc = DcMstring::new();
+    for &dc in dcs {
+        if is_dce_encoding_control_dc(dc) {
             continue;
         }
-
-        if let Some(cp) = short_dc_to_unicode_codepoint(dc)
-            && let Some(ch) = char::from_u32(cp)
-        {
-            let mut buf = [0_u8; 4];
-            out.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());
-        } else if !is_dce_encoding_control_dc(dc) {
-            log.export_warning(
-                u64::try_from(i)?,
-                &format!(
-                    "Short Dc {dc} has no Unicode mapping in dceutils and was replaced with U+FFFD"
-                ),
-            );
-            out.extend_from_slice("\u{FFFD}".as_bytes());
+        if dc == 119 {
+            doc.push_char(DcChar::from('\n'));
+        } else {
+            doc.push_char(DcChar::from_short(dc));
         }
-        i = i.saturating_add(1);
     }
-
-    Ok(out)
+    let settings = DcListUtf8Settings {
+        canonicalize_equivalent_dcs: true,
+        permissive,
+        ..Default::default()
+    };
+    let (bytes, conversion_log) = dcmstr_to_utf8_with_options(&doc, &settings)?;
+    log.merge(&conversion_log);
+    Ok(bytes)
 }
 
 fn convert_dc_str_to_cdce(
     data: &str,
     legacy_only: bool,
+    permissive: bool,
     log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
     let dcs = parse_dc_csv_list(data, log)?;
@@ -1607,7 +1612,7 @@ fn convert_dc_str_to_cdce(
             continue;
         }
         if dc == 191 {
-            let (decoded, next) = decode_encapsulated_utf8(&dcs, i, log)?;
+            let (decoded, next) = decode_encapsulated_utf8(&dcs, i, permissive, log)?;
             for byte in decoded {
                 if byte == b'@' {
                     out.extend_from_slice(b"@1@");

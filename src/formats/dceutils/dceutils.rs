@@ -82,6 +82,7 @@ pub mod cli;
 pub mod converter;
 pub mod dce3_01a;
 pub mod dce3_0a;
+pub mod document;
 pub mod legacy;
 pub mod tables;
 pub mod to_csv;
@@ -123,6 +124,7 @@ mod dceutils_tests_converter;
 pub use converter::{
     dce_convert as dce_convert_new,
     dce_convert_with_log as dce_convert_new_with_log,
+    dce_convert_with_options as dce_convert_new_with_options,
 };
 
 use anyhow::{Context, Result, anyhow, bail};
