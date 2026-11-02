@@ -1072,7 +1072,11 @@ pub fn dce_convert_with_options(
 ) -> Result<(Vec<u8>, FormatLog)> {
     let mut log = FormatLog::default();
     let res = dce_convert_internal(
-        data, input_format, output_format, permissive, &mut log,
+        data,
+        input_format,
+        output_format,
+        permissive,
+        &mut log,
     )?;
     Ok((res, log))
 }
@@ -1158,7 +1162,9 @@ pub(crate) fn dce_convert_internal(
         "cdce_lstrict" | "cdce_legacy_strict" => {
             convert_cdce_to_dc_str(data, true, true, false, permissive, log)?
         }
-        "utf8" => convert_utf8_to_dc_str(data, target_supports_b64, permissive, log)?,
+        "utf8" => {
+            convert_utf8_to_dc_str(data, target_supports_b64, permissive, log)?
+        }
         "utf32" => {
             let utf8_bytes = ctb_formats_encoding::unicode::utf32be_to_utf8(
                 data,
@@ -1171,7 +1177,12 @@ pub(crate) fn dce_convert_internal(
                     "This document is not stored using the specified format."
                 )
             })?;
-            convert_utf8_to_dc_str(&utf8_bytes, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &utf8_bytes,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         "utf8_base64" => {
             let b64_str = std::str::from_utf8(data).map_err(|_| {
@@ -1191,35 +1202,70 @@ pub(crate) fn dce_convert_internal(
                         "This document is not stored using the specified format."
                     )
                 })?;
-            convert_utf8_to_dc_str(&decoded, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &decoded,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         "utf8_dc64" => {
             let decoded_utf8 = decode_utf8_dc64_csv_to_bytes(data, false, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &decoded_utf8,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         "utf8_dc64_enc" => {
             let decoded_utf8 = decode_utf8_dc64_csv_to_bytes(data, true, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &decoded_utf8,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         "utf8_dc64_bin" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, false, false, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &decoded_utf8,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         "utf8_dc64_bin_hex" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, false, true, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &decoded_utf8,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         "utf8_dc64_bin_enc" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, true, false, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &decoded_utf8,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         "utf8_dc64_bin_enc_hex" => {
             let decoded_utf8 =
                 decode_utf8_dc64_bin_to_bytes(data, true, true, log)?;
-            convert_utf8_to_dc_str(&decoded_utf8, target_supports_b64, permissive, log)?
+            convert_utf8_to_dc_str(
+                &decoded_utf8,
+                target_supports_b64,
+                permissive,
+                log,
+            )?
         }
         _ => {
             log.error("Unknown input format.");
@@ -1251,11 +1297,13 @@ pub(crate) fn dce_convert_internal(
             convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)
         }
         "html_l" | "html_legacy" | "html_legacy_cdce" => {
-            let cdce_bytes = convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
+            let cdce_bytes =
+                convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
             legacy::onestep_legacy_cdce_to_html_l(&cdce_bytes)
         }
         "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet" => {
-            let cdce_bytes = convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
+            let cdce_bytes =
+                convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
             legacy::onestep_legacy_cdce_to_html_snippet_l(&cdce_bytes)
         }
         "dce" | "hex_dce" | "dce_hex" | "3_0a" | "dce_3_0a" | "3_0a_raw"
@@ -1271,40 +1319,48 @@ pub(crate) fn dce_convert_internal(
         }
         "utf8" => convert_dc_str_to_utf8(&dc_cleaned, permissive, log),
         "utf32" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             ctb_formats_encoding::unicode::utf8_to_utf32be(&utf8_bytes)
         }
         "utf8_base64" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             Ok(ctb_formats_base64::base64_encode(&utf8_bytes).into_bytes())
         }
         "utf8_dc64" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             Ok(join_short_dcs(&dcs).into_bytes())
         }
         "utf8_dc64_enc" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_utf8_to_dc64_encapsulated(&utf8_bytes);
             Ok(join_short_dcs(&dcs).into_bytes())
         }
         "utf8_dc64_bin" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, false, false)
         }
         "utf8_dc64_bin_hex" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, false, true)
         }
         "utf8_dc64_bin_enc" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, true, false)
         }
         "utf8_dc64_bin_enc_hex" => {
-            let utf8_bytes = convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
+            let utf8_bytes =
+                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
             let dcs = encode_bytes_to_dc64(&utf8_bytes);
             encode_dc64_to_core_bytes(&dcs, true, true)
         }
@@ -1381,10 +1437,17 @@ fn convert_cdce_to_dc_str(
     permissive: bool,
     log: &mut FormatLog,
 ) -> Result<String> {
-    let (doc, text_log) = ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(data, permissive)?;
+    let (doc, text_log) =
+        ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(
+            data, permissive,
+        )?;
     log.merge(&text_log);
-    let codepoints: Vec<u32> = doc.to_dc_string()?.chars()
-        .map(|ch| u32::try_from(ch.to_long()).context("UTF-8 codepoint fits u32"))
+    let codepoints: Vec<u32> = doc
+        .to_dc_string()?
+        .chars()
+        .map(|ch| {
+            u32::try_from(ch.to_long()).context("UTF-8 codepoint fits u32")
+        })
         .collect::<Result<_>>()?;
 
     let mut out_dcs: Vec<u32> = Vec::new();
@@ -1494,13 +1557,17 @@ fn convert_utf8_to_dc_str(
     permissive: bool,
     log: &mut FormatLog,
 ) -> Result<String> {
-    let (doc, text_log) = ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(data, permissive)?;
+    let (doc, text_log) =
+        ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(
+            data, permissive,
+        )?;
     log.merge(&text_log);
 
     let mut out_dcs = Vec::new();
     let mut unmapped_utf8_buf = String::new();
     for (idx, ch) in doc.to_dc_string()?.chars().enumerate() {
-        let cp = u32::try_from(ch.to_long()).context("UTF-8 codepoint fits u32")?;
+        let cp =
+            u32::try_from(ch.to_long()).context("UTF-8 codepoint fits u32")?;
         if let Some(short_dc) = if encapsulate_unmapped_utf8 {
             unicode_codepoint_to_short_dc(cp)
         } else {
@@ -1612,7 +1679,8 @@ fn convert_dc_str_to_cdce(
             continue;
         }
         if dc == 191 {
-            let (decoded, next) = decode_encapsulated_utf8(&dcs, i, permissive, log)?;
+            let (decoded, next) =
+                decode_encapsulated_utf8(&dcs, i, permissive, log)?;
             for byte in decoded {
                 if byte == b'@' {
                     out.extend_from_slice(b"@1@");

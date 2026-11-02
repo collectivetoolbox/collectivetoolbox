@@ -1332,8 +1332,36 @@ mod tests {
                 &exported.bytes,
                 None,
                 &DcConversionOptions::default(),
-            )
-            .expect("reimport Dce_3_01a");
+            );
+            let resolver =
+                ctb_formats_dcdata::syntax::default_syntax_resolver();
+            if ctb_formats_dcdata::syntax::SyntaxRuleResolver::token_fills_role(
+                resolver.as_ref(),
+                ctb_formats_dcstring::DcChar::from_short(short_id).to_u128(),
+                ctb_formats_dcdata::syntax::DcRole::StartEncapsulationUtf8,
+            ) {
+                assert!(reimported.is_err());
+                let repaired = convert_bytes_to_dcmstring(
+                    &exported.bytes,
+                    None,
+                    &DcConversionOptions {
+                        permissive: true,
+                        ..DcConversionOptions::default()
+                    },
+                )
+                .expect("repair unterminated UTF-8 encapsulation");
+                assert!(repaired.log.has_warnings());
+                assert!(
+                    repaired
+                        .document
+                        .to_dc_string()
+                        .unwrap()
+                        .to_dclist()
+                        .contains(&u128::from('\u{FFFD}'),)
+                );
+                continue;
+            }
+            let reimported = reimported.expect("reimport Dce_3_01a");
             let dcs = reimported.document.to_dc_string().unwrap().to_dclist();
             assert!(
                 dcs.contains(&short_start.saturating_add(u128::from(short_id))),

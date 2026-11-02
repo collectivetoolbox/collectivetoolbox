@@ -4,6 +4,7 @@
 - rustix 0.38 IFlags is not Copy or PartialEq: use .bits() for repeated masking/comparison and from_bits_retain for syscall values.
 - Native Windows stream capture can be cross-compiled with `cargo test -p ctb-io-file --lib --no-run --target x86_64-pc-windows-gnu`; this does not run Windows tests.
 - For multiple Rust test-name filters, pass them after `--` to the harness: `cargo test -p ctb-io-file --lib -- filter_one filter_two`; Cargo accepts only one filter before `--`.
+- Malformed DCE text tests should build transport framing with `ctb_formats_dceutils::converter::encode_dce_preserving_controls`, not handwritten file headers; keep payload damage independent of envelope validation.
 
 
 

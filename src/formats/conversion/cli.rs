@@ -817,5 +817,49 @@ mod tests {
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("1114729 : <Dc> Begin graph node definition"));
         assert!(text.contains("1114730 : <Dc> End graph node definition"));
+
+        let damaged_dce =
+            ctb_formats_dceutils::converter::encode_dce_preserving_controls(
+                &[50, 191, 151, 158, 188, 161, 192, 51],
+                "3_01a",
+                &mut ctb_formats_utilities::FormatLog::default(),
+            )
+            .unwrap();
+        for permissive in [false, true] {
+            let mut arguments = vec![
+                "character_description",
+                "--from",
+                "Dce_3_01a",
+                "--file",
+                "damaged.dce",
+            ];
+            if permissive {
+                arguments.push("--permissive");
+            }
+            let command =
+                <CharacterDescriptionArgs as clap::Args>::augment_args(
+                    clap::Command::new("character_description"),
+                );
+            let matches = command.try_get_matches_from(arguments).unwrap();
+            let args = <CharacterDescriptionArgs as clap::FromArgMatches>::from_arg_matches(
+                &matches,
+            ).unwrap();
+            assert_eq!(args.permissive, permissive);
+            let result = execute_cli_character_description(args, |_| {
+                Ok(damaged_dce.to_vec())
+            });
+            if !permissive {
+                assert!(result.is_err());
+                continue;
+            }
+            let text = String::from_utf8(result.unwrap().unwrap()).unwrap();
+            for description in [
+                "U+0061 : LATIN SMALL LETTER A",
+                "U+FFFD : REPLACEMENT CHARACTER",
+                "U+0062 : LATIN SMALL LETTER B",
+            ] {
+                assert!(text.contains(description), "{text}");
+            }
+        }
     }
 }

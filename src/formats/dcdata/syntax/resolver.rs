@@ -93,6 +93,15 @@ pub trait SyntaxRuleResolver {
     fn canonical_token(&self, token: u128) -> u128 {
         token
     }
+    /// Returns Unicode text derived from declared equivalences and, when
+    /// requested, approximations. Unresolved or cyclic mappings return None.
+    fn unicode_text_mapping(
+        &self,
+        _token: u128,
+        _approximate: bool,
+    ) -> Option<&str> {
+        None
+    }
     /// Checks semantic token equivalence, independently of grammar types.
     fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
         if token == canonical {
@@ -751,6 +760,7 @@ pub struct DatasetRuleResolver {
     pub(super) semantic_equivalents: HashMap<u128, HashSet<u128>>,
     pub(super) opaque_containers: HashSet<u128>,
     pub(super) canonical_map: HashMap<u128, u128>,
+    pub(super) unicode_text_mappings: HashMap<u128, (String, bool)>,
     pub(super) subtypes: HashMap<u128, HashSet<u128>>,
     pub(super) framing_shapes: HashMap<u128, FramingShape>,
     pub(super) special_wrapper_tokens: HashSet<u128>,
@@ -763,6 +773,53 @@ impl DatasetRuleResolver {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn build_unicode_text_mappings(
+        &mut self,
+        decompositions: &[(u128, Vec<u128>, bool)],
+    ) {
+        loop {
+            let mut changed = false;
+            for (source, targets, approximate) in decompositions {
+                if self
+                    .unicode_text_mappings
+                    .get(source)
+                    .is_some_and(|(_, lossy)| !lossy)
+                {
+                    continue;
+                }
+                let mut text = String::new();
+                let mut lossy = *approximate;
+                let mut resolved = true;
+                for &target in targets {
+                    let canonical = self.canonical_token(target);
+                    if let Ok(codepoint) = u32::try_from(canonical)
+                        && let Some(ch) = char::from_u32(codepoint)
+                    {
+                        text.push(ch);
+                    } else if let Some((mapped, target_lossy)) =
+                        self.unicode_text_mappings.get(&target)
+                    {
+                        text.push_str(mapped);
+                        lossy |= target_lossy;
+                    } else {
+                        resolved = false;
+                        break;
+                    }
+                }
+                if resolved
+                    && (!lossy
+                        || !self.unicode_text_mappings.contains_key(source))
+                {
+                    self.unicode_text_mappings.insert(*source, (text, lossy));
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
     }
 
     /// Registers a direct subtype relationship (`sub_token` is a subtype of `super_token`).
@@ -1437,6 +1494,43 @@ impl DatasetRuleResolver {
             &closes_by_id,
             &non_routine_short_ids,
         )?;
+        let mut text_decompositions = Vec::new();
+        for defn in dc_defns.iter().chain(format_defns.iter()) {
+            for decomposition in &defn.decompositions {
+                let (payload, approximate) = if let Some(payload) =
+                    decomposition.trim().strip_prefix("<equiv>")
+                {
+                    (payload, false)
+                } else if let Some(payload) =
+                    decomposition.trim().strip_prefix("<approx>")
+                {
+                    (payload, true)
+                } else {
+                    continue;
+                };
+                let targets: Option<Vec<_>> = payload
+                    .split_whitespace()
+                    .map(|token| {
+                        ctb_storage_minimal::shorthand::DcShorthand::parse(
+                            token,
+                        )
+                        .ok()?
+                        .to_global_id()
+                        .ok()
+                    })
+                    .collect();
+                if let Some(targets) = targets
+                    && !targets.is_empty()
+                {
+                    text_decompositions.push((
+                        defn.dc_id,
+                        targets,
+                        approximate,
+                    ));
+                }
+            }
+        }
+        resolver.build_unicode_text_mappings(&text_decompositions);
         Ok(resolver)
     }
 
@@ -1445,7 +1539,8 @@ impl DatasetRuleResolver {
         index: &crate::seed_graph::SeedGraphIndex,
     ) -> Result<Self> {
         use crate::dc::{
-            DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
+            DC_APPROXIMATE_DECOMPOSITION, DC_BOOLEAN_TRUE,
+            DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
             DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED, DC_IS_INSTANCE_OF,
             DC_PROGRAMMATIC_IDENTIFIER,
         };
@@ -1462,6 +1557,8 @@ impl DatasetRuleResolver {
             DcShorthand::from_global_id(DC_IS_CLOSING_DELIMITER_FOR.to_u128());
         let sh_equiv =
             DcShorthand::from_global_id(DC_CANONICAL_DECOMPOSITION.to_u128());
+        let sh_approx =
+            DcShorthand::from_global_id(DC_APPROXIMATE_DECOMPOSITION.to_u128());
         let sh_subtype =
             DcShorthand::from_global_id(DC_IS_SUBTYPE_OF.to_u128());
 
@@ -1753,6 +1850,7 @@ impl DatasetRuleResolver {
         all_char_subjects.sort_by_key(|&(gid, _)| gid);
 
         let mut equivalents: Vec<(u128, CharTarget)> = Vec::new();
+        let mut text_decompositions = Vec::new();
         for (source_gid, subj) in all_char_subjects {
             for &super_obj in index.get_direct_objects(sh_subtype, subj) {
                 if let Ok(super_gid) = super_obj.to_global_id() {
@@ -1775,6 +1873,50 @@ impl DatasetRuleResolver {
                     }
                 }
             }
+            for (property, approximate) in
+                [(sh_equiv, false), (sh_approx, true)]
+            {
+                for entry in index.get_multi_properties(subj, property) {
+                    let tokens = if let Some(text) =
+                        index.get_string(entry.value)
+                    {
+                        if let Some(tokens) = text
+                            .split_whitespace()
+                            .map(|token| DcShorthand::parse(token).ok())
+                            .collect::<Option<Vec<_>>>()
+                        {
+                            tokens
+                        } else if crate::format_spec::parse_format_expr(text)
+                            .is_ok()
+                        {
+                            continue;
+                        } else {
+                            text.chars()
+                                .map(|ch| DcShorthand::Unicode(u32::from(ch)))
+                                .collect()
+                        }
+                    } else if let DcShorthand::Long(node_id) = entry.value
+                        && let Some(node) = index.get_node(node_id)
+                    {
+                        node.tokens.clone()
+                    } else {
+                        vec![entry.value]
+                    };
+                    let targets: Option<Vec<_>> = tokens
+                        .iter()
+                        .map(|token| token.to_global_id().ok())
+                        .collect();
+                    if let Some(targets) = targets
+                        && !targets.is_empty()
+                    {
+                        text_decompositions.push((
+                            source_gid,
+                            targets,
+                            approximate,
+                        ));
+                    }
+                }
+            }
         }
 
         resolver.finalize_equivalences_and_derived_tables(
@@ -1783,6 +1925,7 @@ impl DatasetRuleResolver {
             &closes_by_id,
             &non_routine_short_ids,
         )?;
+        resolver.build_unicode_text_mappings(&text_decompositions);
         Ok(resolver)
     }
 
@@ -2201,6 +2344,22 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         self.canonical_map.get(&token).copied().unwrap_or(token)
     }
 
+    fn unicode_text_mapping(
+        &self,
+        token: u128,
+        approximate: bool,
+    ) -> Option<&str> {
+        let (text, lossy) =
+            self.unicode_text_mappings.get(&token).or_else(|| {
+                self.unicode_text_mappings.get(&self.canonical_token(token))
+            })?;
+        if *lossy && !approximate {
+            None
+        } else {
+            Some(text)
+        }
+    }
+
     fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
         if token == canonical {
             return true;
@@ -2431,6 +2590,49 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
 )]
 mod tests {
     use super::*;
+
+    #[crate::ctb_test]
+    fn test_unicode_text_mapping_decompositions() -> Result<()> {
+        let original = crate::lookup::get_all_dc_defns()
+            .first()
+            .context("Missing character definitions")?;
+        let mut definitions = Vec::new();
+        for (short_id, decompositions) in [
+            (9001, vec!["<equiv>9000"]),
+            (9000, vec!["<equiv>u0041 u0042"]),
+            (9002, vec!["<approx>u002e"]),
+            (9003, vec!["<equiv>9002 u0021"]),
+            (9004, vec!["<equiv>9005"]),
+            (9005, vec!["<equiv>9004"]),
+            (9006, vec!["<approx>u003f", "<equiv>u0058 u0059"]),
+            (9007, vec!["<equiv>(f80)"]),
+        ] {
+            let mut definition = original.clone();
+            definition.short_id = Some(short_id);
+            definition.dc_id =
+                DcChar::from_short(u32::try_from(short_id)?).to_u128();
+            definition.decompositions =
+                decompositions.into_iter().map(str::to_owned).collect();
+            definitions.push(definition);
+        }
+        let resolver =
+            DatasetRuleResolver::load_from_dataset(&definitions, &[], None)?;
+        for (short_id, exact, approximate) in [
+            (9000, Some("AB"), Some("AB")),
+            (9001, Some("AB"), Some("AB")),
+            (9002, None, Some(".")),
+            (9003, None, Some(".!")),
+            (9004, None, None),
+            (9005, None, None),
+            (9006, Some("XY"), Some("XY")),
+            (9007, None, None),
+        ] {
+            let token = DcChar::from_short(short_id).to_u128();
+            assert_eq!(resolver.unicode_text_mapping(token, false), exact);
+            assert_eq!(resolver.unicode_text_mapping(token, true), approximate);
+        }
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_representation_starters_include_equivalent_spellings() -> Result<()>
@@ -2830,6 +3032,18 @@ mod tests {
         );
         assert_eq!(from_graph.opaque_containers, from_csv.opaque_containers);
         assert_eq!(from_graph.canonical_map, from_csv.canonical_map);
+        for token in from_graph
+            .unicode_text_mappings
+            .keys()
+            .chain(from_csv.unicode_text_mappings.keys())
+        {
+            assert_eq!(
+                from_graph.unicode_text_mapping(*token, true),
+                from_csv.unicode_text_mapping(*token, true),
+                "Unicode text mapping mismatch for {}",
+                DcChar::from_u128(*token),
+            );
+        }
         assert_eq!(from_graph.framing_shapes, from_csv.framing_shapes);
         assert_eq!(
             from_graph.special_wrapper_tokens,

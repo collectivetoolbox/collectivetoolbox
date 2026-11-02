@@ -261,10 +261,21 @@ fn test_invalid_input_returns_errors() {
 #[crate::ctb_test]
 fn test_shared_utf8_permissive_recovery() {
     for input in ["utf8", "cdce"] {
-        assert!(crate::converter::dce_convert_with_options(b"a\xffb", input, "dc", false).is_err());
-        let (encoded, log) = crate::converter::dce_convert_with_options(b"a\xffb", input, "dc", true).unwrap();
+        assert!(
+            crate::converter::dce_convert_with_options(
+                b"a\xffb", input, "dc", false
+            )
+            .is_err()
+        );
+        let (encoded, log) = crate::converter::dce_convert_with_options(
+            b"a\xffb", input, "dc", true,
+        )
+        .unwrap();
         assert!(log.has_warnings() && !log.has_errors());
-        assert_eq!(crate::dce_convert_new(&encoded, "dc", "utf8").unwrap(), "a\u{FFFD}b".as_bytes());
+        assert_eq!(
+            crate::dce_convert_new(&encoded, "dc", "utf8").unwrap(),
+            "a\u{FFFD}b".as_bytes()
+        );
     }
     for (input, expected) in [
         ("50,191,151,158,188,161,192,51", "Aa\u{FFFD}bB"),
@@ -273,17 +284,29 @@ fn test_shared_utf8_permissive_recovery() {
         ("50,191,143,143,195,195,51", "A\u{FFFD}B"),
     ] {
         for output in ["utf8", "cdce"] {
-            assert!(crate::converter::dce_convert_with_options(
-                input.as_bytes(), "dc", output, false,
-            ).is_err());
+            assert!(
+                crate::converter::dce_convert_with_options(
+                    input.as_bytes(),
+                    "dc",
+                    output,
+                    false,
+                )
+                .is_err()
+            );
             let (bytes, log) = crate::converter::dce_convert_with_options(
-                input.as_bytes(), "dc", output, true,
-            ).unwrap();
+                input.as_bytes(),
+                "dc",
+                output,
+                true,
+            )
+            .unwrap();
             assert_eq!(bytes, expected.as_bytes(), "{input} -> {output}");
             assert!(log.has_warnings() && !log.has_errors());
         }
     }
-    assert_eq!(crate::dce_convert_new(
-        b"191,143,13,143,195,195,192", "dc", "utf8",
-    ).unwrap(), b"A");
+    assert_eq!(
+        crate::dce_convert_new(b"191,143,13,143,195,195,192", "dc", "utf8",)
+            .unwrap(),
+        b"A"
+    );
 }

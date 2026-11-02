@@ -157,9 +157,6 @@ pub fn dclist_to_utf8(
         if dc >= SHORT_DC_REGION_START {
             let diff = dc.saturating_sub(SHORT_DC_REGION_START);
             if diff <= max_short_u128 {
-                let short_dc = u32::try_from(diff)
-                    .map_err(|e| anyhow!("Short Dc overflow: {e}"))?;
-
                 if settings.canonicalize_equivalent_dcs {
                     // Sub-case 2a: Legacy base64 UTF-8 sequence starting with DcRole::StartEncapsulationUtf8 (191)
                     if resolver
@@ -208,35 +205,19 @@ pub fn dclist_to_utf8(
                             }
                         }
                     }
-                    let lookup_short = if canon_dc >= SHORT_DC_REGION_START {
-                        // Reason for fallback: If offset from SHORT_DC_REGION_START exceeds u32, fallback to original short_dc.
-                        u32::try_from(
-                            canon_dc.saturating_sub(SHORT_DC_REGION_START),
-                        )
-                        .unwrap_or(short_dc)
-                    } else {
-                        short_dc
-                    };
-                    if let Ok((mapped_bytes, dc_log)) =
-                        ctb_formats_eite::formats::dc_to_format(
-                            "utf8",
-                            lookup_short,
-                        )
+                    if let Some(text) = resolver.unicode_text_mapping(dc, true)
                     {
-                        log.merge(&dc_log);
-                        if !mapped_bytes.is_empty() {
-                            flush_unmappables(
-                                &mut out,
-                                &mut unmappables,
-                                &mut found_any_unmappables,
-                                false,
-                                settings,
-                                &start_uuid_bytes,
-                            )?;
-                            out.extend_from_slice(&mapped_bytes);
-                            i = i.saturating_add(1);
-                            continue;
-                        }
+                        flush_unmappables(
+                            &mut out,
+                            &mut unmappables,
+                            &mut found_any_unmappables,
+                            false,
+                            settings,
+                            &start_uuid_bytes,
+                        )?;
+                        out.extend_from_slice(text.as_bytes());
+                        i = i.saturating_add(1);
+                        continue;
                     }
                 }
             }
@@ -302,11 +283,16 @@ fn decode_utf8_encapsulation(
         }
         if let Some(digit) = resolver.base64_digit_value(token) {
             digits.push(
-                ctb_formats_dcdata::dc_number_minimal::dc_base64_digit_to_char(digit)
-                    .to_short()?,
+                ctb_formats_dcdata::dc_number_minimal::dc_base64_digit_to_char(
+                    digit,
+                )
+                .to_short()?,
             );
         } else if resolver.token_fills_role(token, DcRole::Base64Padding) {
-            digits.push(crate::DcChar::from_u128(resolver.canonical_token(token)).to_short()?);
+            digits.push(
+                crate::DcChar::from_u128(resolver.canonical_token(token))
+                    .to_short()?,
+            );
         } else {
             first_invalid.get_or_insert(end);
         }
@@ -320,7 +306,9 @@ fn decode_utf8_encapsulation(
         end
     };
     let decoded = if !terminated || first_invalid.is_some() {
-        Err(anyhow!("Unterminated or malformed encapsulated UTF-8 payload"))
+        Err(anyhow!(
+            "Unterminated or malformed encapsulated UTF-8 payload"
+        ))
     } else {
         dc_encapsulated_raw_to_bytes(&digits)
     };
@@ -360,15 +348,24 @@ pub fn repair_utf8_encapsulations(
             let tokens: Vec<_> = text.chars().map(|ch| ch.to_long()).collect();
             let mut cursor = 0;
             while let Some(&token) = tokens.get(cursor) {
-                if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) {
+                if resolver
+                    .token_fills_role(token, DcRole::StartEncapsulationUtf8)
+                {
                     let warning_count = log.get_warnings().len();
                     let (decoded, next) = decode_utf8_encapsulation(
-                        &tokens, cursor, permissive, resolver.as_ref(), &mut log,
+                        &tokens,
+                        cursor,
+                        permissive,
+                        resolver.as_ref(),
+                        &mut log,
                     )?;
                     if log.get_warnings().len() == warning_count {
-                        for &original in tokens.get(cursor..next)
-                            .context("Invalid UTF-8 encapsulation boundary")? {
-                            repaired.push_char(crate::DcChar::from_u128(original));
+                        for &original in tokens
+                            .get(cursor..next)
+                            .context("Invalid UTF-8 encapsulation boundary")?
+                        {
+                            repaired
+                                .push_char(crate::DcChar::from_u128(original));
                         }
                     } else {
                         repaired.push_dc_str(&decoded.to_dc_string()?);
@@ -921,12 +918,17 @@ mod tests {
                 doc.push_char(crate::DcChar::from_short(short_dc));
             }
             doc.push_str("R");
-            let (bytes, log) = dcmstr_to_utf8_with_options(&doc, &settings).unwrap();
+            let (bytes, log) =
+                dcmstr_to_utf8_with_options(&doc, &settings).unwrap();
             assert_eq!(bytes, expected.as_bytes());
             assert!(log.has_warnings() && !log.has_errors());
-            let (repaired, log) = repair_utf8_encapsulations(&doc, true).unwrap();
+            let (repaired, log) =
+                repair_utf8_encapsulations(&doc, true).unwrap();
             assert!(log.has_warnings() && !log.has_errors());
-            assert_eq!(dcmstr_to_utf8_with_options(&repaired, &settings).unwrap().0, bytes);
+            assert_eq!(
+                dcmstr_to_utf8_with_options(&repaired, &settings).unwrap().0,
+                bytes
+            );
             assert!(repair_utf8_encapsulations(&doc, false).is_err());
             let strict = DcListUtf8Settings {
                 permissive: false,
@@ -952,7 +954,8 @@ mod tests {
                 canonicalize_equivalent_dcs: true,
                 ..Default::default()
             },
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(decimal.result, b".");
         assert!(!decimal.log.has_warnings() && !decimal.log.has_errors());
         // Short Dc 65 maps to 'P'

@@ -45,6 +45,24 @@ without maintaining duplicate fixtures.
 - Identity conversions no longer bypass input-format validation. CDCE text
   output escapes literal at signs, including those decoded from encapsulation.
 
+### Shared UTF-8 Conversion
+
+The corrected converter now builds a `DcMstring` and uses the shared UTF-8
+APIs instead of privately decoding encapsulated Base64 or Unicode. Strict
+conversion rejects malformed payloads. The boolean permissive option preserves
+valid text, substitutes U+FFFD for damaged sequences, and returns diagnostics;
+it is independent of Serde projection policies.
+
+Unicode equivalence and approximation mappings come from the modern Dc
+resolver, not EITE tables. All 134 legacy Unicode mapping rows were accounted
+for in modern declarations, and resolver tests verify runtime-graph/source
+mapping parity. No metadata or graph append was necessary.
+
+The modern DCE document bridge lives in `document.rs` within `ctb-formats-dceutils`,
+allowing DCE conversion to depend on shared document APIs without a dependency
+cycle. Import validates encapsulated UTF-8 through the same shared repair API.
+The remaining gaps above still apply; this is not full DCE conformance.
+
 ### Test Expectation Classification
 
 Six PHP fixtures intentionally expected punctuation or non-BMP Unicode to be
@@ -59,8 +77,10 @@ truncated headers/trailers, malformed payloads, and modern Dc export/import.
 
 ### Validation
 
-- Linux musl library suites: `ctb-formats-dceutils` 18 passed and
-  `ctb-formats-dcstring` 173 passed; zero failed, skipped, or ignored.
+- Linux musl library suites: `ctb-formats-dcdata`, `ctb-formats-dcstring`,
+  `ctb-formats-dceutils`, and `ctb-formats-conversion` passed; zero failed,
+  skipped, or ignored. Focused CLI coverage also verifies parsed
+  `--permissive` recovery of malformed DCE text.
 - Affected-crate Clippy (`--lib --tests --no-deps`) passed, with existing
   dependency warnings. Editor diagnostics reported no touched-file errors.
 - The PHP fixture generator now emits the shared runner. Translation of all
