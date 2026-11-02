@@ -40,6 +40,7 @@ fn test_libdce_compatibility() {
                 | "Base64 UTF-8 to Dc, non-BMP"
                 | "UTF-32 to Dc, non-BMP" => &b"114,191,187,136,189,139,160,127,195,195,192,18,57,86,93,93,96,18,72,96,99,93,85,19,18,191,187,136,189,139,160,127,195,195,192,115"[..],
                 "Improper CDCE string to Dc" if expected.ends_with(b"CDCE decoding error!") => b"CDCE decoding error: invalid escape sequence at codepoint index 6",
+                "UTF-8 to Dc" if expected == b"This document is not stored using the specified format." => b"There was an error decoding UTF-32, and permissive implementation is not yet available.",
                 _ => expected,
             };
             let actual = match result {

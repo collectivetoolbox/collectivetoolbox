@@ -159,7 +159,8 @@ pub fn dceutils_to_dcmstring_with_options(
         | "utf8_dc64_bin_enc_hex" => {
             let utf8 = match format_code {
                 "utf8" => bytes.to_vec(),
-                "utf32" => ctb_formats_encoding::unicode::utf32be_to_utf8(bytes)?,
+                "utf32" => ctb_formats_encoding::unicode::utf32be_to_utf8(bytes)
+                    .map_err(|_| anyhow::anyhow!("There was an error decoding UTF-32, and permissive implementation is not yet available."))?,
                 "utf8_base64" => ctb_formats_base64::base64_decode(std::str::from_utf8(bytes)?)?,
                 "utf8_dc64" | "utf8_dc64_enc" => crate::converter::decode_utf8_dc64_csv_to_bytes(
                     bytes, format_code == "utf8_dc64_enc", &mut raw_log,
@@ -172,7 +173,7 @@ pub fn dceutils_to_dcmstring_with_options(
             raw_log.merge(&text_log);
             doc
         }
-        _ => bail!("Unsupported dceutils input format: {format_code}"),
+        _ => bail!("Unknown input format."),
     };
 
     let (doc, text_log) =
@@ -411,14 +412,16 @@ pub fn dcmstr_to_dceutils_with_options(
             Ok((bytes, log))
         }
         "dc" | "dc_id_list" => {
+            let short_dcs = crate::converter::content_short_dcs(&short_dcs)?;
             let csv = short_dcs
                 .iter()
                 .map(u32::to_string)
                 .collect::<Vec<_>>()
                 .join(",");
+            let csv = crate::convert_dc_to_dc_output(&csv, &mut log);
             Ok((csv.into_bytes(), log))
         }
-        _ => bail!("Unsupported dceutils output format: {format_code}"),
+        _ => bail!("Unknown output format."),
     }
 }
 

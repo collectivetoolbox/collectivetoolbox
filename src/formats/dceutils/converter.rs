@@ -1110,276 +1110,23 @@ pub(crate) fn dce_convert_internal(
         _ => {}
     }
 
-    let target_supports_b64 = !matches!(
-        output_format,
-        "3_0a"
-            | "dce_3_0a"
-            | "3_0a_raw"
-            | "dce_3_0a_raw"
-            | "hex_3_0a"
-            | "3_0a_hex"
-            | "dce_3_0a_hex"
-            | "hex_3_0a_raw"
-            | "3_0a_raw_hex"
-            | "dce_3_0a_raw_hex"
-            | "legacy_cdce"
-            | "cdce_legacy"
-            | "html_l"
-            | "html_legacy"
-            | "html_legacy_cdce"
-            | "html_snippet_l"
-            | "html_s_legacy"
-            | "html_legacy_cdce_snippet"
-    );
-
-    // Step 1: Decode input into short Dc list string (comma-separated)
-    let dc_str = match input_format {
-        "dc" | "dc_id_list" => std::str::from_utf8(data)
-            .context("invalid UTF-8 in Dc list")?
-            .to_string(),
-        "dce" | "hex_dce" | "dce_hex" | "3_0a" | "dce_3_0a" | "3_0a_raw"
-        | "dce_3_0a_raw" | "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex"
-        | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
-        | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
-        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw" | "3_01a_raw_hex"
-        | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
-        | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
-        | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
-            let dcs = decode_dce_content_short_dcs(data, input_format, log)?;
-            join_short_dcs(&dcs)
-        }
-        "cdce" => convert_cdce_to_dc_str(
-            data,
-            false,
-            false,
-            target_supports_b64,
-            permissive,
-            log,
-        )?,
-        "legacy_cdce" | "cdce_legacy" => {
-            convert_cdce_to_dc_str(data, true, false, false, permissive, log)?
-        }
-        "cdce_lstrict" | "cdce_legacy_strict" => {
-            convert_cdce_to_dc_str(data, true, true, false, permissive, log)?
-        }
-        "utf8" => {
-            convert_utf8_to_dc_str(data, target_supports_b64, permissive, log)?
-        }
-        "utf32" => {
-            let utf8_bytes = ctb_formats_encoding::unicode::utf32be_to_utf8(
-                data,
-            )
-            .map_err(|_| {
-                log.error(
-                    "This document is not stored using the specified format.",
-                );
-                anyhow!(
-                    "This document is not stored using the specified format."
-                )
-            })?;
-            convert_utf8_to_dc_str(
-                &utf8_bytes,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        "utf8_base64" => {
-            let b64_str = std::str::from_utf8(data).map_err(|_| {
-                log.error(
-                    "This document is not stored using the specified format.",
-                );
-                anyhow!(
-                    "This document is not stored using the specified format."
-                )
-            })?;
-            let decoded =
-                ctb_formats_base64::base64_decode(b64_str).map_err(|_| {
-                    log.error(
-                        "This document is not stored using the specified format.",
-                    );
-                    anyhow!(
-                        "This document is not stored using the specified format."
-                    )
-                })?;
-            convert_utf8_to_dc_str(
-                &decoded,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        "utf8_dc64" => {
-            let decoded_utf8 = decode_utf8_dc64_csv_to_bytes(data, false, log)?;
-            convert_utf8_to_dc_str(
-                &decoded_utf8,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        "utf8_dc64_enc" => {
-            let decoded_utf8 = decode_utf8_dc64_csv_to_bytes(data, true, log)?;
-            convert_utf8_to_dc_str(
-                &decoded_utf8,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        "utf8_dc64_bin" => {
-            let decoded_utf8 =
-                decode_utf8_dc64_bin_to_bytes(data, false, false, log)?;
-            convert_utf8_to_dc_str(
-                &decoded_utf8,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        "utf8_dc64_bin_hex" => {
-            let decoded_utf8 =
-                decode_utf8_dc64_bin_to_bytes(data, false, true, log)?;
-            convert_utf8_to_dc_str(
-                &decoded_utf8,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        "utf8_dc64_bin_enc" => {
-            let decoded_utf8 =
-                decode_utf8_dc64_bin_to_bytes(data, true, false, log)?;
-            convert_utf8_to_dc_str(
-                &decoded_utf8,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        "utf8_dc64_bin_enc_hex" => {
-            let decoded_utf8 =
-                decode_utf8_dc64_bin_to_bytes(data, true, true, log)?;
-            convert_utf8_to_dc_str(
-                &decoded_utf8,
-                target_supports_b64,
-                permissive,
-                log,
-            )?
-        }
-        _ => {
-            log.error("Unknown input format.");
-            bail!("Unknown input format.");
-        }
-    };
-
-    if input_format == output_format
-        && !matches!(input_format, "dc" | "dc_id_list")
-    {
-        return Ok(data.to_vec());
-    }
-
-    let mut dc_cleaned = dc_str.trim_end_matches(',').to_string();
-    while dc_cleaned.contains(",,") {
-        dc_cleaned = dc_cleaned.replace(",,", ",0,");
-    }
-
-    // Step 2: Convert short Dc list to output format
-    match output_format {
-        "dc" | "dc_id_list" => {
-            let parsed = parse_dc_csv_list(&dc_cleaned, log)?;
-            let dc_out =
-                crate::convert_dc_to_dc_output(&join_short_dcs(&parsed), log);
-            Ok(dc_out.into_bytes())
-        }
-        "cdce" => convert_dc_str_to_cdce(&dc_cleaned, false, permissive, log),
-        "legacy_cdce" | "cdce_legacy" => {
-            convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)
-        }
-        "html_l" | "html_legacy" | "html_legacy_cdce" => {
-            let cdce_bytes =
-                convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
-            legacy::onestep_legacy_cdce_to_html_l(&cdce_bytes)
-        }
-        "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet" => {
-            let cdce_bytes =
-                convert_dc_str_to_cdce(&dc_cleaned, true, permissive, log)?;
-            legacy::onestep_legacy_cdce_to_html_snippet_l(&cdce_bytes)
-        }
-        "dce" | "hex_dce" | "dce_hex" | "3_0a" | "dce_3_0a" | "3_0a_raw"
-        | "dce_3_0a_raw" | "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex"
-        | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
-        | "dce_3_01a" | "3_01a_raw" | "dce_3_01a_raw" | "hex_3_01a"
-        | "3_01a_hex" | "dce_3_01a_hex" | "hex_3_01a_raw" | "3_01a_raw_hex"
-        | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
-        | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
-        | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
-            let dcs = parse_dc_csv_list(&dc_cleaned, log)?;
-            encode_dce_preserving_controls(&dcs, output_format, log)
-        }
-        "utf8" => convert_dc_str_to_utf8(&dc_cleaned, permissive, log),
-        "utf32" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            ctb_formats_encoding::unicode::utf8_to_utf32be(&utf8_bytes)
-        }
-        "utf8_base64" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            Ok(ctb_formats_base64::base64_encode(&utf8_bytes).into_bytes())
-        }
-        "utf8_dc64" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            let dcs = encode_bytes_to_dc64(&utf8_bytes);
-            Ok(join_short_dcs(&dcs).into_bytes())
-        }
-        "utf8_dc64_enc" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            let dcs = encode_utf8_to_dc64_encapsulated(&utf8_bytes);
-            Ok(join_short_dcs(&dcs).into_bytes())
-        }
-        "utf8_dc64_bin" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            let dcs = encode_bytes_to_dc64(&utf8_bytes);
-            encode_dc64_to_core_bytes(&dcs, false, false)
-        }
-        "utf8_dc64_bin_hex" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            let dcs = encode_bytes_to_dc64(&utf8_bytes);
-            encode_dc64_to_core_bytes(&dcs, false, true)
-        }
-        "utf8_dc64_bin_enc" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            let dcs = encode_bytes_to_dc64(&utf8_bytes);
-            encode_dc64_to_core_bytes(&dcs, true, false)
-        }
-        "utf8_dc64_bin_enc_hex" => {
-            let utf8_bytes =
-                convert_dc_str_to_utf8(&dc_cleaned, permissive, log)?;
-            let dcs = encode_bytes_to_dc64(&utf8_bytes);
-            encode_dc64_to_core_bytes(&dcs, true, true)
-        }
-        _ => {
-            log.error("Unknown output format.");
-            bail!("Unknown output format.");
-        }
-    }
+    let (doc, input_log) = crate::document::dceutils_to_dcmstring_with_options(
+        data, input_format, permissive,
+    )?;
+    log.merge(&input_log);
+    let (bytes, output_log) = crate::document::dcmstr_to_dceutils_with_options(
+        &doc, output_format, permissive,
+    )?;
+    log.merge(&output_log);
+    Ok(bytes)
 }
 
-/// Decodes a DCE binary/hex stream into its content short Dc IDs (bounded by `114` and `115`,
+/// Extracts content short Dc IDs (bounded by `114` and `115`,
 /// without the outer `[15, 16, ver, 13]` / `[13, 113]` file envelope or automatic sheet switches
 /// unless those control Dcs were the sole content).
-fn decode_dce_content_short_dcs(
-    data: &[u8],
-    input_format: &str,
-    log: &mut FormatLog,
+pub(crate) fn content_short_dcs(
+    all: &[u32],
 ) -> Result<Vec<u32>> {
-    let all = decode_dce_preserving_controls(data, input_format, log)?;
     let inner = if all.len() >= 6
         && all.first() == Some(&15)
         && all.get(1) == Some(&16)
@@ -1391,7 +1138,7 @@ fn decode_dce_content_short_dcs(
         all.get(4..all.len().saturating_sub(2))
             .context("DCE envelope slice")?
     } else {
-        all.as_slice()
+        all
     };
 
     // Strip sheet-switch control Dcs (`16`, `196..=199`, and `13`/`14` that follow a sheet switch)
@@ -2084,6 +1831,17 @@ mod tests {
             }
 
             let dc_input = format!("114,{dc},115");
+            if dc == 191 {
+                assert!(crate::converter::dce_convert_with_log(
+                    dc_input.as_bytes(), "dc", "3_01a",
+                ).is_err());
+                let (repaired, repair_log) = crate::converter::dce_convert_with_options(
+                    dc_input.as_bytes(), "dc", "utf8", true,
+                ).unwrap();
+                assert_eq!(repaired, "\u{FFFD}".as_bytes());
+                assert!(repair_log.has_warnings());
+                continue;
+            }
             let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
                 dc_input.as_bytes(),
                 "dc",
