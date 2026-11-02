@@ -280,22 +280,12 @@ pub(crate) fn dcmstring_to_dceutils_short_dcs(
                     } else if dcid <= 0x10_FFFF {
                         let cp = u32::try_from(dcid)
                             .context("Unicode codepoint fits in u32")?;
-                        let direct = if supports_b64_encap {
-                            crate::converter::unicode_codepoint_to_short_dc(cp)
-                        } else {
-                            crate::converter::unicode_codepoint_to_short_dc_lossy(cp)
-                        };
+                        let direct = crate::converter::unicode_codepoint_to_short_dc(cp);
                         if let Some(short_id) = direct {
                             flush_unmapped(
                                 &mut unmapped_utf8_buf,
                                 &mut short_dcs,
                             );
-                            if cp == 0x2D {
-                                log.export_warning(
-                                    char_idx,
-                                    "U+002D (HYPHEN-MINUS) mapped lossily to short Dc 31 (U+2010 HYPHEN).",
-                                );
-                            }
                             short_dcs.push(short_id);
                         } else if supports_b64_encap
                             && let Some(ch) = char::from_u32(cp)

@@ -299,60 +299,14 @@ pub fn decode_dc64_to_bytes(
     })
 }
 
-/// Maps a Unicode codepoint to its direct DCE short Dc (`0`, `1`, `18..=111`,
-/// `116..=126`, `193`), if a lossless direct mapping exists in the DCE specification.
+/// Selects a DCE short character with an exact shared Unicode equivalence.
 #[must_use]
-pub const fn unicode_codepoint_to_short_dc(cp: u32) -> Option<u32> {
-    match cp {
-        0x00 => Some(0),
-        0x08 => Some(116),
-        0x09 => Some(117),
-        0x0A => Some(120),
-        0x0B => Some(118),
-        0x0C => Some(193),
-        0x0D => Some(121),
-        0x20..=0x2C => Some(cp.saturating_sub(0x20).saturating_add(18)),
-        0x2E..=0x3F => Some(cp.saturating_sub(0x20).saturating_add(18)),
-        0x40 => Some(1),
-        0x41..=0x7E => Some(cp.saturating_sub(0x41).saturating_add(50)),
-        0x2010 => Some(31),
-        0xFE00..=0xFE04 => Some(cp.saturating_sub(0xFE00).saturating_add(122)),
-        _ => None,
-    }
-}
-
-/// Maps a Unicode codepoint to its DCE short Dc using the lossy mapping where
-/// `U+002D` (`HYPHEN-MINUS`) maps to `Dc 31` (`U+2010 HYPHEN`).
-#[must_use]
-pub const fn unicode_codepoint_to_short_dc_lossy(cp: u32) -> Option<u32> {
-    if cp == 0x2D {
-        Some(31)
-    } else {
-        unicode_codepoint_to_short_dc(cp)
-    }
-}
-
-/// Maps a DCE short Dc (`0`, `1`, `18..=111`, `116..=126`, `193`) to its Unicode codepoint.
-#[must_use]
-pub const fn short_dc_to_unicode_codepoint(short_dc: u32) -> Option<u32> {
-    match short_dc {
-        0 => Some(0x00),
-        1 => Some(0x40),
-        12 => Some(0x2E),
-        18..=30 => Some(short_dc.saturating_sub(18).saturating_add(0x20)),
-        31 => Some(0x2010),
-        32..=49 => Some(short_dc.saturating_sub(18).saturating_add(0x20)),
-        50..=111 => Some(short_dc.saturating_sub(50).saturating_add(0x41)),
-        116 => Some(0x08),
-        117 => Some(0x09),
-        118 => Some(0x0B),
-        119 => Some(0x0A),
-        120 => Some(0x0A),
-        121 => Some(0x0D),
-        122..=126 => Some(short_dc.saturating_sub(122).saturating_add(0xFE00)),
-        193 => Some(0x0C),
-        _ => None,
-    }
+pub fn unicode_codepoint_to_short_dc(cp: u32) -> Option<u32> {
+    use ctb_formats_dcstring::syntax::SyntaxRuleResolver;
+    let resolver = ctb_formats_dcstring::syntax::default_syntax_resolver();
+    (0..=MAX_DCE_3_01A_SHORT_DC).find(|&short| {
+        resolver.canonical_token(ctb_formats_dcstring::DcChar::from_short(short).to_u128()) == u128::from(cp)
+    })
 }
 
 /// Maps a short Dc ID to its target `(DceSheet, byte)` for the given `DceVersion`.
@@ -1231,20 +1185,6 @@ pub(crate) fn decode_cdce(
     Ok(output)
 }
 
-fn convert_cdce_to_dc_str(
-    data: &[u8],
-    legacy_only: bool,
-    strict: bool,
-    encapsulate_unmapped_utf8: bool,
-    permissive: bool,
-    log: &mut FormatLog,
-) -> Result<String> {
-    let doc = decode_cdce(data, legacy_only, strict, permissive, log)?;
-    let target = if encapsulate_unmapped_utf8 { "cdce" } else { "legacy_cdce" };
-    let dcs = crate::document::dcmstring_to_dceutils_short_dcs(&doc, target, log)?;
-    Ok(join_short_dcs(&dcs))
-}
-
 fn parse_at_escape(
     codepoints: &[u32],
     start: usize,
@@ -1280,170 +1220,6 @@ fn parse_at_escape(
         }
     }
     None
-}
-
-fn convert_utf8_to_dc_str(
-    data: &[u8],
-    encapsulate_unmapped_utf8: bool,
-    permissive: bool,
-    log: &mut FormatLog,
-) -> Result<String> {
-    let (doc, text_log) =
-        ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(
-            data, permissive,
-        )?;
-    log.merge(&text_log);
-
-    let mut out_dcs = Vec::new();
-    let mut unmapped_utf8_buf = String::new();
-    for (idx, ch) in doc.to_dc_string()?.chars().enumerate() {
-        let cp =
-            u32::try_from(ch.to_long()).context("UTF-8 codepoint fits u32")?;
-        if let Some(short_dc) = if encapsulate_unmapped_utf8 {
-            unicode_codepoint_to_short_dc(cp)
-        } else {
-            unicode_codepoint_to_short_dc_lossy(cp)
-        } {
-            if !unmapped_utf8_buf.is_empty() {
-                out_dcs.extend(encode_utf8_to_dc64_encapsulated(
-                    unmapped_utf8_buf.as_bytes(),
-                ));
-                unmapped_utf8_buf.clear();
-            }
-            out_dcs.push(short_dc);
-        } else if encapsulate_unmapped_utf8 && let Some(ch) = char::from_u32(cp)
-        {
-            unmapped_utf8_buf.push(ch);
-        } else {
-            log.import_warning(
-                u64::try_from(idx)?,
-                &format!(
-                    "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy Unicode import"
-                ),
-            );
-        }
-    }
-
-    if !unmapped_utf8_buf.is_empty() {
-        out_dcs.extend(encode_utf8_to_dc64_encapsulated(
-            unmapped_utf8_buf.as_bytes(),
-        ));
-    }
-
-    Ok(join_short_dcs(&out_dcs))
-}
-
-fn decode_encapsulated_utf8(
-    dcs: &[u32],
-    start: usize,
-    permissive: bool,
-    log: &mut FormatLog,
-) -> Result<(Vec<u8>, usize)> {
-    let remaining = dcs.get(start..).context("Missing UTF-8 payload")?;
-    let length = if let Some(end) = remaining.iter().position(|&dc| dc == 192) {
-        end.saturating_add(1)
-    } else {
-        remaining.len()
-    };
-    let payload = remaining
-        .get(..length)
-        .context("Invalid UTF-8 payload range")?;
-    let decoded = short_dcs_to_utf8(payload, permissive, log)?;
-    Ok((decoded, start.saturating_add(length)))
-}
-
-fn convert_dc_str_to_utf8(
-    data: &str,
-    permissive: bool,
-    log: &mut FormatLog,
-) -> Result<Vec<u8>> {
-    let dcs = parse_dc_csv_list(data, log)?;
-    short_dcs_to_utf8(&dcs, permissive, log)
-}
-
-fn short_dcs_to_utf8(
-    dcs: &[u32],
-    permissive: bool,
-    log: &mut FormatLog,
-) -> Result<Vec<u8>> {
-    use ctb_formats_dcstring::converters::utf8::{
-        DcListUtf8Settings, dcmstr_to_utf8_with_options,
-    };
-    use ctb_formats_dcstring::{DcChar, DcMstring};
-
-    let mut doc = DcMstring::new();
-    for &dc in dcs {
-        if is_dce_encoding_control_dc(dc) {
-            continue;
-        }
-        if dc == 119 {
-            doc.push_char(DcChar::from('\n'));
-        } else {
-            doc.push_char(DcChar::from_short(dc));
-        }
-    }
-    let settings = DcListUtf8Settings {
-        canonicalize_equivalent_dcs: true,
-        permissive,
-        ..Default::default()
-    };
-    let (bytes, conversion_log) = dcmstr_to_utf8_with_options(&doc, &settings)?;
-    log.merge(&conversion_log);
-    Ok(bytes)
-}
-
-fn convert_dc_str_to_cdce(
-    data: &str,
-    legacy_only: bool,
-    permissive: bool,
-    log: &mut FormatLog,
-) -> Result<Vec<u8>> {
-    let dcs = parse_dc_csv_list(data, log)?;
-    let mut out = Vec::new();
-    let mut i = 0_usize;
-
-    while i < dcs.len() {
-        let dc = *dcs.get(i).context("dcs index out of bounds")?;
-        if (1..=12).contains(&dc) {
-            out.extend_from_slice(format!("@{dc}@").as_bytes());
-            i = i.saturating_add(1);
-            continue;
-        }
-        if dc == 191 {
-            let (decoded, next) =
-                decode_encapsulated_utf8(&dcs, i, permissive, log)?;
-            for byte in decoded {
-                if byte == b'@' {
-                    out.extend_from_slice(b"@1@");
-                } else {
-                    out.push(byte);
-                }
-            }
-            i = next;
-            continue;
-        }
-        if let Some(cp) = short_dc_to_unicode_codepoint(dc)
-            && let Some(ch) = char::from_u32(cp)
-        {
-            let mut buf = [0_u8; 4];
-            out.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());
-        } else if !is_dce_encoding_control_dc(dc) {
-            if legacy_only {
-                log.export_warning(
-                    u64::try_from(i)?,
-                    &format!(
-                        "Short Dc {dc} has no Unicode mapping in legacy CDCE and was replaced with U+FFFD"
-                    ),
-                );
-                out.extend_from_slice("\u{FFFD}".as_bytes());
-            } else {
-                out.extend_from_slice(format!("@{dc}@").as_bytes());
-            }
-        }
-        i = i.saturating_add(1);
-    }
-
-    Ok(out)
 }
 
 pub(crate) fn encode_cdce(
