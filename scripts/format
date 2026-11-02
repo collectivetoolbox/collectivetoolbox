@@ -62,7 +62,7 @@ for pkg in $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | 
 done
 
 if [[ "$quick" == false ]]; then
-    export RUSTFLAGS="${RUSTFLAGS:-} -A unused_imports -A unfulfilled_lint_expectations -A clippy::allow_attributes -A clippy::map_unwrap_or -A clippy::manual_unwrap_or"
+    export RUSTFLAGS="${RUSTFLAGS:-} -A unused_imports -A unfulfilled_lint_expectations -A clippy::allow_attributes"
     cargo fix --allow-dirty --allow-staged --workspace "${vendor_excludes[@]}" || { echo "ERROR: cargo fix --workspace failed"; exit 1; }
     commit
     cargo fix --allow-dirty --allow-staged --workspace "${vendor_excludes[@]}" --tests || { echo "ERROR: cargo fix --workspace --tests failed"; exit 1; }
