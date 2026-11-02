@@ -141,6 +141,10 @@ Error: Input bytes do not conform to valid DcMixed2 (.dcmm) format
 Caused by:
     Encapsulation size 192097702246800632426538688442588496000 exceeds addressable memory at offset 124783
 
+ctbnbdl is a supported format, so it should detect the correct format using its magic. Might be worth checking for other formats that could have magic but don't.
+
+# To fix in utf8.rs:
+
 utf8.rs:
 
 pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
@@ -153,4 +157,4 @@ pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
     )
 }
 
-This defaults to canonicalizing, rather than varying it depending on context (e.g. yes typically it should canonicalize and give warnings, but in a --strict mode it shouldn't).
+This defaults to canonicalizing, rather than varying it depending on context (e.g. yes typically it should canonicalize and give warnings, but in a --strict mode (default for convert at the moment, though I might want to make --permissive the default later) it shouldn't).
