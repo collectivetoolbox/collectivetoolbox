@@ -1699,7 +1699,55 @@ fn convert_dc_str_to_cdce(
     Ok(out)
 }
 
-fn decode_utf8_dc64_csv_to_bytes(
+pub(crate) fn encode_cdce(
+    doc: &ctb_formats_dcstring::DcMstr,
+    legacy_only: bool,
+    permissive: bool,
+    log: &mut FormatLog,
+) -> Result<Vec<u8>> {
+    use ctb_formats_dcstring::DcMstring;
+    use ctb_formats_dcstring::syntax::{DcRole, SyntaxRuleResolver};
+    let resolver = ctb_formats_dcstring::syntax::default_syntax_resolver();
+    let mut output = Vec::new();
+    let mut run = DcMstring::new();
+    let mut encapsulated = false;
+    let flush = |run: &mut DcMstring, output: &mut Vec<u8>, log: &mut FormatLog| -> Result<()> {
+        let (bytes, text_log) = ctb_formats_dcstring::converters::utf8::dcmstr_to_utf8_with_options(
+            run,
+            &ctb_formats_dcstring::converters::utf8::DcListUtf8Settings {
+                canonicalize_equivalent_dcs: true,
+                permissive,
+                ..Default::default()
+            },
+        )?;
+        log.merge(&text_log);
+        for byte in bytes {
+            if byte == b'@' { output.extend_from_slice(b"@1@"); } else { output.push(byte); }
+        }
+        *run = DcMstring::new();
+        Ok(())
+    };
+    for ch in doc.to_dc_string()?.chars() {
+        let token = ch.to_u128();
+        if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) { encapsulated = true; }
+        if !encapsulated && let Ok(short) = ch.to_short() {
+            let mapped = u32::try_from(resolver.canonical_token(token)).ok().and_then(char::from_u32).is_some()
+                || resolver.unicode_text_mapping(token, true).is_some();
+            if (1..=12).contains(&short) || (!legacy_only && !mapped && !is_dce_encoding_control_dc(short)) {
+                flush(&mut run, &mut output, log)?;
+                output.extend_from_slice(format!("@{short}@").as_bytes());
+                continue;
+            }
+            if is_dce_encoding_control_dc(short) { continue; }
+        }
+        run.push_char(ch);
+        if resolver.token_fills_role(token, DcRole::EndEncapsulationUtf8) { encapsulated = false; }
+    }
+    flush(&mut run, &mut output, log)?;
+    Ok(output)
+}
+
+pub(crate) fn decode_utf8_dc64_csv_to_bytes(
     data: &[u8],
     encapsulated: bool,
     log: &mut FormatLog,
@@ -1755,7 +1803,7 @@ fn decode_utf8_dc64_csv_to_bytes(
     decode_dc64_to_bytes(&dcs, log)
 }
 
-fn decode_utf8_dc64_bin_to_bytes(
+pub(crate) fn decode_utf8_dc64_bin_to_bytes(
     data: &[u8],
     encapsulated: bool,
     is_hex: bool,
@@ -1806,7 +1854,7 @@ fn decode_utf8_dc64_bin_to_bytes(
     decode_dc64_to_bytes(&dcs, log)
 }
 
-fn encode_dc64_to_core_bytes(
+pub(crate) fn encode_dc64_to_core_bytes(
     dcs: &[u32],
     encapsulated: bool,
     is_hex: bool,
