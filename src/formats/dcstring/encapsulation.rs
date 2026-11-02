@@ -196,7 +196,10 @@ impl<'a> Cursor<'a> {
             ) {
                 break;
             }
-            if self.resolver.matches_named_type_starter("base64_transport_control", ch.to_u128()) {
+            if self.resolver.matches_named_type_starter(
+                "base64_transport_control",
+                ch.to_u128(),
+            ) {
                 continue;
             }
             let is_digit = self.resolver.token_fills_role(
@@ -798,7 +801,9 @@ mod tests {
         assert_eq!(consumed, old.len());
         let doc = DcMstring::from_dc_str(&old)?;
         crate::DcDocumentNavigator::parse_document_arena(
-            doc.as_bytes(), &mut crate::DcSyntaxArena::new(), &crate::DcProjectionPolicy::strict(),
+            doc.as_bytes(),
+            &mut crate::DcSyntaxArena::new(),
+            &crate::DcProjectionPolicy::strict(),
         )?;
         let shorts =
             ctb_formats_eite::dc::bytes_to_dc_encapsulated_binary(b"legacy")?;

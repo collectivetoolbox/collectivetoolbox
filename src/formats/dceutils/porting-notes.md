@@ -4,7 +4,7 @@
 
 This section supersedes the older completeness claims below. The legacy PHP
 port remains bug-compatible; `dce_convert_new` and `dce_convert_new_with_log`
-expose the independent converter. Both paths now run the same PHP fixture body
+expose a document-based converter. Both paths now run the same PHP fixture body
 without maintaining duplicate fixtures.
 
 ### Remaining Gaps vs Upstream
@@ -16,9 +16,10 @@ without maintaining duplicate fixtures.
   `hex_3_02a_raw`) is marked unimplemented and returns an error when invoked,
   with its `Core:C9..=CB` (`Dc 200..=202`) mappings left stubbed in
   `converter.rs` and its version selector marked as TBD.
-- Legacy one-step translators and HTML output still delegate to the
-  PHP-compatible implementation. They have not been independently rewritten or
-  established as correct general-purpose HTML converters.
+- Explicit legacy one-step translators and legacy HTML output retain the
+  PHP-compatible implementation, including literal markup. This is an accepted
+  compatibility quirk, not the implementation of ordinary HTML output.
+- Permissive UTF-32 import is not implemented; decoding errors are returned.
 - Keyed embeddings are preserved as marker/payload sequences, not interpreted
   or validated against an external key registry.
 - Processing-only `FF` is retained by the control-preserving API. Its support
@@ -34,9 +35,10 @@ without maintaining duplicate fixtures.
   rows of each version's mapping sheets, rather than relying solely on
   encoder/decoder round trips. Missing selector rows in the byte sheets are
   explicitly reconciled with the character list; the 3.02a extension is explicit.
-- Newline's Unicode projection incorrectly used NEXT LINE; decimal-point
-  projection was missing. Unicode hyphen-minus is now preserved by UTF-8
-  encapsulation on capable targets, including exports from modern Dc documents.
+- Unicode text conversion uses shared modern equivalence and approximation
+  mappings, including NEXT LINE for the historical newline character and the
+  decimal-point mapping. Unicode hyphen-minus is preserved by UTF-8 encapsulation
+  on capable targets, including exports from modern Dc documents.
 - Empty text, UTF-32, and encapsulated Base64 now round-trip. Malformed Base64,
   invalid encapsulated UTF-8, unterminated text payloads, malformed identifier
   lists, and malformed file envelopes return errors.
@@ -44,19 +46,37 @@ without maintaining duplicate fixtures.
   payload containing an error message. The PHP-compatible API is unchanged.
 - Identity conversions no longer bypass input-format validation. CDCE text
   output escapes literal at signs, including those decoded from encapsulation.
+- Strict input rejects unassigned bytes. Permissive input may drop them only
+  with diagnostics. Tests check every byte in the supported specification sheets.
+- Full-file envelopes accept extended selector regions, but reject interior
+  end markers followed by content. Raw fragments retain their wire repertoire.
+- Ordinary HTML and HTML fragments escape shared Unicode text; full HTML
+  declares UTF-8. Only explicitly legacy HTML output preserves literal markup.
 
 ### Shared UTF-8 Conversion
 
-The corrected converter now builds a `DcMstring` and uses the shared UTF-8
-APIs instead of privately decoding encapsulated Base64 or Unicode. Strict
+The corrected converter parses formats into `DcMstring` and exports borrowed
+`DcMstr` values. Its compatibility dispatcher no longer pivots through identifier
+CSV or recursively invokes another converter. DCE-local code handles wire
+encoding, not a separate Unicode mapping table or text decoder.
+
+The shared UTF-8 APIs provide equivalence-aware, best-effort text conversion;
+unsupported characters report lossiness. Strict
 conversion rejects malformed payloads. The boolean permissive option preserves
 valid text, substitutes U+FFFD for damaged sequences, and returns diagnostics;
-it is independent of Serde projection policies.
+it is independent of Serde policies. The same validation and recovery runs on
+import before non-text and identity conversions.
 
 Unicode equivalence and approximation mappings come from the modern Dc
 resolver, not EITE tables. All 134 legacy Unicode mapping rows were accounted
 for in modern declarations, and resolver tests verify runtime-graph/source
-mapping parity. No metadata or graph append was necessary.
+mapping parity. No additional Unicode mapping declarations were necessary.
+
+Base64 syntax permits Drop back, Full drop back, and DCE sheet controls. Shared
+UTF-8 and binary encapsulation parsers skip them without counting payload bytes.
+This classification is generated from Dc metadata and handles equivalence through
+the resolver. The syntax changes were appended through the graph generator;
+existing graph IDs were not reassigned.
 
 The modern DCE document bridge lives in `document.rs` within `ctb-formats-dceutils`,
 allowing DCE conversion to depend on shared document APIs without a dependency
@@ -70,7 +90,8 @@ dropped on import. Those expectations remain valid compatibility assertions for
 the legacy port, but are invalid conformance expectations for the corrected
 converter. Its comparison uses explicit preserved sequences and independent
 text round trips. The strict-CDCE fixture likewise has a corrected error
-expectation. All other shared fixtures retain their original expectations.
+expectation. The corrected UTF-32 path has its own decoding error message.
+Other shared fixtures retain their original expectations.
 
 Additional regressions cover exact mixed-sheet sequences, reserved bytes,
 truncated headers/trailers, malformed payloads, and modern Dc export/import.
@@ -78,7 +99,7 @@ truncated headers/trailers, malformed payloads, and modern Dc export/import.
 ### Validation
 
 - Linux musl library suites: `ctb-formats-dcdata`, `ctb-formats-dcstring`,
-  `ctb-formats-dceutils`, and `ctb-formats-conversion` passed; zero failed,
+  `ctb-formats-dceutils`, and `ctb-formats-conversion` passed 344 tests; zero failed,
   skipped, or ignored. Focused CLI coverage also verifies parsed
   `--permissive` recovery of malformed DCE text.
 - Affected-crate Clippy (`--lib --tests --no-deps`) passed, with existing
@@ -86,8 +107,10 @@ truncated headers/trailers, malformed payloads, and modern Dc export/import.
 - The PHP fixture generator now emits the shared runner. Translation of all
   88 original assertions and generated-Rust syntax validation passed using
   in-memory output, without overwriting the checked-in suite.
-- Full-workspace, platform-specific, and independent HTML validation were not
-  run. The remaining gaps above prevent a blanket completeness claim.
+- Normal full/fragment HTML escaping, native Unicode, and the explicit legacy
+  HTML boundary have regression coverage. Browser rendering was not tested.
+- Full-workspace and platform-specific validation were not run. The remaining
+  gaps above prevent a blanket completeness claim.
 
 We have successfully completed the LLM-assisted port of the `dceutils` (libdce 2.51) library into a faithful, bug-compatible Rust implementation. All 88 compatibility test assertions generated directly from the PHP test suite compile and pass.
 

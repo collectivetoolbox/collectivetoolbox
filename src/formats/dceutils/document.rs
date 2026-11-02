@@ -29,8 +29,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   invoked; version selector in `DCE_Version_Selectors` is TBD).
 //!
 //! Unlike EITE formats, `dceutils` formats do not support `Dc 308` (`Next number is a long (global graph) Dc`).
-//! Unrepresentable characters are logged as warnings in [`FormatLog`], while DCE stateful-encoding control
-//! characters (`13..=16`, `112..=115`, `194`, `196..=199`, `205`) are preserved as-is when converting to Dc documents.
+//! Unrepresentable characters are logged as warnings in [`FormatLog`]. Import
+//! removes the outer file envelope, retains body encoding controls, and validates
+//! or repairs UTF-8 encapsulations through shared document conversion APIs.
 
 #[allow(
     unused_imports,
@@ -120,15 +121,14 @@ pub fn dceutils_to_dcmstring_with_options(
 ) -> Result<(DcMstring, FormatLog)> {
     let mut raw_log = FormatLog::default();
     let doc = match format_code {
-        "cdce" | "legacy_cdce" | "cdce_legacy" | "cdce_lstrict" | "cdce_legacy_strict" => {
-            crate::converter::decode_cdce(
-                bytes,
-                format_code != "cdce",
-                matches!(format_code, "cdce_lstrict" | "cdce_legacy_strict"),
-                permissive,
-                &mut raw_log,
-            )?
-        }
+        "cdce" | "legacy_cdce" | "cdce_legacy" | "cdce_lstrict"
+        | "cdce_legacy_strict" => crate::converter::decode_cdce(
+            bytes,
+            format_code != "cdce",
+            matches!(format_code, "cdce_lstrict" | "cdce_legacy_strict"),
+            permissive,
+            &mut raw_log,
+        )?,
         "dce" | "hex_dce" | "dce_hex" | "3_0a" | "dce_3_0a" | "3_0a_raw"
         | "dce_3_0a_raw" | "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex"
         | "hex_3_0a_raw" | "3_0a_raw_hex" | "dce_3_0a_raw_hex" | "3_01a"
@@ -137,14 +137,18 @@ pub fn dceutils_to_dcmstring_with_options(
         | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
         | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
         | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
-            let short_dcs = crate::converter::decode_dce_preserving_controls_with_options(
-                bytes,
-                format_code,
-                permissive,
-                &mut raw_log,
-            )?;
-            let body = if let Some(start) = crate::converter::dce_content_start(&short_dcs) {
-                short_dcs.get(start..short_dcs.len().saturating_sub(2))
+            let short_dcs =
+                crate::converter::decode_dce_preserving_controls_with_options(
+                    bytes,
+                    format_code,
+                    permissive,
+                    &mut raw_log,
+                )?;
+            let body = if let Some(start) =
+                crate::converter::dce_content_start(&short_dcs)
+            {
+                short_dcs
+                    .get(start..short_dcs.len().saturating_sub(2))
                     .context("Invalid DCE content boundary")?
             } else {
                 &short_dcs
@@ -156,7 +160,10 @@ pub fn dceutils_to_dcmstring_with_options(
                 .context("Invalid UTF-8 in DcIdList document")?;
             short_dcs_to_dcmstring(&parse_comma_short_dcs(s, &mut raw_log)?)?
         }
-        "utf8" | "utf32" | "utf8_base64" | "utf8_dc64"
+        "utf8"
+        | "utf32"
+        | "utf8_base64"
+        | "utf8_dc64"
         | "utf8_dc64_enc"
         | "utf8_dc64_bin"
         | "utf8_dc64_bin_hex"
@@ -276,7 +283,8 @@ pub(crate) fn dcmstring_to_dceutils_short_dcs(
                     } else if dcid <= 0x10_FFFF {
                         let cp = u32::try_from(dcid)
                             .context("Unicode codepoint fits in u32")?;
-                        let direct = crate::converter::unicode_codepoint_to_short_dc(cp);
+                        let direct =
+                            crate::converter::unicode_codepoint_to_short_dc(cp);
                         if let Some(short_id) = direct {
                             flush_unmapped(
                                 &mut unmapped_utf8_buf,
@@ -344,7 +352,18 @@ pub fn dcmstr_to_dceutils_with_options(
         "html_snippet" => return ctb_formats_dcstring::converters::eite::dcmstring_to_html_fragment(doc),
         _ => {}
     }
-    if matches!(format_code, "utf8" | "utf32" | "utf8_base64" | "utf8_dc64" | "utf8_dc64_enc" | "utf8_dc64_bin" | "utf8_dc64_bin_hex" | "utf8_dc64_bin_enc" | "utf8_dc64_bin_enc_hex") {
+    if matches!(
+        format_code,
+        "utf8"
+            | "utf32"
+            | "utf8_base64"
+            | "utf8_dc64"
+            | "utf8_dc64_enc"
+            | "utf8_dc64_bin"
+            | "utf8_dc64_bin_hex"
+            | "utf8_dc64_bin_enc"
+            | "utf8_dc64_bin_enc_hex"
+    ) {
         let (utf8, text_log) = ctb_formats_dcstring::converters::utf8::dcmstr_to_utf8_with_options(
             doc,
             &ctb_formats_dcstring::converters::utf8::DcListUtf8Settings {
@@ -357,14 +376,21 @@ pub fn dcmstr_to_dceutils_with_options(
         let bytes = match format_code {
             "utf8" => utf8,
             "utf32" => ctb_formats_encoding::unicode::utf8_to_utf32be(&utf8)?,
-            "utf8_base64" => ctb_formats_base64::base64_encode(&utf8).into_bytes(),
+            "utf8_base64" => {
+                ctb_formats_base64::base64_encode(&utf8).into_bytes()
+            }
             "utf8_dc64" | "utf8_dc64_enc" => {
                 let digits = if format_code == "utf8_dc64_enc" {
                     crate::converter::encode_utf8_to_dc64_encapsulated(&utf8)
                 } else {
                     crate::converter::encode_bytes_to_dc64(&utf8)
                 };
-                digits.iter().map(u32::to_string).collect::<Vec<_>>().join(",").into_bytes()
+                digits
+                    .iter()
+                    .map(u32::to_string)
+                    .collect::<Vec<_>>()
+                    .join(",")
+                    .into_bytes()
             }
             _ => crate::converter::encode_dc64_to_core_bytes(
                 &crate::converter::encode_bytes_to_dc64(&utf8),
@@ -374,11 +400,31 @@ pub fn dcmstr_to_dceutils_with_options(
         };
         return Ok((bytes, log));
     }
-    if matches!(format_code, "cdce" | "legacy_cdce" | "cdce_legacy" | "html_l" | "html_legacy" | "html_legacy_cdce" | "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet") {
-        let bytes = crate::converter::encode_cdce(doc, format_code != "cdce", permissive, &mut log)?;
+    if matches!(
+        format_code,
+        "cdce"
+            | "legacy_cdce"
+            | "cdce_legacy"
+            | "html_l"
+            | "html_legacy"
+            | "html_legacy_cdce"
+            | "html_snippet_l"
+            | "html_s_legacy"
+            | "html_legacy_cdce_snippet"
+    ) {
+        let bytes = crate::converter::encode_cdce(
+            doc,
+            format_code != "cdce",
+            permissive,
+            &mut log,
+        )?;
         let bytes = match format_code {
-            "html_l" | "html_legacy" | "html_legacy_cdce" => crate::legacy::onestep_legacy_cdce_to_html_l(&bytes)?,
-            "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet" => crate::legacy::onestep_legacy_cdce_to_html_snippet_l(&bytes)?,
+            "html_l" | "html_legacy" | "html_legacy_cdce" => {
+                crate::legacy::onestep_legacy_cdce_to_html_l(&bytes)?
+            }
+            "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet" => {
+                crate::legacy::onestep_legacy_cdce_to_html_snippet_l(&bytes)?
+            }
             _ => bytes,
         };
         return Ok((bytes, log));

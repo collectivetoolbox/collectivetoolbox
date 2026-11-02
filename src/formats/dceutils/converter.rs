@@ -21,15 +21,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! Unlike the legacy modules (`cdce`, `dce3_0a`, `dce3_01a`, `unicode`), which are
 //! preserved to match `old/libdce-2.51/` as closely as possible for comparison,
-//! this module implements the full DCE specification from `docs/` with fixes for
-//! upstream table and state-machine bugs:
+//! this module implements DCE wire codecs from `docs/` and delegates document
+//! conversion to shared APIs, with the limits documented below:
 //!
 //! - **DCE 3.0a (`3_0a`, `3_0a_raw`, `hex_3_0a`, `hex_3_0a_raw`)**:
-//!   Losslessly encodes and decodes all mapped short Dcs in `0..=115`
+//!   Raw transport encodes and decodes all mapped short Dcs in `0..=115`
 //!   ([`MAX_DCE_3_0A_SHORT_DC`], i.e. `0`, `1`, and `13..=115`; short Dcs `2..=12`
 //!   had no byte mappings in 3.0a and are logged as unmappable in `FormatLog` and omitted).
 //! - **DCE 3.01a (`3_01a`, `3_01a_raw`, `hex_3_01a`, `hex_3_01a_raw`)**:
-//!   Losslessly encodes and decodes all allocated short Dcs in `0..=199`
+//!   Raw transport encodes and decodes all allocated short Dcs in `0..=199`
 //!   ([`MAX_DCE_3_01A_SHORT_DC`]), unlocking Base64 encapsulation
 //!   (`Dc 191` .. `Dc 127..=190` / `Dc 195` .. `Dc 192`) for arbitrary UTF-8 and data.
 //! - **DCE 3.02a (`3_02a`, `3_02a_raw`, `hex_3_02a`, `hex_3_02a_raw`)**:
@@ -44,14 +44,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   corrupting `Base64_to_Dc` and `Dc_to_Base64`.
 //! - **Corrected `Dc 113` (`End DCE content`) mapping (`Core:03`)**:
 //!   The upstream `DCE Character List by ID` sheet had a typo `Core:01` instead of `Core:03`.
-//! - **Unicode mappings** follow the specification's character list, including
-//!   control whitespace, decimal-point projection, and variation selectors.
+//! - **Unicode conversion** uses the shared modern equivalence and approximation
+//!   resolver, including NEXT LINE for the historical newline character.
 //!   Unmapped Unicode is preserved using UTF-8 encapsulation on capable targets.
 //!
 //! The 3.02a version selector is left marked as TBD because its spreadsheet leaves
-//! the selector unassigned and `Dc 205` is allocated to DCE 3.03a. Legacy one-step and
-//! HTML translators still delegate to the PHP-compatible implementation; see
-//! `porting-notes.md` for audit limits.
+//! the selector unassigned and `Dc 205` is allocated to DCE 3.03a. Explicit legacy
+//! one-step and legacy HTML translators retain PHP-compatible behavior. Normal
+//! HTML escapes shared Unicode text. See `porting-notes.md` for audit limits.
 
 #[allow(
     unused_imports,
@@ -184,9 +184,11 @@ impl DceSheet {
 #[must_use]
 pub fn is_dce_encoding_control_dc(short_dc: u32) -> bool {
     use ctb_formats_dcstring::syntax::SyntaxRuleResolver;
-    ctb_formats_dcstring::syntax::default_syntax_resolver().matches_named_type_starter(
-        "text_encoding_control", ctb_formats_dcstring::DcChar::from_short(short_dc).to_u128(),
-    )
+    ctb_formats_dcstring::syntax::default_syntax_resolver()
+        .matches_named_type_starter(
+            "text_encoding_control",
+            ctb_formats_dcstring::DcChar::from_short(short_dc).to_u128(),
+        )
 }
 
 /// Maps a standard Base64 ASCII byte (`A-Z`, `a-z`, `0-9`, `+`, `/`, `=`) to its
@@ -305,7 +307,9 @@ pub fn unicode_codepoint_to_short_dc(cp: u32) -> Option<u32> {
     use ctb_formats_dcstring::syntax::SyntaxRuleResolver;
     let resolver = ctb_formats_dcstring::syntax::default_syntax_resolver();
     (0..=MAX_DCE_3_01A_SHORT_DC).find(|&short| {
-        resolver.canonical_token(ctb_formats_dcstring::DcChar::from_short(short).to_u128()) == u128::from(cp)
+        resolver.canonical_token(
+            ctb_formats_dcstring::DcChar::from_short(short).to_u128(),
+        ) == u128::from(cp)
     })
 }
 
@@ -569,7 +573,8 @@ pub fn decode_dce_preserving_controls_with_options(
     let valid_envelope = if start_offset == 0 {
         raw_bytes.last() == Some(&0x81)
     } else {
-        raw_bytes.get(7..raw_bytes.len().saturating_sub(2))
+        raw_bytes
+            .get(7..raw_bytes.len().saturating_sub(2))
             .is_some_and(|selector_region| selector_region.contains(&0xFD))
             && raw_bytes.ends_with(&[0xFD, 0x03])
     };
@@ -594,7 +599,11 @@ pub fn decode_dce_preserving_controls_with_options(
                 0x02 => out.push(15),
                 0x03 => {
                     ensure!(
-                        start_offset == 0 || idx.saturating_add(start_offset).saturating_add(1) == raw_bytes.len(),
+                        start_offset == 0
+                            || idx
+                                .saturating_add(start_offset)
+                                .saturating_add(1)
+                                == raw_bytes.len(),
                         "Content follows the DCE end marker at offset {idx_u64}",
                     );
                     out.push(113);
@@ -859,7 +868,10 @@ pub fn encode_dce_preserving_controls(
         (inner, inner_offset)
     };
 
-    ensure!(is_raw || !body.contains(&113), "DCE content contains an interior file end marker");
+    ensure!(
+        is_raw || !body.contains(&113),
+        "DCE content contains an interior file end marker"
+    );
     let ver = match base_fmt {
         "3_0a" | "3_0a_raw" => DceVersion::V3_0a,
         "3_01a" | "3_01a_raw" => DceVersion::V3_01a,
@@ -1073,9 +1085,7 @@ pub(crate) fn dce_convert_internal(
         ("hex2dce", "none") => return legacy::onestep_hex2dce_to_none(data),
         (
             "legacy_cdce" | "cdce_legacy",
-            "html_snippet_l"
-            | "html_s_legacy"
-            | "html_legacy_cdce_snippet",
+            "html_snippet_l" | "html_s_legacy" | "html_legacy_cdce_snippet",
         ) => return legacy::onestep_legacy_cdce_to_html_snippet_l(data),
         (
             "legacy_cdce" | "cdce_legacy",
@@ -1085,11 +1095,15 @@ pub(crate) fn dce_convert_internal(
     }
 
     let (doc, input_log) = crate::document::dceutils_to_dcmstring_with_options(
-        data, input_format, permissive,
+        data,
+        input_format,
+        permissive,
     )?;
     log.merge(&input_log);
     let (bytes, output_log) = crate::document::dcmstr_to_dceutils_with_options(
-        &doc, output_format, permissive,
+        &doc,
+        output_format,
+        permissive,
     )?;
     log.merge(&output_log);
     Ok(bytes)
@@ -1098,9 +1112,7 @@ pub(crate) fn dce_convert_internal(
 /// Extracts content short Dc IDs (bounded by `114` and `115`,
 /// without the outer `[15, 16, ver, 13]` / `[13, 113]` file envelope or automatic sheet switches
 /// unless those control Dcs were the sole content).
-pub(crate) fn content_short_dcs(
-    all: &[u32],
-) -> Result<Vec<u32>> {
+pub(crate) fn content_short_dcs(all: &[u32]) -> Result<Vec<u32>> {
     let inner = if let Some(start) = dce_content_start(all) {
         all.get(start..all.len().saturating_sub(2))
             .context("DCE envelope slice")?
@@ -1185,7 +1197,9 @@ pub(crate) fn decode_cdce(
             if let Some((dc_val, consumed)) =
                 parse_at_escape(&codepoints, i, legacy_only)
             {
-                output.push_char(ctb_formats_dcstring::DcChar::from_short(dc_val));
+                output.push_char(ctb_formats_dcstring::DcChar::from_short(
+                    dc_val,
+                ));
                 i = i.saturating_add(consumed);
                 continue;
             }
@@ -1202,7 +1216,9 @@ pub(crate) fn decode_cdce(
             output.push_char(ctb_formats_dcstring::DcChar::from('@'));
             i = i.saturating_add(1);
         } else {
-            output.push_char(ctb_formats_dcstring::DcChar::from_u128(u128::from(cp)));
+            output.push_char(ctb_formats_dcstring::DcChar::from_u128(
+                u128::from(cp),
+            ));
             i = i.saturating_add(1);
         }
     }
@@ -1258,7 +1274,10 @@ pub(crate) fn encode_cdce(
     let mut output = Vec::new();
     let mut run = DcMstring::new();
     let mut encapsulated = false;
-    let flush = |run: &mut DcMstring, output: &mut Vec<u8>, log: &mut FormatLog| -> Result<()> {
+    let flush = |run: &mut DcMstring,
+                 output: &mut Vec<u8>,
+                 log: &mut FormatLog|
+     -> Result<()> {
         let (bytes, text_log) = ctb_formats_dcstring::converters::utf8::dcmstr_to_utf8_with_options(
             run,
             &ctb_formats_dcstring::converters::utf8::DcListUtf8Settings {
@@ -1269,26 +1288,43 @@ pub(crate) fn encode_cdce(
         )?;
         log.merge(&text_log);
         for byte in bytes {
-            if byte == b'@' { output.extend_from_slice(b"@1@"); } else { output.push(byte); }
+            if byte == b'@' {
+                output.extend_from_slice(b"@1@");
+            } else {
+                output.push(byte);
+            }
         }
         *run = DcMstring::new();
         Ok(())
     };
     for ch in doc.to_dc_string()?.chars() {
         let token = ch.to_u128();
-        if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) { encapsulated = true; }
+        if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) {
+            encapsulated = true;
+        }
         if !encapsulated && let Ok(short) = ch.to_short() {
-            let mapped = u32::try_from(resolver.canonical_token(token)).ok().and_then(char::from_u32).is_some()
+            let mapped = u32::try_from(resolver.canonical_token(token))
+                .ok()
+                .and_then(char::from_u32)
+                .is_some()
                 || resolver.unicode_text_mapping(token, true).is_some();
-            if (1..=12).contains(&short) || (!legacy_only && !mapped && !is_dce_encoding_control_dc(short)) {
+            if (1..=12).contains(&short)
+                || (!legacy_only
+                    && !mapped
+                    && !is_dce_encoding_control_dc(short))
+            {
                 flush(&mut run, &mut output, log)?;
                 output.extend_from_slice(format!("@{short}@").as_bytes());
                 continue;
             }
-            if is_dce_encoding_control_dc(short) { continue; }
+            if is_dce_encoding_control_dc(short) {
+                continue;
+            }
         }
         run.push_char(ch);
-        if resolver.token_fills_role(token, DcRole::EndEncapsulationUtf8) { encapsulated = false; }
+        if resolver.token_fills_role(token, DcRole::EndEncapsulationUtf8) {
+            encapsulated = false;
+        }
     }
     flush(&mut run, &mut output, log)?;
     Ok(output)
@@ -1533,7 +1569,14 @@ mod tests {
             // Also verify dc -> 3_0a -> dc roundtrip via converter::dce_convert_with_log
             let dc_input = format!("114,{dc},115");
             if dc == 113 {
-                assert!(crate::converter::dce_convert_with_log(dc_input.as_bytes(), "dc", "3_0a").is_err());
+                assert!(
+                    crate::converter::dce_convert_with_log(
+                        dc_input.as_bytes(),
+                        "dc",
+                        "3_0a"
+                    )
+                    .is_err()
+                );
                 continue;
             }
             let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
@@ -1614,16 +1657,33 @@ mod tests {
 
             let dc_input = format!("114,{dc},115");
             if dc == 113 {
-                assert!(crate::converter::dce_convert_with_log(dc_input.as_bytes(), "dc", "3_01a").is_err());
+                assert!(
+                    crate::converter::dce_convert_with_log(
+                        dc_input.as_bytes(),
+                        "dc",
+                        "3_01a"
+                    )
+                    .is_err()
+                );
                 continue;
             }
             if dc == 191 {
-                assert!(crate::converter::dce_convert_with_log(
-                    dc_input.as_bytes(), "dc", "3_01a",
-                ).is_err());
-                let (repaired, repair_log) = crate::converter::dce_convert_with_options(
-                    dc_input.as_bytes(), "dc", "utf8", true,
-                ).unwrap();
+                assert!(
+                    crate::converter::dce_convert_with_log(
+                        dc_input.as_bytes(),
+                        "dc",
+                        "3_01a",
+                    )
+                    .is_err()
+                );
+                let (repaired, repair_log) =
+                    crate::converter::dce_convert_with_options(
+                        dc_input.as_bytes(),
+                        "dc",
+                        "utf8",
+                        true,
+                    )
+                    .unwrap();
                 assert_eq!(repaired, "\u{FFFD}".as_bytes());
                 assert!(repair_log.has_warnings());
                 continue;

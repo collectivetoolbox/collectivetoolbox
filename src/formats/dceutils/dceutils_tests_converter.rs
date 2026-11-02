@@ -145,9 +145,15 @@ fn test_spreadsheet_byte_tables() {
                         failures.push(format!("{format} {sheet}:{byte:02X}: expected {expected}, got {decoded:?}"));
                     }
                 } else {
-                    assert!(crate::decode_dce_preserving_controls(
-                        &bytes, format, &mut crate::FormatLog::default(),
-                    ).is_err(), "{format} {sheet}:{byte:02X}: strict import accepted reserved byte");
+                    assert!(
+                        crate::decode_dce_preserving_controls(
+                            &bytes,
+                            format,
+                            &mut crate::FormatLog::default(),
+                        )
+                        .is_err(),
+                        "{format} {sheet}:{byte:02X}: strict import accepted reserved byte"
+                    );
                     if !log.has_warnings() {
                         failures.push(format!(
                             "{format} {sheet}:{byte:02X}: reserved byte accepted"
@@ -178,6 +184,25 @@ fn test_empty_text_and_literal_cdce_roundtrips() {
             assert_eq!(decoded, text.as_bytes(), "{text:?} via {format}");
         }
     }
+    let markup = b"<b>literal</b>&amp;";
+    for input in ["utf8", "legacy_cdce"] {
+        for output in ["html", "html_snippet"] {
+            let html = crate::dce_convert_new(markup, input, output).unwrap();
+            assert!(
+                String::from_utf8(html)
+                    .unwrap()
+                    .contains("&lt;b&gt;literal&lt;/b&gt;&amp;amp;")
+            );
+        }
+    }
+    let legacy_html =
+        crate::dce_convert_new(markup, "legacy_cdce", "html_snippet_l")
+            .unwrap();
+    assert!(
+        String::from_utf8(legacy_html)
+            .unwrap()
+            .contains("<b>literal</b>&amp;")
+    );
 }
 
 #[crate::ctb_test]
@@ -187,12 +212,26 @@ fn test_malformed_encapsulated_utf8_is_rejected() {
         (vec![50, 191, 143, 143, 195, 195, 51], "A\u{FFFD}B"),
     ] {
         for format in ["3_01a", "3_01a_raw"] {
-            let bytes = crate::converter::encode_dce_preserving_controls(&payload, format, &mut crate::FormatLog::default()).unwrap();
+            let bytes = crate::converter::encode_dce_preserving_controls(
+                &payload,
+                format,
+                &mut crate::FormatLog::default(),
+            )
+            .unwrap();
             for output in ["dc", "utf8", format] {
-                assert!(crate::dce_convert_new(&bytes, format, output).is_err());
-                let (repaired, log) = crate::converter::dce_convert_with_options(&bytes, format, output, true).unwrap();
+                assert!(
+                    crate::dce_convert_new(&bytes, format, output).is_err()
+                );
+                let (repaired, log) =
+                    crate::converter::dce_convert_with_options(
+                        &bytes, format, output, true,
+                    )
+                    .unwrap();
                 assert!(log.has_warnings());
-                assert_eq!(crate::dce_convert_new(&repaired, output, "utf8").unwrap(), expected.as_bytes());
+                assert_eq!(
+                    crate::dce_convert_new(&repaired, output, "utf8").unwrap(),
+                    expected.as_bytes()
+                );
             }
         }
     }
@@ -239,17 +278,33 @@ fn test_dce_envelope_validation() {
         assert!(crate::dce_convert_new(&trailing, format, "dc").is_err());
         let mut extended = valid.to_vec();
         extended.splice(7..7, [0, version]);
-        assert_eq!(crate::dce_convert_new(&extended, format, "utf8").unwrap(), b"A");
-        assert_eq!(crate::dce_convert_new(&extended, format, "dc").unwrap(), b"114,50,115");
-        let normalized = crate::dce_convert_new(&extended, format, format).unwrap();
-        assert_eq!(crate::dce_convert_new(&normalized, format, "utf8").unwrap(), b"A");
+        assert_eq!(
+            crate::dce_convert_new(&extended, format, "utf8").unwrap(),
+            b"A"
+        );
+        assert_eq!(
+            crate::dce_convert_new(&extended, format, "dc").unwrap(),
+            b"114,50,115"
+        );
+        let normalized =
+            crate::dce_convert_new(&extended, format, format).unwrap();
+        assert_eq!(
+            crate::dce_convert_new(&normalized, format, "utf8").unwrap(),
+            b"A"
+        );
         let mut interior_end = valid.to_vec();
         interior_end.insert(9, 3);
         for output in ["dc", "utf8", format] {
             for permissive in [false, true] {
-                assert!(crate::converter::dce_convert_with_options(
-                    &interior_end, format, output, permissive,
-                ).is_err());
+                assert!(
+                    crate::converter::dce_convert_with_options(
+                        &interior_end,
+                        format,
+                        output,
+                        permissive,
+                    )
+                    .is_err()
+                );
             }
         }
     }

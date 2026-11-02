@@ -1149,23 +1149,56 @@ mod tests {
     fn test_convert_dceutils_legacy_cdce_and_control_preservation() {
         let mut text_doc = DcMstring::new();
         for short_id in [57, 86, 93, 93, 96, 119] {
-            text_doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
+            text_doc
+                .push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
         }
         let text = convert_dcmstring_to_bytes(
             &text_doc,
             SupportedDcOutputFormat::Utf8,
             &DcExportOptions::default(),
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(text.bytes, "Hello\u{85}".as_bytes());
         assert!(!text.log.has_warnings());
-        let wire = convert_dcmstring_to_bytes(&text_doc, SupportedDcOutputFormat::Dce_3_01a, &DcExportOptions::default()).unwrap();
-        let imported = convert_bytes_to_dcmstring(&wire.bytes, None, &DcConversionOptions::default()).unwrap();
-        let text = convert_dcmstring_to_bytes(&imported.document, SupportedDcOutputFormat::Utf8, &DcExportOptions::default()).unwrap();
+        let wire = convert_dcmstring_to_bytes(
+            &text_doc,
+            SupportedDcOutputFormat::Dce_3_01a,
+            &DcExportOptions::default(),
+        )
+        .unwrap();
+        let imported = convert_bytes_to_dcmstring(
+            &wire.bytes,
+            None,
+            &DcConversionOptions::default(),
+        )
+        .unwrap();
+        let text = convert_dcmstring_to_bytes(
+            &imported.document,
+            SupportedDcOutputFormat::Utf8,
+            &DcExportOptions::default(),
+        )
+        .unwrap();
         assert_eq!(text.bytes, "Hello\u{85}".as_bytes());
         assert!(!text.log.has_warnings());
-        let markup = DcMstring::from("<b>literal</b>&amp;");
-        let html = convert_dcmstring_to_bytes(&markup, SupportedDcOutputFormat::HtmlFragment, &DcExportOptions::default()).unwrap();
-        assert!(String::from_utf8(html.bytes).unwrap().contains("&lt;b&gt;literal&lt;/b&gt;&amp;amp;"));
+        let markup = DcMstring::from("<b>literal</b>&amp;\u{e9}");
+        for output in [
+            SupportedDcOutputFormat::Html,
+            SupportedDcOutputFormat::HtmlFragment,
+        ] {
+            let html = convert_dcmstring_to_bytes(
+                &markup,
+                output,
+                &DcExportOptions::default(),
+            )
+            .unwrap();
+            assert!(!html.log.has_warnings());
+            let html = String::from_utf8(html.bytes).unwrap();
+            assert!(html.contains("&lt;b&gt;literal&lt;/b&gt;&amp;amp;\u{e9}"));
+            assert!(
+                !html.starts_with("<!DOCTYPE")
+                    || html.contains("charset=\"utf-8\"")
+            );
+        }
         // 1. Autodetect and roundtrip all valid Weave .legacy_cdce fixtures
         let fixtures: &[(&str, &[u8])] = &[
             (

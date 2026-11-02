@@ -288,7 +288,9 @@ fn decode_utf8_encapsulation(
         if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) {
             break;
         }
-        if resolver.matches_named_type_starter("base64_transport_control", token) {
+        if resolver
+            .matches_named_type_starter("base64_transport_control", token)
+        {
             end = end.saturating_add(1);
             continue;
         }
@@ -669,13 +671,14 @@ pub fn utf8_to_dcmstring_with_options(
 }
 
 /// Converts a `DcMstring` to UTF-8 bytes.
-pub fn dcmstring_to_utf8(
-    doc: &crate::DcMstr,
-) -> Result<(Vec<u8>, FormatLog)> {
-    dcmstr_to_utf8_with_options(doc, &DcListUtf8Settings {
-        canonicalize_equivalent_dcs: true,
-        ..Default::default()
-    })
+pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
+    dcmstr_to_utf8_with_options(
+        doc,
+        &DcListUtf8Settings {
+            canonicalize_equivalent_dcs: true,
+            ..Default::default()
+        },
+    )
 }
 
 /// Projects a Dc document to UTF-8 using the requested equivalence and
@@ -980,8 +983,11 @@ mod tests {
         assert_eq!(preserved, doc);
         assert!(!log.has_warnings());
         crate::DcDocumentNavigator::parse_document_arena(
-            doc.as_bytes(), &mut crate::DcSyntaxArena::new(), &crate::DcProjectionPolicy::strict(),
-        ).unwrap();
+            doc.as_bytes(),
+            &mut crate::DcSyntaxArena::new(),
+            &crate::DcProjectionPolicy::strict(),
+        )
+        .unwrap();
     }
 
     #[crate::ctb_test]
