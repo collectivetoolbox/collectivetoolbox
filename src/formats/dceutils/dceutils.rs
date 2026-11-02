@@ -107,6 +107,24 @@ pub use converter::{
 )]
 mod dceutils_tests;
 
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod dceutils_tests_converter;
+
+pub use converter::{
+    dce_convert as dce_convert_new,
+    dce_convert_with_log as dce_convert_new_with_log,
+};
+
 use anyhow::{Context, Result, anyhow, bail};
 pub use ctb_formats_utilities::FormatLog;
 

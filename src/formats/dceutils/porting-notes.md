@@ -1,5 +1,70 @@
 # Walkthrough: DCEUtils Port Implementation
 
+## Correctness Audit (2026-11-02): Partially Implemented
+
+This section supersedes the older completeness claims below. The legacy PHP
+port remains bug-compatible; `dce_convert_new` and `dce_convert_new_with_log`
+expose the independent converter. Both paths now run the same PHP fixture body
+without maintaining duplicate fixtures.
+
+### Remaining Gaps vs Upstream
+
+- The 3.02a spreadsheet still shows the 3.01a header example and leaves its
+  version-selector assignment blank. The existing converter's version byte
+  `03` remains an extension, not a verified historical assignment.
+- Legacy one-step translators and HTML output still delegate to the
+  PHP-compatible implementation. They have not been independently rewritten or
+  established as correct general-purpose HTML converters.
+- Keyed embeddings are preserved as marker/payload sequences, not interpreted
+  or validated against an external key registry.
+- Processing-only `FF` is retained by the control-preserving API. Its support
+  should not be read as permission to interchange processing-only streams.
+- Tests establish the documented byte mappings and the cases listed below,
+  not exhaustive correctness for every malformed stream or modern semantic
+  interpretation. No cross-platform or full-workspace validation is implied.
+
+### Confirmed Defects Addressed
+
+- Seven whitespace/control byte assignments disagreed with both the original
+  ODS sheets and their Markdown copies. Independent tests now read all byte
+  rows of each version's mapping sheets, rather than relying solely on
+  encoder/decoder round trips. Missing selector rows in the byte sheets are
+  explicitly reconciled with the character list; the 3.02a extension is explicit.
+- Newline's Unicode projection incorrectly used NEXT LINE; decimal-point
+  projection was missing. Unicode hyphen-minus is now preserved by UTF-8
+  encapsulation on capable targets, including exports from modern Dc documents.
+- Empty text, UTF-32, and encapsulated Base64 now round-trip. Malformed Base64,
+  invalid encapsulated UTF-8, unterminated text payloads, malformed identifier
+  lists, and malformed file envelopes return errors.
+- Strict CDCE now returns an error instead of returning a successful byte
+  payload containing an error message. The PHP-compatible API is unchanged.
+- Identity conversions no longer bypass input-format validation. CDCE text
+  output escapes literal at signs, including those decoded from encapsulation.
+
+### Test Expectation Classification
+
+Six PHP fixtures intentionally expected punctuation or non-BMP Unicode to be
+dropped on import. Those expectations remain valid compatibility assertions for
+the legacy port, but are invalid conformance expectations for the corrected
+converter. Its comparison uses explicit preserved sequences and independent
+text round trips. The strict-CDCE fixture likewise has a corrected error
+expectation. All other shared fixtures retain their original expectations.
+
+Additional regressions cover exact mixed-sheet sequences, reserved bytes,
+truncated headers/trailers, malformed payloads, and modern Dc export/import.
+
+### Validation
+
+- Linux musl library suites: `ctb-formats-dceutils` 18 passed and
+  `ctb-formats-dcstring` 173 passed; zero failed, skipped, or ignored.
+- Affected-crate Clippy (`--lib --tests --no-deps`) passed, with existing
+  dependency warnings. Editor diagnostics reported no touched-file errors.
+- The PHP fixture generator now emits the shared runner. Translation of all
+  88 original assertions and generated-Rust syntax validation passed using
+  in-memory output, without overwriting the checked-in suite.
+- Full-workspace, platform-specific, and independent HTML validation were not
+  run. The remaining gaps above prevent a blanket completeness claim.
+
 We have successfully completed the LLM-assisted port of the `dceutils` (libdce 2.51) library into a faithful, bug-compatible Rust implementation. All 88 compatibility test assertions generated directly from the PHP test suite compile and pass.
 
 ## Changes Made

@@ -288,7 +288,12 @@ fn dcmstring_to_dceutils_short_dcs(
                     } else if dcid <= 0x10_FFFF {
                         let cp = u32::try_from(dcid)
                             .context("Unicode codepoint fits in u32")?;
-                        if let Some(short_id) = ctb_formats_dceutils::converter::unicode_codepoint_to_short_dc_lossy(cp) {
+                        let direct = if supports_b64_encap {
+                            ctb_formats_dceutils::converter::unicode_codepoint_to_short_dc(cp)
+                        } else {
+                            ctb_formats_dceutils::converter::unicode_codepoint_to_short_dc_lossy(cp)
+                        };
+                        if let Some(short_id) = direct {
                             flush_unmapped(
                                 &mut unmapped_utf8_buf,
                                 &mut short_dcs,
@@ -396,5 +401,58 @@ pub fn dcmstring_to_dceutils(
             Ok((bytes, log))
         }
         _ => bail!("Unsupported dceutils output format: {format_code}"),
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_dceutils_modern_unicode_export() {
+        let text = "a-b\t\n\r\u{8}\u{b}\u{c}\u{85}\u{fe00}\u{1f304}@123@";
+        let doc = DcMstring::from(text);
+        for format in
+            ["dc", "cdce", "3_01a", "3_01a_raw", "3_02a", "hex_3_02a_raw"]
+        {
+            let (encoded, log) = dcmstring_to_dceutils(&doc, format).unwrap();
+            assert!(
+                log.has_no_errors() && !log.has_warnings(),
+                "{format}: {log:?}"
+            );
+            let decoded =
+                ctb_formats_dceutils::dce_convert_new(&encoded, format, "utf8")
+                    .unwrap();
+            assert_eq!(decoded, text.as_bytes(), "{format}");
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_dceutils_modern_wire_roundtrip() {
+        for format in ["3_0a", "3_01a", "3_02a", "3_01a_raw", "hex_3_02a_raw"] {
+            let text = if format == "3_0a" {
+                "Hello!"
+            } else {
+                "\t\n\r\u{8}\u{b}\u{c}\u{fe00}\u{1f304}"
+            };
+            let encoded = ctb_formats_dceutils::dce_convert_new(
+                text.as_bytes(),
+                "utf8",
+                format,
+            )
+            .unwrap();
+            let (doc, log) =
+                dceutils_to_dcmstring_with_options(&encoded, format, false)
+                    .unwrap();
+            assert!(log.has_no_errors() && !log.has_warnings());
+            let (reencoded, log) = dcmstring_to_dceutils(&doc, format).unwrap();
+            assert!(log.has_no_errors() && !log.has_warnings());
+            assert_eq!(reencoded, encoded, "{format}");
+        }
     }
 }

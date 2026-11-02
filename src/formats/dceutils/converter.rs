@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Complete, spec-compliant DCE 3.0a / 3.01a / 3.02a and CDCE converters.
+//! Specification-oriented DCE 3.0a / 3.01a / 3.02a and CDCE converters.
 //!
 //! Unlike the legacy modules (`cdce`, `dce3_0a`, `dce3_01a`, `unicode`), which are
 //! preserved to match `old/libdce-2.51/` as closely as possible for comparison,
@@ -41,9 +41,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   corrupting `Base64_to_Dc` and `Dc_to_Base64`.
 //! - **Corrected `Dc 113` (`End DCE content`) mapping (`Core:03`)**:
 //!   The upstream `DCE Character List by ID` sheet had a typo `Core:01` instead of `Core:03`.
-//! - **Complete 109 direct Unicode mappings**:
-//!   Includes the 12 Unicode mappings added in DCE 3.01a (`0x08..=0x0D`, `0x85`,
-//!   `0xFE00..=0xFE04` -> `Dc 116..=126`, `Dc 193`) alongside the 97 mappings from 3.0a.
+//! - **Unicode mappings** follow the specification's character list, including
+//!   control whitespace, decimal-point projection, and variation selectors.
+//!   Unmapped Unicode is preserved using UTF-8 encapsulation on capable targets.
+//!
+//! The 3.02a version selector is an existing extension: its spreadsheet leaves
+//! the selector unassigned. Legacy one-step and HTML translators still delegate
+//! to the PHP-compatible implementation; see `porting-notes.md` for audit limits.
 
 #[allow(
     unused_imports,
@@ -302,7 +306,6 @@ pub const fn unicode_codepoint_to_short_dc(cp: u32) -> Option<u32> {
         0x2E..=0x3F => Some(cp.saturating_sub(0x20).saturating_add(18)),
         0x40 => Some(1),
         0x41..=0x7E => Some(cp.saturating_sub(0x41).saturating_add(50)),
-        0x85 => Some(119),
         0x2010 => Some(31),
         0xFE00..=0xFE04 => Some(cp.saturating_sub(0xFE00).saturating_add(122)),
         _ => None,
@@ -326,6 +329,7 @@ pub const fn short_dc_to_unicode_codepoint(short_dc: u32) -> Option<u32> {
     match short_dc {
         0 => Some(0x00),
         1 => Some(0x40),
+        12 => Some(0x2E),
         18..=30 => Some(short_dc.saturating_sub(18).saturating_add(0x20)),
         31 => Some(0x2010),
         32..=49 => Some(short_dc.saturating_sub(18).saturating_add(0x20)),
@@ -333,7 +337,7 @@ pub const fn short_dc_to_unicode_codepoint(short_dc: u32) -> Option<u32> {
         116 => Some(0x08),
         117 => Some(0x09),
         118 => Some(0x0B),
-        119 => Some(0x85),
+        119 => Some(0x0A),
         120 => Some(0x0A),
         121 => Some(0x0D),
         122..=126 => Some(short_dc.saturating_sub(122).saturating_add(0xFE00)),
@@ -381,12 +385,12 @@ const fn encode_short_dc_in_version(
         113 => Some((DceSheet::Core, 0x03)),
         114 => Some((DceSheet::Core, 0x80)),
         115 => Some((DceSheet::Core, 0x81)),
-        116 => Some((DceSheet::Core, 0x04)),
-        117 => Some((DceSheet::Core, 0x05)),
-        118 => Some((DceSheet::Core, 0x06)),
-        119 => Some((DceSheet::PunctuationAndWhitespace, 0x20)),
-        120 => Some((DceSheet::Core, 0x08)),
-        121 => Some((DceSheet::Core, 0x09)),
+        116 => Some((DceSheet::Core, 0x08)),
+        117 => Some((DceSheet::Core, 0x09)),
+        118 => Some((DceSheet::Core, 0x0B)),
+        119 => Some((DceSheet::PunctuationAndWhitespace, 0x01)),
+        120 => Some((DceSheet::Core, 0x0A)),
+        121 => Some((DceSheet::Core, 0x0D)),
         122..=126 => {
             let [low, _, _, _] = short_dc.saturating_sub(121).to_le_bytes();
             Some((DceSheet::VariantSelectors, low))
@@ -400,7 +404,7 @@ const fn encode_short_dc_in_version(
         }
         191 => Some((DceSheet::Core, 0xC3)),
         192 => Some((DceSheet::Core, 0xC4)),
-        193 => Some((DceSheet::Core, 0x07)),
+        193 => Some((DceSheet::Core, 0x0C)),
         194 => Some((DceSheet::DceVersionSelectors, 0x02)),
         195 => Some((DceSheet::Core, 0xC2)),
         196 => Some((DceSheet::Core, 0xC5)),
@@ -588,6 +592,15 @@ pub fn decode_dce_preserving_controls(
 
     let mut out = Vec::new();
     let mut state = DceSheet::Core;
+    let valid_envelope = if start_offset == 0 {
+        raw_bytes.last() == Some(&0x81)
+    } else {
+        raw_bytes.get(7) == Some(&0xFD) && raw_bytes.ends_with(&[0xFD, 0x03])
+    };
+    if !valid_envelope {
+        log.error("This document is not stored using the specified format.");
+        bail!("This document is not stored using the specified format.");
+    }
     let slice = raw_bytes
         .get(start_offset..)
         .context("raw_bytes shorter than start offset")?;
@@ -603,12 +616,12 @@ pub fn decode_dce_preserving_controls(
                 }
                 0x02 => out.push(15),
                 0x03 => out.push(113),
-                0x04 if ver >= DceVersion::V3_01a => out.push(116),
-                0x05 if ver >= DceVersion::V3_01a => out.push(117),
-                0x06 if ver >= DceVersion::V3_01a => out.push(118),
-                0x07 if ver >= DceVersion::V3_01a => out.push(193),
-                0x08 if ver >= DceVersion::V3_01a => out.push(120),
-                0x09 if ver >= DceVersion::V3_01a => out.push(121),
+                0x08 if ver >= DceVersion::V3_01a => out.push(116),
+                0x09 if ver >= DceVersion::V3_01a => out.push(117),
+                0x0A if ver >= DceVersion::V3_01a => out.push(120),
+                0x0B if ver >= DceVersion::V3_01a => out.push(118),
+                0x0C if ver >= DceVersion::V3_01a => out.push(193),
+                0x0D if ver >= DceVersion::V3_01a => out.push(121),
                 0x20..=0x3F => {
                     out.push(
                         u32::from(byte).saturating_sub(0x20).saturating_add(18),
@@ -761,7 +774,7 @@ pub fn decode_dce_preserving_controls(
             },
             DceSheet::PunctuationAndWhitespace => match byte {
                 0x00 => out.push(0),
-                0x20 => out.push(119),
+                0x01 => out.push(119),
                 0xFD => {
                     out.push(13);
                     state = DceSheet::Core;
@@ -1034,12 +1047,6 @@ pub(crate) fn dce_convert_internal(
     output_format: &str,
     log: &mut FormatLog,
 ) -> Result<Vec<u8>> {
-    if input_format == output_format
-        && !matches!(input_format, "dc" | "dc_id_list")
-    {
-        return Ok(data.to_vec());
-    }
-
     // One-step legacy translators
     match (input_format, output_format) {
         ("3_0a_old" | "dce_3_0a_old", "none") => {
@@ -1111,11 +1118,7 @@ pub(crate) fn dce_convert_internal(
             convert_cdce_to_dc_str(data, true, false, false, log)?
         }
         "cdce_lstrict" | "cdce_legacy_strict" => {
-            let res = convert_cdce_to_dc_str(data, true, true, false, log)?;
-            if res.ends_with("CDCE decoding error!") {
-                return Ok(res.into_bytes());
-            }
-            res
+            convert_cdce_to_dc_str(data, true, true, false, log)?
         }
         "utf8" => convert_utf8_to_dc_str(data, target_supports_b64, log)?,
         "utf32" => {
@@ -1130,14 +1133,6 @@ pub(crate) fn dce_convert_internal(
                     "This document is not stored using the specified format."
                 )
             })?;
-            if utf8_bytes.is_empty() {
-                log.error(
-                    "This document is not stored using the specified format.",
-                );
-                bail!(
-                    "This document is not stored using the specified format."
-                );
-            }
             convert_utf8_to_dc_str(&utf8_bytes, target_supports_b64, log)?
         }
         "utf8_base64" => {
@@ -1194,6 +1189,12 @@ pub(crate) fn dce_convert_internal(
         }
     };
 
+    if input_format == output_format
+        && !matches!(input_format, "dc" | "dc_id_list")
+    {
+        return Ok(data.to_vec());
+    }
+
     let mut dc_cleaned = dc_str.trim_end_matches(',').to_string();
     while dc_cleaned.contains(",,") {
         dc_cleaned = dc_cleaned.replace(",,", ",0,");
@@ -1202,7 +1203,9 @@ pub(crate) fn dce_convert_internal(
     // Step 2: Convert short Dc list to output format
     match output_format {
         "dc" | "dc_id_list" => {
-            let dc_out = crate::convert_dc_to_dc_output(&dc_cleaned, log);
+            let parsed = parse_dc_csv_list(&dc_cleaned, log)?;
+            let dc_out =
+                crate::convert_dc_to_dc_output(&join_short_dcs(&parsed), log);
             Ok(dc_out.into_bytes())
         }
         "cdce" => convert_dc_str_to_cdce(&dc_cleaned, false, log),
@@ -1379,17 +1382,11 @@ fn convert_cdce_to_dc_str(
                 continue;
             }
             if strict {
-                log.error(&format!(
+                let message = format!(
                     "CDCE decoding error: invalid escape sequence at codepoint index {i}"
-                ));
-                let joined = join_short_dcs(&out_dcs);
-                let prefixed =
-                    if !joined.starts_with("114") && !joined.is_empty() {
-                        format!("114,{joined}")
-                    } else {
-                        joined
-                    };
-                return Ok(format!("{prefixed}… CDCE decoding error!"));
+                );
+                log.error(&message);
+                bail!("{message}");
             }
             log.warn(&format!(
                 "Warning: Unicode recovery attempted for corrupted CDCE sequence at codepoint index {i}"
@@ -1397,7 +1394,11 @@ fn convert_cdce_to_dc_str(
             flush_unmapped(&mut unmapped_utf8_buf, &mut out_dcs);
             out_dcs.push(1);
             i = i.saturating_add(1);
-        } else if let Some(short_dc) = unicode_codepoint_to_short_dc_lossy(cp) {
+        } else if let Some(short_dc) = if encapsulate_unmapped_utf8 {
+            unicode_codepoint_to_short_dc(cp)
+        } else {
+            unicode_codepoint_to_short_dc_lossy(cp)
+        } {
             flush_unmapped(&mut unmapped_utf8_buf, &mut out_dcs);
             out_dcs.push(short_dc);
             i = i.saturating_add(1);
@@ -1476,7 +1477,11 @@ fn convert_utf8_to_dc_str(
         let bytes: [u8; 4] =
             chunk.try_into().context("Invalid chunk size for u32 BE")?;
         let cp = u32::from_be_bytes(bytes);
-        if let Some(short_dc) = unicode_codepoint_to_short_dc_lossy(cp) {
+        if let Some(short_dc) = if encapsulate_unmapped_utf8 {
+            unicode_codepoint_to_short_dc(cp)
+        } else {
+            unicode_codepoint_to_short_dc_lossy(cp)
+        } {
             if !unmapped_utf8_buf.is_empty() {
                 out_dcs.extend(encode_utf8_to_dc64_encapsulated(
                     unmapped_utf8_buf.as_bytes(),
@@ -1506,6 +1511,29 @@ fn convert_utf8_to_dc_str(
     Ok(join_short_dcs(&out_dcs))
 }
 
+fn decode_encapsulated_utf8(
+    dcs: &[u32],
+    start: usize,
+    log: &mut FormatLog,
+) -> Result<(Vec<u8>, usize)> {
+    let payload_start = start.saturating_add(1);
+    let remaining =
+        dcs.get(payload_start..).context("Missing UTF-8 payload")?;
+    let Some(length) = remaining.iter().position(|&dc| dc == 192) else {
+        log.error("Unterminated encapsulated UTF-8 payload.");
+        bail!("Unterminated encapsulated UTF-8 payload.");
+    };
+    let payload = remaining
+        .get(..length)
+        .context("Invalid UTF-8 payload range")?;
+    let decoded = decode_dc64_to_bytes(payload, log)?;
+    std::str::from_utf8(&decoded).context("Invalid encapsulated UTF-8")?;
+    Ok((
+        decoded,
+        payload_start.saturating_add(length).saturating_add(1),
+    ))
+}
+
 fn convert_dc_str_to_utf8(data: &str, log: &mut FormatLog) -> Result<Vec<u8>> {
     let dcs = parse_dc_csv_list(data, log)?;
     let mut out = Vec::new();
@@ -1515,30 +1543,10 @@ fn convert_dc_str_to_utf8(data: &str, log: &mut FormatLog) -> Result<Vec<u8>> {
         let dc = *dcs.get(i).context("dcs index out of bounds")?;
         // Decode encapsulated UTF-8 Base64 sequence: Dc 191 .. [127..=190 | 195]* .. Dc 192
         if dc == 191 {
-            let mut j = i.saturating_add(1);
-            let mut found_end = false;
-            while j < dcs.len() {
-                let cur = *dcs.get(j).context("dcs index out of bounds")?;
-                if cur == 192 {
-                    found_end = true;
-                    break;
-                }
-                if !is_base64_payload_short_dc(cur) {
-                    break;
-                }
-                j = j.saturating_add(1);
-            }
-            if found_end {
-                let b64_slice = dcs
-                    .get(i.saturating_add(1)..j)
-                    .context("b64_slice out of bounds")?;
-                if let Ok(decoded_bytes) = decode_dc64_to_bytes(b64_slice, log)
-                {
-                    out.extend_from_slice(&decoded_bytes);
-                    i = j.saturating_add(1);
-                    continue;
-                }
-            }
+            let (decoded, next) = decode_encapsulated_utf8(&dcs, i, log)?;
+            out.extend_from_slice(&decoded);
+            i = next;
+            continue;
         }
 
         if let Some(cp) = short_dc_to_unicode_codepoint(dc)
@@ -1578,30 +1586,16 @@ fn convert_dc_str_to_cdce(
             continue;
         }
         if dc == 191 {
-            let mut j = i.saturating_add(1);
-            let mut found_end = false;
-            while j < dcs.len() {
-                let cur = *dcs.get(j).context("dcs index out of bounds")?;
-                if cur == 192 {
-                    found_end = true;
-                    break;
-                }
-                if !is_base64_payload_short_dc(cur) {
-                    break;
-                }
-                j = j.saturating_add(1);
-            }
-            if found_end {
-                let b64_slice = dcs
-                    .get(i.saturating_add(1)..j)
-                    .context("b64_slice out of bounds")?;
-                if let Ok(decoded_bytes) = decode_dc64_to_bytes(b64_slice, log)
-                {
-                    out.extend_from_slice(&decoded_bytes);
-                    i = j.saturating_add(1);
-                    continue;
+            let (decoded, next) = decode_encapsulated_utf8(&dcs, i, log)?;
+            for byte in decoded {
+                if byte == b'@' {
+                    out.extend_from_slice(b"@1@");
+                } else {
+                    out.push(byte);
                 }
             }
+            i = next;
+            continue;
         }
         if let Some(cp) = short_dc_to_unicode_codepoint(dc)
             && let Some(ch) = char::from_u32(cp)
@@ -1637,7 +1631,9 @@ fn decode_utf8_dc64_csv_to_bytes(
         anyhow!("This document is not stored using the specified format.")
     })?;
     let trimmed = data_str.trim().trim_end_matches(',');
-    let inner = if encapsulated {
+    let inner = if encapsulated && trimmed == "191,192" {
+        ""
+    } else if encapsulated {
         if let Some(rest) = trimmed.strip_prefix("191,")
             && let Some(core) = rest.strip_suffix(",192")
         {
@@ -1657,11 +1653,6 @@ fn decode_utf8_dc64_csv_to_bytes(
         }
         trimmed
     };
-
-    if inner.is_empty() {
-        log.error("This document is not stored using the specified format.");
-        bail!("This document is not stored using the specified format.");
-    }
 
     let mut dcs = Vec::new();
     for piece in explode_escaped(',', inner) {
@@ -1783,6 +1774,7 @@ fn parse_dc_csv_list(data: &str, log: &mut FormatLog) -> Result<Vec<u32>> {
                     u64::try_from(idx)?,
                     &format!("Invalid short Dc ID token '{token}' in Dc list"),
                 );
+                bail!("Invalid short Dc ID token '{token}' in Dc list");
             }
         }
     }

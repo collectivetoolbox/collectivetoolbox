@@ -110,7 +110,7 @@ def to_rust_expr(expr):
         else:
             out_fmt = '"none"'
 
-        return f'crate::dce_convert({data_arg}, {in_fmt}, {out_fmt})'
+        return f'dce_convert({data_arg}, {in_fmt}, {out_fmt})'
 
     # Match get_dce_version
     m_ver = re.match(r"^get_dce_version\((?P<args>.*)\)$", expr)
@@ -154,6 +154,10 @@ def main():
     rust_tests.append('}\n\n')
 
     rust_tests.append("#[crate::ctb_test]\nfn test_libdce_compatibility() {\n")
+    rust_tests.append("    check_libdce_compatibility(crate::dce_convert, run_test);\n}\n\n")
+    rust_tests.append("pub(super) fn check_libdce_compatibility(\n")
+    rust_tests.append("    dce_convert: fn(&[u8], &str, &str) -> Result<Vec<u8>>,\n")
+    rust_tests.append("    mut run_test: impl FnMut(&str, Result<Vec<u8>>, &[u8]),\n) {\n")
 
     test_counter = 0
     for line in lines:
