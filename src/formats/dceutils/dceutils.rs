@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! LLM-assisted port of dceutils. Note that most of this is a direct port of the PHP implementation and it attempts to preserve its bugs and incompleteness as-is. The `converter.rs` module is a newly created alternative that attempts to be more complete and correct.
+//! LLM-assisted port of dceutils. Note that most of this is a direct port of the PHP implementation and it attempts to preserve its bugs and incompleteness as-is. The `converter.rs` module is a newly created alternative that attempts to be more complete and correct. The DCE 3.02a format isn't technically implementable because it doesn't define a version selector for that version; as implemented here it uses the byte assignment where a version selector ought to have gone.
 //!
 //! Format support and notes:
 //!
