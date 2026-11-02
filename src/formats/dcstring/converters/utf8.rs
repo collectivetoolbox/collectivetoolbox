@@ -210,8 +210,10 @@ pub fn dclist_to_utf8(
                                     }
                                 }
                             }
-                            if let Ok(decoded_bytes) =
-                                dc_encapsulated_raw_to_bytes(&inner_dcs)
+                            let decoded_bytes =
+                                dc_encapsulated_raw_to_bytes(&inner_dcs)?;
+                            std::str::from_utf8(&decoded_bytes)
+                                .context("Invalid encapsulated UTF-8")?;
                             {
                                 flush_unmappables(
                                     &mut out,
@@ -226,6 +228,7 @@ pub fn dclist_to_utf8(
                                 continue;
                             }
                         }
+                        bail!("Unterminated or malformed encapsulated UTF-8 payload");
                     }
 
                     // Sub-case 2b: Standard short Dc to UTF-8 mapping
@@ -600,9 +603,21 @@ pub fn utf8_to_dcmstring_with_options(
 pub fn dcmstring_to_utf8(
     doc: &crate::DcMstring,
 ) -> Result<(Vec<u8>, FormatLog)> {
+    dcmstr_to_utf8_with_options(doc, &DcListUtf8Settings::default())
+}
+
+/// Projects a Dc document to UTF-8 using the requested equivalence and
+/// unmappable-character policies.
+///
+/// # Errors
+/// Returns an error for malformed encapsulated text or document data.
+pub fn dcmstr_to_utf8_with_options(
+    doc: &crate::DcMstr,
+    settings: &DcListUtf8Settings,
+) -> Result<(Vec<u8>, FormatLog)> {
     let dc_string = super::document_dc_string(doc)?;
     let dclist = dc_string.to_dclist();
-    let conv = dclist_to_utf8(&dclist, &DcListUtf8Settings::default())?;
+    let conv = dclist_to_utf8(&dclist, settings)?;
     Ok((conv.result, conv.log))
 }
 
@@ -798,6 +813,33 @@ mod tests {
         settings_skip.skip_unmappable = true;
         let conv_skip = dclist_to_utf8(&input, &settings_skip).unwrap();
         assert_eq!(String::from_utf8(conv_skip.result).unwrap(), "AB");
+    }
+
+    #[crate::ctb_test]
+    fn test_utf8_projection_rejects_malformed_encapsulation() {
+        let settings = DcListUtf8Settings {
+            canonicalize_equivalent_dcs: true,
+            ..Default::default()
+        };
+        for short_dcs in [
+            vec![191, 190, 175, 195, 195, 192],
+            vec![191, 127, 192],
+            vec![191, 50, 192],
+            vec![191, 143, 143, 195, 195],
+        ] {
+            let mut doc = crate::DcMstring::new();
+            for short_dc in short_dcs {
+                doc.push_char(crate::DcChar::from_short(short_dc));
+            }
+            assert!(dcmstr_to_utf8_with_options(&doc, &settings).is_err());
+        }
+        let mut doc = crate::DcMstring::new();
+        doc.push_char(crate::DcChar::from_short(191));
+        doc.push_char(crate::DcChar::from_short(192));
+        assert_eq!(
+            dcmstr_to_utf8_with_options(&doc, &settings).unwrap().0,
+            b""
+        );
     }
 
     #[crate::ctb_test]

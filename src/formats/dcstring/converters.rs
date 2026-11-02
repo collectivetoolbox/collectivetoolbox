@@ -39,7 +39,7 @@ pub mod utf8;
 /// # Errors
 /// Returns an error for invalid input or invalid encapsulation metadata.
 pub(crate) fn document_dc_string(
-    doc: &crate::DcMstring,
+    doc: &crate::DcMstr,
 ) -> Result<crate::DcString> {
     crate::validate_dcmst(doc.as_bytes())?;
     doc.to_dc_string()
