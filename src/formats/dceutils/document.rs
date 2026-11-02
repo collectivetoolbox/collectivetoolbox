@@ -43,18 +43,16 @@ use anyhow::{Context, Result, bail};
 use ctb_formats_dcstring::dc::{SHORT_DC_REGION_END, SHORT_DC_REGION_START};
 use ctb_formats_utilities::FormatLog;
 
-use ctb_formats_dcstring::converters::dctext::dclist_to_dctf;
-use ctb_formats_dcstring::{DcChar, DcMixedChunk, DcMstring, DcStr};
+use ctb_formats_dcstring::{DcChar, DcMixedChunk, DcMstr, DcMstring};
 
 fn short_dcs_to_dcmstring(short_dcs: &[u32]) -> Result<DcMstring> {
-    let mut dclist = Vec::with_capacity(short_dcs.len());
+    let mut doc = DcMstring::new();
     for &short_dc in short_dcs {
-        dclist.push(DcChar::from_short(short_dc).to_long());
+        let ch = DcChar::from_short(short_dc);
+        ch.to_short()?;
+        doc.push_char(ch);
     }
-    let dctf_bytes = dclist_to_dctf(&dclist);
-    let dc_str = DcStr::from_bytes(&dctf_bytes)
-        .context("Converting dceutils short Dc list to valid DcTF DcStr")?;
-    DcMstring::from_dc_str(dc_str)
+    Ok(doc)
 }
 
 fn parse_comma_short_dcs(
@@ -139,12 +137,19 @@ pub fn dceutils_to_dcmstring_with_options(
         | "dce_3_01a_raw_hex" | "3_02a" | "dce_3_02a" | "3_02a_raw"
         | "dce_3_02a_raw" | "hex_3_02a" | "3_02a_hex" | "dce_3_02a_hex"
         | "hex_3_02a_raw" | "3_02a_raw_hex" | "dce_3_02a_raw_hex" => {
-            let short_dcs = crate::converter::decode_dce_preserving_controls(
+            let short_dcs = crate::converter::decode_dce_preserving_controls_with_options(
                 bytes,
                 format_code,
+                permissive,
                 &mut raw_log,
             )?;
-            short_dcs_to_dcmstring(&short_dcs)?
+            let body = if let Some(start) = crate::converter::dce_content_start(&short_dcs) {
+                short_dcs.get(start..short_dcs.len().saturating_sub(2))
+                    .context("Invalid DCE content boundary")?
+            } else {
+                &short_dcs
+            };
+            short_dcs_to_dcmstring(body)?
         }
         "dc" | "dc_id_list" => {
             let s = std::str::from_utf8(bytes)
@@ -183,15 +188,6 @@ pub fn dceutils_to_dcmstring_with_options(
     raw_log.merge(&text_log);
     let log = finalize_import_log(raw_log, permissive, format_code)?;
     Ok((doc, log))
-}
-
-fn strip_outer_unbounded_markers(dcs: &[u32]) -> Vec<u32> {
-    if dcs.len() >= 2 && dcs.first() == Some(&114) && dcs.last() == Some(&115) {
-        if let Some(sub) = dcs.get(1..dcs.len().saturating_sub(1)) {
-            return sub.to_vec();
-        }
-    }
-    dcs.to_vec()
 }
 
 /// Converts a `DcMstring` into a list of short Dc IDs suitable for `dceutils` export,
@@ -327,7 +323,7 @@ pub(crate) fn dcmstring_to_dceutils_short_dcs(
 /// # Errors
 /// Returns an error if the target format is unknown or serialization fails.
 pub fn dcmstring_to_dceutils(
-    doc: &DcMstring,
+    doc: &DcMstr,
     format_code: &str,
 ) -> Result<(Vec<u8>, FormatLog)> {
     dcmstr_to_dceutils_with_options(doc, format_code, false)
@@ -343,6 +339,11 @@ pub fn dcmstr_to_dceutils_with_options(
     permissive: bool,
 ) -> Result<(Vec<u8>, FormatLog)> {
     let mut log = FormatLog::default();
+    match format_code {
+        "html" => return ctb_formats_dcstring::converters::eite::dcmstring_to_html(doc),
+        "html_snippet" => return ctb_formats_dcstring::converters::eite::dcmstring_to_html_fragment(doc),
+        _ => {}
+    }
     if matches!(format_code, "utf8" | "utf32" | "utf8_base64" | "utf8_dc64" | "utf8_dc64_enc" | "utf8_dc64_bin" | "utf8_dc64_bin_hex" | "utf8_dc64_bin_enc" | "utf8_dc64_bin_enc_hex") {
         let (utf8, text_log) = ctb_formats_dcstring::converters::utf8::dcmstr_to_utf8_with_options(
             doc,

@@ -786,6 +786,9 @@ mod tests {
         for short in
             ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(b"legacy")?
         {
+            for control in [13, 14, 16, 196, 197, 198, 199] {
+                old.push(DcChar::from_short(control));
+            }
             old.push(DcChar::from_short(short));
         }
         old.push(DC_END_ENCAPSULATION_BINARY);
@@ -793,6 +796,10 @@ mod tests {
         assert!(metadata.is_empty());
         assert_eq!(data, b"legacy");
         assert_eq!(consumed, old.len());
+        let doc = DcMstring::from_dc_str(&old)?;
+        crate::DcDocumentNavigator::parse_document_arena(
+            doc.as_bytes(), &mut crate::DcSyntaxArena::new(), &crate::DcProjectionPolicy::strict(),
+        )?;
         let shorts =
             ctb_formats_eite::dc::bytes_to_dc_encapsulated_binary(b"legacy")?;
         let source =

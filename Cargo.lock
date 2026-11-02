@@ -3167,6 +3167,7 @@ dependencies = [
  "ctb-formats-dcdata",
  "ctb-formats-dctf",
  "ctb-formats-eite",
+ "ctb-formats-html",
  "ctb-formats-math",
  "ctb-formats-unicode",
  "ctb-formats-utf8",

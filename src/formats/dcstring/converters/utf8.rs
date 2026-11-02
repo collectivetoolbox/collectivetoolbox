@@ -670,9 +670,12 @@ pub fn utf8_to_dcmstring_with_options(
 
 /// Converts a `DcMstring` to UTF-8 bytes.
 pub fn dcmstring_to_utf8(
-    doc: &crate::DcMstring,
+    doc: &crate::DcMstr,
 ) -> Result<(Vec<u8>, FormatLog)> {
-    dcmstr_to_utf8_with_options(doc, &DcListUtf8Settings::default())
+    dcmstr_to_utf8_with_options(doc, &DcListUtf8Settings {
+        canonicalize_equivalent_dcs: true,
+        ..Default::default()
+    })
 }
 
 /// Projects a Dc document to UTF-8 using the requested equivalence and
@@ -901,6 +904,7 @@ mod tests {
                 doc.push_char(crate::DcChar::from_short(short_dc));
             }
             assert!(dcmstr_to_utf8_with_options(&doc, &settings).is_err());
+            assert!(dcmstring_to_utf8(&doc).is_err());
         }
         let mut doc = crate::DcMstring::new();
         doc.push_char(crate::DcChar::from_short(191));
@@ -955,6 +959,29 @@ mod tests {
         let (repaired, log) = repair_utf8_encapsulations(&valid, true).unwrap();
         assert_eq!(repaired, valid);
         assert!(!log.has_warnings() && !log.has_errors());
+    }
+
+    #[crate::ctb_test]
+    fn test_utf8_encapsulation_transport_controls() {
+        let mut doc = crate::DcMstring::from("L");
+        doc.push_char(crate::dc::DC_START_ENCAPSULATION_UTF8);
+        for digit in [143, 143, 195, 195] {
+            for control in [13, 14, 16, 196, 197, 198, 199] {
+                doc.push_char(crate::DcChar::from_short(control));
+            }
+            doc.push_char(crate::DcChar::from_short(digit));
+        }
+        doc.push_char(crate::dc::DC_END_ENCAPSULATION_UTF8);
+        doc.push_str("R");
+        let (text, log) = dcmstring_to_utf8(&doc).unwrap();
+        assert_eq!(text, b"LAR");
+        assert!(!log.has_warnings() && !log.has_errors());
+        let (preserved, log) = repair_utf8_encapsulations(&doc, false).unwrap();
+        assert_eq!(preserved, doc);
+        assert!(!log.has_warnings());
+        crate::DcDocumentNavigator::parse_document_arena(
+            doc.as_bytes(), &mut crate::DcSyntaxArena::new(), &crate::DcProjectionPolicy::strict(),
+        ).unwrap();
     }
 
     #[crate::ctb_test]

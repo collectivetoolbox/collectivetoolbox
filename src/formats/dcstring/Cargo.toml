@@ -12,6 +12,7 @@ ctb-formats-dctf = { path = "../dctf" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-dcdata = { path = "../dcdata" }
 ctb-formats-eite = { path = "../eite" }
+ctb-formats-html = { path = "../html" }
 ctb-formats-checksum = { path = "../checksum" }
 ctb-formats-math = { path = "../math" }
 ctb-formats-unicode = { path = "../unicode" }

@@ -138,21 +138,21 @@ pub fn dcmstring_to_sems(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
 }
 
 /// Converts a `DcMstring` to an HTML document (`.html`).
-pub fn dcmstring_to_html(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let (dca, mut log) = dcmstring_to_dca(doc)?;
-    let (bytes, html_log) = ctb_formats_eite::formats::html::dca_to_html(&dca)?;
-    log.merge(&html_log);
+pub fn dcmstring_to_html(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
+    let (fragment, log) = dcmstring_to_html_fragment(doc)?;
+    let mut bytes = b"<!DOCTYPE html><html><head><title></title></head><body>".to_vec();
+    bytes.extend_from_slice(&fragment);
+    bytes.extend_from_slice(b"</body></html>");
     Ok((bytes, log))
 }
 
 /// Converts a `DcMstring` to an HTML fragment (`.htmfrag`).
 pub fn dcmstring_to_html_fragment(
-    doc: &DcMstring,
+    doc: &crate::DcMstr,
 ) -> Result<(Vec<u8>, FormatLog)> {
-    let (dca, mut log) = dcmstring_to_dca(doc)?;
-    let (bytes, html_log) =
-        ctb_formats_eite::formats::html::dca_to_html_fragment(&dca)?;
-    log.merge(&html_log);
+    let (text, log) = super::utf8::dcmstring_to_utf8(doc)?;
+    let escaped = ctb_formats_html::entities::escape_text(std::str::from_utf8(&text)?);
+    let bytes = format!("<div style=\"white-space:pre-wrap\">{escaped}</div>").into_bytes();
     Ok((bytes, log))
 }
 

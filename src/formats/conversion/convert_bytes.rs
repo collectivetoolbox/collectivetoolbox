@@ -423,13 +423,7 @@ pub fn convert_dcmstring_to_bytes(
 ) -> Result<DcExportResult> {
     let (bytes, log) = match format {
         SupportedDcOutputFormat::Utf8 => {
-            ctb_formats_dcstring::converters::utf8::dcmstr_to_utf8_with_options(
-                doc,
-                &ctb_formats_dcstring::converters::utf8::DcListUtf8Settings {
-                    canonicalize_equivalent_dcs: true,
-                    ..Default::default()
-                },
-            )?
+            ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8(doc)?
         }
         SupportedDcOutputFormat::DcText => {
             ctb_formats_dcstring::converters::dctext::dcmstring_to_dctext(doc)?
@@ -1164,6 +1158,14 @@ mod tests {
         ).unwrap();
         assert_eq!(text.bytes, "Hello\u{85}".as_bytes());
         assert!(!text.log.has_warnings());
+        let wire = convert_dcmstring_to_bytes(&text_doc, SupportedDcOutputFormat::Dce_3_01a, &DcExportOptions::default()).unwrap();
+        let imported = convert_bytes_to_dcmstring(&wire.bytes, None, &DcConversionOptions::default()).unwrap();
+        let text = convert_dcmstring_to_bytes(&imported.document, SupportedDcOutputFormat::Utf8, &DcExportOptions::default()).unwrap();
+        assert_eq!(text.bytes, "Hello\u{85}".as_bytes());
+        assert!(!text.log.has_warnings());
+        let markup = DcMstring::from("<b>literal</b>&amp;");
+        let html = convert_dcmstring_to_bytes(&markup, SupportedDcOutputFormat::HtmlFragment, &DcExportOptions::default()).unwrap();
+        assert!(String::from_utf8(html.bytes).unwrap().contains("&lt;b&gt;literal&lt;/b&gt;&amp;amp;"));
         // 1. Autodetect and roundtrip all valid Weave .legacy_cdce fixtures
         let fixtures: &[(&str, &[u8])] = &[
             (
@@ -1216,8 +1218,7 @@ mod tests {
         }
 
         // 2. Convert datetime_string.legacy_cdce -> DCE 3.01a -> DcMstring -> legacy_cdce
-        // Verify DCE stateful-encoding control characters (Dc 15, Dc 16, Dc 194, Dc 13, Dc 114,
-        // Dc 197, Dc 115, Dc 113) are preserved in DcMstring, ignored when exporting to legacy_cdce,
+        // Verify body encoding controls are preserved in DcMstring, ignored when exporting to legacy_cdce,
         // and roundtrip back to DCE 3.01a.
         let dt_bytes =
             include_bytes!("../weave/fixtures/datetime_string.legacy_cdce");
@@ -1248,9 +1249,8 @@ mod tests {
 
         let dclist = from_301a.document.to_dc_string().unwrap().to_dclist();
         let short_start = ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
-        // Must preserve Begin DCE content (15), DCE Version Selectors (16), DCE Version Selector 3.01a (194),
-        // Begin unbounded content (114), Semantic Records (197), End unbounded content (115), End DCE content (113)
-        for ctrl_short in [15_u128, 16, 194, 13, 114, 197, 115, 113] {
+        // Must preserve body framing and sheet switches, excluding the file envelope.
+        for ctrl_short in [13_u128, 114, 197, 115] {
             assert!(
                 dclist.contains(&short_start.saturating_add(ctrl_short)),
                 "DcMstring imported from DCE 3.01a must preserve control Dc {ctrl_short}"
@@ -1280,14 +1280,14 @@ mod tests {
         let mut unmappable_doc = DcMstring::new();
         unmappable_doc.push_str("A");
         unmappable_doc.push_char(ctb_formats_dcstring::DcChar(1_114_420)); // short Dc 308 -> U+FFFD with warning
-        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(3_000_000)); // long Dc (> SHORT_DC_REGION_END) -> omitted with warning
+        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(3_000_000)); // long Dc -> U+FFFD with warning
         let warn_export = convert_dcmstring_to_bytes(
             &unmappable_doc,
             SupportedDcOutputFormat::CdceLegacy,
             &DcExportOptions::default(),
         )
         .expect("export with warnings");
-        assert_eq!(warn_export.bytes, b"A\xef\xbf\xbd");
+        assert_eq!(warn_export.bytes, b"A\xef\xbf\xbd\xef\xbf\xbd");
         assert!(warn_export.log.has_warnings());
         assert!(
             warn_export.log.get_warnings().len() >= 2,
@@ -1303,8 +1303,12 @@ mod tests {
                 &doc,
                 SupportedDcOutputFormat::Dce_3_0a,
                 &DcExportOptions::default(),
-            )
-            .expect("export 0..=115 to Dce_3_0a");
+            );
+            if short_id == 113 {
+                assert!(exported.is_err());
+                continue;
+            }
+            let exported = exported.expect("export 0..=115 to Dce_3_0a");
             if (2..=12).contains(&short_id) {
                 assert!(
                     !exported.log.has_errors() && exported.log.has_warnings(),
@@ -1338,8 +1342,12 @@ mod tests {
                 &doc,
                 SupportedDcOutputFormat::Dce_3_01a,
                 &DcExportOptions::default(),
-            )
-            .expect("export 0..=199 to Dce_3_01a");
+            );
+            if short_id == 113 {
+                assert!(exported.is_err());
+                continue;
+            }
+            let exported = exported.expect("export 0..=199 to Dce_3_01a");
             assert!(
                 !exported.log.has_errors() && !exported.log.has_warnings(),
                 "Dce_3_01a export of short Dc {short_id} emitted warnings/errors: {:?}",

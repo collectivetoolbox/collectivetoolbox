@@ -182,10 +182,10 @@ impl DceSheet {
 /// Returns `true` if `short_dc` is a DCE stateful-encoding control character or
 /// unbounded-content framing marker that has no glyph representation in text/CDCE.
 #[must_use]
-pub const fn is_dce_encoding_control_dc(short_dc: u32) -> bool {
-    matches!(
-        short_dc,
-        13..=16 | 112..=115 | 194 | 196..=199 | 205
+pub fn is_dce_encoding_control_dc(short_dc: u32) -> bool {
+    use ctb_formats_dcstring::syntax::SyntaxRuleResolver;
+    ctb_formats_dcstring::syntax::default_syntax_resolver().matches_named_type_starter(
+        "text_encoding_control", ctb_formats_dcstring::DcChar::from_short(short_dc).to_u128(),
     )
 }
 
@@ -442,6 +442,19 @@ pub fn decode_dce_preserving_controls(
     input_format: &str,
     log: &mut FormatLog,
 ) -> Result<Vec<u32>> {
+    decode_dce_preserving_controls_with_options(data, input_format, false, log)
+}
+
+/// Decodes DCE while retaining encoding controls and diagnosing recovery.
+///
+/// # Errors
+/// Returns an error for invalid framing or unassigned bytes in strict mode.
+pub fn decode_dce_preserving_controls_with_options(
+    data: &[u8],
+    input_format: &str,
+    permissive: bool,
+    log: &mut FormatLog,
+) -> Result<Vec<u32>> {
     let (raw_bytes, base_fmt) = match input_format {
         "hex_dce" | "dce_hex" => (decode_hex_payload(data, log)?, "dce"),
         "hex_3_0a" | "3_0a_hex" | "dce_3_0a_hex" => {
@@ -556,7 +569,9 @@ pub fn decode_dce_preserving_controls(
     let valid_envelope = if start_offset == 0 {
         raw_bytes.last() == Some(&0x81)
     } else {
-        raw_bytes.get(7) == Some(&0xFD) && raw_bytes.ends_with(&[0xFD, 0x03])
+        raw_bytes.get(7..raw_bytes.len().saturating_sub(2))
+            .is_some_and(|selector_region| selector_region.contains(&0xFD))
+            && raw_bytes.ends_with(&[0xFD, 0x03])
     };
     if !valid_envelope {
         log.error("This document is not stored using the specified format.");
@@ -568,6 +583,7 @@ pub fn decode_dce_preserving_controls(
 
     for (idx, &byte) in slice.iter().enumerate() {
         let idx_u64 = u64::try_from(idx.saturating_add(start_offset))?;
+        let decoded_length = out.len();
         match state {
             DceSheet::Core => match byte {
                 0x00 => out.push(0),
@@ -576,7 +592,13 @@ pub fn decode_dce_preserving_controls(
                     state = DceSheet::DceVersionSelectors;
                 }
                 0x02 => out.push(15),
-                0x03 => out.push(113),
+                0x03 => {
+                    ensure!(
+                        start_offset == 0 || idx.saturating_add(start_offset).saturating_add(1) == raw_bytes.len(),
+                        "Content follows the DCE end marker at offset {idx_u64}",
+                    );
+                    out.push(113);
+                }
                 0x08 if ver >= DceVersion::V3_01a => out.push(116),
                 0x09 if ver >= DceVersion::V3_01a => out.push(117),
                 0x0A if ver >= DceVersion::V3_01a => out.push(120),
@@ -757,6 +779,11 @@ pub fn decode_dce_preserving_controls(
                 }
             },
         }
+        ensure!(
+            permissive || out.len() > decoded_length,
+            "Unassigned DCE {} byte 0x{byte:02X} at offset {idx_u64}",
+            state.name(),
+        );
     }
 
     Ok(out)
@@ -807,18 +834,11 @@ pub fn encode_dce_preserving_controls(
 
     // Strip outer DCE file envelope (`[15, 16, 112|194, 13|14, ..., 13|14, 113]`;
     // 3.02a version selector Dc is TBD) only when both header and trailer are present.
-    let (inner, inner_offset) = if dcs.len() >= 6
-        && dcs.first() == Some(&15)
-        && dcs.get(1) == Some(&16)
-        && matches!(dcs.get(2), Some(&112 | &194))
-        && matches!(dcs.get(3), Some(&13 | &14))
-        && matches!(dcs.get(dcs.len().saturating_sub(2)), Some(&13 | &14))
-        && dcs.get(dcs.len().saturating_sub(1)) == Some(&113)
-    {
+    let (inner, inner_offset) = if let Some(start) = dce_content_start(dcs) {
         (
-            dcs.get(4..dcs.len().saturating_sub(2))
+            dcs.get(start..dcs.len().saturating_sub(2))
                 .context("dcs envelope slice out of bounds")?,
-            4_usize,
+            start,
         )
     } else {
         (dcs, 0_usize)
@@ -839,6 +859,7 @@ pub fn encode_dce_preserving_controls(
         (inner, inner_offset)
     };
 
+    ensure!(is_raw || !body.contains(&113), "DCE content contains an interior file end marker");
     let ver = match base_fmt {
         "3_0a" | "3_0a_raw" => DceVersion::V3_0a,
         "3_01a" | "3_01a_raw" => DceVersion::V3_01a,
@@ -1052,14 +1073,13 @@ pub(crate) fn dce_convert_internal(
         ("hex2dce", "none") => return legacy::onestep_hex2dce_to_none(data),
         (
             "legacy_cdce" | "cdce_legacy",
-            "html_snippet"
-            | "html_snippet_l"
+            "html_snippet_l"
             | "html_s_legacy"
             | "html_legacy_cdce_snippet",
         ) => return legacy::onestep_legacy_cdce_to_html_snippet_l(data),
         (
             "legacy_cdce" | "cdce_legacy",
-            "html" | "html_l" | "html_legacy" | "html_legacy_cdce",
+            "html_l" | "html_legacy" | "html_legacy_cdce",
         ) => return legacy::onestep_legacy_cdce_to_html_l(data),
         _ => {}
     }
@@ -1081,15 +1101,8 @@ pub(crate) fn dce_convert_internal(
 pub(crate) fn content_short_dcs(
     all: &[u32],
 ) -> Result<Vec<u32>> {
-    let inner = if all.len() >= 6
-        && all.first() == Some(&15)
-        && all.get(1) == Some(&16)
-        && matches!(all.get(2), Some(&112 | &194))
-        && matches!(all.get(3), Some(&13 | &14))
-        && matches!(all.get(all.len().saturating_sub(2)), Some(&13 | &14))
-        && all.get(all.len().saturating_sub(1)) == Some(&113)
-    {
-        all.get(4..all.len().saturating_sub(2))
+    let inner = if let Some(start) = dce_content_start(all) {
+        all.get(start..all.len().saturating_sub(2))
             .context("DCE envelope slice")?
     } else {
         all
@@ -1128,6 +1141,17 @@ pub(crate) fn content_short_dcs(
     }
 
     Ok(out)
+}
+
+pub(crate) fn dce_content_start(dcs: &[u32]) -> Option<usize> {
+    if dcs.starts_with(&[15, 16]) && dcs.ends_with(&[13, 113]) {
+        dcs.get(2..dcs.len().checked_sub(2)?)?
+            .iter()
+            .position(|&token| token == 13)
+            .map(|offset| offset.saturating_add(3))
+    } else {
+        None
+    }
 }
 
 pub(crate) fn decode_cdce(
@@ -1404,36 +1428,6 @@ pub(crate) fn encode_dc64_to_core_bytes(
     }
 }
 
-fn parse_dc_csv_list(data: &str, log: &mut FormatLog) -> Result<Vec<u32>> {
-    let trimmed = data.trim().trim_end_matches(',');
-    if trimmed.is_empty() {
-        return Ok(Vec::new());
-    }
-    let mut out = Vec::new();
-    for (idx, piece) in explode_escaped(',', trimmed).into_iter().enumerate() {
-        let token = piece.trim();
-        if token.is_empty() {
-            out.push(0);
-            continue;
-        }
-        match token.parse::<u32>() {
-            Ok(val) => out.push(val),
-            Err(_) => {
-                log.import_error(
-                    u64::try_from(idx)?,
-                    &format!("Invalid short Dc ID token '{token}' in Dc list"),
-                );
-                bail!("Invalid short Dc ID token '{token}' in Dc list");
-            }
-        }
-    }
-    Ok(out)
-}
-
-fn join_short_dcs(dcs: &[u32]) -> String {
-    dcs.iter().map(u32::to_string).collect::<Vec<_>>().join(",")
-}
-
 fn decode_hex_payload(data: &[u8], log: &mut FormatLog) -> Result<Vec<u8>> {
     let hex_str = std::str::from_utf8(data).map_err(|_| {
         log.error("This document is not stored using the specified format.");
@@ -1494,8 +1488,12 @@ mod tests {
                     &[dc],
                     fmt,
                     &mut enc_log,
-                )
-                .unwrap();
+                );
+                if dc == 113 && !fmt.ends_with("_raw") {
+                    assert!(encoded.is_err());
+                    continue;
+                }
+                let encoded = encoded.unwrap();
                 assert!(
                     !enc_log.has_errors() && !enc_log.has_warnings(),
                     "3_0a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
@@ -1534,6 +1532,10 @@ mod tests {
 
             // Also verify dc -> 3_0a -> dc roundtrip via converter::dce_convert_with_log
             let dc_input = format!("114,{dc},115");
+            if dc == 113 {
+                assert!(crate::converter::dce_convert_with_log(dc_input.as_bytes(), "dc", "3_0a").is_err());
+                continue;
+            }
             let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
                 dc_input.as_bytes(),
                 "dc",
@@ -1569,8 +1571,12 @@ mod tests {
                     &[dc],
                     fmt,
                     &mut enc_log,
-                )
-                .unwrap();
+                );
+                if dc == 113 && !fmt.ends_with("_raw") {
+                    assert!(encoded.is_err());
+                    continue;
+                }
+                let encoded = encoded.unwrap();
                 assert!(
                     !enc_log.has_errors() && !enc_log.has_warnings(),
                     "3_01a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
@@ -1607,6 +1613,10 @@ mod tests {
             }
 
             let dc_input = format!("114,{dc},115");
+            if dc == 113 {
+                assert!(crate::converter::dce_convert_with_log(dc_input.as_bytes(), "dc", "3_01a").is_err());
+                continue;
+            }
             if dc == 191 {
                 assert!(crate::converter::dce_convert_with_log(
                     dc_input.as_bytes(), "dc", "3_01a",

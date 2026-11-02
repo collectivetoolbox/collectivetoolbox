@@ -135,8 +135,8 @@ fn test_spreadsheet_byte_tables() {
                 }
                 bytes.extend_from_slice(&[byte, 0xFD, 0x81]);
                 let mut log = crate::FormatLog::default();
-                let decoded = crate::decode_dce_preserving_controls(
-                    &bytes, format, &mut log,
+                let decoded = crate::converter::decode_dce_preserving_controls_with_options(
+                    &bytes, format, true, &mut log,
                 )
                 .unwrap();
                 let offset = if selector.is_some() { 2 } else { 1 };
@@ -144,10 +144,15 @@ fn test_spreadsheet_byte_tables() {
                     if decoded.get(offset) != Some(&expected) {
                         failures.push(format!("{format} {sheet}:{byte:02X}: expected {expected}, got {decoded:?}"));
                     }
-                } else if !log.has_warnings() {
-                    failures.push(format!(
-                        "{format} {sheet}:{byte:02X}: reserved byte accepted"
-                    ));
+                } else {
+                    assert!(crate::decode_dce_preserving_controls(
+                        &bytes, format, &mut crate::FormatLog::default(),
+                    ).is_err(), "{format} {sheet}:{byte:02X}: strict import accepted reserved byte");
+                    if !log.has_warnings() {
+                        failures.push(format!(
+                            "{format} {sheet}:{byte:02X}: reserved byte accepted"
+                        ));
+                    }
                 }
             }
         }
@@ -177,6 +182,20 @@ fn test_empty_text_and_literal_cdce_roundtrips() {
 
 #[crate::ctb_test]
 fn test_malformed_encapsulated_utf8_is_rejected() {
+    for (payload, expected) in [
+        (vec![50, 191, 151, 158, 188, 161, 192, 51], "Aa\u{FFFD}bB"),
+        (vec![50, 191, 143, 143, 195, 195, 51], "A\u{FFFD}B"),
+    ] {
+        for format in ["3_01a", "3_01a_raw"] {
+            let bytes = crate::converter::encode_dce_preserving_controls(&payload, format, &mut crate::FormatLog::default()).unwrap();
+            for output in ["dc", "utf8", format] {
+                assert!(crate::dce_convert_new(&bytes, format, output).is_err());
+                let (repaired, log) = crate::converter::dce_convert_with_options(&bytes, format, output, true).unwrap();
+                assert!(log.has_warnings());
+                assert_eq!(crate::dce_convert_new(&repaired, output, "utf8").unwrap(), expected.as_bytes());
+            }
+        }
+    }
     for data in [
         "191,192",
         "191,127,192",
@@ -218,6 +237,21 @@ fn test_dce_envelope_validation() {
         let mut trailing = valid.to_vec();
         trailing.push(b'A');
         assert!(crate::dce_convert_new(&trailing, format, "dc").is_err());
+        let mut extended = valid.to_vec();
+        extended.splice(7..7, [0, version]);
+        assert_eq!(crate::dce_convert_new(&extended, format, "utf8").unwrap(), b"A");
+        assert_eq!(crate::dce_convert_new(&extended, format, "dc").unwrap(), b"114,50,115");
+        let normalized = crate::dce_convert_new(&extended, format, format).unwrap();
+        assert_eq!(crate::dce_convert_new(&normalized, format, "utf8").unwrap(), b"A");
+        let mut interior_end = valid.to_vec();
+        interior_end.insert(9, 3);
+        for output in ["dc", "utf8", format] {
+            for permissive in [false, true] {
+                assert!(crate::converter::dce_convert_with_options(
+                    &interior_end, format, output, permissive,
+                ).is_err());
+            }
+        }
     }
 }
 
