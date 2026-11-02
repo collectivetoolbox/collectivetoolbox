@@ -600,6 +600,23 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
                 }))
     }
 
+    fn is_splice_trigger_token(&self, token: u128) -> bool {
+        if self.canonical_overlay.is_empty() && self.roles_overlay.is_empty() {
+            return self.base.is_splice_trigger_token(token);
+        }
+        let canon = self.canonical_token(token);
+        self.base.is_splice_trigger_token(canon)
+            || self
+                .roles_overlay
+                .get(&token)
+                .is_some_and(|roles| roles.contains(&DcRole::LangSay))
+            || (canon != token
+                && self
+                    .roles_overlay
+                    .get(&canon)
+                    .is_some_and(|roles| roles.contains(&DcRole::LangSay)))
+    }
+
     fn is_plain_atom_dc(&self, token: u128) -> bool {
         let canon = if self.canonical_overlay.is_empty() {
             token
@@ -806,6 +823,10 @@ impl SyntaxRuleResolver for SyntaxRuntimeRegistry {
 
     fn is_special_wrapper_token(&self, token: u128) -> bool {
         self.resolver.is_special_wrapper_token(token)
+    }
+
+    fn is_splice_trigger_token(&self, token: u128) -> bool {
+        self.resolver.is_splice_trigger_token(token)
     }
 
     fn is_plain_atom_dc(&self, token: u128) -> bool {

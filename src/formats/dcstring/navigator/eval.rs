@@ -286,15 +286,31 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
     }
 }
 
-/// Checkpoint holding cursor and spliced token state for backtracking in [`DcDocumentNavigator`].
-#[derive(Debug, Clone)]
+/// Checkpoint holding cursor and spliced token slice state for backtracking in [`DcDocumentNavigator`].
+#[derive(Debug, Clone, Copy)]
 pub struct NavigatorCheckpoint {
     /// Byte offset cursor in the backend stream.
     pub cursor: u64,
     /// Active span for the current container level.
     pub active_span: DcByteSpan,
-    /// Spliced in-memory token buffer.
-    pub spliced_tokens: std::collections::VecDeque<DcChar>,
+    /// Start index of the active spliced token slice in `spliced_buf`.
+    pub spliced_head: usize,
+    /// End index (exclusive) of the active spliced token slice in `spliced_buf`.
+    pub spliced_end: usize,
+}
+
+impl NavigatorCheckpoint {
+    /// Returns true if this checkpoint has active spliced tokens remaining.
+    #[must_use]
+    pub const fn has_spliced(&self) -> bool {
+        self.spliced_head < self.spliced_end
+    }
+
+    /// Returns the number of active spliced tokens in this checkpoint.
+    #[must_use]
+    pub const fn spliced_len(&self) -> usize {
+        self.spliced_end.saturating_sub(self.spliced_head)
+    }
 }
 
 /// Execution context for evaluating [`SyntaxPattern`] rules directly over a [`DcDocumentNavigator`].
@@ -531,7 +547,7 @@ impl DcDocumentNavigator<'_> {
                         let mut next_idx = index;
                         while let Some(elem) = elements.get(next_idx) {
                             let at_end = self.cursor >= self.active_span.end
-                                && self.spliced_tokens.is_empty();
+                                && !self.has_spliced_tokens();
                             if at_end && elem.quantifier.allows_zero() {
                                 next_idx = next_idx.saturating_add(1);
                                 continue;
@@ -550,7 +566,7 @@ impl DcDocumentNavigator<'_> {
                             frames.push(Frame::Element(
                                 elem,
                                 0,
-                                cp.clone(),
+                                cp,
                                 cp,
                             ));
                             frames.push(Frame::Term(&elem.term));
@@ -566,8 +582,8 @@ impl DcDocumentNavigator<'_> {
                     } => {
                         if matched && !ctx.has_errors {
                             let consumed = self.cursor > branch_start.cursor
-                                || self.spliced_tokens.len()
-                                    < branch_start.spliced_tokens.len();
+                                || self.spliced_len()
+                                    < branch_start.spliced_len();
                             if consumed {
                                 continue;
                             }
@@ -578,7 +594,7 @@ impl DcDocumentNavigator<'_> {
                                 ));
                             }
                         }
-                        self.restore_checkpoint(branch_start.clone());
+                        self.restore_checkpoint(branch_start);
                         ctx.restore_checkpoint(&saved_ctx);
                         if let Some(branch) = branches.get(index) {
                             frames.push(Frame::Alternation {
@@ -610,14 +626,14 @@ impl DcDocumentNavigator<'_> {
                         let count = if matched {
                             count.saturating_add(1)
                         } else {
-                            self.restore_checkpoint(iteration_start.clone());
+                            self.restore_checkpoint(iteration_start);
                             count
                         };
                         let progressed = self.cursor > iteration_start.cursor
-                            || self.spliced_tokens.len()
-                                < iteration_start.spliced_tokens.len();
+                            || self.spliced_len()
+                                < iteration_start.spliced_len();
                         let more_input = self.cursor < self.active_span.end
-                            || !self.spliced_tokens.is_empty();
+                            || self.has_spliced_tokens();
                         if matched
                             && progressed
                             && !element.quantifier.reached_max(count)
@@ -676,6 +692,85 @@ impl DcDocumentNavigator<'_> {
         self.eval_pattern(&SyntaxPattern::Sequence(vec![element.clone()]), ctx)
     }
 
+    /// Evaluates a fixed-arity sequence of `ExactOne` operands starting at the current cursor
+    /// without allocating the general `eval_pattern` backtracking frame stack.
+    pub(super) fn eval_fixed_prefix_operands(
+        &mut self,
+        operands: &[SyntaxElement],
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<bool> {
+        let start = self.save_checkpoint();
+        for elem in operands {
+            if self.cursor >= self.active_span.end && !self.has_spliced_tokens()
+            {
+                self.restore_checkpoint(start);
+                return Ok(false);
+            }
+            let matched = match &elem.term {
+                SyntaxTerm::Group(group_pat) => {
+                    let has_wrapper = !ctx.unescaped_literal_payload
+                        && self.peek_next_token()?.is_some_and(|ch| {
+                            ctx.resolver.is_special_wrapper_token(ch.to_u128())
+                        });
+                    if has_wrapper {
+                        self.eval_term_single(&elem.term, ctx)?
+                    } else {
+                        self.eval_pattern(group_pat, ctx)?
+                    }
+                }
+                SyntaxTerm::NamedConstruct {
+                    name,
+                    subtype: None,
+                    ..
+                } if name == "type" => {
+                    let token = self.peek_next_token()?;
+                    let is_constructor = token.is_some_and(|ch| {
+                        ch.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
+                            || ch.fills_role_with(
+                                DcRole::TypeUnion,
+                                ctx.resolver,
+                            )
+                            || ch.fills_role_with(
+                                DcRole::TypeIntersection,
+                                ctx.resolver,
+                            )
+                            || ch.fills_role_with(
+                                DcRole::FormatParamApplication,
+                                ctx.resolver,
+                            )
+                    });
+                    if is_constructor {
+                        let Some(rule) = token
+                            .and_then(|ch| CharTarget::from_u128(ch.to_u128()))
+                            .and_then(|target| {
+                                ctx.resolver.resolve_rule(&target)
+                            })
+                        else {
+                            self.restore_checkpoint(start);
+                            return Ok(false);
+                        };
+                        let old_self = ctx.self_dc;
+                        let old_depth = ctx.depth;
+                        ctx.self_dc = token.map(DcChar::to_u128);
+                        ctx.depth = ctx.depth.saturating_add(1);
+                        let res = self.eval_pattern(&rule.pattern, ctx);
+                        ctx.self_dc = old_self;
+                        ctx.depth = old_depth;
+                        res?
+                    } else {
+                        self.eval_term_single(&elem.term, ctx)?
+                    }
+                }
+                term => self.eval_term_single(term, ctx)?,
+            };
+            if !matched || ctx.has_errors {
+                self.restore_checkpoint(start);
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     /// Evaluates a single [`SyntaxTerm`] occurrence starting at the current cursor.
     pub fn eval_term_single(
         &mut self,
@@ -683,7 +778,7 @@ impl DcDocumentNavigator<'_> {
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let term_checkpoint = self.save_checkpoint();
-        let mut pre_read = if self.spliced_tokens.is_empty()
+        let mut pre_read = if !self.has_spliced_tokens()
             && self.cursor < self.active_span.end
         {
             self.read_token_or_binary_at(self.cursor)?
@@ -692,8 +787,7 @@ impl DcDocumentNavigator<'_> {
         };
         if !ctx.unescaped_literal_payload
             && let Some((ch, _)) = pre_read
-            && ctx.resolver.is_special_wrapper_token(ch.to_u128())
-            && ch.fills_role_with(DcRole::LangSay, ctx.resolver)
+            && ctx.resolver.is_splice_trigger_token(ch.to_u128())
         {
             let term_targets_say = match term {
                 SyntaxTerm::SelfChar => ctx
@@ -726,7 +820,7 @@ impl DcDocumentNavigator<'_> {
                     )?
                 };
                 if spliced {
-                    pre_read = if self.spliced_tokens.is_empty()
+                    pre_read = if !self.has_spliced_tokens()
                         && self.cursor < self.active_span.end
                     {
                         self.read_token_or_binary_at(self.cursor)?
@@ -737,9 +831,9 @@ impl DcDocumentNavigator<'_> {
             }
         }
 
-        let from_spliced = !self.spliced_tokens.is_empty();
+        let from_spliced = self.has_spliced_tokens();
         let (first_dc, after_first) = if from_spliced {
-            let Some(&ch) = self.spliced_tokens.front() else {
+            let Some(ch) = self.peek_spliced_token() else {
                 return Ok(false);
             };
             (ch, self.cursor)
@@ -1154,7 +1248,7 @@ impl DcDocumentNavigator<'_> {
                     }
                     let frame_key = format!(
                         "named:{name}@{start_offset}:{}",
-                        self.spliced_tokens.len()
+                        self.spliced_len()
                     );
                     if ctx.call_stack.contains(&frame_key) {
                         return Ok(false);
@@ -1274,7 +1368,7 @@ impl DcDocumentNavigator<'_> {
                             }
                         }
                         if !matched {
-                            self.restore_checkpoint(term_checkpoint.clone());
+                            self.restore_checkpoint(term_checkpoint);
                         }
                     }
                     matched
@@ -1431,7 +1525,7 @@ impl DcDocumentNavigator<'_> {
                 }
                 let frame_key = format!(
                     "rule:{target}@{start_offset}:{}",
-                    self.spliced_tokens.len()
+                    self.spliced_len()
                 );
                 if ctx.call_stack.contains(&frame_key) {
                     self.restore_checkpoint(term_checkpoint);
@@ -1477,7 +1571,7 @@ impl DcDocumentNavigator<'_> {
                         let matched_end = self.cursor;
                         if !from_spliced
                             && !ctx.has_errors
-                            && self.spliced_tokens.is_empty()
+                            && !self.has_spliced_tokens()
                         {
                             if self.scan_cache.validated_rule_spans.len()
                                 >= MAX_NAV_CACHE_ENTRIES
@@ -1890,7 +1984,7 @@ impl DcDocumentNavigator<'_> {
         let start_offset = self.cursor;
         self.scan_cache.ensure_resolver(ctx.resolver);
         if subtype.is_none()
-            && self.spliced_tokens.is_empty()
+            && !self.has_spliced_tokens()
             && let Some(&(cached_end, CachedLeafKind::Literal(type_dc))) =
                 self.scan_cache.validated_leaf_frames.get(&start_offset)
             && cached_end <= self.active_span.end
@@ -2009,8 +2103,7 @@ impl DcDocumentNavigator<'_> {
                         };
                     let mut sub_nav =
                         DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));
-                    sub_nav.spliced_tokens =
-                        std::collections::VecDeque::from(decoded_payload);
+                    sub_nav.push_spliced_tokens(decoded_payload);
                     let mut sub_ctx =
                         SyntaxEvalContext::new(ctx.resolver, None);
                     sub_ctx.policy.clone_from(&ctx.policy);
@@ -2024,14 +2117,14 @@ impl DcDocumentNavigator<'_> {
                     ctx.diagnostics.extend(sub_ctx.diagnostics);
                     if !sub_ok
                         || sub_ctx.has_errors
-                        || !sub_nav.spliced_tokens.is_empty()
+                        || sub_nav.has_spliced_tokens()
                     {
                         self.restore_checkpoint(term_checkpoint);
                         return Ok(false);
                     }
                 }
-                if term_checkpoint.spliced_tokens.is_empty()
-                    && self.spliced_tokens.is_empty()
+                if !term_checkpoint.has_spliced()
+                    && !self.has_spliced_tokens()
                 {
                     if self.scan_cache.validated_leaf_frames.len()
                         >= MAX_NAV_CACHE_ENTRIES
@@ -2115,7 +2208,7 @@ impl DcDocumentNavigator<'_> {
         let start_offset = self.cursor;
         self.scan_cache.ensure_resolver(ctx.resolver);
         if subtype.is_none()
-            && self.spliced_tokens.is_empty()
+            && !self.has_spliced_tokens()
             && let Some(&(cached_end, CachedLeafKind::Identifier)) =
                 self.scan_cache.validated_leaf_frames.get(&start_offset)
             && cached_end <= self.active_span.end
@@ -2200,8 +2293,8 @@ impl DcDocumentNavigator<'_> {
                         return Ok(false);
                     }
                 }
-                if term_checkpoint.spliced_tokens.is_empty()
-                    && self.spliced_tokens.is_empty()
+                if !term_checkpoint.has_spliced()
+                    && !self.has_spliced_tokens()
                 {
                     if self.scan_cache.validated_leaf_frames.len()
                         >= MAX_NAV_CACHE_ENTRIES
@@ -2310,7 +2403,7 @@ impl DcDocumentNavigator<'_> {
         if scan_from < before_offset {
             self.active_span = DcByteSpan::new(scan_from, before_offset);
             self.cursor = scan_from;
-            self.spliced_tokens.clear();
+            self.clear_spliced_tokens();
             while self.cursor < before_offset {
                 let prev_cursor = self.cursor;
                 let Ok(Some(stub)) =
@@ -2350,7 +2443,7 @@ impl DcDocumentNavigator<'_> {
             }
             self.scan_cache.assignments_scanned_up_to = Some(self.cursor);
             self.diagnostics.truncate(saved_diag_len);
-            self.restore_checkpoint(saved_checkpoint.clone());
+            self.restore_checkpoint(saved_checkpoint);
         }
         let bound_value_span = self
             .scan_cache
@@ -2367,7 +2460,7 @@ impl DcDocumentNavigator<'_> {
         let saved_for_eval = self.save_checkpoint();
         self.active_span = val_span;
         self.cursor = val_span.start;
-        self.spliced_tokens.clear();
+        self.clear_spliced_tokens();
         let mut sub_ctx = ctx.clone();
         sub_ctx.depth = sub_ctx.depth.saturating_add(1);
         let term = SyntaxTerm::NamedConstruct {
@@ -2394,7 +2487,7 @@ impl DcDocumentNavigator<'_> {
         let need_digits = subtype.is_some() || capture_var.is_some();
         self.scan_cache.ensure_resolver(ctx.resolver);
         if !need_digits
-            && self.spliced_tokens.is_empty()
+            && !self.has_spliced_tokens()
             && let Some(&(cached_end, CachedLeafKind::Number(_))) =
                 self.scan_cache.validated_leaf_frames.get(&start_offset)
             && cached_end <= self.active_span.end
@@ -2453,8 +2546,8 @@ impl DcDocumentNavigator<'_> {
                         );
                     }
                 }
-                if term_checkpoint.spliced_tokens.is_empty()
-                    && self.spliced_tokens.is_empty()
+                if !term_checkpoint.has_spliced()
+                    && !self.has_spliced_tokens()
                 {
                     if self.scan_cache.validated_leaf_frames.len()
                         >= MAX_NAV_CACHE_ENTRIES
@@ -2610,7 +2703,7 @@ impl DcDocumentNavigator<'_> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
         self.scan_cache.ensure_resolver(resolver);
-        if self.spliced_tokens.is_empty()
+        if !self.has_spliced_tokens()
             && self
                 .scan_cache
                 .validated_containers
@@ -2619,13 +2712,11 @@ impl DcDocumentNavigator<'_> {
             return Ok(());
         }
         let diag_before = self.diagnostics.len();
-        let saved_span = self.active_span;
-        let saved_cursor = self.cursor;
-        let saved_spliced = self.spliced_tokens.clone();
+        let saved_checkpoint = self.save_checkpoint();
         let result = (|| -> Result<()> {
             self.active_span = outer;
             self.cursor = outer.start;
-            self.spliced_tokens.clear();
+            self.clear_spliced_tokens();
             if let Some(rule) = resolver.resolve_rule(target) {
                 let mut ctx =
                     SyntaxEvalContext::new(resolver, Some(target.to_u128()));
@@ -2665,7 +2756,7 @@ impl DcDocumentNavigator<'_> {
                             outer.start
                         ),
                     )?;
-                } else if self.spliced_tokens.is_empty() {
+                } else if !self.has_spliced_tokens() {
                     if self.scan_cache.validated_rule_spans.len()
                         >= MAX_NAV_CACHE_ENTRIES
                     {
@@ -2682,7 +2773,7 @@ impl DcDocumentNavigator<'_> {
             }
             self.active_span = inner;
             self.cursor = inner.start;
-            self.spliced_tokens.clear();
+            self.clear_spliced_tokens();
             let header = resolver.container_header_elements(target);
             let mut declared_list_len = None;
             if !header.is_empty() {
@@ -2748,12 +2839,10 @@ impl DcDocumentNavigator<'_> {
             }
             Ok(())
         })();
-        self.active_span = saved_span;
-        self.cursor = saved_cursor;
-        self.spliced_tokens = saved_spliced;
+        self.restore_checkpoint(saved_checkpoint);
         if result.is_ok()
             && self.diagnostics.len() == diag_before
-            && self.spliced_tokens.is_empty()
+            && !self.has_spliced_tokens()
         {
             if self.scan_cache.validated_containers.len()
                 >= MAX_NAV_CACHE_ENTRIES

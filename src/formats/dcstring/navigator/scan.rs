@@ -767,7 +767,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     policy.max_depth,
                 ),
             )?;
-        } else if self.spliced_tokens.is_empty()
+        } else if !self.has_spliced_tokens()
             && let Some(&cached) =
                 self.scan_cache.balanced_containers.get(&after_opener)
             && cached.after_closer <= self.active_span.end
@@ -826,7 +826,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             .is_equivalent_to(ch.to_u128(), f.closer.to_u128())
                 }) {
                     if let Some(popped) = closer_stack.pop() {
-                        if !popped.had_issue && self.spliced_tokens.is_empty() {
+                        if !popped.had_issue && !self.has_spliced_tokens() {
                             if self.scan_cache.balanced_containers.len()
                                 >= MAX_NAV_CACHE_ENTRIES
                             {
@@ -953,7 +953,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         .is_equivalent_to(ch.to_u128(), f.closer.to_u128())
             }) {
                 if let Some(popped) = closer_stack.pop() {
-                    if !popped.had_issue && self.spliced_tokens.is_empty() {
+                    if !popped.had_issue && !self.has_spliced_tokens() {
                         if self.scan_cache.balanced_containers.len()
                             >= MAX_NAV_CACHE_ENTRIES
                         {
@@ -1011,7 +1011,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 {
                     let next_depth =
                         self.depth().saturating_add(closer_stack.len());
-                    if self.spliced_tokens.is_empty()
+                    if !self.has_spliced_tokens()
                         && let Some(&cached) = self
                             .scan_cache
                             .balanced_containers
@@ -1656,19 +1656,19 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(tokens)
     }
 
-    /// Peeks the next token from `spliced_tokens` (if non-empty) or from the
+    /// Peeks the next token from the spliced slice cursor (if non-empty) or from the
     /// byte-backed stream at `self.cursor`.
     pub(super) fn peek_next_token(&mut self) -> Result<Option<DcChar>> {
-        if let Some(&ch) = self.spliced_tokens.front() {
+        if let Some(ch) = self.peek_spliced_token() {
             return Ok(Some(ch));
         }
         Ok(self.read_token_or_binary_at(self.cursor)?.map(|(ch, _)| ch))
     }
 
-    /// Consumes and returns the next token from `spliced_tokens` (if non-empty)
+    /// Consumes and returns the next token from the spliced slice cursor (if non-empty)
     /// or from the byte-backed stream at `self.cursor`, advancing `self.cursor`.
     pub(super) fn pop_next_token(&mut self) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.spliced_tokens.pop_front() {
+        if let Some(ch) = self.pop_spliced_token() {
             return Ok(Some(ch));
         }
         let Some((ch, next_off)) = self.read_token_or_binary_at(self.cursor)?
@@ -1686,16 +1686,14 @@ impl<'a> DcDocumentNavigator<'a> {
     ) -> Result<Vec<DcChar>> {
         let mut out = Vec::new();
         let spliced_consumed = checkpoint
-            .spliced_tokens
-            .len()
-            .saturating_sub(self.spliced_tokens.len());
-        out.extend(
-            checkpoint
-                .spliced_tokens
-                .iter()
-                .take(spliced_consumed)
-                .copied(),
-        );
+            .spliced_len()
+            .saturating_sub(self.spliced_len());
+        if let Some(slice) = self
+            .spliced_buf
+            .get(checkpoint.spliced_head..checkpoint.spliced_end)
+        {
+            out.extend(slice.iter().take(spliced_consumed).copied());
+        }
         if self.cursor > checkpoint.cursor {
             let raw = self.read_tokens_in_span(DcByteSpan::new(
                 checkpoint.cursor,

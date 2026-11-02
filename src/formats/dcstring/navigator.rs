@@ -166,7 +166,9 @@ pub struct DcDocumentNavigator<'a> {
     pub(super) active_span: DcByteSpan,
     pub(super) level_stack: Vec<(DcByteSpan, u64, Option<DcChar>)>,
     pub(super) diagnostics: Vec<SyntaxDiagnostic>,
-    pub(super) spliced_tokens: std::collections::VecDeque<DcChar>,
+    pub(super) spliced_buf: Vec<DcChar>,
+    pub(super) spliced_head: usize,
+    pub(super) spliced_end: usize,
     pub(super) scan_cache: NavScanCache,
 }
 
@@ -207,7 +209,9 @@ impl<'a> DcDocumentNavigator<'a> {
             active_span: DcByteSpan::new(start, end),
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
-            spliced_tokens: std::collections::VecDeque::new(),
+            spliced_buf: Vec::new(),
+            spliced_head: 0,
+            spliced_end: 0,
             scan_cache: NavScanCache::default(),
         }
     }
@@ -227,7 +231,9 @@ impl<'a> DcDocumentNavigator<'a> {
             active_span: DcByteSpan::new(0, end),
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
-            spliced_tokens: std::collections::VecDeque::new(),
+            spliced_buf: Vec::new(),
+            spliced_head: 0,
+            spliced_end: 0,
             scan_cache: NavScanCache::default(),
         }
     }
@@ -236,6 +242,36 @@ impl<'a> DcDocumentNavigator<'a> {
     #[must_use]
     pub fn cursor(&self) -> u64 {
         self.cursor
+    }
+
+    pub(super) const fn has_spliced_tokens(&self) -> bool {
+        self.spliced_head < self.spliced_end
+    }
+
+    pub(super) const fn spliced_len(&self) -> usize {
+        self.spliced_end.saturating_sub(self.spliced_head)
+    }
+
+    pub(super) fn peek_spliced_token(&self) -> Option<DcChar> {
+        if self.spliced_head < self.spliced_end {
+            self.spliced_buf.get(self.spliced_head).copied()
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn pop_spliced_token(&mut self) -> Option<DcChar> {
+        if self.spliced_head < self.spliced_end {
+            let tok = self.spliced_buf.get(self.spliced_head).copied();
+            self.spliced_head = self.spliced_head.saturating_add(1);
+            tok
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn clear_spliced_tokens(&mut self) {
+        self.spliced_head = self.spliced_end;
     }
 
     /// Returns true if the next token fills `role` under `resolver`.
@@ -276,8 +312,8 @@ impl<'a> DcDocumentNavigator<'a> {
     /// # Errors
     /// Returns an error if reading from the stream fails.
     pub fn peek_token(&mut self) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.spliced_tokens.front() {
-            return Ok(Some(*ch));
+        if let Some(ch) = self.peek_spliced_token() {
+            return Ok(Some(ch));
         }
         if self.cursor >= self.active_span.end {
             return Ok(None);
@@ -286,7 +322,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(None);
         };
         if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || default_syntax_resolver().is_special_wrapper_token(ch.to_u128())
+            || default_syntax_resolver().is_splice_trigger_token(ch.to_u128())
         {
             let resolver = default_syntax_resolver();
             let policy = DcProjectionPolicy::forgiving_quiet();
@@ -295,8 +331,8 @@ impl<'a> DcDocumentNavigator<'a> {
                 &**resolver,
                 &policy,
             )? {
-                if let Some(spliced) = self.spliced_tokens.front() {
-                    return Ok(Some(*spliced));
+                if let Some(spliced) = self.peek_spliced_token() {
+                    return Ok(Some(spliced));
                 }
                 if let Some((next_ch, _)) =
                     self.read_token_or_binary_at(self.cursor)?
@@ -314,7 +350,7 @@ impl<'a> DcDocumentNavigator<'a> {
     /// # Errors
     /// Returns an error if reading from the stream fails.
     pub fn read_next_token(&mut self) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.spliced_tokens.pop_front() {
+        if let Some(ch) = self.pop_spliced_token() {
             return Ok(Some(ch));
         }
         if self.cursor >= self.active_span.end {
@@ -326,7 +362,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(None);
         };
         if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || default_syntax_resolver().is_special_wrapper_token(ch.to_u128())
+            || default_syntax_resolver().is_splice_trigger_token(ch.to_u128())
         {
             let resolver = default_syntax_resolver();
             let policy = DcProjectionPolicy::forgiving_quiet();
@@ -335,7 +371,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 &**resolver,
                 &policy,
             )? {
-                if let Some(spliced) = self.spliced_tokens.pop_front() {
+                if let Some(spliced) = self.pop_spliced_token() {
                     return Ok(Some(spliced));
                 }
                 if let Some((next_ch, after_next)) =
@@ -351,20 +387,41 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(Some(ch))
     }
 
-    /// Splices tokens into the navigator's stream buffer.
+    /// Splices tokens into the navigator's append-only stream buffer.
     pub fn push_spliced_tokens<I: IntoIterator<Item = DcChar>>(
         &mut self,
         tokens: I,
     ) {
-        for tok in tokens {
-            self.spliced_tokens.push_back(tok);
+        if self.spliced_head >= self.spliced_end {
+            let start = self.spliced_buf.len();
+            self.spliced_buf.extend(tokens);
+            self.spliced_head = start;
+            self.spliced_end = self.spliced_buf.len();
+        } else if self.spliced_end == self.spliced_buf.len() {
+            self.spliced_buf.extend(tokens);
+            self.spliced_end = self.spliced_buf.len();
+        } else {
+            let start = self.spliced_buf.len();
+            if let Some(existing) = self
+                .spliced_buf
+                .get(self.spliced_head..self.spliced_end)
+                .map(<[DcChar]>::to_vec)
+            {
+                self.spliced_buf.extend(existing);
+            }
+            self.spliced_buf.extend(tokens);
+            self.spliced_head = start;
+            self.spliced_end = self.spliced_buf.len();
         }
     }
 
-    /// Returns a reference to the active spliced tokens queue.
+    /// Returns the active slice of spliced tokens remaining to be consumed.
     #[must_use]
-    pub fn spliced_tokens(&self) -> &std::collections::VecDeque<DcChar> {
-        &self.spliced_tokens
+    pub fn spliced_tokens(&self) -> &[DcChar] {
+        // Reason for fallback: empty or out-of-bounds slice indices yield an empty slice.
+        self.spliced_buf
+            .get(self.spliced_head..self.spliced_end)
+            .unwrap_or(&[])
     }
 
     /// If the cursor is currently positioned at a stream-splicing invocation (e.g. `256 lang.say`),
@@ -411,9 +468,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 evaluator.eval_stream_splice(&call_dcs, resolver)?
             {
                 self.cursor = end_offset;
-                for tok in spliced {
-                    self.spliced_tokens.push_back(tok);
-                }
+                self.push_spliced_tokens(spliced);
                 return Ok(true);
             }
         }
@@ -428,36 +483,34 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
         policy: &DcProjectionPolicy,
     ) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.spliced_tokens.pop_front() {
+        if let Some(ch) = self.pop_spliced_token() {
             return Ok(Some(ch));
         }
         if self.splice_stream_invocation(evaluator, resolver, policy)? {
-            if let Some(ch) = self.spliced_tokens.pop_front() {
+            if let Some(ch) = self.pop_spliced_token() {
                 return Ok(Some(ch));
             }
         }
         self.read_next_token()
     }
 
-    /// Saves the current cursor and spliced token state into a checkpoint.
+    /// Saves the current cursor and spliced token slice state into a zero-copy checkpoint.
     #[must_use]
-    pub fn save_checkpoint(&self) -> NavigatorCheckpoint {
+    pub const fn save_checkpoint(&self) -> NavigatorCheckpoint {
         NavigatorCheckpoint {
             cursor: self.cursor,
             active_span: self.active_span,
-            spliced_tokens: self.spliced_tokens.clone(),
+            spliced_head: self.spliced_head,
+            spliced_end: self.spliced_end,
         }
     }
 
-    /// Restores a previously saved checkpoint.
-    pub fn restore_checkpoint(&mut self, checkpoint: NavigatorCheckpoint) {
+    /// Restores a previously saved checkpoint in O(1) without heap allocation.
+    pub const fn restore_checkpoint(&mut self, checkpoint: NavigatorCheckpoint) {
         self.cursor = checkpoint.cursor;
         self.active_span = checkpoint.active_span;
-        if !self.spliced_tokens.is_empty()
-            || !checkpoint.spliced_tokens.is_empty()
-        {
-            self.spliced_tokens = checkpoint.spliced_tokens;
-        }
+        self.spliced_head = checkpoint.spliced_head;
+        self.spliced_end = checkpoint.spliced_end;
     }
 
     /// Creates a streaming and seeking navigator over an on-disk `.dcmm` file
@@ -501,7 +554,9 @@ impl<'a> DcDocumentNavigator<'a> {
             active_span: DcByteSpan::new(header_end, file_len),
             level_stack: Vec::new(),
             diagnostics: Vec::new(),
-            spliced_tokens: std::collections::VecDeque::new(),
+            spliced_buf: Vec::new(),
+            spliced_head: 0,
+            spliced_end: 0,
             scan_cache: NavScanCache::default(),
         })
     }
@@ -840,7 +895,7 @@ impl<'a> DcDocumentNavigator<'a> {
         escaped: bool,
         resolver: &dyn SyntaxRuleResolver,
     ) -> bool {
-        let mut iter = self.spliced_tokens.iter().skip(1);
+        let mut iter = self.spliced_tokens().iter().skip(1);
         while let Some(&t) = iter.next() {
             if escaped && t.fills_role_with(DcRole::Escape, resolver) {
                 let _ = iter.next();
@@ -859,9 +914,9 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> DcMstring {
         let mut out = DcMstring::new();
-        while let Some(tok) = self.spliced_tokens.pop_front() {
+        while let Some(tok) = self.pop_spliced_token() {
             if tok.fills_role_with(DcRole::Escape, resolver) {
-                if let Some(escaped) = self.spliced_tokens.pop_front() {
+                if let Some(escaped) = self.pop_spliced_token() {
                     out.push_char(escaped);
                 }
             } else if tok == closer
@@ -883,8 +938,8 @@ impl<'a> DcDocumentNavigator<'a> {
     ) -> Result<Option<DcFrameStub>> {
         let zero_span = DcByteSpan::new(self.cursor, self.cursor);
         if head_dc.fills_role_with(DcRole::Escape, resolver) {
-            self.spliced_tokens.pop_front();
-            let Some(escaped_dc) = self.spliced_tokens.pop_front() else {
+            self.pop_spliced_token();
+            let Some(escaped_dc) = self.pop_spliced_token() else {
                 self.syntax_issue(
                     policy,
                     self.cursor,
@@ -917,7 +972,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     expected_closer.to_u128(),
                 ))
         {
-            self.spliced_tokens.pop_front();
+            self.pop_spliced_token();
             return Ok(None);
         }
 
@@ -933,13 +988,13 @@ impl<'a> DcDocumentNavigator<'a> {
                     DcChar::from_u128,
                 );
             if self.spliced_has_unescaped_closer(closer, true, resolver) {
-                self.spliced_tokens.pop_front();
+                self.pop_spliced_token();
                 let mut type_header = Vec::new();
-                if self.spliced_tokens.front().is_some_and(|t| {
+                if self.peek_spliced_token().is_some_and(|t| {
                     t.fills_role_with(DcRole::BeginTypeDef, resolver)
                 }) {
-                    self.spliced_tokens.pop_front();
-                    while let Some(tok) = self.spliced_tokens.pop_front() {
+                    self.pop_spliced_token();
+                    while let Some(tok) = self.pop_spliced_token() {
                         if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
                             break;
                         }
@@ -972,7 +1027,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     DcChar::from_u128,
                 );
             if self.spliced_has_unescaped_closer(closer, true, resolver) {
-                self.spliced_tokens.pop_front();
+                self.pop_spliced_token();
                 let mut type_ctx = SyntaxEvalContext::new(resolver, None);
                 type_ctx.policy.clone_from(policy);
                 let _ = self
@@ -1000,9 +1055,9 @@ impl<'a> DcDocumentNavigator<'a> {
                     DcChar::from_u128,
                 );
             if self.spliced_has_unescaped_closer(closer, false, resolver) {
-                self.spliced_tokens.pop_front();
-                let format = match self.spliced_tokens.front() {
-                    Some(&tok)
+                self.pop_spliced_token();
+                let format = match self.peek_spliced_token() {
+                    Some(tok)
                         if tok == closer
                             || resolver.is_equivalent_to(
                                 tok.to_u128(),
@@ -1013,12 +1068,12 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     // Reason for fallback: popped number format token defaults to DC_INTEGER.
                     Some(_) => {
-                        self.spliced_tokens.pop_front().unwrap_or(DC_INTEGER)
+                        self.pop_spliced_token().unwrap_or(DC_INTEGER)
                     }
                     None => DC_INTEGER,
                 };
                 let mut digits = Vec::new();
-                while let Some(tok) = self.spliced_tokens.pop_front() {
+                while let Some(tok) = self.pop_spliced_token() {
                     if tok == closer
                         || resolver
                             .is_equivalent_to(tok.to_u128(), closer.to_u128())
@@ -1051,7 +1106,7 @@ impl<'a> DcDocumentNavigator<'a> {
         if let Some(closer) = closer_opt
             && self.spliced_has_unescaped_closer(closer, false, resolver)
         {
-            self.spliced_tokens.pop_front();
+            self.pop_spliced_token();
             return Ok(Some(DcFrameStub {
                 head_dc,
                 closer_dc: Some(closer),
@@ -1061,7 +1116,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }));
         }
 
-        self.spliced_tokens.pop_front();
+        self.pop_spliced_token();
         Ok(Some(DcFrameStub {
             head_dc,
             closer_dc: None,
@@ -1071,12 +1126,218 @@ impl<'a> DcDocumentNavigator<'a> {
         }))
     }
 
+    pub(super) fn try_fast_scan_prefix_atom_arity(
+        &mut self,
+        after_first: u64,
+        arity: u8,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<u64>> {
+        let mut offset = after_first;
+        for _ in 0..arity {
+            if offset >= self.active_span.end {
+                return Ok(None);
+            }
+            let Some((tok, after_tok)) = self.read_token_or_binary_at(offset)?
+            else {
+                return Ok(None);
+            };
+            if resolver.is_splice_trigger_token(tok.to_u128()) {
+                return Ok(None);
+            }
+            if resolver.is_plain_atom_dc(tok.to_u128()) {
+                offset = after_tok;
+            } else if tok.fills_role_with(DcRole::Escape, resolver) {
+                if after_tok >= self.active_span.end {
+                    return Ok(None);
+                }
+                let Some((escaped_tok, after_escaped)) =
+                    self.read_token_or_binary_at(after_tok)?
+                else {
+                    return Ok(None);
+                };
+                if escaped_tok.fills_role_with(DcRole::Escape, resolver)
+                    || escaped_tok
+                        == ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM
+                    || resolver.is_equivalent_to(
+                        escaped_tok.to_u128(),
+                        ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM
+                            .to_u128(),
+                    )
+                {
+                    offset = after_escaped;
+                } else {
+                    return Ok(None);
+                }
+            } else if tok == ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM
+                || resolver.is_equivalent_to(
+                    tok.to_u128(),
+                    ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM.to_u128(),
+                )
+            {
+                if after_tok >= self.active_span.end {
+                    return Ok(None);
+                }
+                let saved = self.save_checkpoint();
+                self.cursor = after_tok;
+                let mut ctx = SyntaxEvalContext::new(resolver, None);
+                ctx.policy.clone_from(policy);
+                let matched = self.eval_term_single(
+                    &SyntaxTerm::NamedConstruct {
+                        name: "value".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    },
+                    &mut ctx,
+                )?;
+                let val_end = self.cursor;
+                let has_spliced = self.has_spliced_tokens();
+                self.restore_checkpoint(saved);
+                if matched && !ctx.has_errors && !has_spliced {
+                    offset = val_end;
+                } else {
+                    return Ok(None);
+                }
+            } else {
+                return Ok(None);
+            }
+        }
+        Ok(Some(offset))
+    }
+
+    pub(super) fn try_fast_scan_prefix_arity(
+        &mut self,
+        first_dc: DcChar,
+        after_first: u64,
+        arity: u8,
+        rule: &ctb_formats_dcdata::syntax::DcSyntaxRule,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<u64>> {
+        if after_first >= self.active_span.end
+            || resolver.matches_script(".EL Routines", first_dc.to_u128())
+            || first_dc.fills_role_with(DcRole::RoutineInvocation, resolver)
+            || resolver.is_representation_set(first_dc.to_u128())
+        {
+            return Ok(None);
+        }
+        let SyntaxPattern::Sequence(elements) = &rule.pattern else {
+            return Ok(None);
+        };
+        if elements.len() != usize::from(arity).saturating_add(1)
+            || !elements
+                .iter()
+                .all(|el| el.quantifier == Quantifier::ExactOne)
+        {
+            return Ok(None);
+        }
+        let Some(operands) = elements.get(1..) else {
+            return Ok(None);
+        };
+        if arity == 1
+            && let [
+                SyntaxElement {
+                    term:
+                        SyntaxTerm::NamedConstruct {
+                            name,
+                            subtype,
+                            capture_var: None,
+                        },
+                    quantifier: Quantifier::ExactOne,
+                },
+            ] = operands
+            && let Some((arg_tok, after_arg)) =
+                self.read_token_or_binary_at(after_first)?
+            && !resolver.is_special_wrapper_token(arg_tok.to_u128())
+            && !arg_tok
+                .fills_role_with(DcRole::EvaluableExpressionStarter, resolver)
+        {
+            if name == "boolean"
+                && subtype.is_none()
+                && resolver.token_satisfies_type(
+                    arg_tok.to_u128(),
+                    "boolean",
+                    None,
+                )
+            {
+                return Ok(Some(after_arg));
+            }
+            if (name == "string" || name == "String")
+                && subtype.is_none()
+                && arg_tok.fills_role_with(DcRole::BeginLiteral, resolver)
+            {
+                let saved = self.save_checkpoint();
+                self.cursor = after_first;
+                let mut ctx =
+                    SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
+                ctx.policy.clone_from(policy);
+                let ok = self.eval_literal_frame(
+                    Some(DcRole::TypeString),
+                    None,
+                    &mut ctx,
+                )?;
+                let end = self.cursor;
+                let has_spliced = self.has_spliced_tokens();
+                self.restore_checkpoint(saved);
+                if ok && !ctx.has_errors && !has_spliced {
+                    return Ok(Some(end));
+                }
+            } else if name == "identifier"
+                && subtype.is_none()
+                && arg_tok.fills_role_with(DcRole::BeginIdentifier, resolver)
+            {
+                let saved = self.save_checkpoint();
+                self.cursor = after_first;
+                let mut ctx =
+                    SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
+                ctx.policy.clone_from(policy);
+                let ok = self.eval_identifier_frame(None, &mut ctx)?;
+                let end = self.cursor;
+                let has_spliced = self.has_spliced_tokens();
+                self.restore_checkpoint(saved);
+                if ok && !ctx.has_errors && !has_spliced {
+                    return Ok(Some(end));
+                }
+            } else if (name == "number" || name == "Number")
+                && arg_tok.fills_role_with(DcRole::BeginNumber, resolver)
+            {
+                let saved = self.save_checkpoint();
+                self.cursor = after_first;
+                let mut ctx =
+                    SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
+                ctx.policy.clone_from(policy);
+                let ok =
+                    self.eval_number_frame(subtype.as_deref(), None, &mut ctx)?;
+                let end = self.cursor;
+                let has_spliced = self.has_spliced_tokens();
+                self.restore_checkpoint(saved);
+                if ok && !ctx.has_errors && !has_spliced {
+                    return Ok(Some(end));
+                }
+            }
+        }
+        let saved = self.save_checkpoint();
+        self.cursor = after_first;
+        let mut ctx =
+            SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
+        ctx.policy.clone_from(policy);
+        let ok = self.eval_fixed_prefix_operands(operands, &mut ctx)?;
+        let end = self.cursor;
+        let has_spliced = self.has_spliced_tokens();
+        self.restore_checkpoint(saved);
+        if ok && !ctx.has_errors && !has_spliced {
+            Ok(Some(end))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub(super) fn scan_sibling_stub_with_resolver(
         &mut self,
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcFrameStub>> {
-        if let Some(&head_dc) = self.spliced_tokens.front() {
+        if let Some(head_dc) = self.peek_spliced_token() {
             return self.scan_spliced_sibling_stub(head_dc, policy, resolver);
         }
 
@@ -1264,7 +1525,7 @@ impl<'a> DcDocumentNavigator<'a> {
             // 5. Check if `first_dc` has a prefix syntax rule (`:~ ...`)
             if let Some(rule) = resolver.resolve_rule(&target) {
                 if rule.pattern.starts_with_self() {
-                    if self.spliced_tokens.is_empty() {
+                    if !self.has_spliced_tokens() {
                         if let Some(&(cached_end, true)) = self
                             .scan_cache
                             .validated_rule_spans
@@ -1290,35 +1551,56 @@ impl<'a> DcDocumentNavigator<'a> {
                                 }));
                             }
                         }
-                        if resolver.framing_shape(first_dc.to_u128())
-                            == ctb_formats_dcdata::syntax::FramingShape::PrefixAtomArity(2)
+                        let fast_end = match resolver
+                            .framing_shape(first_dc.to_u128())
                         {
-                            if let Some((arg1, after_arg1)) =
-                                self.read_token_or_binary_at(after_first)?
+                            ctb_formats_dcdata::syntax::FramingShape::PrefixAtomArity(
+                                arity,
+                            ) => self.try_fast_scan_prefix_atom_arity(
+                                after_first,
+                                arity,
+                                policy,
+                                resolver,
+                            )?,
+                            ctb_formats_dcdata::syntax::FramingShape::PrefixArity(
+                                arity,
+                            ) => self.try_fast_scan_prefix_arity(
+                                first_dc,
+                                after_first,
+                                arity,
+                                rule,
+                                policy,
+                                resolver,
+                            )?,
+                            _ => None,
+                        };
+                        if let Some(end_offset) = fast_end {
+                            if self.scan_cache.validated_rule_spans.len()
+                                >= MAX_NAV_CACHE_ENTRIES
                             {
-                                if resolver.is_plain_atom_dc(arg1.to_u128()) {
-                                    if let Some((arg2, after_arg2)) =
-                                        self.read_token_or_binary_at(after_arg1)?
-                                    {
-                                        if resolver.is_plain_atom_dc(arg2.to_u128()) {
-                                            self.scan_cache
-                                                .validated_rule_spans
-                                                .insert((first_dc.to_u128(), start_offset), (after_arg2, true));
-                                            self.cursor = after_arg2;
-                                            return Ok(Some(DcFrameStub {
-                                                head_dc: first_dc,
-                                                closer_dc: None,
-                                                outer_span: DcByteSpan::new(start_offset, after_arg2),
-                                                inner_span: Some(DcByteSpan::new(
-                                                    after_first,
-                                                    after_arg2,
-                                                )),
-                                                header_info: DcFrameHeaderInfo::None,
-                                            }));
-                                        }
-                                    }
-                                }
+                                self.scan_cache.validated_rule_spans.clear();
                             }
+                            self.scan_cache.validated_rule_spans.insert(
+                                (first_dc.to_u128(), start_offset),
+                                (end_offset, true),
+                            );
+                            self.cursor = end_offset;
+                            return Ok(Some(DcFrameStub {
+                                head_dc: first_dc,
+                                closer_dc: None,
+                                outer_span: DcByteSpan::new(
+                                    start_offset,
+                                    end_offset,
+                                ),
+                                inner_span: (end_offset > after_first)
+                                    .then(|| {
+                                        DcByteSpan::new(
+                                            after_first,
+                                            end_offset,
+                                        )
+                                    }),
+                                header_info: DcFrameHeaderInfo::None,
+                            }));
                         }
                     }
                     if after_first >= self.active_span.end {
@@ -1369,7 +1651,7 @@ impl<'a> DcDocumentNavigator<'a> {
                                 resolver,
                             )?;
                         }
-                        if self.spliced_tokens.is_empty() {
+                        if !self.has_spliced_tokens() {
                             self.scan_cache.validated_rule_spans.insert(
                                 (first_dc.to_u128(), start_offset),
                                 (last_end, true),
@@ -3710,12 +3992,26 @@ mod tests {
         assert_eq!(resolver.framing_shape(sdc(269)), FramingShape::Infix);
         assert_eq!(resolver.framing_shape(sdc(517)), FramingShape::Atom);
 
-        // Plain atom_dc triple (584 567 596) + inline-value atom_dc triple (610 568 616 <lit>)
+        // Verify dedicated splice trigger check vs broader special wrapper set
+        assert!(resolver.is_splice_trigger_token(sdc(256)));
+        assert!(!resolver.is_splice_trigger_token(sdc(315)));
+        assert!(!resolver.is_splice_trigger_token(sdc(316)));
+        assert!(!resolver.is_splice_trigger_token(sdc(397)));
+        assert!(!resolver.is_splice_trigger_token(sdc(561)));
+        assert!(resolver.is_special_wrapper_token(sdc(315)));
+
+        // Plain atom_dc triple (584 567 596) + escaped atom_dc triple (584 255 255 255 616)
+        // + inline-value atom_dc triple (610 568 616 <lit>) + PrefixArity(1) (616 <lit>)
         let mut doc = DcMstring::new();
         for tok in [
             DcChar::from_short(584),
             DcChar::from_short(567),
             DcChar::from_short(596),
+            DcChar::from_short(584),
+            DcChar::from_short(255),
+            DcChar::from_short(255),
+            DcChar::from_short(255),
+            DcChar::from_short(616),
             DcChar::from_short(610),
             DcChar::from_short(568),
             DcChar::from_short(616),
@@ -3725,6 +4021,13 @@ mod tests {
             DcChar::from_short(263),
             DcChar::from_u128(65),
             DcChar::from_short(261),
+            DcChar::from_short(616),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(264),
+            DcChar::from_short(263),
+            DcChar::from_u128(66),
+            DcChar::from_short(261),
         ] {
             doc.push_char(tok);
         }
@@ -3733,7 +4036,24 @@ mod tests {
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &strict)?;
-        assert_eq!(arena.roots().len(), 2);
+        assert_eq!(arena.roots().len(), 4);
+
+        // Verify zero-copy Copy checkpoint behavior over spliced token slice cursor
+        let mut s_nav = DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));
+        s_nav.push_spliced_tokens([
+            DcChar::from_short(517),
+            DcChar::from_short(518),
+        ]);
+        let cp1: NavigatorCheckpoint = s_nav.save_checkpoint();
+        let cp1_copy = cp1;
+        assert_eq!(s_nav.read_next_token()?, Some(DcChar::from_short(517)));
+        s_nav.push_spliced_tokens([DcChar::from_short(316)]);
+        assert_eq!(s_nav.spliced_tokens().len(), 2);
+        s_nav.restore_checkpoint(cp1_copy);
+        assert_eq!(
+            s_nav.spliced_tokens(),
+            &[DcChar::from_short(517), DcChar::from_short(518)]
+        );
 
         Ok(())
     }

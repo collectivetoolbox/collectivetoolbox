@@ -225,6 +225,11 @@ pub trait SyntaxRuleResolver {
             || self.token_fills_role(token, DcRole::OptionalAbsent)
             || self.is_representation_set(token)
     }
+    /// Returns true if `token` is a stream-splicing trigger (`Dc 256 "void lang.say([string] text)"`
+    /// or an equivalent character).
+    fn is_splice_trigger_token(&self, token: u128) -> bool {
+        self.token_fills_role(token, DcRole::LangSay)
+    }
     /// Returns true if `token` matches the single-token branch of `[atom_dc]`
     /// (i.e. is not in the negated delimiter/operator exclusion set of `atom_dc`).
     fn is_plain_atom_dc(&self, token: u128) -> bool {
@@ -749,6 +754,7 @@ pub struct DatasetRuleResolver {
     pub(super) subtypes: HashMap<u128, HashSet<u128>>,
     pub(super) framing_shapes: HashMap<u128, FramingShape>,
     pub(super) special_wrapper_tokens: HashSet<u128>,
+    pub(super) splice_trigger_tokens: HashSet<u128>,
     pub(super) excluded_atom_dc_tokens: HashSet<u128>,
 }
 
@@ -1033,6 +1039,7 @@ impl DatasetRuleResolver {
     pub(super) fn rebuild_framing_and_wrapper_tables(&mut self) {
         self.framing_shapes.clear();
         self.special_wrapper_tokens.clear();
+        self.splice_trigger_tokens.clear();
         self.excluded_atom_dc_tokens.clear();
 
         let mut candidate_targets: HashSet<CharTarget> =
@@ -1087,6 +1094,17 @@ impl DatasetRuleResolver {
         for (&alias, &canon) in &self.canonical_map {
             if self.special_wrapper_tokens.contains(&canon) {
                 self.special_wrapper_tokens.insert(alias);
+            }
+        }
+
+        let say_base = crate::dc::DC_LANG_SAY.to_u128();
+        self.splice_trigger_tokens.insert(say_base);
+        if let Some(equivs) = self.semantic_equivalents.get(&say_base) {
+            self.splice_trigger_tokens.extend(equivs.iter().copied());
+        }
+        for (&alias, &canon) in &self.canonical_map {
+            if self.splice_trigger_tokens.contains(&canon) {
+                self.splice_trigger_tokens.insert(alias);
             }
         }
 
@@ -2361,6 +2379,16 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             || self.token_fills_role(token, DcRole::OptionalPresent)
             || self.token_fills_role(token, DcRole::OptionalAbsent)
             || self.is_representation_set(token)
+    }
+
+    fn is_splice_trigger_token(&self, token: u128) -> bool {
+        if self.splice_trigger_tokens.len() == 1 {
+            return token == crate::dc::DC_LANG_SAY.to_u128();
+        }
+        if !self.splice_trigger_tokens.is_empty() {
+            return self.splice_trigger_tokens.contains(&token);
+        }
+        self.token_fills_role(token, DcRole::LangSay)
     }
 
     fn is_plain_atom_dc(&self, token: u128) -> bool {
