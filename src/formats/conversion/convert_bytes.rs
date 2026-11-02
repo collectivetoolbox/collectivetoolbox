@@ -423,7 +423,13 @@ pub fn convert_dcmstring_to_bytes(
 ) -> Result<DcExportResult> {
     let (bytes, log) = match format {
         SupportedDcOutputFormat::Utf8 => {
-            ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8(doc)?
+            ctb_formats_dcstring::converters::utf8::dcmstr_to_utf8_with_options(
+                doc,
+                &ctb_formats_dcstring::converters::utf8::DcListUtf8Settings {
+                    canonicalize_equivalent_dcs: true,
+                    ..Default::default()
+                },
+            )?
         }
         SupportedDcOutputFormat::DcText => {
             ctb_formats_dcstring::converters::dctext::dcmstring_to_dctext(doc)?
@@ -1147,6 +1153,17 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_convert_dceutils_legacy_cdce_and_control_preservation() {
+        let mut text_doc = DcMstring::new();
+        for short_id in [57, 86, 93, 93, 96, 119] {
+            text_doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
+        }
+        let text = convert_dcmstring_to_bytes(
+            &text_doc,
+            SupportedDcOutputFormat::Utf8,
+            &DcExportOptions::default(),
+        ).unwrap();
+        assert_eq!(text.bytes, "Hello\u{85}".as_bytes());
+        assert!(!text.log.has_warnings());
         // 1. Autodetect and roundtrip all valid Weave .legacy_cdce fixtures
         let fixtures: &[(&str, &[u8])] = &[
             (

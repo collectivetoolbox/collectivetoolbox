@@ -211,7 +211,7 @@ fn strip_outer_unbounded_markers(dcs: &[u32]) -> Vec<u32> {
 /// logging warnings in `log` for any binary chunks, long Dcs (`> SHORT_DC_REGION_END`),
 /// or unmappable Unicode characters (when targeting formats that do not support
 /// DCE 3.01a+ Base64 encapsulation).
-fn dcmstring_to_dceutils_short_dcs(
+pub(crate) fn dcmstring_to_dceutils_short_dcs(
     doc: &DcMstring,
     target_format: &str,
     log: &mut FormatLog,

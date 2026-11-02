@@ -1429,14 +1429,13 @@ fn decode_dce_content_short_dcs(
     Ok(out)
 }
 
-fn convert_cdce_to_dc_str(
+pub(crate) fn decode_cdce(
     data: &[u8],
     legacy_only: bool,
     strict: bool,
-    encapsulate_unmapped_utf8: bool,
     permissive: bool,
     log: &mut FormatLog,
-) -> Result<String> {
+) -> Result<ctb_formats_dcstring::DcMstring> {
     let (doc, text_log) =
         ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring_with_options(
             data, permissive,
@@ -1450,16 +1449,8 @@ fn convert_cdce_to_dc_str(
         })
         .collect::<Result<_>>()?;
 
-    let mut out_dcs: Vec<u32> = Vec::new();
-    let mut unmapped_utf8_buf = String::new();
+    let mut output = ctb_formats_dcstring::DcMstring::new();
     let mut i = 0_usize;
-
-    let flush_unmapped = |buf: &mut String, out: &mut Vec<u32>| {
-        if !buf.is_empty() {
-            out.extend(encode_utf8_to_dc64_encapsulated(buf.as_bytes()));
-            buf.clear();
-        }
-    };
 
     while i < codepoints.len() {
         let cp = *codepoints
@@ -1469,8 +1460,7 @@ fn convert_cdce_to_dc_str(
             if let Some((dc_val, consumed)) =
                 parse_at_escape(&codepoints, i, legacy_only)
             {
-                flush_unmapped(&mut unmapped_utf8_buf, &mut out_dcs);
-                out_dcs.push(dc_val);
+                output.push_char(ctb_formats_dcstring::DcChar::from_short(dc_val));
                 i = i.saturating_add(consumed);
                 continue;
             }
@@ -1484,34 +1474,28 @@ fn convert_cdce_to_dc_str(
             log.warn(&format!(
                 "Warning: Unicode recovery attempted for corrupted CDCE sequence at codepoint index {i}"
             ));
-            flush_unmapped(&mut unmapped_utf8_buf, &mut out_dcs);
-            out_dcs.push(1);
-            i = i.saturating_add(1);
-        } else if let Some(short_dc) = if encapsulate_unmapped_utf8 {
-            unicode_codepoint_to_short_dc(cp)
-        } else {
-            unicode_codepoint_to_short_dc_lossy(cp)
-        } {
-            flush_unmapped(&mut unmapped_utf8_buf, &mut out_dcs);
-            out_dcs.push(short_dc);
-            i = i.saturating_add(1);
-        } else if encapsulate_unmapped_utf8 && let Some(ch) = char::from_u32(cp)
-        {
-            unmapped_utf8_buf.push(ch);
+            output.push_char(ctb_formats_dcstring::DcChar::from('@'));
             i = i.saturating_add(1);
         } else {
-            log.import_warning(
-                u64::try_from(i)?,
-                &format!(
-                    "Unmapped Unicode codepoint U+{cp:04X} dropped during lossy CDCE import"
-                ),
-            );
+            output.push_char(ctb_formats_dcstring::DcChar::from_u128(u128::from(cp)));
             i = i.saturating_add(1);
         }
     }
+    Ok(output)
+}
 
-    flush_unmapped(&mut unmapped_utf8_buf, &mut out_dcs);
-    Ok(join_short_dcs(&out_dcs))
+fn convert_cdce_to_dc_str(
+    data: &[u8],
+    legacy_only: bool,
+    strict: bool,
+    encapsulate_unmapped_utf8: bool,
+    permissive: bool,
+    log: &mut FormatLog,
+) -> Result<String> {
+    let doc = decode_cdce(data, legacy_only, strict, permissive, log)?;
+    let target = if encapsulate_unmapped_utf8 { "cdce" } else { "legacy_cdce" };
+    let dcs = crate::document::dcmstring_to_dceutils_short_dcs(&doc, target, log)?;
+    Ok(join_short_dcs(&dcs))
 }
 
 fn parse_at_escape(
