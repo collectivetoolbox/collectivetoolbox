@@ -582,11 +582,13 @@ pub(super) fn check_libdce_compatibility(
         &b"114,57,86,93,93,96,18,72,96,99,93,85,19,115"[..],
     );
     run_test(
+        // This test has characters that need UTF-8 encapsulation, so the assertion is adapted by dceutils_tests_converter.rs.
         "UTF-8 to Dc, messy",
         dce_convert("Hello— –World!".as_bytes(), "utf8", "dc"),
         &b"114,57,86,93,93,96,18,72,96,99,93,85,19,115"[..],
     );
     run_test(
+        // This test has characters that need UTF-8 encapsulation, so the assertion is adapted by dceutils_tests_converter.rs.
         "UTF-8 to Dc, non-BMP",
         dce_convert("🌄 Hello World! 🌄".as_bytes(), "utf8", "dc"),
         &b"114,18,57,86,93,93,96,18,72,96,99,93,85,19,18,115"[..],
@@ -622,6 +624,7 @@ pub(super) fn check_libdce_compatibility(
         &b"114,57,86,93,93,96,18,72,96,99,93,85,19,115"[..],
     );
     run_test(
+        // This test has characters that need UTF-8 encapsulation, so the assertion is adapted by dceutils_tests_converter.rs.
         "Base64 UTF-8 to Dc, messy",
         dce_convert(
             &ctb_formats_base64::base64_encode("Hello— –World!".as_bytes())
@@ -632,6 +635,7 @@ pub(super) fn check_libdce_compatibility(
         &b"114,57,86,93,93,96,18,72,96,99,93,85,19,115"[..],
     );
     run_test(
+        // This test has characters that need UTF-8 encapsulation, so the assertion is adapted by dceutils_tests_converter.rs.
         "Base64 UTF-8 to Dc, non-BMP",
         dce_convert(
             &ctb_formats_base64::base64_encode("🌄 Hello World! 🌄".as_bytes())
@@ -797,6 +801,7 @@ pub(super) fn check_libdce_compatibility(
     run_test(
         "UTF-32 to Dc, messy",
         dce_convert(
+            // This test has characters that need UTF-8 encapsulation, so the assertion is adapted by dceutils_tests_converter.rs.
             &ctb_formats_encoding::unicode::utf8_to_utf32be(
                 "Hello— –World!".as_bytes(),
             )
@@ -809,6 +814,7 @@ pub(super) fn check_libdce_compatibility(
     run_test(
         "UTF-32 to Dc, non-BMP",
         dce_convert(
+            // This test has characters that need UTF-8 encapsulation, so the assertion is adapted by dceutils_tests_converter.rs.
             &ctb_formats_encoding::unicode::utf8_to_utf32be(
                 "🌄 Hello World! 🌄".as_bytes(),
             )
