@@ -132,6 +132,13 @@ pub fn dclist_to_utf8(
     while i < dclist.len() {
         let Some(&dc) = dclist.get(i) else { break };
 
+        if settings.canonicalize_equivalent_dcs
+            && resolver.matches_named_type_starter("text_encoding_control", dc)
+        {
+            i = i.saturating_add(1);
+            continue;
+        }
+
         // Case 1: Standard Unicode codepoint (0..=0x10FFFF, excluding surrogates)
         if dc <= 0x10_FFFF {
             if let Ok(cp_u32) = u32::try_from(dc) {
@@ -280,6 +287,10 @@ fn decode_utf8_encapsulation(
         }
         if resolver.token_fills_role(token, DcRole::StartEncapsulationUtf8) {
             break;
+        }
+        if resolver.matches_named_type_starter("base64_transport_control", token) {
+            end = end.saturating_add(1);
+            continue;
         }
         if let Some(digit) = resolver.base64_digit_value(token) {
             digits.push(

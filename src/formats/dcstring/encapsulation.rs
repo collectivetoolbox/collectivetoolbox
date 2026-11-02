@@ -196,6 +196,9 @@ impl<'a> Cursor<'a> {
             ) {
                 break;
             }
+            if self.resolver.matches_named_type_starter("base64_transport_control", ch.to_u128()) {
+                continue;
+            }
             let is_digit = self.resolver.token_fills_role(
                 ch.to_u128(),
                 ctb_formats_dcdata::syntax::DcRole::Base64Digit,
