@@ -33,9 +33,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   ([`MAX_DCE_3_01A_SHORT_DC`]), unlocking Base64 encapsulation
 //!   (`Dc 191` .. `Dc 127..=190` / `Dc 195` .. `Dc 192`) for arbitrary UTF-8 and data.
 //! - **DCE 3.02a (`3_02a`, `3_02a_raw`, `hex_3_02a`, `hex_3_02a_raw`)**:
-//!   Losslessly encodes and decodes all allocated short Dcs in `0..=202`
-//!   ([`MAX_DCE_3_02A_SHORT_DC`], plus version selector `Dc 205`), adding keyed embed
-//!   framing (`Dc 200..=202`) on `Core:C9..=CB`.
+//!   Stubbed (returns an error when invoked). Allocates short Dcs `0..=202`
+//!   ([`MAX_DCE_3_02A_SHORT_DC`]), adding keyed embed framing (`Dc 200..=202`) on
+//!   `Core:C9..=CB`, but the 18 October 2013 specification left its version selector
+//!   in `DCE_Version_Selectors` and corresponding short Dc unassigned (marked as TBD;
+//!   `Dc 205` is `DCE Version Selector 3.03a`, so position `0x03` is not used here to
+//!   avoid colliding with 3.03a).
 //! - **Corrected Base64 digit 34 (`Dc 161`, `'i'`) vs digit 8 (`Dc 135`, `'I'`)**:
 //!   The upstream `.ods` spreadsheet auto-capitalized lowercase `'i'` to `'I'`,
 //!   corrupting `Base64_to_Dc` and `Dc_to_Base64`.
@@ -45,9 +48,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   control whitespace, decimal-point projection, and variation selectors.
 //!   Unmapped Unicode is preserved using UTF-8 encapsulation on capable targets.
 //!
-//! The 3.02a version selector is an existing extension: its spreadsheet leaves
-//! the selector unassigned. Legacy one-step and HTML translators still delegate
-//! to the PHP-compatible implementation; see `porting-notes.md` for audit limits.
+//! The 3.02a version selector is left marked as TBD because its spreadsheet leaves
+//! the selector unassigned and `Dc 205` is allocated to DCE 3.03a. Legacy one-step and
+//! HTML translators still delegate to the PHP-compatible implementation; see
+//! `porting-notes.md` for audit limits.
 
 #[allow(
     unused_imports,
@@ -79,18 +83,21 @@ pub enum DceVersion {
     V3_0a,
     /// DCE 3.01a (version byte `0x02`, short Dcs `0..=199`, Base64 encapsulation).
     V3_01a,
-    /// DCE 3.02a (version byte `0x03`, short Dcs `0..=202`, keyed embeds + Base64 encapsulation).
+    /// DCE 3.02a (stubbed; version byte TBD, short Dcs `0..=202`, keyed embeds + Base64 encapsulation).
     V3_02a,
 }
 
 impl DceVersion {
-    /// Returns the DCE header version selector byte (`0x01`, `0x02`, or `0x03`).
+    /// Returns the DCE header version selector byte (`Some(0x01)` for 3.0a, `Some(0x02)` for 3.01a,
+    /// or `None` for 3.02a whose version selector byte in `DCE_Version_Selectors` is TBD).
     #[must_use]
-    pub const fn version_byte(self) -> u8 {
+    pub const fn version_byte(self) -> Option<u8> {
         match self {
-            Self::V3_0a => 0x01,
-            Self::V3_01a => 0x02,
-            Self::V3_02a => 0x03,
+            Self::V3_0a => Some(0x01),
+            Self::V3_01a => Some(0x02),
+            // TBD: the 18 October 2013 DCE 3.02a specification left its version selector
+            // position in DCE_Version_Selectors unassigned (position 0x03 may belong to 3.03a).
+            Self::V3_02a => None,
         }
     }
 
@@ -123,7 +130,9 @@ impl DceVersion {
             }
             Self::V3_01a => short_dc <= MAX_DCE_3_01A_SHORT_DC,
             Self::V3_02a => {
-                short_dc <= MAX_DCE_3_02A_SHORT_DC || short_dc == 205
+                // TBD: version selector short Dc for 3.02a was left unassigned in the spec
+                // (Dc 205 is DCE Version Selector 3.03a).
+                short_dc <= MAX_DCE_3_02A_SHORT_DC
             }
         }
     }
@@ -414,12 +423,13 @@ const fn encode_short_dc_in_version(
         200 => Some((DceSheet::Core, 0xC9)),
         201 => Some((DceSheet::Core, 0xCB)),
         202 => Some((DceSheet::Core, 0xCA)),
-        205 => Some((DceSheet::DceVersionSelectors, 0x03)),
+        // TBD: DCE 3.02a version selector short Dc and DCE_Version_Selectors byte
+        // (Dc 205 is DCE Version Selector 3.03a).
         _ => None,
     }
 }
 
-/// Detects the DCE format version (`"3_0a"`, `"3_01a"`, `"3_02a"`) of `data`.
+/// Detects the DCE format version (`"3_0a"` or `"3_01a"`) of `data`.
 #[must_use]
 pub fn get_dce_version(data: &[u8]) -> String {
     let mut log = FormatLog::default();
@@ -428,7 +438,7 @@ pub fn get_dce_version(data: &[u8]) -> String {
     res
 }
 
-/// Detects the DCE format version (`"3_0a"`, `"3_01a"`, `"3_02a"`) of `data`,
+/// Detects the DCE format version (`"3_0a"` or `"3_01a"`) of `data`,
 /// recording any errors in `log`.
 pub fn get_dce_version_with_log(data: &[u8], log: &mut FormatLog) -> String {
     if data.len() < 7 || data.get(0..6) != Some(b"DCEe\x02\x01") {
@@ -439,7 +449,7 @@ pub fn get_dce_version_with_log(data: &[u8], log: &mut FormatLog) -> String {
     match data.get(6) {
         Some(&1) => "3_0a".to_string(),
         Some(&2) => "3_01a".to_string(),
-        Some(&3) => "3_02a".to_string(),
+        // TBD: DCE 3.02a version selector byte is unassigned (position 0x03 may belong to 3.03a).
         _ => {
             log.error(
                 "This document is not stored using a supported version of DCE.",
@@ -450,15 +460,15 @@ pub fn get_dce_version_with_log(data: &[u8], log: &mut FormatLog) -> String {
     }
 }
 
-/// Selects the minimum [`DceVersion`] required to represent all short Dcs in `dcs`.
+/// Selects the minimum implemented [`DceVersion`] (`V3_0a` or `V3_01a`) required to represent `dcs`.
+///
+/// Note: [`DceVersion::V3_02a`] (`Dc 200..=202`) is stubbed until its version selector
+/// in `DCE_Version_Selectors` is determined (TBD).
 #[must_use]
 pub fn select_dce_version_for_short_dcs(dcs: &[u32]) -> DceVersion {
     let mut ver = DceVersion::V3_0a;
     for &dc in dcs {
-        if matches!(dc, 200..=202 | 205) {
-            return DceVersion::V3_02a;
-        }
-        if matches!(dc, 2..=12 | 116..=199) {
+        if matches!(dc, 2..=12 | 116..=202) {
             ver = DceVersion::V3_01a;
         }
     }
@@ -534,18 +544,15 @@ pub fn decode_dce_preserving_controls(
             }
             (DceVersion::V3_01a, 0_usize)
         }
-        "3_02a_raw" => {
-            if raw_bytes.first() != Some(&0x80) {
-                log.error(
-                    "This document is not stored using the specified format.",
-                );
-                bail!(
-                    "This document is not stored using the specified format."
-                );
-            }
-            (DceVersion::V3_02a, 0_usize)
+        "3_02a" | "3_02a_raw" => {
+            // Stubbed for later: the 18 October 2013 DCE 3.02a specification left its
+            // version selector in DCE_Version_Selectors unassigned (TBD; position 0x03
+            // may belong to DCE 3.03a / Dc 205).
+            let msg = "DCE 3.02a is not yet implemented (version selector in DCE_Version_Selectors is TBD).";
+            log.error(msg);
+            bail!("{msg}");
         }
-        "3_0a" | "3_01a" | "3_02a" | "dce" => {
+        "3_0a" | "3_01a" | "dce" => {
             if raw_bytes.len() < 7
                 || raw_bytes.get(0..6) != Some(b"DCEe\x02\x01")
             {
@@ -560,7 +567,7 @@ pub fn decode_dce_preserving_controls(
             match (base_fmt, ver_byte) {
                 ("3_0a" | "dce", 1) => (DceVersion::V3_0a, 4_usize),
                 ("3_01a" | "dce", 2) => (DceVersion::V3_01a, 4_usize),
-                ("3_02a" | "dce", 3) => (DceVersion::V3_02a, 4_usize),
+                // TBD: DCE 3.02a version selector byte in DCE_Version_Selectors is unassigned.
                 ("3_0a", _) => {
                     log.error(
                         "This document is not stored using the specified format.",
@@ -569,7 +576,7 @@ pub fn decode_dce_preserving_controls(
                         "This document is not stored using the specified format."
                     );
                 }
-                ("3_01a" | "3_02a", _) => {
+                ("3_01a", _) => {
                     log.error(
                         "This document is not stored using the specified version of DCE.",
                     );
@@ -686,7 +693,8 @@ pub fn decode_dce_preserving_controls(
                 0x00 => out.push(0),
                 0x01 => out.push(112),
                 0x02 if ver >= DceVersion::V3_01a => out.push(194),
-                0x03 if ver >= DceVersion::V3_02a => out.push(205),
+                // TBD: DCE 3.02a version selector byte and short Dc (position 0x03 is unassigned
+                // in the 3.02a specification and may belong to DCE 3.03a / Dc 205).
                 0xFD => {
                     out.push(13);
                     state = DceSheet::Core;
@@ -843,12 +851,12 @@ pub fn encode_dce_preserving_controls(
 
     let is_raw = matches!(base_fmt, "3_0a_raw" | "3_01a_raw" | "3_02a_raw");
 
-    // Strip outer DCE file envelope (`[15, 16, 112|194|205, 13|14, ..., 13|14, 113]`)
-    // only when both header and trailer are present.
+    // Strip outer DCE file envelope (`[15, 16, 112|194, 13|14, ..., 13|14, 113]`;
+    // 3.02a version selector Dc is TBD) only when both header and trailer are present.
     let (inner, inner_offset) = if dcs.len() >= 6
         && dcs.first() == Some(&15)
         && dcs.get(1) == Some(&16)
-        && matches!(dcs.get(2), Some(&112 | &194 | &205))
+        && matches!(dcs.get(2), Some(&112 | &194))
         && matches!(dcs.get(3), Some(&13 | &14))
         && matches!(dcs.get(dcs.len().saturating_sub(2)), Some(&13 | &14))
         && dcs.get(dcs.len().saturating_sub(1)) == Some(&113)
@@ -880,15 +888,27 @@ pub fn encode_dce_preserving_controls(
     let ver = match base_fmt {
         "3_0a" | "3_0a_raw" => DceVersion::V3_0a,
         "3_01a" | "3_01a_raw" => DceVersion::V3_01a,
-        "3_02a" | "3_02a_raw" => DceVersion::V3_02a,
+        "3_02a" | "3_02a_raw" => {
+            // Stubbed for later: the 18 October 2013 DCE 3.02a specification left its
+            // version selector in DCE_Version_Selectors unassigned (TBD; position 0x03
+            // may belong to DCE 3.03a / Dc 205).
+            let msg = "DCE 3.02a is not yet implemented (version selector in DCE_Version_Selectors is TBD).";
+            log.error(msg);
+            bail!("{msg}");
+        }
         "dce" => select_dce_version_for_short_dcs(body),
         _ => unreachable!("base_fmt is constrained above"),
     };
 
     let mut raw_out = Vec::with_capacity(body.len().saturating_add(16));
     if !is_raw {
+        let Some(ver_byte) = ver.version_byte() else {
+            let msg = "DCE 3.02a is not yet implemented (version selector in DCE_Version_Selectors is TBD).";
+            log.error(msg);
+            bail!("{msg}");
+        };
         raw_out.extend_from_slice(b"DCEe\x02\x01");
-        raw_out.push(ver.version_byte());
+        raw_out.push(ver_byte);
         raw_out.push(0xFD);
     }
 
@@ -1289,7 +1309,7 @@ fn decode_dce_content_short_dcs(
     let inner = if all.len() >= 6
         && all.first() == Some(&15)
         && all.get(1) == Some(&16)
-        && matches!(all.get(2), Some(&112 | &194 | &205))
+        && matches!(all.get(2), Some(&112 | &194))
         && matches!(all.get(3), Some(&13 | &14))
         && matches!(all.get(all.len().saturating_sub(2)), Some(&13 | &14))
         && all.get(all.len().saturating_sub(1)) == Some(&113)
@@ -1308,7 +1328,8 @@ fn decode_dce_content_short_dcs(
         let next_dc = inner.get(idx.saturating_add(1)).copied();
         if matches!(dc, 16 | 196..=199) {
             let next_is_sheet_char = match (dc, next_dc) {
-                (16, Some(112 | 194 | 205))
+                // TBD: 3.02a version selector Dc in DCE_Version_Selectors is unassigned.
+                (16, Some(112 | 194))
                 | (196, Some(122..=126))
                 | (197, Some(2..=11))
                 | (198, Some(12))
@@ -2000,7 +2021,6 @@ mod tests {
             "utf8_dc64_bin_enc",
             "utf8_dc64_bin_enc_hex",
             "3_01a",
-            "3_02a",
             "dce",
         ] {
             let (encoded, enc_log) = crate::converter::dce_convert_with_log(
@@ -2024,81 +2044,69 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_new_converter_3_02a_all_short_dcs_0_to_202() {
-        for dc in 0..=crate::MAX_DCE_3_02A_SHORT_DC {
-            for fmt in [
-                "3_02a",
-                "3_02a_raw",
-                "hex_3_02a",
-                "hex_3_02a_raw",
-                "dce",
-                "hex_dce",
-            ] {
-                let mut enc_log = crate::FormatLog::default();
-                let encoded = crate::converter::encode_dce_preserving_controls(
-                    &[dc],
+    fn test_new_converter_3_02a_stubbed_returns_error() {
+        assert_eq!(crate::DceVersion::V3_02a.version_byte(), None);
+        assert!(crate::DceVersion::V3_02a.supports_short_dc(202));
+        assert!(!crate::DceVersion::V3_02a.supports_short_dc(205));
+
+        for fmt in [
+            "3_02a",
+            "dce_3_02a",
+            "3_02a_raw",
+            "dce_3_02a_raw",
+            "hex_3_02a",
+            "3_02a_hex",
+            "dce_3_02a_hex",
+            "hex_3_02a_raw",
+            "3_02a_raw_hex",
+            "dce_3_02a_raw_hex",
+        ] {
+            let mut enc_log = crate::FormatLog::default();
+            assert!(
+                crate::converter::encode_dce_preserving_controls(
+                    &[50],
                     fmt,
                     &mut enc_log,
                 )
-                .unwrap();
-                assert!(
-                    !enc_log.has_errors() && !enc_log.has_warnings(),
-                    "3_02a ({fmt}) encoding of short Dc {dc} had warnings/errors: {enc_log:?}"
-                );
+                .is_err(),
+                "{fmt} encode should return an error while 3.02a is stubbed"
+            );
+            assert!(enc_log.has_errors());
 
-                let mut dec_log = crate::FormatLog::default();
-                let decoded = crate::converter::decode_dce_preserving_controls(
-                    &encoded,
+            let mut dec_log = crate::FormatLog::default();
+            let sample_input = if fmt.contains("hex") {
+                &b"804181"[..]
+            } else {
+                &b"\x80A\x81"[..]
+            };
+            assert!(
+                crate::converter::decode_dce_preserving_controls(
+                    sample_input,
                     fmt,
                     &mut dec_log,
                 )
-                .unwrap();
-                assert!(
-                    !dec_log.has_errors() && !dec_log.has_warnings(),
-                    "3_02a ({fmt}) decoding of short Dc {dc} had warnings/errors: {dec_log:?}"
-                );
-                assert!(
-                    decoded.contains(&dc),
-                    "3_02a ({fmt}) decoded sequence {decoded:?} did not contain short Dc {dc}"
-                );
-
-                let mut reenc_log = crate::FormatLog::default();
-                let reencoded =
-                    crate::converter::encode_dce_preserving_controls(
-                        &decoded,
-                        fmt,
-                        &mut reenc_log,
-                    )
-                    .unwrap();
-                assert_eq!(
-                    reencoded, encoded,
-                    "3_02a ({fmt}) re-encode mismatch for short Dc {dc}"
-                );
-            }
-
-            let dc_input = format!("114,{dc},115");
-            let (dce_bytes, log_out) = crate::converter::dce_convert_with_log(
-                dc_input.as_bytes(),
-                "dc",
-                "3_02a",
-            )
-            .unwrap();
-            assert!(
-                !log_out.has_errors() && !log_out.has_warnings(),
-                "dce_convert dc -> 3_02a failed for Dc {dc}: {log_out:?}"
+                .is_err(),
+                "{fmt} decode should return an error while 3.02a is stubbed"
             );
-            assert_eq!(crate::converter::get_dce_version(&dce_bytes), "3_02a");
-            let (dc_back, log_in) =
-                crate::converter::dce_convert_with_log(&dce_bytes, "dce", "dc")
-                    .unwrap();
+            assert!(dec_log.has_errors());
+
             assert!(
-                !log_in.has_errors() && !log_in.has_warnings(),
-                "dce_convert dce (3_02a) -> dc failed for Dc {dc}: {log_in:?}"
+                crate::converter::dce_convert_with_log(
+                    b"114,50,115",
+                    "dc",
+                    fmt,
+                )
+                .is_err(),
+                "dce_convert dc -> {fmt} should return an error while 3.02a is stubbed"
             );
-            assert_eq!(
-                String::from_utf8(dc_back).unwrap(),
-                dc_input,
-                "dc -> 3_02a -> dc mismatch for short Dc {dc}"
+            assert!(
+                crate::converter::dce_convert_with_log(
+                    sample_input,
+                    fmt,
+                    "dc",
+                )
+                .is_err(),
+                "dce_convert {fmt} -> dc should return an error while 3.02a is stubbed"
             );
         }
     }

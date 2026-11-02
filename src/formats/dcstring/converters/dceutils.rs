@@ -20,11 +20,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Conversion between `dceutils` formats (`CdceLegacy`, `Dce`, `Dce_3_0a`, `Dce_3_01a`, etc.) and `DcMstring`.
 //!
 //! Supported short Dc repertoires by DCE format version:
-//! - **DCE 3.0a (`3_0a`, `3_0a_raw`, `hex_3_0a`, `hex_3_0a_raw`)**: short Dcs `0..=115`.
-//! - **DCE 3.01a (`3_01a`, `3_01a_raw`, `hex_3_01a`, `hex_3_01a_raw`)**: short Dcs `0..=199`,
-//!   unlocking Base64 encapsulation (`Dc 191` .. `Dc 127..=190` / `Dc 195` .. `Dc 192`) for data and UTF-8.
-//! - **DCE 3.02a (`3_02a`, `3_02a_raw`, `hex_3_02a`, `hex_3_02a_raw`) and `dce` / `hex_dce`**:
-//!   short Dcs `0..=202` (plus version selector `Dc 205`) and Base64 encapsulation.
+//! - **DCE 3.0a (`3_0a`, `3_0a_raw`, `hex_3_0a`, `hex_3_0a_raw`)**: short Dcs `0..=115`
+//!   (excluding `2..=12`, which had no byte mappings in 3.0a).
+//! - **DCE 3.01a (`3_01a`, `3_01a_raw`, `hex_3_01a`, `hex_3_01a_raw`) and `dce` / `hex_dce`**:
+//!   short Dcs `0..=199`, unlocking Base64 encapsulation (`Dc 191` .. `Dc 127..=190` / `Dc 195` .. `Dc 192`)
+//!   for data and UTF-8.
+//! - **DCE 3.02a (`3_02a`, `3_02a_raw`, `hex_3_02a`, `hex_3_02a_raw`)**: stubbed (returns an error when
+//!   invoked; version selector in `DCE_Version_Selectors` is TBD).
 //!
 //! Unlike EITE formats, `dceutils` formats do not support `Dc 308` (`Next number is a long (global graph) Dc`).
 //! Unrepresentable characters are logged as warnings in [`FormatLog`], while DCE stateful-encoding control
@@ -417,9 +419,7 @@ mod tests {
     fn test_dceutils_modern_unicode_export() {
         let text = "a-b\t\n\r\u{8}\u{b}\u{c}\u{85}\u{fe00}\u{1f304}@123@";
         let doc = DcMstring::from(text);
-        for format in
-            ["dc", "cdce", "3_01a", "3_01a_raw", "3_02a", "hex_3_02a_raw"]
-        {
+        for format in ["dc", "cdce", "3_01a", "3_01a_raw"] {
             let (encoded, log) = dcmstring_to_dceutils(&doc, format).unwrap();
             assert!(
                 log.has_no_errors() && !log.has_warnings(),
@@ -430,11 +430,18 @@ mod tests {
                     .unwrap();
             assert_eq!(decoded, text.as_bytes(), "{format}");
         }
+        for stubbed in ["3_02a", "3_02a_raw", "hex_3_02a", "hex_3_02a_raw"] {
+            assert!(dcmstring_to_dceutils(&doc, stubbed).is_err());
+            assert!(
+                dceutils_to_dcmstring_with_options(b"\x80A\x81", stubbed, true)
+                    .is_err()
+            );
+        }
     }
 
     #[crate::ctb_test]
     fn test_dceutils_modern_wire_roundtrip() {
-        for format in ["3_0a", "3_01a", "3_02a", "3_01a_raw", "hex_3_02a_raw"] {
+        for format in ["3_0a", "3_01a", "3_01a_raw"] {
             let text = if format == "3_0a" {
                 "Hello!"
             } else {

@@ -64,7 +64,7 @@ fn test_unicode_preservation() {
         "Hello\u{2014} \u{2013}World!",
         "\u{1F304} Hello World! \u{1F304}",
     ] {
-        for format in ["dc", "dce", "3_01a", "3_02a", "cdce"] {
+        for format in ["dc", "dce", "3_01a", "cdce"] {
             let (encoded, log) = crate::dce_convert_new_with_log(
                 text.as_bytes(),
                 "utf8",
@@ -96,12 +96,6 @@ fn test_spreadsheet_byte_tables() {
                 "docs/converted/DCE, version 3.01a r2 (28 December 2012).md"
             ),
         ),
-        (
-            "3_02a_raw",
-            include_str!(
-                "docs/converted/DCE, version 3.02a (18 October 2013).md"
-            ),
-        ),
     ];
     let mut failures = Vec::new();
     for (format, specification) in specifications {
@@ -130,7 +124,6 @@ fn test_spreadsheet_byte_tables() {
                     (_, "Core", 0xC5..=0xC8) if format != "3_0a_raw" => {
                         Some(u32::from(byte).saturating_sub(1))
                     }
-                    ("3_02a_raw", "DCE Version Selectors", 0x03) => Some(205),
                     _ => record
                         .get(1)
                         .and_then(|value| value.parse::<u32>().ok()),
@@ -206,7 +199,7 @@ fn test_malformed_encapsulated_utf8_is_rejected() {
 
 #[crate::ctb_test]
 fn test_dce_envelope_validation() {
-    for (format, version) in [("3_0a", 1), ("3_01a", 2), ("3_02a", 3)] {
+    for (format, version) in [("3_0a", 1), ("3_01a", 2)] {
         let valid = [
             b'D', b'C', b'E', b'e', 2, 1, version, 0xFD, 0x80, b'A', 0x81,
             0xFD, 3,
@@ -229,7 +222,7 @@ fn test_dce_envelope_validation() {
 
 #[crate::ctb_test]
 fn test_mixed_sheet_sequences() {
-    for format in ["3_01a", "3_02a", "hex_3_01a_raw", "hex_3_02a_raw"] {
+    for format in ["3_01a", "hex_3_01a_raw"] {
         for values in [
             "114,2,3,12,119,122,123,50,0,17,115",
             "114,122,0,123,2,0,3,12,0,119,50,115",

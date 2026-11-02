@@ -394,7 +394,6 @@ pub fn convert_bytes_to_dcmstring(
         | SupportedDcInputFormat::Dce_3_01a_raw
         | SupportedDcInputFormat::Dce_3_01a_hex
         | SupportedDcInputFormat::Dce_3_01a_raw_hex
-        | SupportedDcInputFormat::Dce_3_02a
         | SupportedDcInputFormat::Utf8_Dc64
         | SupportedDcInputFormat::Utf8_Dc64_enc
         | SupportedDcInputFormat::Utf8_Dc64_bin
@@ -526,7 +525,6 @@ pub fn convert_dcmstring_to_bytes(
         | SupportedDcOutputFormat::Dce_3_01a_raw
         | SupportedDcOutputFormat::Dce_3_01a_hex
         | SupportedDcOutputFormat::Dce_3_01a_raw_hex
-        | SupportedDcOutputFormat::Dce_3_02a
         | SupportedDcOutputFormat::HtmlLegacyCdce
         | SupportedDcOutputFormat::HtmlLegacyCdceSnippet
         | SupportedDcOutputFormat::Utf8_Dc64
@@ -1340,34 +1338,6 @@ mod tests {
             assert!(
                 dcs.contains(&short_start.saturating_add(u128::from(short_id))),
                 "Dce_3_01a reimported DcMstring missing short Dc {short_id}"
-            );
-        }
-
-        for short_id in 0..=202_u32 {
-            let mut doc = DcMstring::new();
-            doc.push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
-            let exported = convert_dcmstring_to_bytes(
-                &doc,
-                SupportedDcOutputFormat::Dce_3_02a,
-                &DcExportOptions::default(),
-            )
-            .expect("export 0..=202 to Dce_3_02a");
-            assert!(
-                !exported.log.has_errors() && !exported.log.has_warnings(),
-                "Dce_3_02a export of short Dc {short_id} emitted warnings/errors: {:?}",
-                exported.log
-            );
-            let reimported = convert_bytes_to_dcmstring(
-                &exported.bytes,
-                None,
-                &DcConversionOptions::default(),
-            )
-            .expect("reimport Dce_3_02a");
-            assert_eq!(reimported.detected_format, FormatId::Dce_3_02a);
-            let dcs = reimported.document.to_dc_string().unwrap().to_dclist();
-            assert!(
-                dcs.contains(&short_start.saturating_add(u128::from(short_id))),
-                "Dce_3_02a reimported DcMstring missing short Dc {short_id}"
             );
         }
     }

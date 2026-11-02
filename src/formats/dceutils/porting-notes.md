@@ -10,8 +10,12 @@ without maintaining duplicate fixtures.
 ### Remaining Gaps vs Upstream
 
 - The 3.02a spreadsheet still shows the 3.01a header example and leaves its
-  version-selector assignment blank. The existing converter's version byte
-  `03` remains an extension, not a verified historical assignment.
+  version-selector assignment blank, while `Dc 205` in the Dc database is
+  `DCE Version Selector 3.03a`. To avoid colliding with 3.03a on
+  `DCE_Version_Selectors:03`, DCE 3.02a (`3_02a`, `3_02a_raw`, `hex_3_02a`,
+  `hex_3_02a_raw`) is marked unimplemented and returns an error when invoked,
+  with its `Core:C9..=CB` (`Dc 200..=202`) mappings left stubbed in
+  `converter.rs` and its version selector marked as TBD.
 - Legacy one-step translators and HTML output still delegate to the
   PHP-compatible implementation. They have not been independently rewritten or
   established as correct general-purpose HTML converters.
@@ -151,7 +155,7 @@ A separate module, `converter.rs` (`ctb_formats_dceutils::converter`), implement
 1. **Full Short Dc Repertoire by Version**:
    - **DCE 3.0a (`0..=115`)**: Supports all mapped short Dcs in `0..=115` (`0`, `1`, and `13..=115`, including `Dc 13..=17`, `Dc 112` on `DCE_Version_Selectors` (`Core:01`), and `Dc 113..=115`; `Dc 2..=12` had no byte mappings in 3.0a and are logged in `FormatLog` as unmappable and omitted).
    - **DCE 3.01a (`0..=199`)**: Supports all 200 allocated short Dcs (`0..=199`), unlocking Base64 encapsulation (`Dc 191` .. `Dc 127..=190` / `Dc 195` .. `Dc 192`) for arbitrary UTF-8 and data.
-   - **DCE 3.02a (`0..=202`, plus `Dc 205`)**: Supports all 203 allocated short Dcs (`0..=202`), adding keyed embed framing (`Dc 200` on `Core:C9`, `Dc 201` on `Core:CB`, `Dc 202` on `Core:CA`) and version selector `Dc 205` (`DCE_Version_Selectors:03`).
+   - **DCE 3.02a (`0..=202`)**: Stubbed in `converter.rs` (returns an error when invoked). Allocates short Dcs `0..=202` (adding keyed embed framing `Dc 200` on `Core:C9`, `Dc 201` on `Core:CB`, `Dc 202` on `Core:CA`), with the version selector in `DCE_Version_Selectors` marked as TBD (`Dc 205` is `DCE Version Selector 3.03a`).
 2. **Upstream Spreadsheet & PHP Table Fixes**:
    - **Base64 `'i'` (`Dc 161`, digit 34) vs `'I'` (`Dc 135`, digit 8)**: LibreOffice Calc auto-capitalized lowercase `'i'` to `'I'` in the `Base64` and `Dc to Base64` sheets of the `.ods` specification, causing `Base64_to_Dc.csv` to overwrite `'I'` -> `161` and omit `'i'`, and `Dc_to_Base64.csv` to map `161` -> `'I'`.
    - **`Dc 113` (`End DCE content`)**: Fixed the `Core:01` typo in `DCE Character List by ID` (`DcMapSend_dce3_0a.csv` and `DcMapSend_dce3_01a_All.csv`) to `Core:03`.

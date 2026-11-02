@@ -70,8 +70,4 @@
 !:mime	application/octet-stream
 !:ext	dce
 
-0	string		DCEe\x02\x01\x03\xfd	DCE 3.02a document
-!:mime	application/octet-stream
-!:ext	dce
-
 

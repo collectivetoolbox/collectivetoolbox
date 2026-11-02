@@ -837,9 +837,6 @@ pub enum SupportedDcInputFormat {
     /// DCE 3.01a (raw)
     #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
     Dce_3_01a_raw,
-    /// DCE 3.02a
-    #[value(name = "3_02a", alias = "dce_3_02a", alias = "Dce_3_02a", alias = "f652")]
-    Dce_3_02a,
     /// DCE 3.0a
     #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
     Dce_3_0a,
@@ -1004,7 +1001,6 @@ impl SupportedDcInputFormat {
     pub const ALL: &'static [SupportedDcInputFormat] = &[
         Self::Dce_3_01a,
         Self::Dce_3_01a_raw,
-        Self::Dce_3_02a,
         Self::Dce_3_0a,
         Self::Dce_3_0a_raw,
         Self::AlphaSmartNeo,
@@ -1063,7 +1059,6 @@ impl SupportedDcInputFormat {
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
         FormatId::Dce_3_01a,
         FormatId::Dce_3_01a_raw,
-        FormatId::Dce_3_02a,
         FormatId::Dce_3_0a,
         FormatId::Dce_3_0a_raw,
         FormatId::AlphaSmartNeo,
@@ -1127,7 +1122,6 @@ impl SupportedDcInputFormat {
         match self {
             Self::Dce_3_01a => "3_01a",
             Self::Dce_3_01a_raw => "3_01a_raw",
-            Self::Dce_3_02a => "3_02a",
             Self::Dce_3_0a => "3_0a",
             Self::Dce_3_0a_raw => "3_0a_raw",
             Self::AlphaSmartNeo => "alphasmartneo",
@@ -1189,7 +1183,6 @@ impl SupportedDcInputFormat {
         match self {
             Self::Dce_3_01a => FormatId::Dce_3_01a,
             Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
-            Self::Dce_3_02a => FormatId::Dce_3_02a,
             Self::Dce_3_0a => FormatId::Dce_3_0a,
             Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
@@ -1251,7 +1244,6 @@ impl SupportedDcInputFormat {
         match id {
             FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
             FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
-            FormatId::Dce_3_02a => Some(Self::Dce_3_02a),
             FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
             FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
@@ -1380,9 +1372,6 @@ pub enum SupportedDcOutputFormat {
     /// DCE 3.01a (raw)
     #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
     Dce_3_01a_raw,
-    /// DCE 3.02a
-    #[value(name = "3_02a", alias = "dce_3_02a", alias = "Dce_3_02a", alias = "f652")]
-    Dce_3_02a,
     /// DCE 3.0a
     #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
     Dce_3_0a,
@@ -1559,7 +1548,6 @@ impl SupportedDcOutputFormat {
     pub const ALL: &'static [SupportedDcOutputFormat] = &[
         Self::Dce_3_01a,
         Self::Dce_3_01a_raw,
-        Self::Dce_3_02a,
         Self::Dce_3_0a,
         Self::Dce_3_0a_raw,
         Self::AlphaSmartNeo,
@@ -1622,7 +1610,6 @@ impl SupportedDcOutputFormat {
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
         FormatId::Dce_3_01a,
         FormatId::Dce_3_01a_raw,
-        FormatId::Dce_3_02a,
         FormatId::Dce_3_0a,
         FormatId::Dce_3_0a_raw,
         FormatId::AlphaSmartNeo,
@@ -1687,7 +1674,6 @@ impl SupportedDcOutputFormat {
         match self {
             Self::Dce_3_01a => "3_01a",
             Self::Dce_3_01a_raw => "3_01a_raw",
-            Self::Dce_3_02a => "3_02a",
             Self::Dce_3_0a => "3_0a",
             Self::Dce_3_0a_raw => "3_0a_raw",
             Self::AlphaSmartNeo => "alphasmartneo",
@@ -1753,7 +1739,6 @@ impl SupportedDcOutputFormat {
         match self {
             Self::Dce_3_01a => FormatId::Dce_3_01a,
             Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
-            Self::Dce_3_02a => FormatId::Dce_3_02a,
             Self::Dce_3_0a => FormatId::Dce_3_0a,
             Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
@@ -1819,7 +1804,6 @@ impl SupportedDcOutputFormat {
         match id {
             FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
             FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
-            FormatId::Dce_3_02a => Some(Self::Dce_3_02a),
             FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
             FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
