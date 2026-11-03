@@ -351,6 +351,7 @@ pub fn dclist_to_utf8(
             && resolver.matches_named_type_starter("text_encoding_control", dc)
         {
             if settings.permissive {
+                // Reason for fallback: if usize index fails u64 conversion, fallback 0 is used for log position.
                 let idx_u64 = u64::try_from(i).unwrap_or(0);
                 log.export_warning(
                     idx_u64,
@@ -428,6 +429,7 @@ pub fn dclist_to_utf8(
                                     &start_uuid_bytes,
                                 )?;
                                 if settings.permissive {
+                                    // Reason for fallback: if usize index fails u64 conversion, fallback 0 is used for log position.
                                     let idx_u64 = u64::try_from(i).unwrap_or(0);
                                     log.export_warning(
                                         idx_u64,
@@ -455,6 +457,7 @@ pub fn dclist_to_utf8(
                             &start_uuid_bytes,
                         )?;
                         if settings.permissive {
+                            // Reason for fallback: if usize index fails u64 conversion, fallback 0 is used for log position.
                             let idx_u64 = u64::try_from(i).unwrap_or(0);
                             log.export_warning(
                                 idx_u64,

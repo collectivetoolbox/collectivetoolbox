@@ -382,6 +382,7 @@ pub fn format_categorized_help_table(
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .collect();
+                // Reason for fallback: formats without short CLI nicknames sort by their lowercased canonical FormatId identifier.
                 let primary_key = nicks.first().map_or_else(
                     || child_info.ident.to_ascii_lowercase(),
                     |s| s.to_ascii_lowercase(),
@@ -418,6 +419,7 @@ pub fn format_categorized_help_table(
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
                 .collect();
+            // Reason for fallback: formats without short CLI nicknames sort by their lowercased canonical FormatId identifier.
             let primary_key = nicks.first().map_or_else(
                 || info.ident.to_ascii_lowercase(),
                 |s| s.to_ascii_lowercase(),
