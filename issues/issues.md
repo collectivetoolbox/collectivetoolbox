@@ -159,27 +159,3 @@ pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
 
 This defaults to canonicalizing, rather than varying it depending on context (e.g. yes typically it should canonicalize and give warnings, but in a --strict mode (default for convert at the moment, though I might want to make --permissive the default later) it shouldn't).
 
-# Questionable magic:
-
-
-0	string		CTBASSET	Collective Toolbox Asset Bundle
-!:mime	application/octet-stream
-!:ext	rsrc
-
-Any evidence this exists?
-
-
-
-0	string		\037\237	Freeze 2.X compressed data
-!:mime	application/x-freeze
-!:ext	F
-
-0	string		\037\236	Freeze 1.0 compressed data
-!:mime	application/x-freeze
-!:ext	F
-
-What's the point of this? Upstream magic offers 0	string		\037\237	frozen file 2.1
-0	string		\037\236	frozen file 1.0 (or gzip 0.5)
- as I've definitely pointed out before. Why does it keep showing up here?
-
-
