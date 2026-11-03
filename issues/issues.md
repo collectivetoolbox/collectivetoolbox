@@ -104,6 +104,11 @@ assuming the current code still has the reported fault.
   remote account registration is not currently enabled. This remains outside
   the personal MVP.
 
+# Installer:
+
+- Option to associate ctoolbox with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
+- Option to install shell completion helpers
+
 ## This should work:
 
 $ ctb character_description -f ctoolbox/built/linux-x64/system_graph_history.rsrc
@@ -127,21 +132,6 @@ Caused by:
 - Lists of possible values are not sorted. They should probably be sorted and categorized in a nice list with the description from the format database beside them.
 
 
-# Installer:
-
-- Option to associate ctoolbox with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
-- Option to install shell completion helpers
-
-
-# Broken detection:
-
-$ ctb character-description -f assets/data/graph/85899_34592.ctbnbdl
-Error: Input bytes do not conform to valid DcMixed2 (.dcmm) format
-
-Caused by:
-    Encapsulation size 192097702246800632426538688442588496000 exceeds addressable memory at offset 124783
-
-ctbnbdl is a supported format, so it should detect the correct format using its magic. Might be worth checking for other formats that could have magic but don't.
 
 # To fix in utf8.rs:
 
