@@ -32,6 +32,7 @@
        (delete "gobject-introspection")))
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(list "-Dintrospection=disabled" "--libdir=lib"))))))
 
