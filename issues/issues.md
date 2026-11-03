@@ -109,3 +109,16 @@ assuming the current code still has the reported fault.
 - Option to associate ctoolbox with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
 - Option to install shell completion helpers
 
+# Startup is slow again
+
+$ /home/a/.local/bin/ctoolbox
+[2026-11-03T05:01:44.340425Z WARN environment.rs:1265:27 log workspace:497753/workspace] Local IPv6 discovery failed: Failed to route to target for local IPv6 discovery: Network unreachable (os error 101)
+[2026-11-03T05:01:44.342571Z WARN asset_bundle.rs:614:13 log network:497767/network] ("v86 resource bundle not found at {}; v86 VM assets will not be loaded", "/home/a/.local/bin/v86_images.rsrc")
+[2026-11-03T05:01:44.342570Z WARN asset_bundle.rs:614:13 log storage:497768/storage] ("v86 resource bundle not found at {}; v86 VM assets will not be loaded", "/home/a/.local/bin/v86_images.rsrc")
+[2026-11-03T05:01:44.342593Z WARN asset_bundle.rs:614:13 log io:497766/io] ("v86 resource bundle not found at {}; v86 VM assets will not be loaded", "/home/a/.local/bin/v86_images.rsrc")
+
+[2026-11-03T05:02:08.075927Z WARN environment.rs:1272:27 log workspace:497753/workspace] Public IPv4 discovery failed: Failed to ensure CRLite cache is ready: GET https://CollectiveToolbox.com/crlite/manifest.json: Failed to GET https://CollectiveToolbox.com/crlite/manifest.json: error sending request for url (https://collectivetoolbox.com/crlite/manifest.json): client error (Connect): dns error: failed to lookup address information: Try again
+[2026-11-03T05:02:31.691332Z WARN environment.rs:1276:27 log workspace:497753/workspace] Public IPv6 discovery failed: Failed to ensure CRLite cache is ready: GET https://CollectiveToolbox.com/crlite/manifest.json: Failed to GET https://CollectiveToolbox.com/crlite/manifest.json: error sending request for url (https://collectivetoolbox.com/crlite/manifest.json): client error (Connect): dns error: failed to lookup address information: Try again
+[2026-11-03T05:02:55.318050Z WARN environment.rs:1283:21 log workspace:497753/workspace] Server clock offset discovery failed: Failed to ensure CRLite cache is ready: GET https://CollectiveToolbox.com/crlite/manifest.json: Failed to GET https://CollectiveToolbox.com/crlite/manifest.json: error sending request for url (https://collectivetoolbox.com/crlite/manifest.json): client error (Connect): dns error: failed to lookup address information: Try again
+
+This is all supposed to be hard-capped at 5 seconds or something like that. It would also possibly be good to open the UI *before* the update check and environment capture is complete so it doesn't take so long.
