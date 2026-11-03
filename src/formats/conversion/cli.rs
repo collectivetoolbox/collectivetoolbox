@@ -96,9 +96,13 @@ pub struct CharacterDescriptionArgs {
     #[arg(long = "from", value_parser = parse_supported_dc_input_format)]
     pub from: Option<SupportedDcInputFormat>,
 
-    /// Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+    /// Parse and export document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
     #[arg(long = "permissive")]
     pub permissive: bool,
+
+    /// Parse and export document in strict mode (rejecting invalid headers, characters, or non-canonical sequences)
+    #[arg(long = "strict", conflicts_with = "permissive")]
+    pub strict: bool,
 
     /// Input file path (or - for stdin)
     #[arg(short = 'f', long = "file")]
@@ -282,9 +286,13 @@ pub struct ConvertArgs {
     #[arg(long = "from", value_parser = parse_supported_dc_input_format)]
     pub from: Option<SupportedDcInputFormat>,
 
-    /// Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+    /// Parse and export document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
     #[arg(long = "permissive")]
     pub permissive: bool,
+
+    /// Parse and export document in strict mode (rejecting invalid headers, characters, or non-canonical sequences)
+    #[arg(long = "strict", conflicts_with = "permissive")]
+    pub strict: bool,
 
     /// Output format (accepts nickname, `FormatId` name, or f<N> shorthand)
     #[arg(short = 't', long = "to", value_parser = parse_supported_dc_output_format, default_value = "utf8")]
@@ -360,13 +368,15 @@ where
         }
     });
 
+    let permissive = args.permissive && !args.strict;
+
     let conversion_options = DcConversionOptions {
         format: match args.from {
             Some(fmt) => FormatSpec::Format(fmt),
             None => FormatSpec::Auto,
         },
         allow_binary_encapsulation: args.allow_binary_encapsulation,
-        permissive: args.permissive,
+        permissive,
     };
 
     let conversion = convert_bytes_to_dcmstring(
@@ -375,7 +385,10 @@ where
         &conversion_options,
     )?;
 
-    let export_options = DcExportOptions { format: args.to };
+    let export_options = DcExportOptions {
+        format: args.to,
+        permissive,
+    };
 
     let export = convert_dcmstring_to_bytes(
         &conversion.document,
@@ -907,5 +920,55 @@ mod tests {
                 .starts_with("1114315 : <Dc> Begin encapsulated binary data"),
             "Unexpected output: {dcsh_text}"
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_convert_strict_vs_permissive() {
+        // Short Dc 65 (1114177 in dcal) maps to 'P' under canonicalization
+        let input_dcal = "1114177".to_string();
+
+        // Strict mode (default): should NOT canonicalize equivalent Dcs
+        let strict_out = execute_cli_convert(
+            ConvertArgs {
+                input: Some(input_dcal.clone()),
+                from: Some(SupportedDcInputFormat::Dcal),
+                to: SupportedDcOutputFormat::Utf8,
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )
+        .expect("convert in default strict mode must succeed")
+        .unwrap();
+        assert_eq!(String::from_utf8(strict_out).unwrap(), "\u{FFFD}");
+
+        // Explicit --strict mode: should also NOT canonicalize
+        let explicit_strict_out = execute_cli_convert(
+            ConvertArgs {
+                input: Some(input_dcal.clone()),
+                from: Some(SupportedDcInputFormat::Dcal),
+                to: SupportedDcOutputFormat::Utf8,
+                strict: true,
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )
+        .expect("convert in explicit strict mode must succeed")
+        .unwrap();
+        assert_eq!(String::from_utf8(explicit_strict_out).unwrap(), "\u{FFFD}");
+
+        // Permissive mode (--permissive): canonicalizes equivalent Dcs to "P"
+        let perm_out = execute_cli_convert(
+            ConvertArgs {
+                input: Some(input_dcal),
+                from: Some(SupportedDcInputFormat::Dcal),
+                to: SupportedDcOutputFormat::Utf8,
+                permissive: true,
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )
+        .expect("convert in permissive mode must succeed")
+        .unwrap();
+        assert_eq!(String::from_utf8(perm_out).unwrap(), "P");
     }
 }

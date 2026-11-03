@@ -135,6 +135,13 @@ pub fn dclist_to_utf8(
         if settings.canonicalize_equivalent_dcs
             && resolver.matches_named_type_starter("text_encoding_control", dc)
         {
+            if settings.permissive {
+                let idx_u64 = u64::try_from(i).unwrap_or(0);
+                log.export_warning(
+                    idx_u64,
+                    &format!("Stripped text encoding control Dc {dc}"),
+                );
+            }
             i = i.saturating_add(1);
             continue;
         }
@@ -184,7 +191,8 @@ pub fn dclist_to_utf8(
                             settings,
                             &start_uuid_bytes,
                         )?;
-                        let (bytes, decoded_log) = dcmstring_to_utf8(&decoded)?;
+                        let (bytes, decoded_log) =
+                            dcmstr_to_utf8_with_options(&decoded, settings)?;
                         log.merge(&decoded_log);
                         out.extend_from_slice(&bytes);
                         i = next;
@@ -204,6 +212,15 @@ pub fn dclist_to_utf8(
                                     settings,
                                     &start_uuid_bytes,
                                 )?;
+                                if settings.permissive {
+                                    let idx_u64 = u64::try_from(i).unwrap_or(0);
+                                    log.export_warning(
+                                        idx_u64,
+                                        &format!(
+                                            "Canonicalized equivalent short Dc {diff} to '{ch}'"
+                                        ),
+                                    );
+                                }
                                 let mut buf = [0u8; 4];
                                 let encoded = ch.encode_utf8(&mut buf);
                                 out.extend_from_slice(encoded.as_bytes());
@@ -222,6 +239,15 @@ pub fn dclist_to_utf8(
                             settings,
                             &start_uuid_bytes,
                         )?;
+                        if settings.permissive {
+                            let idx_u64 = u64::try_from(i).unwrap_or(0);
+                            log.export_warning(
+                                idx_u64,
+                                &format!(
+                                    "Canonicalized equivalent short Dc {diff} to \"{text}\""
+                                ),
+                            );
+                        }
                         out.extend_from_slice(text.as_bytes());
                         i = i.saturating_add(1);
                         continue;
@@ -670,12 +696,28 @@ pub fn utf8_to_dcmstring_with_options(
     Ok((doc, log))
 }
 
-/// Converts a `DcMstring` to UTF-8 bytes.
+/// Converts a `DcMstring` to UTF-8 bytes in strict mode (without canonicalization of equivalent Dcs).
 pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
+    dcmstring_to_utf8_with_options(doc, false)
+}
+
+/// Converts a `DcMstring` to UTF-8 bytes with permissive or strict options.
+///
+/// In permissive mode (`permissive == true`), equivalent Dcs are canonicalized
+/// to UTF-8 characters with warnings, and malformed encodings recover with
+/// replacement characters and warnings.
+///
+/// In strict mode (`permissive == false`), equivalent Dcs are not canonicalized
+/// (treated as unmappable), and malformed encodings return an error.
+pub fn dcmstring_to_utf8_with_options(
+    doc: &crate::DcMstr,
+    permissive: bool,
+) -> Result<(Vec<u8>, FormatLog)> {
     dcmstr_to_utf8_with_options(
         doc,
         &DcListUtf8Settings {
-            canonicalize_equivalent_dcs: true,
+            canonicalize_equivalent_dcs: permissive,
+            permissive,
             ..Default::default()
         },
     )
@@ -907,7 +949,6 @@ mod tests {
                 doc.push_char(crate::DcChar::from_short(short_dc));
             }
             assert!(dcmstr_to_utf8_with_options(&doc, &settings).is_err());
-            assert!(dcmstring_to_utf8(&doc).is_err());
         }
         let mut doc = crate::DcMstring::new();
         doc.push_char(crate::DcChar::from_short(191));
@@ -976,7 +1017,14 @@ mod tests {
         }
         doc.push_char(crate::dc::DC_END_ENCAPSULATION_UTF8);
         doc.push_str("R");
-        let (text, log) = dcmstring_to_utf8(&doc).unwrap();
+        let (text, log) = dcmstr_to_utf8_with_options(
+            &doc,
+            &DcListUtf8Settings {
+                canonicalize_equivalent_dcs: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
         assert_eq!(text, b"LAR");
         assert!(!log.has_warnings() && !log.has_errors());
         let (preserved, log) = repair_utf8_encapsulations(&doc, false).unwrap();
@@ -988,6 +1036,30 @@ mod tests {
             &crate::DcProjectionPolicy::strict(),
         )
         .unwrap();
+    }
+
+    #[crate::ctb_test]
+    fn test_utf8_strict_vs_permissive_equivalent_dcs() {
+        let mut doc = crate::DcMstring::new();
+        // Short Dc 65 ('P')
+        doc.push_char(crate::DcChar::from_short(65));
+
+        // Strict mode (default): does NOT canonicalize equivalent Dcs
+        let (strict_bytes, strict_log) =
+            dcmstring_to_utf8_with_options(&doc, false).unwrap();
+        assert_eq!(strict_bytes, "\u{FFFD}".as_bytes());
+        assert!(strict_log.has_warnings());
+
+        // Default dcmstring_to_utf8 is strict
+        let (def_bytes, def_log) = dcmstring_to_utf8(&doc).unwrap();
+        assert_eq!(def_bytes, "\u{FFFD}".as_bytes());
+        assert!(def_log.has_warnings());
+
+        // Permissive mode: canonicalizes equivalent Dcs with warnings
+        let (perm_bytes, perm_log) =
+            dcmstring_to_utf8_with_options(&doc, true).unwrap();
+        assert_eq!(perm_bytes, b"P");
+        assert!(perm_log.has_warnings());
     }
 
     #[crate::ctb_test]

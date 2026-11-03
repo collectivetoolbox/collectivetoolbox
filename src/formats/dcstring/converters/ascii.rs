@@ -135,7 +135,10 @@ pub fn dcmstring_to_ascii_with_settings(
     settings: &AsciiSettings,
 ) -> Result<(Vec<u8>, FormatLog)> {
     let (utf8_bytes, mut log) =
-        crate::converters::utf8::dcmstring_to_utf8(doc)?;
+        crate::converters::utf8::dcmstring_to_utf8_with_options(
+            doc,
+            !settings.strict_import,
+        )?;
 
     // Fast-path: if all bytes are valid 7-bit ASCII, return immediately.
     if utf8_bytes.iter().all(|&b| b <= 0x7F) {

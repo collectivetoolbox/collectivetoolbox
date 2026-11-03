@@ -109,19 +109,3 @@ assuming the current code still has the reported fault.
 - Option to associate ctoolbox with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
 - Option to install shell completion helpers
 
-# To fix in utf8.rs:
-
-utf8.rs:
-
-pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
-    dcmstr_to_utf8_with_options(
-        doc,
-        &DcListUtf8Settings {
-            canonicalize_equivalent_dcs: true,
-            ..Default::default()
-        },
-    )
-}
-
-This defaults to canonicalizing, rather than varying it depending on context (e.g. yes typically it should canonicalize and give warnings, but in a --strict mode (default for convert at the moment, though I might want to make --permissive the default later) it shouldn't).
-

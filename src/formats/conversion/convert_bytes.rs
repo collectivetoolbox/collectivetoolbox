@@ -92,6 +92,9 @@ pub struct DcConversionResult {
 pub struct DcExportOptions {
     /// Target output format (default: Utf8).
     pub format: SupportedDcOutputFormat,
+    /// Export document in permissive/forgiving mode (canonicalizing equivalent
+    /// characters and recovering with warnings instead of failing or skipping).
+    pub permissive: bool,
 }
 
 /// Result of an export conversion from `DcMstring` to output format bytes.
@@ -122,13 +125,17 @@ fn single_byte_encoding_to_dcmstring(
 fn dcmstring_to_single_byte_encoding(
     id: FormatId,
     doc: &DcMstring,
+    permissive: bool,
 ) -> Result<(Vec<u8>, FormatLog)> {
     let enc = ctb_formats_encoding::CharEncoding::from_format_id(id)
         .ok_or_else(|| {
             anyhow::anyhow!("Unsupported single-byte encoding: {id:?}")
         })?;
     let (utf8_bytes, log) =
-        ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8(doc)?;
+        ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8_with_options(
+            doc,
+            permissive,
+        )?;
     let text = std::str::from_utf8(&utf8_bytes)
         .context("Internal UTF-8 conversion produced invalid UTF-8")?;
     let bytes = ctb_formats_encoding::encode(enc, text)?;
@@ -419,11 +426,14 @@ pub fn convert_bytes_to_dcmstring(
 pub fn convert_dcmstring_to_bytes(
     doc: &DcMstring,
     format: SupportedDcOutputFormat,
-    _options: &DcExportOptions,
+    options: &DcExportOptions,
 ) -> Result<DcExportResult> {
     let (bytes, log) = match format {
         SupportedDcOutputFormat::Utf8 => {
-            ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8(doc)?
+            ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8_with_options(
+                doc,
+                options.permissive,
+            )?
         }
         SupportedDcOutputFormat::DcText => {
             ctb_formats_dcstring::converters::dctext::dcmstring_to_dctext(doc)?
@@ -483,7 +493,13 @@ pub fn convert_dcmstring_to_bytes(
             ctb_formats_dcstring::converters::utf8::dcmstring_to_dcutf(doc)?
         }
         SupportedDcOutputFormat::Ascii => {
-            ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii(doc)?
+            ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii_with_settings(
+                doc,
+                &ctb_formats_dcstring::converters::ascii::AsciiSettings {
+                    strict_import: !options.permissive,
+                    ..Default::default()
+                },
+            )?
         }
         SupportedDcOutputFormat::AsciiSafeSubset => {
             ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii_safe_subset(doc)?
@@ -511,7 +527,11 @@ pub fn convert_dcmstring_to_bytes(
         | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUs
         | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUaMac
         | SupportedDcOutputFormat::AlphaSmartNeoLowCtlUaPc => {
-            dcmstring_to_single_byte_encoding(format.to_format_id(), doc)?
+            dcmstring_to_single_byte_encoding(
+                format.to_format_id(),
+                doc,
+                options.permissive,
+            )?
         }
         SupportedDcOutputFormat::CdceLegacy
         | SupportedDcOutputFormat::DcIdList
@@ -533,9 +553,10 @@ pub fn convert_dcmstring_to_bytes(
         | SupportedDcOutputFormat::Utf8_Dc64_bin_hex
         | SupportedDcOutputFormat::Utf8_Dc64_bin_enc
         | SupportedDcOutputFormat::Utf8_Dc64_bin_enc_hex => {
-            ctb_formats_dceutils::document::dcmstring_to_dceutils(
+            ctb_formats_dceutils::document::dcmstr_to_dceutils_with_options(
                 doc,
                 format.primary_cli_name(),
+                options.permissive,
             )?
         }
         SupportedDcOutputFormat::Elad => {
@@ -1152,14 +1173,29 @@ mod tests {
             text_doc
                 .push_char(ctb_formats_dcstring::DcChar::from_short(short_id));
         }
-        let text = convert_dcmstring_to_bytes(
+        let text_strict = convert_dcmstring_to_bytes(
             &text_doc,
             SupportedDcOutputFormat::Utf8,
             &DcExportOptions::default(),
         )
         .unwrap();
+        assert_eq!(
+            text_strict.bytes,
+            "\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}".as_bytes()
+        );
+        assert!(text_strict.log.has_warnings());
+
+        let text = convert_dcmstring_to_bytes(
+            &text_doc,
+            SupportedDcOutputFormat::Utf8,
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::Utf8,
+                permissive: true,
+            },
+        )
+        .unwrap();
         assert_eq!(text.bytes, "Hello\u{85}".as_bytes());
-        assert!(!text.log.has_warnings());
+        assert!(text.log.has_warnings());
         let wire = convert_dcmstring_to_bytes(
             &text_doc,
             SupportedDcOutputFormat::Dce_3_01a,
@@ -1175,11 +1211,14 @@ mod tests {
         let text = convert_dcmstring_to_bytes(
             &imported.document,
             SupportedDcOutputFormat::Utf8,
-            &DcExportOptions::default(),
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::Utf8,
+                permissive: true,
+            },
         )
         .unwrap();
         assert_eq!(text.bytes, "Hello\u{85}".as_bytes());
-        assert!(!text.log.has_warnings());
+        assert!(text.log.has_warnings());
         let markup = DcMstring::from("<b>literal</b>&amp;\u{e9}");
         for output in [
             SupportedDcOutputFormat::Html,
