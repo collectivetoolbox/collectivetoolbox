@@ -286,4 +286,28 @@ mod tests {
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_describe_dcmstring_with_character_token_dc203() -> Result<()> {
+        let (doc, _) = crate::converters::dcal::dcsh_to_dcmstring_with_options(
+            b"298 605 203 299",
+            false,
+        )?;
+        let mut lines = Vec::new();
+        for chunk in doc.chunks() {
+            if let Some(txt) = chunk.as_text() {
+                for ch in txt.chars() {
+                    lines.push(describe_graph_id(
+                        ch.0,
+                        DescriptionOptions::default(),
+                    ));
+                }
+            }
+        }
+        assert_eq!(lines.len(), 4);
+        assert!(
+            lines[2].starts_with("1114315 : <Dc> Begin encapsulated binary data")
+        );
+        Ok(())
+    }
 }

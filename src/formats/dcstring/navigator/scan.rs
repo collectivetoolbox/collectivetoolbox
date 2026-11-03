@@ -364,6 +364,44 @@ impl<'a> DcDocumentNavigator<'a> {
                     .checked_add(u64::try_from(dc203_len)?)
                     .context("Binary encapsulation offset overflow")?;
                 let source_end = self.active_span.end.min(*end_offset);
+                if after_dc203 >= source_end {
+                    return Ok(None);
+                }
+                seek_buffered_file(reader, reader_pos, after_dc203)?;
+                let mut type_byte = [0_u8; 1];
+                if let Err(err) = reader.read_exact(&mut type_byte) {
+                    *reader_pos = None;
+                    return Err(err)
+                        .context("Truncated .dcmm binary encapsulation type");
+                }
+                *reader_pos = after_dc203.checked_add(1);
+                let encap_type = type_byte[0];
+                if encap_type >= 0xF4 {
+                    return Ok(None);
+                }
+                let rel_offset =
+                    usize::try_from(after_dc203.saturating_sub(*base_offset))?;
+                if matches!(encap_type, 1 | 4) {
+                    return Err(crate::DcMixedError::UnsupportedLegacyType {
+                        offset: rel_offset,
+                        type_byte: encap_type,
+                    }
+                    .into());
+                }
+                if !matches!(
+                    encap_type,
+                    crate::dc_mixed::TYPE_BINARY
+                        | crate::dc_mixed::TYPE_BINARY_METADATA
+                        | crate::dc_mixed::TYPE_BINARY_SHA256
+                ) {
+                    return Err(
+                        crate::DcMixedError::InvalidEncapsulationType {
+                            offset: rel_offset,
+                            type_byte: encap_type,
+                        }
+                        .into(),
+                    );
+                }
                 let after_header = after_dc203
                     .checked_add(17)
                     .context("Binary header offset overflow")?;
@@ -374,24 +412,6 @@ impl<'a> DcDocumentNavigator<'a> {
                         "Truncated .dcmm binary header"
                     )
                 );
-                seek_buffered_file(reader, reader_pos, after_dc203)?;
-                let mut type_byte = [0_u8; 1];
-                if let Err(err) = reader.read_exact(&mut type_byte) {
-                    *reader_pos = None;
-                    return Err(err)
-                        .context("Truncated .dcmm binary encapsulation type");
-                }
-                *reader_pos = after_dc203.checked_add(1);
-                let encap_type = type_byte[0];
-                let rel_offset =
-                    usize::try_from(after_dc203.saturating_sub(*base_offset))?;
-                if matches!(encap_type, 1 | 4) {
-                    return Err(crate::DcMixedError::UnsupportedLegacyType {
-                        offset: rel_offset,
-                        type_byte: encap_type,
-                    }
-                    .into());
-                }
                 let mut len_buf = [0_u8; 16];
                 if let Err(err) = reader.read_exact(&mut len_buf) {
                     *reader_pos = None;
@@ -557,6 +577,27 @@ impl<'a> DcDocumentNavigator<'a> {
         start_offset: u64,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<(u64, DcFrameHeaderInfo)> {
+        let Some((first_ch, after_opener)) =
+            self.read_token_or_binary_at(start_offset)?
+        else {
+            bail!(
+                "Unclosed textual binary encapsulation (Dc 203) starting at offset {start_offset}"
+            );
+        };
+        if !first_ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver)
+        {
+            return Ok((after_opener, DcFrameHeaderInfo::None));
+        }
+        let Some((second_ch, _)) =
+            self.read_token_or_binary_at(after_opener)?
+        else {
+            return Ok((after_opener, DcFrameHeaderInfo::None));
+        };
+        if !crate::dc_mixed::is_textual_encapsulation_follower(
+            second_ch, resolver,
+        ) {
+            return Ok((after_opener, DcFrameHeaderInfo::None));
+        }
         let mut offset = start_offset;
         let mut depth = 0usize;
         while let Some((ch, next_offset)) =

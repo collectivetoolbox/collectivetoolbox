@@ -1385,15 +1385,25 @@ impl<'a> DcDocumentNavigator<'a> {
         {
             let (end_offset, header_info) =
                 self.scan_binary_at(start_offset, policy, resolver)?;
-            self.cursor = end_offset;
+            if matches!(header_info, DcFrameHeaderInfo::Binary { .. }) {
+                self.cursor = end_offset;
+                return Ok(Some(DcFrameStub {
+                    head_dc: first_dc,
+                    closer_dc: Some(
+                        ctb_formats_dcdata::dc::DC_END_ENCAPSULATION_BINARY,
+                    ),
+                    outer_span: DcByteSpan::new(start_offset, end_offset),
+                    inner_span: None,
+                    header_info,
+                }));
+            }
+            self.cursor = after_first;
             return Ok(Some(DcFrameStub {
                 head_dc: first_dc,
-                closer_dc: Some(
-                    ctb_formats_dcdata::dc::DC_END_ENCAPSULATION_BINARY,
-                ),
-                outer_span: DcByteSpan::new(start_offset, end_offset),
+                closer_dc: None,
+                outer_span: DcByteSpan::new(start_offset, after_first),
                 inner_span: None,
-                header_info,
+                header_info: DcFrameHeaderInfo::None,
             }));
         }
 

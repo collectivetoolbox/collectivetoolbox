@@ -542,17 +542,24 @@ pub fn ctbnbdl_to_dcmstring_with_options(
         best_effort: permissive,
     };
     if let Some(payload) = bytes.strip_prefix(&CTBNBDL_MAGIC_V2) {
-        return crate::dcmm2_to_dcmstring_with_options(payload, &opts);
+        return crate::dcmm2_to_dcmstring_with_options(payload, &opts).context(
+            "Input bytes do not conform to valid Collective Toolbox Node Bundle v2 (.ctbnbdl) format",
+        );
     }
     if let Some(payload) = bytes.strip_prefix(&CTBNBDL_MAGIC_V1) {
-        return crate::dcmm1_to_dcmstring_with_options(payload, &opts);
+        return crate::dcmm1_to_dcmstring_with_options(payload, &opts).context(
+            "Input bytes do not conform to valid Collective Toolbox Node Bundle v1 (.ctbnbdl) format",
+        );
     }
     if !permissive {
         bail!(
             "Input bytes do not start with valid CTBNBDL\\x01 or CTBNBDL\\x02 magic header"
         );
     }
-    let (doc, mut log) = crate::dcmm_to_dcmstring_with_options(bytes, &opts)?;
+    let (doc, mut log) = crate::dcmm_to_dcmstring_with_options(bytes, &opts)
+        .context(
+            "Input bytes do not conform to valid Collective Toolbox Node Bundle (.ctbnbdl) format",
+        )?;
     log.warn("Missing or invalid CTBNBDL magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }
@@ -566,7 +573,9 @@ pub fn ctbnbdl1_to_dcmstring_with_options(
         best_effort: permissive,
     };
     if let Some(payload) = bytes.strip_prefix(&CTBNBDL_MAGIC_V1) {
-        return crate::dcmm1_to_dcmstring_with_options(payload, &opts);
+        return crate::dcmm1_to_dcmstring_with_options(payload, &opts).context(
+            "Input bytes do not conform to valid Collective Toolbox Node Bundle v1 (.ctbnbdl) format",
+        );
     }
     if !permissive {
         bail!("Input bytes do not start with valid CTBNBDL\\x01 magic header");
@@ -574,7 +583,9 @@ pub fn ctbnbdl1_to_dcmstring_with_options(
     // Reason for fallback: in permissive mode, if the input has a v2 magic header instead of v1, strip it; otherwise decode the raw bytes as payload.
     let payload = bytes.strip_prefix(&CTBNBDL_MAGIC_V2).unwrap_or(bytes);
     let (doc, mut log) =
-        crate::dcmm1_to_dcmstring_with_options(payload, &opts)?;
+        crate::dcmm1_to_dcmstring_with_options(payload, &opts).context(
+            "Input bytes do not conform to valid Collective Toolbox Node Bundle v1 (.ctbnbdl) format",
+        )?;
     log.warn("Missing or mismatched CTBNBDL\\x01 magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }
@@ -588,7 +599,9 @@ pub fn ctbnbdl2_to_dcmstring_with_options(
         best_effort: permissive,
     };
     if let Some(payload) = bytes.strip_prefix(&CTBNBDL_MAGIC_V2) {
-        return crate::dcmm2_to_dcmstring_with_options(payload, &opts);
+        return crate::dcmm2_to_dcmstring_with_options(payload, &opts).context(
+            "Input bytes do not conform to valid Collective Toolbox Node Bundle v2 (.ctbnbdl) format",
+        );
     }
     if !permissive {
         bail!("Input bytes do not start with valid CTBNBDL\\x02 magic header");
@@ -596,7 +609,9 @@ pub fn ctbnbdl2_to_dcmstring_with_options(
     // Reason for fallback: in permissive mode, if the input has a v1 magic header instead of v2, strip it; otherwise decode the raw bytes as payload.
     let payload = bytes.strip_prefix(&CTBNBDL_MAGIC_V1).unwrap_or(bytes);
     let (doc, mut log) =
-        crate::dcmm2_to_dcmstring_with_options(payload, &opts)?;
+        crate::dcmm2_to_dcmstring_with_options(payload, &opts).context(
+            "Input bytes do not conform to valid Collective Toolbox Node Bundle v2 (.ctbnbdl) format",
+        )?;
     log.warn("Missing or mismatched CTBNBDL\\x02 magic header; decoded payload in permissive mode");
     Ok((doc, log))
 }

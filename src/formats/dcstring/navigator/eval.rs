@@ -1023,7 +1023,10 @@ impl DcDocumentNavigator<'_> {
                                 ctx.resolver,
                             )
                         {
-                            if let Ok((after_bin, _)) = self.scan_binary_at(
+                            if let Ok((
+                                after_bin,
+                                DcFrameHeaderInfo::Binary { .. },
+                            )) = self.scan_binary_at(
                                 start_offset,
                                 &ctx.policy,
                                 ctx.resolver,
@@ -1031,7 +1034,6 @@ impl DcDocumentNavigator<'_> {
                                 self.cursor = after_bin;
                                 return Ok(true);
                             }
-                            return Ok(false);
                         }
                         if first_dc
                             .fills_role_with(DcRole::BeginLiteral, ctx.resolver)
@@ -1208,17 +1210,15 @@ impl DcDocumentNavigator<'_> {
                         DcRole::StartEncapsulationBinary,
                         ctx.resolver,
                     )
+                    && let Ok((after_bin, DcFrameHeaderInfo::Binary { .. })) =
+                        self.scan_binary_at(
+                            start_offset,
+                            &ctx.policy,
+                            ctx.resolver,
+                        )
                 {
-                    if let Ok((after_bin, _)) = self.scan_binary_at(
-                        start_offset,
-                        &ctx.policy,
-                        ctx.resolver,
-                    ) {
-                        self.cursor = after_bin;
-                        true
-                    } else {
-                        false
-                    }
+                    self.cursor = after_bin;
+                    true
                 } else if name == "identifier" {
                     self.eval_identifier_frame(subtype.as_deref(), ctx)?
                 } else if name == "number" || name == "Number" {
@@ -3071,6 +3071,7 @@ impl DcDocumentNavigator<'_> {
         if stub
             .head_dc
             .fills_role_with(DcRole::StartEncapsulationBinary, resolver)
+            && matches!(stub.header_info, DcFrameHeaderInfo::Binary { .. })
         {
             self.parse_binary_arena_node(stub.outer_span, policy, resolver)?;
         }

@@ -1183,6 +1183,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             let head = stub.head_dc;
             if head.fills_role_with(DcRole::StartEncapsulationBinary, resolver)
+                && matches!(stub.header_info, DcFrameHeaderInfo::Binary { .. })
             {
                 let node = nav.parse_binary_arena_node(
                     stub.outer_span,
