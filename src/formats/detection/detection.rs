@@ -2437,6 +2437,50 @@ mod tests {
     }
 
     #[ctb_test]
+    fn test_ctb_asset_bundle_and_packaged_node_magic_detection() {
+        for (magic, expected_fmt) in [
+            (
+                &b"CTBRSRC\0\x01\0\0\0\0\0\0\0"[..],
+                FormatId::CtbAssetBundleV1,
+            ),
+            (
+                &b"CTBRSRC\0\x02\0\0\0\0\0\0\0"[..],
+                FormatId::CtbAssetBundleV2,
+            ),
+            (
+                &b"CTBRSRC\0\x03\0\0\0\0\0\0\0"[..],
+                FormatId::CtbAssetBundleV3,
+            ),
+            (
+                &b"CTBRSRC\0\x04\0\0\0\0\0\0\0"[..],
+                FormatId::CtbAssetBundleV4,
+            ),
+            (&b"CTBNODE\0\x01\0\0\0\0"[..], FormatId::CtbNodeV1),
+            (&b"CTBNODE\0\x02\0\0\0\0"[..], FormatId::CtbNodeV2),
+            (&b"CTBNODE\0\x03\0\0\0\0"[..], FormatId::CtbNodeV3),
+            (&b"BZ0123456789"[..], FormatId::Bzip),
+            (&b"LRZI\x00\x06\x00\x00"[..], FormatId::Lrzip),
+            (&b"BZ3v1\x00\x10\x00\x00"[..], FormatId::Bzip3),
+            (&b"bvx2\x00\x00\x00\x00"[..], FormatId::Lzfse),
+            (&b"zPQ\x01\x00\x00"[..], FormatId::Zpaq),
+            (&b"WARC/1.1\r\n"[..], FormatId::Warc),
+            (&b"\x00\x05\x16\x00\x00\x02\x00\x00"[..], FormatId::AppleSingle),
+            (&b"\x00\x05\x16\x07\x00\x02\x00\x00"[..], FormatId::AppleDouble),
+        ] {
+            let mut slice = magic;
+            let report = guess_format_report(&mut slice, None).unwrap();
+            assert!(
+                report
+                    .candidates
+                    .iter()
+                    .any(|c| c.format_id == Some(expected_fmt)),
+                "Expected {expected_fmt:?} in candidates for magic {magic:?}, got: {:?}",
+                report.candidates
+            );
+        }
+    }
+
+    #[ctb_test]
     fn test_csc_desc_implied_encoding_corroborated() {
         // .cscdesc implies UTF-8 (f0); when content lacks a magic header but is
         // valid ASCII text, the implied-encoding compatibility from the database

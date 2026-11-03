@@ -862,4 +862,50 @@ mod tests {
             }
         }
     }
+
+    #[crate::ctb_test]
+    fn test_cli_character_description_ctbnbdl_and_dc203_tokens() {
+        let ctbnbdl_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../assets/data/graph/85899_34592.ctbnbdl");
+        let ctbnbdl_bytes = std::fs::read(&ctbnbdl_path)
+            .expect("read assets/data/graph/85899_34592.ctbnbdl");
+        let out = execute_cli_character_description(
+            CharacterDescriptionArgs {
+                file: Some(PathBuf::from(
+                    "assets/data/graph/85899_34592.ctbnbdl",
+                )),
+                ..Default::default()
+            },
+            |_| Ok(ctbnbdl_bytes.clone()),
+        )
+        .expect("character_description on 85899_34592.ctbnbdl must succeed")
+        .unwrap();
+        let text = String::from_utf8(out).unwrap();
+        assert!(
+            text.contains("1114315 : <Dc> Begin encapsulated binary data"),
+            "Expected Dc 203 character descriptions in 85899_34592.ctbnbdl output"
+        );
+        assert!(
+            text.lines().last().is_some_and(|line| line
+                .starts_with("1114730 : <Dc> End graph node definition")),
+            "Expected trailing End graph node definition (Dc 618) at end of 85899_34592.ctbnbdl output"
+        );
+
+        let dcsh_out = execute_cli_character_description(
+            CharacterDescriptionArgs {
+                input: Some("203".to_string()),
+                from: Some(SupportedDcInputFormat::Dcsh),
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )
+        .expect("character_description --from dcsh 203 must succeed")
+        .unwrap();
+        let dcsh_text = String::from_utf8(dcsh_out).unwrap();
+        assert!(
+            dcsh_text
+                .starts_with("1114315 : <Dc> Begin encapsulated binary data"),
+            "Unexpected output: {dcsh_text}"
+        );
+    }
 }

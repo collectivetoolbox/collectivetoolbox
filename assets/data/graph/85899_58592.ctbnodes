@@ -25,3 +25,76 @@ l8589958615: 586 641 l8589934603 # Is an instance of (Global graph system block 
 l8589958616: 586 641 l8589934681 # Is an instance of (Global graph system block most recent node ID at time of document creation, Script .Semantic)
 l8589958617: 638 584 639 635 310 640 l8589958574 312 l8589958575 312 l8589958576 312 l8589958577 312 l8589958578 312 l8589958579 312 l8589958580 312 l8589958581 312 l8589958582 312 l8589958583 312 l8589958584 312 l8589958585 312 l8589958586 312 l8589958587 312 l8589958588 312 l8589958589 312 l8589958590 312 l8589958591 312 l8589958592 312 l8589958593 312 l8589958594 312 l8589958595 312 l8589958596 312 l8589958597 312 l8589958598 312 l8589958599 312 l8589958600 312 l8589958601 312 l8589958602 312 l8589958603 312 l8589958604 312 l8589958605 312 l8589958606 312 l8589958607 312 l8589958608 312 l8589958609 312 l8589958610 312 l8589958611 312 l8589958612 312 l8589958613 312 l8589958614 312 l8589958615 312 l8589958616 311 # For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958574..l8589958616 (43 elements)])
 l8589958618: 610 l8589958617 636 # Has value (For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958574..l8589958616 (43 elements)]), Collective Toolbox Dc CSV seed database)
+l8589958619: u62 u7a u69 u70 u20 u63 u6f u6d u70 u72 u65 u73 u73 u65 u64 u20 u64 u61 u74 u61 # "bzip compressed data"
+l8589958620: u61 u70 u70 u6c u69 u63 u61 u74 u69 u6f u6e u2f u78 u2d u62 u7a u69 u70 # "application/x-bzip"
+l8589958621: u43 u6f u6c u6c u65 u63 u74 u69 u76 u65 u20 u54 u6f u6f u6c u62 u6f u78 u20 u41 u73 u73 u65 u74 u20 u42 u75 u6e u64 u6c u65 # "Collective Toolbox Asset Bundle"
+l8589958622: u57 u41 u52 u43 u20 u41 u72 u63 u68 u69 u76 u65 # "WARC Archive"
+l8589958623: u61 u70 u70 u6c u69 u63 u61 u74 u69 u6f u6e u2f u77 u61 u72 u63 # "application/warc"
+l8589958624: u4c u52 u5a u49 u50 u20 u63 u6f u6d u70 u72 u65 u73 u73 u65 u64 u20 u64 u61 u74 u61 # "LRZIP compressed data"
+l8589958625: u61 u70 u70 u6c u69 u63 u61 u74 u69 u6f u6e u2f u78 u2d u6c u72 u7a u69 u70 # "application/x-lrzip"
+l8589958626: u62 u7a u69 u70 u33 u20 u63 u6f u6d u70 u72 u65 u73 u73 u65 u64 u20 u64 u61 u74 u61 # "bzip3 compressed data"
+l8589958627: u5a u50 u41 u51 u20 u66 u69 u6c u65 # "ZPAQ file"
+l8589958628: u5a u50 u41 u51 u20 u73 u74 u72 u65 u61 u6d # "ZPAQ stream"
+l8589958629: u6c u7a u66 u73 u65 u20 u63 u6f u6d u70 u72 u65 u73 u73 u65 u64 # "lzfse compressed"
+l8589958630: u6c u7a u66 u73 u65 u20 u65 u6e u63 u6f u64 u65 u64 # "lzfse encoded"
+l8589958631: u41 u70 u70 u6c u65 u53 u69 u6e u67 u6c u65 u20 u65 u6e u63 u6f u64 u65 u64 u20 u4d u61 u63 u69 u6e u74 u6f u73 u68 u20 u66 u69 u6c u65 # "AppleSingle encoded Macintosh file"
+l8589958632: u41 u70 u70 u6c u65 u44 u6f u75 u62 u6c u65 u20 u65 u6e u63 u6f u64 u65 u64 u20 u4d u61 u63 u69 u6e u74 u6f u73 u68 u20 u66 u69 u6c u65 # "AppleDouble encoded Macintosh file"
+l8589958633: 584 f39 579 # Has a (Original bzip compression, Magic signature)
+l8589958634: 610 l8589958633 l8589958619 # Has value (Has a (Original bzip compression, Magic signature), "bzip compressed data")
+l8589958635: 584 f39 f636 # Has a (Original bzip compression, Media type identifier)
+l8589958636: 610 l8589958635 l8589958620 # Has value (Has a (Original bzip compression, Media type identifier), "application/x-bzip")
+l8589958637: 584 f163 579 # Has a (Collective Toolbox asset bundle, Magic signature)
+l8589958638: 610 l8589958637 l8589936296 # Has value (Has a (Collective Toolbox asset bundle, Magic signature), "Collective Toolbox asset bundle")
+l8589958639: 584 f163 579 # Has a (Collective Toolbox asset bundle, Magic signature)
+l8589958640: 610 l8589958639 l8589958621 # Has value (Has a (Collective Toolbox asset bundle, Magic signature), "Collective Toolbox Asset Bundle")
+l8589958641: 584 f187 579 # Has a (WARC, Magic signature)
+l8589958642: 610 l8589958641 l8589958622 # Has value (Has a (WARC, Magic signature), "WARC Archive")
+l8589958643: 584 f187 f636 # Has a (WARC, Media type identifier)
+l8589958644: 610 l8589958643 l8589958623 # Has value (Has a (WARC, Media type identifier), "application/warc")
+l8589958645: 584 f301 579 # Has a (lrzip (Long Range Zip), Magic signature)
+l8589958646: 610 l8589958645 l8589958624 # Has value (Has a (lrzip (Long Range Zip), Magic signature), "LRZIP compressed data")
+l8589958647: 584 f301 f636 # Has a (lrzip (Long Range Zip), Media type identifier)
+l8589958648: 610 l8589958647 l8589958625 # Has value (Has a (lrzip (Long Range Zip), Media type identifier), "application/x-lrzip")
+l8589958649: 584 f302 579 # Has a (Bzip3, Magic signature)
+l8589958650: 610 l8589958649 l8589958626 # Has value (Has a (Bzip3, Magic signature), "bzip3 compressed data")
+l8589958651: 584 f305 579 # Has a (ZPAQ, Magic signature)
+l8589958652: 610 l8589958651 l8589958627 # Has value (Has a (ZPAQ, Magic signature), "ZPAQ file")
+l8589958653: 584 f305 579 # Has a (ZPAQ, Magic signature)
+l8589958654: 610 l8589958653 l8589958628 # Has value (Has a (ZPAQ, Magic signature), "ZPAQ stream")
+l8589958655: 584 f307 579 # Has a (LZFSE (Lempel–Ziv Finite State Entropy), Magic signature)
+l8589958656: 610 l8589958655 l8589958629 # Has value (Has a (LZFSE (Lempel–Ziv Finite State Entropy), Magic signature), "lzfse compressed")
+l8589958657: 584 f307 579 # Has a (LZFSE (Lempel–Ziv Finite State Entropy), Magic signature)
+l8589958658: 610 l8589958657 l8589958630 # Has value (Has a (LZFSE (Lempel–Ziv Finite State Entropy), Magic signature), "lzfse encoded")
+l8589958659: 584 f315 579 # Has a (AppleSingle, Magic signature)
+l8589958660: 610 l8589958659 l8589958631 # Has value (Has a (AppleSingle, Magic signature), "AppleSingle encoded Macintosh file")
+l8589958661: 584 f316 579 # Has a (AppleDouble (RFC 1740), Magic signature)
+l8589958662: 610 l8589958661 l8589958632 # Has value (Has a (AppleDouble (RFC 1740), Magic signature), "AppleDouble encoded Macintosh file")
+l8589958663: 584 f317 579 # Has a (Collective Toolbox serialized node package, Magic signature)
+l8589958664: 610 l8589958663 l8589936595 # Has value (Has a (Collective Toolbox serialized node package, Magic signature), "Collective Toolbox serialized node package")
+l8589958665: 584 f318 579 # Has a (Collective Toolbox serialized node package, version 1, Magic signature)
+l8589958666: 610 l8589958665 l8589936597 # Has value (Has a (Collective Toolbox serialized node package, version 1, Magic signature), "Collective Toolbox serialized node package, version 1")
+l8589958667: 584 f319 579 # Has a (Collective Toolbox serialized node package, version 2, Magic signature)
+l8589958668: 610 l8589958667 l8589936599 # Has value (Has a (Collective Toolbox serialized node package, version 2, Magic signature), "Collective Toolbox serialized node package, version 2")
+l8589958669: 584 f334 579 # Has a (Collective Toolbox resource bundle, version 1, Magic signature)
+l8589958670: 610 l8589958669 l8589936630 # Has value (Has a (Collective Toolbox resource bundle, version 1, Magic signature), "Collective Toolbox resource bundle, version 1")
+l8589958671: 584 f335 579 # Has a (Collective Toolbox resource bundle, version 2, Magic signature)
+l8589958672: 610 l8589958671 l8589936632 # Has value (Has a (Collective Toolbox resource bundle, version 2, Magic signature), "Collective Toolbox resource bundle, version 2")
+l8589958673: 584 f336 579 # Has a (Collective Toolbox resource bundle, version 3, Magic signature)
+l8589958674: 610 l8589958673 l8589936634 # Has value (Has a (Collective Toolbox resource bundle, version 3, Magic signature), "Collective Toolbox resource bundle, version 3")
+l8589958675: 584 f337 579 # Has a (Collective Toolbox resource bundle, version 4, Magic signature)
+l8589958676: 610 l8589958675 l8589936636 # Has value (Has a (Collective Toolbox resource bundle, version 4, Magic signature), "Collective Toolbox resource bundle, version 4")
+l8589958677: 584 f646 579 # Has a (Collective Toolbox serialized node package, version 3, Magic signature)
+l8589958678: 610 l8589958677 l8589948919 # Has value (Has a (Collective Toolbox serialized node package, version 3, Magic signature), "Collective Toolbox serialized node package, version 3")
+l8589958679: 587 f318 f317 # Is a subtype of (Collective Toolbox serialized node package, version 1, Collective Toolbox serialized node package)
+l8589958680: 587 f319 f317 # Is a subtype of (Collective Toolbox serialized node package, version 2, Collective Toolbox serialized node package)
+l8589958681: 587 f334 f163 # Is a subtype of (Collective Toolbox resource bundle, version 1, Collective Toolbox asset bundle)
+l8589958682: 587 f335 f163 # Is a subtype of (Collective Toolbox resource bundle, version 2, Collective Toolbox asset bundle)
+l8589958683: 587 f336 f163 # Is a subtype of (Collective Toolbox resource bundle, version 3, Collective Toolbox asset bundle)
+l8589958684: 587 f337 f163 # Is a subtype of (Collective Toolbox resource bundle, version 4, Collective Toolbox asset bundle)
+l8589958685: 587 f646 f317 # Is a subtype of (Collective Toolbox serialized node package, version 3, Collective Toolbox serialized node package)
+l8589958686: 638 584 639 635 310 640 l8589958619 312 l8589958620 312 l8589958621 312 l8589958622 312 l8589958623 312 l8589958624 312 l8589958625 312 l8589958626 312 l8589958627 312 l8589958628 312 l8589958629 312 l8589958630 312 l8589958631 312 l8589958632 312 l8589958633 312 l8589958634 312 l8589958635 312 l8589958636 312 l8589958637 312 l8589958638 312 l8589958639 312 l8589958640 312 l8589958641 312 l8589958642 312 l8589958643 312 l8589958644 312 l8589958645 312 l8589958646 312 l8589958647 312 l8589958648 312 l8589958649 312 l8589958650 312 l8589958651 312 l8589958652 312 l8589958653 312 l8589958654 312 l8589958655 312 l8589958656 312 l8589958657 312 l8589958658 312 l8589958659 312 l8589958660 312 l8589958661 312 l8589958662 312 l8589958663 312 l8589958664 312 l8589958665 312 l8589958666 312 l8589958667 312 l8589958668 312 l8589958669 312 l8589958670 312 l8589958671 312 l8589958672 312 l8589958673 312 l8589958674 312 l8589958675 312 l8589958676 312 l8589958677 312 l8589958678 312 l8589958679 312 l8589958680 312 l8589958681 312 l8589958682 312 l8589958683 312 l8589958684 312 l8589958685 311 # For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958619..l8589958685 (67 elements)])
+l8589958687: 610 l8589958686 636 # Has value (For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958619..l8589958685 (67 elements)]), Collective Toolbox Dc CSV seed database)
+l8589958688: 592 615 l8589946316 # Retracts (Enclosing document, Has a (freeze: Freeze 2.X format (LZSS + Dynamic Huffman), Magic signature))
+l8589958689: 592 615 l8589946317 # Retracts (Enclosing document, Has value (Has a (freeze: Freeze 2.X format (LZSS + Dynamic Huffman), Magic signature), "Freeze 2.X compressed data"))
+l8589958690: 592 615 l8589946328 # Retracts (Enclosing document, Has a (freeze: Freeze 1.0 format (LZSS + Dynamic Huffman), Magic signature))
+l8589958691: 592 615 l8589946329 # Retracts (Enclosing document, Has value (Has a (freeze: Freeze 1.0 format (LZSS + Dynamic Huffman), Magic signature), "Freeze 1.0 compressed data"))

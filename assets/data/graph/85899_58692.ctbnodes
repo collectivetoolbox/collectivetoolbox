@@ -1,0 +1,4 @@
+l8589958692: 592 615 l8589958639 # Retracts (Enclosing document, Has a (Collective Toolbox asset bundle, Magic signature))
+l8589958693: 592 615 l8589958640 # Retracts (Enclosing document, Has value (Has a (Collective Toolbox asset bundle, Magic signature), "Collective Toolbox Asset Bundle"))
+l8589958694: 638 584 639 635 310 640 l8589958688 312 l8589958689 312 l8589958690 312 l8589958691 312 l8589958692 312 l8589958693 311 # For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958688..l8589958693 (6 elements)])
+l8589958695: 610 l8589958694 636 # Has value (For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958688..l8589958693 (6 elements)]), Collective Toolbox Dc CSV seed database)

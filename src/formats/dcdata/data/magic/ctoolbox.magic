@@ -3,18 +3,42 @@
 # Format: libmagic (BSD-2-Clause compatible format)
 
 # Collective Toolbox Asset Bundle
-0	string		CTBASSET	Collective Toolbox Asset Bundle
+0	string		CTBRSRC\0\x04\0\0\0	Collective Toolbox resource bundle, version 4
 !:mime	application/octet-stream
 !:ext	rsrc
 
-# Freeze compressed data
-0	string		\037\237	Freeze 2.X compressed data
-!:mime	application/x-freeze
-!:ext	F
+0	string		CTBRSRC\0\x03\0\0\0	Collective Toolbox resource bundle, version 3
+!:mime	application/octet-stream
+!:ext	rsrc
 
-0	string		\037\236	Freeze 1.0 compressed data
-!:mime	application/x-freeze
-!:ext	F
+0	string		CTBRSRC\0\x02\0\0\0	Collective Toolbox resource bundle, version 2
+!:mime	application/octet-stream
+!:ext	rsrc
+
+0	string		CTBRSRC\0\x01\0\0\0	Collective Toolbox resource bundle, version 1
+!:mime	application/octet-stream
+!:ext	rsrc
+
+0	string		CTBRSRC\0	Collective Toolbox asset bundle
+!:mime	application/octet-stream
+!:ext	rsrc
+
+# Collective Toolbox serialized node package
+0	string		CTBNODE\0\x03	Collective Toolbox serialized node package, version 3
+!:mime	application/octet-stream
+!:ext	ctbn
+
+0	string		CTBNODE\0\x02	Collective Toolbox serialized node package, version 2
+!:mime	application/octet-stream
+!:ext	ctbn
+
+0	string		CTBNODE\0\x01	Collective Toolbox serialized node package, version 1
+!:mime	application/octet-stream
+!:ext	ctbn
+
+0	string		CTBNODE\0	Collective Toolbox serialized node package
+!:mime	application/octet-stream
+!:ext	ctbn
 
 # Dc Mixed Mode document
 0	string		DcMM\0\xd5\xab\x81\x9e\x9b\x8e\x4d\x61\xad\xbc\x93\x3e\x88\x51\xe7\x9a	Dc Mixed Mode document, version 1
