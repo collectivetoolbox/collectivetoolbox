@@ -102,11 +102,11 @@ use crate::dc::{
     DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
     DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
     DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
-    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
-    DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
-    DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
-    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_UNICODE_SCRIPT,
-    DcChar,
+    DC_START_ENCAPSULATION_BINARY, DC_SUBPATTERN_MATCH, DC_SUPERSEDES,
+    DC_SUPPORT_COMPLETE, DC_SUPPORT_LOSSLESS_ROUNDTRIP,
+    DC_SUPPORT_LOSSLESS_STRICT_VALIDATION, DC_SUPPORT_NOT_APPLICABLE,
+    DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS, DC_SYNTAX_RULE,
+    DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
@@ -116,8 +116,8 @@ use crate::format_spec::{
 use crate::report::ValidationReport;
 use crate::shared::SupportLevel;
 use crate::syntax::ast::{
-    ActionArg, DcSyntaxRule, Quantifier, SyntaxAction, SyntaxElement,
-    SyntaxPattern, SyntaxTerm,
+    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
+    SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
 use crate::syntax::parse_dc_syntax;
 
@@ -522,6 +522,10 @@ fn build_initial_token_labels(
         (DC_END_GRAPH_NODE_DEFINITION, "End graph node definition"),
         (DC_ESCAPE, "Ignore following Dc"),
         (
+            DC_START_ENCAPSULATION_BINARY,
+            "Begin encapsulated binary data",
+        ),
+        (
             DC_GENERAL_FORMAT_IMPORT_SUPPORT,
             "General import support for a format",
         ),
@@ -852,6 +856,11 @@ impl LedgerBuilder {
         }
     }
 
+    fn get_node(&self, node_id: u128) -> Option<&LedgerNode> {
+        let idx = self.nodes.binary_search_by_key(&node_id, |n| n.id).ok()?;
+        self.nodes.get(idx)
+    }
+
     fn is_manual_node(&self, node_id: u128) -> bool {
         Self::is_non_csv_node_with(
             node_id,
@@ -897,7 +906,10 @@ impl LedgerBuilder {
     }
 
     fn describe_atom_dc_tokens(&self, tok: DcShorthand) -> String {
-        if tok == sh(DC_ESCAPE) || tok == sh(DC_EVALUATE_VALUE_AS_ATOM) {
+        if tok == sh(DC_START_ENCAPSULATION_BINARY)
+            || tok == sh(DC_ESCAPE)
+            || tok == sh(DC_EVALUATE_VALUE_AS_ATOM)
+        {
             format!(
                 "{}, {}",
                 self.describe_token(sh(DC_ESCAPE)),
@@ -1145,12 +1157,12 @@ impl LedgerBuilder {
                 out.push(sh(DC_SELF_REFERENCE));
             }
             SyntaxTerm::CharRef(target) => {
-                out.push(DcShorthand::from_global_id(target.to_u128()));
+                push_pattern_char_target(out, target);
             }
             SyntaxTerm::CharRange { start, end } => {
                 out.push(sh(DC_RANGE));
-                out.push(DcShorthand::from_global_id(start.to_u128()));
-                out.push(DcShorthand::from_global_id(end.to_u128()));
+                push_pattern_char_target(out, start);
+                push_pattern_char_target(out, end);
             }
             SyntaxTerm::CharSet { negated, members } => {
                 out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
@@ -1160,14 +1172,14 @@ impl LedgerBuilder {
                     DC_PATTERN_ALTERNATION
                 }));
                 for member in members {
-                    out.push(DcShorthand::from_global_id(member.to_u128()));
+                    push_pattern_char_target(out, member);
                 }
                 out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
             }
             SyntaxTerm::RuleRef { target } => {
                 out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
                 out.push(sh(DC_SUBPATTERN_MATCH));
-                out.push(DcShorthand::from_global_id(target.to_u128()));
+                push_pattern_char_target(out, target);
                 out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
             }
             SyntaxTerm::NamedConstruct {
@@ -1508,7 +1520,32 @@ impl LedgerBuilder {
                 if let Some(&(has_a_id, old_has_val_id, old_val_tok)) =
                     cands.get(keep_idx)
                 {
-                    if old_val_tok == val_tok {
+                    let expected_has_a =
+                        encode_statement_tokens(sh(DC_HAS_A), subj, prop);
+                    let has_a_matches = self
+                        .get_node(has_a_id)
+                        .is_some_and(|n| n.tokens == expected_has_a);
+                    if !has_a_matches
+                        && !self.is_manual_node(has_a_id)
+                        && !self.is_manual_node(old_has_val_id)
+                    {
+                        let new_has_a_id = self.append_statement_node(
+                            sh(DC_HAS_A),
+                            subj,
+                            prop,
+                        )?;
+                        self.supersede_node(new_has_a_id, has_a_id)?;
+                        let new_has_val_id = self.append_statement_node(
+                            sh(DC_HAS_VALUE),
+                            DcShorthand::Long(new_has_a_id),
+                            val_tok,
+                        )?;
+                        self.supersede_node(new_has_val_id, old_has_val_id)?;
+                        self.active_single_props.insert(
+                            (subj, prop),
+                            (new_has_a_id, new_has_val_id, val_tok),
+                        );
+                    } else if old_val_tok == val_tok {
                         self.active_single_props.insert(
                             (subj, prop),
                             (has_a_id, old_has_val_id, old_val_tok),
@@ -2136,10 +2173,22 @@ impl LedgerBuilder {
         }
 
         for ((verb, subj, obj_tok), _comment) in resolved_direct {
-            if !self
-                .active_direct_stmts
-                .contains_key(&(verb, subj, obj_tok))
+            if let Some(&stmt_id) =
+                self.active_direct_stmts.get(&(verb, subj, obj_tok))
             {
+                let expected_tokens =
+                    encode_statement_tokens(verb, subj, obj_tok);
+                let tokens_match = self
+                    .get_node(stmt_id)
+                    .is_some_and(|n| n.tokens == expected_tokens);
+                if !tokens_match && !self.is_manual_node(stmt_id) {
+                    let new_stmt_id =
+                        self.append_statement_node(verb, subj, obj_tok)?;
+                    self.supersede_node(new_stmt_id, stmt_id)?;
+                    self.active_direct_stmts
+                        .insert((verb, subj, obj_tok), new_stmt_id);
+                }
+            } else {
                 let stmt_id =
                     self.append_statement_node(verb, subj, obj_tok)?;
                 self.active_direct_stmts
@@ -2258,6 +2307,14 @@ pub fn default_vary_as_to_format_variant() -> HashMap<String, DcShorthand> {
 
 fn push_atom_dc(out: &mut Vec<DcShorthand>, tok: DcShorthand) {
     push_atom_dc_with(out, tok, default_ctbnbdl_framing_dcs());
+}
+
+fn push_pattern_char_target(out: &mut Vec<DcShorthand>, target: &CharTarget) {
+    let tok = DcShorthand::from_global_id(target.to_u128());
+    if tok == sh(DC_START_ENCAPSULATION_BINARY) {
+        out.push(sh(DC_ESCAPE));
+    }
+    out.push(tok);
 }
 
 /// Encodes a relationship statement `<verb> [atom_dc] [atom_dc]`, escaping
@@ -3627,7 +3684,12 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_atom_dc_escaping_for_dc255_and_dc616() -> Result<()> {
+    fn test_atom_dc_escaping_for_dc203_dc255_and_dc616() -> Result<()> {
+        let defn_203 = sample_dc_defn(
+            203,
+            "Begin encapsulated binary data",
+            "StartEncapsulationBinary",
+        );
         let defn_255 = sample_dc_defn(255, "Ignore following Dc", "Escape");
         let defn_616 =
             sample_dc_defn(616, "Evaluate value as atom", "Evaluate");
@@ -3635,14 +3697,27 @@ mod tests {
 
         let (nodes1, stats1) = update_ledger_in_memory(
             Vec::new(),
-            &[defn_255.clone(), defn_616.clone()],
+            &[defn_203.clone(), defn_255.clone(), defn_616.clone()],
             &[],
             &scripts,
             None,
         )?;
         assert!(stats1.total_nodes > 0);
 
-        // Verify that statements about Dc 255 and Dc 616 escape their subject with Dc 255
+        // Verify that statements about Dc 203, Dc 255, and Dc 616 escape their subject with Dc 255
+        let escaped_203 = nodes1.iter().any(|n| {
+            n.tokens
+                == vec![
+                    sh(DC_HAS_A),
+                    sh(DC_ESCAPE),
+                    sh(DC_START_ENCAPSULATION_BINARY),
+                    sh(DC_CANONICAL_NAME),
+                ]
+                && n.comment
+                    == "Has a (Ignore following Dc, Begin encapsulated binary data, Canonical name)"
+        });
+        assert!(escaped_203, "Expected `584 255 203 572` statement node");
+
         let escaped_255 = nodes1.iter().any(|n| {
             n.tokens
                 == vec![
@@ -3672,7 +3747,7 @@ mod tests {
         // Second run must be idempotent
         let (nodes2, stats2) = update_ledger_in_memory(
             nodes1.clone(),
-            &[defn_255, defn_616],
+            &[defn_203, defn_255, defn_616],
             &[],
             &scripts,
             None,

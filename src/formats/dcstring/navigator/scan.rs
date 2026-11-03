@@ -600,10 +600,19 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         let mut offset = start_offset;
         let mut depth = 0usize;
+        let mut escaped = false;
         while let Some((ch, next_offset)) =
             self.read_token_or_binary_at(offset)?
         {
             offset = next_offset;
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                escaped = true;
+                continue;
+            }
             if ch.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
                 depth = depth.saturating_add(1);
             } else if ch
@@ -673,10 +682,19 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<u64> {
         let mut offset = start;
+        let mut escaped = false;
         while let Some((ch, next_offset)) =
             self.read_token_or_binary_at(offset)?
         {
             offset = next_offset;
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                escaped = true;
+                continue;
+            }
             if ch == closer
                 || resolver.is_equivalent_to(ch.to_u128(), closer.to_u128())
             {

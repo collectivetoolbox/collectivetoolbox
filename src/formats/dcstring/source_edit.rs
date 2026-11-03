@@ -792,10 +792,11 @@ mod tests {
     #[crate::ctb_test]
     fn test_source_raw_edits_do_not_require_valid_syntax() -> Result<()> {
         let mut source = DcMstring::new();
-        for dc in [314, 559, 514, 312, 999, 255] {
+        for dc in [314, 559, 514, 312, 999] {
             source.push_char(DcChar::from_short(dc));
         }
         source.push_binary_with_sha256(b"unchanged").unwrap();
+        source.push_char(DcChar::from_short(255));
         let original = source.as_bytes().to_vec();
         let mut replacement = DcMstring::new();
         replacement.push_char(DcChar::from_short(560));

@@ -1447,12 +1447,14 @@ impl<'a> Iterator for DcMixedChunks<'a> {
 
         // Scan ahead for the next binary encapsulation chunk or end of slice
         let mut end = 0usize;
+        let mut escaped = false;
         while end < self.slice.len() {
             if let Some(sub) = self.slice.get(end..) {
-                if is_binary_encapsulation_at(sub) {
+                if !escaped && is_binary_encapsulation_at(sub) {
                     break;
                 }
-                if let Some((_val, char_len)) = decode_dctf_buf(sub) {
+                if let Some((val, char_len)) = decode_dctf_buf(sub) {
+                    escaped = !escaped && DcChar(val).fills_role(DcRole::Escape);
                     end = end.saturating_add(char_len);
                 } else {
                     break;
@@ -1678,16 +1680,19 @@ fn validate_dcmst_with_policy(
     let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
 
     let mut offset = DCMM_HEADER_LEN;
+    let mut escaped = false;
     while offset < bytes.len() {
         let Some(slice) = bytes.get(offset..) else {
             break;
         };
-        if slice.starts_with(&DC_203_BYTES)
+        if !escaped
+            && slice.starts_with(&DC_203_BYTES)
             && !is_non_encapsulating_dc203_at(slice, false, resolver.as_ref())
         {
             offset = validate_encapsulation_region(bytes, offset, policy)?;
+            escaped = false;
         } else {
-            let Some((_val, char_len)) = decode_dctf_buf(slice) else {
+            let Some((val, char_len)) = decode_dctf_buf(slice) else {
                 return Err(DcMixedError::InvalidUtf8e128 {
                     offset,
                     source: DcUtfError {
@@ -1696,6 +1701,9 @@ fn validate_dcmst_with_policy(
                     },
                 });
             };
+            escaped = !escaped
+                && DcChar(val)
+                    .fills_role_with(DcRole::Escape, resolver.as_ref());
             offset = offset.saturating_add(char_len);
         }
     }
@@ -1796,6 +1804,7 @@ fn decode_dcmm_slice_best_effort(
     }
 
     let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    let mut escaped = false;
 
     while offset < bytes.len() {
         let Some(slice) = bytes.get(offset..) else {
@@ -1811,6 +1820,7 @@ fn decode_dcmm_slice_best_effort(
                     "Found embedded DcMixed2 header at offset {offset}; aligning stream"
                 ));
                 is_v1 = false;
+                escaped = false;
                 offset = offset.saturating_add(DCMM_HEADER_LEN);
                 continue;
             } else if slice.get(5..21) == Some(&DCMM_UUID_V1) {
@@ -1818,6 +1828,7 @@ fn decode_dcmm_slice_best_effort(
                     "Found embedded DcMixed1 header at offset {offset}; aligning stream"
                 ));
                 is_v1 = true;
+                escaped = false;
                 offset = offset.saturating_add(DCMM_HEADER_LEN);
                 continue;
             }
@@ -1829,7 +1840,8 @@ fn decode_dcmm_slice_best_effort(
             &DC_203_BYTES
         };
 
-        if slice.starts_with(dc203_bytes)
+        if !escaped
+            && slice.starts_with(dc203_bytes)
             && !is_non_encapsulating_dc203_at(slice, is_v1, resolver.as_ref())
         {
             let dc203_len = dc203_bytes.len();
@@ -2054,9 +2066,13 @@ fn decode_dcmm_slice_best_effort(
                 decode_dctf_buf(slice)
             };
             if let Some((val, char_len)) = decoded {
-                mst.push_char(DcChar(val));
+                let ch = DcChar(val);
+                escaped = !escaped
+                    && ch.fills_role_with(DcRole::Escape, resolver.as_ref());
+                mst.push_char(ch);
                 offset = offset.saturating_add(char_len);
             } else {
+                escaped = false;
                 let err_len_opt = if is_v1 {
                     determine_utf_8e_128_error_len(slice)
                 } else {
@@ -2423,7 +2439,8 @@ pub fn dcmm1_to_dcmstring(
         let Some(slice) = bytes.get(offset..) else {
             break;
         };
-        if slice.starts_with(&DC_203_BYTES_V1)
+        if !tracker.escaped
+            && slice.starts_with(&DC_203_BYTES_V1)
             && !is_non_encapsulating_dc203_at(
                 slice,
                 true,
@@ -2735,7 +2752,8 @@ pub fn dcmstring_to_dcmm1(
         let Some(slice) = bytes.get(offset..) else {
             break;
         };
-        if slice.starts_with(&DC_203_BYTES)
+        if !tracker.escaped
+            && slice.starts_with(&DC_203_BYTES)
             && !is_non_encapsulating_dc203_at(
                 slice,
                 false,
@@ -3294,6 +3312,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
     } else {
         Vec::new()
     };
+    let mut escaped = false;
 
     // 2. Stream & Validate Payload
     loop {
@@ -3312,6 +3331,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
 
         // Check if buffer starts with an encapsulation header
         if !eof_reached
+            && !escaped
             && (buffer.starts_with(dc203_bytes)
                 || dc203_bytes.starts_with(&buffer))
         {
@@ -3322,7 +3342,8 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                 &mut eof_reached,
             )?;
         }
-        let is_encapsulation = buffer.starts_with(dc203_bytes)
+        let is_encapsulation = !escaped
+            && buffer.starts_with(dc203_bytes)
             && !is_non_encapsulating_dc203_at(
                 &buffer,
                 is_v1,
@@ -4090,6 +4111,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                     break;
                 };
                 if pos > 0
+                    && !escaped
                     && (slice.starts_with(dc203_bytes)
                         || (!eof_reached && dc203_bytes.starts_with(slice)))
                 {
@@ -4101,13 +4123,19 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                     decode_dctf_buf(slice)
                 };
                 if let Some((val, char_len)) = decoded {
+                    let ch = DcChar(val);
+                    escaped = !escaped
+                        && ch.fills_role_with(
+                            DcRole::Escape,
+                            tracker.resolver.as_ref(),
+                        );
                     if is_v1 {
                         let dctf_len = encode_dctf_buf(&mut dctf_buf, val);
                         if let (Some(src_char), Some(dst_char)) =
                             (slice.get(..char_len), dctf_buf.get(..dctf_len))
                         {
                             if let Err(err) = tracker.on_char(
-                                DcChar(val),
+                                ch,
                                 src_char,
                                 dst_char,
                                 stream_offset.saturating_add(pos),
@@ -4125,6 +4153,7 @@ pub fn validate_and_copy_dcmm_stream_with_options<
                     if !eof_reached && slice.len() < 24 {
                         break;
                     }
+                    escaped = false;
                     let err_len = if is_v1 {
                         determine_utf_8e_128_error_len(slice)
                     } else {
@@ -5052,6 +5081,70 @@ mod tests {
         )?;
         assert_eq!(written, u64::try_from(node_seq.len())?);
         assert_eq!(streamed.as_slice(), node_seq.as_bytes());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_escaped_dc203_followed_by_encapsulation_type_bytes_roundtrips()
+    -> Result<()> {
+        // Explicit `255 203` (`Dc 255 "Ignore following Dc"` + `Dc 203 "Begin encapsulated binary data"`)
+        // followed immediately by U+0000 (`0x00`), U+0002 (`0x02`), or U+0003 (`0x03`)
+        // must never be misparsed as a binary encapsulation header (`TYPE_BINARY_NO_METADATA`,
+        // `TYPE_BINARY_METADATA`, or `TYPE_BINARY_CHECKSUM`).
+        for input in [
+            b"641 255 203 u0".as_slice(),
+            b"641 255 203 u2".as_slice(),
+            b"641 255 203 u3".as_slice(),
+        ] {
+            let (mstr, _) =
+                crate::converters::dcal::dcsh_to_dcmstring_with_options(
+                    input, false,
+                )?;
+            validate_dcmst(mstr.as_bytes())?;
+            let chunks: Vec<_> = mstr.chunks().collect();
+            assert_eq!(chunks.len(), 1);
+            assert!(matches!(chunks[0], DcMixed::Text(_)));
+            let dc_str = mstr.to_dc_string()?;
+            let restored = DcMstring::from_dc_str(&dc_str)?;
+            assert_eq!(restored.as_bytes(), mstr.as_bytes());
+
+            let (dcmm1, _) = dcmstring_to_dcmm1(&mstr)?;
+            let (from_dcmm1, _) = dcmm1_to_dcmstring(&dcmm1)?;
+            assert_eq!(from_dcmm1.as_bytes(), mstr.as_bytes());
+
+            let (best_effort, diags) =
+                decode_dcmm_slice_best_effort(mstr.as_bytes(), false)?;
+            assert!(!diags.has_warnings());
+            assert_eq!(best_effort.as_bytes(), mstr.as_bytes());
+
+            let mut streamed = Vec::new();
+            let written = validate_and_copy_dcmm_stream(
+                &mut mstr.as_bytes(),
+                &mut streamed,
+            )?;
+            assert_eq!(written, u64::try_from(mstr.len())?);
+            assert_eq!(streamed.as_slice(), mstr.as_bytes());
+        }
+
+        // Conversely, `255 255` followed by an actual binary encapsulation block (`203 ...`)
+        // has the first `255` escaping the second `255`, leaving `203` unescaped so that
+        // the binary encapsulation block is still recognized and preserved.
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_short(255));
+        doc.push_char(DcChar::from_short(255));
+        doc.push_binary(b"abc");
+        validate_dcmst(doc.as_bytes())?;
+        let chunks: Vec<_> = doc.chunks().collect();
+        assert_eq!(chunks.len(), 2);
+        assert!(matches!(chunks[0], DcMixed::Text(_)));
+        assert!(matches!(
+            chunks[1],
+            DcMixed::BinaryWithMetadata { data: b"abc", .. }
+        ));
+        let dc_str = doc.to_dc_string()?;
+        let restored = DcMstring::from_dc_str(&dc_str)?;
+        assert_eq!(restored.as_bytes(), doc.as_bytes());
+
         Ok(())
     }
 }

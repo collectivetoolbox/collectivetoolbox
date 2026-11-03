@@ -1156,7 +1156,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 else {
                     return Ok(None);
                 };
-                if escaped_tok.fills_role_with(DcRole::Escape, resolver)
+                if !resolver.is_plain_atom_dc(escaped_tok.to_u128())
+                    || escaped_tok.fills_role_with(DcRole::Escape, resolver)
+                    || escaped_tok.fills_role_with(
+                        DcRole::StartEncapsulationBinary,
+                        resolver,
+                    )
                     || escaped_tok
                         == ctb_formats_dcdata::dc::DC_EVALUATE_VALUE_AS_ATOM
                     || resolver.is_equivalent_to(
@@ -4011,7 +4016,8 @@ mod tests {
         assert!(resolver.is_special_wrapper_token(sdc(315)));
 
         // Plain atom_dc triple (584 567 596) + escaped atom_dc triple (584 255 255 255 616)
-        // + inline-value atom_dc triple (610 568 616 <lit>) + PrefixArity(1) (616 <lit>)
+        // + escaped 203 atom_dc triple (584 255 203 572) + inline-value atom_dc triple (610 568 616 <lit>)
+        // + PrefixArity(1) (616 <lit>) + PrefixArity(1) (641 255 203) followed by u0
         let mut doc = DcMstring::new();
         for tok in [
             DcChar::from_short(584),
@@ -4022,6 +4028,10 @@ mod tests {
             DcChar::from_short(255),
             DcChar::from_short(255),
             DcChar::from_short(616),
+            DcChar::from_short(584),
+            DcChar::from_short(255),
+            DcChar::from_short(203),
+            DcChar::from_short(572),
             DcChar::from_short(610),
             DcChar::from_short(568),
             DcChar::from_short(616),
@@ -4038,6 +4048,10 @@ mod tests {
             DcChar::from_short(263),
             DcChar::from_u128(66),
             DcChar::from_short(261),
+            DcChar::from_short(641),
+            DcChar::from_short(255),
+            DcChar::from_short(203),
+            DcChar::from_u128(0),
         ] {
             doc.push_char(tok);
         }
@@ -4046,7 +4060,17 @@ mod tests {
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         let mut arena = DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, &strict)?;
-        assert_eq!(arena.roots().len(), 4);
+        assert_eq!(arena.roots().len(), 7);
+        let mut val_nav = DcDocumentNavigator::from_mstr(&doc);
+        val_nav.validate_document(&strict)?;
+
+        // Unescaped 203 in an `[atom_dc]` slot (e.g. `641 203 u65`) must be rejected by syntax validation.
+        let mut unescaped_203_doc = DcMstring::new();
+        unescaped_203_doc.push_char(DcChar::from_short(641));
+        unescaped_203_doc.push_char(DcChar::from_short(203));
+        unescaped_203_doc.push_char(DcChar::from_u128(65));
+        let mut bad_nav = DcDocumentNavigator::from_mstr(&unescaped_203_doc);
+        assert!(bad_nav.validate_document(&strict).is_err());
 
         // Verify zero-copy Copy checkpoint behavior over spliced token slice cursor
         let mut s_nav = DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));

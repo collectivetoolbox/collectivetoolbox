@@ -57,8 +57,8 @@ use crate::dc::{
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
     DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT,
-    DC_END_ASSOCIATIVITY_GROUP, DC_END_LIST, DC_ENTITY_TYPE, DC_FORMAL_ALIAS,
-    DC_FORMAT_PARAM_APPLICATION, DC_FORMAT_VARIATION_ASPECT,
+    DC_END_ASSOCIATIVITY_GROUP, DC_END_LIST, DC_ENTITY_TYPE, DC_ESCAPE,
+    DC_FORMAL_ALIAS, DC_FORMAT_PARAM_APPLICATION, DC_FORMAT_VARIATION_ASPECT,
     DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
     DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A, DC_HAS_VALUE,
     DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
@@ -69,10 +69,11 @@ use crate::dc::{
     DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
     DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
     DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
-    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
-    DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
-    DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
-    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION,
+    DC_START_ENCAPSULATION_BINARY, DC_SUBPATTERN_MATCH, DC_SUPERSEDES,
+    DC_SUPPORT_COMPLETE, DC_SUPPORT_LOSSLESS_ROUNDTRIP,
+    DC_SUPPORT_LOSSLESS_STRICT_VALIDATION, DC_SUPPORT_NOT_APPLICABLE,
+    DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS, DC_SYNTAX_RULE,
+    DC_THIS_ELEMENT, DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION,
     DC_TYPE_TRANSFORMATION, DC_TYPE_TRANSMUTATION, DC_TYPE_UNION,
     DC_UNICODE_SCRIPT, DcChar,
 };
@@ -2285,18 +2286,12 @@ impl SeedGraphIndex {
         }
 
         if tok == sh_range {
-            let start_sh = *tokens
-                .get(idx.saturating_add(1))
+            let mut next_idx = idx.saturating_add(1);
+            let start = consume_pattern_char_target(tokens, &mut next_idx)
                 .context("Missing start token after Range (Dc 4)")?;
-            let end_sh = *tokens
-                .get(idx.saturating_add(2))
+            let end = consume_pattern_char_target(tokens, &mut next_idx)
                 .context("Missing end token after Range (Dc 4)")?;
-            let start = shorthand_to_char_target(start_sh)?;
-            let end = shorthand_to_char_target(end_sh)?;
-            return Ok((
-                SyntaxTerm::CharRange { start, end },
-                idx.saturating_add(3),
-            ));
+            return Ok((SyntaxTerm::CharRange { start, end }, next_idx));
         }
 
         if tok == sh_open {
@@ -2317,11 +2312,11 @@ impl SeedGraphIndex {
             if first_inner == sh_neg {
                 let mut members =
                     Vec::with_capacity(inner.len().saturating_sub(1));
-                let members_slice = inner
-                    .get(1..)
-                    .context("Invalid negated character set members range")?;
-                for &m in members_slice {
-                    members.push(shorthand_to_char_target(m)?);
+                let mut m_idx = 1usize;
+                while m_idx < inner.len() {
+                    members.push(consume_pattern_char_target(
+                        inner, &mut m_idx,
+                    )?);
                 }
                 return Ok((
                     SyntaxTerm::CharSet {
@@ -2335,11 +2330,11 @@ impl SeedGraphIndex {
             if first_inner == sh_alt && inner.get(1) != Some(&sh_open) {
                 let mut members =
                     Vec::with_capacity(inner.len().saturating_sub(1));
-                let members_slice = inner
-                    .get(1..)
-                    .context("Invalid character set members range")?;
-                for &m in members_slice {
-                    members.push(shorthand_to_char_target(m)?);
+                let mut m_idx = 1usize;
+                while m_idx < inner.len() {
+                    members.push(consume_pattern_char_target(
+                        inner, &mut m_idx,
+                    )?);
                 }
                 return Ok((
                     SyntaxTerm::CharSet {
@@ -2413,11 +2408,12 @@ impl SeedGraphIndex {
                         ));
                     }
                 }
+                let mut r_idx = 1usize;
+                let target = consume_pattern_char_target(inner, &mut r_idx)?;
                 ensure!(
-                    inner.len() == 2,
+                    r_idx == inner.len(),
                     "Unexpected extra tokens in RuleRef SubpatternMatch: {inner:?}"
                 );
-                let target = shorthand_to_char_target(target_tok)?;
                 return Ok((SyntaxTerm::RuleRef { target }, next_idx));
             }
 
@@ -2425,8 +2421,9 @@ impl SeedGraphIndex {
             return Ok((SyntaxTerm::Group(group_pat), next_idx));
         }
 
-        let target = shorthand_to_char_target(tok)?;
-        Ok((SyntaxTerm::CharRef(target), idx.saturating_add(1)))
+        let mut next_idx = idx;
+        let target = consume_pattern_char_target(tokens, &mut next_idx)?;
+        Ok((SyntaxTerm::CharRef(target), next_idx))
     }
 
     fn decode_optional_quantifier_at(
@@ -2519,6 +2516,26 @@ fn find_matching_group_close(
     bail!(
         "Unclosed BeginAssociativityGroup (298) starting at token index {open_idx}"
     )
+}
+
+fn consume_pattern_char_target(
+    tokens: &[DcShorthand],
+    idx: &mut usize,
+) -> Result<CharTarget> {
+    let tok = *tokens
+        .get(*idx)
+        .context("Unexpected end of pattern token stream")?;
+    *idx = idx.saturating_add(1);
+    if tok == sh(DC_ESCAPE)
+        && tokens.get(*idx) == Some(&sh(DC_START_ENCAPSULATION_BINARY))
+    {
+        let escaped = *tokens
+            .get(*idx)
+            .context("Unexpected end of pattern token stream after Dc 255")?;
+        *idx = idx.saturating_add(1);
+        return shorthand_to_char_target(escaped);
+    }
+    shorthand_to_char_target(tok)
 }
 
 fn shorthand_to_char_target(shorthand: DcShorthand) -> Result<CharTarget> {

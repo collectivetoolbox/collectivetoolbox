@@ -697,20 +697,23 @@ pub fn load_ledger_nodes_from_dir(graph_dir: &Path) -> Result<Vec<LedgerNode>> {
     Ok(nodes)
 }
 
-/// Appends `tok` as an `[atom_dc]` token to `out`, escaping `escape` (`Dc 255`)
-/// and `evaluate_as_atom` (`Dc 616`) with a leading `escape` (`Dc 255`).
+/// Appends `tok` as an `[atom_dc]` token to `out`, escaping `Dc 203` (`Begin encapsulated binary data`),
+/// `escape` (`Dc 255`), and `evaluate_as_atom` (`Dc 616`) with a leading `escape` (`Dc 255`).
 pub fn push_atom_dc_with(
     out: &mut Vec<DcShorthand>,
     tok: DcShorthand,
     framing: CtbnbdlFramingDcs,
 ) {
-    if tok == framing.escape || tok == framing.evaluate_as_atom {
+    if tok == DcShorthand::Short(203)
+        || tok == framing.escape
+        || tok == framing.evaluate_as_atom
+    {
         out.push(framing.escape);
     }
     out.push(tok);
 }
 
-/// Consumes an `[atom_dc]` token at `*idx` from `tokens`, unescaping `255 255` and `255 616`.
+/// Consumes an `[atom_dc]` token at `*idx` from `tokens`, unescaping `255 203`, `255 255`, and `255 616`.
 #[must_use]
 pub fn consume_atom_dc_with(
     tokens: &[DcShorthand],
@@ -721,7 +724,10 @@ pub fn consume_atom_dc_with(
     *idx = idx.saturating_add(1);
     if tok == framing.escape {
         let escaped = *tokens.get(*idx)?;
-        if escaped == framing.escape || escaped == framing.evaluate_as_atom {
+        if escaped == DcShorthand::Short(203)
+            || escaped == framing.escape
+            || escaped == framing.evaluate_as_atom
+        {
             *idx = idx.saturating_add(1);
             Some(escaped)
         } else {
