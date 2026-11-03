@@ -29,6 +29,7 @@ use crate::utilities::*;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
+pub use ctb_formats_dcstring::DcNormalizationMode;
 use ctb_formats_dcstring::DcMstring;
 use ctb_formats_utilities::FormatLog;
 use ctb_utilities::FormatId;
@@ -93,8 +94,27 @@ pub struct DcExportOptions {
     /// Target output format (default: Utf8).
     pub format: SupportedDcOutputFormat,
     /// Export document in permissive/forgiving mode (canonicalizing equivalent
-    /// characters and recovering with warnings instead of failing or skipping).
+    /// characters and recovering with warnings instead of failing or logging errors).
     pub permissive: bool,
+    /// Optional explicit normalization policy override.
+    /// When `None`, defaults to `DcNormalizationMode::RequiredByTarget` in permissive mode
+    /// and `DcNormalizationMode::None` in strict mode.
+    pub normalization: Option<DcNormalizationMode>,
+}
+
+impl DcExportOptions {
+    /// Returns the effective normalization policy (`RequiredByTarget` by default
+    /// in permissive mode, `None` by default in strict mode, or the explicit override).
+    #[must_use]
+    pub const fn effective_normalization(&self) -> DcNormalizationMode {
+        if let Some(mode) = self.normalization {
+            mode
+        } else if self.permissive {
+            DcNormalizationMode::RequiredByTarget
+        } else {
+            DcNormalizationMode::None
+        }
+    }
 }
 
 /// Result of an export conversion from `DcMstring` to output format bytes.
@@ -126,19 +146,39 @@ fn dcmstring_to_single_byte_encoding(
     id: FormatId,
     doc: &DcMstring,
     permissive: bool,
+    normalization: DcNormalizationMode,
 ) -> Result<(Vec<u8>, FormatLog)> {
     let enc = ctb_formats_encoding::CharEncoding::from_format_id(id)
         .ok_or_else(|| {
             anyhow::anyhow!("Unsupported single-byte encoding: {id:?}")
         })?;
-    let (utf8_bytes, log) =
-        ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8_with_options(
+    let (utf8_bytes, mut log) =
+        ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8_with_normalization(
             doc,
             permissive,
+            normalization,
         )?;
     let text = std::str::from_utf8(&utf8_bytes)
         .context("Internal UTF-8 conversion produced invalid UTF-8")?;
-    let bytes = ctb_formats_encoding::encode(enc, text)?;
+    let bytes = match ctb_formats_encoding::encode(enc, text) {
+        Ok(b) => b,
+        Err(err)
+            if normalization == DcNormalizationMode::RequiredByTarget
+                && !ctb_formats_unicode::is_nfc_normalized(text) =>
+        {
+            let nfc_text = ctb_formats_unicode::normalize_nfc(text);
+            let encoded =
+                ctb_formats_encoding::encode(enc, &nfc_text).map_err(|_| err)?;
+            if permissive {
+                log.export_warning(
+                    0,
+                    "Normalized Unicode text sequence to NFC as required by target encoding",
+                );
+            }
+            encoded
+        }
+        Err(err) => return Err(err),
+    };
     Ok((bytes, log))
 }
 
@@ -428,11 +468,30 @@ pub fn convert_dcmstring_to_bytes(
     format: SupportedDcOutputFormat,
     options: &DcExportOptions,
 ) -> Result<DcExportResult> {
-    let (bytes, log) = match format {
-        SupportedDcOutputFormat::Utf8 => {
-            ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8_with_options(
+    let normalization = options.effective_normalization();
+    let mut pre_log = FormatLog::default();
+    let owned_normalized_doc;
+    let doc: &DcMstring = if normalization == DcNormalizationMode::All
+        && !matches!(format, SupportedDcOutputFormat::Utf8)
+    {
+        let (norm_doc, norm_log) =
+            ctb_formats_dcstring::normalize_dcmstring_all(
                 doc,
                 options.permissive,
+            )?;
+        pre_log.merge(&norm_log);
+        owned_normalized_doc = norm_doc;
+        &owned_normalized_doc
+    } else {
+        doc
+    };
+
+    let (bytes, export_log) = match format {
+        SupportedDcOutputFormat::Utf8 => {
+            ctb_formats_dcstring::converters::utf8::dcmstring_to_utf8_with_normalization(
+                doc,
+                options.permissive,
+                normalization,
             )?
         }
         SupportedDcOutputFormat::DcText => {
@@ -497,12 +556,20 @@ pub fn convert_dcmstring_to_bytes(
                 doc,
                 &ctb_formats_dcstring::converters::ascii::AsciiSettings {
                     strict_import: !options.permissive,
+                    normalization: Some(normalization),
                     ..Default::default()
                 },
             )?
         }
         SupportedDcOutputFormat::AsciiSafeSubset => {
-            ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii_safe_subset(doc)?
+            ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii_safe_subset_with_settings(
+                doc,
+                &ctb_formats_dcstring::converters::ascii::AsciiSettings {
+                    strict_import: !options.permissive,
+                    normalization: Some(normalization),
+                    ..Default::default()
+                },
+            )?
         }
         SupportedDcOutputFormat::CscJournal => {
             ctb_io_csc::journal::dcmstring_to_cscjournal(doc)?
@@ -531,6 +598,7 @@ pub fn convert_dcmstring_to_bytes(
                 format.to_format_id(),
                 doc,
                 options.permissive,
+                normalization,
             )?
         }
         SupportedDcOutputFormat::CdceLegacy
@@ -564,10 +632,12 @@ pub fn convert_dcmstring_to_bytes(
         }
     };
 
+    pre_log.merge(&export_log);
+
     Ok(DcExportResult {
         bytes,
         target_format: format.to_format_id(),
-        log,
+        log: pre_log,
     })
 }
 
@@ -1183,7 +1253,25 @@ mod tests {
             text_strict.bytes,
             "\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}".as_bytes()
         );
-        assert!(text_strict.log.has_warnings());
+        assert!(text_strict.log.has_errors());
+        assert!(!text_strict.log.has_warnings());
+
+        let text_no_norm = convert_dcmstring_to_bytes(
+            &text_doc,
+            SupportedDcOutputFormat::Utf8,
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::Utf8,
+                permissive: true,
+                normalization: Some(DcNormalizationMode::None),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            text_no_norm.bytes,
+            "\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}".as_bytes()
+        );
+        assert!(text_no_norm.log.has_warnings());
+        assert!(!text_no_norm.log.has_errors());
 
         let text = convert_dcmstring_to_bytes(
             &text_doc,
@@ -1191,6 +1279,7 @@ mod tests {
             &DcExportOptions {
                 format: SupportedDcOutputFormat::Utf8,
                 permissive: true,
+                ..Default::default()
             },
         )
         .unwrap();
@@ -1214,6 +1303,7 @@ mod tests {
             &DcExportOptions {
                 format: SupportedDcOutputFormat::Utf8,
                 permissive: true,
+                ..Default::default()
             },
         )
         .unwrap();
@@ -1347,18 +1437,35 @@ mod tests {
         .expect("re-export DCE 3.01a DcMstring to DCE 3.01a");
         assert_eq!(reencoded_301a.bytes, dce_301a.bytes);
 
-        // 3. Verify unrepresentable Dcs (such as long Dcs and short Dcs > 12 in CdceLegacy) emit warnings
-        // because dceutils formats do not support Dc 308.
+        // 3. Verify unrepresentable Dcs (such as long Dcs and short Dcs > 12 in CdceLegacy)
+        // emit errors in strict mode and warnings in permissive mode because dceutils formats do not support Dc 308.
         let mut unmappable_doc = DcMstring::new();
         unmappable_doc.push_str("A");
-        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(1_114_420)); // short Dc 308 -> U+FFFD with warning
-        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(3_000_000)); // long Dc -> U+FFFD with warning
-        let warn_export = convert_dcmstring_to_bytes(
+        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(1_114_420)); // short Dc 308 -> U+FFFD
+        unmappable_doc.push_char(ctb_formats_dcstring::DcChar(3_000_000)); // long Dc -> U+FFFD
+        let strict_export = convert_dcmstring_to_bytes(
             &unmappable_doc,
             SupportedDcOutputFormat::CdceLegacy,
             &DcExportOptions::default(),
         )
-        .expect("export with warnings");
+        .expect("export in strict mode");
+        assert_eq!(strict_export.bytes, b"A\xef\xbf\xbd\xef\xbf\xbd");
+        assert!(strict_export.log.has_errors());
+        assert!(
+            strict_export.log.get_errors().len() >= 2,
+            "Expected errors for unmappable short Dc 308 and long Dc 3000000 in strict mode"
+        );
+
+        let warn_export = convert_dcmstring_to_bytes(
+            &unmappable_doc,
+            SupportedDcOutputFormat::CdceLegacy,
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::CdceLegacy,
+                permissive: true,
+                ..Default::default()
+            },
+        )
+        .expect("export with warnings in permissive mode");
         assert_eq!(warn_export.bytes, b"A\xef\xbf\xbd\xef\xbf\xbd");
         assert!(warn_export.log.has_warnings());
         assert!(
@@ -1465,5 +1572,80 @@ mod tests {
                 "Dce_3_01a reimported DcMstring missing short Dc {short_id}"
             );
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_normalization_modes_across_formats() {
+        // Document containing:
+        // - decomposed Unicode "cafe\u{0301}"
+        // - deprecated short Dc 57 ('H', <equiv>u48)
+        // - deprecated short Dc 265 (<prefer>307)
+        let mut doc = DcMstring::from("cafe\u{0301}");
+        doc.push_char(ctb_formats_dcstring::DcChar::from_short(57));
+        doc.push_char(ctb_formats_dcstring::DcChar::from_short(265));
+
+        // 1. Export to Dcal (which can represent all Dcs and Unicode codepoints as-is):
+        // - RequiredByTarget (default in permissive mode): preserves decomposed Unicode and deprecated Dcs as-is
+        let dcal_req = convert_dcmstring_to_bytes(
+            &doc,
+            SupportedDcOutputFormat::Dcal,
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::Dcal,
+                permissive: true,
+                normalization: Some(DcNormalizationMode::RequiredByTarget),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(dcal_req.bytes).unwrap(),
+            "99 97 102 101 769 1114169 1114377 "
+        );
+        assert!(!dcal_req.log.has_warnings() && !dcal_req.log.has_errors());
+
+        // - All: normalizes "cafe\u{0301}" -> "caf\u{00E9}" (233), short Dc 57 -> 'H' (72), and short Dc 265 -> short Dc 307 (1114419)
+        let dcal_all = convert_dcmstring_to_bytes(
+            &doc,
+            SupportedDcOutputFormat::Dcal,
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::Dcal,
+                permissive: true,
+                normalization: Some(DcNormalizationMode::All),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(dcal_all.bytes).unwrap(),
+            "99 97 102 233 72 1114419 "
+        );
+        assert!(dcal_all.log.has_warnings() && !dcal_all.log.has_errors());
+
+        // 2. Export decomposed Unicode "cafe\u{0301}" to MacRoman:
+        let decomp_doc = DcMstring::from("cafe\u{0301}");
+        // - None: does not normalize, fails because U+0301 is not representable in MacRoman
+        assert!(
+            convert_dcmstring_to_bytes(
+                &decomp_doc,
+                SupportedDcOutputFormat::MacRoman,
+                &DcExportOptions {
+                    format: SupportedDcOutputFormat::MacRoman,
+                    permissive: true,
+                    normalization: Some(DcNormalizationMode::None),
+                },
+            )
+            .is_err()
+        );
+        // - RequiredByTarget (default in permissive mode): normalizes to NFC on demand so MacRoman can represent 'é'
+        let mac_req = convert_dcmstring_to_bytes(
+            &decomp_doc,
+            SupportedDcOutputFormat::MacRoman,
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::MacRoman,
+                permissive: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(mac_req.bytes, vec![99, 97, 102, 142]);
+        assert!(mac_req.log.has_warnings() && !mac_req.log.has_errors());
     }
 }

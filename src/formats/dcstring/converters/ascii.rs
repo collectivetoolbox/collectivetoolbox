@@ -61,6 +61,8 @@ pub struct AsciiSettings {
     /// When true, rejects any non-ASCII bytes on import with an error. When
     /// false, replaces non-ASCII bytes with replacement characters.
     pub strict_import: bool,
+    /// Optional explicit normalization mode override.
+    pub normalization: Option<crate::DcNormalizationMode>,
 }
 
 impl Default for AsciiSettings {
@@ -73,6 +75,7 @@ impl ConstDefault for AsciiSettings {
     const DEFAULT: Self = Self {
         unmappable_policy: AsciiUnmappablePolicy::Skip,
         strict_import: true,
+        normalization: None,
     };
 }
 
@@ -134,10 +137,18 @@ pub fn dcmstring_to_ascii_with_settings(
     doc: &DcMstring,
     settings: &AsciiSettings,
 ) -> Result<(Vec<u8>, FormatLog)> {
+    let permissive = !settings.strict_import;
+    // Reason for fallback: when no explicit normalization mode is specified, default to RequiredByTarget in permissive mode and None in strict mode.
+    let normalization = settings.normalization.unwrap_or(if permissive {
+        crate::DcNormalizationMode::RequiredByTarget
+    } else {
+        crate::DcNormalizationMode::None
+    });
     let (utf8_bytes, mut log) =
-        crate::converters::utf8::dcmstring_to_utf8_with_options(
+        crate::converters::utf8::dcmstring_to_utf8_with_normalization(
             doc,
-            !settings.strict_import,
+            permissive,
+            normalization,
         )?;
 
     // Fast-path: if all bytes are valid 7-bit ASCII, return immediately.
@@ -413,6 +424,7 @@ mod tests {
         let settings = AsciiSettings {
             unmappable_policy: AsciiUnmappablePolicy::Skip,
             strict_import: false,
+            ..Default::default()
         };
         let (doc, log) = ascii_to_dcmstring_with_settings(invalid, &settings)
             .expect("parse");
@@ -435,6 +447,7 @@ mod tests {
         let settings = AsciiSettings {
             unmappable_policy: AsciiUnmappablePolicy::Transliterate,
             strict_import: true,
+            ..Default::default()
         };
         let (bytes, _) =
             dcmstring_to_ascii_with_settings(&doc, &settings).expect("export");
@@ -449,6 +462,7 @@ mod tests {
         let settings = AsciiSettings {
             unmappable_policy: AsciiUnmappablePolicy::Replace(b'?'),
             strict_import: true,
+            ..Default::default()
         };
         let (bytes, log) =
             dcmstring_to_ascii_with_settings(&doc, &settings).expect("export");

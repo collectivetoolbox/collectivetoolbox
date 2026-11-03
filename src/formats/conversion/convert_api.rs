@@ -57,9 +57,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub use crate::convert_bytes::{
     DcConversionOptions, DcConversionResult, DcExportOptions, DcExportResult,
-    FormatSpec, convert_bytes_to_dcmstring, convert_cscjournal_to_dcmstring,
-    convert_dcmstring_to_bytes, convert_dcmstring_to_file,
-    convert_file_to_dcmstring,
+    DcNormalizationMode, FormatSpec, convert_bytes_to_dcmstring,
+    convert_cscjournal_to_dcmstring, convert_dcmstring_to_bytes,
+    convert_dcmstring_to_file, convert_file_to_dcmstring,
 };
 pub use crate::convert_stream::{
     StreamConversionReceipt, StreamExportReceipt, stream_dcmfile_to_writer,

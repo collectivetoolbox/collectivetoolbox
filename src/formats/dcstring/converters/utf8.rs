@@ -69,6 +69,28 @@ pub fn dcl_basenb_end_uuid_bytes() -> Result<Vec<u8>> {
     byte_array_to_basenb_17_utf8(&DCL_BASENB_END_UUID_RAW)
 }
 
+/// Policy for normalizing Document Characters and Unicode during conversion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
+pub enum DcNormalizationMode {
+    /// Do not normalize characters; replace any characters that cannot be
+    /// represented as-is in the target format with replacement characters.
+    #[default]
+    #[value(name = "none")]
+    None,
+    /// Normalize only the specific characters that cannot be represented
+    /// as-is in the target format (default in permissive mode).
+    #[value(name = "as-needed")]
+    RequiredByTarget,
+    /// Normalize all deprecated Document Characters to their canonical or
+    /// preferred replacements and normalize Unicode text (NFC).
+    #[value(name = "all")]
+    All,
+}
+
+impl ConstDefault for DcNormalizationMode {
+    const DEFAULT: Self = Self::None;
+}
+
 /// Configuration settings for `DcList` to/from UTF-8 conversion.
 #[derive(Debug, Clone)]
 pub struct DcListUtf8Settings {
@@ -85,6 +107,8 @@ pub struct DcListUtf8Settings {
     /// When true, map short Dcs to their corresponding Unicode output character
     /// (if available), and parse legacy base64 UTF-8 embeds (`191..192`) in input documents.
     pub canonicalize_equivalent_dcs: bool,
+    /// Normalization mode for Document Characters and Unicode text.
+    pub normalization: DcNormalizationMode,
     /// Recover malformed encapsulated text with U+FFFD and warnings instead
     /// of returning an error.
     pub permissive: bool,
@@ -105,9 +129,189 @@ impl ConstDefault for DcListUtf8Settings {
         dcl_basenb_fragment_strict: true,
         skip_unmappable: false,
         canonicalize_equivalent_dcs: false,
+        normalization: DcNormalizationMode::None,
         permissive: false,
         debug: false,
     };
+}
+
+/// Normalizes all deprecated Document Characters (to their canonical or preferred
+/// replacements) and normalizes contiguous Unicode runs to NFC in a `DcList`.
+pub fn normalize_dclist_all(
+    dclist: &[u128],
+    permissive: bool,
+    log: &mut FormatLog,
+) -> Result<DcList> {
+    let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+    let mut step1 = Vec::with_capacity(dclist.len());
+    let mut i = 0;
+
+    while i < dclist.len() {
+        let Some(&dc) = dclist.get(i) else { break };
+        // Reason for fallback: if usize index fails u64 conversion, fallback 0 is used for log position.
+        let idx_u64 = u64::try_from(i).unwrap_or(0);
+
+        if resolver.matches_named_type_starter("text_encoding_control", dc) {
+            if permissive {
+                log.export_warning(
+                    idx_u64,
+                    &format!("Stripped text encoding control Dc {dc}"),
+                );
+            }
+            i = i.saturating_add(1);
+            continue;
+        }
+
+        if resolver.token_fills_role(dc, DcRole::StartEncapsulationUtf8) {
+            let (decoded, next) = decode_utf8_encapsulation(
+                dclist,
+                i,
+                permissive,
+                resolver.as_ref(),
+                log,
+            )?;
+            let decoded_dcs = super::document_dc_string(&decoded)?.to_dclist();
+            let norm_decoded =
+                normalize_dclist_all(&decoded_dcs, permissive, log)?;
+            step1.extend(norm_decoded);
+            i = next;
+            continue;
+        }
+
+        if let Some(target) =
+            ctb_formats_dcdata::syntax::CharTarget::from_u128(dc)
+        {
+            if resolver.is_deprecated(&target) {
+                let canon_dc = resolver.canonical_token(dc);
+                if canon_dc != dc {
+                    if permissive {
+                        log.export_warning(
+                            idx_u64,
+                            &format!(
+                                "Normalized deprecated character {target} to canonical token {canon_dc}"
+                            ),
+                        );
+                    }
+                    step1.push(canon_dc);
+                    i = i.saturating_add(1);
+                    continue;
+                }
+                if let Some(pref) = resolver.preferred_replacement(&target) {
+                    let pref_u128 = pref.to_u128();
+                    if pref_u128 != dc {
+                        if permissive {
+                            log.export_warning(
+                                idx_u64,
+                                &format!(
+                                    "Normalized deprecated character {target} to preferred replacement {pref}"
+                                ),
+                            );
+                        }
+                        step1.push(pref_u128);
+                        i = i.saturating_add(1);
+                        continue;
+                    }
+                }
+                if let Some(text) = resolver.unicode_text_mapping(dc, false) {
+                    if permissive {
+                        log.export_warning(
+                            idx_u64,
+                            &format!(
+                                "Normalized deprecated character {target} to \"{text}\""
+                            ),
+                        );
+                    }
+                    for ch in text.chars() {
+                        step1.push(u128::from(u32::from(ch)));
+                    }
+                    i = i.saturating_add(1);
+                    continue;
+                }
+            }
+        }
+
+        step1.push(dc);
+        i = i.saturating_add(1);
+    }
+
+    // Pass 2: Normalize contiguous runs of Unicode scalar codepoints to NFC
+    let mut out = Vec::with_capacity(step1.len());
+    let mut unicode_run = String::new();
+    let mut run_start_idx = 0usize;
+
+    let flush_unicode_run = |run: &mut String,
+                             start_idx: usize,
+                             dest: &mut Vec<u128>,
+                             log_out: &mut FormatLog| {
+        if !run.is_empty() {
+            if ctb_formats_unicode::is_nfc_normalized(run) {
+                for ch in run.chars() {
+                    dest.push(u128::from(u32::from(ch)));
+                }
+            } else {
+                let nfc = ctb_formats_unicode::normalize_nfc(run);
+                if permissive {
+                    // Reason for fallback: if usize index fails u64 conversion, fallback 0 is used for log position.
+                    let idx_u64 = u64::try_from(start_idx).unwrap_or(0);
+                    log_out.export_warning(
+                        idx_u64,
+                        "Normalized Unicode text sequence to NFC",
+                    );
+                }
+                for ch in nfc.chars() {
+                    dest.push(u128::from(u32::from(ch)));
+                }
+            }
+            run.clear();
+        }
+    };
+
+    for (idx, &dc) in step1.iter().enumerate() {
+        if dc <= 0x10_FFFF
+            && let Ok(cp_u32) = u32::try_from(dc)
+            && let Some(ch) = char::from_u32(cp_u32)
+        {
+            if unicode_run.is_empty() {
+                run_start_idx = idx;
+            }
+            unicode_run.push(ch);
+        } else {
+            flush_unicode_run(
+                &mut unicode_run,
+                run_start_idx,
+                &mut out,
+                log,
+            );
+            out.push(dc);
+        }
+    }
+    flush_unicode_run(&mut unicode_run, run_start_idx, &mut out, log);
+
+    Ok(out)
+}
+
+/// Normalizes all deprecated Document Characters (to their canonical or preferred
+/// replacements) and normalizes Unicode text chunks to NFC in a `DcMstr`,
+/// preserving binary chunks intact.
+pub fn normalize_dcmstring_all(
+    doc: &crate::DcMstr,
+    permissive: bool,
+) -> Result<(crate::DcMstring, FormatLog)> {
+    let mut normalized = crate::DcMstring::new();
+    let mut log = FormatLog::default();
+    for chunk in doc.chunks() {
+        if let crate::DcMixedChunk::Text(text) = chunk {
+            let dclist = text.to_dclist();
+            let norm_dclist =
+                normalize_dclist_all(&dclist, permissive, &mut log)?;
+            for dc in norm_dclist {
+                normalized.push_char(crate::DcChar::from_u128(dc));
+            }
+        } else {
+            normalized.push_chunk(&chunk)?;
+        }
+    }
+    Ok((normalized, log))
 }
 
 /// Converts a `DcList` (`&[u128]`) into UTF-8 bytes (`Vec<u8>`).
@@ -116,6 +320,17 @@ pub fn dclist_to_utf8(
     settings: &DcListUtf8Settings,
 ) -> Result<ConversionOutput<Vec<u8>>> {
     let mut log = FormatLog::default();
+    let owned_normalized;
+    let dclist: &[u128] = if settings.normalization == DcNormalizationMode::All {
+        owned_normalized =
+            normalize_dclist_all(dclist, settings.permissive, &mut log)?;
+        &owned_normalized
+    } else {
+        dclist
+    };
+    let normalize_for_target = settings.canonicalize_equivalent_dcs
+        || settings.normalization != DcNormalizationMode::None;
+
     let mut out = Vec::new();
     let mut unmappables: Vec<u128> = Vec::new();
     let mut found_any_unmappables = false;
@@ -132,7 +347,7 @@ pub fn dclist_to_utf8(
     while i < dclist.len() {
         let Some(&dc) = dclist.get(i) else { break };
 
-        if settings.canonicalize_equivalent_dcs
+        if normalize_for_target
             && resolver.matches_named_type_starter("text_encoding_control", dc)
         {
             if settings.permissive {
@@ -171,7 +386,7 @@ pub fn dclist_to_utf8(
         if dc >= SHORT_DC_REGION_START {
             let diff = dc.saturating_sub(SHORT_DC_REGION_START);
             if diff <= max_short_u128 {
-                if settings.canonicalize_equivalent_dcs {
+                if normalize_for_target {
                     // Sub-case 2a: Legacy base64 UTF-8 sequence starting with DcRole::StartEncapsulationUtf8 (191)
                     if resolver
                         .token_fills_role(dc, DcRole::StartEncapsulationUtf8)
@@ -262,10 +477,17 @@ pub fn dclist_to_utf8(
         } else {
             // Reason for fallback: if usize index fails u64 conversion, fallback 0 is used for log position.
             let idx_u64 = u64::try_from(i).unwrap_or(0);
-            log.export_warning(
-                idx_u64,
-                &format!("Dc {dc} has no UTF-8 mapping"),
-            );
+            if settings.permissive {
+                log.export_warning(
+                    idx_u64,
+                    &format!("Dc {dc} has no UTF-8 mapping"),
+                );
+            } else {
+                log.export_error(
+                    idx_u64,
+                    &format!("Dc {dc} has no UTF-8 mapping"),
+                );
+            }
             if !settings.skip_unmappable {
                 out.extend_from_slice(UTF8_REPLACEMENT_CHARACTER);
             }
@@ -703,20 +925,37 @@ pub fn dcmstring_to_utf8(doc: &crate::DcMstr) -> Result<(Vec<u8>, FormatLog)> {
 
 /// Converts a `DcMstring` to UTF-8 bytes with permissive or strict options.
 ///
-/// In permissive mode (`permissive == true`), equivalent Dcs are canonicalized
-/// to UTF-8 characters with warnings, and malformed encodings recover with
-/// replacement characters and warnings.
+/// In permissive mode (`permissive == true`), characters that cannot be
+/// represented as-is in UTF-8 are normalized (`DcNormalizationMode::RequiredByTarget`)
+/// with warnings, and malformed encodings recover with replacement characters and warnings.
 ///
-/// In strict mode (`permissive == false`), equivalent Dcs are not canonicalized
-/// (treated as unmappable), and malformed encodings return an error.
+/// In strict mode (`permissive == false`), characters are not normalized
+/// (`DcNormalizationMode::None`), unrepresentable characters log export errors,
+/// and malformed encodings return an error.
 pub fn dcmstring_to_utf8_with_options(
     doc: &crate::DcMstr,
     permissive: bool,
 ) -> Result<(Vec<u8>, FormatLog)> {
+    let normalization = if permissive {
+        DcNormalizationMode::RequiredByTarget
+    } else {
+        DcNormalizationMode::None
+    };
+    dcmstring_to_utf8_with_normalization(doc, permissive, normalization)
+}
+
+/// Converts a `DcMstring` to UTF-8 bytes with explicit strictness and normalization policy.
+pub fn dcmstring_to_utf8_with_normalization(
+    doc: &crate::DcMstr,
+    permissive: bool,
+    normalization: DcNormalizationMode,
+) -> Result<(Vec<u8>, FormatLog)> {
     dcmstr_to_utf8_with_options(
         doc,
         &DcListUtf8Settings {
-            canonicalize_equivalent_dcs: permissive,
+            canonicalize_equivalent_dcs: normalization
+                != DcNormalizationMode::None,
+            normalization,
             permissive,
             ..Default::default()
         },
@@ -1044,22 +1283,62 @@ mod tests {
         // Short Dc 65 ('P')
         doc.push_char(crate::DcChar::from_short(65));
 
-        // Strict mode (default): does NOT canonicalize equivalent Dcs
+        // Strict mode (default): does NOT canonicalize equivalent Dcs and logs an error
         let (strict_bytes, strict_log) =
             dcmstring_to_utf8_with_options(&doc, false).unwrap();
         assert_eq!(strict_bytes, "\u{FFFD}".as_bytes());
-        assert!(strict_log.has_warnings());
+        assert!(strict_log.has_errors());
+        assert!(!strict_log.has_warnings());
 
         // Default dcmstring_to_utf8 is strict
         let (def_bytes, def_log) = dcmstring_to_utf8(&doc).unwrap();
         assert_eq!(def_bytes, "\u{FFFD}".as_bytes());
-        assert!(def_log.has_warnings());
+        assert!(def_log.has_errors());
+        assert!(!def_log.has_warnings());
 
-        // Permissive mode: canonicalizes equivalent Dcs with warnings
+        // Permissive mode with DcNormalizationMode::None ("no normalization"):
+        // replaces unrepresentable characters with U+FFFD and logs a warning
+        let (no_norm_bytes, no_norm_log) = dcmstring_to_utf8_with_normalization(
+            &doc,
+            true,
+            DcNormalizationMode::None,
+        )
+        .unwrap();
+        assert_eq!(no_norm_bytes, "\u{FFFD}".as_bytes());
+        assert!(no_norm_log.has_warnings());
+        assert!(!no_norm_log.has_errors());
+
+        // Permissive mode (default DcNormalizationMode::RequiredByTarget):
+        // canonicalizes equivalent Dcs with warnings
         let (perm_bytes, perm_log) =
             dcmstring_to_utf8_with_options(&doc, true).unwrap();
         assert_eq!(perm_bytes, b"P");
         assert!(perm_log.has_warnings());
+        assert!(!perm_log.has_errors());
+
+        // Compare RequiredByTarget vs All on decomposed Unicode ("cafe\u{0301}") + short Dc 65 ('P')
+        let mut mixed_doc = crate::DcMstring::from("cafe\u{0301}");
+        mixed_doc.push_char(crate::DcChar::from_short(65));
+
+        let (req_bytes, req_log) = dcmstring_to_utf8_with_normalization(
+            &mixed_doc,
+            true,
+            DcNormalizationMode::RequiredByTarget,
+        )
+        .unwrap();
+        // RequiredByTarget preserves "cafe\u{0301}" as-is and only normalizes short Dc 65 -> 'P'
+        assert_eq!(req_bytes, "cafe\u{0301}P".as_bytes());
+        assert!(req_log.has_warnings());
+
+        let (all_bytes, all_log) = dcmstring_to_utf8_with_normalization(
+            &mixed_doc,
+            true,
+            DcNormalizationMode::All,
+        )
+        .unwrap();
+        // All normalizes both "cafe\u{0301}" -> "caf\u{00E9}" (NFC) and short Dc 65 -> 'P'
+        assert_eq!(all_bytes, "caf\u{00E9}P".as_bytes());
+        assert!(all_log.has_warnings());
     }
 
     #[crate::ctb_test]

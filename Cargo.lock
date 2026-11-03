@@ -3615,6 +3615,7 @@ dependencies = [
  "csv",
  "ctb-storage-asset-bundle",
  "ctb-utilities",
+ "icu_normalizer",
  "icu_properties",
  "sha2 0.10.9",
  "tempfile",

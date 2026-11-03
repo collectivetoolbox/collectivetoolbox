@@ -30,7 +30,7 @@ use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 
 use crate::convert_api::{
-    DcConversionOptions, DcExportOptions, FormatSpec,
+    DcConversionOptions, DcExportOptions, DcNormalizationMode, FormatSpec,
     convert_bytes_to_dcmstring, convert_dcmstring_to_bytes,
 };
 use crate::convert_bytes::{
@@ -294,6 +294,10 @@ pub struct ConvertArgs {
     #[arg(long = "strict", conflicts_with = "permissive")]
     pub strict: bool,
 
+    /// Character and Unicode normalization policy (none, as-needed, all)
+    #[arg(long = "normalize", value_enum)]
+    pub normalize: Option<DcNormalizationMode>,
+
     /// Output format (accepts nickname, `FormatId` name, or f<N> shorthand)
     #[arg(short = 't', long = "to", value_parser = parse_supported_dc_output_format, default_value = "utf8")]
     pub to: SupportedDcOutputFormat,
@@ -388,6 +392,7 @@ where
     let export_options = DcExportOptions {
         format: args.to,
         permissive,
+        normalization: args.normalize,
     };
 
     let export = convert_dcmstring_to_bytes(
@@ -959,7 +964,7 @@ mod tests {
         // Permissive mode (--permissive): canonicalizes equivalent Dcs to "P"
         let perm_out = execute_cli_convert(
             ConvertArgs {
-                input: Some(input_dcal),
+                input: Some(input_dcal.clone()),
                 from: Some(SupportedDcInputFormat::Dcal),
                 to: SupportedDcOutputFormat::Utf8,
                 permissive: true,
@@ -970,5 +975,40 @@ mod tests {
         .expect("convert in permissive mode must succeed")
         .unwrap();
         assert_eq!(String::from_utf8(perm_out).unwrap(), "P");
+
+        // Permissive mode with --normalize none: replaces unrepresentable Dcs with U+FFFD
+        let perm_no_norm_out = execute_cli_convert(
+            ConvertArgs {
+                input: Some(input_dcal),
+                from: Some(SupportedDcInputFormat::Dcal),
+                to: SupportedDcOutputFormat::Utf8,
+                permissive: true,
+                normalize: Some(DcNormalizationMode::None),
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )
+        .expect("convert in permissive mode with --normalize none must succeed")
+        .unwrap();
+        assert_eq!(String::from_utf8(perm_no_norm_out).unwrap(), "\u{FFFD}");
+
+        // --normalize all on Dcal -> Dcal normalizes decomposed Unicode and deprecated Dcs
+        let norm_all_out = execute_cli_convert(
+            ConvertArgs {
+                input: Some("99 97 102 101 769 1114169".to_string()),
+                from: Some(SupportedDcInputFormat::Dcal),
+                to: SupportedDcOutputFormat::Dcal,
+                permissive: true,
+                normalize: Some(DcNormalizationMode::All),
+                ..Default::default()
+            },
+            |_| unreachable!(),
+        )
+        .expect("convert with --normalize all must succeed")
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(norm_all_out).unwrap(),
+            "99 97 102 233 72 "
+        );
     }
 }

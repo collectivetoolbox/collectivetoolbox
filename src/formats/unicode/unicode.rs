@@ -109,6 +109,20 @@ pub fn is_deprecated_unicode(cp: u32) -> bool {
         .contains32(cp)
 }
 
+/// Normalizes a UTF-8 string into Unicode Normalization Form C (NFC).
+#[must_use]
+pub fn normalize_nfc(text: &str) -> String {
+    icu_normalizer::ComposingNormalizerBorrowed::new_nfc()
+        .normalize(text)
+        .into_owned()
+}
+
+/// Returns true if a UTF-8 string is already in Unicode Normalization Form C (NFC).
+#[must_use]
+pub fn is_nfc_normalized(text: &str) -> bool {
+    icu_normalizer::ComposingNormalizerBorrowed::new_nfc().is_normalized(text)
+}
+
 /// Returns the official canonical Unicode character name for a code point
 /// for a specific Unicode version, including standard names, control character
 /// names, and algorithmic names.
@@ -602,5 +616,12 @@ mod tests {
         assert_ne!(gc_map.get32(0x088F), GeneralCategory::Unassigned);
         assert_ne!(gc_map.get32(0x0C5C), GeneralCategory::Unassigned);
         assert_ne!(gc_map.get32(0x0CDC), GeneralCategory::Unassigned);
+    }
+
+    #[crate::ctb_test]
+    fn test_normalize_nfc() {
+        assert!(is_nfc_normalized("caf\u{00E9}"));
+        assert!(!is_nfc_normalized("cafe\u{0301}"));
+        assert_eq!(normalize_nfc("cafe\u{0301}"), "caf\u{00E9}");
     }
 }
