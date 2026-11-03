@@ -53,6 +53,7 @@
 - **Never label partial work as "Implemented" or "Complete"**:
   - When porting other software, if a feature has even one unhandled upstream case (e.g., missing flag, partial header parsing, or deferred prerequisite), its status MUST be marked as `Partially Implemented` or `In Progress`, NEVER `Implemented` or `Complete`.
   - In tracking documents (such as `issues/*-status.md`), any status update MUST explicitly maintain a `Remaining Gaps vs Upstream` (or `Pending Work`) subsection listing exactly what is still missing. Never erase or gloss over gaps when recording new progress.
+  - Once an issue is *fully* complete, it should be removed from the associated issue tracking document.
 - **Differentiate sub-task completion from feature completion**:
   - If asked to implement a bounded subset of a feature (e.g., "implement the ones available so far"), frame your conclusion as partial progress toward the whole, not as the feature being finished.
 - **Treat optimistic misrepresentation as a bug**:
