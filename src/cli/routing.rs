@@ -181,7 +181,7 @@ pub enum Command {
         port: u16,
     },
     /// Convert delimited numbers between positional radix numeral systems
-    /// (bases 1..=36, or up to 64 with --output-alphabet `base64_standard`).
+    /// (bases 1..=36, or up to 64 with `--output-alphabet base64_standard`).
     ///
     /// NOTE: This performs mathematical place-value conversion on numbers,
     /// not raw binary data armoring. For file or byte stream encoding, see

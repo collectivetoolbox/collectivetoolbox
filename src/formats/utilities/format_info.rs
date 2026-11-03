@@ -234,8 +234,73 @@ pub fn format_help_table(
     lines.join("\n")
 }
 
+/// Helper to extract the primary CLI name (the first nickname if present, or lowercase ident).
+fn format_primary_cli_name(info: &FormatInfo) -> String {
+    let nicks: Vec<&str> = info
+        .nicknames
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
+    if let Some(&first) = nicks.first() {
+        first.to_string()
+    } else {
+        info.ident.to_ascii_lowercase()
+    }
+}
+
+/// Helper to detect if `child` is a versioned type of `parent` within the same category,
+/// returning the extracted version number if so.
+fn detect_version_number(
+    child_id: ctb_utilities::FormatId,
+    child_info: &FormatInfo,
+    parent_id: ctb_utilities::FormatId,
+    parent_info: &FormatInfo,
+) -> Option<u32> {
+    if child_id == parent_id {
+        return None;
+    }
+    if !child_info.category.eq_ignore_ascii_case(&parent_info.category) {
+        return None;
+    }
+    if !child_id.implies().contains(&parent_id) {
+        return None;
+    }
+
+    // Check if child identifier starts with parent identifier:
+    if let Some(remainder) = child_info.ident.strip_prefix(&parent_info.ident) {
+        let trimmed =
+            remainder.trim_start_matches(|c| c == '_' || c == 'V' || c == 'v');
+        if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_ascii_digit()) {
+            if let Ok(ver) = trimmed.parse::<u32>() {
+                return Some(ver);
+            }
+        }
+    }
+
+    // Check if child label contains "version <N>"
+    let lower_label = child_info.label.to_ascii_lowercase();
+    if let Some(pos) = lower_label.find("version ") {
+        // Reason for fallback: slice starting after "version "
+        if let Some(sub) =
+            lower_label.get(pos.saturating_add("version ".len())..)
+        {
+            let digits: String =
+                sub.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if !digits.is_empty() {
+                if let Ok(ver) = digits.parse::<u32>() {
+                    return Some(ver);
+                }
+            }
+        }
+    }
+
+    None
+}
+
 /// Generates a categorized, alphabetically sorted help table of supported formats
 /// showing both CLI nicknames and Rust `FormatId` names alongside their descriptions.
+/// Versioned format types are grouped indented under their base format with the default indicated.
 pub fn format_categorized_help_table(
     header: &str,
     formats: &[ctb_utilities::FormatId],
@@ -256,18 +321,103 @@ pub fn format_categorized_help_table(
 
     let mut by_category: std::collections::BTreeMap<
         String,
-        Vec<(String, String)>,
+        Vec<(ctb_utilities::FormatId, &'static FormatInfo)>,
     > = std::collections::BTreeMap::new();
 
     for &fid in formats {
         if let Some(info) = get_format_info_by_id(fid) {
+            let cat_key = info.category.trim().to_ascii_lowercase();
+            by_category.entry(cat_key).or_default().push((fid, info));
+        }
+    }
+
+    let mut formatted_categories: std::collections::BTreeMap<
+        String,
+        Vec<(String, Vec<String>)>,
+    > = std::collections::BTreeMap::new();
+
+    for (cat_key, cat_fmts) in by_category {
+        // Find child -> (parent, version) relationships
+        // If multiple parents match, choose the parent with the longest ident
+        let mut child_to_parent: HashMap<
+            ctb_utilities::FormatId,
+            (ctb_utilities::FormatId, u32),
+        > = HashMap::new();
+
+        for &(child_fid, child_info) in &cat_fmts {
+            let mut best_match: Option<(ctb_utilities::FormatId, u32, usize)> =
+                None;
+            for &(parent_fid, parent_info) in &cat_fmts {
+                if let Some(ver) = detect_version_number(
+                    child_fid,
+                    child_info,
+                    parent_fid,
+                    parent_info,
+                ) {
+                    let len = parent_info.ident.len();
+                    if best_match
+                        .as_ref()
+                        .is_none_or(|&(_, _, best_len)| len > best_len)
+                    {
+                        best_match = Some((parent_fid, ver, len));
+                    }
+                }
+            }
+            if let Some((parent_fid, ver, _)) = best_match {
+                child_to_parent.insert(child_fid, (parent_fid, ver));
+            }
+        }
+
+        // Group children by parent
+        let mut parent_children: HashMap<
+            ctb_utilities::FormatId,
+            Vec<(u32, String, String, &'static FormatInfo)>,
+        > = HashMap::new();
+
+        for &(child_fid, child_info) in &cat_fmts {
+            if let Some(&(parent_fid, ver)) = child_to_parent.get(&child_fid) {
+                let nicks: Vec<&str> = child_info
+                    .nicknames
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                let primary_key = nicks.first().map_or_else(
+                    || child_info.ident.to_ascii_lowercase(),
+                    |s| s.to_ascii_lowercase(),
+                );
+                let name_display = if nicks.is_empty() {
+                    format!(
+                        "{} ({})",
+                        child_info.ident.to_ascii_lowercase(),
+                        child_info.ident
+                    )
+                } else {
+                    format!("{} ({})", nicks.join(", "), child_info.ident)
+                };
+                parent_children.entry(parent_fid).or_default().push((
+                    ver,
+                    primary_key,
+                    name_display,
+                    child_info,
+                ));
+            }
+        }
+
+        let mut cat_entries: Vec<(String, Vec<String>)> = Vec::new();
+
+        for &(fid, info) in &cat_fmts {
+            if child_to_parent.contains_key(&fid) {
+                // Skip child at top level: it will be rendered indented under its parent
+                continue;
+            }
+
             let nicks: Vec<&str> = info
                 .nicknames
                 .split(',')
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
                 .collect();
-            // Reason for fallback: formats without short CLI nicknames sort by their lowercased canonical FormatId identifier.
             let primary_key = nicks.first().map_or_else(
                 || info.ident.to_ascii_lowercase(),
                 |s| s.to_ascii_lowercase(),
@@ -277,29 +427,61 @@ pub fn format_categorized_help_table(
             } else {
                 format!("{} ({})", nicks.join(", "), info.ident)
             };
-            let cat_key = info.category.trim().to_ascii_lowercase();
-            by_category.entry(cat_key).or_default().push((
-                primary_key,
-                format!("    {name_display}: {}", info.label),
-            ));
+
+            let mut entry_lines = Vec::new();
+
+            if let Some(mut children) = parent_children.remove(&fid) {
+                // Sort children by version number ascending, then by primary_key
+                children.sort_by(|a, b| {
+                    a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1))
+                });
+
+                if let Some(default_child) = children.last() {
+                    let default_nick = format_primary_cli_name(default_child.3);
+                    entry_lines.push(format!(
+                        "    {name_display}: {} (default: {default_nick})",
+                        info.label
+                    ));
+                } else {
+                    entry_lines
+                        .push(format!("    {name_display}: {}", info.label));
+                }
+
+                for (_, _, child_name_display, child_info) in children {
+                    entry_lines.push(format!(
+                        "        {child_name_display}: {}",
+                        child_info.label
+                    ));
+                }
+            } else {
+                entry_lines
+                    .push(format!("    {name_display}: {}", info.label));
+            }
+
+            cat_entries.push((primary_key, entry_lines));
         }
+
+        cat_entries.sort_by(|a, b| a.0.cmp(&b.0));
+        formatted_categories.insert(cat_key, cat_entries);
     }
 
     for &(cat_key, cat_title) in &category_order {
-        if let Some(mut entries) = by_category.remove(cat_key) {
-            entries.sort_by(|a, b| a.0.cmp(&b.0));
+        if let Some(entries) = formatted_categories.remove(cat_key) {
             lines.push(format!("  {cat_title}"));
-            for (_, line) in entries {
-                lines.push(line);
+            for (_, entry_lines) in entries {
+                for line in entry_lines {
+                    lines.push(line);
+                }
             }
         }
     }
 
-    for (cat_key, mut entries) in by_category {
-        entries.sort_by(|a, b| a.0.cmp(&b.0));
+    for (cat_key, entries) in formatted_categories {
         lines.push(format!("  {cat_key} formats:"));
-        for (_, line) in entries {
-            lines.push(line);
+        for (_, entry_lines) in entries {
+            for line in entry_lines {
+                lines.push(line);
+            }
         }
     }
 
@@ -546,6 +728,50 @@ mod tests {
         assert!(table.contains("gz, gzip: GNU gzip format"));
         assert!(table.contains("xz: XZ compression"));
         assert!(!table.contains("xzip"));
+    }
+
+    #[crate::ctb_test]
+    fn test_format_categorized_help_table_version_grouping() {
+        let table = format_categorized_help_table(
+            "Supported formats:",
+            &[
+                FormatId::DcMixed,
+                FormatId::DcMixed1,
+                FormatId::DcMixed2,
+                FormatId::CtbNodeBundle,
+                FormatId::CtbNodeBundle1,
+                FormatId::CtbNodeBundle2,
+                FormatId::CscArchive,
+                FormatId::CscArchive1,
+                FormatId::CscArchive2,
+            ],
+        );
+        let expected_dcmm = "\
+    dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
+        dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+        dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)";
+        assert!(
+            table.contains(expected_dcmm),
+            "table was:\n{table}\nexpected to contain:\n{expected_dcmm}"
+        );
+
+        let expected_ctbnbdl = "\
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
+        ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+        ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2";
+        assert!(
+            table.contains(expected_ctbnbdl),
+            "table was:\n{table}\nexpected to contain:\n{expected_ctbnbdl}"
+        );
+
+        let expected_cscarchive = "\
+    cscarchive (CscArchive): Collective Toolbox csc archive (default: cscarchive2)
+        cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+        cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2";
+        assert!(
+            table.contains(expected_cscarchive),
+            "table was:\n{table}\nexpected to contain:\n{expected_cscarchive}"
+        );
     }
 
     #[crate::ctb_test]

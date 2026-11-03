@@ -14,7 +14,7 @@ Commands:
   waitshutdown               Wait for the provided PID to shutdown, then clean up
   waitrestart                Wait for the provided PID to shutdown, then start ctoolbox with the given port
   waitupgrade                Wait for the provided PID to shutdown, then upgrade the ctoolbox instance in place, then restart it. (Will need to copy the executable before upgrading it probably because Windows locks running executables.)
-  base2base                  Convert delimited numbers between positional radix numeral systems (bases 1..=36, or up to 64 with --output-alphabet base64_standard)
+  base2base                  Convert delimited numbers between positional radix numeral systems (bases 1..=36, or up to 64 with `--output-alphabet base64_standard`)
   hex2dec                    Convert from hexadecimal to decimal
   dec2hex                    Convert from decimal to hexadecimal
   hexfmt                     Reformat hexadecimal number strings (delimiters, prefixes, case, padding)
@@ -266,7 +266,7 @@ Options:
 ### `ctoolbox base2base`
 
 ```text
-Convert delimited numbers between positional radix numeral systems (bases 1..=36, or up to 64 with --output-alphabet base64_standard)
+Convert delimited numbers between positional radix numeral systems (bases 1..=36, or up to 64 with `--output-alphabet base64_standard`)
 
 Usage: ctoolbox base2base [OPTIONS] <ARGS>...
 
@@ -291,7 +291,7 @@ Formatting & Delimiters:
 Input Parsing & Filtering:
       --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
   -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
-  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "`10_000`" parses as 10000)
       --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
 
 Numeral Systems & Alphabets:
@@ -381,9 +381,11 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
+          Input format (autodetected if omitted; accepts nickname, `FormatId` name, or f<N> shorthand)
       --permissive
-          Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+          Parse and export document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+      --strict
+          Parse and export document in strict mode (rejecting invalid headers, characters, or non-canonical sequences)
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>
@@ -413,18 +415,18 @@ Supported input formats (--from):
     3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
     cdce_lstrict (CdceLegacyStrict): CDCE (legacy, strict)
     csdl (Csdl): Comma-separated Dc list (long Dcs)
-    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle
-    ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
-    ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
+        ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+        ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
     ctbnode-incoming (CtbNodeIncoming): Collective Toolbox incoming graph node (shorthand text)
     ctbnodes (CtbNodes): Collective Toolbox graph nodes (shorthand text)
     dc_id_list (DcIdList): Dc ID list (ASCII)
     dcal (Dcal): Dc ASCII List (long Dcs)
     dce (Dce): DCE (automatic version selection)
     dcil (DcIntegerList): Dc Integer List (short Dcs)
-    dcmm, dcmstr (DcMixed): Dc mixed mode
-    dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
-    dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
+    dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
+        dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+        dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
     dcsh (Dcsh): Dc shorthand ASCII list
     dctext (DcText): DcText
     dctf (DcTf): DcTF (Dc Transformation Format)
@@ -459,9 +461,9 @@ Supported input formats (--from):
     utf8, txt, utf-8 (Utf8): UTF-8
     win1252, ansi (Win1252): Windows-1252 ("ANSI")
   Database & archive formats:
-    cscarchive (CscArchive): Collective Toolbox csc archive
-    cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
-    cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
+    cscarchive (CscArchive): Collective Toolbox csc archive (default: cscarchive2)
+        cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+        cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
     cscjournal (CscJournal): Collective Toolbox csc journal
 
 Examples:
@@ -532,14 +534,16 @@ Arguments:
   [INPUT]  Input data string. If not provided, reads from stdin or --file
 
 Options:
-      --from <FROM>                 Input format (autodetected if omitted; accepts nickname, FormatId name, or f<N> shorthand)
-      --permissive                  Parse document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
-  -t, --to <TO>                     Output format (accepts nickname, FormatId name, or f<N> shorthand) [default: utf8]
+      --from <FROM>                 Input format (autodetected if omitted; accepts nickname, `FormatId` name, or f<N> shorthand)
+      --permissive                  Parse and export document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+      --strict                      Parse and export document in strict mode (rejecting invalid headers, characters, or non-canonical sequences)
+      --normalize <NORMALIZE>       Character and Unicode normalization policy (none, as-needed, all) [possible values: none, as-needed, all]
+  -t, --to <TO>                     Output format (accepts nickname, `FormatId` name, or f<N> shorthand) [default: utf8]
   -f, --file <FILE>                 Input file path (or - for stdin)
   -o, --output <OUTPUT>             Output file path (or - for stdout)
   -F, --force                       Overwrite existing output file without prompt
-      --allow-binary-encapsulation  Allow encapsulating arbitrary binary bytes into DcMixed mode if input format cannot be decoded
-  -h, --help                        Print help
+      --allow-binary-encapsulation  Allow encapsulating arbitrary binary bytes into `DcMixed` mode if input format cannot be decoded
+  -h, --help                        Print help (see more with '--help')
 
 Supported input formats (--from):
   Document formats:
@@ -549,18 +553,18 @@ Supported input formats (--from):
     3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
     cdce_lstrict (CdceLegacyStrict): CDCE (legacy, strict)
     csdl (Csdl): Comma-separated Dc list (long Dcs)
-    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle
-    ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
-    ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
+        ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+        ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
     ctbnode-incoming (CtbNodeIncoming): Collective Toolbox incoming graph node (shorthand text)
     ctbnodes (CtbNodes): Collective Toolbox graph nodes (shorthand text)
     dc_id_list (DcIdList): Dc ID list (ASCII)
     dcal (Dcal): Dc ASCII List (long Dcs)
     dce (Dce): DCE (automatic version selection)
     dcil (DcIntegerList): Dc Integer List (short Dcs)
-    dcmm, dcmstr (DcMixed): Dc mixed mode
-    dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
-    dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
+    dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
+        dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+        dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
     dcsh (Dcsh): Dc shorthand ASCII list
     dctext (DcText): DcText
     dctf (DcTf): DcTF (Dc Transformation Format)
@@ -595,9 +599,9 @@ Supported input formats (--from):
     utf8, txt, utf-8 (Utf8): UTF-8
     win1252, ansi (Win1252): Windows-1252 ("ANSI")
   Database & archive formats:
-    cscarchive (CscArchive): Collective Toolbox csc archive
-    cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
-    cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
+    cscarchive (CscArchive): Collective Toolbox csc archive (default: cscarchive2)
+        cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+        cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
     cscjournal (CscJournal): Collective Toolbox csc journal
 
 Supported output formats (--to):
@@ -607,17 +611,17 @@ Supported output formats (--to):
     3_0a (Dce_3_0a): DCE 3.0a
     3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
     csdl (Csdl): Comma-separated Dc list (long Dcs)
-    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle
-    ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
-    ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
+    ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
+        ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
+        ctbnbdl2 (CtbNodeBundle2): Collective Toolbox Node Bundle, version 2
     ctbnodes (CtbNodes): Collective Toolbox graph nodes (shorthand text)
     dc_id_list (DcIdList): Dc ID list (ASCII)
     dcal (Dcal): Dc ASCII List (long Dcs)
     dce (Dce): DCE (automatic version selection)
     dcil (DcIntegerList): Dc Integer List (short Dcs)
-    dcmm, dcmstr (DcMixed): Dc mixed mode
-    dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
-    dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
+    dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
+        dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
+        dcmm2 (DcMixed2): Dc mixed mode, version 2 (DcTF)
     dcsh (Dcsh): Dc shorthand ASCII list
     dctext (DcText): DcText
     dctf (DcTf): DcTF (Dc Transformation Format)
@@ -658,9 +662,9 @@ Supported output formats (--to):
     utf8, txt, utf-8 (Utf8): UTF-8
     win1252, ansi (Win1252): Windows-1252 ("ANSI")
   Database & archive formats:
-    cscarchive (CscArchive): Collective Toolbox csc archive
-    cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
-    cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
+    cscarchive (CscArchive): Collective Toolbox csc archive (default: cscarchive2)
+        cscarchive1 (CscArchive1): Collective Toolbox csc archive, version 1
+        cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
     cscjournal (CscJournal): Collective Toolbox csc journal
 
 Examples:
@@ -1178,7 +1182,7 @@ Formatting & Delimiters:
 Input Parsing & Filtering:
       --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
   -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
-  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "`10_000`" parses as 10000)
       --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
 
 Numeral Systems & Alphabets:
@@ -1487,7 +1491,7 @@ Formatting & Delimiters:
 Input Parsing & Filtering:
       --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
   -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
-  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "`10_000`" parses as 10000)
       --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
 
 Numeral Systems & Alphabets:
@@ -1575,7 +1579,7 @@ Formatting & Delimiters:
 Input Parsing & Filtering:
       --parse-prefixes                 Recognize and strip standard radix prefixes (such as "0x", "0b", "0o") from input numbers
   -f, --filter-chars                   Filter out non-digit characters between numbers in the formatted output. If false, non-digit punctuation is echoed literally
-  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "10_000" parses as 10000)
+  -c, --collapse-filtered              Ignore non-digit characters inline while parsing numbers, preventing them from splitting numbers (e.g. "`10_000`" parses as 10000)
       --collapse-only <COLLAPSE_ONLY>  Specific non-digit characters to collapse inline silently without emitting warnings (e.g. `--collapse-only "_"`) [default: []]
 
 Numeral Systems & Alphabets:
@@ -2053,7 +2057,7 @@ Arguments:
   <PAN_FILE>  Input PAN file path
 
 Options:
-  -o, --output-dir <OUTPUT_DIR>  Optional output directory (defaults to <pan_stem>_procedures)
+  -o, --output-dir <OUTPUT_DIR>  Optional output directory (defaults to <`pan_stem`>_procedures)
   -e, --extension <EXTENSION>    Optional procedure file extension (e.g. "estes", defaults to no extension)
       --encoding <ENCODING>      Output character encoding (utf8, mac, windows) [default: utf8]
   -h, --help                     Print help
