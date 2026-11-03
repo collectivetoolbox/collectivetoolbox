@@ -122,3 +122,5 @@ $ /home/a/.local/bin/ctoolbox
 [2026-11-03T05:02:55.318050Z WARN environment.rs:1283:21 log workspace:497753/workspace] Server clock offset discovery failed: Failed to ensure CRLite cache is ready: GET https://CollectiveToolbox.com/crlite/manifest.json: Failed to GET https://CollectiveToolbox.com/crlite/manifest.json: error sending request for url (https://collectivetoolbox.com/crlite/manifest.json): client error (Connect): dns error: failed to lookup address information: Try again
 
 This is all supposed to be hard-capped at 5 seconds or something like that. It would also possibly be good to open the UI *before* the update check and environment capture is complete so it doesn't take so long.
+
+Unrelated, the glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
