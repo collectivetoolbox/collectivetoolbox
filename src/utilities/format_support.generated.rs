@@ -831,18 +831,6 @@ impl std::str::FromStr for SupportedHashFormat {
 )]
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcInputFormat {
-    /// DCE 3.01a
-    #[value(name = "3_01a", alias = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
-    Dce_3_01a,
-    /// DCE 3.01a (raw)
-    #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
-    Dce_3_01a_raw,
-    /// DCE 3.0a
-    #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
-    Dce_3_0a,
-    /// DCE 3.0a (raw)
-    #[value(name = "3_0a_raw", alias = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
-    Dce_3_0a_raw,
     /// AlphaSmart Neo encoding (has several variants)
     #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
     AlphaSmartNeo,
@@ -915,6 +903,30 @@ pub enum SupportedDcInputFormat {
     /// DCE (automatic version selection)
     #[value(name = "dce", alias = "Dce", alias = "f95")]
     Dce,
+    /// DCE 3.01a
+    #[value(name = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
+    Dce_3_01a,
+    /// DCE 3.01a (raw)
+    #[value(name = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
+    Dce_3_01a_raw,
+    /// DCE 3.0a
+    #[value(name = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
+    Dce_3_0a,
+    /// DCE 3.0a (raw)
+    #[value(name = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
+    Dce_3_0a_raw,
+    /// DCE 3.01a (hex-encoded)
+    #[value(name = "dce_hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
+    Dce_3_01a_hex,
+    /// DCE 3.01a (raw hex-encoded)
+    #[value(name = "dce_hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
+    Dce_3_01a_raw_hex,
+    /// DCE 3.0a (hex-encoded)
+    #[value(name = "dce_hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
+    Dce_3_0a_hex,
+    /// DCE 3.0a (raw hex-encoded)
+    #[value(name = "dce_hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
+    Dce_3_0a_raw_hex,
     /// Dc Integer List (short Dcs)
     #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
     DcIntegerList,
@@ -942,18 +954,6 @@ pub enum SupportedDcInputFormat {
     /// DcUtf
     #[value(name = "dcutf", alias = "DcUtf", alias = "f89")]
     DcUtf,
-    /// DCE 3.01a (hex-encoded)
-    #[value(name = "hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
-    Dce_3_01a_hex,
-    /// DCE 3.01a (raw hex-encoded)
-    #[value(name = "hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
-    Dce_3_01a_raw_hex,
-    /// DCE 3.0a (hex-encoded)
-    #[value(name = "hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
-    Dce_3_0a_hex,
-    /// DCE 3.0a (raw hex-encoded)
-    #[value(name = "hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
-    Dce_3_0a_raw_hex,
     /// DCE (hex-encoded)
     #[value(name = "hex_dce", alias = "dcehex", alias = "DceHex", alias = "f96")]
     DceHex,
@@ -999,10 +999,6 @@ pub enum SupportedDcInputFormat {
 impl SupportedDcInputFormat {
     /// Ordered list of all formats supported by this capability.
     pub const ALL: &'static [SupportedDcInputFormat] = &[
-        Self::Dce_3_01a,
-        Self::Dce_3_01a_raw,
-        Self::Dce_3_0a,
-        Self::Dce_3_0a_raw,
         Self::AlphaSmartNeo,
         Self::AlphaSmartNeoLowCtlUaMac,
         Self::AlphaSmartNeoLowCtlUaPc,
@@ -1027,6 +1023,14 @@ impl SupportedDcInputFormat {
         Self::DcIdList,
         Self::Dcal,
         Self::Dce,
+        Self::Dce_3_01a,
+        Self::Dce_3_01a_raw,
+        Self::Dce_3_0a,
+        Self::Dce_3_0a_raw,
+        Self::Dce_3_01a_hex,
+        Self::Dce_3_01a_raw_hex,
+        Self::Dce_3_0a_hex,
+        Self::Dce_3_0a_raw_hex,
         Self::DcIntegerList,
         Self::DcMixed,
         Self::DcMixed1,
@@ -1036,10 +1040,6 @@ impl SupportedDcInputFormat {
         Self::DcTf,
         Self::Dcts,
         Self::DcUtf,
-        Self::Dce_3_01a_hex,
-        Self::Dce_3_01a_raw_hex,
-        Self::Dce_3_0a_hex,
-        Self::Dce_3_0a_raw_hex,
         Self::DceHex,
         Self::Iso88591,
         Self::CdceLegacy,
@@ -1057,10 +1057,6 @@ impl SupportedDcInputFormat {
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
-        FormatId::Dce_3_01a,
-        FormatId::Dce_3_01a_raw,
-        FormatId::Dce_3_0a,
-        FormatId::Dce_3_0a_raw,
         FormatId::AlphaSmartNeo,
         FormatId::AlphaSmartNeoLowCtlUaMac,
         FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -1085,6 +1081,14 @@ impl SupportedDcInputFormat {
         FormatId::DcIdList,
         FormatId::Dcal,
         FormatId::Dce,
+        FormatId::Dce_3_01a,
+        FormatId::Dce_3_01a_raw,
+        FormatId::Dce_3_0a,
+        FormatId::Dce_3_0a_raw,
+        FormatId::Dce_3_01a_hex,
+        FormatId::Dce_3_01a_raw_hex,
+        FormatId::Dce_3_0a_hex,
+        FormatId::Dce_3_0a_raw_hex,
         FormatId::DcIntegerList,
         FormatId::DcMixed,
         FormatId::DcMixed1,
@@ -1094,10 +1098,6 @@ impl SupportedDcInputFormat {
         FormatId::DcTf,
         FormatId::Dcts,
         FormatId::DcUtf,
-        FormatId::Dce_3_01a_hex,
-        FormatId::Dce_3_01a_raw_hex,
-        FormatId::Dce_3_0a_hex,
-        FormatId::Dce_3_0a_raw_hex,
         FormatId::DceHex,
         FormatId::Iso88591,
         FormatId::CdceLegacy,
@@ -1120,10 +1120,6 @@ impl SupportedDcInputFormat {
     #[must_use]
     pub const fn primary_cli_name(&self) -> &'static str {
         match self {
-            Self::Dce_3_01a => "3_01a",
-            Self::Dce_3_01a_raw => "3_01a_raw",
-            Self::Dce_3_0a => "3_0a",
-            Self::Dce_3_0a_raw => "3_0a_raw",
             Self::AlphaSmartNeo => "alphasmartneo",
             Self::AlphaSmartNeoLowCtlUaMac => "alphasmartneolowctluamac",
             Self::AlphaSmartNeoLowCtlUaPc => "alphasmartneolowctluapc",
@@ -1148,6 +1144,14 @@ impl SupportedDcInputFormat {
             Self::DcIdList => "dc_id_list",
             Self::Dcal => "dcal",
             Self::Dce => "dce",
+            Self::Dce_3_01a => "dce_3_01a",
+            Self::Dce_3_01a_raw => "dce_3_01a_raw",
+            Self::Dce_3_0a => "dce_3_0a",
+            Self::Dce_3_0a_raw => "dce_3_0a_raw",
+            Self::Dce_3_01a_hex => "dce_hex_3_01a",
+            Self::Dce_3_01a_raw_hex => "dce_hex_3_01a_raw",
+            Self::Dce_3_0a_hex => "dce_hex_3_0a",
+            Self::Dce_3_0a_raw_hex => "dce_hex_3_0a_raw",
             Self::DcIntegerList => "dcil",
             Self::DcMixed => "dcmm",
             Self::DcMixed1 => "dcmm1",
@@ -1157,10 +1161,6 @@ impl SupportedDcInputFormat {
             Self::DcTf => "dctf",
             Self::Dcts => "dcts",
             Self::DcUtf => "dcutf",
-            Self::Dce_3_01a_hex => "hex_3_01a",
-            Self::Dce_3_01a_raw_hex => "hex_3_01a_raw",
-            Self::Dce_3_0a_hex => "hex_3_0a",
-            Self::Dce_3_0a_raw_hex => "hex_3_0a_raw",
             Self::DceHex => "hex_dce",
             Self::Iso88591 => "iso88591",
             Self::CdceLegacy => "legacy_cdce",
@@ -1181,10 +1181,6 @@ impl SupportedDcInputFormat {
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
         match self {
-            Self::Dce_3_01a => FormatId::Dce_3_01a,
-            Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
-            Self::Dce_3_0a => FormatId::Dce_3_0a,
-            Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
             Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
             Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -1209,6 +1205,14 @@ impl SupportedDcInputFormat {
             Self::DcIdList => FormatId::DcIdList,
             Self::Dcal => FormatId::Dcal,
             Self::Dce => FormatId::Dce,
+            Self::Dce_3_01a => FormatId::Dce_3_01a,
+            Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
+            Self::Dce_3_0a => FormatId::Dce_3_0a,
+            Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
+            Self::Dce_3_01a_hex => FormatId::Dce_3_01a_hex,
+            Self::Dce_3_01a_raw_hex => FormatId::Dce_3_01a_raw_hex,
+            Self::Dce_3_0a_hex => FormatId::Dce_3_0a_hex,
+            Self::Dce_3_0a_raw_hex => FormatId::Dce_3_0a_raw_hex,
             Self::DcIntegerList => FormatId::DcIntegerList,
             Self::DcMixed => FormatId::DcMixed,
             Self::DcMixed1 => FormatId::DcMixed1,
@@ -1218,10 +1222,6 @@ impl SupportedDcInputFormat {
             Self::DcTf => FormatId::DcTf,
             Self::Dcts => FormatId::Dcts,
             Self::DcUtf => FormatId::DcUtf,
-            Self::Dce_3_01a_hex => FormatId::Dce_3_01a_hex,
-            Self::Dce_3_01a_raw_hex => FormatId::Dce_3_01a_raw_hex,
-            Self::Dce_3_0a_hex => FormatId::Dce_3_0a_hex,
-            Self::Dce_3_0a_raw_hex => FormatId::Dce_3_0a_raw_hex,
             Self::DceHex => FormatId::DceHex,
             Self::Iso88591 => FormatId::Iso88591,
             Self::CdceLegacy => FormatId::CdceLegacy,
@@ -1242,10 +1242,6 @@ impl SupportedDcInputFormat {
     #[must_use]
     pub const fn from_format_id(id: FormatId) -> Option<Self> {
         match id {
-            FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
-            FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
-            FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
-            FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
             FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
             FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
@@ -1270,6 +1266,14 @@ impl SupportedDcInputFormat {
             FormatId::DcIdList => Some(Self::DcIdList),
             FormatId::Dcal => Some(Self::Dcal),
             FormatId::Dce => Some(Self::Dce),
+            FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
+            FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
+            FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
+            FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
+            FormatId::Dce_3_01a_hex => Some(Self::Dce_3_01a_hex),
+            FormatId::Dce_3_01a_raw_hex => Some(Self::Dce_3_01a_raw_hex),
+            FormatId::Dce_3_0a_hex => Some(Self::Dce_3_0a_hex),
+            FormatId::Dce_3_0a_raw_hex => Some(Self::Dce_3_0a_raw_hex),
             FormatId::DcIntegerList => Some(Self::DcIntegerList),
             FormatId::DcMixed => Some(Self::DcMixed),
             FormatId::DcMixed1 => Some(Self::DcMixed1),
@@ -1279,10 +1283,6 @@ impl SupportedDcInputFormat {
             FormatId::DcTf => Some(Self::DcTf),
             FormatId::Dcts => Some(Self::Dcts),
             FormatId::DcUtf => Some(Self::DcUtf),
-            FormatId::Dce_3_01a_hex => Some(Self::Dce_3_01a_hex),
-            FormatId::Dce_3_01a_raw_hex => Some(Self::Dce_3_01a_raw_hex),
-            FormatId::Dce_3_0a_hex => Some(Self::Dce_3_0a_hex),
-            FormatId::Dce_3_0a_raw_hex => Some(Self::Dce_3_0a_raw_hex),
             FormatId::DceHex => Some(Self::DceHex),
             FormatId::Iso88591 => Some(Self::Iso88591),
             FormatId::CdceLegacy => Some(Self::CdceLegacy),
@@ -1366,18 +1366,6 @@ impl std::str::FromStr for SupportedDcInputFormat {
 )]
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum SupportedDcOutputFormat {
-    /// DCE 3.01a
-    #[value(name = "3_01a", alias = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
-    Dce_3_01a,
-    /// DCE 3.01a (raw)
-    #[value(name = "3_01a_raw", alias = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
-    Dce_3_01a_raw,
-    /// DCE 3.0a
-    #[value(name = "3_0a", alias = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
-    Dce_3_0a,
-    /// DCE 3.0a (raw)
-    #[value(name = "3_0a_raw", alias = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
-    Dce_3_0a_raw,
     /// AlphaSmart Neo encoding (has several variants)
     #[value(name = "alphasmartneo", alias = "AlphaSmartNeo", alias = "f326")]
     AlphaSmartNeo,
@@ -1444,6 +1432,30 @@ pub enum SupportedDcOutputFormat {
     /// DCE (automatic version selection)
     #[value(name = "dce", alias = "Dce", alias = "f95")]
     Dce,
+    /// DCE 3.01a
+    #[value(name = "dce_3_01a", alias = "Dce_3_01a", alias = "f105")]
+    Dce_3_01a,
+    /// DCE 3.01a (raw)
+    #[value(name = "dce_3_01a_raw", alias = "Dce_3_01a_raw", alias = "f106")]
+    Dce_3_01a_raw,
+    /// DCE 3.0a
+    #[value(name = "dce_3_0a", alias = "Dce_3_0a", alias = "f97")]
+    Dce_3_0a,
+    /// DCE 3.0a (raw)
+    #[value(name = "dce_3_0a_raw", alias = "Dce_3_0a_raw", alias = "f98")]
+    Dce_3_0a_raw,
+    /// DCE 3.01a (hex-encoded)
+    #[value(name = "dce_hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
+    Dce_3_01a_hex,
+    /// DCE 3.01a (raw hex-encoded)
+    #[value(name = "dce_hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
+    Dce_3_01a_raw_hex,
+    /// DCE 3.0a (hex-encoded)
+    #[value(name = "dce_hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
+    Dce_3_0a_hex,
+    /// DCE 3.0a (raw hex-encoded)
+    #[value(name = "dce_hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
+    Dce_3_0a_raw_hex,
     /// Dc Integer List (short Dcs)
     #[value(name = "dcil", alias = "dcintegerlist", alias = "DcIntegerList", alias = "f2")]
     DcIntegerList,
@@ -1477,18 +1489,6 @@ pub enum SupportedDcOutputFormat {
     /// EITE Language in ASCII documents (ELAD)
     #[value(name = "elad", alias = "Elad", alias = "f17")]
     Elad,
-    /// DCE 3.01a (hex-encoded)
-    #[value(name = "hex_3_01a", alias = "dce_3_01a_hex", alias = "Dce_3_01a_hex", alias = "f107")]
-    Dce_3_01a_hex,
-    /// DCE 3.01a (raw hex-encoded)
-    #[value(name = "hex_3_01a_raw", alias = "dce_3_01a_raw_hex", alias = "Dce_3_01a_raw_hex", alias = "f108")]
-    Dce_3_01a_raw_hex,
-    /// DCE 3.0a (hex-encoded)
-    #[value(name = "hex_3_0a", alias = "dce_3_0a_hex", alias = "Dce_3_0a_hex", alias = "f99")]
-    Dce_3_0a_hex,
-    /// DCE 3.0a (raw hex-encoded)
-    #[value(name = "hex_3_0a_raw", alias = "dce_3_0a_raw_hex", alias = "Dce_3_0a_raw_hex", alias = "f100")]
-    Dce_3_0a_raw_hex,
     /// DCE (hex-encoded)
     #[value(name = "hex_dce", alias = "dcehex", alias = "DceHex", alias = "f96")]
     DceHex,
@@ -1546,10 +1546,6 @@ pub enum SupportedDcOutputFormat {
 impl SupportedDcOutputFormat {
     /// Ordered list of all formats supported by this capability.
     pub const ALL: &'static [SupportedDcOutputFormat] = &[
-        Self::Dce_3_01a,
-        Self::Dce_3_01a_raw,
-        Self::Dce_3_0a,
-        Self::Dce_3_0a_raw,
         Self::AlphaSmartNeo,
         Self::AlphaSmartNeoLowCtlUaMac,
         Self::AlphaSmartNeoLowCtlUaPc,
@@ -1572,6 +1568,14 @@ impl SupportedDcOutputFormat {
         Self::DcIdList,
         Self::Dcal,
         Self::Dce,
+        Self::Dce_3_01a,
+        Self::Dce_3_01a_raw,
+        Self::Dce_3_0a,
+        Self::Dce_3_0a_raw,
+        Self::Dce_3_01a_hex,
+        Self::Dce_3_01a_raw_hex,
+        Self::Dce_3_0a_hex,
+        Self::Dce_3_0a_raw_hex,
         Self::DcIntegerList,
         Self::DcMixed,
         Self::DcMixed1,
@@ -1583,10 +1587,6 @@ impl SupportedDcOutputFormat {
         Self::DcUtf,
         Self::EiteColorCoded,
         Self::Elad,
-        Self::Dce_3_01a_hex,
-        Self::Dce_3_01a_raw_hex,
-        Self::Dce_3_0a_hex,
-        Self::Dce_3_0a_raw_hex,
         Self::DceHex,
         Self::Html,
         Self::HtmlLegacyCdce,
@@ -1608,10 +1608,6 @@ impl SupportedDcOutputFormat {
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
-        FormatId::Dce_3_01a,
-        FormatId::Dce_3_01a_raw,
-        FormatId::Dce_3_0a,
-        FormatId::Dce_3_0a_raw,
         FormatId::AlphaSmartNeo,
         FormatId::AlphaSmartNeoLowCtlUaMac,
         FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -1634,6 +1630,14 @@ impl SupportedDcOutputFormat {
         FormatId::DcIdList,
         FormatId::Dcal,
         FormatId::Dce,
+        FormatId::Dce_3_01a,
+        FormatId::Dce_3_01a_raw,
+        FormatId::Dce_3_0a,
+        FormatId::Dce_3_0a_raw,
+        FormatId::Dce_3_01a_hex,
+        FormatId::Dce_3_01a_raw_hex,
+        FormatId::Dce_3_0a_hex,
+        FormatId::Dce_3_0a_raw_hex,
         FormatId::DcIntegerList,
         FormatId::DcMixed,
         FormatId::DcMixed1,
@@ -1645,10 +1649,6 @@ impl SupportedDcOutputFormat {
         FormatId::DcUtf,
         FormatId::EiteColorCoded,
         FormatId::Elad,
-        FormatId::Dce_3_01a_hex,
-        FormatId::Dce_3_01a_raw_hex,
-        FormatId::Dce_3_0a_hex,
-        FormatId::Dce_3_0a_raw_hex,
         FormatId::DceHex,
         FormatId::Html,
         FormatId::HtmlLegacyCdce,
@@ -1672,10 +1672,6 @@ impl SupportedDcOutputFormat {
     #[must_use]
     pub const fn primary_cli_name(&self) -> &'static str {
         match self {
-            Self::Dce_3_01a => "3_01a",
-            Self::Dce_3_01a_raw => "3_01a_raw",
-            Self::Dce_3_0a => "3_0a",
-            Self::Dce_3_0a_raw => "3_0a_raw",
             Self::AlphaSmartNeo => "alphasmartneo",
             Self::AlphaSmartNeoLowCtlUaMac => "alphasmartneolowctluamac",
             Self::AlphaSmartNeoLowCtlUaPc => "alphasmartneolowctluapc",
@@ -1698,6 +1694,14 @@ impl SupportedDcOutputFormat {
             Self::DcIdList => "dc_id_list",
             Self::Dcal => "dcal",
             Self::Dce => "dce",
+            Self::Dce_3_01a => "dce_3_01a",
+            Self::Dce_3_01a_raw => "dce_3_01a_raw",
+            Self::Dce_3_0a => "dce_3_0a",
+            Self::Dce_3_0a_raw => "dce_3_0a_raw",
+            Self::Dce_3_01a_hex => "dce_hex_3_01a",
+            Self::Dce_3_01a_raw_hex => "dce_hex_3_01a_raw",
+            Self::Dce_3_0a_hex => "dce_hex_3_0a",
+            Self::Dce_3_0a_raw_hex => "dce_hex_3_0a_raw",
             Self::DcIntegerList => "dcil",
             Self::DcMixed => "dcmm",
             Self::DcMixed1 => "dcmm1",
@@ -1709,10 +1713,6 @@ impl SupportedDcOutputFormat {
             Self::DcUtf => "dcutf",
             Self::EiteColorCoded => "eitecolorcoded",
             Self::Elad => "elad",
-            Self::Dce_3_01a_hex => "hex_3_01a",
-            Self::Dce_3_01a_raw_hex => "hex_3_01a_raw",
-            Self::Dce_3_0a_hex => "hex_3_0a",
-            Self::Dce_3_0a_raw_hex => "hex_3_0a_raw",
             Self::DceHex => "hex_dce",
             Self::Html => "html",
             Self::HtmlLegacyCdce => "html_l",
@@ -1737,10 +1737,6 @@ impl SupportedDcOutputFormat {
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
         match self {
-            Self::Dce_3_01a => FormatId::Dce_3_01a,
-            Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
-            Self::Dce_3_0a => FormatId::Dce_3_0a,
-            Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
             Self::AlphaSmartNeo => FormatId::AlphaSmartNeo,
             Self::AlphaSmartNeoLowCtlUaMac => FormatId::AlphaSmartNeoLowCtlUaMac,
             Self::AlphaSmartNeoLowCtlUaPc => FormatId::AlphaSmartNeoLowCtlUaPc,
@@ -1763,6 +1759,14 @@ impl SupportedDcOutputFormat {
             Self::DcIdList => FormatId::DcIdList,
             Self::Dcal => FormatId::Dcal,
             Self::Dce => FormatId::Dce,
+            Self::Dce_3_01a => FormatId::Dce_3_01a,
+            Self::Dce_3_01a_raw => FormatId::Dce_3_01a_raw,
+            Self::Dce_3_0a => FormatId::Dce_3_0a,
+            Self::Dce_3_0a_raw => FormatId::Dce_3_0a_raw,
+            Self::Dce_3_01a_hex => FormatId::Dce_3_01a_hex,
+            Self::Dce_3_01a_raw_hex => FormatId::Dce_3_01a_raw_hex,
+            Self::Dce_3_0a_hex => FormatId::Dce_3_0a_hex,
+            Self::Dce_3_0a_raw_hex => FormatId::Dce_3_0a_raw_hex,
             Self::DcIntegerList => FormatId::DcIntegerList,
             Self::DcMixed => FormatId::DcMixed,
             Self::DcMixed1 => FormatId::DcMixed1,
@@ -1774,10 +1778,6 @@ impl SupportedDcOutputFormat {
             Self::DcUtf => FormatId::DcUtf,
             Self::EiteColorCoded => FormatId::EiteColorCoded,
             Self::Elad => FormatId::Elad,
-            Self::Dce_3_01a_hex => FormatId::Dce_3_01a_hex,
-            Self::Dce_3_01a_raw_hex => FormatId::Dce_3_01a_raw_hex,
-            Self::Dce_3_0a_hex => FormatId::Dce_3_0a_hex,
-            Self::Dce_3_0a_raw_hex => FormatId::Dce_3_0a_raw_hex,
             Self::DceHex => FormatId::DceHex,
             Self::Html => FormatId::Html,
             Self::HtmlLegacyCdce => FormatId::HtmlLegacyCdce,
@@ -1802,10 +1802,6 @@ impl SupportedDcOutputFormat {
     #[must_use]
     pub const fn from_format_id(id: FormatId) -> Option<Self> {
         match id {
-            FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
-            FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
-            FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
-            FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
             FormatId::AlphaSmartNeo => Some(Self::AlphaSmartNeo),
             FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::AlphaSmartNeoLowCtlUaMac),
             FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::AlphaSmartNeoLowCtlUaPc),
@@ -1828,6 +1824,14 @@ impl SupportedDcOutputFormat {
             FormatId::DcIdList => Some(Self::DcIdList),
             FormatId::Dcal => Some(Self::Dcal),
             FormatId::Dce => Some(Self::Dce),
+            FormatId::Dce_3_01a => Some(Self::Dce_3_01a),
+            FormatId::Dce_3_01a_raw => Some(Self::Dce_3_01a_raw),
+            FormatId::Dce_3_0a => Some(Self::Dce_3_0a),
+            FormatId::Dce_3_0a_raw => Some(Self::Dce_3_0a_raw),
+            FormatId::Dce_3_01a_hex => Some(Self::Dce_3_01a_hex),
+            FormatId::Dce_3_01a_raw_hex => Some(Self::Dce_3_01a_raw_hex),
+            FormatId::Dce_3_0a_hex => Some(Self::Dce_3_0a_hex),
+            FormatId::Dce_3_0a_raw_hex => Some(Self::Dce_3_0a_raw_hex),
             FormatId::DcIntegerList => Some(Self::DcIntegerList),
             FormatId::DcMixed => Some(Self::DcMixed),
             FormatId::DcMixed1 => Some(Self::DcMixed1),
@@ -1839,10 +1843,6 @@ impl SupportedDcOutputFormat {
             FormatId::DcUtf => Some(Self::DcUtf),
             FormatId::EiteColorCoded => Some(Self::EiteColorCoded),
             FormatId::Elad => Some(Self::Elad),
-            FormatId::Dce_3_01a_hex => Some(Self::Dce_3_01a_hex),
-            FormatId::Dce_3_01a_raw_hex => Some(Self::Dce_3_01a_raw_hex),
-            FormatId::Dce_3_0a_hex => Some(Self::Dce_3_0a_hex),
-            FormatId::Dce_3_0a_raw_hex => Some(Self::Dce_3_0a_raw_hex),
             FormatId::DceHex => Some(Self::DceHex),
             FormatId::Html => Some(Self::Html),
             FormatId::HtmlLegacyCdce => Some(Self::HtmlLegacyCdce),

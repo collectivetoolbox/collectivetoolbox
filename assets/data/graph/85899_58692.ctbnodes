@@ -39,3 +39,46 @@ l8589958729: 590 204 255 203 # Is a closing delimiter of syntactic block for (En
 l8589958730: 591 l8589958729 l8589948770 # Supersedes (Is a closing delimiter of syntactic block for (End encapsulated binary data, Ignore following Dc, Begin encapsulated binary data), Is a closing delimiter of syntactic block for (End encapsulated binary data, Begin encapsulated binary data))
 l8589958731: 638 584 639 635 310 640 l8589958696 312 l8589958697 312 l8589958698 312 l8589958699 312 l8589958700 312 l8589958701 312 l8589958702 312 l8589958703 312 l8589958704 312 l8589958705 312 l8589958706 312 l8589958707 312 l8589958708 312 l8589958709 312 l8589958710 312 l8589958711 312 l8589958712 312 l8589958713 312 l8589958714 312 l8589958715 312 l8589958716 312 l8589958717 312 l8589958718 312 l8589958719 312 l8589958720 312 l8589958721 312 l8589958722 312 l8589958723 312 l8589958724 312 l8589958725 312 l8589958726 312 l8589958727 312 l8589958728 312 l8589958729 312 l8589958730 311 # For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958696..l8589958730 (35 elements)])
 l8589958732: 610 l8589958731 636 # Has value (For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958696..l8589958730 (35 elements)]), Collective Toolbox Dc CSV seed database)
+l8589958733: u64 u63 u65 u5f u33 u5f u30 u61 # "dce_3_0a"
+l8589958734: u64 u63 u65 u5f u33 u5f u30 u61 u5f u72 u61 u77 # "dce_3_0a_raw"
+l8589958735: u64 u63 u65 u5f u68 u65 u78 u5f u33 u5f u30 u61 # "dce_hex_3_0a"
+l8589958736: u64 u63 u65 u5f u68 u65 u78 u5f u33 u5f u30 u61 u5f u72 u61 u77 # "dce_hex_3_0a_raw"
+l8589958737: u64 u63 u65 u5f u33 u5f u30 u61 u5f u6f u6c u64 # "dce_3_0a_old"
+l8589958738: u64 u63 u65 u5f u33 u5f u30 u31 u61 # "dce_3_01a"
+l8589958739: u64 u63 u65 u5f u33 u5f u30 u31 u61 u5f u72 u61 u77 # "dce_3_01a_raw"
+l8589958740: u64 u63 u65 u5f u68 u65 u78 u5f u33 u5f u30 u31 u61 # "dce_hex_3_01a"
+l8589958741: u64 u63 u65 u5f u68 u65 u78 u5f u33 u5f u30 u31 u61 u5f u72 u61 u77 # "dce_hex_3_01a_raw"
+l8589958742: u64 u63 u65 u5f u33 u5f u30 u32 u61 # "dce_3_02a"
+l8589958743: u64 u63 u65 u5f u33 u5f u30 u33 u61 # "dce_3_03a"
+l8589958744: 610 l8589952647 l8589958733 # Has value (Run 2 raw candidate for l8589951864: Has a (DCE 3.0a, Nickname), "dce_3_0a")
+l8589958745: 591 l8589958744 l8589954928 # Supersedes (Has value (Run 2 raw candidate for l8589951864: Has a (DCE 3.0a, Nickname), "dce_3_0a"), Run 2 branch-resolved candidate for l8589951865: Has value (Has a (DCE 3.0a, Nickname), "3_0a"))
+l8589958746: 584 f97 f264 # Has a (DCE 3.0a, File extension)
+l8589958747: 610 l8589958746 l8589952495 # Has value (Has a (DCE 3.0a, File extension), ".dce")
+l8589958748: 610 l8589952663 l8589958734 # Has value (Run 2 raw candidate for l8589951868: Has a (DCE 3.0a (raw), Nickname), "dce_3_0a_raw")
+l8589958749: 591 l8589958748 l8589954940 # Supersedes (Has value (Run 2 raw candidate for l8589951868: Has a (DCE 3.0a (raw), Nickname), "dce_3_0a_raw"), Run 2 branch-resolved candidate for l8589951869: Has value (Has a (DCE 3.0a (raw), Nickname), "3_0a_raw"))
+l8589958750: 610 l8589952671 l8589958735 # Has value (Run 2 raw candidate for l8589951870: Has a (DCE 3.0a (hex-encoded), Nickname), "dce_hex_3_0a")
+l8589958751: 591 l8589958750 l8589954948 # Supersedes (Has value (Run 2 raw candidate for l8589951870: Has a (DCE 3.0a (hex-encoded), Nickname), "dce_hex_3_0a"), Run 2 branch-resolved candidate for l8589951871: Has value (Has a (DCE 3.0a (hex-encoded), Nickname), "hex_3_0a"))
+l8589958752: 610 l8589952679 l8589958736 # Has value (Run 2 raw candidate for l8589951872: Has a (DCE 3.0a (raw hex-encoded), Nickname), "dce_hex_3_0a_raw")
+l8589958753: 591 l8589958752 l8589954956 # Supersedes (Has value (Run 2 raw candidate for l8589951872: Has a (DCE 3.0a (raw hex-encoded), Nickname), "dce_hex_3_0a_raw"), Run 2 branch-resolved candidate for l8589951873: Has value (Has a (DCE 3.0a (raw hex-encoded), Nickname), "hex_3_0a_raw"))
+l8589958754: 610 l8589952687 l8589958737 # Has value (Run 2 raw candidate for l8589951874: Has a (DCE 3.0a (old translator), Nickname), "dce_3_0a_old")
+l8589958755: 591 l8589958754 l8589954964 # Supersedes (Has value (Run 2 raw candidate for l8589951874: Has a (DCE 3.0a (old translator), Nickname), "dce_3_0a_old"), Run 2 branch-resolved candidate for l8589951875: Has value (Has a (DCE 3.0a (old translator), Nickname), "3_0a_old"))
+l8589958756: 610 l8589952719 l8589958738 # Has value (Run 2 raw candidate for l8589951882: Has a (DCE 3.01a, Nickname), "dce_3_01a")
+l8589958757: 591 l8589958756 l8589954996 # Supersedes (Has value (Run 2 raw candidate for l8589951882: Has a (DCE 3.01a, Nickname), "dce_3_01a"), Run 2 branch-resolved candidate for l8589951883: Has value (Has a (DCE 3.01a, Nickname), "3_01a"))
+l8589958758: 584 f105 f264 # Has a (DCE 3.01a, File extension)
+l8589958759: 610 l8589958758 l8589952495 # Has value (Has a (DCE 3.01a, File extension), ".dce")
+l8589958760: 610 l8589952735 l8589958739 # Has value (Run 2 raw candidate for l8589951886: Has a (DCE 3.01a (raw), Nickname), "dce_3_01a_raw")
+l8589958761: 591 l8589958760 l8589955012 # Supersedes (Has value (Run 2 raw candidate for l8589951886: Has a (DCE 3.01a (raw), Nickname), "dce_3_01a_raw"), Run 2 branch-resolved candidate for l8589951887: Has value (Has a (DCE 3.01a (raw), Nickname), "3_01a_raw"))
+l8589958762: 610 l8589952743 l8589958740 # Has value (Run 2 raw candidate for l8589951888: Has a (DCE 3.01a (hex-encoded), Nickname), "dce_hex_3_01a")
+l8589958763: 591 l8589958762 l8589955020 # Supersedes (Has value (Run 2 raw candidate for l8589951888: Has a (DCE 3.01a (hex-encoded), Nickname), "dce_hex_3_01a"), Run 2 branch-resolved candidate for l8589951889: Has value (Has a (DCE 3.01a (hex-encoded), Nickname), "hex_3_01a"))
+l8589958764: 610 l8589952751 l8589958741 # Has value (Run 2 raw candidate for l8589951890: Has a (DCE 3.01a (raw hex-encoded), Nickname), "dce_hex_3_01a_raw")
+l8589958765: 591 l8589958764 l8589955028 # Supersedes (Has value (Run 2 raw candidate for l8589951890: Has a (DCE 3.01a (raw hex-encoded), Nickname), "dce_hex_3_01a_raw"), Run 2 branch-resolved candidate for l8589951891: Has value (Has a (DCE 3.01a (raw hex-encoded), Nickname), "hex_3_01a_raw"))
+l8589958766: 610 l8589958501 l8589958742 # Has value (Has a (DCE 3.02a, Nickname), "dce_3_02a")
+l8589958767: 591 l8589958766 l8589958502 # Supersedes (Has value (Has a (DCE 3.02a, Nickname), "dce_3_02a"), Has value (Has a (DCE 3.02a, Nickname), "3_02a"))
+l8589958768: 584 f652 f264 # Has a (DCE 3.02a, File extension)
+l8589958769: 610 l8589958768 l8589952495 # Has value (Has a (DCE 3.02a, File extension), ".dce")
+l8589958770: 610 l8589958542 l8589958743 # Has value (Has a (DCE 3.03a, Nickname), "dce_3_03a")
+l8589958771: 591 l8589958770 l8589958543 # Supersedes (Has value (Has a (DCE 3.03a, Nickname), "dce_3_03a"), Has value (Has a (DCE 3.03a, Nickname), "3_03a"))
+l8589958772: 584 f653 f264 # Has a (DCE 3.03a, File extension)
+l8589958773: 610 l8589958772 l8589952495 # Has value (Has a (DCE 3.03a, File extension), ".dce")
+l8589958774: 638 584 639 635 310 640 l8589958733 312 l8589958734 312 l8589958735 312 l8589958736 312 l8589958737 312 l8589958738 312 l8589958739 312 l8589958740 312 l8589958741 312 l8589958742 312 l8589958743 312 l8589958744 312 l8589958745 312 l8589958746 312 l8589958747 312 l8589958748 312 l8589958749 312 l8589958750 312 l8589958751 312 l8589958752 312 l8589958753 312 l8589958754 312 l8589958755 312 l8589958756 312 l8589958757 312 l8589958758 312 l8589958759 312 l8589958760 312 l8589958761 312 l8589958762 312 l8589958763 312 l8589958764 312 l8589958765 312 l8589958766 312 l8589958767 312 l8589958768 312 l8589958769 312 l8589958770 312 l8589958771 312 l8589958772 312 l8589958773 311 # For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958733..l8589958773 (41 elements)])
+l8589958775: 610 l8589958774 636 # Has value (For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589958733..l8589958773 (41 elements)]), Collective Toolbox Dc CSV seed database)

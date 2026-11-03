@@ -540,6 +540,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("dce"),
     },
     ExtensionEntry {
+        format_id: FormatId::Dce_3_0a,
+        rule: ExtensionRule::insensitive("dce"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Dce_3_01a,
+        rule: ExtensionRule::insensitive("dce"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Pdf,
         rule: ExtensionRule::insensitive("pdf"),
     },
@@ -690,6 +698,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::CtbNodeIncoming,
         rule: ExtensionRule::insensitive("ctbnode-incoming"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Dce_3_02a,
+        rule: ExtensionRule::insensitive("dce"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Dce_3_03a,
+        rule: ExtensionRule::insensitive("dce"),
     },
     ExtensionEntry {
         format_id: FormatId::Utf8,

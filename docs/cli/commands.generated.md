@@ -409,10 +409,6 @@ Options:
 
 Supported input formats (--from):
   Document formats:
-    3_01a (Dce_3_01a): DCE 3.01a
-    3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
-    3_0a (Dce_3_0a): DCE 3.0a
-    3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
     cdce_lstrict (CdceLegacyStrict): CDCE (legacy, strict)
     csdl (Csdl): Comma-separated Dc list (long Dcs)
     ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
@@ -423,6 +419,14 @@ Supported input formats (--from):
     dc_id_list (DcIdList): Dc ID list (ASCII)
     dcal (Dcal): Dc ASCII List (long Dcs)
     dce (Dce): DCE (automatic version selection)
+    dce_3_01a (Dce_3_01a): DCE 3.01a
+    dce_3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
+    dce_3_0a (Dce_3_0a): DCE 3.0a
+    dce_3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
+    dce_hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
+    dce_hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
+    dce_hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
+    dce_hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
     dcil (DcIntegerList): Dc Integer List (short Dcs)
     dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
         dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
@@ -432,10 +436,6 @@ Supported input formats (--from):
     dctf (DcTf): DcTF (Dc Transformation Format)
     dcts (Dcts): DcText short
     dcutf (DcUtf): DcUtf
-    hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
-    hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
-    hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
-    hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
     hex_dce (DceHex): DCE (hex-encoded)
     legacy_cdce (CdceLegacy): CDCE (legacy)
     sems (Sems): SEMS (short Dcs)
@@ -547,10 +547,6 @@ Options:
 
 Supported input formats (--from):
   Document formats:
-    3_01a (Dce_3_01a): DCE 3.01a
-    3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
-    3_0a (Dce_3_0a): DCE 3.0a
-    3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
     cdce_lstrict (CdceLegacyStrict): CDCE (legacy, strict)
     csdl (Csdl): Comma-separated Dc list (long Dcs)
     ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
@@ -561,6 +557,14 @@ Supported input formats (--from):
     dc_id_list (DcIdList): Dc ID list (ASCII)
     dcal (Dcal): Dc ASCII List (long Dcs)
     dce (Dce): DCE (automatic version selection)
+    dce_3_01a (Dce_3_01a): DCE 3.01a
+    dce_3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
+    dce_3_0a (Dce_3_0a): DCE 3.0a
+    dce_3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
+    dce_hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
+    dce_hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
+    dce_hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
+    dce_hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
     dcil (DcIntegerList): Dc Integer List (short Dcs)
     dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
         dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
@@ -570,10 +574,6 @@ Supported input formats (--from):
     dctf (DcTf): DcTF (Dc Transformation Format)
     dcts (Dcts): DcText short
     dcutf (DcUtf): DcUtf
-    hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
-    hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
-    hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
-    hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
     hex_dce (DceHex): DCE (hex-encoded)
     legacy_cdce (CdceLegacy): CDCE (legacy)
     sems (Sems): SEMS (short Dcs)
@@ -606,10 +606,6 @@ Supported input formats (--from):
 
 Supported output formats (--to):
   Document formats:
-    3_01a (Dce_3_01a): DCE 3.01a
-    3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
-    3_0a (Dce_3_0a): DCE 3.0a
-    3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
     csdl (Csdl): Comma-separated Dc list (long Dcs)
     ctbnbdl (CtbNodeBundle): Collective Toolbox Node Bundle (default: ctbnbdl2)
         ctbnbdl1 (CtbNodeBundle1): Collective Toolbox Node Bundle, version 1
@@ -618,6 +614,14 @@ Supported output formats (--to):
     dc_id_list (DcIdList): Dc ID list (ASCII)
     dcal (Dcal): Dc ASCII List (long Dcs)
     dce (Dce): DCE (automatic version selection)
+    dce_3_01a (Dce_3_01a): DCE 3.01a
+    dce_3_01a_raw (Dce_3_01a_raw): DCE 3.01a (raw)
+    dce_3_0a (Dce_3_0a): DCE 3.0a
+    dce_3_0a_raw (Dce_3_0a_raw): DCE 3.0a (raw)
+    dce_hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
+    dce_hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
+    dce_hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
+    dce_hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
     dcil (DcIntegerList): Dc Integer List (short Dcs)
     dcmm, dcmstr (DcMixed): Dc mixed mode (default: dcmm2)
         dcmm1 (DcMixed1): Dc mixed mode, version 1 (DcUtf)
@@ -629,10 +633,6 @@ Supported output formats (--to):
     dcutf (DcUtf): DcUtf
     eitecolorcoded (EiteColorCoded): Color-coded HTML integer list
     elad (Elad): EITE Language in ASCII documents (ELAD)
-    hex_3_01a (Dce_3_01a_hex): DCE 3.01a (hex-encoded)
-    hex_3_01a_raw (Dce_3_01a_raw_hex): DCE 3.01a (raw hex-encoded)
-    hex_3_0a (Dce_3_0a_hex): DCE 3.0a (hex-encoded)
-    hex_3_0a_raw (Dce_3_0a_raw_hex): DCE 3.0a (raw hex-encoded)
     hex_dce (DceHex): DCE (hex-encoded)
     html (Html): HTML
     html_l (HtmlLegacyCdce): HTML (legacy CDCE output)
