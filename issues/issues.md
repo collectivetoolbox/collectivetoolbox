@@ -124,3 +124,17 @@ $ /home/a/.local/bin/ctoolbox
 This is all supposed to be hard-capped at 5 seconds or something like that. It would also possibly be good to open the UI *before* the update check and environment capture is complete so it doesn't take so long.
 
 Unrelated, the glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
+
+
+ctoolbox convert -f /some/ascii/file --to sems # no errors, no warnings
+ctoolbox convert -f /some/ascii/file --to sems --strict # no errors, no warnings
+ctoolbox convert -f /some/ascii/file --to sems --strict --normalize none # no errors, no warnings
+ctoolbox convert -f /some/ascii/file --to sems --permissive --normalize none # no errors, no warnings
+
+Docs do not explain which is the default:
+
+      --permissive                  Parse and export document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
+      --strict                      Parse and export document in strict mode (rejecting invalid headers, characters, or non-canonical sequences)
+      --normalize <NORMALIZE>       Character and Unicode normalization policy (none, as-needed, all) [possible values: none, as-needed, all]
+
+ASCII is not representable in SEMS without normalization. --strict should exit 1 as the document is not representable, though I guess it can still run the conversion. --permissive --normalize none should turn everything into a replacement character. Only cases where this should work are `--permissive` (defaulting to as-needed normalization), `--permissive --normalize as-needed`, `--permissive --normalize all`, or `--strict --normalize as-needed` or `--strict --normalize all` (--strict should default to no normalization). I think `--permissive --normalize as-needed` should probably be the default. Adding --strict should turn off normalization, unless a normalization-on option is specifically requested on the CLI. If any characters were normalized, warnings should be shown on stdout (in as-needed mode, a warning for each normalized character; in all mode, a single note).
