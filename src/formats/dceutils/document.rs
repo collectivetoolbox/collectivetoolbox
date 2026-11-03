@@ -172,7 +172,7 @@ pub fn dceutils_to_dcmstring_with_options(
             let utf8 = match format_code {
                 "utf8" => bytes.to_vec(),
                 "utf32" => ctb_formats_encoding::unicode::utf32be_to_utf8(bytes)
-                    .map_err(|_| anyhow::anyhow!("There was an error decoding UTF-32, and permissive implementation is not yet available."))?,
+                    .map_err(|_| anyhow::anyhow!("There was an error decoding UTF-32."))?,
                 "utf8_base64" => ctb_formats_base64::base64_decode(std::str::from_utf8(bytes)?)?,
                 "utf8_dc64" | "utf8_dc64_enc" => crate::converter::decode_utf8_dc64_csv_to_bytes(
                     bytes, format_code == "utf8_dc64_enc", &mut raw_log,
