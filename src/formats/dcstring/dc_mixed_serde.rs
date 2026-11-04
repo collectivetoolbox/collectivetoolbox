@@ -265,11 +265,9 @@ impl crate::DcMstr {
         &self,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        self.decode_with_resolver_and_context(
-            default_syntax_resolver().as_ref(),
-            None,
-            policy,
-        )
+        let nav = crate::DcDocumentNavigator::from_mstr(self);
+        let resolver = nav.effective_resolver();
+        self.decode_with_resolver_and_context(resolver.as_ref(), None, policy)
     }
 
     /// Interprets the whole string with explicitly supplied outer bindings.
@@ -281,8 +279,10 @@ impl crate::DcMstr {
         context: &crate::SharedValueContext,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
+        let nav = crate::DcDocumentNavigator::from_mstr(self);
+        let resolver = nav.effective_resolver();
         self.decode_with_resolver_and_context(
-            default_syntax_resolver().as_ref(),
+            resolver.as_ref(),
             Some(context),
             policy,
         )
@@ -316,7 +316,6 @@ impl crate::DcMstr {
         nav.parse_document_into_arena_with_resolver(
             &mut arena, policy, resolver,
         )?;
-        let roots = arena.roots();
         let mut ctx = DcProjectionContext::with_all_resolvers(
             &arena,
             policy,
@@ -325,6 +324,7 @@ impl crate::DcMstr {
             Some(resolver),
             None,
         );
+        let roots = ctx.strip_leading_document_most_recent_root(arena.roots());
         let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
         ctx.handle_remaining_nodes(
             roots
@@ -1067,6 +1067,31 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             )?;
         }
         Ok(())
+    }
+
+    /// Skips a leading `Dc 641 "Global graph system block most recent node ID at time of document creation"`
+    /// document header node when present before the payload root(s).
+    #[must_use]
+    pub fn strip_leading_document_most_recent_root<'r>(
+        &self,
+        roots: &'r [NodeId],
+    ) -> &'r [NodeId] {
+        if roots.len() > 1
+            && let Some(&first_id) = roots.first()
+            && let Ok(first_node) = self.node(first_id)
+            && matches!(
+                &first_node.kind,
+                DcSyntaxKind::Tagged { tag, .. }
+                    if self.tokens_equivalent(
+                        *tag,
+                        ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+                    )
+            )
+            && let Some(tail) = roots.get(1..)
+        {
+            return tail;
+        }
+        roots
     }
 
     /// Returns anomalies retained during projection, including quiet recovery.

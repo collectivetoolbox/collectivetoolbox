@@ -136,8 +136,64 @@ impl DatasetRuleResolver {
 static DEFAULT_RESOLVER: LazyLock<Arc<DatasetRuleResolver>> =
     LazyLock::new(|| Arc::new(DatasetRuleResolver::load()));
 
+static HISTORICAL_RESOLVER_CACHE: LazyLock<
+    std::sync::Mutex<
+        std::collections::HashMap<u128, Arc<DatasetRuleResolver>>,
+    >,
+> = LazyLock::new(|| {
+    std::sync::Mutex::new(std::collections::HashMap::new())
+});
+
 /// Returns the lazily loaded shared default syntax resolver instance.
 #[must_use]
 pub fn default_syntax_resolver() -> &'static Arc<DatasetRuleResolver> {
     &DEFAULT_RESOLVER
+}
+
+/// Registers a pre-built [`DatasetRuleResolver`] in the historical resolver cache
+/// for `most_recent_node_id` (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
+pub fn register_historical_syntax_resolver(
+    most_recent_node_id: u128,
+    resolver: Arc<DatasetRuleResolver>,
+) {
+    if let Ok(mut cache) = HISTORICAL_RESOLVER_CACHE.lock() {
+        if cache.len() >= 64 {
+            cache.clear();
+        }
+        cache.insert(most_recent_node_id, resolver);
+    }
+}
+
+/// Returns a shared syntax resolver reflecting the System-block graph state as of
+/// `most_recent_node_id` (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
+///
+/// When `most_recent_node_id` matches the current `HEAD` System-block most recent node ID
+/// (or is newer than `HEAD` and not explicitly registered), returns [`default_syntax_resolver()`]
+/// without rebuilding.
+pub fn syntax_resolver_at_most_recent(
+    most_recent_node_id: u128,
+) -> Result<Arc<DatasetRuleResolver>> {
+    let shared_graph = crate::seed_graph::SeedGraphIndex::shared()?;
+    let head_id = shared_graph.system_block_most_recent_node_id();
+    if head_id == Some(most_recent_node_id) {
+        return Ok(Arc::clone(default_syntax_resolver()));
+    }
+    if let Ok(cache) = HISTORICAL_RESOLVER_CACHE.lock()
+        && let Some(existing) = cache.get(&most_recent_node_id)
+    {
+        return Ok(Arc::clone(existing));
+    }
+    if head_id.is_some_and(|head| most_recent_node_id >= head) {
+        return Ok(Arc::clone(default_syntax_resolver()));
+    }
+    let built = Arc::new(DatasetRuleResolver::load_at_most_recent(
+        most_recent_node_id,
+    )?);
+    if let Ok(mut cache) = HISTORICAL_RESOLVER_CACHE.lock() {
+        if cache.len() >= 64 {
+            cache.clear();
+        }
+        cache.insert(most_recent_node_id, Arc::clone(&built));
+    }
+    Ok(built)
 }

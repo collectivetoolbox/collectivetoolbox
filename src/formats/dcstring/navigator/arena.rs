@@ -687,12 +687,13 @@ impl<'a> DcDocumentNavigator<'a> {
         context: Option<&SharedValueContext>,
         policy: &DcProjectionPolicy,
     ) -> Result<T> {
+        let resolver = self.effective_resolver();
         self.decode_frame_with_arena_and_resolver(
             stub,
             arena,
             context,
             policy,
-            default_syntax_resolver().as_ref(),
+            resolver.as_ref(),
         )
     }
 
@@ -735,11 +736,12 @@ impl<'a> DcDocumentNavigator<'a> {
         context: Option<&SharedValueContext>,
         policy: &DcProjectionPolicy,
     ) -> Result<T> {
+        let resolver = self.effective_resolver();
         self.decode_frame_with_resolver(
             stub,
             context,
             policy,
-            default_syntax_resolver().as_ref(),
+            resolver.as_ref(),
         )
     }
 
@@ -765,11 +767,12 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<NodeId> {
+        let resolver = self.effective_resolver();
         self.expand_frame_with_resolver(
             stub,
             arena,
             policy,
-            default_syntax_resolver().as_ref(),
+            resolver.as_ref(),
         )
     }
 
@@ -799,11 +802,38 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
-        self.parse_document_into_arena_with_resolver(
+        self.detect_leading_document_most_recent();
+        let mut raw_roots = Vec::new();
+        let res = (|| -> Result<()> {
+            while let Some(stub) = self.next_sibling_stub(policy)? {
+                let resolver = self.effective_resolver();
+                let id = self.build_arena_node_from_stub_with_resolver(
+                    &stub,
+                    arena,
+                    policy,
+                    resolver.as_ref(),
+                )?;
+                raw_roots.push(id);
+                for diagnostic in self.diagnostics.drain(..) {
+                    arena.push_diagnostic(diagnostic);
+                }
+            }
+            Ok(())
+        })();
+        for diagnostic in self.diagnostics.drain(..) {
+            arena.push_diagnostic(diagnostic);
+        }
+        res?;
+        let resolver = self.effective_resolver();
+        let normalized_roots = Self::normalize_field_nodes_with_resolver(
+            raw_roots,
             arena,
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
+            resolver.as_ref(),
+        );
+        for id in normalized_roots {
+            arena.push_root(id);
+        }
+        Ok(())
     }
 
     /// Parses all sibling constructs in the active span into `arena` using the
@@ -848,10 +878,11 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<NodeId> {
+        let resolver = self.effective_resolver();
         self.parse_node_into_arena_with_resolver(
             arena,
             policy,
-            default_syntax_resolver().as_ref(),
+            resolver.as_ref(),
         )
     }
 
@@ -1041,12 +1072,12 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<NodeId> {
-        Self::parse_arena_with_resolver(
-            bytes,
-            arena,
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
+        Self::parse_document_arena(bytes, arena, policy)?;
+        arena
+            .roots()
+            .first()
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("Empty document or node stream"))
     }
 
     /// Parses all document root nodes from `bytes` into `arena` using `policy` and `resolver`.
@@ -1072,12 +1103,14 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
-        Self::parse_document_arena_with_resolver(
-            bytes,
-            arena,
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
+        let mut nav = if bytes.starts_with(&DCMM_MAGIC) {
+            let mstr = DcMstr::from_bytes_with_policy(bytes, policy)?;
+            Self::from_mstr(mstr)
+        } else {
+            let text = DcStr::from_bytes(bytes)?;
+            Self::from_dc_str(text)
+        };
+        nav.parse_document_into_arena(arena, policy)
     }
 
     pub(super) fn build_arena_node_from_stub_with_resolver(

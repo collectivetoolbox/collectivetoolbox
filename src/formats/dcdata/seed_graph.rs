@@ -331,6 +331,50 @@ impl SeedGraphIndex {
     /// if installed, or `assets/data/graph/system/` in dev mode), merging them in ascending
     /// node ID order and resolving all `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`) history.
     pub fn load_with_history_from_asset_bundle() -> Result<Self> {
+        let (bundle_most_recent, merged) =
+            Self::load_merged_nodes_with_history()?;
+        let mut index = Self::from_nodes(merged);
+        if let Some(wm) = bundle_most_recent {
+            index.system_block_most_recent_node_id = Some(
+                index
+                    .system_block_most_recent_node_id
+                    .map_or(wm, |cur| cur.max(wm)),
+            );
+        }
+        Ok(index)
+    }
+
+    /// Loads a `SeedGraphIndex` pinned to the System-block state as of `most_recent_node_id`
+    /// (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
+    ///
+    /// If `most_recent_node_id` is at or newer than the shared `HEAD` seed graph's
+    /// `system_block_most_recent_node_id()`, returns the shared `HEAD` index in $O(1)$.
+    /// Otherwise, loads active and historical `.ctbnbdl` bundles and reconstructs the
+    /// graph state as of `most_recent_node_id`.
+    pub fn load_at_most_recent_from_asset_bundle(
+        most_recent_node_id: u128,
+    ) -> Result<Arc<Self>> {
+        ensure!(
+            (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                .contains(&most_recent_node_id),
+            "Most recent System block node ID l{most_recent_node_id} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+        );
+        let shared = Self::shared()?;
+        if shared
+            .system_block_most_recent_node_id()
+            .is_some_and(|head_id| most_recent_node_id >= head_id)
+        {
+            return Ok(Arc::clone(shared));
+        }
+        let (_, merged) = Self::load_merged_nodes_with_history()?;
+        Ok(Arc::new(Self::from_nodes_at_most_recent(
+            merged,
+            most_recent_node_id,
+        )))
+    }
+
+    fn load_merged_nodes_with_history() -> Result<(Option<u128>, Vec<LedgerNode>)>
+    {
         let (active_most_recent, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
@@ -346,15 +390,7 @@ impl SeedGraphIndex {
             )?;
         let bundle_most_recent = active_most_recent.max(history_most_recent);
         if history_nodes.is_empty() {
-            let mut index = Self::from_nodes(active_nodes);
-            if let Some(wm) = bundle_most_recent {
-                index.system_block_most_recent_node_id = Some(
-                    index
-                        .system_block_most_recent_node_id
-                        .map_or(wm, |cur| cur.max(wm)),
-                );
-            }
-            return Ok(index);
+            return Ok((bundle_most_recent, active_nodes));
         }
 
         let mut merged = Vec::with_capacity(
@@ -378,16 +414,7 @@ impl SeedGraphIndex {
         }
         merged.extend(a_iter);
         merged.extend(h_iter);
-
-        let mut index = Self::from_nodes(merged);
-        if let Some(wm) = bundle_most_recent {
-            index.system_block_most_recent_node_id = Some(
-                index
-                    .system_block_most_recent_node_id
-                    .map_or(wm, |cur| cur.max(wm)),
-            );
-        }
-        Ok(index)
+        Ok((bundle_most_recent, merged))
     }
 
     fn load_nodes_from_asset_dir(
@@ -516,6 +543,24 @@ impl SeedGraphIndex {
     pub fn from_nodes(nodes: Vec<LedgerNode>) -> Self {
         let single_props = single_valued_property_set();
         Self::from_nodes_with_single_props(nodes, &single_props)
+    }
+
+    /// Builds a `SeedGraphIndex` reflecting the System-block graph state as of `most_recent_node_id`
+    /// (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`),
+    /// ignoring any statements, supersessions (`Dc 591`), or retractions (`Dc 592`) allocated
+    /// with `node.id > most_recent_node_id`.
+    #[must_use]
+    pub fn from_nodes_at_most_recent(
+        nodes: Vec<LedgerNode>,
+        most_recent_node_id: u128,
+    ) -> Self {
+        let filtered: Vec<LedgerNode> = nodes
+            .into_iter()
+            .filter(|node| node.id <= most_recent_node_id)
+            .collect();
+        let mut index = Self::from_nodes(filtered);
+        index.system_block_most_recent_node_id = Some(most_recent_node_id);
+        index
     }
 
     /// Builds a `SeedGraphIndex` from `nodes` and a custom set of single-valued property Dcs.
@@ -3303,6 +3348,106 @@ mod tests {
                 "Expected recovered/reconciled node l{node_id} to have Csv provenance"
             );
         }
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_seed_graph_and_syntax_resolver_at_most_recent() -> Result<()> {
+        use crate::syntax::{CharTarget, SyntaxRuleResolver};
+
+        let scripts = BTreeSet::from([".Semantic".to_string()]);
+        let subj = DcShorthand::Short(915);
+
+        // Revision 1: Dc 915 has syntax rule `:~ [atom_dc]`
+        let mut defn = make_test_defn(915, "Test Op", "Test syntax rule op");
+        defn.syntax = Some(parse_dc_syntax(":~ [atom_dc]")?);
+        let (nodes1, _) = update_ledger_in_memory(
+            Vec::new(),
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
+        let t1 = nodes1.last().expect("Expected Revision 1 nodes").id;
+
+        // Revision 2: Dc 915 syntax rule superseded by `:~ [atom_dc] [atom_dc]`
+        defn.syntax = Some(parse_dc_syntax(":~ [atom_dc] [atom_dc]")?);
+        let (nodes2, _) = update_ledger_in_memory(
+            nodes1,
+            &[defn.clone()],
+            &[],
+            &scripts,
+            None,
+        )?;
+        let t2 = nodes2.last().expect("Expected Revision 2 nodes").id;
+        assert!(t2 > t1);
+
+        // Revision 3: Dc 915 syntax rule retracted
+        defn.syntax = None;
+        let (nodes3, _) =
+            update_ledger_in_memory(nodes2, &[defn], &[], &scripts, None)?;
+        let t3 = nodes3.last().expect("Expected Revision 3 nodes").id;
+        assert!(t3 > t2);
+
+        // Verify SeedGraphIndex::from_nodes_at_most_recent & DatasetRuleResolver::from_seed_graph at t1, t2, t3
+        let idx_t1 = SeedGraphIndex::from_nodes_at_most_recent(nodes3.clone(), t1);
+        assert_eq!(idx_t1.system_block_most_recent_node_id(), Some(t1));
+        let resolver_t1 = crate::syntax::DatasetRuleResolver::from_seed_graph(&idx_t1)?;
+        let rule_t1 = resolver_t1
+            .resolve_rule(&CharTarget::Dc(915))
+            .expect("Expected syntax rule at t1");
+        assert_eq!(rule_t1.pattern, parse_dc_syntax(":~ [atom_dc]")?.pattern);
+
+        let idx_t2 = SeedGraphIndex::from_nodes_at_most_recent(nodes3.clone(), t2);
+        assert_eq!(idx_t2.system_block_most_recent_node_id(), Some(t2));
+        let resolver_t2 = crate::syntax::DatasetRuleResolver::from_seed_graph(&idx_t2)?;
+        let rule_t2 = resolver_t2
+            .resolve_rule(&CharTarget::Dc(915))
+            .expect("Expected syntax rule at t2");
+        assert_eq!(
+            rule_t2.pattern,
+            parse_dc_syntax(":~ [atom_dc] [atom_dc]")?.pattern
+        );
+
+        let idx_t3 = SeedGraphIndex::from_nodes_at_most_recent(nodes3, t3);
+        assert_eq!(idx_t3.system_block_most_recent_node_id(), Some(t3));
+        assert!(idx_t3.decode_syntax_rule_for_subject(subj)?.is_none());
+        let resolver_t3 = crate::syntax::DatasetRuleResolver::from_seed_graph(&idx_t3)?;
+        assert!(resolver_t3.resolve_rule(&CharTarget::Dc(915)).is_none());
+
+        // Verify historical asset bundle reconstruction on a real historical System-block node ID:
+        // At `l8589958834` (before the `AddSystemGraphMostRecent` rename supersession at `l8589958838`..`l8589958845`),
+        // `f655` had programmatic identifier `"AddSystemGraphWatermark"`, whereas at HEAD it is `"AddSystemGraphMostRecent"`.
+        let f655 = DcShorthand::Format(655);
+        let hist_idx =
+            SeedGraphIndex::load_at_most_recent_from_asset_bundle(8_589_958_834)?;
+        assert_eq!(
+            hist_idx.system_block_most_recent_node_id(),
+            Some(8_589_958_834)
+        );
+        assert_eq!(
+            hist_idx.get_single_property_string(
+                f655,
+                sh(DC_PROGRAMMATIC_IDENTIFIER)
+            ),
+            Some("AddSystemGraphWatermark")
+        );
+
+        let head_idx = SeedGraphIndex::shared()?;
+        let head_id = head_idx
+            .system_block_most_recent_node_id()
+            .expect("Expected HEAD system_block_most_recent_node_id");
+        let head_pinned =
+            SeedGraphIndex::load_at_most_recent_from_asset_bundle(head_id)?;
+        assert!(Arc::ptr_eq(head_idx, &head_pinned));
+        assert_eq!(
+            head_pinned.get_single_property_string(
+                f655,
+                sh(DC_PROGRAMMATIC_IDENTIFIER)
+            ),
+            Some("AddSystemGraphMostRecent")
+        );
 
         Ok(())
     }

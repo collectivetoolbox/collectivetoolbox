@@ -1931,7 +1931,7 @@ impl std::str::FromStr for SupportedDcOutputFormat {
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SupportedDcTransformation {
     /// Add global graph system block most recent
-    #[value(name = "add_system_graph_most_recent", alias = "AddSystemGraphMostRecent", alias = "AddSystemGraphMostRecent", alias = "f655")]
+    #[value(name = "add_system_graph_most_recent", alias = "addsystemgraphmostrecent", alias = "AddSystemGraphMostRecent", alias = "f655")]
     AddSystemGraphMostRecent,
     /// Programmatic Dcs to text
     #[value(name = "codetotext", alias = "CodeToText", alias = "f20")]

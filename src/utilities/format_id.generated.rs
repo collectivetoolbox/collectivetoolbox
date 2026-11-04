@@ -2720,7 +2720,7 @@ impl FormatId {
             "dce_3_02a" => Some(Self::Dce_3_02a),
             "dce_3_03a" => Some(Self::Dce_3_03a),
             "unicodetoshortdc" | "unicode_to_short_dc" => Some(Self::UnicodeToShortDc),
-            "AddSystemGraphMostRecent" | "add_system_graph_most_recent" => Some(Self::AddSystemGraphMostRecent),
+            "addsystemgraphmostrecent" | "add_system_graph_most_recent" => Some(Self::AddSystemGraphMostRecent),
             _ => None,
         }
     }
@@ -7582,4 +7582,4 @@ pub const DC_DCE_3_03A: DcChar = DcChar::from_format(653);
 /// DcChar constant for Format `UnicodeToShortDc` (Short f654, Category: transformation): Unicode characters to equivalent short Dcs
 pub const DC_UNICODE_TO_SHORT_DC: DcChar = DcChar::from_format(654);
 /// DcChar constant for Format `AddSystemGraphMostRecent` (Short f655, Category: transformation): Add global graph system block most recent
-pub const DC_add_system_graph_most_recent: DcChar = DcChar::from_format(655);
+pub const DC_ADD_SYSTEM_GRAPH_MOST_RECENT: DcChar = DcChar::from_format(655);

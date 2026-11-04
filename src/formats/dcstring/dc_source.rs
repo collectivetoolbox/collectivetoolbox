@@ -481,6 +481,9 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             };
         }
 
+        let effective_resolver = nav.effective_resolver();
+        let active_resolver: &dyn SyntaxRuleResolver =
+            resolver.unwrap_or(effective_resolver.as_ref());
         let roots = arena.roots();
         let (result, fields, ctx_pos, projection_diagnostics, trailing_error) = {
             let mut ctx = DcProjectionContext::with_all_resolvers(
@@ -488,10 +491,11 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                 policy,
                 context,
                 Some(&mut nav),
-                resolver,
+                Some(active_resolver),
                 None,
             );
             ctx.annotating = true;
+            let roots = ctx.strip_leading_document_most_recent_root(roots);
             let result = T::decode_dc_document(&mut ctx, roots);
             let trailing_error = if let Ok((_, consumed)) = &result {
                 match roots.get(*consumed..) {

@@ -2678,10 +2678,9 @@ impl DcDocumentNavigator<'_> {
         &mut self,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
-        self.validate_document_with_resolver(
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
+        self.detect_leading_document_most_recent();
+        let resolver = self.effective_resolver();
+        self.validate_document_with_resolver(policy, resolver.as_ref())
     }
 
     /// Validates the active span with the same grammar and resource policy used

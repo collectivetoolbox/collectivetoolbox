@@ -170,6 +170,9 @@ pub struct DcDocumentNavigator<'a> {
     pub(super) spliced_head: usize,
     pub(super) spliced_end: usize,
     pub(super) scan_cache: NavScanCache,
+    pub(super) document_most_recent_node_id: Option<u128>,
+    pub(super) pinned_resolver:
+        Option<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
 }
 
 impl DcBinaryResolver for DcDocumentNavigator<'_> {
@@ -203,7 +206,7 @@ impl<'a> DcDocumentNavigator<'a> {
             .expect("DCMM_HEADER_LEN fits in u64");
         let end =
             u64::try_from(mstr.len()).expect("DcMstr byte length fits in u64");
-        Self {
+        let mut nav = Self {
             backend: NavBackend::MemoryMstr(mstr),
             cursor: start,
             active_span: DcByteSpan::new(start, end),
@@ -213,7 +216,11 @@ impl<'a> DcDocumentNavigator<'a> {
             spliced_head: 0,
             spliced_end: 0,
             scan_cache: NavScanCache::default(),
-        }
+            document_most_recent_node_id: None,
+            pinned_resolver: None,
+        };
+        nav.detect_leading_document_most_recent();
+        nav
     }
 
     /// Creates a navigator over an in-memory [`DcStr`].
@@ -225,7 +232,7 @@ impl<'a> DcDocumentNavigator<'a> {
     pub fn from_dc_str(text: &'a DcStr) -> Self {
         let end =
             u64::try_from(text.len()).expect("DcStr byte length fits in u64");
-        Self {
+        let mut nav = Self {
             backend: NavBackend::MemoryText(text),
             cursor: 0,
             active_span: DcByteSpan::new(0, end),
@@ -235,6 +242,77 @@ impl<'a> DcDocumentNavigator<'a> {
             spliced_head: 0,
             spliced_end: 0,
             scan_cache: NavScanCache::default(),
+            document_most_recent_node_id: None,
+            pinned_resolver: None,
+        };
+        nav.detect_leading_document_most_recent();
+        nav
+    }
+
+    /// Returns the System-block most recent node ID (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`)
+    /// declared at the document root, if any.
+    #[must_use]
+    pub const fn document_most_recent_node_id(&self) -> Option<u128> {
+        self.document_most_recent_node_id
+    }
+
+    /// Returns the syntax rule resolver pinned for this document (via `Dc 641` or explicit override),
+    /// or the process-wide [`default_syntax_resolver()`] when unpinned.
+    #[must_use]
+    pub fn effective_resolver(
+        &self,
+    ) -> Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver> {
+        if let Some(ref pinned) = self.pinned_resolver {
+            Arc::clone(pinned)
+        } else {
+            Arc::clone(default_syntax_resolver())
+        }
+    }
+
+    /// Overrides the pinned syntax rule resolver for this navigator.
+    pub fn set_pinned_resolver(
+        &mut self,
+        resolver: Option<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
+    ) {
+        self.pinned_resolver = resolver;
+    }
+
+    pub(super) fn bind_document_most_recent_node_id(&mut self, node_id: u128) {
+        self.document_most_recent_node_id = Some(node_id);
+        if let Ok(resolver) =
+            ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(node_id)
+        {
+            self.pinned_resolver = Some(resolver);
+        }
+    }
+
+    pub(super) fn detect_leading_document_most_recent(&mut self) {
+        if !self.level_stack.is_empty()
+            || self.document_most_recent_node_id.is_some()
+        {
+            return;
+        }
+        let start = self.active_span.start;
+        if let Ok(Some((first_dc, after_first))) =
+            self.read_token_or_binary_at(start)
+            && first_dc
+                == ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID
+            && let Ok(Some((arg_dc, _))) =
+                self.read_token_or_binary_at(after_first)
+        {
+            let node_id = arg_dc.to_u128();
+            if (ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START
+                ..=ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END)
+                .contains(&node_id)
+            {
+                self.bind_document_most_recent_node_id(node_id);
+            }
+        }
+        if let NavBackend::SeekableFile {
+            reader, reader_pos, ..
+        } = &mut self.backend
+        {
+            let _ = seek_buffered_file(reader, reader_pos, self.cursor);
         }
     }
 
@@ -321,14 +399,14 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? else {
             return Ok(None);
         };
+        let resolver = self.effective_resolver();
         if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || default_syntax_resolver().is_splice_trigger_token(ch.to_u128())
+            || resolver.is_splice_trigger_token(ch.to_u128())
         {
-            let resolver = default_syntax_resolver();
             let policy = DcProjectionPolicy::forgiving_quiet();
             if self.splice_stream_invocation(
                 &DefaultDcExpressionEvaluator,
-                &**resolver,
+                &*resolver,
                 &policy,
             )? {
                 if let Some(spliced) = self.peek_spliced_token() {
@@ -361,14 +439,14 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(None);
         };
+        let resolver = self.effective_resolver();
         if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || default_syntax_resolver().is_splice_trigger_token(ch.to_u128())
+            || resolver.is_splice_trigger_token(ch.to_u128())
         {
-            let resolver = default_syntax_resolver();
             let policy = DcProjectionPolicy::forgiving_quiet();
             if self.splice_stream_invocation(
                 &DefaultDcExpressionEvaluator,
-                &**resolver,
+                &*resolver,
                 &policy,
             )? {
                 if let Some(spliced) = self.pop_spliced_token() {
@@ -431,10 +509,10 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         policy: &DcProjectionPolicy,
     ) -> Result<bool> {
-        let resolver = default_syntax_resolver();
+        let resolver = self.effective_resolver();
         self.splice_stream_invocation(
             &DefaultDcExpressionEvaluator,
-            &**resolver,
+            &*resolver,
             policy,
         )
     }
@@ -542,7 +620,7 @@ impl<'a> DcDocumentNavigator<'a> {
         );
         let is_v1 = header.get(5..21) == Some(&crate::DCMM_UUID_V1);
         let reader = BufReader::with_capacity(64 * 1024, file);
-        Ok(Self {
+        let mut nav = Self {
             backend: NavBackend::SeekableFile {
                 reader,
                 reader_pos: Some(header_end),
@@ -558,7 +636,11 @@ impl<'a> DcDocumentNavigator<'a> {
             spliced_head: 0,
             spliced_end: 0,
             scan_cache: NavScanCache::default(),
-        })
+            document_most_recent_node_id: None,
+            pinned_resolver: None,
+        };
+        nav.detect_leading_document_most_recent();
+        Ok(nav)
     }
 
     /// Returns the current byte offset of the navigator cursor.
@@ -757,10 +839,8 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         policy: &DcProjectionPolicy,
     ) -> Result<Option<DcFrameStub>> {
-        self.next_sibling_stub_with_resolver(
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
+        let resolver = self.effective_resolver();
+        self.next_sibling_stub_with_resolver(policy, resolver.as_ref())
     }
 
     /// Advances to and returns the next sibling [`DcFrameStub`] using the
@@ -883,10 +963,8 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         policy: &DcProjectionPolicy,
     ) -> Result<Option<DcFrameStub>> {
-        self.scan_sibling_stub_with_resolver(
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
+        let resolver = self.effective_resolver();
+        self.scan_sibling_stub_with_resolver(policy, resolver.as_ref())
     }
 
     pub(super) fn spliced_has_unescaped_closer(
@@ -1355,6 +1433,22 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(None);
         };
+
+        if self.level_stack.is_empty()
+            && first_dc
+                == ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID
+            && let Ok(Some((arg_dc, _))) =
+                self.read_token_or_binary_at(after_first)
+        {
+            let node_id = arg_dc.to_u128();
+            if (ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START
+                ..=ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END)
+                .contains(&node_id)
+                && self.document_most_recent_node_id != Some(node_id)
+            {
+                self.bind_document_most_recent_node_id(node_id);
+            }
+        }
 
         // 0. Escape sequence (Dc 255 + escaped character)
         if first_dc.fills_role_with(DcRole::Escape, resolver) {
@@ -4088,6 +4182,158 @@ mod tests {
             s_nav.spliced_tokens(),
             &[DcChar::from_short(517), DcChar::from_short(518)]
         );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_navigator_dc_641_pins_historical_syntax_resolver() -> Result<()> {
+        // Construct two historical syntax resolvers for synthetic System-block
+        // node IDs `t1` and `t2` where unassigned short Dc 915 has unary syntax
+        // `:~ [atom_dc]` at `t1` and binary syntax `:~ [atom_dc] [atom_dc]` at `t2`.
+        let t1: u128 = 8_589_999_901;
+        let t2: u128 = 8_589_999_902;
+
+        let mut res_t1 = (**default_syntax_resolver()).clone();
+        res_t1.add_rule(
+            CharTarget::Dc(915),
+            parse_dc_syntax(":~ [atom_dc]")?,
+        );
+        res_t1.rebuild_framing_and_wrapper_tables();
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            t1,
+            Arc::new(res_t1),
+        );
+
+        let mut res_t2 = (**default_syntax_resolver()).clone();
+        res_t2.add_rule(
+            CharTarget::Dc(915),
+            parse_dc_syntax(":~ [atom_dc] [atom_dc]")?,
+        );
+        res_t2.rebuild_framing_and_wrapper_tables();
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            t2,
+            Arc::new(res_t2),
+        );
+
+        let strict = DcProjectionPolicy::strict();
+
+        // Document 1: stamped with `641 l<t1>`, followed by unary `915 u65` and atom `u66`.
+        let mut doc_t1 = DcMstring::new();
+        for tok in [
+            DcChar::from_short(641),
+            DcChar::from_long(t1),
+            DcChar::from_short(915),
+            DcChar::from_u128(65),
+            DcChar::from_u128(66),
+        ] {
+            doc_t1.push_char(tok);
+        }
+
+        // Under `t1` (`915` is unary), `doc_t1` has 3 roots: `(641 l<t1>)`, `(915 u65)`, and `u66`.
+        let mut nav_t1 = DcDocumentNavigator::from_mstr(&doc_t1);
+        assert_eq!(nav_t1.document_most_recent_node_id(), Some(t1));
+        let mut arena_t1 = DcSyntaxArena::new();
+        nav_t1.parse_document_into_arena(&mut arena_t1, &strict)?;
+        assert_eq!(arena_t1.roots().len(), 3);
+        assert!(matches!(
+            arena_t1.node(arena_t1.roots()[0]).map(|n| &n.kind),
+            Some(DcSyntaxKind::Tagged { tag, args })
+                if *tag == DcChar::from_short(641) && args.len() == 1
+        ));
+        assert!(matches!(
+            arena_t1.node(arena_t1.roots()[1]).map(|n| &n.kind),
+            Some(DcSyntaxKind::Tagged { tag, args })
+                if *tag == DcChar::from_short(915) && args.len() == 1
+        ));
+        assert!(matches!(
+            arena_t1.node(arena_t1.roots()[2]).map(|n| &n.kind),
+            Some(DcSyntaxKind::Atom(tok)) if *tok == DcChar::from_u128(66)
+        ));
+
+        // Verify `from_dc_str` and `from_dcmm_file` also auto-detect `Dc 641` and pin `t1`.
+        let mut doc_t1_dc_str = crate::DcString::new();
+        for tok in [
+            DcChar::from_short(641),
+            DcChar::from_long(t1),
+            DcChar::from_short(915),
+            DcChar::from_u128(65),
+            DcChar::from_u128(66),
+        ] {
+            doc_t1_dc_str.push(tok);
+        }
+        let nav_dc_str = DcDocumentNavigator::from_dc_str(&doc_t1_dc_str);
+        assert_eq!(nav_dc_str.document_most_recent_node_id(), Some(t1));
+        let tmp_dir = tempfile::tempdir()?;
+        let dcmm_path = tmp_dir.path().join("pinned_t1.dcmm");
+        std::fs::write(&dcmm_path, doc_t1.as_bytes())?;
+        let mut nav_file = DcDocumentNavigator::from_dcmm_file(
+            File::open(&dcmm_path)?,
+            0,
+        )?;
+        assert_eq!(nav_file.document_most_recent_node_id(), Some(t1));
+        nav_file.validate_document(&strict)?;
+
+        // Document 2: identical payload (`915 u65 u66`), but stamped with `641 l<t2>`.
+        // Under `t2` (`915` is binary), `doc_t2` has 2 roots: `(641 l<t2>)` and `(915 u65 u66)`.
+        let mut doc_t2 = DcMstring::new();
+        for tok in [
+            DcChar::from_short(641),
+            DcChar::from_long(t2),
+            DcChar::from_short(915),
+            DcChar::from_u128(65),
+            DcChar::from_u128(66),
+        ] {
+            doc_t2.push_char(tok);
+        }
+        let mut nav_t2 = DcDocumentNavigator::from_mstr(&doc_t2);
+        assert_eq!(nav_t2.document_most_recent_node_id(), Some(t2));
+        let mut arena_t2 = DcSyntaxArena::new();
+        nav_t2.parse_document_into_arena(&mut arena_t2, &strict)?;
+        assert_eq!(arena_t2.roots().len(), 2);
+        assert!(matches!(
+            arena_t2.node(arena_t2.roots()[1]).map(|n| &n.kind),
+            Some(DcSyntaxKind::Tagged { tag, args })
+                if *tag == DcChar::from_short(915) && args.len() == 2
+        ));
+
+        // Document 3: `641 l<t2> 915 u65` (only 1 operand for binary `915` at `t2`) must fail validation at `t2`,
+        // whereas `641 l<t1> 915 u65` succeeds at `t1`.
+        let mut unary_only_at_t2 = DcMstring::new();
+        for tok in [
+            DcChar::from_short(641),
+            DcChar::from_long(t2),
+            DcChar::from_short(915),
+            DcChar::from_u128(65),
+        ] {
+            unary_only_at_t2.push_char(tok);
+        }
+        let mut bad_nav_t2 = DcDocumentNavigator::from_mstr(&unary_only_at_t2);
+        assert!(bad_nav_t2.validate_document(&strict).is_err());
+
+        let mut unary_at_t1 = DcMstring::new();
+        for tok in [
+            DcChar::from_short(641),
+            DcChar::from_long(t1),
+            DcChar::from_short(915),
+            DcChar::from_u128(65),
+        ] {
+            unary_at_t1.push_char(tok);
+        }
+        let mut ok_nav_t1 = DcDocumentNavigator::from_mstr(&unary_at_t1);
+        ok_nav_t1.validate_document(&strict)?;
+
+        // Verify `DcMstr::decode` and `DcMstr::inspect` on a typed single-value document
+        // stamped with a leading `Dc 641` header (`push_system_graph_most_recent`) strip the
+        // `Dc 641` header root and decode the value cleanly without unconsumed-root errors.
+        let mut stamped_value = DcMstring::new();
+        stamped_value.push_system_graph_most_recent()?;
+        crate::DcMixedEncode::encode_dc_mixed(&42u32, &mut stamped_value)?;
+        let decoded_val: u32 = stamped_value.decode(&strict)?;
+        assert_eq!(decoded_val, 42u32);
+        let inspected = stamped_value.inspect::<u32>();
+        assert_eq!(inspected.value(), Some(&42u32));
+        assert!(inspected.diagnostics().is_empty());
 
         Ok(())
     }

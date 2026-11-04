@@ -1128,7 +1128,9 @@ impl DatasetRuleResolver {
         self.rebuild_framing_and_wrapper_tables();
     }
 
-    pub(super) fn rebuild_framing_and_wrapper_tables(&mut self) {
+    /// Rebuilds the cached framing-shape and special-wrapper lookup tables
+    /// from the currently registered rules, delimiters, and equivalences.
+    pub fn rebuild_framing_and_wrapper_tables(&mut self) {
         self.framing_shapes.clear();
         self.special_wrapper_tokens.clear();
         self.splice_trigger_tokens.clear();
@@ -1969,6 +1971,16 @@ impl DatasetRuleResolver {
     pub fn load_from_seed_graph() -> Result<Self> {
         let index = crate::seed_graph::SeedGraphIndex::shared()?;
         Self::from_seed_graph(index)
+    }
+
+    /// Loads a `DatasetRuleResolver` reflecting the System-block graph state as of
+    /// `most_recent_node_id` (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
+    pub fn load_at_most_recent(most_recent_node_id: u128) -> Result<Self> {
+        let index =
+            crate::seed_graph::SeedGraphIndex::load_at_most_recent_from_asset_bundle(
+                most_recent_node_id,
+            )?;
+        Self::from_seed_graph(&index)
     }
 
     fn finalize_equivalences_and_derived_tables(
