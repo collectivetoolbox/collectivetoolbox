@@ -109,32 +109,6 @@ assuming the current code still has the reported fault.
 - Option to associate ctoolbox with filetypes (ctoolbox-specific ones defaulted to on; others defaulted to off)
 - Option to install shell completion helpers
 
-# Startup is slow again
+# Theme, probably won't fix:
 
-$ /home/a/.local/bin/ctoolbox
-[2026-11-03T05:01:44.340425Z WARN environment.rs:1265:27 log workspace:497753/workspace] Local IPv6 discovery failed: Failed to route to target for local IPv6 discovery: Network unreachable (os error 101)
-[2026-11-03T05:01:44.342571Z WARN asset_bundle.rs:614:13 log network:497767/network] ("v86 resource bundle not found at {}; v86 VM assets will not be loaded", "/home/a/.local/bin/v86_images.rsrc")
-[2026-11-03T05:01:44.342570Z WARN asset_bundle.rs:614:13 log storage:497768/storage] ("v86 resource bundle not found at {}; v86 VM assets will not be loaded", "/home/a/.local/bin/v86_images.rsrc")
-[2026-11-03T05:01:44.342593Z WARN asset_bundle.rs:614:13 log io:497766/io] ("v86 resource bundle not found at {}; v86 VM assets will not be loaded", "/home/a/.local/bin/v86_images.rsrc")
-
-[2026-11-03T05:02:08.075927Z WARN environment.rs:1272:27 log workspace:497753/workspace] Public IPv4 discovery failed: Failed to ensure CRLite cache is ready: GET https://CollectiveToolbox.com/crlite/manifest.json: Failed to GET https://CollectiveToolbox.com/crlite/manifest.json: error sending request for url (https://collectivetoolbox.com/crlite/manifest.json): client error (Connect): dns error: failed to lookup address information: Try again
-[2026-11-03T05:02:31.691332Z WARN environment.rs:1276:27 log workspace:497753/workspace] Public IPv6 discovery failed: Failed to ensure CRLite cache is ready: GET https://CollectiveToolbox.com/crlite/manifest.json: Failed to GET https://CollectiveToolbox.com/crlite/manifest.json: error sending request for url (https://collectivetoolbox.com/crlite/manifest.json): client error (Connect): dns error: failed to lookup address information: Try again
-[2026-11-03T05:02:55.318050Z WARN environment.rs:1283:21 log workspace:497753/workspace] Server clock offset discovery failed: Failed to ensure CRLite cache is ready: GET https://CollectiveToolbox.com/crlite/manifest.json: Failed to GET https://CollectiveToolbox.com/crlite/manifest.json: error sending request for url (https://collectivetoolbox.com/crlite/manifest.json): client error (Connect): dns error: failed to lookup address information: Try again
-
-This is all supposed to be hard-capped at 5 seconds or something like that. It would also possibly be good to open the UI *before* the update check and environment capture is complete so it doesn't take so long.
-
-Unrelated, the glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
-
-
-ctoolbox convert -f /some/ascii/file --to sems # no errors, no warnings
-ctoolbox convert -f /some/ascii/file --to sems --strict # no errors, no warnings
-ctoolbox convert -f /some/ascii/file --to sems --strict --normalize none # no errors, no warnings
-ctoolbox convert -f /some/ascii/file --to sems --permissive --normalize none # no errors, no warnings
-
-Docs do not explain which is the default:
-
-      --permissive                  Parse and export document in permissive/forgiving mode (recovering from invalid headers, characters, or checksums with warnings)
-      --strict                      Parse and export document in strict mode (rejecting invalid headers, characters, or non-canonical sequences)
-      --normalize <NORMALIZE>       Character and Unicode normalization policy (none, as-needed, all) [possible values: none, as-needed, all]
-
-ASCII is not representable in SEMS without normalization. --strict should exit 1 as the document is not representable, though I guess it can still run the conversion. --permissive --normalize none should turn everything into a replacement character. Only cases where this should work are `--permissive` (defaulting to as-needed normalization), `--permissive --normalize as-needed`, `--permissive --normalize all`, or `--strict --normalize as-needed` or `--strict --normalize all` (--strict should default to no normalization). I think `--permissive --normalize as-needed` should probably be the default. Adding --strict should turn off normalization, unless a normalization-on option is specifically requested on the CLI. If any characters were normalized, warnings should be shown on stdout (in as-needed mode, a warning for each normalized character; in all mode, a single note).
+The glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
