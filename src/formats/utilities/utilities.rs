@@ -47,8 +47,9 @@ pub use format_info::{
 pub mod cli_document;
 pub mod cli_io;
 pub use cli_document::{
-    CliAutoDocumentInputArgs, CliDocumentInputArgs,
+    CliAutoDocumentInputArgs, CliDocumentInputArgs, CliDocumentOutputArgs,
     parse_supported_dc_input_format, parse_supported_dc_output_format,
+    parse_supported_dc_transformation,
 };
 pub use cli_io::{CliInputSourceArgs, CliOutputDestArgs};
 

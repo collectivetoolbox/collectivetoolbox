@@ -67,6 +67,7 @@ pub const KNOWN_TRANSFORMATION_FORMAT_IDS: &[usize] = &[
     20,  // CodeToText
     323, // AlturaMacToWin
     324, // AlturaWinToMac
+    654, // UnicodeToShortDc
 ];
 
 /// Validates semantic constraints of a `FormatExpr`.

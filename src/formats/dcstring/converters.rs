@@ -31,6 +31,7 @@ pub mod dcal;
 pub mod dctext;
 pub mod dcts;
 pub mod eite;
+pub mod transform;
 pub mod utf8;
 
 /// Produces DcUtf while retaining binary payload types and checksums.
@@ -63,6 +64,10 @@ pub use dctext::{
 pub use dcts::{
     dcarray_to_dcts, dclist_to_dcts, dcstring_to_dcts, dcts_to_dcarray,
     dcts_to_dclist, dcts_to_dcstring, dcts_to_dcutf, dcutf_to_dcts,
+};
+pub use transform::{
+    apply_dc_transformation, apply_dc_transformations,
+    transform_dclist_unicode_to_short_dc,
 };
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,

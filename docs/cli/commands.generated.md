@@ -404,6 +404,8 @@ Options:
           Unicode version to use for character data (17.0, 16.0, 15.1, 15.0) [default: 17.0] [possible values: 17.0, 16.0, 15.1, 15.0]
       --no-unihan-readings
           Disable Unihan readings/meanings in standard description output
+      --transform <TRANSFORM>
+          Document transformation(s) to apply before describing characters (accepts nickname, `FormatId` name, or f<N> shorthand)
   -h, --help
           Print help (see more with '--help')
 
@@ -539,6 +541,7 @@ Options:
       --strict                      Parse and export document in strict mode (rejecting invalid headers, characters, or non-canonical sequences)
       --normalize <NORMALIZE>       Character and Unicode normalization policy (none, as-needed, all) [possible values: none, as-needed, all]
   -t, --to <TO>                     Output format (accepts nickname, `FormatId` name, or f<N> shorthand) [default: utf8]
+      --transform <TRANSFORM>       Document transformation(s) to apply before exporting (accepts nickname, `FormatId` name, or f<N> shorthand)
   -f, --file <FILE>                 Input file path (or - for stdin)
   -o, --output <OUTPUT>             Output file path (or - for stdout)
   -F, --force                       Overwrite existing output file without prompt
@@ -667,10 +670,17 @@ Supported output formats (--to):
         cscarchive2 (CscArchive2): Collective Toolbox csc archive, version 2
     cscjournal (CscJournal): Collective Toolbox csc journal
 
+Supported transformations (--transform):
+  Document transformations:
+    codetotext (CodeToText): Programmatic Dcs to text
+    semantictotext (SemanticToText): Semantic Dcs to text
+    unicode_to_short_dc (UnicodeToShortDc): Unicode characters to equivalent short Dcs
+
 Examples:
   $ ctoolbox convert --from dcal --to dctext "65 1114408 2228304"
   $ ctoolbox convert -f input.dcal -o output.txt --to utf8
   $ ctoolbox convert --to dcts "hello world"
+  $ ctoolbox convert --from ascii --to sems --transform unicode_to_short_dc "hello"
   $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal
   $ ctoolbox convert --from dcmm --permissive -f input.bin --to dctext
 ```

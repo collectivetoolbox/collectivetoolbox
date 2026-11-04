@@ -1389,6 +1389,8 @@ pub enum FormatId {
     Dce_3_02a,
     /// DCE 3.03a (Short 653, Category: document)
     Dce_3_03a,
+    /// Unicode characters to equivalent short Dcs (Short 654, Category: transformation)
+    UnicodeToShortDc,
 }
 
 impl FormatId {
@@ -2030,7 +2032,8 @@ impl FormatId {
             Self::SemanticToText
             | Self::CodeToText
             | Self::AlturaMacToWin
-            | Self::AlturaWinToMac => FormatCategory::Transformation,
+            | Self::AlturaWinToMac
+            | Self::UnicodeToShortDc => FormatCategory::Transformation,
             Self::DcBasenb
             | Self::DcBasenbFragment
             | Self::Csur
@@ -2713,6 +2716,7 @@ impl FormatId {
             "ctbnodeincoming" | "ctb_node_incoming" | "ctbnode-incoming" => Some(Self::CtbNodeIncoming),
             "dce_3_02a" => Some(Self::Dce_3_02a),
             "dce_3_03a" => Some(Self::Dce_3_03a),
+            "unicodetoshortdc" | "unicode_to_short_dc" => Some(Self::UnicodeToShortDc),
             _ => None,
         }
     }
@@ -3375,6 +3379,7 @@ impl FormatId {
             Self::CtbNodeIncoming => "CtbNodeIncoming",
             Self::Dce_3_02a => "Dce_3_02a",
             Self::Dce_3_03a => "Dce_3_03a",
+            Self::UnicodeToShortDc => "UnicodeToShortDc",
         }
     }
 
@@ -4250,6 +4255,7 @@ impl FormatId {
             Self::CtbNodeIncoming => "f651",
             Self::Dce_3_02a => "f652",
             Self::Dce_3_03a => "f653",
+            Self::UnicodeToShortDc => "f654",
         }
     }
 
@@ -4912,6 +4918,7 @@ impl FormatId {
             "f651" => Some(Self::CtbNodeIncoming),
             "f652" => Some(Self::Dce_3_02a),
             "f653" => Some(Self::Dce_3_03a),
+            "f654" => Some(Self::UnicodeToShortDc),
             _ => None,
         }
     }
@@ -5574,6 +5581,7 @@ impl FormatId {
             Self::CtbNodeIncoming => Some(2228875_u128),
             Self::Dce_3_02a => Some(2228876_u128),
             Self::Dce_3_03a => Some(2228877_u128),
+            Self::UnicodeToShortDc => Some(2228878_u128),
         }
     }
 
@@ -6248,6 +6256,7 @@ impl FormatId {
             2228875_u128 => Some(Self::CtbNodeIncoming),
             2228876_u128 => Some(Self::Dce_3_02a),
             2228877_u128 => Some(Self::Dce_3_03a),
+            2228878_u128 => Some(Self::UnicodeToShortDc),
             _ => None,
         }
     }
@@ -7561,3 +7570,5 @@ pub const DC_CTB_NODE_INCOMING: DcChar = DcChar::from_format(651);
 pub const DC_DCE_3_02A: DcChar = DcChar::from_format(652);
 /// DcChar constant for Format `Dce_3_03a` (Short f653, Category: document): DCE 3.03a
 pub const DC_DCE_3_03A: DcChar = DcChar::from_format(653);
+/// DcChar constant for Format `UnicodeToShortDc` (Short f654, Category: transformation): Unicode characters to equivalent short Dcs
+pub const DC_UNICODE_TO_SHORT_DC: DcChar = DcChar::from_format(654);

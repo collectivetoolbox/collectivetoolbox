@@ -35,6 +35,7 @@ use crate::convert_api::{
 };
 use crate::convert_bytes::{
     format_supported_input_formats_table, format_supported_output_formats_table,
+    format_supported_transformations_table,
 };
 use ctb_formats_dcstring::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
@@ -44,10 +45,13 @@ pub use ctb_formats_unicode::cli::{
     CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
 };
 use ctb_formats_utilities::{
-    CliAutoDocumentInputArgs, CliInputSourceArgs, CliOutputDestArgs,
-    parse_supported_dc_input_format, parse_supported_dc_output_format,
+    CliAutoDocumentInputArgs, CliDocumentOutputArgs, CliInputSourceArgs,
+    CliOutputDestArgs, parse_supported_dc_input_format,
+    parse_supported_dc_output_format, parse_supported_dc_transformation,
 };
-pub use ctb_utilities::{SupportedDcInputFormat, SupportedDcOutputFormat};
+pub use ctb_utilities::{
+    SupportedDcInputFormat, SupportedDcOutputFormat, SupportedDcTransformation,
+};
 
 fn parse_codepoint_arg(token: &str) -> Result<u128> {
     let trimmed = token.trim();
@@ -77,8 +81,11 @@ pub static CONVERT_AFTER_HELP: std::sync::LazyLock<String> =
         let out_formats = format_supported_output_formats_table(
             "Supported output formats (--to):",
         );
+        let transformations = format_supported_transformations_table(
+            "Supported transformations (--transform):",
+        );
         format!(
-            "{in_formats}\n\n{out_formats}\n\nExamples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal\n  $ ctoolbox convert --from dcmm --permissive -f input.bin --to dctext"
+            "{in_formats}\n\n{out_formats}\n\n{transformations}\n\nExamples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert --from ascii --to sems --transform unicode_to_short_dc \"hello\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal\n  $ ctoolbox convert --from dcmm --permissive -f input.bin --to dctext"
         )
     });
 
@@ -139,6 +146,13 @@ pub struct CharacterDescriptionArgs {
     /// Disable Unihan readings/meanings in standard description output
     #[arg(long = "no-unihan-readings")]
     pub no_unihan_readings: bool,
+
+    /// Document transformation(s) to apply before describing characters (accepts nickname, `FormatId` name, or f<N> shorthand)
+    #[arg(
+        long = "transform",
+        value_parser = parse_supported_dc_transformation
+    )]
+    pub transform: Vec<SupportedDcTransformation>,
 }
 
 impl CharacterDescriptionArgs {
@@ -254,20 +268,30 @@ where
                 permissive: args.permissive,
             },
         )?;
-        conversion.log.auto_log();
-        if conversion.log.has_errors() {
-            eprintln!("{}", conversion.log.format_errors().trim_end());
+        let mut log = conversion.log;
+        let doc = if args.transform.is_empty() {
+            conversion.document
+        } else {
+            let (tr_doc, tr_log) = ctb_formats_dcstring::apply_dc_transformations(
+                &conversion.document,
+                &args.transform,
+            )?;
+            log.merge(&tr_log);
+            tr_doc
+        };
+        log.auto_log();
+        if log.has_errors() {
+            eprintln!("{}", log.format_errors().trim_end());
         }
-        if conversion.log.has_warnings() {
-            eprintln!("{}", conversion.log.format_warnings().trim_end());
+        if log.has_warnings() {
+            eprintln!("{}", log.format_warnings().trim_end());
         }
         let policy = if args.permissive {
             ctb_formats_dcstring::DcProjectionPolicy::forgiving()
         } else {
             ctb_formats_dcstring::DcProjectionPolicy::strict()
         };
-        let dc_string =
-            conversion.document.to_dc_string_with_policy(&policy)?;
+        let dc_string = doc.to_dc_string_with_policy(&policy)?;
         let dclist = dc_string.to_dclist();
         describe_dclist(&dclist, options)
     };
@@ -301,6 +325,13 @@ pub struct ConvertArgs {
     /// Output format (accepts nickname, `FormatId` name, or f<N> shorthand)
     #[arg(short = 't', long = "to", value_parser = parse_supported_dc_output_format, default_value = "utf8")]
     pub to: SupportedDcOutputFormat,
+
+    /// Document transformation(s) to apply before exporting (accepts nickname, `FormatId` name, or f<N> shorthand)
+    #[arg(
+        long = "transform",
+        value_parser = parse_supported_dc_transformation
+    )]
+    pub transform: Vec<SupportedDcTransformation>,
 
     /// Input file path (or - for stdin)
     #[arg(short = 'f', long = "file")]
@@ -345,6 +376,16 @@ impl ConvertArgs {
         CliOutputDestArgs {
             output: self.output.clone(),
             force: self.force,
+        }
+    }
+
+    /// Adapts the CLI document output fields into [`CliDocumentOutputArgs`].
+    #[must_use]
+    pub fn document_output(&self) -> CliDocumentOutputArgs {
+        CliDocumentOutputArgs {
+            dest: self.output_dest(),
+            to: self.to,
+            transform: self.transform.clone(),
         }
     }
 }
@@ -393,6 +434,7 @@ where
         format: args.to,
         permissive,
         normalization: args.normalize,
+        transformations: args.transform.clone(),
     };
 
     let export = convert_dcmstring_to_bytes(
@@ -1010,5 +1052,40 @@ mod tests {
             String::from_utf8(norm_all_out).unwrap(),
             "99 97 102 233 72 "
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_convert_with_unicode_to_short_dc_transform() {
+        use clap::{Args, Command, FromArgMatches};
+
+        for tr_arg in [
+            "unicode_to_short_dc",
+            "UnicodeToShortDc",
+            "unicodetoshortdc",
+            "f654",
+        ] {
+            let cmd = ConvertArgs::augment_args(Command::new("convert"));
+            let matches = cmd
+                .try_get_matches_from([
+                    "convert",
+                    "--from",
+                    "ascii",
+                    "--to",
+                    "sems",
+                    "--transform",
+                    tr_arg,
+                    "A",
+                ])
+                .expect("parse valid --transform");
+            let parsed = ConvertArgs::from_arg_matches(&matches).unwrap();
+            assert_eq!(
+                parsed.transform,
+                vec![SupportedDcTransformation::UnicodeToShortDc]
+            );
+            let out = execute_cli_convert(parsed, |_| unreachable!())
+                .unwrap()
+                .unwrap();
+            assert_eq!(String::from_utf8(out).unwrap().trim(), "50");
+        }
     }
 }

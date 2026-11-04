@@ -314,6 +314,7 @@ pub fn format_categorized_help_table(
         ("document", "Document formats:"),
         ("encoding", "Text encodings:"),
         ("database", "Database & archive formats:"),
+        ("transformation", "Document transformations:"),
         ("container", "Container formats:"),
         ("compression", "Compression formats:"),
         ("hash", "Hash formats:"),

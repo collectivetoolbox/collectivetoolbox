@@ -46,10 +46,14 @@ pub mod shared;
 pub mod source_edit;
 
 pub use converters::dctext::DcList;
+pub use converters::transform::{
+    apply_dc_transformation, apply_dc_transformations,
+    transform_dclist_unicode_to_short_dc,
+};
 pub use converters::utf8::{
     DcNormalizationMode, normalize_dclist_all, normalize_dcmstring_all,
 };
-pub use converters::{dcal, dctext, dcts, eite, utf8};
+pub use converters::{dcal, dctext, dcts, eite, transform, utf8};
 pub use ctb_dc_macro::DcMixed;
 pub use ctb_formats_dcdata::dc;
 pub use ctb_formats_dcdata::syntax::{self, DcRole, SyntaxRuleResolver};

@@ -19,8 +19,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Codegen for operational format support enums (`SupportedCompressionFormat`,
 //! `SupportedDecompressionFormat`, `SupportedHashFormat`, `SupportedDcInputFormat`,
-//! `SupportedDcOutputFormat`) and conversion implementations from the system graph
-//! in `assets/data/graph/`.
+//! `SupportedDcOutputFormat`, `SupportedDcTransformation`) and conversion implementations
+//! from the system graph in `assets/data/graph/`.
 
 use crate::graph_index::BuildGraphIndex;
 use crate::license_consts::DEFAULT_AGPL_HEADER;
@@ -468,6 +468,12 @@ pub fn generate_format_support_code_from_index(
         &import_map,
         &export_map,
     )?;
+    let trans_rows = read_support_rows_for_script(
+        index,
+        ".Formats:transformation",
+        &import_map,
+        &export_map,
+    )?;
 
     let decomp_supported: Vec<FormatSupportRow> = comp_rows
         .iter()
@@ -519,6 +525,12 @@ pub fn generate_format_support_code_from_index(
                     .iter()
                     .any(|(src, _)| *src == r.ident.as_str())
         })
+        .cloned()
+        .collect();
+
+    let dc_trans_rows: Vec<FormatSupportRow> = trans_rows
+        .iter()
+        .filter(|r| r.import_support.dc >= 1)
         .cloned()
         .collect();
 
@@ -600,6 +612,18 @@ pub fn generate_format_support_code_from_index(
         &dc_input_family_mappings,
     );
 
+    emit_supported_enum(
+        &mut out,
+        "SupportedDcTransformation",
+        "Document Character (Dc) transformations supported by the workspace.",
+        "Dc transformation",
+        &dc_trans_rows,
+        true,
+        None,
+        &[],
+        &[],
+    );
+
     out.push_str("impl FormatId {\n");
     out.push_str(
         "    /// Converts this `FormatId` to [`SupportedDecompressionFormat`] if supported.\n",
@@ -669,6 +693,20 @@ pub fn generate_format_support_code_from_index(
         "    pub fn to_supported_dc_output_format(self) -> Result<SupportedDcOutputFormat> {\n",
     );
     out.push_str("        SupportedDcOutputFormat::try_from(self)\n");
+    out.push_str("    }\n\n");
+
+    out.push_str(
+        "    /// Converts this `FormatId` to [`SupportedDcTransformation`] if supported.\n",
+    );
+    out.push_str("    ///\n");
+    out.push_str("    /// # Errors\n");
+    out.push_str(
+        "    /// Returns an error if this format is not a supported Dc transformation.\n",
+    );
+    out.push_str(
+        "    pub fn to_supported_dc_transformation(self) -> Result<SupportedDcTransformation> {\n",
+    );
+    out.push_str("        SupportedDcTransformation::try_from(self)\n");
     out.push_str("    }\n");
     out.push_str("}\n");
 

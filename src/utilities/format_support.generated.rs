@@ -1923,6 +1923,124 @@ impl std::str::FromStr for SupportedDcOutputFormat {
     }
 }
 
+/// Document Character (Dc) transformations supported by the workspace.
+#[expect(
+    non_camel_case_types,
+    reason = "Variant names align with canonical FormatId identifier naming"
+)]
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SupportedDcTransformation {
+    /// Programmatic Dcs to text
+    #[value(name = "codetotext", alias = "CodeToText", alias = "f20")]
+    CodeToText,
+    /// Semantic Dcs to text
+    #[value(name = "semantictotext", alias = "SemanticToText", alias = "f19")]
+    SemanticToText,
+    /// Unicode characters to equivalent short Dcs
+    #[value(name = "unicode_to_short_dc", alias = "unicodetoshortdc", alias = "UnicodeToShortDc", alias = "f654")]
+    UnicodeToShortDc,
+}
+
+impl SupportedDcTransformation {
+    /// Ordered list of all formats supported by this capability.
+    pub const ALL: &'static [SupportedDcTransformation] = &[
+        Self::CodeToText,
+        Self::SemanticToText,
+        Self::UnicodeToShortDc,
+    ];
+
+    /// Ordered list of all canonical `FormatId`s supported by this capability.
+    pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
+        FormatId::CodeToText,
+        FormatId::SemanticToText,
+        FormatId::UnicodeToShortDc,
+    ];
+
+    /// Returns the primary CLI identifier for this format.
+    #[must_use]
+    pub const fn primary_cli_name(&self) -> &'static str {
+        match self {
+            Self::CodeToText => "codetotext",
+            Self::SemanticToText => "semantictotext",
+            Self::UnicodeToShortDc => "unicode_to_short_dc",
+        }
+    }
+
+    /// Maps this variant to the canonical global `FormatId`.
+    #[must_use]
+    pub const fn to_format_id(&self) -> FormatId {
+        match self {
+            Self::CodeToText => FormatId::CodeToText,
+            Self::SemanticToText => FormatId::SemanticToText,
+            Self::UnicodeToShortDc => FormatId::UnicodeToShortDc,
+        }
+    }
+
+    /// Converts a global `FormatId` to `SupportedDcTransformation` if supported.
+    #[must_use]
+    pub const fn from_format_id(id: FormatId) -> Option<Self> {
+        match id {
+            FormatId::CodeToText => Some(Self::CodeToText),
+            FormatId::SemanticToText => Some(Self::SemanticToText),
+            FormatId::UnicodeToShortDc => Some(Self::UnicodeToShortDc),
+            _ => None,
+        }
+    }
+
+    /// Returns true if the given `FormatId` is supported by this capability.
+    #[must_use]
+    pub const fn is_supported(id: FormatId) -> bool {
+        Self::from_format_id(id).is_some()
+    }
+}
+
+impl From<SupportedDcTransformation> for FormatId {
+    fn from(fmt: SupportedDcTransformation) -> Self {
+        fmt.to_format_id()
+    }
+}
+
+impl TryFrom<FormatId> for SupportedDcTransformation {
+    type Error = anyhow::Error;
+
+    fn try_from(id: FormatId) -> Result<Self, Self::Error> {
+        Self::from_format_id(id).ok_or_else(|| anyhow::anyhow!("Format {id:?} is not a supported Dc transformation"))
+    }
+}
+
+impl TryFrom<&str> for SupportedDcTransformation {
+    type Error = anyhow::Error;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        if let Ok(val) = <Self as clap::ValueEnum>::from_str(s, true) {
+            return Ok(val);
+        }
+        let clean = s.trim().to_ascii_lowercase();
+        if let Some(id) = FormatId::from_ident(&clean) {
+            if let Some(fmt) = Self::from_format_id(id) {
+                return Ok(fmt);
+            }
+        }
+        anyhow::bail!("Unknown Dc transformation: '{s}'")
+    }
+}
+
+impl TryFrom<String> for SupportedDcTransformation {
+    type Error = anyhow::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+impl std::str::FromStr for SupportedDcTransformation {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
 impl FormatId {
     /// Converts this `FormatId` to [`SupportedDecompressionFormat`] if supported.
     ///
@@ -1962,5 +2080,13 @@ impl FormatId {
     /// Returns an error if this format is not a supported Dc output format.
     pub fn to_supported_dc_output_format(self) -> Result<SupportedDcOutputFormat> {
         SupportedDcOutputFormat::try_from(self)
+    }
+
+    /// Converts this `FormatId` to [`SupportedDcTransformation`] if supported.
+    ///
+    /// # Errors
+    /// Returns an error if this format is not a supported Dc transformation.
+    pub fn to_supported_dc_transformation(self) -> Result<SupportedDcTransformation> {
+        SupportedDcTransformation::try_from(self)
     }
 }

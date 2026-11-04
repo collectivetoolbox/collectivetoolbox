@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Reusable CLI document input argument structures with format selection.
+//! Reusable CLI document input and output argument structures with format and transformation selection.
 
 #[allow(
     unused_imports,
@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::cli_io::CliInputSourceArgs;
+use crate::cli_io::{CliInputSourceArgs, CliOutputDestArgs};
 use crate::format_info::format_categorized_help_table;
 use anyhow::Result;
 use std::path::Path;
@@ -58,6 +58,23 @@ pub fn parse_supported_dc_output_format(
     Err(format_categorized_help_table(
         &format!("Invalid output format '{s}'. Specify --to with one of:"),
         SupportedDcOutputFormat::ALL_FORMAT_IDS,
+    ))
+}
+
+/// Parses a CLI `--transform` value into [`SupportedDcTransformation`], accepting
+/// short nicknames, Rust `FormatId` names, or `f<N>` shorthands case-insensitively.
+/// On failure, returns a categorized, sorted list of supported transformations with descriptions.
+pub fn parse_supported_dc_transformation(
+    s: &str,
+) -> std::result::Result<SupportedDcTransformation, String> {
+    if let Ok(tr) = s.parse::<SupportedDcTransformation>() {
+        return Ok(tr);
+    }
+    Err(format_categorized_help_table(
+        &format!(
+            "Invalid document transformation '{s}'. Specify --transform with one of:"
+        ),
+        SupportedDcTransformation::ALL_FORMAT_IDS,
     ))
 }
 
@@ -128,6 +145,47 @@ impl CliAutoDocumentInputArgs {
     }
 }
 
+/// CLI document output arguments with target format and transformation options.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
+pub struct CliDocumentOutputArgs {
+    /// Output destination (`--output` path and `--force` overwrite flag)
+    #[command(flatten)]
+    pub dest: CliOutputDestArgs,
+
+    /// Output serialization format (accepts nickname, `FormatId` name, or f<N> shorthand)
+    #[arg(
+        short = 't',
+        long = "to",
+        value_parser = parse_supported_dc_output_format,
+        default_value = "utf8"
+    )]
+    pub to: SupportedDcOutputFormat,
+
+    /// Document transformation(s) to apply before exporting (accepts nickname, `FormatId` name, or f<N> shorthand)
+    #[arg(
+        long = "transform",
+        value_parser = parse_supported_dc_transformation
+    )]
+    pub transform: Vec<SupportedDcTransformation>,
+}
+
+impl Default for CliDocumentOutputArgs {
+    fn default() -> Self {
+        Self {
+            dest: CliOutputDestArgs::default(),
+            to: SupportedDcOutputFormat::Utf8,
+            transform: Vec::new(),
+        }
+    }
+}
+
+impl CliDocumentOutputArgs {
+    /// Emits output bytes to either stdout or the destination file.
+    pub fn write_or_stdout(&self, data: Vec<u8>) -> Result<Option<Vec<u8>>> {
+        self.dest.write_or_stdout(data)
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -154,5 +212,32 @@ mod tests {
         let args = CliAutoDocumentInputArgs::default();
         assert_eq!(args.from, None);
         assert!(args.source.is_empty());
+    }
+
+    #[crate::ctb_test]
+    fn test_cli_document_output_args_and_transformation_parser() {
+        let out_args = CliDocumentOutputArgs::default();
+        assert_eq!(out_args.to, SupportedDcOutputFormat::Utf8);
+        assert!(out_args.transform.is_empty());
+        assert!(out_args.dest.is_stdout());
+
+        for name in [
+            "unicode_to_short_dc",
+            "UnicodeToShortDc",
+            "unicodetoshortdc",
+            "f654",
+        ] {
+            assert_eq!(
+                parse_supported_dc_transformation(name).unwrap(),
+                SupportedDcTransformation::UnicodeToShortDc
+            );
+        }
+
+        let err =
+            parse_supported_dc_transformation("not_a_transformation").unwrap_err();
+        assert!(err.contains("Document transformations:"));
+        assert!(err.contains(
+            "unicode_to_short_dc (UnicodeToShortDc): Unicode characters to equivalent short Dcs"
+        ));
     }
 }

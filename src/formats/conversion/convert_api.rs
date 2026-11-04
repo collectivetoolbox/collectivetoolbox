@@ -68,8 +68,8 @@ pub use crate::convert_stream::{
 };
 
 use ctb_utilities::FormatId;
-use ctb_utilities::format_support::{
-    SupportedDcInputFormat, SupportedDcOutputFormat,
+pub use ctb_utilities::format_support::{
+    SupportedDcInputFormat, SupportedDcOutputFormat, SupportedDcTransformation,
 };
 
 /// Returns the ordered list of all supported input formats for conversion to `DcMstring`.
@@ -82,4 +82,10 @@ pub fn list_supported_input_formats() -> &'static [FormatId] {
 #[must_use]
 pub fn list_supported_output_formats() -> &'static [FormatId] {
     SupportedDcOutputFormat::ALL_FORMAT_IDS
+}
+
+/// Returns the ordered list of all supported document transformations.
+#[must_use]
+pub fn list_supported_transformations() -> &'static [FormatId] {
+    SupportedDcTransformation::ALL_FORMAT_IDS
 }

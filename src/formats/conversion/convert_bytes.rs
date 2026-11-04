@@ -34,7 +34,7 @@ use ctb_formats_dcstring::DcMstring;
 use ctb_formats_utilities::FormatLog;
 use ctb_utilities::FormatId;
 use ctb_utilities::format_support::{
-    SupportedDcInputFormat, SupportedDcOutputFormat,
+    SupportedDcInputFormat, SupportedDcOutputFormat, SupportedDcTransformation,
 };
 
 pub use ctb_io_csc::journal::convert_cscjournal_to_dcmstring;
@@ -100,6 +100,8 @@ pub struct DcExportOptions {
     /// When `None`, defaults to `DcNormalizationMode::RequiredByTarget` in permissive mode
     /// and `DcNormalizationMode::None` in strict mode.
     pub normalization: Option<DcNormalizationMode>,
+    /// Optional ordered list of document transformations to apply before export.
+    pub transformations: Vec<SupportedDcTransformation>,
 }
 
 impl DcExportOptions {
@@ -197,6 +199,15 @@ pub fn format_supported_output_formats_table(header: &str) -> String {
     ctb_formats_utilities::format_categorized_help_table(
         header,
         SupportedDcOutputFormat::ALL_FORMAT_IDS,
+    )
+}
+
+/// Formats the categorized list of supported document transformations for error and help messages.
+#[must_use]
+pub fn format_supported_transformations_table(header: &str) -> String {
+    ctb_formats_utilities::format_categorized_help_table(
+        header,
+        SupportedDcTransformation::ALL_FORMAT_IDS,
     )
 }
 
@@ -470,6 +481,18 @@ pub fn convert_dcmstring_to_bytes(
 ) -> Result<DcExportResult> {
     let normalization = options.effective_normalization();
     let mut pre_log = FormatLog::default();
+    let owned_transformed_doc;
+    let doc: &DcMstring = if !options.transformations.is_empty() {
+        let (tr_doc, tr_log) = ctb_formats_dcstring::apply_dc_transformations(
+            doc,
+            &options.transformations,
+        )?;
+        pre_log.merge(&tr_log);
+        owned_transformed_doc = tr_doc;
+        &owned_transformed_doc
+    } else {
+        doc
+    };
     let owned_normalized_doc;
     let doc: &DcMstring = if normalization == DcNormalizationMode::All
         && !matches!(format, SupportedDcOutputFormat::Utf8)
@@ -1263,6 +1286,7 @@ mod tests {
                 format: SupportedDcOutputFormat::Utf8,
                 permissive: true,
                 normalization: Some(DcNormalizationMode::None),
+                ..Default::default()
             },
         )
         .unwrap();
@@ -1593,6 +1617,7 @@ mod tests {
                 format: SupportedDcOutputFormat::Dcal,
                 permissive: true,
                 normalization: Some(DcNormalizationMode::RequiredByTarget),
+                ..Default::default()
             },
         )
         .unwrap();
@@ -1610,6 +1635,7 @@ mod tests {
                 format: SupportedDcOutputFormat::Dcal,
                 permissive: true,
                 normalization: Some(DcNormalizationMode::All),
+                ..Default::default()
             },
         )
         .unwrap();
@@ -1630,6 +1656,7 @@ mod tests {
                     format: SupportedDcOutputFormat::MacRoman,
                     permissive: true,
                     normalization: Some(DcNormalizationMode::None),
+                    ..Default::default()
                 },
             )
             .is_err()
@@ -1647,5 +1674,93 @@ mod tests {
         .unwrap();
         assert_eq!(mac_req.bytes, vec![99, 97, 102, 142]);
         assert!(mac_req.log.has_warnings() && !mac_req.log.has_errors());
+    }
+
+    #[crate::ctb_test]
+    fn test_unicode_to_short_dc_transformation_in_sems() {
+        let imported = convert_bytes_to_dcmstring(
+            b"AB",
+            None,
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::Ascii),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        // Without transformation: 'A' (65) and 'B' (66) are exported to SEMS via Dc 308
+        let sems_default = convert_dcmstring_to_bytes(
+            &imported.document,
+            SupportedDcOutputFormat::Sems,
+            &DcExportOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(sems_default.bytes.clone())
+                .unwrap()
+                .trim(),
+            "308 6 199 128 128 7 308 6 199 128 129 7"
+        );
+        assert!(!sems_default.log.has_warnings());
+
+        // With UnicodeToShortDc transformation: 'A' -> Dc 50, 'B' -> Dc 51 with warnings
+        let sems_transformed = convert_dcmstring_to_bytes(
+            &imported.document,
+            SupportedDcOutputFormat::Sems,
+            &DcExportOptions {
+                format: SupportedDcOutputFormat::Sems,
+                transformations: vec![
+                    SupportedDcTransformation::UnicodeToShortDc,
+                ],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(sems_transformed.bytes.clone())
+                .unwrap()
+                .trim(),
+            "50 51"
+        );
+        assert_eq!(sems_transformed.log.get_warnings().len(), 2);
+        assert!(sems_transformed.log.get_warnings()[0].contains("short Dc 50"));
+        assert!(sems_transformed.log.get_warnings()[1].contains("short Dc 51"));
+
+        // Re-importing the default SEMS and exporting to ASCII without normalization roundtrips losslessly
+        let reimported_default = convert_bytes_to_dcmstring(
+            &sems_default.bytes,
+            None,
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::Sems),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let ascii_default_out = convert_dcmstring_to_bytes(
+            &reimported_default.document,
+            SupportedDcOutputFormat::Ascii,
+            &DcExportOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(ascii_default_out.bytes, b"AB");
+
+        // Re-importing the transformed SEMS yields short Dcs 50 and 51 (1114162, 1114163)
+        let reimported_sems = convert_bytes_to_dcmstring(
+            &sems_transformed.bytes,
+            None,
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::Sems),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            reimported_sems
+                .document
+                .to_dc_string()
+                .unwrap()
+                .to_dclist(),
+            vec![1_114_162, 1_114_163]
+        );
     }
 }

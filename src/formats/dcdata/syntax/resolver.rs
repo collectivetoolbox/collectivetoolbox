@@ -102,6 +102,15 @@ pub trait SyntaxRuleResolver {
     ) -> Option<&str> {
         None
     }
+    /// Matches the longest prefix of `tokens` that has an exact (`<equiv>`)
+    /// mapping from an already-assigned short Dc (`< 641`), returning
+    /// `(short_dc_global_id, consumed_token_count)`.
+    fn equivalent_short_dc_for_unicode(
+        &self,
+        _tokens: &[u128],
+    ) -> Option<(u128, usize)> {
+        None
+    }
     /// Checks semantic token equivalence, independently of grammar types.
     fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
         if token == canonical {
@@ -743,6 +752,10 @@ fn parse_decomposition_target(
     None
 }
 
+/// Exclusive upper bound on already-assigned short Dcs eligible for
+/// reverse `<equiv>` Unicode-to-short-Dc mapping (`0..641`).
+pub const MAX_ASSIGNED_SHORT_DC_EXCLUSIVE: u32 = 641;
+
 /// In-memory resolver caching syntax rules, named types, and script mappings.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DatasetRuleResolver {
@@ -761,6 +774,8 @@ pub struct DatasetRuleResolver {
     pub(super) opaque_containers: HashSet<u128>,
     pub(super) canonical_map: HashMap<u128, u128>,
     pub(super) unicode_text_mappings: HashMap<u128, (String, bool)>,
+    pub(super) unicode_to_short_dc_by_first_cp:
+        HashMap<u128, Vec<(Vec<u128>, u128)>>,
     pub(super) subtypes: HashMap<u128, HashSet<u128>>,
     pub(super) framing_shapes: HashMap<u128, FramingShape>,
     pub(super) special_wrapper_tokens: HashSet<u128>,
@@ -819,6 +834,26 @@ impl DatasetRuleResolver {
             if !changed {
                 break;
             }
+        }
+
+        self.unicode_to_short_dc_by_first_cp.clear();
+        for short_id in 0..MAX_ASSIGNED_SHORT_DC_EXCLUSIVE {
+            let gid = DcChar::from_short(short_id).to_u128();
+            if let Some((text, false)) = self.unicode_text_mappings.get(&gid) {
+                let codepoints: Vec<u128> =
+                    text.chars().map(|c| u128::from(u32::from(c))).collect();
+                if let Some(&first_cp) = codepoints.first() {
+                    self.unicode_to_short_dc_by_first_cp
+                        .entry(first_cp)
+                        .or_default()
+                        .push((codepoints, gid));
+                }
+            }
+        }
+        for candidates in self.unicode_to_short_dc_by_first_cp.values_mut() {
+            candidates.sort_by(|a, b| {
+                b.0.len().cmp(&a.0.len()).then_with(|| a.1.cmp(&b.1))
+            });
         }
     }
 
@@ -2358,6 +2393,20 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         } else {
             Some(text)
         }
+    }
+
+    fn equivalent_short_dc_for_unicode(
+        &self,
+        tokens: &[u128],
+    ) -> Option<(u128, usize)> {
+        let &first = tokens.first()?;
+        let candidates = self.unicode_to_short_dc_by_first_cp.get(&first)?;
+        for (seq, short_dc_gid) in candidates {
+            if tokens.starts_with(seq.as_slice()) {
+                return Some((*short_dc_gid, seq.len()));
+            }
+        }
+        None
     }
 
     fn is_equivalent_to(&self, token: u128, canonical: u128) -> bool {
