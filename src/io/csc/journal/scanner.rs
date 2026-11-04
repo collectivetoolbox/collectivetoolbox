@@ -133,7 +133,7 @@ pub(crate) fn scan(
     {
         ensure!(
             !first_stub.is_unclosed(),
-            "System graph watermark header is incomplete"
+            "System graph most_recent header is incomplete"
         );
         navigator.expand_frame(&first_stub, &mut arena, policy)?;
         retain_recovery_diagnostics(&arena, policy, &mut initial_warnings);

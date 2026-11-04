@@ -373,7 +373,7 @@ pub fn convert_legacy_journal_with_policy<R: Read + Seek, W: Write>(
 
     writer.write_all(JOURNAL_MAGIC)?;
     let mut header = DcMstring::new();
-    header.push_system_graph_watermark()?;
+    header.push_system_graph_most_recent()?;
     writer.write_all(header.as_bytes())?;
 
     let mut origin_platform = 0_u8;

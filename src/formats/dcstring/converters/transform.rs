@@ -99,17 +99,17 @@ pub fn apply_dc_transformation(
     let mut out = DcMstring::new();
     let mut log = FormatLog::default();
 
-    if transformation == SupportedDcTransformation::AddSystemGraphWatermark {
-        let already_has_watermark = matches!(
+    if transformation == SupportedDcTransformation::AddSystemGraphMostRecent {
+        let already_has_most_recent = matches!(
             doc.chunks().next(),
             Some(DcMixedChunk::Text(first_text))
                 if first_text.chars().next()
                     == Some(DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID)
         );
-        if already_has_watermark {
+        if already_has_most_recent {
             return Ok((doc.to_owned(), log));
         }
-        out.push_system_graph_watermark()?;
+        out.push_system_graph_most_recent()?;
         for chunk in doc.chunks() {
             out.push_chunk(&chunk)?;
         }
@@ -120,7 +120,7 @@ pub fn apply_dc_transformation(
         if let DcMixedChunk::Text(text) = chunk {
             let dclist = text.to_dclist();
             let transformed_dclist = match transformation {
-                SupportedDcTransformation::AddSystemGraphWatermark => {
+                SupportedDcTransformation::AddSystemGraphMostRecent => {
                     dclist
                 }
                 SupportedDcTransformation::UnicodeToShortDc => {
@@ -215,7 +215,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_add_system_graph_watermark_transformation() -> Result<()> {
+    fn test_add_system_graph_most_recent_transformation() -> Result<()> {
         let mut doc = DcMstring::new();
         doc.push_char(DcChar::from_u128(0x41));
         doc.push_char(DcChar::from_u128(0x42));
@@ -224,7 +224,7 @@ mod tests {
             ctb_formats_dcdata::seed_graph::current_system_block_most_recent_node_id()?;
         let (stamped, log) = apply_dc_transformation(
             &doc,
-            SupportedDcTransformation::AddSystemGraphWatermark,
+            SupportedDcTransformation::AddSystemGraphMostRecent,
         )?;
         assert!(!log.has_warnings());
 
@@ -243,10 +243,10 @@ mod tests {
             ]
         );
 
-        // Applying AddSystemGraphWatermark a second time must be idempotent
+        // Applying AddSystemGraphMostRecent a second time must be idempotent
         let (stamped_again, _) = apply_dc_transformation(
             &stamped,
-            SupportedDcTransformation::AddSystemGraphWatermark,
+            SupportedDcTransformation::AddSystemGraphMostRecent,
         )?;
         assert_eq!(stamped_again.as_bytes(), stamped.as_bytes());
         Ok(())

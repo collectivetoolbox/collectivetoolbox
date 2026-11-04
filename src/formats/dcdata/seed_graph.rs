@@ -301,7 +301,7 @@ impl SeedGraphIndex {
     /// `data/graph/85899_34592.ctbnbdl`) from the runtime asset bundle (`ctoolbox.rsrc`)
     /// and indexes all active statements, seed entities, and value nodes.
     pub fn load_from_asset_bundle() -> Result<Self> {
-        let (active_watermark, active_nodes) = Self::load_nodes_from_asset_dir(
+        let (active_most_recent, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
             Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
@@ -316,7 +316,7 @@ impl SeedGraphIndex {
             );
         }
         let mut index = Self::from_nodes(active_nodes);
-        if let Some(wm) = active_watermark {
+        if let Some(wm) = active_most_recent {
             index.system_block_most_recent_node_id = Some(
                 index
                     .system_block_most_recent_node_id
@@ -331,23 +331,23 @@ impl SeedGraphIndex {
     /// if installed, or `assets/data/graph/system/` in dev mode), merging them in ascending
     /// node ID order and resolving all `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`) history.
     pub fn load_with_history_from_asset_bundle() -> Result<Self> {
-        let (active_watermark, active_nodes) = Self::load_nodes_from_asset_dir(
+        let (active_most_recent, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
             Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
             true,
         )?;
-        let (history_watermark, history_nodes) =
+        let (history_most_recent, history_nodes) =
             Self::load_nodes_from_asset_dir(
                 SYSTEM_GRAPH_HISTORY_ASSET_GLOB,
                 "data/graph/system",
                 None,
                 false,
             )?;
-        let bundle_watermark = active_watermark.max(history_watermark);
+        let bundle_most_recent = active_most_recent.max(history_most_recent);
         if history_nodes.is_empty() {
             let mut index = Self::from_nodes(active_nodes);
-            if let Some(wm) = bundle_watermark {
+            if let Some(wm) = bundle_most_recent {
                 index.system_block_most_recent_node_id = Some(
                     index
                         .system_block_most_recent_node_id
@@ -380,7 +380,7 @@ impl SeedGraphIndex {
         merged.extend(h_iter);
 
         let mut index = Self::from_nodes(merged);
-        if let Some(wm) = bundle_watermark {
+        if let Some(wm) = bundle_most_recent {
             index.system_block_most_recent_node_id = Some(
                 index
                     .system_block_most_recent_node_id
@@ -448,7 +448,7 @@ impl SeedGraphIndex {
         keyed_paths.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
         let mut all_nodes: Vec<LedgerNode> = Vec::new();
-        let mut max_watermark: Option<u128> = None;
+        let mut max_most_recent: Option<u128> = None;
         for (expected_first_id, asset_path) in keyed_paths {
             let bytes = ctb_storage_asset_bundle::get_asset(&asset_path)
                 .with_context(|| {
@@ -456,13 +456,13 @@ impl SeedGraphIndex {
                         "Failed to read asset '{asset_path}' from runtime asset bundle"
                     )
                 })?;
-            let (bundle_watermark, bundle_nodes) =
+            let (bundle_most_recent, bundle_nodes) =
                 decode_ctbnbdl_bundle(&bytes).with_context(|| {
                     format!("Failed to decode .ctbnbdl bundle '{asset_path}'")
                 })?;
-            if let Some(wm) = bundle_watermark {
-                max_watermark =
-                    Some(max_watermark.map_or(wm, |cur| cur.max(wm)));
+            if let Some(wm) = bundle_most_recent {
+                max_most_recent =
+                    Some(max_most_recent.map_or(wm, |cur| cur.max(wm)));
             }
             let Some(first_node) = bundle_nodes.first() else {
                 bail!(
@@ -493,14 +493,14 @@ impl SeedGraphIndex {
             }
         }
 
-        Ok((max_watermark, all_nodes))
+        Ok((max_most_recent, all_nodes))
     }
 
     /// Decodes a single `.ctbnbdl` byte slice and builds a `SeedGraphIndex`.
     pub fn from_ctbnbdl_bytes(bytes: &[u8]) -> Result<Self> {
-        let (watermark, nodes) = decode_ctbnbdl_bundle(bytes)?;
+        let (most_recent, nodes) = decode_ctbnbdl_bundle(bytes)?;
         let mut index = Self::from_nodes(nodes);
-        if let Some(wm) = watermark {
+        if let Some(wm) = most_recent {
             index.system_block_most_recent_node_id = Some(
                 index
                     .system_block_most_recent_node_id

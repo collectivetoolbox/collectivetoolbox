@@ -1930,9 +1930,9 @@ impl std::str::FromStr for SupportedDcOutputFormat {
 )]
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SupportedDcTransformation {
-    /// Add global graph system block watermark
-    #[value(name = "add_system_graph_watermark", alias = "addsystemgraphwatermark", alias = "AddSystemGraphWatermark", alias = "f655")]
-    AddSystemGraphWatermark,
+    /// Add global graph system block most recent
+    #[value(name = "add_system_graph_most_recent", alias = "AddSystemGraphMostRecent", alias = "AddSystemGraphMostRecent", alias = "f655")]
+    AddSystemGraphMostRecent,
     /// Programmatic Dcs to text
     #[value(name = "codetotext", alias = "CodeToText", alias = "f20")]
     CodeToText,
@@ -1947,7 +1947,7 @@ pub enum SupportedDcTransformation {
 impl SupportedDcTransformation {
     /// Ordered list of all formats supported by this capability.
     pub const ALL: &'static [SupportedDcTransformation] = &[
-        Self::AddSystemGraphWatermark,
+        Self::AddSystemGraphMostRecent,
         Self::CodeToText,
         Self::SemanticToText,
         Self::UnicodeToShortDc,
@@ -1955,7 +1955,7 @@ impl SupportedDcTransformation {
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
     pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
-        FormatId::AddSystemGraphWatermark,
+        FormatId::AddSystemGraphMostRecent,
         FormatId::CodeToText,
         FormatId::SemanticToText,
         FormatId::UnicodeToShortDc,
@@ -1965,7 +1965,7 @@ impl SupportedDcTransformation {
     #[must_use]
     pub const fn primary_cli_name(&self) -> &'static str {
         match self {
-            Self::AddSystemGraphWatermark => "add_system_graph_watermark",
+            Self::AddSystemGraphMostRecent => "add_system_graph_most_recent",
             Self::CodeToText => "codetotext",
             Self::SemanticToText => "semantictotext",
             Self::UnicodeToShortDc => "unicode_to_short_dc",
@@ -1976,7 +1976,7 @@ impl SupportedDcTransformation {
     #[must_use]
     pub const fn to_format_id(&self) -> FormatId {
         match self {
-            Self::AddSystemGraphWatermark => FormatId::AddSystemGraphWatermark,
+            Self::AddSystemGraphMostRecent => FormatId::AddSystemGraphMostRecent,
             Self::CodeToText => FormatId::CodeToText,
             Self::SemanticToText => FormatId::SemanticToText,
             Self::UnicodeToShortDc => FormatId::UnicodeToShortDc,
@@ -1987,7 +1987,7 @@ impl SupportedDcTransformation {
     #[must_use]
     pub const fn from_format_id(id: FormatId) -> Option<Self> {
         match id {
-            FormatId::AddSystemGraphWatermark => Some(Self::AddSystemGraphWatermark),
+            FormatId::AddSystemGraphMostRecent => Some(Self::AddSystemGraphMostRecent),
             FormatId::CodeToText => Some(Self::CodeToText),
             FormatId::SemanticToText => Some(Self::SemanticToText),
             FormatId::UnicodeToShortDc => Some(Self::UnicodeToShortDc),

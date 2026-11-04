@@ -60,7 +60,7 @@ pub use crate::ctbnbdl::{
     decode_ctbnbdl_bundle_with, decode_nodes_from_ctbnbdl_bytes_with,
     encode_for_each_statement_tokens_with, encode_node_definition_tokens_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits,
-    encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark,
+    encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent,
     encode_nodes_to_ctbnbdl_bytes_with, ensure_ledger_journal_clean,
     execute_durable_ledger_transaction_with_planner,
     format_chunk_bundle_filename, format_chunk_filename,
@@ -623,7 +623,7 @@ pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Result<Vec<u8>> {
 }
 
 /// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer into its optional leading `Dc 641`
-/// system block watermark node ID and its list of `LedgerNode` entries.
+/// system block most recent node ID and its list of `LedgerNode` entries.
 pub fn decode_ctbnbdl_bundle(
     bytes: &[u8],
 ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
@@ -3874,8 +3874,8 @@ mod tests {
             &DCMM_HEADER
         );
 
-        let (watermark, decoded) = decode_ctbnbdl_bundle(&bundle_bytes)?;
-        assert_eq!(watermark, Some(SYSTEM_REGION_START + 3));
+        let (most_recent, decoded) = decode_ctbnbdl_bundle(&bundle_bytes)?;
+        assert_eq!(most_recent, Some(SYSTEM_REGION_START + 3));
         assert_eq!(decoded.len(), nodes.len());
         for (orig, dec) in nodes.iter().zip(decoded.iter()) {
             assert_eq!(orig.id, dec.id);

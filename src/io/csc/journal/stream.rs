@@ -78,7 +78,7 @@ impl<W: Write> JournalWriter<W> {
         magic: JournalMagic,
     ) -> Result<Self> {
         let mut header = DcMstring::new();
-        header.push_system_graph_watermark()?;
+        header.push_system_graph_most_recent()?;
         session.encode_dc_mixed(&mut header)?;
         ctb_formats_dcstring::validate_dc_mixed_strict(&header)?;
         writer.write_all(match magic {
@@ -657,7 +657,7 @@ mod tests {
             let mut writer =
                 JournalWriter::new(ShortOutput(Vec::new()), &session, profile)?;
             let mut header = DcMstring::new();
-            header.push_system_graph_watermark()?;
+            header.push_system_graph_most_recent()?;
             session.encode_dc_mixed(&mut header)?;
             let mut expected = match profile {
                 JournalMagic::JournalV5 => {
@@ -722,18 +722,18 @@ mod tests {
             ensure!(
                 chars.next()
                     == Some(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID),
-                "Expected leading Dc 641 watermark in {profile:?} stream"
+                "Expected leading Dc 641 most_recent in {profile:?} stream"
             );
             let expected_wm =
                 ctb_formats_dcdata::seed_graph::current_system_block_most_recent_node_id()?;
             ensure!(
                 chars.next()
                     == Some(ctb_formats_dcstring::DcChar::from_u128(expected_wm)),
-                "Expected leading System-block watermark node ID l{expected_wm} in {profile:?} stream"
+                "Expected leading System-block most_recent node ID l{expected_wm} in {profile:?} stream"
             );
             ensure!(
                 chars.next() == Some(dc::DC_BEGIN_OPERATION_SESSION),
-                "Expected Dc 547 (Begin operation session) immediately after Dc 641 watermark"
+                "Expected Dc 547 (Begin operation session) immediately after Dc 641 most_recent"
             );
         }
         Ok(())
