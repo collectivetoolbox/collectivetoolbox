@@ -64,6 +64,10 @@ pub const DCMM_HEADER_V1: [u8; 21] = [
     0xad, 0xbc, 0x93, 0x3e, 0x88, 0x51, 0xe7, 0x9a,
 ];
 
+/// `Dc 641` (`Global graph system block most recent node ID at time of document creation`).
+pub const DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID: DcShorthand =
+    DcShorthand::Short(641);
+
 /// Framing and relationship Document Characters used when encoding, decoding, and partitioning
 /// `.ctbnbdl` node definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -760,20 +764,57 @@ pub fn encode_node_definition_tokens_with(
     out
 }
 
+fn encode_ctbnbdl_header_bytes(
+    watermark_node_id: Option<u128>,
+    framing: CtbnbdlFramingDcs,
+) -> Result<Vec<u8>> {
+    let mut header = Vec::with_capacity(
+        CTBNBDL_MAGIC
+            .len()
+            .saturating_add(DCMM_HEADER.len())
+            .saturating_add(16),
+    );
+    header.extend_from_slice(&CTBNBDL_MAGIC);
+    header.extend_from_slice(&DCMM_HEADER);
+    if let Some(wm_id) = watermark_node_id {
+        ensure!(
+            (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&wm_id),
+            "System graph watermark node ID l{wm_id} is outside the System block ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+        );
+        let mut wm_tokens = Vec::with_capacity(3);
+        wm_tokens.push(DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        push_atom_dc_with(
+            &mut wm_tokens,
+            DcShorthand::from_global_id(wm_id),
+            framing,
+        );
+        let mut char_buf = [0u8; 24];
+        for tok in wm_tokens {
+            let gid = tok.to_global_id()?;
+            let n = encode_dctf_buf(&mut char_buf, gid);
+            if let Some(slice) = char_buf.get(..n) {
+                header.extend_from_slice(slice);
+            }
+        }
+    }
+    Ok(header)
+}
+
 /// Compiles a slice of `LedgerNode` entries into a `.ctbnbdl` (`CtbNodeBundle2`) binary buffer:
-/// 8-byte `CTBNBDL\x02` magic + 21-byte `DcMixed2` header + `DcTF` encoded `617 .. 618` frames.
+/// 8-byte `CTBNBDL\x02` magic + 21-byte `DcMixed2` header + optional `641 l<max_node_id>` watermark
+/// + `DcTF` encoded `617 .. 618` frames.
 pub fn encode_nodes_to_ctbnbdl_bytes_with(
     nodes: &[LedgerNode],
     framing: CtbnbdlFramingDcs,
 ) -> Result<Vec<u8>> {
+    let watermark_node_id = nodes.iter().map(|n| n.id).max();
+    let header_bytes = encode_ctbnbdl_header_bytes(watermark_node_id, framing)?;
     let mut bytes = Vec::with_capacity(
-        CTBNBDL_MAGIC
+        header_bytes
             .len()
-            .saturating_add(DCMM_HEADER.len())
             .saturating_add(nodes.len().saturating_mul(32)),
     );
-    bytes.extend_from_slice(&CTBNBDL_MAGIC);
-    bytes.extend_from_slice(&DCMM_HEADER);
+    bytes.extend_from_slice(&header_bytes);
     let mut char_buf = [0u8; 24];
     for node in nodes {
         for tok in encode_node_definition_tokens_with(node, framing) {
@@ -787,12 +828,12 @@ pub fn encode_nodes_to_ctbnbdl_bytes_with(
     Ok(bytes)
 }
 
-/// Decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer back into a list of
-/// `LedgerNode` entries (with empty comments, as `.ctbnbdl` stores only the semantic Dc stream).
-pub fn decode_nodes_from_ctbnbdl_bytes_with(
+/// Decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer into its optional
+/// leading `Dc 641` system block watermark node ID and its list of `LedgerNode` entries.
+pub fn decode_ctbnbdl_bundle_with(
     bytes: &[u8],
     framing: CtbnbdlFramingDcs,
-) -> Result<Vec<LedgerNode>> {
+) -> Result<(Option<u128>, Vec<LedgerNode>)> {
     let header_len = CTBNBDL_MAGIC.len().saturating_add(DCMM_HEADER.len());
     ensure!(
         bytes.len() >= header_len,
@@ -838,6 +879,21 @@ pub fn decode_nodes_from_ctbnbdl_bytes_with(
 
     let mut nodes = Vec::new();
     let mut idx = 0usize;
+    let mut watermark_node_id = None;
+
+    if all_tokens.first() == Some(&DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID) {
+        idx = idx.saturating_add(1);
+        let wm_sh = consume_atom_dc_with(&all_tokens, &mut idx, framing)
+            .context(
+            "Invalid or missing [atom_dc] node ID after Dc 641 in .ctbnbdl",
+        )?;
+        let wm_id = wm_sh.to_global_id()?;
+        ensure!(
+            (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&wm_id),
+            "System graph watermark node ID l{wm_id} in .ctbnbdl is outside the System block ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+        );
+        watermark_node_id = Some(wm_id);
+    }
 
     while idx < all_tokens.len() {
         let open_tok = *all_tokens
@@ -889,6 +945,16 @@ pub fn decode_nodes_from_ctbnbdl_bytes_with(
             comment: String::new(),
         });
     }
+    Ok((watermark_node_id, nodes))
+}
+
+/// Decodes a `.ctbnbdl` (`CtbNodeBundle1` or `CtbNodeBundle2`) binary buffer back into a list of
+/// `LedgerNode` entries (with empty comments, as `.ctbnbdl` stores only the semantic Dc stream).
+pub fn decode_nodes_from_ctbnbdl_bytes_with(
+    bytes: &[u8],
+    framing: CtbnbdlFramingDcs,
+) -> Result<Vec<LedgerNode>> {
+    let (_watermark, nodes) = decode_ctbnbdl_bundle_with(bytes, framing)?;
     Ok(nodes)
 }
 
@@ -902,23 +968,24 @@ pub fn compile_ctbnodes_file_to_ctbnbdl_bytes(
 }
 
 /// Splits a slice of `LedgerNode` entries into one or more `.ctbnbdl` bundle buffers,
-/// each paired with its starting node ID (`(first_node_id, bundle_bytes)`).
-///
-/// Bundles group up to `max_nodes_per_bundle` nodes or `max_bytes_per_bundle` bytes
-/// (whichever is reached first). If a bundle must split early due to the byte limit,
-/// the subsequent bundle is shortened so that bundle boundaries still align at
-/// multiples of `max_nodes_per_bundle` relative to `SYSTEM_REGION_START`.
-pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
+/// each paired with its starting node ID (`(first_node_id, bundle_bytes)`), stamping each
+/// bundle with the provided `watermark_node_id` (`Dc 641 l<watermark_node_id>`).
+pub fn encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark(
     nodes: &[LedgerNode],
     framing: CtbnbdlFramingDcs,
     max_nodes_per_bundle: usize,
     max_bytes_per_bundle: usize,
+    watermark_node_id: Option<u128>,
 ) -> Result<Vec<(u128, Vec<u8>)>> {
     ensure!(
         max_nodes_per_bundle > 0,
         "max_nodes_per_bundle must be greater than 0"
     );
-    let header_len = CTBNBDL_MAGIC.len().saturating_add(DCMM_HEADER.len());
+    let header_bytes = encode_ctbnbdl_header_bytes(
+        watermark_node_id.or_else(|| nodes.iter().map(|n| n.id).max()),
+        framing,
+    )?;
+    let header_len = header_bytes.len();
     ensure!(
         max_bytes_per_bundle > header_len,
         "max_bytes_per_bundle ({max_bytes_per_bundle}) must exceed the {header_len}-byte .ctbnbdl header"
@@ -973,8 +1040,7 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
         if current_first_id.is_none() {
             current_first_id = Some(node.id);
             current_bucket = bucket;
-            current_bytes.extend_from_slice(&CTBNBDL_MAGIC);
-            current_bytes.extend_from_slice(&DCMM_HEADER);
+            current_bytes.extend_from_slice(&header_bytes);
         }
         current_bytes.extend_from_slice(&node_bytes);
     }
@@ -984,6 +1050,28 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
     }
 
     Ok(bundles)
+}
+
+/// Splits a slice of `LedgerNode` entries into one or more `.ctbnbdl` bundle buffers,
+/// each paired with its starting node ID (`(first_node_id, bundle_bytes)`).
+///
+/// Bundles group up to `max_nodes_per_bundle` nodes or `max_bytes_per_bundle` bytes
+/// (whichever is reached first). If a bundle must split early due to the byte limit,
+/// the subsequent bundle is shortened so that bundle boundaries still align at
+/// multiples of `max_nodes_per_bundle` relative to `SYSTEM_REGION_START`.
+pub fn encode_nodes_to_ctbnbdl_bundles_with_limits(
+    nodes: &[LedgerNode],
+    framing: CtbnbdlFramingDcs,
+    max_nodes_per_bundle: usize,
+    max_bytes_per_bundle: usize,
+) -> Result<Vec<(u128, Vec<u8>)>> {
+    encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark(
+        nodes,
+        framing,
+        max_nodes_per_bundle,
+        max_bytes_per_bundle,
+        nodes.iter().map(|n| n.id).max(),
+    )
 }
 
 /// Returns `true` if `tok` is one of the canonical relationship verbs in `framing`.
@@ -1466,24 +1554,27 @@ pub fn compile_ctbnodes_dir_to_ctbnbdl_with_limits(
     };
 
     let nodes = load_ledger_nodes_from_dir(src_dir)?;
+    let watermark_node_id = nodes.iter().map(|n| n.id).max();
     let (active_nodes, inactive_nodes) =
         partition_active_and_inactive_nodes_with(&nodes, framing);
 
-    let active_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+    let active_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark(
         &active_nodes,
         framing,
         max_nodes_per_bundle,
         max_bytes_per_bundle,
+        watermark_node_id,
     )?;
     let compiled_count =
         write_ctbnbdl_bundles_to_dir(dst_dir, &active_bundles, !is_same_dir)?;
 
     if is_same_dir {
-        let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
+        let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark(
             &inactive_nodes,
             framing,
             max_nodes_per_bundle,
             max_bytes_per_bundle,
+            watermark_node_id,
         )?;
         let system_history_dir = dst_dir.join("system");
         write_ctbnbdl_bundles_to_dir(
@@ -1534,14 +1625,17 @@ pub fn compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits(
         return Ok(0);
     }
     let nodes = load_ledger_nodes_from_dir(src_dir)?;
+    let watermark_node_id = nodes.iter().map(|n| n.id).max();
     let (_active_nodes, inactive_nodes) =
         partition_active_and_inactive_nodes_with(&nodes, framing);
-    let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
-        &inactive_nodes,
-        framing,
-        max_nodes_per_bundle,
-        max_bytes_per_bundle,
-    )?;
+    let inactive_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark(
+            &inactive_nodes,
+            framing,
+            max_nodes_per_bundle,
+            max_bytes_per_bundle,
+            watermark_node_id,
+        )?;
     write_ctbnbdl_bundles_to_dir(history_dst_dir, &inactive_bundles, true)
 }
 

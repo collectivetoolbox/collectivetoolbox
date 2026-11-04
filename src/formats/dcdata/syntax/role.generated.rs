@@ -382,6 +382,8 @@ pub enum DcRole {
     ThisElement,
     /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (`640`).
     TypeAtomDc,
+    /// Records the highest allocated System node ID when the document was written. (`641`).
+    GlobalGraphSystemBlockMostRecentNodeId,
     /// Format indicator for an integer in a number header (`FormatId::Integer`).
 IntegerFormatIndicator,
 /// Base64 encapsulation digit character (0..=63).
@@ -576,6 +578,7 @@ match self {
             Self::ForEach => Some(638),
             Self::ThisElement => Some(639),
             Self::TypeAtomDc => Some(640),
+            Self::GlobalGraphSystemBlockMostRecentNodeId => Some(641),
             _ => None,
 }
 }
@@ -765,6 +768,7 @@ match self {
             Self::ForEach => short == Some(638),
             Self::ThisElement => short == Some(639),
             Self::TypeAtomDc => short == Some(640),
+            Self::GlobalGraphSystemBlockMostRecentNodeId => short == Some(641),
             Self::IntegerFormatIndicator => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
 && ctb_utilities::format_id::FormatId::from_dc_id(token)

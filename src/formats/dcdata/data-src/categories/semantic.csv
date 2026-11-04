@@ -321,4 +321,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114749,637,Manual entry,0,BN,,!Cx,.Semantic,"@ident(""ManualEntry"")",General concept of manual entry or direct human authoring.
 1114750,638,For each,0,BN,,!Cx,.Semantic,"@ident(""ForEach""), :~ [statement] ([list] | [atom_dc])","Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration."
 1114751,639,This element,0,BN,,!Cx,.Semantic,"@ident(""ThisElement"")",Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression.
-1114753,641,Global graph system block most recent node ID at time of document creation,0,BN,,!Cx,.Semantic,:~ [atom_dc],Records the highest allocated System node ID when the document was written.
+1114753,641,Global graph system block most recent node ID at time of document creation,0,BN,,!Cx,.Semantic,"@ident(""GlobalGraphSystemBlockMostRecentNodeId""), :~ [atom_dc]",Records the highest allocated System node ID when the document was written.

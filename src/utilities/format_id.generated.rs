@@ -1391,6 +1391,8 @@ pub enum FormatId {
     Dce_3_03a,
     /// Unicode characters to equivalent short Dcs (Short 654, Category: transformation)
     UnicodeToShortDc,
+    /// Add global graph system block watermark (Short 655, Category: transformation)
+    AddSystemGraphWatermark,
 }
 
 impl FormatId {
@@ -2033,7 +2035,8 @@ impl FormatId {
             | Self::CodeToText
             | Self::AlturaMacToWin
             | Self::AlturaWinToMac
-            | Self::UnicodeToShortDc => FormatCategory::Transformation,
+            | Self::UnicodeToShortDc
+            | Self::AddSystemGraphWatermark => FormatCategory::Transformation,
             Self::DcBasenb
             | Self::DcBasenbFragment
             | Self::Csur
@@ -2717,6 +2720,7 @@ impl FormatId {
             "dce_3_02a" => Some(Self::Dce_3_02a),
             "dce_3_03a" => Some(Self::Dce_3_03a),
             "unicodetoshortdc" | "unicode_to_short_dc" => Some(Self::UnicodeToShortDc),
+            "addsystemgraphwatermark" | "add_system_graph_watermark" => Some(Self::AddSystemGraphWatermark),
             _ => None,
         }
     }
@@ -3380,6 +3384,7 @@ impl FormatId {
             Self::Dce_3_02a => "Dce_3_02a",
             Self::Dce_3_03a => "Dce_3_03a",
             Self::UnicodeToShortDc => "UnicodeToShortDc",
+            Self::AddSystemGraphWatermark => "AddSystemGraphWatermark",
         }
     }
 
@@ -4256,6 +4261,7 @@ impl FormatId {
             Self::Dce_3_02a => "f652",
             Self::Dce_3_03a => "f653",
             Self::UnicodeToShortDc => "f654",
+            Self::AddSystemGraphWatermark => "f655",
         }
     }
 
@@ -4919,6 +4925,7 @@ impl FormatId {
             "f652" => Some(Self::Dce_3_02a),
             "f653" => Some(Self::Dce_3_03a),
             "f654" => Some(Self::UnicodeToShortDc),
+            "f655" => Some(Self::AddSystemGraphWatermark),
             _ => None,
         }
     }
@@ -5582,6 +5589,7 @@ impl FormatId {
             Self::Dce_3_02a => Some(2228876_u128),
             Self::Dce_3_03a => Some(2228877_u128),
             Self::UnicodeToShortDc => Some(2228878_u128),
+            Self::AddSystemGraphWatermark => Some(2228879_u128),
         }
     }
 
@@ -6257,6 +6265,7 @@ impl FormatId {
             2228876_u128 => Some(Self::Dce_3_02a),
             2228877_u128 => Some(Self::Dce_3_03a),
             2228878_u128 => Some(Self::UnicodeToShortDc),
+            2228879_u128 => Some(Self::AddSystemGraphWatermark),
             _ => None,
         }
     }
@@ -7572,3 +7581,5 @@ pub const DC_DCE_3_02A: DcChar = DcChar::from_format(652);
 pub const DC_DCE_3_03A: DcChar = DcChar::from_format(653);
 /// DcChar constant for Format `UnicodeToShortDc` (Short f654, Category: transformation): Unicode characters to equivalent short Dcs
 pub const DC_UNICODE_TO_SHORT_DC: DcChar = DcChar::from_format(654);
+/// DcChar constant for Format `AddSystemGraphWatermark` (Short f655, Category: transformation): Add global graph system block watermark
+pub const DC_ADD_SYSTEM_GRAPH_WATERMARK: DcChar = DcChar::from_format(655);

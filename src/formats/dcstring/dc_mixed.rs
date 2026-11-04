@@ -958,6 +958,26 @@ impl DcMstring {
         self.writer().push_checksum(format, digest)
     }
 
+    /// Appends `Dc 641 "Global graph system block most recent node ID at time of document creation"`
+    /// followed by the specified System-block node ID (`l<node_id>`).
+    pub fn push_system_graph_watermark_with_id(&mut self, node_id: u128) {
+        self.push_char(
+            ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+        );
+        self.push_char(DcChar::from_u128(node_id));
+    }
+
+    /// Appends `Dc 641 "Global graph system block most recent node ID at time of document creation"`
+    /// followed by the current highest allocated System-block node ID from the runtime seed graph.
+    ///
+    /// # Errors
+    /// Returns an error if the shared runtime seed graph fails to load.
+    pub fn push_system_graph_watermark(&mut self) -> Result<u128> {
+        let node_id = ctb_formats_dcdata::seed_graph::current_system_block_most_recent_node_id()?;
+        self.push_system_graph_watermark_with_id(node_id);
+        Ok(node_id)
+    }
+
     /// Appends a binary payload read directly from a stream (`std::io::Read`).
     pub fn push_binary_from_reader<R: std::io::Read + ?Sized>(
         &mut self,

@@ -46,19 +46,21 @@ use ctb_utilities::format_id::{
 };
 
 pub use crate::ctbnbdl::{
-    CTBNBDL_MAGIC, CtbnbdlFramingDcs, DCMM_HEADER, DurableTransactionOutcome,
-    FaultInjectionPoint, LEDGER_JOURNAL_REL_PATH, LedgerNode, LedgerReadGuard,
-    MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE, MAX_NODES_PER_CHUNK,
-    PlannedLedgerItem, TransactionManifest, chunk_filename_for_node_id,
+    CTBNBDL_MAGIC, CtbnbdlFramingDcs, DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+    DCMM_HEADER, DurableTransactionOutcome, FaultInjectionPoint,
+    LEDGER_JOURNAL_REL_PATH, LedgerNode, LedgerReadGuard, MAX_BYTES_PER_BUNDLE,
+    MAX_NODES_PER_BUNDLE, MAX_NODES_PER_CHUNK, PlannedLedgerItem,
+    TransactionManifest, chunk_filename_for_node_id,
     compile_ctbnodes_dir_to_ctbnbdl,
     compile_ctbnodes_dir_to_ctbnbdl_with_limits,
     compile_ctbnodes_file_to_ctbnbdl_bytes,
     compile_inactive_ctbnodes_dir_to_ctbnbdl,
     compile_inactive_ctbnodes_dir_to_ctbnbdl_with_limits,
     compute_nodes_slice_ledger_sha256, consume_atom_dc_with,
-    decode_nodes_from_ctbnbdl_bytes_with,
+    decode_ctbnbdl_bundle_with, decode_nodes_from_ctbnbdl_bytes_with,
     encode_for_each_statement_tokens_with, encode_node_definition_tokens_with,
     encode_nodes_to_ctbnbdl_bundles_with_limits,
+    encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark,
     encode_nodes_to_ctbnbdl_bytes_with, ensure_ledger_journal_clean,
     execute_durable_ledger_transaction_with_planner,
     format_chunk_bundle_filename, format_chunk_filename,
@@ -618,6 +620,14 @@ pub fn encode_node_definition_tokens(node: &LedgerNode) -> Vec<DcShorthand> {
 /// 8-byte `CTBNBDL\x01` magic + 21-byte `DcMM` header + `UTF-8e-128` encoded `617 .. 618` frames.
 pub fn encode_nodes_to_ctbnbdl_bytes(nodes: &[LedgerNode]) -> Result<Vec<u8>> {
     encode_nodes_to_ctbnbdl_bytes_with(nodes, default_ctbnbdl_framing_dcs())
+}
+
+/// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer into its optional leading `Dc 641`
+/// system block watermark node ID and its list of `LedgerNode` entries.
+pub fn decode_ctbnbdl_bundle(
+    bytes: &[u8],
+) -> Result<(Option<u128>, Vec<LedgerNode>)> {
+    decode_ctbnbdl_bundle_with(bytes, default_ctbnbdl_framing_dcs())
 }
 
 /// Decodes a `.ctbnbdl` (`CtbNodeBundle`) binary buffer back into a list of `LedgerNode` entries
@@ -3864,12 +3874,19 @@ mod tests {
             &DCMM_HEADER
         );
 
-        let decoded = decode_nodes_from_ctbnbdl_bytes(&bundle_bytes)?;
+        let (watermark, decoded) = decode_ctbnbdl_bundle(&bundle_bytes)?;
+        assert_eq!(watermark, Some(SYSTEM_REGION_START + 3));
         assert_eq!(decoded.len(), nodes.len());
         for (orig, dec) in nodes.iter().zip(decoded.iter()) {
             assert_eq!(orig.id, dec.id);
             assert_eq!(orig.tokens, dec.tokens);
         }
+        let index =
+            crate::seed_graph::SeedGraphIndex::from_ctbnbdl_bytes(&bundle_bytes)?;
+        assert_eq!(
+            index.system_block_most_recent_node_id(),
+            Some(SYSTEM_REGION_START + 3)
+        );
         Ok(())
     }
 
@@ -4145,8 +4162,9 @@ mod tests {
         // after 60 nodes, the second bundle must contain only the remaining 40 nodes (60..100)
         // so that the third bundle lines back up at node 100 (`SYSTEM_REGION_START + 100`).
         let single_node_bundle = encode_nodes_to_ctbnbdl_bytes(&nodes[..1])?;
-        let header_len = CTBNBDL_MAGIC.len() + DCMM_HEADER.len();
-        let bytes_per_node = single_node_bundle.len() - header_len;
+        let two_node_bundle = encode_nodes_to_ctbnbdl_bytes(&nodes[..2])?;
+        let bytes_per_node = two_node_bundle.len() - single_node_bundle.len();
+        let header_len = single_node_bundle.len() - bytes_per_node;
         let max_bytes_for_60_nodes = header_len + bytes_per_node * 60;
 
         let split_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(

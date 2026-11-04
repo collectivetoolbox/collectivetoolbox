@@ -124,9 +124,26 @@ pub(crate) fn scan(
         policy
     };
     let mut arena = DcSyntaxArena::new();
-    let session_stub = navigator
+    let mut initial_warnings = Vec::new();
+    let first_stub = navigator
         .next_sibling_stub(scan_policy)?
         .context("Session header is incomplete")?;
+    let session_stub = if first_stub.head_dc
+        == dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID
+    {
+        ensure!(
+            !first_stub.is_unclosed(),
+            "System graph watermark header is incomplete"
+        );
+        navigator.expand_frame(&first_stub, &mut arena, policy)?;
+        retain_recovery_diagnostics(&arena, policy, &mut initial_warnings);
+        arena.clear();
+        navigator
+            .next_sibling_stub(scan_policy)?
+            .context("Session header is incomplete")?
+    } else {
+        first_stub
+    };
     ensure!(
         session_stub.head_dc == dc::DC_BEGIN_OPERATION_SESSION
             && !session_stub.is_unclosed(),
@@ -147,7 +164,7 @@ pub(crate) fn scan(
         session,
         members: Vec::new(),
         errors: Vec::new(),
-        warnings: Vec::new(),
+        warnings: initial_warnings,
         sequence: 0,
         completed: false,
         valid_length: session_stub.outer_span.end,

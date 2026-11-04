@@ -32,10 +32,11 @@ use super::{
     CtbnbdlFramingDcs, LedgerNode, MAX_BYTES_PER_BUNDLE, MAX_NODES_PER_BUNDLE,
     MAX_NODES_PER_CHUNK, SYSTEM_REGION_START,
     decode_nodes_from_ctbnbdl_bytes_with,
-    encode_nodes_to_ctbnbdl_bundles_with_limits, format_chunk_bundle_filename,
-    format_chunk_filename, highwater_shadow_dirs, list_chunk_files,
-    load_ledger_nodes_from_dir_raw, load_ledger_nodes_from_str,
-    parse_chunk_filename_start_id, partition_active_and_inactive_nodes_with,
+    encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark,
+    format_chunk_bundle_filename, format_chunk_filename, highwater_shadow_dirs,
+    list_chunk_files, load_ledger_nodes_from_dir_raw,
+    load_ledger_nodes_from_str, parse_chunk_filename_start_id,
+    partition_active_and_inactive_nodes_with,
     verify_nodes_append_only_against_baseline, write_chunk_file_append_only,
     write_ctbnbdl_bundles_to_dir,
 };
@@ -862,15 +863,18 @@ pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
     graph_dir: &Path,
     framing: CtbnbdlFramingDcs,
 ) -> Result<(BTreeMap<String, String>, BTreeMap<String, String>)> {
+    let watermark_node_id = nodes.iter().map(|n| n.id).max();
     let (active_nodes, inactive_nodes) =
         partition_active_and_inactive_nodes_with(nodes, framing);
 
-    let active_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
-        &active_nodes,
-        framing,
-        MAX_NODES_PER_BUNDLE,
-        MAX_BYTES_PER_BUNDLE,
-    )?;
+    let active_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark(
+            &active_nodes,
+            framing,
+            MAX_NODES_PER_BUNDLE,
+            MAX_BYTES_PER_BUNDLE,
+            watermark_node_id,
+        )?;
     write_ctbnbdl_bundles_to_dir(graph_dir, &active_bundles, false)?;
     for (first_id, _) in &active_bundles {
         let filename = format_chunk_bundle_filename(*first_id);
@@ -878,12 +882,14 @@ pub fn compile_nodes_slice_to_ctbnbdl_with_write_guard(
     }
     fsync_dir(graph_dir)?;
 
-    let inactive_bundles = encode_nodes_to_ctbnbdl_bundles_with_limits(
-        &inactive_nodes,
-        framing,
-        MAX_NODES_PER_BUNDLE,
-        MAX_BYTES_PER_BUNDLE,
-    )?;
+    let inactive_bundles =
+        encode_nodes_to_ctbnbdl_bundles_with_limits_and_watermark(
+            &inactive_nodes,
+            framing,
+            MAX_NODES_PER_BUNDLE,
+            MAX_BYTES_PER_BUNDLE,
+            watermark_node_id,
+        )?;
     let system_history_dir = graph_dir.join("system");
     write_ctbnbdl_bundles_to_dir(&system_history_dir, &inactive_bundles, true)?;
     for (first_id, _) in &inactive_bundles {
@@ -2379,6 +2385,7 @@ where
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+    use super::super::encode_nodes_to_ctbnbdl_bundles_with_limits;
     use super::*;
     use crate::ctbnbdl::load_ledger_nodes_from_dir;
     use std::sync::atomic::{AtomicUsize, Ordering};

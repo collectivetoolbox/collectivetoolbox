@@ -28,7 +28,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::Result;
-use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
+use ctb_formats_dcdata::dc::{
+    DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, SHORT_DC_REGION_START,
+};
 use ctb_formats_dcdata::syntax::SyntaxRuleResolver;
 use ctb_formats_eite::transform::DocumentTransformation;
 use ctb_formats_utilities::FormatLog;
@@ -97,10 +99,30 @@ pub fn apply_dc_transformation(
     let mut out = DcMstring::new();
     let mut log = FormatLog::default();
 
+    if transformation == SupportedDcTransformation::AddSystemGraphWatermark {
+        let already_has_watermark = matches!(
+            doc.chunks().next(),
+            Some(DcMixedChunk::Text(first_text))
+                if first_text.chars().next()
+                    == Some(DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID)
+        );
+        if already_has_watermark {
+            return Ok((doc.to_owned(), log));
+        }
+        out.push_system_graph_watermark()?;
+        for chunk in doc.chunks() {
+            out.push_chunk(&chunk)?;
+        }
+        return Ok((out, log));
+    }
+
     for chunk in doc.chunks() {
         if let DcMixedChunk::Text(text) = chunk {
             let dclist = text.to_dclist();
             let transformed_dclist = match transformation {
+                SupportedDcTransformation::AddSystemGraphWatermark => {
+                    dclist
+                }
                 SupportedDcTransformation::UnicodeToShortDc => {
                     transform_dclist_unicode_to_short_dc(&dclist, &mut log)
                 }
@@ -190,5 +212,43 @@ mod tests {
         assert!(log.get_warnings()[0].contains("short Dc 50"));
         assert!(log.get_warnings()[3].contains("U+26BD U+FE0F"));
         assert!(log.get_warnings()[3].contains("short Dc 283"));
+    }
+
+    #[crate::ctb_test]
+    fn test_add_system_graph_watermark_transformation() -> Result<()> {
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_u128(0x41));
+        doc.push_char(DcChar::from_u128(0x42));
+
+        let expected_wm =
+            ctb_formats_dcdata::seed_graph::current_system_block_most_recent_node_id()?;
+        let (stamped, log) = apply_dc_transformation(
+            &doc,
+            SupportedDcTransformation::AddSystemGraphWatermark,
+        )?;
+        assert!(!log.has_warnings());
+
+        let Some(DcMixedChunk::Text(first_text)) = stamped.chunks().next()
+        else {
+            panic!("Expected text chunk at start of stamped document");
+        };
+        let chars: Vec<DcChar> = first_text.chars().collect();
+        assert_eq!(
+            chars,
+            vec![
+                DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+                DcChar::from_u128(expected_wm),
+                DcChar::from_u128(0x41),
+                DcChar::from_u128(0x42),
+            ]
+        );
+
+        // Applying AddSystemGraphWatermark a second time must be idempotent
+        let (stamped_again, _) = apply_dc_transformation(
+            &stamped,
+            SupportedDcTransformation::AddSystemGraphWatermark,
+        )?;
+        assert_eq!(stamped_again.as_bytes(), stamped.as_bytes());
+        Ok(())
     }
 }

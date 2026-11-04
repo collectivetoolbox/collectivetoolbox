@@ -80,8 +80,8 @@ use crate::dc::{
 use crate::dc_def::{DcDefn, FormatDetails};
 use crate::format_spec::{DcToken, FormatExpr, decode_dc_stream};
 use crate::graph_ledger::{
-    LedgerNode, SeedEntityKey, decode_integer_value_tokens,
-    decode_nodes_from_ctbnbdl_bytes, decode_string_value_tokens,
+    LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
+    decode_integer_value_tokens, decode_string_value_tokens,
     format_chunk_bundle_filename, parse_chunk_bundle_filename_start_id,
     parse_for_each_statement_tokens, parse_statement_tokens,
     single_valued_property_set,
@@ -197,6 +197,9 @@ pub struct SeedGraphIndex {
     /// Active statement node IDs (`Dc 638` `"For each"`, `Dc 584` `"Has a"`, and `Dc 610` `"Has value"`)
     /// that assert `Dc 635` `"Collective Toolbox seed graph data source"`.
     pub(crate) provenance_stmt_ids: HashSet<u128>,
+    /// Highest allocated node ID in the System block at the time the graph bundle was created
+    /// (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
+    pub(crate) system_block_most_recent_node_id: Option<u128>,
 }
 
 /// Parses a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<cand_1> 312 l<cand_2> ... 311`)
@@ -272,6 +275,14 @@ pub fn compute_effective_inactive_ids(
     (inactive_ids, superseded_by, retracted_by)
 }
 
+/// Returns the highest allocated node ID in the System block from the shared runtime seed graph.
+pub fn current_system_block_most_recent_node_id() -> Result<u128> {
+    let index = SeedGraphIndex::shared()?;
+    index
+        .system_block_most_recent_node_id()
+        .context("System block seed graph has no allocated node IDs")
+}
+
 impl SeedGraphIndex {
     /// Returns the lazily loaded process-wide `SeedGraphIndex` from the runtime asset bundle.
     pub fn shared() -> Result<&'static Arc<Self>> {
@@ -290,7 +301,7 @@ impl SeedGraphIndex {
     /// `data/graph/85899_34592.ctbnbdl`) from the runtime asset bundle (`ctoolbox.rsrc`)
     /// and indexes all active statements, seed entities, and value nodes.
     pub fn load_from_asset_bundle() -> Result<Self> {
-        let active_nodes = Self::load_nodes_from_asset_dir(
+        let (active_watermark, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
             Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
@@ -304,7 +315,15 @@ impl SeedGraphIndex {
                 first.id
             );
         }
-        Ok(Self::from_nodes(active_nodes))
+        let mut index = Self::from_nodes(active_nodes);
+        if let Some(wm) = active_watermark {
+            index.system_block_most_recent_node_id = Some(
+                index
+                    .system_block_most_recent_node_id
+                    .map_or(wm, |cur| cur.max(wm)),
+            );
+        }
+        Ok(index)
     }
 
     /// Loads both active `data/graph/*.ctbnbdl` bundles (from `ctoolbox.rsrc`) and optional
@@ -312,20 +331,30 @@ impl SeedGraphIndex {
     /// if installed, or `assets/data/graph/system/` in dev mode), merging them in ascending
     /// node ID order and resolving all `Dc 591` (`Supersedes`) and `Dc 592` (`Retracts`) history.
     pub fn load_with_history_from_asset_bundle() -> Result<Self> {
-        let active_nodes = Self::load_nodes_from_asset_dir(
+        let (active_watermark, active_nodes) = Self::load_nodes_from_asset_dir(
             SEED_GRAPH_ASSET_GLOB,
             "data/graph",
             Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
             true,
         )?;
-        let history_nodes = Self::load_nodes_from_asset_dir(
-            SYSTEM_GRAPH_HISTORY_ASSET_GLOB,
-            "data/graph/system",
-            None,
-            false,
-        )?;
+        let (history_watermark, history_nodes) =
+            Self::load_nodes_from_asset_dir(
+                SYSTEM_GRAPH_HISTORY_ASSET_GLOB,
+                "data/graph/system",
+                None,
+                false,
+            )?;
+        let bundle_watermark = active_watermark.max(history_watermark);
         if history_nodes.is_empty() {
-            return Ok(Self::from_nodes(active_nodes));
+            let mut index = Self::from_nodes(active_nodes);
+            if let Some(wm) = bundle_watermark {
+                index.system_block_most_recent_node_id = Some(
+                    index
+                        .system_block_most_recent_node_id
+                        .map_or(wm, |cur| cur.max(wm)),
+                );
+            }
+            return Ok(index);
         }
 
         let mut merged = Vec::with_capacity(
@@ -350,7 +379,15 @@ impl SeedGraphIndex {
         merged.extend(a_iter);
         merged.extend(h_iter);
 
-        Ok(Self::from_nodes(merged))
+        let mut index = Self::from_nodes(merged);
+        if let Some(wm) = bundle_watermark {
+            index.system_block_most_recent_node_id = Some(
+                index
+                    .system_block_most_recent_node_id
+                    .map_or(wm, |cur| cur.max(wm)),
+            );
+        }
+        Ok(index)
     }
 
     fn load_nodes_from_asset_dir(
@@ -358,7 +395,7 @@ impl SeedGraphIndex {
         expected_parent_dir: &str,
         fallback_key: Option<&str>,
         require_non_empty: bool,
-    ) -> Result<Vec<LedgerNode>> {
+    ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
         let raw_paths = ctb_storage_asset_bundle::find_assets(glob_pattern)
             .with_context(|| {
                 format!(
@@ -384,7 +421,7 @@ impl SeedGraphIndex {
                     "No system graph .ctbnbdl bundles found in runtime asset bundle matching '{glob_pattern}'"
                 );
             }
-            return Ok(Vec::new());
+            return Ok((None, Vec::new()));
         }
 
         let mut keyed_paths: Vec<(u128, String)> =
@@ -411,6 +448,7 @@ impl SeedGraphIndex {
         keyed_paths.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
         let mut all_nodes: Vec<LedgerNode> = Vec::new();
+        let mut max_watermark: Option<u128> = None;
         for (expected_first_id, asset_path) in keyed_paths {
             let bytes = ctb_storage_asset_bundle::get_asset(&asset_path)
                 .with_context(|| {
@@ -418,10 +456,14 @@ impl SeedGraphIndex {
                         "Failed to read asset '{asset_path}' from runtime asset bundle"
                     )
                 })?;
-            let bundle_nodes = decode_nodes_from_ctbnbdl_bytes(&bytes)
-                .with_context(|| {
+            let (bundle_watermark, bundle_nodes) =
+                decode_ctbnbdl_bundle(&bytes).with_context(|| {
                     format!("Failed to decode .ctbnbdl bundle '{asset_path}'")
                 })?;
+            if let Some(wm) = bundle_watermark {
+                max_watermark =
+                    Some(max_watermark.map_or(wm, |cur| cur.max(wm)));
+            }
             let Some(first_node) = bundle_nodes.first() else {
                 bail!(
                     "Decoded .ctbnbdl bundle '{asset_path}' contains 0 nodes"
@@ -451,13 +493,21 @@ impl SeedGraphIndex {
             }
         }
 
-        Ok(all_nodes)
+        Ok((max_watermark, all_nodes))
     }
 
     /// Decodes a single `.ctbnbdl` byte slice and builds a `SeedGraphIndex`.
     pub fn from_ctbnbdl_bytes(bytes: &[u8]) -> Result<Self> {
-        let nodes = decode_nodes_from_ctbnbdl_bytes(bytes)?;
-        Ok(Self::from_nodes(nodes))
+        let (watermark, nodes) = decode_ctbnbdl_bundle(bytes)?;
+        let mut index = Self::from_nodes(nodes);
+        if let Some(wm) = watermark {
+            index.system_block_most_recent_node_id = Some(
+                index
+                    .system_block_most_recent_node_id
+                    .map_or(wm, |cur| cur.max(wm)),
+            );
+        }
+        Ok(index)
     }
 
     /// Builds a `SeedGraphIndex` from an ordered list of `LedgerNode`s using the default
@@ -973,6 +1023,8 @@ impl SeedGraphIndex {
             }
         }
 
+        let system_block_most_recent_node_id = nodes.iter().map(|n| n.id).max();
+
         Self {
             nodes,
             node_index_by_id,
@@ -999,7 +1051,15 @@ impl SeedGraphIndex {
             orphaned_stmt_ids,
             node_data_source,
             provenance_stmt_ids,
+            system_block_most_recent_node_id,
         }
+    }
+
+    /// Returns the highest allocated node ID in the System block at the time the graph bundle
+    /// was created (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
+    #[must_use]
+    pub fn system_block_most_recent_node_id(&self) -> Option<u128> {
+        self.system_block_most_recent_node_id
     }
 
     /// Returns the declared `Dc 635` (`"Collective Toolbox seed graph data source"`) token

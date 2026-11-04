@@ -380,6 +380,8 @@ pub const DC_FOR_EACH: DcChar = DcChar::from_short(638);
 pub const DC_THIS_ELEMENT: DcChar = DcChar::from_short(639);
 /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (Dc 640).
 pub const DC_TYPE_ATOM_DC: DcChar = DcChar::from_short(640);
+/// Records the highest allocated System node ID when the document was written. (Dc 641).
+pub const DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID: DcChar = DcChar::from_short(641);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

@@ -78,6 +78,7 @@ impl<W: Write> JournalWriter<W> {
         magic: JournalMagic,
     ) -> Result<Self> {
         let mut header = DcMstring::new();
+        header.push_system_graph_watermark()?;
         session.encode_dc_mixed(&mut header)?;
         ctb_formats_dcstring::validate_dc_mixed_strict(&header)?;
         writer.write_all(match magic {
@@ -656,6 +657,7 @@ mod tests {
             let mut writer =
                 JournalWriter::new(ShortOutput(Vec::new()), &session, profile)?;
             let mut header = DcMstring::new();
+            header.push_system_graph_watermark()?;
             session.encode_dc_mixed(&mut header)?;
             let mut expected = match profile {
                 JournalMagic::JournalV5 => {
@@ -709,6 +711,29 @@ mod tests {
             ensure!(
                 writer.finish()?.0 == expected,
                 "Magic {profile:?} changed the journal record layout"
+            );
+            let mstr = ctb_formats_dcstring::DcMstr::from_bytes(&expected[8..])?;
+            let Some(ctb_formats_dcstring::DcMixedChunk::Text(first_text)) =
+                mstr.chunks().next()
+            else {
+                bail!("Expected leading text chunk in journal/archive DcMixed2 stream");
+            };
+            let mut chars = first_text.chars();
+            ensure!(
+                chars.next()
+                    == Some(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID),
+                "Expected leading Dc 641 watermark in {profile:?} stream"
+            );
+            let expected_wm =
+                ctb_formats_dcdata::seed_graph::current_system_block_most_recent_node_id()?;
+            ensure!(
+                chars.next()
+                    == Some(ctb_formats_dcstring::DcChar::from_u128(expected_wm)),
+                "Expected leading System-block watermark node ID l{expected_wm} in {profile:?} stream"
+            );
+            ensure!(
+                chars.next() == Some(dc::DC_BEGIN_OPERATION_SESSION),
+                "Expected Dc 547 (Begin operation session) immediately after Dc 641 watermark"
             );
         }
         Ok(())
