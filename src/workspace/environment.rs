@@ -40,7 +40,7 @@ pub async fn capture() -> Result<EnvDescription> {
     if let Some(cached) = ctb_io_environment::get_boot_cached_env() {
         return Ok((*cached).clone());
     }
-    tokio::task::spawn_blocking(ctb_io_environment::capture)
+    tokio::task::spawn_blocking(|| (*ctb_io_environment::init_boot_env()).clone())
         .await
         .context("Environment capture worker panicked")
 }

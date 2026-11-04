@@ -586,13 +586,31 @@ fn try_download_from_override(url: &str) -> Result<Option<Vec<u8>>> {
     maybe_download.map(|download| download(url)).transpose()
 }
 
-fn download_text(url: &str) -> Result<String> {
+fn remaining_timeout(
+    budget: Option<(std::time::Instant, Duration)>,
+    url: &str,
+) -> Result<Option<Duration>> {
+    let Some((start, total)) = budget else {
+        return Ok(None);
+    };
+    let rem = total.saturating_sub(start.elapsed());
+    if rem.is_zero() {
+        anyhow::bail!("GET {url}: Request timed out after {total:?}");
+    }
+    Ok(Some(rem))
+}
+
+fn download_text(
+    url: &str,
+    budget: Option<(std::time::Instant, Duration)>,
+) -> Result<String> {
     if let Some(bytes) = try_download_from_override(url)? {
         return String::from_utf8(bytes)
             .context("Failed to decode CRLite test response body as UTF-8");
     }
 
-    let client = super::blocking_client_no_crlite()?;
+    let timeout = remaining_timeout(budget, url)?;
+    let client = super::blocking_client_no_crlite_with_timeout(timeout)?;
     let response = client
         .get_with_backoff(url, 3)
         .with_context(|| format!("GET {url}"))?;
@@ -605,12 +623,16 @@ fn download_text(url: &str) -> Result<String> {
     response.text()
 }
 
-fn download_bytes(url: &str) -> Result<Vec<u8>> {
+fn download_bytes(
+    url: &str,
+    budget: Option<(std::time::Instant, Duration)>,
+) -> Result<Vec<u8>> {
     if let Some(bytes) = try_download_from_override(url)? {
         return Ok(bytes);
     }
 
-    let client = super::blocking_client_no_crlite()?;
+    let timeout = remaining_timeout(budget, url)?;
+    let client = super::blocking_client_no_crlite_with_timeout(timeout)?;
     let response = client
         .get_with_backoff(url, 3)
         .with_context(|| format!("GET {url}"))?;
@@ -663,6 +685,7 @@ fn fetch_and_cache_artifact(
     source: &CRLiteSource,
     record: &CRLiteCollectionRecord,
     channel: &str,
+    budget: Option<(std::time::Instant, Duration)>,
 ) -> Result<CRLiteArtifact> {
     let artifact = artifact_from_record(record, channel);
     let cache_dir = get_crlite_cache_dir()?;
@@ -683,7 +706,7 @@ fn fetch_and_cache_artifact(
         &source.attachments_base_url,
         &record.attachment.location,
     );
-    let bytes = download_bytes(&url)?;
+    let bytes = download_bytes(&url, budget)?;
     let computed_hash = bin2hex(Sha256::digest(&bytes));
     ensure!(
         computed_hash == record.attachment.hash,
@@ -707,8 +730,17 @@ fn fetch_and_cache_artifact(
 }
 
 pub fn refresh_crlite_cache_sync() -> Result<CRLiteCacheManifest> {
+    refresh_crlite_cache_with_budget(Some((
+        std::time::Instant::now(),
+        super::STARTUP_REQUEST_TIMEOUT,
+    )))
+}
+
+fn refresh_crlite_cache_with_budget(
+    budget: Option<(std::time::Instant, Duration)>,
+) -> Result<CRLiteCacheManifest> {
     let source = resolve_crlite_source();
-    let collection_json = download_text(&source.collection_url)?;
+    let collection_json = download_text(&source.collection_url, budget)?;
     let response: CRLiteCollectionResponse =
         serde_json::from_str(&collection_json)
             .context("Failed to parse CRLite collection response")?;
@@ -719,6 +751,7 @@ pub fn refresh_crlite_cache_sync() -> Result<CRLiteCacheManifest> {
         &source,
         &full_filter_record,
         DEFAULT_CRLITE_CHANNEL,
+        budget,
     )?;
     let mut deltas = Vec::with_capacity(delta_records.len());
     for record in &delta_records {
@@ -726,6 +759,7 @@ pub fn refresh_crlite_cache_sync() -> Result<CRLiteCacheManifest> {
             &source,
             record,
             DEFAULT_CRLITE_CHANNEL,
+            budget,
         )?);
     }
 
@@ -749,6 +783,9 @@ pub fn refresh_crlite_cache_sync() -> Result<CRLiteCacheManifest> {
 
 static CORRUPTION_REFRESH_ATTEMPTS: Mutex<Vec<SystemTime>> =
     Mutex::new(Vec::new());
+
+static LAST_FAILED_REFRESH: Mutex<Option<(std::time::Instant, String)>> =
+    Mutex::new(None);
 
 pub fn should_rate_limit_refresh() -> bool {
     let mut guard = match CORRUPTION_REFRESH_ATTEMPTS.lock() {
@@ -790,6 +827,15 @@ pub fn record_refresh_time() {
 static CRLITE_REFRESH_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
 
 pub fn ensure_crlite_cache_ready_sync() -> Result<CRLiteCacheManifest> {
+    ensure_crlite_cache_ready_with_timeout(Some(super::STARTUP_REQUEST_TIMEOUT))
+}
+
+pub fn ensure_crlite_cache_ready_with_timeout(
+    timeout: Option<Duration>,
+) -> Result<CRLiteCacheManifest> {
+    let start = std::time::Instant::now();
+    let budget = timeout.map(|t| (start, t));
+
     if crate::invocation_settings::get_settings().insecure_skip_crlite_check {
         if let Some(manifest) = load_crlite_manifest()? {
             return Ok(manifest);
@@ -833,6 +879,18 @@ pub fn ensure_crlite_cache_ready_sync() -> Result<CRLiteCacheManifest> {
         }
     }
 
+    if !crate::testing::is_in_test() {
+        let guard = match LAST_FAILED_REFRESH.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        if let Some((failed_at, ref msg)) = *guard {
+            if failed_at.elapsed() < super::STARTUP_REQUEST_TIMEOUT {
+                return Err(anyhow::anyhow!("{msg}"));
+            }
+        }
+    }
+
     if is_corrupted && should_rate_limit_refresh() {
         return Err(anyhow::anyhow!(
             "CRLite cache is corrupted or missing, and refresh is rate-limited"
@@ -843,7 +901,28 @@ pub fn ensure_crlite_cache_ready_sync() -> Result<CRLiteCacheManifest> {
         record_refresh_time();
     }
 
-    refresh_crlite_cache_sync()
+    match refresh_crlite_cache_with_budget(budget) {
+        Ok(manifest) => {
+            if !crate::testing::is_in_test() {
+                let mut guard = match LAST_FAILED_REFRESH.lock() {
+                    Ok(g) => g,
+                    Err(p) => p.into_inner(),
+                };
+                *guard = None;
+            }
+            Ok(manifest)
+        }
+        Err(err) => {
+            if !crate::testing::is_in_test() {
+                let mut guard = match LAST_FAILED_REFRESH.lock() {
+                    Ok(g) => g,
+                    Err(p) => p.into_inner(),
+                };
+                *guard = Some((std::time::Instant::now(), format!("{err:#}")));
+            }
+            Err(err)
+        }
+    }
 }
 
 fn parse_crlite_timestamp_entries(
@@ -1883,6 +1962,18 @@ mod tests {
             builder.build::<CRLiteQuery>(coverage, ()).into();
 
         clubcard.to_bytes().unwrap()
+    }
+
+    #[crate::ctb_test]
+    fn test_ensure_crlite_cache_ready_respects_zero_timeout() {
+        let err = super::ensure_crlite_cache_ready_with_timeout(Some(
+            std::time::Duration::ZERO,
+        ))
+        .expect_err("Zero timeout budget must fail immediately");
+        assert!(
+            err.to_string().contains("timed out"),
+            "Expected timeout error, got: {err:#}"
+        );
     }
 }
 

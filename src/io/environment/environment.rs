@@ -300,7 +300,51 @@ pub fn cached_local_ipv6_u128() -> u128 {
     cached_local_ipv6().map(u128::from).unwrap_or(0)
 }
 
+fn compute_clock_offset_nanos(
+    server_nanos: u128,
+    t0: u128,
+    t1: u128,
+) -> Result<i128> {
+    let rtt = t1.saturating_sub(t0);
+    // Reason for fallback: dividing by non-zero constant 2 cannot fail, default to zero on overflow
+    let half_rtt = rtt.checked_div(2).unwrap_or(0);
+    let client_est = t0.saturating_add(half_rtt);
+
+    let client_i128 = i128::try_from(client_est)
+        .context("Client timestamp exceeds i128 range")?;
+    let server_i128 = i128::try_from(server_nanos)
+        .context("Server timestamp exceeds i128 range")?;
+
+    let diff = client_i128
+        .checked_sub(server_i128)
+        .context("Clock difference arithmetic overflow")?;
+
+    Ok(diff)
+}
+
+fn maybe_cache_clock_offset(server_nanos: u128, t0: u128, t1: u128) {
+    if let Ok(lock) = CACHED_SERVER_TIME_OFFSET_NANOS.read() {
+        if lock.is_some() {
+            return;
+        }
+    }
+    if let Ok(offset) = compute_clock_offset_nanos(server_nanos, t0, t1) {
+        if let Ok(mut lock) = CACHED_SERVER_TIME_OFFSET_NANOS.write() {
+            if lock.is_none() {
+                *lock = Some(offset);
+            }
+        }
+    }
+}
+
 fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
+    query_ip_endpoint_with_timeout(url, crate::https::STARTUP_REQUEST_TIMEOUT)
+}
+
+fn query_ip_endpoint_with_timeout(
+    url: &str,
+    timeout: Duration,
+) -> Result<(IpAddr, u128, u128, u128)> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         bail!("Invalid endpoint URL scheme: {url}");
     }
@@ -323,6 +367,13 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
         bail!("Remote IP discovery requires a download override in tests");
     }
 
+    if timeout.is_zero() {
+        bail!(
+            "GET {url}: Request timed out after {:?}",
+            crate::https::STARTUP_REQUEST_TIMEOUT
+        );
+    }
+
     let url_string = url.to_string();
     let test_name = crate::testing::try_get_current_test_name();
     let test_storage_dir = crate::testing::try_get_test_storage_dir();
@@ -333,8 +384,8 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
                 *storage.borrow_mut() = test_storage_dir;
             });
             let options = crate::https::ClientOptions {
-                connect_timeout: Some(Duration::from_secs(3)),
-                timeout: Some(Duration::from_secs(5)),
+                connect_timeout: Some(timeout.min(Duration::from_secs(3))),
+                timeout: Some(timeout),
                 user_agent: None,
             };
             let client = crate::https::blocking_client(options)?;
@@ -358,9 +409,15 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
 
 /// Discover public IPv4 address by querying the default server IPv4 endpoint.
 pub fn public_ipv4() -> Result<Ipv4Addr> {
+    public_ipv4_with_timeout(crate::https::STARTUP_REQUEST_TIMEOUT)
+}
+
+fn public_ipv4_with_timeout(timeout: Duration) -> Result<Ipv4Addr> {
     let domain = crate::branding::default_domain();
     let url = format!("https://ipv4.{domain}/api/ip");
-    let (ip, _, _, _) = query_ip_endpoint(&url)?;
+    let (ip, server_nanos, t0, t1) =
+        query_ip_endpoint_with_timeout(&url, timeout)?;
+    maybe_cache_clock_offset(server_nanos, t0, t1);
     match ip {
         IpAddr::V4(ipv4) => Ok(ipv4),
         IpAddr::V6(_) => bail!("Expected IPv4 address from server, got IPv6"),
@@ -369,9 +426,15 @@ pub fn public_ipv4() -> Result<Ipv4Addr> {
 
 /// Discover public IPv6 address by querying the default server IPv6 endpoint.
 pub fn public_ipv6() -> Result<Ipv6Addr> {
+    public_ipv6_with_timeout(crate::https::STARTUP_REQUEST_TIMEOUT)
+}
+
+fn public_ipv6_with_timeout(timeout: Duration) -> Result<Ipv6Addr> {
     let domain = crate::branding::default_domain();
     let url = format!("https://ipv6.{domain}/api/ip");
-    let (ip, _, _, _) = query_ip_endpoint(&url)?;
+    let (ip, server_nanos, t0, t1) =
+        query_ip_endpoint_with_timeout(&url, timeout)?;
+    maybe_cache_clock_offset(server_nanos, t0, t1);
     match ip {
         IpAddr::V6(ipv6) => Ok(ipv6),
         IpAddr::V4(_) => bail!("Expected IPv6 address from server, got IPv4"),
@@ -380,12 +443,16 @@ pub fn public_ipv6() -> Result<Ipv6Addr> {
 
 /// Return cached public IPv4 address, discovering if not cached.
 pub fn cached_public_ipv4() -> Result<Ipv4Addr> {
+    cached_public_ipv4_with_timeout(crate::https::STARTUP_REQUEST_TIMEOUT)
+}
+
+fn cached_public_ipv4_with_timeout(timeout: Duration) -> Result<Ipv4Addr> {
     if let Ok(lock) = CACHED_PUBLIC_IPV4.read() {
         if let Some(ip) = *lock {
             return Ok(ip);
         }
     }
-    let ip = public_ipv4()?;
+    let ip = public_ipv4_with_timeout(timeout)?;
     if let Ok(mut lock) = CACHED_PUBLIC_IPV4.write() {
         *lock = Some(ip);
     }
@@ -394,12 +461,16 @@ pub fn cached_public_ipv4() -> Result<Ipv4Addr> {
 
 /// Return cached public IPv6 address, discovering if not cached.
 pub fn cached_public_ipv6() -> Result<Ipv6Addr> {
+    cached_public_ipv6_with_timeout(crate::https::STARTUP_REQUEST_TIMEOUT)
+}
+
+fn cached_public_ipv6_with_timeout(timeout: Duration) -> Result<Ipv6Addr> {
     if let Ok(lock) = CACHED_PUBLIC_IPV6.read() {
         if let Some(ip) = *lock {
             return Ok(ip);
         }
     }
-    let ip = public_ipv6()?;
+    let ip = public_ipv6_with_timeout(timeout)?;
     if let Ok(mut lock) = CACHED_PUBLIC_IPV6.write() {
         *lock = Some(ip);
     }
@@ -424,36 +495,38 @@ pub fn cached_public_ipv6_u128() -> u128 {
 /// Positive value indicates client's clock is ahead of server's clock;
 /// negative value indicates client's clock is behind server's clock.
 pub fn server_system_time_offset_nanos() -> Result<i128> {
+    server_system_time_offset_nanos_with_timeout(
+        crate::https::STARTUP_REQUEST_TIMEOUT,
+    )
+}
+
+fn server_system_time_offset_nanos_with_timeout(
+    timeout: Duration,
+) -> Result<i128> {
     let domain = crate::branding::default_domain();
     let url = format!("https://{domain}/api/ip");
-    let (_, server_nanos, t0, t1) = query_ip_endpoint(&url)?;
-
-    let rtt = t1.saturating_sub(t0);
-    // Reason for fallback: dividing by non-zero constant 2 cannot fail, default to zero on overflow
-    let half_rtt = rtt.checked_div(2).unwrap_or(0);
-    let client_est = t0.saturating_add(half_rtt);
-
-    let client_i128 = i128::try_from(client_est)
-        .context("Client timestamp exceeds i128 range")?;
-    let server_i128 = i128::try_from(server_nanos)
-        .context("Server timestamp exceeds i128 range")?;
-
-    let diff = client_i128
-        .checked_sub(server_i128)
-        .context("Clock difference arithmetic overflow")?;
-
-    Ok(diff)
+    let (_, server_nanos, t0, t1) =
+        query_ip_endpoint_with_timeout(&url, timeout)?;
+    compute_clock_offset_nanos(server_nanos, t0, t1)
 }
 
 /// Return cached server system time offset in nanoseconds, discovering if not
 /// already cached.
 pub fn cached_server_system_time_offset_nanos() -> Result<i128> {
+    cached_server_system_time_offset_nanos_with_timeout(
+        crate::https::STARTUP_REQUEST_TIMEOUT,
+    )
+}
+
+fn cached_server_system_time_offset_nanos_with_timeout(
+    timeout: Duration,
+) -> Result<i128> {
     if let Ok(lock) = CACHED_SERVER_TIME_OFFSET_NANOS.read() {
         if let Some(offset) = *lock {
             return Ok(offset);
         }
     }
-    let offset = server_system_time_offset_nanos()?;
+    let offset = server_system_time_offset_nanos_with_timeout(timeout)?;
     if let Ok(mut lock) = CACHED_SERVER_TIME_OFFSET_NANOS.write() {
         *lock = Some(offset);
     }
@@ -478,6 +551,7 @@ pub fn env_cache_reset() {
     if let Ok(mut lock) = CACHED_SERVER_TIME_OFFSET_NANOS.write() {
         *lock = None;
     }
+    reset_boot_cached_env();
 
     init_boot_env();
 }
@@ -1266,18 +1340,41 @@ impl EnvDescription {
         }
         desc.local_ips = local_ips;
 
+        let start = std::time::Instant::now();
+        let budget = crate::https::STARTUP_REQUEST_TIMEOUT;
+        let test_name = crate::testing::try_get_current_test_name();
+        let test_storage_dir = crate::testing::try_get_test_storage_dir();
+        let (v4_res, v6_res) = std::thread::scope(|s| {
+            let v6_handle = s.spawn(move || {
+                let _test_scope =
+                    crate::testing::push_current_test_name(test_name);
+                crate::testing::TEST_STORAGE_DIR_SYNC.with(|storage| {
+                    *storage.borrow_mut() = test_storage_dir;
+                });
+                cached_public_ipv6_with_timeout(budget)
+            });
+            let v4 = cached_public_ipv4_with_timeout(budget);
+            let v6 = v6_handle
+                .join()
+                .map_err(|_| anyhow::anyhow!("IPv6 discovery thread panicked"))
+                .and_then(std::convert::identity);
+            (v4, v6)
+        });
+
         let mut public_ips = Vec::new();
-        match cached_public_ipv4() {
+        match v4_res {
             Ok(v4) => public_ips.push(IpAddr::V4(v4)),
             Err(error) => warn_fmt!("Public IPv4 discovery failed: {error:#}"),
         }
-        match cached_public_ipv6() {
+        match v6_res {
             Ok(v6) => public_ips.push(IpAddr::V6(v6)),
             Err(error) => warn_fmt!("Public IPv6 discovery failed: {error:#}"),
         }
         desc.public_ips = public_ips;
+        let remaining = budget.saturating_sub(start.elapsed());
         desc.server_system_time_offset_nanos =
-            match cached_server_system_time_offset_nanos() {
+            match cached_server_system_time_offset_nanos_with_timeout(remaining)
+            {
                 Ok(offset) => Some(offset),
                 Err(error) => {
                     warn_fmt!(
@@ -1324,10 +1421,22 @@ pub fn capture() -> EnvDescription {
 }
 
 static BOOT_CACHED_ENV: RwLock<Option<Arc<EnvDescription>>> = RwLock::new(None);
+static BOOT_ENV_INIT_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Initializes and caches the startup boot environment using a full (slow)
 /// environment capture.
 pub fn init_boot_env() -> Arc<EnvDescription> {
+    if let Some(cached) = get_boot_cached_env() {
+        return cached;
+    }
+    // Reason for fallback: poisoned lock error retains mutex guard so concurrent boot environment initializations still serialize
+    let _init_guard = BOOT_ENV_INIT_MUTEX.lock().unwrap_or_else(|error| {
+        warn!("Recovering poisoned boot environment init mutex");
+        error.into_inner()
+    });
+    if let Some(cached) = get_boot_cached_env() {
+        return cached;
+    }
     let env = Arc::new(EnvDescription::capture());
     // Reason for fallback: poisoned lock error retains inner cache data so startup boot environment remains accessible across threads
     let mut lock = BOOT_CACHED_ENV.write().unwrap_or_else(|error| {
@@ -2298,5 +2407,35 @@ mod tests {
         assert_eq!(caps.display_server, None);
         let summary = detection::format_environment_summary(&ident, &caps);
         assert_eq!(summary, "Unknown OS [Headless]");
+    }
+
+    #[crate::ctb_test]
+    fn test_maybe_cache_clock_offset_and_zero_timeout() {
+        let _lock = ENV_TEST_MUTEX
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let prev = CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap().take();
+
+        maybe_cache_clock_offset(1_000_000_000, 1_000_000_100, 1_000_000_300);
+        let cached = cached_server_system_time_offset_nanos()
+            .expect("cached clock offset should be returned without network query");
+        assert_eq!(cached, 200);
+
+        *CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap() = None;
+        let _override =
+            ctb_utilities::https::crlite::set_test_download_override(|_url| {
+                anyhow::bail!("simulated offline")
+            });
+        let err = query_ip_endpoint_with_timeout(
+            "https://ipv4.collectivetoolbox.com/api/ip",
+            Duration::ZERO,
+        )
+        .expect_err("zero timeout budget must fail immediately");
+        assert!(
+            err.to_string().contains("timed out"),
+            "Expected timeout error, got: {err:#}"
+        );
+
+        *CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap() = prev;
     }
 }

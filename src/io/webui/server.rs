@@ -389,8 +389,32 @@ pub fn start_webui_server() -> u16 {
     }
 
     let url = format!("{protocol}://{domain}:{port}");
+    let probe_ip = if is_zero_ip {
+        Some(Ipv4Addr::LOCALHOST)
+    } else {
+        bind_to_ip.parse::<Ipv4Addr>().ok()
+    };
 
     tokio::task::spawn_blocking(move || {
+        // Wait for the TCP listener to bind before issuing an HTTP request so we
+        // do not trigger HTTP client retry backoff while templates are compiling.
+        if let Some(ip) = probe_ip {
+            let sock_addr = std::net::SocketAddr::from((ip, port));
+            let mut tcp_tries: u32 = 0;
+            while std::net::TcpStream::connect_timeout(
+                &sock_addr,
+                Duration::from_millis(100),
+            )
+            .is_err()
+            {
+                tcp_tries = tcp_tries.saturating_add(1);
+                if tcp_tries >= 250 {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+
         // Request the URL in a loop until successful, to open the browser once the server is ready
         let mut tries: u32 = 0;
         loop {
@@ -403,7 +427,10 @@ pub fn start_webui_server() -> u16 {
                 break;
             }
 
-            let response = https::blocking_get_response(&url);
+            let response = https::blocking_client_no_crlite_with_timeout(Some(
+                Duration::from_secs(1),
+            ))
+            .and_then(|client| client.get_with_backoff(&url, 0));
             log!("Waiting for web UI server to be ready...");
             match response {
                 Ok(resp) => {
@@ -416,7 +443,7 @@ pub fn start_webui_server() -> u16 {
                     // Server not ready yet
                 }
             }
-            std::thread::sleep(Duration::from_millis(100));
+            std::thread::sleep(Duration::from_millis(50));
         }
 
         let result = webbrowser::open(url.as_str());

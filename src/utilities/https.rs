@@ -142,6 +142,12 @@ pub fn blocking_client(options: ClientOptions) -> Result<BlockingClient> {
 }
 
 pub fn blocking_client_no_crlite() -> Result<BlockingClient> {
+    blocking_client_no_crlite_with_timeout(None)
+}
+
+pub fn blocking_client_no_crlite_with_timeout(
+    timeout: Option<Duration>,
+) -> Result<BlockingClient> {
     static CACHE: std::sync::OnceLock<Result<BlockingClient, String>> =
         std::sync::OnceLock::new();
     let client_res = CACHE.get_or_init(|| {
@@ -150,6 +156,7 @@ pub fn blocking_client_no_crlite() -> Result<BlockingClient> {
                 format!("Failed to build TLS config without CRLite: {e:#}")
             })?;
             let client = reqwest::blocking::Client::builder()
+                .connect_timeout(STARTUP_CONNECT_TIMEOUT)
                 .use_preconfigured_tls(tls)
                 .build()
                 .map_err(|e| {
@@ -170,7 +177,11 @@ pub fn blocking_client_no_crlite() -> Result<BlockingClient> {
     });
 
     match client_res {
-        Ok(client) => Ok(client.clone()),
+        Ok(client) => {
+            let mut cloned = client.clone();
+            cloned.timeout = timeout;
+            Ok(cloned)
+        }
         Err(e) => Err(anyhow::anyhow!("{e}")),
     }
 }
@@ -197,7 +208,11 @@ pub fn blocking_get_response_with_headers(
 }
 
 impl AsyncClient {
-    async fn ensure_crlite_ready(&self, url: &str) -> Result<()> {
+    async fn ensure_crlite_ready(
+        &self,
+        url: &str,
+        start: std::time::Instant,
+    ) -> Result<()> {
         if self.skip_crlite_ready_check {
             return Ok(());
         }
@@ -208,9 +223,22 @@ impl AsyncClient {
         {
             return Ok(());
         }
-        crate::spawn_blocking_with_current_test_name(
-            crlite::ensure_crlite_cache_ready_sync,
-        )
+        let remaining = match self.timeout {
+            Some(timeout) => {
+                let rem = timeout.saturating_sub(start.elapsed());
+                if rem.is_zero() {
+                    bail!(
+                        "Request to {url} timed out after {:?}",
+                        self.timeout
+                    );
+                }
+                Some(rem)
+            }
+            None => Some(STARTUP_REQUEST_TIMEOUT),
+        };
+        crate::spawn_blocking_with_current_test_name(move || {
+            crlite::ensure_crlite_cache_ready_with_timeout(remaining)
+        })
         .await
         .context("CRLite ready check task panicked")?
         .context("Failed to ensure CRLite cache is ready")?;
@@ -218,11 +246,11 @@ impl AsyncClient {
     }
 
     pub async fn get(&self, url: &str) -> Result<AsyncResponse> {
-        self.ensure_crlite_ready(url).await?;
+        let start = std::time::Instant::now();
+        self.ensure_crlite_ready(url, start).await?;
         ensure_network_allowed_in_tests(url)?;
         let retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
-        let start = std::time::Instant::now();
         let mut attempt = 0;
         loop {
             let elapsed = start.elapsed();
@@ -275,11 +303,11 @@ impl AsyncClient {
         body: Vec<u8>,
         headers: Option<reqwest::header::HeaderMap>,
     ) -> Result<AsyncResponse> {
-        self.ensure_crlite_ready(url).await?;
+        let start = std::time::Instant::now();
+        self.ensure_crlite_ready(url, start).await?;
         ensure_network_allowed_in_tests(url)?;
         let retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
-        let start = std::time::Instant::now();
         let mut attempt = 0;
         loop {
             let elapsed = start.elapsed();
@@ -335,12 +363,12 @@ impl AsyncClient {
         url: &str,
         retry_count: usize,
     ) -> Result<AsyncResponse> {
-        self.ensure_crlite_ready(url).await?;
+        let start = std::time::Instant::now();
+        self.ensure_crlite_ready(url, start).await?;
         ensure_network_allowed_in_tests(url)?;
         let host_retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
-        let start = std::time::Instant::now();
         let mut attempt = 0;
         loop {
             let elapsed = start.elapsed();
@@ -428,7 +456,11 @@ impl AsyncResponse {
 }
 
 impl BlockingClient {
-    fn ensure_crlite_ready(&self, url: &str) -> Result<()> {
+    fn ensure_crlite_ready(
+        &self,
+        url: &str,
+        start: std::time::Instant,
+    ) -> Result<()> {
         if self.skip_crlite_ready_check {
             return Ok(());
         }
@@ -439,63 +471,75 @@ impl BlockingClient {
         {
             return Ok(());
         }
-        crlite::ensure_crlite_cache_ready_sync()
+        let remaining = match self.timeout {
+            Some(timeout) => {
+                let rem = timeout.saturating_sub(start.elapsed());
+                if rem.is_zero() {
+                    bail!(
+                        "Request to {url} timed out after {:?}",
+                        self.timeout
+                    );
+                }
+                Some(rem)
+            }
+            None => Some(STARTUP_REQUEST_TIMEOUT),
+        };
+        crlite::ensure_crlite_cache_ready_with_timeout(remaining)
             .context("Failed to ensure CRLite cache is ready")?;
         Ok(())
     }
 
-    pub fn get(&self, url: &str) -> Result<BlockingResponse> {
-        self.ensure_crlite_ready(url)?;
-        ensure_network_allowed_in_tests(url)?;
-        let retry_limit =
-            invocation_settings::get_settings().retry_on_host_error;
-        let start = std::time::Instant::now();
-        let mut attempt = 0;
-        loop {
-            let res = self.inner.get(url).send();
-            match res {
-                Ok(resp) => return Ok(BlockingResponse { inner: resp }),
-                Err(err) => {
-                    if is_transient_error(&err) && attempt < retry_limit {
-                        attempt = attempt.saturating_add(1);
-                        if let Some(delay) =
-                            sleep_delay_bounded(attempt, start, self.timeout)
-                        {
-                            std::thread::sleep(delay);
-                            continue;
-                        }
-                    }
-                    return Err(anyhow::Error::from(err)
-                        .context(format!("Failed to GET {url}")));
-                }
-            }
-        }
-    }
-
-    pub fn get_with_backoff(
+    fn send_get(
         &self,
         url: &str,
-        retry_count: usize,
+        headers: Option<reqwest::header::HeaderMap>,
+        status_retry_count: usize,
+        retry_on_server_error: bool,
     ) -> Result<BlockingResponse> {
-        self.ensure_crlite_ready(url)?;
+        let start = std::time::Instant::now();
+        self.ensure_crlite_ready(url, start)?;
         ensure_network_allowed_in_tests(url)?;
         let host_retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
-        let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
-        let start = std::time::Instant::now();
+        let max_host_retries = if retry_on_server_error {
+            std::cmp::max(status_retry_count, host_retry_limit)
+        } else {
+            host_retry_limit
+        };
         let mut attempt = 0;
         loop {
-            let res = self.inner.get(url).send();
+            let elapsed = start.elapsed();
+            let remaining = self.timeout.map(|t| t.saturating_sub(elapsed));
+            if let Some(rem) = remaining {
+                if rem.is_zero() {
+                    bail!(
+                        "Request to {url} timed out after {:?}",
+                        self.timeout
+                    );
+                }
+            }
+            let mut req = self.inner.get(url);
+            if let Some(ref h) = headers {
+                req = req.headers(h.clone());
+            }
+            if let Some(rem) = remaining {
+                req = req.timeout(rem);
+            }
+            let res = req.send();
             match res {
                 Ok(resp) => {
-                    let status = resp.status();
-                    if status.is_server_error() && attempt < retry_count {
-                        attempt = attempt.saturating_add(1);
-                        if let Some(delay) =
-                            sleep_delay_bounded(attempt, start, self.timeout)
+                    if retry_on_server_error {
+                        let status = resp.status();
+                        if status.is_server_error()
+                            && attempt < status_retry_count
                         {
-                            std::thread::sleep(delay);
-                            continue;
+                            attempt = attempt.saturating_add(1);
+                            if let Some(delay) =
+                                sleep_delay_bounded(attempt, start, self.timeout)
+                            {
+                                std::thread::sleep(delay);
+                                continue;
+                            }
                         }
                     }
                     return Ok(BlockingResponse { inner: resp });
@@ -517,40 +561,24 @@ impl BlockingClient {
         }
     }
 
+    pub fn get(&self, url: &str) -> Result<BlockingResponse> {
+        self.send_get(url, None, 0, false)
+    }
+
+    pub fn get_with_backoff(
+        &self,
+        url: &str,
+        retry_count: usize,
+    ) -> Result<BlockingResponse> {
+        self.send_get(url, None, retry_count, true)
+    }
+
     pub fn get_with_headers(
         &self,
         url: &str,
         headers: Option<reqwest::header::HeaderMap>,
     ) -> Result<BlockingResponse> {
-        self.ensure_crlite_ready(url)?;
-        ensure_network_allowed_in_tests(url)?;
-        let retry_limit =
-            invocation_settings::get_settings().retry_on_host_error;
-        let start = std::time::Instant::now();
-        let mut attempt = 0;
-        loop {
-            let mut req = self.inner.get(url);
-            if let Some(ref h) = headers {
-                req = req.headers(h.clone());
-            }
-            let res = req.send();
-            match res {
-                Ok(resp) => return Ok(BlockingResponse { inner: resp }),
-                Err(err) => {
-                    if is_transient_error(&err) && attempt < retry_limit {
-                        attempt = attempt.saturating_add(1);
-                        if let Some(delay) =
-                            sleep_delay_bounded(attempt, start, self.timeout)
-                        {
-                            std::thread::sleep(delay);
-                            continue;
-                        }
-                    }
-                    return Err(anyhow::Error::from(err)
-                        .context(format!("Failed to GET {url}")));
-                }
-            }
-        }
+        self.send_get(url, headers, 0, false)
     }
 
     pub fn get_with_headers_and_backoff(
@@ -559,48 +587,7 @@ impl BlockingClient {
         headers: Option<reqwest::header::HeaderMap>,
         retry_count: usize,
     ) -> Result<BlockingResponse> {
-        self.ensure_crlite_ready(url)?;
-        ensure_network_allowed_in_tests(url)?;
-        let host_retry_limit =
-            invocation_settings::get_settings().retry_on_host_error;
-        let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
-        let start = std::time::Instant::now();
-        let mut attempt = 0;
-        loop {
-            let mut req = self.inner.get(url);
-            if let Some(ref h) = headers {
-                req = req.headers(h.clone());
-            }
-            let res = req.send();
-            match res {
-                Ok(resp) => {
-                    let status = resp.status();
-                    if status.is_server_error() && attempt < retry_count {
-                        attempt = attempt.saturating_add(1);
-                        if let Some(delay) =
-                            sleep_delay_bounded(attempt, start, self.timeout)
-                        {
-                            std::thread::sleep(delay);
-                            continue;
-                        }
-                    }
-                    return Ok(BlockingResponse { inner: resp });
-                }
-                Err(err) => {
-                    if is_transient_error(&err) && attempt < max_host_retries {
-                        attempt = attempt.saturating_add(1);
-                        if let Some(delay) =
-                            sleep_delay_bounded(attempt, start, self.timeout)
-                        {
-                            std::thread::sleep(delay);
-                            continue;
-                        }
-                    }
-                    return Err(anyhow::Error::from(err)
-                        .context(format!("Failed to GET {url}")));
-                }
-            }
-        }
+        self.send_get(url, headers, retry_count, true)
     }
 }
 

@@ -541,7 +541,7 @@ pub fn spawn_update_checker(server_url: String) -> Result<()> {
 }
 
 /// Timeout for the startup update check in seconds.
-const STARTUP_CHECK_TIMEOUT_SECS: u64 = 15;
+const STARTUP_CHECK_TIMEOUT_SECS: u64 = 5;
 
 /// Result of the startup update check.
 #[derive(Debug)]
@@ -557,25 +557,12 @@ pub enum StartupUpdateResult {
     Error(String),
 }
 
-/// Checks for a pending downloaded update at startup and applies it if ready.
+/// Checks if a previously downloaded update is ready on disk and starts the
+/// atomic upgrade if found.
 ///
-/// This function:
-/// 1. Checks if there's a `PendingUpdate` record indicating a fully downloaded
-///    update
-/// 2. If found, starts the atomic upgrade process
-/// 3. If not found, quickly checks for updates (with a 15-second timeout)
-/// 4. Returns immediately if the timeout is exceeded
-///
-/// This should be called early in workspace startup. If `UpgradeStarted` is
-/// returned, the process should exit to allow the canary upgrade to proceed.
-///
-/// # Returns
-/// - `NoPendingUpdate`: No update ready, continue startup
-/// - `UpgradeStarted`: Upgrade initiated, should exit
-/// - `TimedOut`: Check took too long, continue startup
-/// - `Error`: Something went wrong (logged, continue startup)
-pub async fn check_startup_update() -> StartupUpdateResult {
-    // First, check for an already-downloaded pending update
+/// This is a purely local check with no network I/O so it can run before the
+/// UI opens.
+pub fn apply_pending_startup_update() -> StartupUpdateResult {
     match PendingUpdate::load() {
         Ok(Some(pending)) => {
             log_fmt!(
@@ -611,19 +598,18 @@ pub async fn check_startup_update() -> StartupUpdateResult {
             // rest)
             let _ = PendingUpdate::clear();
 
-            return StartupUpdateResult::UpgradeStarted;
+            StartupUpdateResult::UpgradeStarted
         }
-        Ok(None) => {
-            // No pending update, continue to quick check
-        }
+        Ok(None) => StartupUpdateResult::NoPendingUpdate,
         Err(e) => {
             warn_fmt!("Error loading pending update record: {e}");
-            // Continue to quick check anyway
+            StartupUpdateResult::NoPendingUpdate
         }
     }
+}
 
-    // No pending update - do a quick check with timeout
-    // This is a fast "is there an update available?" check, not a full download
+/// Runs the bounded network startup update check (without downloading).
+pub async fn check_startup_network_update() -> StartupUpdateResult {
     let check_future = async { quick_update_check().await };
 
     if let Ok(result) = timeout(
@@ -636,6 +622,32 @@ pub async fn check_startup_update() -> StartupUpdateResult {
     } else {
         log!("Startup update check timed out, continuing startup");
         StartupUpdateResult::TimedOut
+    }
+}
+
+/// Checks for a pending downloaded update at startup and applies it if ready.
+///
+/// This function:
+/// 1. Checks if there's a `PendingUpdate` record indicating a fully downloaded
+///    update
+/// 2. If found, starts the atomic upgrade process
+/// 3. If not found, quickly checks for updates (with a 5-second timeout)
+/// 4. Returns immediately if the timeout is exceeded
+///
+/// This should be called early in workspace startup. If `UpgradeStarted` is
+/// returned, the process should exit to allow the canary upgrade to proceed.
+///
+/// # Returns
+/// - `NoPendingUpdate`: No update ready, continue startup
+/// - `UpgradeStarted`: Upgrade initiated, should exit
+/// - `TimedOut`: Check took too long, continue startup
+/// - `Error`: Something went wrong (logged, continue startup)
+pub async fn check_startup_update() -> StartupUpdateResult {
+    match apply_pending_startup_update() {
+        StartupUpdateResult::NoPendingUpdate => {
+            check_startup_network_update().await
+        }
+        other => other,
     }
 }
 

@@ -225,15 +225,11 @@ impl Workspace for CtbWorkspace {
             rt.socket_path()
         );
 
-        tokio::task::spawn_blocking(ctb_io_environment::init_boot_env)
-            .await
-            .context("Startup environment capture worker panicked")?;
-
         if self.args().no_update {
             log!("Skipping update checks due to --no-update");
         } else {
-            // Check for pending updates at startup (with 15-second timeout)
-            match update_status::check_startup_update().await {
+            // Check for an already-downloaded pending update on disk before opening the UI.
+            match update_status::apply_pending_startup_update() {
                 update_status::StartupUpdateResult::UpgradeStarted => {
                     // Upgrade process was initiated - we need to exit
                     info!(
@@ -241,15 +237,10 @@ impl Workspace for CtbWorkspace {
                     );
                     std::process::exit(0);
                 }
-                update_status::StartupUpdateResult::NoPendingUpdate => {
-                    // No pending update, continue normally
-                }
-                update_status::StartupUpdateResult::TimedOut => {
-                    // Check timed out, continue normally
-                    log!("Startup update check timed out, continuing startup");
-                }
+                update_status::StartupUpdateResult::NoPendingUpdate
+                | update_status::StartupUpdateResult::TimedOut => {}
                 update_status::StartupUpdateResult::Error(e) => {
-                    warn_fmt!("Startup update check failed: {e}");
+                    warn_fmt!("Startup pending update check failed: {e}");
                 }
             }
         }
@@ -272,18 +263,6 @@ impl Workspace for CtbWorkspace {
             });
         }) {
             warn_fmt!("Failed to set ctrlc handler: {e:#}");
-        }
-
-        // Spawn background update checker
-        if !self.args().no_update {
-            // Reason for fallback: unconfigured server URL setting uses default official server URL
-            let server_url = pc_settings::get_str_setting(
-                pc_settings::PcSettingStrKey::ServerUrl,
-            )
-            .unwrap_or_else(default_url);
-            if let Err(e) = update_status::spawn_update_checker(server_url) {
-                warn_fmt!("Failed to start background update checker: {e:#}");
-            }
         }
 
         Ok(())
@@ -311,6 +290,40 @@ impl Workspace for CtbWorkspace {
         // let _renderer = ipc!(renderer)?;
 
         ipc!(io).start_local_webui().await?;
+
+        // Capture the full boot environment and run network update checks in
+        // the background after the local Web UI is already up.
+        drop(tokio::task::spawn_blocking(
+            ctb_io_environment::init_boot_env,
+        ));
+
+        if !self.args().no_update {
+            // Reason for fallback: unconfigured server URL setting uses default official server URL
+            let server_url = pc_settings::get_str_setting(
+                pc_settings::PcSettingStrKey::ServerUrl,
+            )
+            .unwrap_or_else(default_url);
+            drop(tokio::spawn(async move {
+                match update_status::check_startup_network_update().await {
+                    update_status::StartupUpdateResult::NoPendingUpdate
+                    | update_status::StartupUpdateResult::UpgradeStarted => {}
+                    update_status::StartupUpdateResult::TimedOut => {
+                        log!(
+                            "Startup update check timed out, continuing startup"
+                        );
+                    }
+                    update_status::StartupUpdateResult::Error(e) => {
+                        warn_fmt!("Startup update check failed: {e}");
+                    }
+                }
+                if let Err(e) = update_status::spawn_update_checker(server_url)
+                {
+                    warn_fmt!(
+                        "Failed to start background update checker: {e:#}"
+                    );
+                }
+            }));
+        }
 
         /* Example calls. A bit outdated. Leave here for now.
         print(strtovec(
