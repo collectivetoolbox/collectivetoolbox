@@ -86,29 +86,31 @@ use crate::dc::{
     DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
     DC_CHARACTER_SCRIPT, DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE,
-    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
+    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE, DC_DATA_BYTE_LENGTH,
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
     DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT,
     DC_END_ASSOCIATIVITY_GROUP, DC_END_GRAPH_NODE_DEFINITION, DC_END_LIST,
     DC_END_NUMBER, DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
-    DC_FOR_EACH, DC_FORMAL_ALIAS, DC_FORMAT_VARIATION_ASPECT,
-    DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
-    DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A, DC_HAS_VALUE,
-    DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
-    DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
-    DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_LIST_ELEMENT_SEPARATOR,
-    DC_MAGIC_SIGNATURE, DC_MANUAL_ENTRY, DC_NEGATED_PATTERN, DC_NICKNAME,
+    DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FOR_EACH, DC_FORMAL_ALIAS,
+    DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
+    DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
+    DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS,
+    DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR,
+    DC_IS_DEPRECATED, DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF,
+    DC_LIST_ELEMENT_SEPARATOR, DC_MAGIC_SIGNATURE, DC_MANUAL_ENTRY,
+    DC_NEGATED_PATTERN, DC_NEGATIVE, DC_NICKNAME, DC_OPTIONAL_ABSENT,
     DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION,
     DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
-    DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
-    DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
-    DC_START_ENCAPSULATION_BINARY, DC_SUBPATTERN_MATCH, DC_SUPERSEDES,
-    DC_SUPPORT_COMPLETE, DC_SUPPORT_LOSSLESS_ROUNDTRIP,
-    DC_SUPPORT_LOSSLESS_STRICT_VALIDATION, DC_SUPPORT_NOT_APPLICABLE,
-    DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS, DC_SYNTAX_RULE,
-    DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_UNICODE_SCRIPT, DcChar,
+    DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT,
+    DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE,
+    DC_SEMANTIC_DECOMPOSITION, DC_START_ENCAPSULATION_BINARY,
+    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
+    DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
+    DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_TYPE_NUMBER,
+    DC_TYPE_ROUTINE, DC_TYPE_UNION, DC_UNICODE_SCRIPT, DC_VALUE_RANGE, DcChar,
 };
 use crate::dc_def::DcDefn;
 use crate::dc_number_minimal::u128_to_dc_number_chars;
@@ -410,6 +412,155 @@ pub fn decode_integer_value_tokens(tokens: &[DcShorthand]) -> Option<u128> {
     Some(val)
 }
 
+/// Exact integer endpoint value used in `Dc 643 "Range"` numeric subtype bounds
+/// (`0..=u128::MAX`, negative `-u128`, or `2^128`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumericBoundValue {
+    /// Non-negative integer bound in `0..=u128::MAX`.
+    Unsigned(u128),
+    /// Strictly negative integer bound (`-abs_val`).
+    Negative(u128),
+    /// Exact value `2^128` (`340282366920938463463374607431768211456`).
+    TwoPow128,
+}
+
+impl NumericBoundValue {
+    /// Parses a DSL numeric bound expression (such as `"0"`, `"8"`, `"(2^8)"`, `"(-2^7)"`, or `"(2^128)"`).
+    pub fn parse_dsl_bound(raw: &str) -> Result<Self> {
+        let trimmed = raw.trim();
+        let inner = trimmed
+            .strip_prefix('(')
+            .and_then(|s| s.strip_suffix(')'))
+            .map_or(trimmed, str::trim);
+        if inner == "2^128" {
+            return Ok(Self::TwoPow128);
+        }
+        if let Some(exp_str) = inner.strip_prefix("2^") {
+            let exp: u32 = exp_str.trim().parse().with_context(|| {
+                format!("Invalid power-of-two exponent in numeric bound '{raw}'")
+            })?;
+            let val = 1u128.checked_shl(exp).with_context(|| {
+                format!("Power-of-two bound '2^{exp}' overflows u128")
+            })?;
+            return Ok(Self::Unsigned(val));
+        }
+        if let Some(exp_str) = inner.strip_prefix("-2^") {
+            let exp: u32 = exp_str.trim().parse().with_context(|| {
+                format!("Invalid negative power-of-two exponent in numeric bound '{raw}'")
+            })?;
+            let abs_val = 1u128.checked_shl(exp).with_context(|| {
+                format!("Negative power-of-two bound '-2^{exp}' overflows u128")
+            })?;
+            return Ok(Self::Negative(abs_val));
+        }
+        if let Some(abs_str) = inner.strip_prefix('-') {
+            let abs_val: u128 = abs_str.trim().parse().with_context(|| {
+                format!("Invalid negative integer bound '{raw}'")
+            })?;
+            return Ok(Self::Negative(abs_val));
+        }
+        let val: u128 = inner.parse().with_context(|| {
+            format!("Invalid unsigned integer bound '{raw}'")
+        })?;
+        Ok(Self::Unsigned(val))
+    }
+
+    /// Encodes this bound into a canonical `Dc 6 "Begin number" f199 ... Dc 7 "End number"` token sequence.
+    #[must_use]
+    pub fn encode_tokens(self) -> Vec<DcShorthand> {
+        match self {
+            Self::Unsigned(val) => encode_integer_value_tokens(val),
+            Self::Negative(abs_val) => {
+                let mut toks = encode_integer_value_tokens(abs_val);
+                toks.insert(2, sh(DC_NEGATIVE));
+                toks
+            }
+            Self::TwoPow128 => {
+                // 2^128 = 4 * 64^21 -> Base64 digit 4 (Short 131) followed by twenty-one 0 digits (Short 127).
+                let mut toks = Vec::with_capacity(25);
+                toks.push(sh(DC_BEGIN_NUMBER));
+                toks.push(sh(DC_INTEGER));
+                toks.push(DcShorthand::Short(131));
+                for _ in 0..21 {
+                    toks.push(DcShorthand::Short(127));
+                }
+                toks.push(sh(DC_END_NUMBER));
+                toks
+            }
+        }
+    }
+
+    /// Decodes a canonical `Dc 6 "Begin number" f199 ... Dc 7 "End number"` token sequence into a `NumericBoundValue`.
+    #[must_use]
+    pub fn decode_tokens(tokens: &[DcShorthand]) -> Option<Self> {
+        if let Some(val) = decode_integer_value_tokens(tokens) {
+            return Some(Self::Unsigned(val));
+        }
+        if tokens.len() >= 5
+            && tokens.first() == Some(&sh(DC_BEGIN_NUMBER))
+            && tokens.get(1) == Some(&sh(DC_INTEGER))
+            && tokens.get(2) == Some(&sh(DC_NEGATIVE))
+            && tokens.last() == Some(&sh(DC_END_NUMBER))
+        {
+            let mut unsigned_tokens = Vec::with_capacity(tokens.len().saturating_sub(1));
+            unsigned_tokens.push(sh(DC_BEGIN_NUMBER));
+            unsigned_tokens.push(sh(DC_INTEGER));
+            if let Some(rest) = tokens.get(3..) {
+                unsigned_tokens.extend_from_slice(rest);
+            }
+            if let Some(abs_val) = decode_integer_value_tokens(&unsigned_tokens) {
+                return Some(Self::Negative(abs_val));
+            }
+        }
+        if tokens.len() == 25
+            && tokens.first() == Some(&sh(DC_BEGIN_NUMBER))
+            && tokens.get(1) == Some(&sh(DC_INTEGER))
+            && tokens.get(2) == Some(&DcShorthand::Short(131))
+            && tokens.last() == Some(&sh(DC_END_NUMBER))
+            && tokens
+                .get(3..24)
+                .is_some_and(|s| s.iter().all(|&t| t == DcShorthand::Short(127)))
+        {
+            return Some(Self::TwoPow128);
+        }
+        None
+    }
+
+    /// Returns the human-readable decimal label for `.ctbnodes` comments.
+    #[must_use]
+    pub fn summary_label(self) -> String {
+        match self {
+            Self::Unsigned(val) => val.to_string(),
+            Self::Negative(abs_val) => format!("-{abs_val}"),
+            Self::TwoPow128 => {
+                "340282366920938463463374607431768211456".to_string()
+            }
+        }
+    }
+
+    /// Formats this bound into canonical `[number:...]` DSL syntax (`0`, `8`, `(2^8)`, `(-2^7)`, `(2^128)`).
+    #[must_use]
+    pub fn format_dsl_bound(self) -> String {
+        match self {
+            Self::TwoPow128 => "(2^128)".to_string(),
+            Self::Unsigned(val) => {
+                if val >= 128 && val.is_power_of_two() {
+                    format!("(2^{})", val.trailing_zeros())
+                } else {
+                    val.to_string()
+                }
+            }
+            Self::Negative(abs_val) => {
+                if abs_val >= 128 && abs_val.is_power_of_two() {
+                    format!("(-2^{})", abs_val.trailing_zeros())
+                } else {
+                    format!("-{abs_val}")
+                }
+            }
+        }
+    }
+}
+
 fn as_printable_ascii(tok: DcShorthand) -> Option<char> {
     if let DcShorthand::Unicode(cp) = tok {
         if (0x20..=0x7E).contains(&cp) {
@@ -454,15 +605,21 @@ fn build_initial_token_labels(
     }
     // Ensure semantic relationship/pattern Dcs have labels even in small unit test fixtures
     let builtins: &[(DcChar, &str)] = &[
-        (DC_RANGE, "Range"),
+        (DC_RANGE, "!Range (deprecated)"),
         (DC_BEGIN_NUMBER, "Begin number"),
         (DC_END_NUMBER, "End number"),
+        (DC_NEGATIVE, "Negative"),
         (DC_INTEGER, "Integer number"),
         (DC_REFERENCE_NAMED_OBJECT, "Reference named object"),
+        (DC_TYPE_NUMBER, "Built-in type identifier: Number"),
         (DC_ROUTINE_INVOCATION, "Routine invocation"),
+        (DC_TYPE_ROUTINE, "Built-in type identifier: Routine"),
         (DC_BEGIN_ASSOCIATIVITY_GROUP, "Begin associativity group"),
         (DC_END_ASSOCIATIVITY_GROUP, "End associativity group"),
+        (DC_TYPE_UNION, "Type union"),
+        (DC_OPTIONAL_ABSENT, "Optional value absent"),
         (DC_BOOLEAN_TRUE, "Boolean true"),
+        (DC_REFERENCE_BOUND_VALUE, "Reference bound value"),
         (DC_ENTITY_TYPE, "Type"),
         (DC_REPLACEMENT, "Replacement"),
         (DC_PREFERRED, "Preferred"),
@@ -590,6 +747,9 @@ fn build_initial_token_labels(
             DC_TYPE_ATOM_DC,
             "Built-in type identifier: Atom Dc (unevaluated Document Character reference)",
         ),
+        (DC_DATA_BYTE_LENGTH, "Data byte length"),
+        (DC_VALUE_RANGE, "Range"),
+        (DC_EXCLUSIVE_RANGE_ENDPOINT, "Exclusive range endpoint"),
         (DC_BEGIN_LIST, "Begin list"),
         (DC_END_LIST, "End list"),
         (DC_LIST_ELEMENT_SEPARATOR, "List element separator"),
@@ -798,6 +958,16 @@ impl LedgerBuilder {
         for (&node_id, val) in &index.integer_by_node_id {
             token_labels.insert(DcShorthand::Long(node_id), val.to_string());
         }
+        for node in &index.nodes {
+            if !index.integer_by_node_id.contains_key(&node.id)
+                && let Some(bound) = NumericBoundValue::decode_tokens(&node.tokens)
+            {
+                token_labels.insert(
+                    DcShorthand::Long(node.id),
+                    bound.summary_label(),
+                );
+            }
+        }
         for (seed_key, &seed_id) in &index.seed_entity_ids {
             token_labels.insert(DcShorthand::Long(seed_id), seed_key.comment());
         }
@@ -1002,6 +1172,24 @@ impl LedgerBuilder {
                 }
                 continue;
             }
+            if tok == sh(DC_VALUE_RANGE)
+                && tokens.get(i.saturating_add(1)) == Some(&sh(DC_TYPE_ATOM_DC))
+            {
+                parts.push(self.describe_token(tok));
+                parts.push(self.describe_token(sh(DC_TYPE_ATOM_DC)));
+                i = i.saturating_add(2);
+                for _ in 0..2 {
+                    if let Some(&bound) = tokens.get(i) {
+                        if matches!(bound, DcShorthand::Unicode(_)) {
+                            parts.push(self.describe_token(bound));
+                            i = i.saturating_add(1);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                continue;
+            }
             if let Some(ch) = as_printable_ascii(tok) {
                 let mut text = String::new();
                 text.push(ch);
@@ -1172,7 +1360,8 @@ impl LedgerBuilder {
                 push_pattern_char_target(out, target);
             }
             SyntaxTerm::CharRange { start, end } => {
-                out.push(sh(DC_RANGE));
+                out.push(sh(DC_VALUE_RANGE));
+                out.push(sh(DC_TYPE_ATOM_DC));
                 push_pattern_char_target(out, start);
                 push_pattern_char_target(out, end);
             }
@@ -1229,14 +1418,14 @@ impl LedgerBuilder {
                     )?;
                     out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
                     out.push(sh(DC_SUBPATTERN_MATCH));
-                    out.push(DcShorthand::Long(construct_id));
                     if let Some(sub) = subtype {
-                        let sub_id = self.get_or_insert_value_node(
-                            encode_string_value_tokens(sub),
-                            format!("{sub:?}"),
+                        out.push(sh(DC_TYPE_UNION));
+                        out.push(DcShorthand::Long(construct_id));
+                        self.encode_named_construct_subtype_tokens(
+                            name, sub, out,
                         )?;
-                        out.push(sh(DC_HAS_A));
-                        out.push(DcShorthand::Long(sub_id));
+                    } else {
+                        out.push(DcShorthand::Long(construct_id));
                     }
                     if let Some(var) = capture_var {
                         let var_id = self.get_or_insert_value_node(
@@ -1265,8 +1454,10 @@ impl LedgerBuilder {
                 )?;
                 out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
                 out.push(sh(DC_PATTERN_REPETITION));
-                out.push(sh(DC_RANGE));
+                out.push(sh(DC_VALUE_RANGE));
+                out.push(DcShorthand::Format(200));
                 out.push(DcShorthand::Long(zero_id));
+                out.push(sh(DC_OPTIONAL_ABSENT));
                 out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
             }
             Quantifier::OneOrMore => {
@@ -1276,8 +1467,10 @@ impl LedgerBuilder {
                 )?;
                 out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
                 out.push(sh(DC_PATTERN_REPETITION));
-                out.push(sh(DC_RANGE));
+                out.push(sh(DC_VALUE_RANGE));
+                out.push(DcShorthand::Format(200));
                 out.push(DcShorthand::Long(one_id));
+                out.push(sh(DC_OPTIONAL_ABSENT));
                 out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
             }
             Quantifier::Optional => {
@@ -1291,7 +1484,8 @@ impl LedgerBuilder {
                 )?;
                 out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
                 out.push(sh(DC_PATTERN_REPETITION));
-                out.push(sh(DC_RANGE));
+                out.push(sh(DC_VALUE_RANGE));
+                out.push(DcShorthand::Format(200));
                 out.push(DcShorthand::Long(zero_id));
                 out.push(DcShorthand::Long(one_id));
                 out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
@@ -1305,7 +1499,8 @@ impl LedgerBuilder {
                 )?;
                 out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
                 out.push(sh(DC_PATTERN_REPETITION));
-                out.push(sh(DC_RANGE));
+                out.push(sh(DC_VALUE_RANGE));
+                out.push(DcShorthand::Format(200));
                 out.push(DcShorthand::Long(min_id));
                 if let Some(max_val) = max {
                     // Reason for fallback: usize quantifier bounds always fit in u128 on all targets.
@@ -1315,8 +1510,233 @@ impl LedgerBuilder {
                         max_val.to_string(),
                     )?;
                     out.push(DcShorthand::Long(max_id));
+                } else {
+                    out.push(sh(DC_OPTIONAL_ABSENT));
                 }
                 out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
+            }
+        }
+        Ok(())
+    }
+
+    fn encode_named_construct_subtype_tokens(
+        &mut self,
+        name: &str,
+        sub: &str,
+        out: &mut Vec<DcShorthand>,
+    ) -> Result<()> {
+        let trimmed = sub.trim();
+        if let Some(var_name) = trimmed.strip_prefix('$') {
+            let var_id = self.get_or_insert_value_node(
+                encode_string_value_tokens(var_name),
+                format!("${var_name}"),
+            )?;
+            out.push(sh(DC_REFERENCE_BOUND_VALUE));
+            out.push(DcShorthand::Long(var_id));
+            return Ok(());
+        }
+        if name == "data" {
+            let (expected_fmt, expected_bytes) =
+                crate::syntax::parse_data_constraint(trimmed).with_context(
+                    || format!("Invalid [data:{trimmed}] subtype constraint"),
+                )?;
+            match (expected_fmt, expected_bytes) {
+                (Some(fmt), Some(bytes)) => {
+                    let fmt_sh = DcShorthand::parse(fmt).with_context(|| {
+                        format!("Invalid format shorthand '{fmt}' in [data:{trimmed}]")
+                    })?;
+                    // Reason for fallback: usize byte length fits in u128 on all targets.
+                    let bytes_u128 = u128::try_from(bytes).unwrap_or(0);
+                    let int_id = self.get_or_insert_value_node(
+                        encode_integer_value_tokens(bytes_u128),
+                        bytes.to_string(),
+                    )?;
+                    out.push(sh(DC_TYPE_UNION));
+                    out.push(fmt_sh);
+                    out.push(sh(DC_DATA_BYTE_LENGTH));
+                    out.push(DcShorthand::Long(int_id));
+                }
+                (None, Some(bytes)) => {
+                    // Reason for fallback: usize byte length fits in u128 on all targets.
+                    let bytes_u128 = u128::try_from(bytes).unwrap_or(0);
+                    let int_id = self.get_or_insert_value_node(
+                        encode_integer_value_tokens(bytes_u128),
+                        bytes.to_string(),
+                    )?;
+                    out.push(sh(DC_DATA_BYTE_LENGTH));
+                    out.push(DcShorthand::Long(int_id));
+                }
+                (Some(fmt), None) => {
+                    let fmt_sh = DcShorthand::parse(fmt).with_context(|| {
+                        format!("Invalid format shorthand '{fmt}' in [data:{trimmed}]")
+                    })?;
+                    out.push(fmt_sh);
+                }
+                (None, None) => {
+                    bail!("Empty [data:{trimmed}] constraint");
+                }
+            }
+            return Ok(());
+        }
+        if name == "number" {
+            return self.encode_number_subtype_tokens(trimmed, out);
+        }
+        if let Some((min_str, max_str)) = trimmed.split_once("..") {
+            let min_val: u128 = min_str.trim().parse().with_context(|| {
+                format!(
+                    "Invalid minimum length in [{name}:{trimmed}] range constraint"
+                )
+            })?;
+            let max_val: u128 = max_str.trim().parse().with_context(|| {
+                format!(
+                    "Invalid maximum length in [{name}:{trimmed}] range constraint"
+                )
+            })?;
+            let min_id = self.get_or_insert_value_node(
+                encode_integer_value_tokens(min_val),
+                min_val.to_string(),
+            )?;
+            let max_id = self.get_or_insert_value_node(
+                encode_integer_value_tokens(max_val),
+                max_val.to_string(),
+            )?;
+            out.push(sh(DC_VALUE_RANGE));
+            out.push(DcShorthand::Format(200));
+            out.push(DcShorthand::Long(min_id));
+            out.push(DcShorthand::Long(max_id));
+            return Ok(());
+        }
+        if trimmed == "Routine" {
+            out.push(sh(DC_TYPE_ROUTINE));
+            return Ok(());
+        }
+        if let Ok(shorthand) = DcShorthand::parse(trimmed)
+            && matches!(shorthand, DcShorthand::Format(_) | DcShorthand::Short(_))
+        {
+            out.push(shorthand);
+            return Ok(());
+        }
+        if (name == "list" || name.starts_with("list(") || name == "string")
+            && (trimmed.starts_with('(') || trimmed.starts_with('['))
+        {
+            let nested_rule = parse_dc_syntax(&format!(":{trimmed}"))
+                .with_context(|| {
+                    format!(
+                        "Failed to parse nested pattern subtype in [{name}:{trimmed}]"
+                    )
+                })?;
+            out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
+            self.encode_syntax_pattern_tokens(&nested_rule.pattern, out)?;
+            out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
+            return Ok(());
+        }
+        if name == "list" || name.starts_with("list(") {
+            if trimmed == "Semantic:fileflag" {
+                let script_id =
+                    self.ensure_seed_entity(&SeedEntityKey::Script(
+                        ".Semantic:fileflag".to_string(),
+                    ))?;
+                out.push(DcShorthand::Long(script_id));
+                return Ok(());
+            }
+            let elem_construct_id = self.ensure_seed_entity(
+                &SeedEntityKey::NamedConstruct(trimmed.to_string()),
+            )?;
+            out.push(DcShorthand::Long(elem_construct_id));
+            return Ok(());
+        }
+        if name == "format" || name == "type" || name == "typed_data" {
+            let script_name = if trimmed.starts_with('.') {
+                trimmed.to_string()
+            } else if trimmed.starts_with("Formats:") {
+                format!(".{trimmed}")
+            } else {
+                format!(".Formats:{trimmed}")
+            };
+            let script_id =
+                self.ensure_seed_entity(&SeedEntityKey::Script(script_name))?;
+            out.push(DcShorthand::Long(script_id));
+            return Ok(());
+        }
+        bail!("Unsupported structured subtype constraint '[{name}:{trimmed}]'")
+    }
+
+    fn encode_number_subtype_tokens(
+        &mut self,
+        sub: &str,
+        out: &mut Vec<DcShorthand>,
+    ) -> Result<()> {
+        if !sub.contains('&') && !sub.contains('<') && !sub.contains('>') {
+            let fmt_sh = match sub {
+                "Integer" | "f199" => DcShorthand::Format(199),
+                "Natural0" | "f200" => DcShorthand::Format(200),
+                "Natural1" | "f351" => DcShorthand::Format(351),
+                other => {
+                    let parsed = DcShorthand::parse(other).with_context(|| {
+                        format!("Unsupported [number:{other}] subtype")
+                    })?;
+                    ensure!(
+                        matches!(parsed, DcShorthand::Format(_)),
+                        "Expected Format shorthand in [number:{other}], found {parsed}"
+                    );
+                    parsed
+                }
+            };
+            out.push(fmt_sh);
+            return Ok(());
+        }
+
+        let mut domain_tok = sh(DC_TYPE_NUMBER);
+        let mut lower_bound: Option<(bool, NumericBoundValue)> = None;
+        let mut upper_bound: Option<(bool, NumericBoundValue)> = None;
+
+        for raw_part in sub.split('&') {
+            let part = raw_part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            if part == "Natural0" || part == "f200" {
+                domain_tok = DcShorthand::Format(200);
+            } else if part == "Natural1" || part == "f351" {
+                domain_tok = DcShorthand::Format(351);
+            } else if part == "Integer" || part == "f199" {
+                domain_tok = DcShorthand::Format(199);
+            } else if let Some(rest) = part.strip_prefix(">=") {
+                lower_bound =
+                    Some((false, NumericBoundValue::parse_dsl_bound(rest)?));
+            } else if let Some(rest) = part.strip_prefix('>') {
+                lower_bound =
+                    Some((true, NumericBoundValue::parse_dsl_bound(rest)?));
+            } else if let Some(rest) = part.strip_prefix("<=") {
+                upper_bound =
+                    Some((false, NumericBoundValue::parse_dsl_bound(rest)?));
+            } else if let Some(rest) = part.strip_prefix('<') {
+                upper_bound =
+                    Some((true, NumericBoundValue::parse_dsl_bound(rest)?));
+            } else {
+                bail!(
+                    "Unsupported clause '{part}' in [number:{sub}] subtype constraint"
+                );
+            }
+        }
+
+        out.push(sh(DC_VALUE_RANGE));
+        out.push(domain_tok);
+        for bound_opt in [lower_bound, upper_bound] {
+            match bound_opt {
+                None => {
+                    out.push(sh(DC_OPTIONAL_ABSENT));
+                }
+                Some((is_exclusive, bound_val)) => {
+                    if is_exclusive {
+                        out.push(sh(DC_EXCLUSIVE_RANGE_ENDPOINT));
+                    }
+                    let bound_id = self.get_or_insert_value_node(
+                        bound_val.encode_tokens(),
+                        bound_val.summary_label(),
+                    )?;
+                    out.push(DcShorthand::Long(bound_id));
+                }
             }
         }
         Ok(())
@@ -3208,6 +3628,57 @@ fn collect_named_constructs_from_pattern(
                             seed_entities.insert(
                                 SeedEntityKey::NamedConstruct(name.clone()),
                             );
+                            if let Some(sub) = subtype {
+                                let trimmed = sub.trim();
+                                if (name == "list"
+                                    || name.starts_with("list(")
+                                    || name == "string")
+                                    && (trimmed.starts_with('(')
+                                        || trimmed.starts_with('['))
+                                {
+                                    if let Ok(nested_rule) =
+                                        parse_dc_syntax(&format!(":{trimmed}"))
+                                    {
+                                        collect_named_constructs_from_pattern(
+                                            &nested_rule.pattern,
+                                            seed_entities,
+                                        );
+                                    }
+                                } else if name == "list"
+                                    || name.starts_with("list(")
+                                {
+                                    if trimmed == "Semantic:fileflag" {
+                                        insert_script_and_parents(
+                                            seed_entities,
+                                            ".Semantic:fileflag",
+                                        );
+                                    } else {
+                                        seed_entities.insert(
+                                            SeedEntityKey::NamedConstruct(
+                                                trimmed.to_string(),
+                                            ),
+                                        );
+                                    }
+                                } else if (name == "format"
+                                    || name == "type"
+                                    || name == "typed_data")
+                                    && !trimmed.starts_with('$')
+                                    && DcShorthand::parse(trimmed).is_err()
+                                {
+                                    let script_name = if trimmed.starts_with('.')
+                                    {
+                                        trimmed.to_string()
+                                    } else if trimmed.starts_with("Formats:") {
+                                        format!(".{trimmed}")
+                                    } else {
+                                        format!(".Formats:{trimmed}")
+                                    };
+                                    insert_script_and_parents(
+                                        seed_entities,
+                                        &script_name,
+                                    );
+                                }
+                            }
                         }
                     }
                     SyntaxTerm::Group(inner) => {

@@ -52,35 +52,36 @@ use crate::dc::{
     DC_CANONICAL_COMBINING_CLASS, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CASE_MAPPING_PARTNER, DC_CHARACTER_GENERAL_CATEGORY,
     DC_CHARACTER_SCRIPT, DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE,
-    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE,
+    DC_COMPATIBILITY_DECOMPOSITION, DC_CROSS_REFERENCE, DC_DATA_BYTE_LENGTH,
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
     DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT,
     DC_END_ASSOCIATIVITY_GROUP, DC_END_LIST, DC_ENTITY_TYPE, DC_ESCAPE,
-    DC_FORMAL_ALIAS, DC_FORMAT_PARAM_APPLICATION, DC_FORMAT_VARIATION_ASPECT,
-    DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
-    DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A, DC_HAS_VALUE,
-    DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
-    DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
-    DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
-    DC_NEGATED_PATTERN, DC_NICKNAME, DC_PATTERN_ALTERNATION,
-    DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION, DC_PATTERN_REPLACEMENT,
-    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
-    DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT, DC_RETRACTS,
-    DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE, DC_SEMANTIC_DECOMPOSITION,
-    DC_START_ENCAPSULATION_BINARY, DC_SUBPATTERN_MATCH, DC_SUPERSEDES,
-    DC_SUPPORT_COMPLETE, DC_SUPPORT_LOSSLESS_ROUNDTRIP,
-    DC_SUPPORT_LOSSLESS_STRICT_VALIDATION, DC_SUPPORT_NOT_APPLICABLE,
-    DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS, DC_SYNTAX_RULE,
-    DC_THIS_ELEMENT, DC_TYPE_CONVERSION, DC_TYPE_INTERSECTION,
+    DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS, DC_FORMAT_PARAM_APPLICATION,
+    DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
+    DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
+    DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS,
+    DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR,
+    DC_IS_DEPRECATED, DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
+    DC_NEGATED_PATTERN, DC_NICKNAME, DC_OPTIONAL_ABSENT,
+    DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION,
+    DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
+    DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT,
+    DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE,
+    DC_SEMANTIC_DECOMPOSITION, DC_START_ENCAPSULATION_BINARY,
+    DC_SUBPATTERN_MATCH, DC_SUPERSEDES, DC_SUPPORT_COMPLETE,
+    DC_SUPPORT_LOSSLESS_ROUNDTRIP, DC_SUPPORT_LOSSLESS_STRICT_VALIDATION,
+    DC_SUPPORT_NOT_APPLICABLE, DC_SUPPORT_PARTIAL, DC_SUPPORT_WORK_IN_PROGRESS,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ATOM_DC, DC_TYPE_CONVERSION,
+    DC_TYPE_INTERSECTION, DC_TYPE_NUMBER, DC_TYPE_ROUTINE,
     DC_TYPE_TRANSFORMATION, DC_TYPE_TRANSMUTATION, DC_TYPE_UNION,
-    DC_UNICODE_SCRIPT, DcChar,
+    DC_UNICODE_SCRIPT, DC_VALUE_RANGE, DcChar,
 };
 use crate::dc_def::{DcDefn, FormatDetails};
 use crate::format_spec::{DcToken, FormatExpr, decode_dc_stream};
 use crate::graph_ledger::{
-    LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
+    LedgerNode, NumericBoundValue, SeedEntityKey, decode_ctbnbdl_bundle,
     decode_integer_value_tokens, decode_string_value_tokens,
     format_chunk_bundle_filename, parse_chunk_bundle_filename_start_id,
     parse_for_each_statement_tokens, parse_statement_tokens,
@@ -2427,10 +2428,13 @@ impl SeedGraphIndex {
     ) -> Result<(SyntaxTerm, usize)> {
         let sh_self = sh(DC_SELF_REFERENCE);
         let sh_range = sh(DC_RANGE);
+        let sh_value_range = sh(DC_VALUE_RANGE);
+        let sh_atom_dc = sh(DC_TYPE_ATOM_DC);
         let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
         let sh_neg = sh(DC_NEGATED_PATTERN);
         let sh_alt = sh(DC_PATTERN_ALTERNATION);
         let sh_sub = sh(DC_SUBPATTERN_MATCH);
+        let sh_type_union = sh(DC_TYPE_UNION);
         let sh_has_a = sh(DC_HAS_A);
         let sh_capture = sh(DC_PATTERN_CAPTURE);
 
@@ -2440,6 +2444,21 @@ impl SeedGraphIndex {
 
         if tok == sh_self {
             return Ok((SyntaxTerm::SelfChar, idx.saturating_add(1)));
+        }
+
+        if tok == sh_value_range
+            && tokens.get(idx.saturating_add(1)) == Some(&sh_atom_dc)
+        {
+            let mut next_idx = idx.saturating_add(2);
+            let start = consume_pattern_char_target(tokens, &mut next_idx)
+                .context(
+                    "Missing start token after Range (Dc 643) AtomDc (Dc 640)",
+                )?;
+            let end = consume_pattern_char_target(tokens, &mut next_idx)
+                .context(
+                    "Missing end token after Range (Dc 643) AtomDc (Dc 640)",
+                )?;
+            return Ok((SyntaxTerm::CharRange { start, end }, next_idx));
         }
 
         if tok == sh_range {
@@ -2506,6 +2525,87 @@ impl SeedGraphIndex {
                 let target_tok = *inner.get(1).context(
                     "Missing target token after SubpatternMatch (605)",
                 )?;
+                if target_tok == sh_type_union {
+                    let construct_tok = *inner.get(2).context(
+                        "Missing construct token after TypeUnion (300) in SubpatternMatch (605)",
+                    )?;
+                    let DcShorthand::Long(seed_id) = construct_tok else {
+                        bail!(
+                            "Expected Long seed entity ID after TypeUnion (300) in SubpatternMatch (605), found {construct_tok}"
+                        );
+                    };
+                    let Some(SeedEntityKey::NamedConstruct(name)) =
+                        self.get_seed_entity(seed_id)
+                    else {
+                        bail!(
+                            "Expected NamedConstruct seed entity l{seed_id} in SubpatternMatch (605) TypeUnion (300)"
+                        );
+                    };
+                    let (constraint_tokens, rem) = if inner.get(3)
+                        == Some(&sh_open)
+                    {
+                        let group_close = find_matching_group_close(inner, 3)?
+                            .context(
+                                "Unclosed nested pattern group in NamedConstruct subtype",
+                            )?;
+                        let c_slice = inner
+                            .get(3..=group_close)
+                            .context("Invalid nested subtype group bounds")?;
+                        let r_slice = inner
+                            .get(group_close.saturating_add(1)..)
+                            .context("Invalid trailing subtype slice bounds")?;
+                        (c_slice, r_slice)
+                    } else if inner.len() >= 5
+                        && inner.get(inner.len().saturating_sub(2))
+                            == Some(&sh_capture)
+                    {
+                        let split_at = inner.len().saturating_sub(2);
+                        let c_slice = inner
+                            .get(3..split_at)
+                            .context("Invalid subtype token slice")?;
+                        let r_slice = inner
+                            .get(split_at..)
+                            .context("Invalid capture token slice")?;
+                        (c_slice, r_slice)
+                    } else {
+                        let c_slice = inner
+                            .get(3..)
+                            .context("Missing subtype constraint tokens")?;
+                        (c_slice, &[][..])
+                    };
+                    let sub_str = self.decode_named_construct_subtype_tokens(
+                        name,
+                        constraint_tokens,
+                    )?;
+                    let capture_var = if rem.is_empty() {
+                        None
+                    } else {
+                        ensure!(
+                            rem.len() == 2 && rem.first() == Some(&sh_capture),
+                            "Unexpected trailing tokens after NamedConstruct subtype: {rem:?}"
+                        );
+                        let var_tok = *rem.get(1).context(
+                            "Missing capture variable token after PatternCapture (606)",
+                        )?;
+                        let var_str = self
+                            .get_string(var_tok)
+                            .with_context(|| {
+                                format!(
+                                    "NamedConstruct capture variable token {var_tok} is not a string node"
+                                )
+                            })?
+                            .to_string();
+                        Some(var_str)
+                    };
+                    return Ok((
+                        SyntaxTerm::NamedConstruct {
+                            name: name.clone(),
+                            subtype: Some(sub_str),
+                            capture_var,
+                        },
+                        next_idx,
+                    ));
+                }
                 if let DcShorthand::Long(seed_id) = target_tok {
                     match self.get_seed_entity(seed_id) {
                         Some(SeedEntityKey::Script(script_name)) => {
@@ -2622,6 +2722,250 @@ impl SeedGraphIndex {
         Ok((SyntaxTerm::CharRef(target), next_idx))
     }
 
+    fn decode_named_construct_subtype_tokens(
+        &self,
+        name: &str,
+        tokens: &[DcShorthand],
+    ) -> Result<String> {
+        ensure!(
+            !tokens.is_empty(),
+            "Empty subtype constraint token slice for [{name}]"
+        );
+        let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
+        let sh_close = sh(DC_END_ASSOCIATIVITY_GROUP);
+        if tokens.first() == Some(&sh_open) {
+            ensure!(
+                tokens.last() == Some(&sh_close) && tokens.len() >= 2,
+                "Unbalanced group in [{name}] nested pattern subtype: {tokens:?}"
+            );
+            let inner = tokens
+                .get(1..tokens.len().saturating_sub(1))
+                .context("Invalid nested subtype slice")?;
+            let pat = self.decode_syntax_pattern_tokens(inner)?;
+            return Ok(pat.format_dsl());
+        }
+        if tokens.len() == 2
+            && tokens.first() == Some(&sh(DC_REFERENCE_BOUND_VALUE))
+        {
+            let var_tok = *tokens.get(1).context("Missing bound value token")?;
+            let var_name = self.get_string(var_tok).with_context(|| {
+                format!(
+                    "Bound variable token {var_tok} in [{name}] subtype is not a string node"
+                )
+            })?;
+            return Ok(format!("${var_name}"));
+        }
+        if name == "data" {
+            if tokens.len() == 2
+                && tokens.first() == Some(&sh(DC_DATA_BYTE_LENGTH))
+            {
+                let len_tok =
+                    *tokens.get(1).context("Missing DataByteLength value")?;
+                let bytes = self.get_integer(len_tok).with_context(|| {
+                    format!(
+                        "DataByteLength token {len_tok} in [data] subtype is not an integer node"
+                    )
+                })?;
+                return Ok(format!("bytes={bytes}"));
+            }
+            if tokens.len() == 4
+                && tokens.first() == Some(&sh(DC_TYPE_UNION))
+                && tokens.get(2) == Some(&sh(DC_DATA_BYTE_LENGTH))
+            {
+                let fmt_tok =
+                    *tokens.get(1).context("Missing format token in [data]")?;
+                let len_tok =
+                    *tokens.get(3).context("Missing DataByteLength value")?;
+                let bytes = self.get_integer(len_tok).with_context(|| {
+                    format!(
+                        "DataByteLength token {len_tok} in [data] subtype is not an integer node"
+                    )
+                })?;
+                return Ok(format!("{fmt_tok};bytes={bytes}"));
+            }
+            if let [single] = tokens {
+                return Ok(single.to_string());
+            }
+            bail!(
+                "Unsupported token sequence for [data:...] subtype: {tokens:?}"
+            );
+        }
+        if name == "number" {
+            return self.decode_number_subtype_tokens(tokens);
+        }
+        if tokens.len() == 4
+            && tokens.first() == Some(&sh(DC_VALUE_RANGE))
+            && tokens.get(1) == Some(&DcShorthand::Format(200))
+        {
+            let min_tok = *tokens.get(2).context("Missing range min token")?;
+            let max_tok = *tokens.get(3).context("Missing range max token")?;
+            let min_val = self.get_integer(min_tok).with_context(|| {
+                format!(
+                    "Range min token {min_tok} in [{name}] is not an integer node"
+                )
+            })?;
+            let max_val = self.get_integer(max_tok).with_context(|| {
+                format!(
+                    "Range max token {max_tok} in [{name}] is not an integer node"
+                )
+            })?;
+            return Ok(format!("{min_val}..{max_val}"));
+        }
+        if let [tok] = tokens {
+            if *tok == sh(DC_TYPE_ROUTINE) {
+                return Ok("Routine".to_string());
+            }
+            if let DcShorthand::Long(seed_id) = *tok {
+                match self.get_seed_entity(seed_id) {
+                    Some(SeedEntityKey::NamedConstruct(c)) => {
+                        return Ok(c.clone());
+                    }
+                    Some(SeedEntityKey::Script(s)) => {
+                        if name == "format"
+                            || name == "type"
+                            || name == "typed_data"
+                        {
+                            // Reason for fallback: scripts outside `.Formats:` strip only leading dot.
+                            return Ok(s
+                                .strip_prefix(".Formats:")
+                                .or_else(|| s.strip_prefix('.'))
+                                .unwrap_or(s)
+                                .to_string());
+                        }
+                        // Reason for fallback: scripts without leading dot are returned as-is.
+                        return Ok(s
+                            .strip_prefix('.')
+                            .unwrap_or(s)
+                            .to_string());
+                    }
+                    other => {
+                        bail!(
+                            "Unexpected seed entity {other:?} (l{seed_id}) in [{name}] subtype"
+                        );
+                    }
+                }
+            }
+            return Ok(tok.to_string());
+        }
+        bail!(
+            "Unsupported subtype constraint tokens for [{name}]: {tokens:?}"
+        )
+    }
+
+    fn decode_number_subtype_tokens(
+        &self,
+        tokens: &[DcShorthand],
+    ) -> Result<String> {
+        if let [single] = tokens {
+            return match *single {
+                DcShorthand::Format(199) => Ok("Integer".to_string()),
+                DcShorthand::Format(200) => Ok("Natural0".to_string()),
+                DcShorthand::Format(351) => Ok("Natural1".to_string()),
+                DcShorthand::Format(_) => Ok(single.to_string()),
+                other => bail!(
+                    "Unexpected single token {other} in [number:...] subtype"
+                ),
+            };
+        }
+        ensure!(
+            tokens.first() == Some(&sh(DC_VALUE_RANGE)) && tokens.len() >= 4,
+            "Expected Range (Dc 643) in [number:...] subtype tokens, found {tokens:?}"
+        );
+        let domain_tok = *tokens
+            .get(1)
+            .context("Missing domain type token in [number:...] Range (Dc 643)")?;
+        let mut idx = 2usize;
+        let lower_bound = self.consume_number_range_endpoint(tokens, &mut idx, true)?;
+        let upper_bound = self.consume_number_range_endpoint(tokens, &mut idx, false)?;
+        ensure!(
+            idx == tokens.len(),
+            "Unexpected trailing tokens in [number:...] Range (Dc 643): {tokens:?}"
+        );
+
+        let mut parts: Vec<String> = Vec::new();
+        match domain_tok {
+            DcShorthand::Format(200) => parts.push("Natural0".to_string()),
+            DcShorthand::Format(351) => parts.push("Natural1".to_string()),
+            DcShorthand::Format(199) => parts.push("Integer".to_string()),
+            tok if tok == sh(DC_TYPE_NUMBER) => {}
+            other => {
+                bail!(
+                    "Unexpected domain type token {other} in [number:...] Range (Dc 643)"
+                );
+            }
+        }
+        if let Some((op, val)) = lower_bound {
+            parts.push(format!("{op}{}", val.format_dsl_bound()));
+        }
+        if let Some((op, val)) = upper_bound {
+            parts.push(format!("{op}{}", val.format_dsl_bound()));
+        }
+        if parts.len() == 2
+            && parts.first().map(String::as_str) == Some("Natural0")
+            && parts.get(1).map(String::as_str) == Some("<8")
+        {
+            return Ok("Natural0&<8".to_string());
+        }
+        Ok(parts.join(" & "))
+    }
+
+    fn consume_number_range_endpoint(
+        &self,
+        tokens: &[DcShorthand],
+        idx: &mut usize,
+        is_lower: bool,
+    ) -> Result<Option<(&'static str, NumericBoundValue)>> {
+        let tok = *tokens
+            .get(*idx)
+            .context("Missing range endpoint token in Range (Dc 643)")?;
+        if tok == sh(DC_OPTIONAL_ABSENT) {
+            *idx = idx.saturating_add(1);
+            return Ok(None);
+        }
+        let (is_exclusive, val_tok) =
+            if tok == sh(DC_EXCLUSIVE_RANGE_ENDPOINT) {
+                let next_tok = *tokens.get(idx.saturating_add(1)).context(
+                    "Missing endpoint value token after ExclusiveRangeEndpoint (Dc 644)",
+                )?;
+                *idx = idx.saturating_add(2);
+                (true, next_tok)
+            } else {
+                *idx = idx.saturating_add(1);
+                (false, tok)
+            };
+        let bound_val = self.decode_numeric_bound_node(val_tok)?;
+        let op = match (is_lower, is_exclusive) {
+            (true, false) => ">=",
+            (true, true) => ">",
+            (false, false) => "<=",
+            (false, true) => "<",
+        };
+        Ok(Some((op, bound_val)))
+    }
+
+    fn decode_numeric_bound_node(
+        &self,
+        tok: DcShorthand,
+    ) -> Result<NumericBoundValue> {
+        if let Some(val) = self.get_integer(tok) {
+            return Ok(NumericBoundValue::Unsigned(val));
+        }
+        let DcShorthand::Long(node_id) = tok else {
+            bail!(
+                "Expected Long value node ID for numeric range bound, found {tok}"
+            );
+        };
+        let node = self.get_node(node_id).with_context(|| {
+            format!("Numeric range bound node l{node_id} not found in seed graph")
+        })?;
+        NumericBoundValue::decode_tokens(&node.tokens).with_context(|| {
+            format!(
+                "Failed to decode numeric range bound tokens in node l{node_id}: {:?}",
+                node.tokens
+            )
+        })
+    }
+
     fn decode_optional_quantifier_at(
         &self,
         tokens: &[DcShorthand],
@@ -2630,6 +2974,8 @@ impl SeedGraphIndex {
         let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
         let sh_rep = sh(DC_PATTERN_REPETITION);
         let sh_range = sh(DC_RANGE);
+        let sh_value_range = sh(DC_VALUE_RANGE);
+        let sh_absent = sh(DC_OPTIONAL_ABSENT);
 
         if tokens.get(idx) != Some(&sh_open)
             || tokens.get(idx.saturating_add(1)) != Some(&sh_rep)
@@ -2642,41 +2988,81 @@ impl SeedGraphIndex {
         let inner = tokens
             .get(idx.saturating_add(1)..close_idx)
             .context("Invalid token slice for PatternRepetition (603) group")?;
-        ensure!(
-            inner.get(1) == Some(&sh_range),
-            "Expected Range (Dc 4) after PatternRepetition (603)"
-        );
-        let min_tok = *inner
-            .get(2)
-            .context("Missing minimum bound in PatternRepetition (603)")?;
-        let min_u128 = self.get_integer(min_tok).with_context(|| {
-            format!(
-                "PatternRepetition min bound token {min_tok} is not an integer value node"
-            )
-        })?;
-        let min = usize::try_from(min_u128)
-            .context("PatternRepetition min bound overflows usize")?;
 
-        let max = if let Some(&max_tok) = inner.get(3) {
+        let (min, max) = if inner.get(1) == Some(&sh_value_range)
+            && inner.get(2) == Some(&DcShorthand::Format(200))
+        {
             ensure!(
-                inner.len() == 4,
-                "Unexpected extra tokens in PatternRepetition (603): {inner:?}"
+                inner.len() == 5,
+                "Expected 5 tokens in PatternRepetition (603) Range (643) group, found {inner:?}"
             );
-            let max_u128 = self.get_integer(max_tok).with_context(|| {
+            let min_tok = *inner
+                .get(3)
+                .context("Missing minimum bound in PatternRepetition (603)")?;
+            let min_u128 = self.get_integer(min_tok).with_context(|| {
                 format!(
-                    "PatternRepetition max bound token {max_tok} is not an integer value node"
+                    "PatternRepetition min bound token {min_tok} is not an integer value node"
                 )
             })?;
-            Some(
-                usize::try_from(max_u128)
-                    .context("PatternRepetition max bound overflows usize")?,
-            )
+            let min = usize::try_from(min_u128)
+                .context("PatternRepetition min bound overflows usize")?;
+            let max_tok = *inner
+                .get(4)
+                .context("Missing maximum bound in PatternRepetition (603)")?;
+            let max = if max_tok == sh_absent {
+                None
+            } else {
+                let max_u128 = self.get_integer(max_tok).with_context(|| {
+                    format!(
+                        "PatternRepetition max bound token {max_tok} is not an integer value node"
+                    )
+                })?;
+                Some(
+                    usize::try_from(max_u128).context(
+                        "PatternRepetition max bound overflows usize",
+                    )?,
+                )
+            };
+            (min, max)
         } else {
             ensure!(
-                inner.len() == 3,
-                "Unexpected tokens in PatternRepetition (603): {inner:?}"
+                inner.get(1) == Some(&sh_range),
+                "Expected Range (Dc 643 or Dc 4) after PatternRepetition (603)"
             );
-            None
+            let min_tok = *inner
+                .get(2)
+                .context("Missing minimum bound in PatternRepetition (603)")?;
+            let min_u128 = self.get_integer(min_tok).with_context(|| {
+                format!(
+                    "PatternRepetition min bound token {min_tok} is not an integer value node"
+                )
+            })?;
+            let min = usize::try_from(min_u128)
+                .context("PatternRepetition min bound overflows usize")?;
+
+            let max = if let Some(&max_tok) = inner.get(3) {
+                ensure!(
+                    inner.len() == 4,
+                    "Unexpected extra tokens in PatternRepetition (603): {inner:?}"
+                );
+                let max_u128 = self.get_integer(max_tok).with_context(|| {
+                    format!(
+                        "PatternRepetition max bound token {max_tok} is not an integer value node"
+                    )
+                })?;
+                Some(
+                    usize::try_from(max_u128).context(
+                        "PatternRepetition max bound overflows usize",
+                    )?,
+                )
+            } else {
+                ensure!(
+                    inner.len() == 3,
+                    "Unexpected tokens in PatternRepetition (603): {inner:?}"
+                );
+                None
+            };
+            (min, max)
         };
 
         let quantifier = match (min, max) {
@@ -3554,6 +3940,47 @@ mod tests {
                 sh(DC_PROGRAMMATIC_IDENTIFIER)
             ),
             Some("AddSystemGraphMostRecent")
+        );
+
+        // Verify that no active Dc 594 "Syntax rule" pattern node at HEAD uses deprecated Dc 4 "!Range (deprecated)"
+        // or legacy Dc 584 "Has a" string subtype qualifiers, while pinning to `l8589958931` (before structured
+        // range/subtype encoding) still decodes historical Dc 4 and Dc 584 pattern nodes cleanly.
+        let sh_syntax_rule = sh(DC_SYNTAX_RULE);
+        let sh_legacy_range = sh(DC_RANGE);
+        let sh_has_a = sh(DC_HAS_A);
+        for (&(subj, prop), &(_, _, val_tok)) in &head_idx.active_single_props {
+            if prop == sh_syntax_rule
+                && let DcShorthand::Long(pat_node_id) = val_tok
+            {
+                let pat_node = head_idx
+                    .get_node(pat_node_id)
+                    .expect("Active syntax rule node must exist");
+                assert!(
+                    !pat_node.tokens.contains(&sh_legacy_range),
+                    "Active syntax rule node l{pat_node_id} on {subj} must not contain deprecated Dc 4 '!Range (deprecated)'"
+                );
+                assert!(
+                    !pat_node.tokens.contains(&sh_has_a),
+                    "Active syntax rule node l{pat_node_id} on {subj} must not contain legacy Dc 584 string subtype qualifier"
+                );
+            }
+        }
+
+        let pre_range_idx =
+            SeedGraphIndex::load_at_most_recent_from_asset_bundle(8_589_958_931)?;
+        let pre_range_resolver =
+            crate::syntax::DatasetRuleResolver::from_seed_graph(&pre_range_idx)?;
+        assert!(
+            pre_range_resolver
+                .resolve_rule(&CharTarget::Dc(405))
+                .is_some(),
+            "Historical Dc 405 rule with legacy subtype encoding should decode at l8589958931"
+        );
+        assert!(
+            pre_range_resolver
+                .resolve_named_type("asciiprintable")
+                .is_some(),
+            "Historical asciiprintable construct with legacy Dc 4 range should decode at l8589958931"
         );
 
         Ok(())

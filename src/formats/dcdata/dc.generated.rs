@@ -304,7 +304,7 @@ pub const DC_WILDCARD_PATTERN: DcChar = DcChar::from_short(600);
 pub const DC_PATTERN_CONJUNCTION: DcChar = DcChar::from_short(601);
 /// Matches a Dc sequence if any of the specified alternative patterns match. (Dc 602).
 pub const DC_PATTERN_ALTERNATION: DcChar = DcChar::from_short(602);
-/// Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range. (Dc 603).
+/// Quantifies a pattern element with an exact repetition count or a Dc 643 count range. (Dc 603).
 pub const DC_PATTERN_REPETITION: DcChar = DcChar::from_short(603);
 /// Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set. (Dc 604).
 pub const DC_NEGATED_PATTERN: DcChar = DcChar::from_short(604);
@@ -382,6 +382,12 @@ pub const DC_THIS_ELEMENT: DcChar = DcChar::from_short(639);
 pub const DC_TYPE_ATOM_DC: DcChar = DcChar::from_short(640);
 /// Records the highest allocated System node ID when the document was written. (Dc 641).
 pub const DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID: DcChar = DcChar::from_short(641);
+/// Length of a data payload or representation in bytes. (Dc 642).
+pub const DC_DATA_BYTE_LENGTH: DcChar = DcChar::from_short(642);
+/// Defines a contiguous range of values of the specified type (or Dc 275 * for an unconstrained range) between a lower endpoint and an upper endpoint. Endpoints are inclusive unless wrapped in Dc 644 (Exclusive range endpoint), or unbounded if Dc 316 (Optional value absent). (Dc 643).
+pub const DC_VALUE_RANGE: DcChar = DcChar::from_short(643);
+/// Marks a lower or upper endpoint of a Dc 643 (Range) expression as strictly exclusive (open interval bound, excluding the endpoint value itself). (Dc 644).
+pub const DC_EXCLUSIVE_RANGE_ENDPOINT: DcChar = DcChar::from_short(644);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

@@ -1,7 +1,7 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
 1114114,2,Begin separator,0,BN,,!Cx,.Semantic,,Begin a DCE separator string.
 1114115,3,End separator,0,BN,,!Cx,.Semantic,,End a DCE separator string.
-1114116,4,Range,0,BN,,!Cx,.Semantic,"@ident(""Range"")",The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
+1114116,4,!Range (deprecated),0,BN,,!Cx,.Semantic,"@ident(""Range""), <prefer>643",The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
 1114117,5,Record summation,0,BN,,!Cx,.Semantic,,"Used to denote the union of two records. See the wiki for more information. Example: @9@@2@1@3@@10@2012@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@@4@@9@@2@1@3@@10@2012@2@2@3@11@2@2@3@19@2@2@3@16@2@2@3@7@2@2@3@6@2@2@3@27@5@@9@@2@1@3@@10@2013@2@2@3@10@2@2@3@7@2@2@3@15@2@2@3@@8@@2@2@3@@8@@2@2@3@@8@ This represents the range from 2012 A. D., 7 October, 15th hour, unknown hour subdivision, to 2012 A. D., 19 November, 16th hour, 7th minute, 6.27 seconds, as well as the date 2013 A. D., 7 October, 15th hour, unknown hour subdivision."
 1114118,6,Begin number,0,BN,,!Cx,.Semantic,"@ident(""BeginNumber""), @roleDef(), :~ [format:number] [^7]+ 7",Begin a DCE number.
 1114119,7,End number,0,BN,,!Cx,.Semantic,"@ident(""EndNumber""), @roleDef(), @closes(6)",End a DCE number.
@@ -38,7 +38,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114445,333,File permissions mode,0,BN,,!Cx,.Semantic,:~ [number],POSIX permissions mode flags.
 1114446,334,File owner user identifier,0,BN,,!Cx,.Semantic,:~ [number],User ID of the file owner.
 1114447,335,File owner group identifier,0,BN,,!Cx,.Semantic,:~ [number],Group ID of the file group.
-1114448,336,File payload size,0,BN,,!Cx,.Semantic,:~ [number],Logical size of the primary file payload in bytes.
+1114448,336,File payload size,0,BN,,!Cx,.Semantic,"@implies(642), :~ [number]",Logical size of the primary file payload in bytes.
 1114449,337,File primary path,0,BN,,!Cx,.Semantic,:~ [filepath],Primary relative or canonical path of a file entity.
 1114450,338,File stream name,0,BN,,!Cx,.Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.
 1114451,339,File target link path,0,BN,,!Cx,.Semantic,:~ [filepath],Target destination path for a symbolic or hard link.
@@ -79,7 +79,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114486,374,File data extent,0,BN,,!Cx,.Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a data extent region.
 1114487,375,File sparse hole extent,0,BN,,!Cx,.Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a sparse hole extent region.
 1114488,376,Extent byte offset,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Byte offset where an extent starts.
-1114489,377,Extent byte length,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Byte length of an extent.
+1114489,377,Extent byte length,0,BN,,!Cx,.Semantic,"@implies(642), :~ [number:Natural0]",Byte length of an extent.
 1114490,378,Timestamp clock resolution,0,BN,,!Cx,.Semantic,:~ [datemagnitude],Clock resolution in nanoseconds.
 1114491,379,Stream kind: extended attribute,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies a standard extended attribute stream.
 1114492,380,Stream kind: macOS resource fork,0,BN,,!Cx,.Semantic,"@roleDef(""DomainValueAtom"")",Identifies a macOS resource fork stream.
@@ -284,7 +284,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114712,600,Wildcard pattern,0,BN,,!Cx,.Semantic:Pattern,"@ident(""WildcardPattern"")",Matches any single Dc token or balanced syntactic frame.
 1114713,601,Pattern conjunction,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternConjunction"")",Matches a Dc sequence only if all of the specified component patterns match.
 1114714,602,Pattern alternation,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternAlternation"")",Matches a Dc sequence if any of the specified alternative patterns match.
-1114715,603,Pattern repetition,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternRepetition"")",Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range.
+1114715,603,Pattern repetition,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternRepetition"")",Quantifies a pattern element with an exact repetition count or a Dc 643 count range.
 1114716,604,Negated pattern,0,BN,,!Cx,.Semantic:Pattern,"@ident(""NegatedPattern"")",Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set.
 1114717,605,Subpattern match,0,BN,,!Cx,.Semantic:Pattern,"@ident(""SubpatternMatch"")","Matches a sequence of Dcs against a referenced pattern or the syntax rule of a referenced entity or type, rather than matching the referenced identifier literally."
 1114718,606,Pattern capture,0,BN,,!Cx,.Semantic:Pattern,"@ident(""PatternCapture"")","Matches a pattern element and binds the matched Dc sub-sequence to an identifier for backreference, extraction, or substitution."
@@ -322,3 +322,6 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114750,638,For each,0,BN,,!Cx,.Semantic,"@ident(""ForEach""), :~ [statement] ([list] | [atom_dc])","Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration."
 1114751,639,This element,0,BN,,!Cx,.Semantic,"@ident(""ThisElement"")",Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression.
 1114753,641,Global graph system block most recent node ID at time of document creation,0,BN,,!Cx,.Semantic,"@ident(""GlobalGraphSystemBlockMostRecentNodeId""), :~ [atom_dc]",Records the highest allocated System node ID when the document was written.
+1114754,642,Data byte length,0,BN,,!Cx,.Semantic,"@ident(""DataByteLength""), :~ [number:Natural0]",Length of a data payload or representation in bytes.
+1114755,643,Range,0,BN,,!Cx,.Semantic,"@ident(""ValueRange""), @roleDef(""TypeToken""), :~ [type] ([value] | [atom_dc] | [644:] | 316) ([value] | [atom_dc] | [644:] | 316)","Defines a contiguous range of values of the specified type (or Dc 275 * for an unconstrained range) between a lower endpoint and an upper endpoint. Endpoints are inclusive unless wrapped in Dc 644 (Exclusive range endpoint), or unbounded if Dc 316 (Optional value absent)."
+1114756,644,Exclusive range endpoint,0,BN,,!Cx,.Semantic,"@ident(""ExclusiveRangeEndpoint""), :~ ([value] | [atom_dc])","Marks a lower or upper endpoint of a Dc 643 (Range) expression as strictly exclusive (open interval bound, excluding the endpoint value itself)."

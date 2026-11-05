@@ -306,7 +306,7 @@ pub enum DcRole {
     PatternConjunction,
     /// Matches a Dc sequence if any of the specified alternative patterns match. (`602`).
     PatternAlternation,
-    /// Quantifies a pattern element with an exact repetition count or a Dc 4 [start] 4 [end] count range. (`603`).
+    /// Quantifies a pattern element with an exact repetition count or a Dc 643 count range. (`603`).
     PatternRepetition,
     /// Matches any single Dc token or balanced syntactic frame that does not match the specified target pattern or character set. (`604`).
     NegatedPattern,
@@ -384,6 +384,12 @@ pub enum DcRole {
     TypeAtomDc,
     /// Records the highest allocated System node ID when the document was written. (`641`).
     GlobalGraphSystemBlockMostRecentNodeId,
+    /// Length of a data payload or representation in bytes. (`642`).
+    DataByteLength,
+    /// Defines a contiguous range of values of the specified type (or Dc 275 * for an unconstrained range) between a lower endpoint and an upper endpoint. Endpoints are inclusive unless wrapped in Dc 644 (Exclusive range endpoint), or unbounded if Dc 316 (Optional value absent). (`643`).
+    ValueRange,
+    /// Marks a lower or upper endpoint of a Dc 643 (Range) expression as strictly exclusive (open interval bound, excluding the endpoint value itself). (`644`).
+    ExclusiveRangeEndpoint,
     /// Format indicator for an integer in a number header (`FormatId::Integer`).
 IntegerFormatIndicator,
 /// Base64 encapsulation digit character (0..=63).
@@ -579,6 +585,9 @@ match self {
             Self::ThisElement => Some(639),
             Self::TypeAtomDc => Some(640),
             Self::GlobalGraphSystemBlockMostRecentNodeId => Some(641),
+            Self::DataByteLength => Some(642),
+            Self::ValueRange => Some(643),
+            Self::ExclusiveRangeEndpoint => Some(644),
             _ => None,
 }
 }
@@ -769,6 +778,9 @@ match self {
             Self::ThisElement => short == Some(639),
             Self::TypeAtomDc => short == Some(640),
             Self::GlobalGraphSystemBlockMostRecentNodeId => short == Some(641),
+            Self::DataByteLength => short == Some(642),
+            Self::ValueRange => short == Some(643),
+            Self::ExclusiveRangeEndpoint => short == Some(644),
             Self::IntegerFormatIndicator => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
 && ctb_utilities::format_id::FormatId::from_dc_id(token)
@@ -777,7 +789,7 @@ match self {
 Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568 | 640))
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568 | 640 | 643))
 }
 Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
 Self::DomainValueAtom => matches!(short, Some(316 | 379..=384 | 482..=489 | 513 | 517 | 518)),

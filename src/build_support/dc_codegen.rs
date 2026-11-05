@@ -428,6 +428,9 @@ pub fn generate_role_code_from_index(
     ] {
         type_tokens.insert(require_short(ident)?);
     }
+    if let Ok(sid) = require_short("ValueRange") {
+        type_tokens.insert(sid);
+    }
 
     // 2. PrimitiveValueAtom: OptionalAbsent + Short Dc members of NamedConstruct("boolean").
     let sh_syntax_rule = index.require_ident("SyntaxRule")?;

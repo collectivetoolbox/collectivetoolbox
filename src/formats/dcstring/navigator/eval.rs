@@ -3439,6 +3439,11 @@ pub(crate) fn is_compound_type_starter(
         || tok.fills_role_with(DcRole::TypeIntersection, resolver)
         || tok.fills_role_with(DcRole::TypeUnion, resolver)
         || tok.fills_role_with(DcRole::FormatParamApplication, resolver)
+        || tok == ctb_formats_dcdata::dc::DC_VALUE_RANGE
+        || resolver.is_equivalent_to(
+            tok.to_u128(),
+            ctb_formats_dcdata::dc::DC_VALUE_RANGE.to_u128(),
+        )
 }
 
 pub(crate) fn is_single_type_token(
