@@ -46,10 +46,7 @@ pub use dc_stream::{
 };
 pub use formatter::{format_chain_directive, format_expr};
 pub use parser::parse_format_expr;
-pub use validator::{
-    KNOWN_TRANSFORMATION_FORMAT_IDS, REGISTERED_NAMED_TYPES,
-    validate_format_expr,
-};
+pub use validator::validate_format_expr;
 
 #[cfg(test)]
 #[allow(

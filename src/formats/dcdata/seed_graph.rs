@@ -124,6 +124,19 @@ pub struct ActivePropertyValue {
     pub preferred_id: Option<u128>,
 }
 
+/// Named syntax construct reconstructed from the System-block seed graph (`README-named-types.csv`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReconstructedNamedType {
+    /// System-block seed entity node ID (`586 615 565`).
+    pub seed_id: u128,
+    /// Canonical construct name (`Dc 572` `"Canonical name"`).
+    pub name: String,
+    /// Decoded syntax rule (`Dc 594` `"Syntax rule"`).
+    pub syntax: DcSyntaxRule,
+    /// Optional notes / description (`Dc 573` `"Description"`), or empty string if absent.
+    pub description: String,
+}
+
 /// Runtime index over the System-block seed graph (`8589934592..=12884901887`).
 #[derive(Debug, Clone)]
 pub struct SeedGraphIndex {
@@ -2031,6 +2044,45 @@ impl SeedGraphIndex {
         Ok(defns)
     }
 
+    /// Reconstructs all active named syntax constructs (`SeedEntityKey::NamedConstruct`)
+    /// that define a `Dc 594` (`Syntax rule`) in the seed graph, ordered by ascending
+    /// entity node ID.
+    pub fn reconstruct_named_types(&self) -> Result<Vec<ReconstructedNamedType>> {
+        let sh_desc = sh(DC_DESCRIPTION);
+        let mut constructs: Vec<(u128, String)> = self
+            .seed_entity_ids
+            .iter()
+            .filter_map(|(key, &seed_id)| match key {
+                SeedEntityKey::NamedConstruct(name) => {
+                    Some((seed_id, name.clone()))
+                }
+                _ => None,
+            })
+            .collect();
+        constructs.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+
+        let mut out = Vec::with_capacity(constructs.len());
+        for (seed_id, name) in constructs {
+            let subj = DcShorthand::Long(seed_id);
+            let Some(syntax) = self.decode_syntax_rule_for_subject(subj)?
+            else {
+                continue;
+            };
+            // Reason for fallback: named constructs without an explicit Dc 573 description default to empty string.
+            let description = self
+                .get_single_property_string(subj, sh_desc)
+                .unwrap_or_default()
+                .to_string();
+            out.push(ReconstructedNamedType {
+                seed_id,
+                name,
+                syntax,
+                description,
+            });
+        }
+        Ok(out)
+    }
+
     /// Decodes a `FormatExpr` value node by its `node_id`.
     pub fn decode_format_expr_node(&self, node_id: u128) -> Result<FormatExpr> {
         let node = self.get_node(node_id).with_context(|| {
@@ -2455,62 +2507,101 @@ impl SeedGraphIndex {
                     "Missing target token after SubpatternMatch (605)",
                 )?;
                 if let DcShorthand::Long(seed_id) = target_tok {
-                    if let Some(SeedEntityKey::NamedConstruct(name)) =
-                        self.get_seed_entity(seed_id)
-                    {
-                        let mut subtype = None;
-                        let mut capture_var = None;
-                        let mut pos = 2usize;
-                        while pos < inner.len() {
-                            let qual = *inner
-                                .get(pos)
-                                .context("Unexpected end of SubpatternMatch")?;
-                            if qual == sh_has_a {
-                                let sub_tok = *inner
-                                    .get(pos.saturating_add(1))
-                                    .context(
-                                        "Missing subtype string node after HasA (584)",
-                                    )?;
-                                let sub_str = self
-                                    .get_string(sub_tok)
-                                    .with_context(|| {
-                                        format!(
-                                            "NamedConstruct subtype token {sub_tok} is not a string node"
-                                        )
-                                    })?
-                                    .to_string();
-                                subtype = Some(sub_str);
-                                pos = pos.saturating_add(2);
-                            } else if qual == sh_capture {
-                                let var_tok = *inner
-                                    .get(pos.saturating_add(1))
-                                    .context(
-                                        "Missing capture variable string node after PatternCapture (606)",
-                                    )?;
-                                let var_str = self
-                                    .get_string(var_tok)
-                                    .with_context(|| {
-                                        format!(
-                                            "NamedConstruct capture variable token {var_tok} is not a string node"
-                                        )
-                                    })?
-                                    .to_string();
-                                capture_var = Some(var_str);
-                                pos = pos.saturating_add(2);
-                            } else {
-                                bail!(
-                                    "Unexpected qualifier token {qual} in NamedConstruct SubpatternMatch"
-                                );
+                    match self.get_seed_entity(seed_id) {
+                        Some(SeedEntityKey::Script(script_name)) => {
+                            let mut capture_var = None;
+                            let mut pos = 2usize;
+                            while pos < inner.len() {
+                                let qual = *inner.get(pos).context(
+                                    "Unexpected end of SubpatternMatch",
+                                )?;
+                                if qual == sh_capture {
+                                    let var_tok = *inner
+                                        .get(pos.saturating_add(1))
+                                        .context(
+                                            "Missing capture variable string node after PatternCapture (606)",
+                                        )?;
+                                    let var_str = self
+                                        .get_string(var_tok)
+                                        .with_context(|| {
+                                            format!(
+                                                "Script capture variable token {var_tok} is not a string node"
+                                            )
+                                        })?
+                                        .to_string();
+                                    capture_var = Some(var_str);
+                                    pos = pos.saturating_add(2);
+                                } else {
+                                    bail!(
+                                        "Unexpected qualifier token {qual} in Script SubpatternMatch"
+                                    );
+                                }
                             }
+                            return Ok((
+                                SyntaxTerm::NamedConstruct {
+                                    name: "script".to_string(),
+                                    subtype: Some(script_name.clone()),
+                                    capture_var,
+                                },
+                                next_idx,
+                            ));
                         }
-                        return Ok((
-                            SyntaxTerm::NamedConstruct {
-                                name: name.clone(),
-                                subtype,
-                                capture_var,
-                            },
-                            next_idx,
-                        ));
+                        Some(SeedEntityKey::NamedConstruct(name)) => {
+                            let mut subtype = None;
+                            let mut capture_var = None;
+                            let mut pos = 2usize;
+                            while pos < inner.len() {
+                                let qual = *inner.get(pos).context(
+                                    "Unexpected end of SubpatternMatch",
+                                )?;
+                                if qual == sh_has_a {
+                                    let sub_tok = *inner
+                                        .get(pos.saturating_add(1))
+                                        .context(
+                                            "Missing subtype string node after HasA (584)",
+                                        )?;
+                                    let sub_str = self
+                                        .get_string(sub_tok)
+                                        .with_context(|| {
+                                            format!(
+                                                "NamedConstruct subtype token {sub_tok} is not a string node"
+                                            )
+                                        })?
+                                        .to_string();
+                                    subtype = Some(sub_str);
+                                    pos = pos.saturating_add(2);
+                                } else if qual == sh_capture {
+                                    let var_tok = *inner
+                                        .get(pos.saturating_add(1))
+                                        .context(
+                                            "Missing capture variable string node after PatternCapture (606)",
+                                        )?;
+                                    let var_str = self
+                                        .get_string(var_tok)
+                                        .with_context(|| {
+                                            format!(
+                                                "NamedConstruct capture variable token {var_tok} is not a string node"
+                                            )
+                                        })?
+                                        .to_string();
+                                    capture_var = Some(var_str);
+                                    pos = pos.saturating_add(2);
+                                } else {
+                                    bail!(
+                                        "Unexpected qualifier token {qual} in NamedConstruct SubpatternMatch"
+                                    );
+                                }
+                            }
+                            return Ok((
+                                SyntaxTerm::NamedConstruct {
+                                    name: name.clone(),
+                                    subtype,
+                                    capture_var,
+                                },
+                                next_idx,
+                            ));
+                        }
+                        _ => {}
                     }
                 }
                 let mut r_idx = 1usize;
@@ -3078,6 +3169,11 @@ mod tests {
                 ..Default::default()
             },
         )?;
+        let reconstructed_named: HashMap<String, ReconstructedNamedType> = index
+            .reconstruct_named_types()?
+            .into_iter()
+            .map(|r| (r.name.clone(), r))
+            .collect();
         for row_idx in 0..table.row_count() {
             let Some(row) = table.row(row_idx) else {
                 continue;
@@ -3087,6 +3183,7 @@ mod tests {
             }
             let name = row[0].trim();
             let raw_syntax = row[1].trim();
+            let expected_notes = row.get(2).map_or("", |s| s.trim());
             let expected = parse_dc_syntax(raw_syntax)?;
             let decoded_pat = index
                 .decode_named_construct_pattern(name)?
@@ -3098,6 +3195,16 @@ mod tests {
             assert_eq!(
                 decoded_pat, expected.pattern,
                 "Named construct '{name}' pattern mismatch after decoding from seed graph"
+            );
+            let rec = reconstructed_named.get(name).with_context(|| {
+                format!(
+                    "Named construct '{name}' missing from reconstruct_named_types()"
+                )
+            })?;
+            assert_eq!(rec.syntax.pattern, expected.pattern);
+            assert_eq!(
+                rec.description, expected_notes,
+                "Named construct '{name}' description (Dc 573) mismatch after decoding from seed graph"
             );
         }
 

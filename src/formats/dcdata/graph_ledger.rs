@@ -250,6 +250,8 @@ struct DesiredDatasetState {
     seed_entities: BTreeSet<SeedEntityKey>,
     /// Named syntax construct rules keyed by construct name.
     named_construct_rules: BTreeMap<String, (SyntaxPattern, String)>,
+    /// Named syntax construct descriptions (`Dc 573`) keyed by construct name.
+    named_construct_descriptions: BTreeMap<String, String>,
     /// Single-valued properties: `(subject, prop_token) -> (value_spec, comment)`.
     single_properties:
         BTreeMap<(DcShorthand, DcShorthand), (ValueSpec, String)>,
@@ -1197,29 +1199,55 @@ impl LedgerBuilder {
                 subtype,
                 capture_var,
             } => {
-                let construct_id = self.ensure_seed_entity(
-                    &SeedEntityKey::NamedConstruct(name.clone()),
-                )?;
-                out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
-                out.push(sh(DC_SUBPATTERN_MATCH));
-                out.push(DcShorthand::Long(construct_id));
-                if let Some(sub) = subtype {
-                    let sub_id = self.get_or_insert_value_node(
-                        encode_string_value_tokens(sub),
-                        format!("{sub:?}"),
+                if name == "script" {
+                    let Some(script_name) = subtype.as_ref() else {
+                        bail!("Missing script name in [script:...] construct");
+                    };
+                    let normalized_script = if script_name.starts_with('.') {
+                        script_name.clone()
+                    } else {
+                        format!(".{script_name}")
+                    };
+                    let construct_id = self.ensure_seed_entity(
+                        &SeedEntityKey::Script(normalized_script),
                     )?;
-                    out.push(sh(DC_HAS_A));
-                    out.push(DcShorthand::Long(sub_id));
-                }
-                if let Some(var) = capture_var {
-                    let var_id = self.get_or_insert_value_node(
-                        encode_string_value_tokens(var),
-                        format!("${var}"),
+                    out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
+                    out.push(sh(DC_SUBPATTERN_MATCH));
+                    out.push(DcShorthand::Long(construct_id));
+                    if let Some(var) = capture_var {
+                        let var_id = self.get_or_insert_value_node(
+                            encode_string_value_tokens(var),
+                            format!("${var}"),
+                        )?;
+                        out.push(sh(DC_PATTERN_CAPTURE));
+                        out.push(DcShorthand::Long(var_id));
+                    }
+                    out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
+                } else {
+                    let construct_id = self.ensure_seed_entity(
+                        &SeedEntityKey::NamedConstruct(name.clone()),
                     )?;
-                    out.push(sh(DC_PATTERN_CAPTURE));
-                    out.push(DcShorthand::Long(var_id));
+                    out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
+                    out.push(sh(DC_SUBPATTERN_MATCH));
+                    out.push(DcShorthand::Long(construct_id));
+                    if let Some(sub) = subtype {
+                        let sub_id = self.get_or_insert_value_node(
+                            encode_string_value_tokens(sub),
+                            format!("{sub:?}"),
+                        )?;
+                        out.push(sh(DC_HAS_A));
+                        out.push(DcShorthand::Long(sub_id));
+                    }
+                    if let Some(var) = capture_var {
+                        let var_id = self.get_or_insert_value_node(
+                            encode_string_value_tokens(var),
+                            format!("${var}"),
+                        )?;
+                        out.push(sh(DC_PATTERN_CAPTURE));
+                        out.push(DcShorthand::Long(var_id));
+                    }
+                    out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
                 }
-                out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
             }
             SyntaxTerm::Group(inner) => {
                 out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
@@ -1437,7 +1465,7 @@ impl LedgerBuilder {
             }
         }
 
-        // Add syntax rules for named syntax constructs (`README-named-types.csv`).
+        // Add syntax rules and descriptions for named syntax constructs (`README-named-types.csv`).
         for (name, (pattern, raw_str)) in &desired.named_construct_rules {
             let seed_key = SeedEntityKey::NamedConstruct(name.clone());
             let entity_id = self.ensure_seed_entity(&seed_key)?;
@@ -1457,10 +1485,33 @@ impl LedgerBuilder {
                     format!("Syntax rule ([{name}], {raw_str})"),
                 ),
             );
+            if let Some(desc) = desired.named_construct_descriptions.get(name) {
+                desired.single_properties.insert(
+                    (subj, sh(DC_DESCRIPTION)),
+                    (
+                        make_string_value_spec(desc),
+                        format!("Description ([{name}])"),
+                    ),
+                );
+            }
         }
 
         let seed_entity_id_set: HashSet<u128> =
             self.seed_entity_ids.values().copied().collect();
+
+        let existing_seed_entities: Vec<(SeedEntityKey, u128)> = self
+            .seed_entity_ids
+            .iter()
+            .map(|(k, &v)| (k.clone(), v))
+            .collect();
+        for (seed_key, seed_id) in existing_seed_entities {
+            if !desired.seed_entities.contains(&seed_key)
+                && !self.is_manual_node(seed_id)
+            {
+                self.seed_entity_ids.remove(&seed_key);
+                retract_targets.insert(seed_id);
+            }
+        }
 
         // 2. Resolve all desired single-valued properties and diff against active single-valued properties.
         let mut resolved_single: BTreeMap<
@@ -2424,6 +2475,8 @@ fn compile_desired_dataset_state(
             let name = row.first().map_or("", |s| s.trim());
             // Reason for fallback: missing second column defaults to empty string and triggers ensure! error below.
             let raw_syntax = row.get(1).map_or("", |s| s.trim());
+            // Reason for fallback: optional notes column in README-named-types.csv defaults to empty string when omitted.
+            let notes = row.get(2).map_or("", |s| s.trim());
             ensure!(
                 !name.is_empty(),
                 "README-named-types.csv row {line_no} is missing named type"
@@ -2448,6 +2501,11 @@ fn compile_desired_dataset_state(
                 name.to_string(),
                 (parsed.pattern, raw_syntax.to_string()),
             );
+            if !notes.is_empty() {
+                state
+                    .named_construct_descriptions
+                    .insert(name.to_string(), notes.to_string());
+            }
         }
     }
 
@@ -2687,6 +2745,12 @@ fn compile_defn_statements(
             continue;
         }
         let obj_spec = parse_relation_target_spec(trimmed)?;
+        if let ValueSpec::PatternNode { rule, .. } = &obj_spec {
+            collect_named_constructs_from_pattern(
+                &rule.pattern,
+                &mut state.seed_entities,
+            );
+        }
         state.direct_statements.insert(
             (sh(DC_IS_SUBTYPE_OF), subj, obj_spec),
             format!("Is a subtype of ({subj}, {trimmed})"),
@@ -2700,6 +2764,12 @@ fn compile_defn_statements(
             continue;
         }
         let obj_spec = parse_relation_target_spec(trimmed)?;
+        if let ValueSpec::PatternNode { rule, .. } = &obj_spec {
+            collect_named_constructs_from_pattern(
+                &rule.pattern,
+                &mut state.seed_entities,
+            );
+        }
         state.direct_statements.insert(
             (sh(DC_IS_BASED_ON), subj, obj_spec),
             format!("Is based on ({subj}, {trimmed})"),
@@ -3120,10 +3190,25 @@ fn collect_named_constructs_from_pattern(
         SyntaxPattern::Sequence(elements) => {
             for elem in elements {
                 match &elem.term {
-                    SyntaxTerm::NamedConstruct { name, .. } => {
-                        seed_entities.insert(SeedEntityKey::NamedConstruct(
-                            name.clone(),
-                        ));
+                    SyntaxTerm::NamedConstruct { name, subtype, .. } => {
+                        if name == "script" {
+                            if let Some(script_name) = subtype {
+                                let normalized_script =
+                                    if script_name.starts_with('.') {
+                                        script_name.clone()
+                                    } else {
+                                        format!(".{script_name}")
+                                    };
+                                insert_script_and_parents(
+                                    seed_entities,
+                                    &normalized_script,
+                                );
+                            }
+                        } else {
+                            seed_entities.insert(
+                                SeedEntityKey::NamedConstruct(name.clone()),
+                            );
+                        }
                     }
                     SyntaxTerm::Group(inner) => {
                         collect_named_constructs_from_pattern(

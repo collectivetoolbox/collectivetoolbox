@@ -35,41 +35,7 @@ use anyhow::{Result, bail, ensure};
 use ctb_storage_minimal::shorthand::DcShorthand;
 
 use super::ast::{FormatExpr, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES};
-
-/// Set of registered stable named types defined in `README-named-types.csv`.
-pub const REGISTERED_NAMED_TYPES: &[&str] = &[
-    "number",
-    "string",
-    "date",
-    "data",
-    "checksum",
-    "unicode_any",
-    "identifier",
-    "type",
-    "format",
-    "list",
-    "key_value",
-    "duration",
-    "datemagnitude",
-    "asciilatinletter",
-    "asciilatinletterdigit",
-    "asciiprintable",
-    "filename",
-    "filepath",
-    "ipaddr",
-    "statement",
-    "value",
-];
-
-/// Known transformation format IDs (category `transformation`).
-pub const KNOWN_TRANSFORMATION_FORMAT_IDS: &[usize] = &[
-    19,  // SemanticToText
-    20,  // CodeToText
-    323, // AlturaMacToWin
-    324, // AlturaWinToMac
-    654, // UnicodeToShortDc
-    655, // AddSystemGraphMostRecent
-];
+use crate::syntax::SyntaxRuleResolver;
 
 /// Validates semantic constraints of a `FormatExpr`.
 ///
@@ -99,8 +65,10 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
         }
         FormatExpr::NamedType(name) => {
             ensure!(
-                REGISTERED_NAMED_TYPES.contains(&name.as_str()),
-                "Unregistered named type '{name}' in format specification; only stable types from README-named-types.csv are permitted"
+                crate::syntax::default_syntax_resolver()
+                    .resolve_named_type(name)
+                    .is_some(),
+                "Unregistered named type '{name}' in format specification; only stable types from the seed graph are permitted"
             );
         }
         FormatExpr::Convert(left, right)
@@ -214,9 +182,11 @@ fn validate_shorthand_operand(shorthand: &DcShorthand) -> Result<()> {
 
 fn validate_transformation_target(target: &FormatExpr) -> Result<()> {
     match target {
-        FormatExpr::Dc(DcShorthand::Format(fmt_id)) => {
+        FormatExpr::Dc(shorthand @ DcShorthand::Format(fmt_id)) => {
+            let gid = shorthand.to_global_id()?;
             ensure!(
-                KNOWN_TRANSFORMATION_FORMAT_IDS.contains(fmt_id),
+                crate::syntax::default_syntax_resolver()
+                    .matches_script("Formats:transformation", gid),
                 "Format f{fmt_id} is not a registered transformation format"
             );
             Ok(())

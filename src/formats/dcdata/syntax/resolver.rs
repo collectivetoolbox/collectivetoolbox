@@ -289,7 +289,7 @@ pub trait SyntaxRuleResolver {
         req_name: &str,
         req_subtype: Option<&str>,
     ) -> bool {
-        if !matches!(req_name, "format" | "formats" | "script")
+        if !matches!(req_name, "format" | "script")
             && !(req_name == "type" && req_subtype.is_some())
             && self.token_fills_role(tok, DcRole::TypeAny)
         {
@@ -359,7 +359,7 @@ pub trait SyntaxRuleResolver {
                     || self.matches_script(".EL Types", tok);
                 is_type && req_subtype.is_none_or(matches_format_sub)
             }
-            "format" | "formats" => {
+            "format" => {
                 is_format && req_subtype.is_none_or(matches_format_sub)
             }
             "Routine" => self.token_fills_role(tok, DcRole::TypeRoutine),
@@ -397,7 +397,6 @@ pub trait SyntaxRuleResolver {
                         | "typed_data"
                         | "script"
                         | "format"
-                        | "formats"
                         | "type"
                         | "string"
                         | "identifier"
@@ -998,15 +997,12 @@ impl DatasetRuleResolver {
                     }
                     return;
                 }
-                if (name == "format" || name == "formats") && subtype.is_some()
-                {
+                if name == "format" && subtype.is_some() {
                     if let Some(sub) = subtype {
                         out.scripts.push(format!("Formats:{sub}"));
                         out.scripts.push(sub.clone());
                     }
-                } else if (name == "format" || name == "formats")
-                    && subtype.is_none()
-                {
+                } else if name == "format" && subtype.is_none() {
                     out.scripts.push("Formats".to_string());
                     out.ranges.push((
                         ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
@@ -1385,48 +1381,6 @@ impl DatasetRuleResolver {
                     format!("README-named-types.csv row {row}: invalid syntax for named type '{name}': {syntax_raw}")
                 })?;
                 resolver.add_named_type(name.to_string(), rule.pattern.clone());
-                if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
-                    if let Some(first_elem) = elems.first() {
-                        if first_elem.quantifier == Quantifier::ExactOne {
-                            if let SyntaxTerm::CharRef(ref lead_target) =
-                                first_elem.term
-                            {
-                                if !resolver.rules.contains_key(lead_target) {
-                                    resolver.add_rule(
-                                        lead_target.clone(),
-                                        rule.clone(),
-                                    );
-                                }
-                                if let Some(closer_tok) =
-                                    detect_container_closer(&rule.pattern)
-                                {
-                                    if let Some(&existing_closer) = resolver
-                                        .opener_to_closer
-                                        .get(lead_target)
-                                    {
-                                        ensure!(
-                                            existing_closer == closer_tok,
-                                            "README-named-types.csv row {row}: named type '{name}' closer {closer_tok:#X} for {lead_target} conflicts with existing closer {existing_closer:#X}"
-                                        );
-                                    }
-                                    if let Some(existing_opener) = resolver
-                                        .closing_delimiters
-                                        .get(&closer_tok)
-                                    {
-                                        ensure!(
-                                            existing_opener == lead_target,
-                                            "README-named-types.csv row {row}: named type '{name}' closer {closer_tok:#X} for {lead_target} already closes {existing_opener}"
-                                        );
-                                    }
-                                    resolver.register_closing_delimiter(
-                                        closer_tok,
-                                        lead_target.clone(),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -1822,51 +1776,7 @@ impl DatasetRuleResolver {
             else {
                 continue;
             };
-            resolver.add_named_type(name.clone(), rule.pattern.clone());
-            if !el_type_names.contains(&name) {
-                if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
-                    if let Some(first_elem) = elems.first() {
-                        if first_elem.quantifier == Quantifier::ExactOne {
-                            if let SyntaxTerm::CharRef(ref lead_target) =
-                                first_elem.term
-                            {
-                                if !resolver.rules.contains_key(lead_target) {
-                                    resolver.add_rule(
-                                        lead_target.clone(),
-                                        rule.clone(),
-                                    );
-                                }
-                                if let Some(closer_tok) =
-                                    detect_container_closer(&rule.pattern)
-                                {
-                                    if let Some(&existing_closer) = resolver
-                                        .opener_to_closer
-                                        .get(lead_target)
-                                    {
-                                        ensure!(
-                                            existing_closer == closer_tok,
-                                            "Named type '{name}' closer {closer_tok:#X} for {lead_target} conflicts with existing closer {existing_closer:#X}"
-                                        );
-                                    }
-                                    if let Some(existing_opener) = resolver
-                                        .closing_delimiters
-                                        .get(&closer_tok)
-                                    {
-                                        ensure!(
-                                            existing_opener == lead_target,
-                                            "Named type '{name}' closer {closer_tok:#X} for {lead_target} already closes {existing_opener}"
-                                        );
-                                    }
-                                    resolver.register_closing_delimiter(
-                                        closer_tok,
-                                        lead_target.clone(),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            resolver.add_named_type(name, rule.pattern);
         }
 
         // 3. Collect `<equiv>` (`DC_CANONICAL_DECOMPOSITION`) pairs across Unicode clarifications, Short Dcs, and Format Dcs

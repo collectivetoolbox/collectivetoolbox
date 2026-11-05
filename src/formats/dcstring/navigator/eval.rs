@@ -1128,10 +1128,8 @@ impl DcDocumentNavigator<'_> {
                     self.eval_data_construct(subtype.as_deref(), ctx)?
                 } else if name == "typed_data" {
                     self.eval_typed_data_construct(subtype.as_deref(), ctx)?
-                } else if matches!(
-                    name.as_str(),
-                    "script" | "format" | "formats" | "type"
-                ) {
+                } else if matches!(name.as_str(), "script" | "format" | "type")
+                {
                     if name == "type"
                         && is_compound_type_starter(first_dc, ctx.resolver)
                         && let Some(target) = CharTarget::from_u128(first)

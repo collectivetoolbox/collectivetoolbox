@@ -594,7 +594,6 @@ fn validate_syntax_element(
                 }
             } else if !known_named_types.is_empty()
                 && !known_named_types.contains(name)
-                && name != "formats"
             {
                 report.add_error(
                     source_file,
