@@ -96,13 +96,14 @@ use crate::dc::{
     DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FOR_EACH, DC_FORMAL_ALIAS,
     DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
     DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
-    DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS,
-    DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR,
-    DC_IS_DEPRECATED, DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF,
-    DC_LIST_ELEMENT_SEPARATOR, DC_MAGIC_SIGNATURE, DC_MANUAL_ENTRY,
-    DC_NEGATED_PATTERN, DC_NEGATIVE, DC_NICKNAME, DC_OPTIONAL_ABSENT,
-    DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION,
-    DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
+    DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_IN_CONTEXT_OF,
+    DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON,
+    DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED, DC_IS_INSTANCE_OF,
+    DC_IS_STABLE, DC_IS_SUBTYPE_OF, DC_LIST_ELEMENT_SEPARATOR,
+    DC_MAGIC_SIGNATURE, DC_MANUAL_ENTRY, DC_NEGATED_PATTERN, DC_NEGATIVE,
+    DC_NICKNAME, DC_OPTIONAL_ABSENT, DC_PATTERN_ALTERNATION,
+    DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION, DC_PATTERN_REPLACEMENT,
+    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
     DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT,
     DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE,
     DC_SEMANTIC_DECOMPOSITION, DC_START_ENCAPSULATION_BINARY,
@@ -272,6 +273,10 @@ struct DesiredDatasetState {
     preferred_replacements: BTreeMap<(DcShorthand, ValueSpec), String>,
     /// Direct 3-token binary statements: `(verb, subject, object_spec) -> comment`.
     direct_statements: BTreeMap<(DcShorthand, DcShorthand, ValueSpec), String>,
+    /// Subjects whose `Dc 574 "Programmatic identifier"` is marked `@stable_ident()` in the context of `f649` (`Collective Toolbox`).
+    stable_programmatic_identifiers: BTreeSet<DcShorthand>,
+    /// Maps `@stable_ident()` programmatic identifier strings (e.g. `"Integer"`, `"Natural0"`, `"Natural1"`) to their `DcShorthand`.
+    stable_ident_to_shorthand: HashMap<String, DcShorthand>,
     /// Maps `@vary_as` nicknames (e.g. `"radix"`, `"encoding"`) to their `.Formats:format_variant` Dc shorthand.
     vary_as_to_format_variant: HashMap<String, DcShorthand>,
 }
@@ -750,6 +755,8 @@ fn build_initial_token_labels(
         (DC_DATA_BYTE_LENGTH, "Data byte length"),
         (DC_VALUE_RANGE, "Range"),
         (DC_EXCLUSIVE_RANGE_ENDPOINT, "Exclusive range endpoint"),
+        (DC_IS_STABLE, "Is stable"),
+        (DC_IN_CONTEXT_OF, "In context of"),
         (DC_BEGIN_LIST, "Begin list"),
         (DC_END_LIST, "End list"),
         (DC_LIST_ELEMENT_SEPARATOR, "List element separator"),
@@ -855,6 +862,8 @@ struct LedgerBuilder {
         BTreeMap<(DcShorthand, DcShorthand, DcShorthand), Vec<u128>>,
     /// Active statement node IDs that are structurally orphaned in the loaded graph.
     orphaned_stmt_ids: Vec<u128>,
+    /// Maps `@stable_ident()` programmatic identifier strings to their `DcShorthand`.
+    stable_ident_to_shorthand: HashMap<String, DcShorthand>,
     /// Maps `@vary_as` nicknames to their `.Formats:format_variant` Dc shorthand.
     vary_as_to_format_variant: HashMap<String, DcShorthand>,
 }
@@ -993,6 +1002,33 @@ impl LedgerBuilder {
             }
         }
 
+        let mut stable_ident_to_shorthand = HashMap::from([
+            ("Integer".to_string(), DcShorthand::Format(199)),
+            ("Natural0".to_string(), DcShorthand::Format(200)),
+            ("Natural1".to_string(), DcShorthand::Format(351)),
+        ]);
+        for (&(subj, prop), &(ident_has_a_id, _, val_tok)) in
+            &index.active_single_props
+        {
+            if prop == sh(DC_PROGRAMMATIC_IDENTIFIER) {
+                if let DcShorthand::Long(str_id) = val_tok
+                    && let Some(ident) = index.string_by_node_id.get(&str_id)
+                    && let Some(&stable_stmt_id) = index.active_direct_stmts.get(&(
+                        sh(DC_IS_STABLE),
+                        DcShorthand::Long(ident_has_a_id),
+                        sh(DC_BOOLEAN_TRUE),
+                    ))
+                    && index.active_direct_stmts.contains_key(&(
+                        sh(DC_IN_CONTEXT_OF),
+                        DcShorthand::Long(stable_stmt_id),
+                        sh(DC_COLLECTIVE_TOOLBOX),
+                    ))
+                {
+                    stable_ident_to_shorthand.insert(ident.clone(), subj);
+                }
+            }
+        }
+
         let mut multi_props_all_by_key: BTreeMap<
             (DcShorthand, DcShorthand, DcShorthand),
             Vec<crate::seed_graph::ActivePropertyValue>,
@@ -1034,6 +1070,7 @@ impl LedgerBuilder {
             active_direct_stmts: index.active_direct_stmts,
             direct_stmts_all: index.direct_stmts_all,
             orphaned_stmt_ids: index.orphaned_stmt_ids,
+            stable_ident_to_shorthand,
             vary_as_to_format_variant,
         }
     }
@@ -1542,9 +1579,8 @@ impl LedgerBuilder {
                 )?;
             match (expected_fmt, expected_bytes) {
                 (Some(fmt), Some(bytes)) => {
-                    let fmt_sh = DcShorthand::parse(fmt).with_context(|| {
-                        format!("Invalid format shorthand '{fmt}' in [data:{trimmed}]")
-                    })?;
+                    let fmt_sh = self
+                        .resolve_stable_format_or_shorthand(fmt, "data")?;
                     // Reason for fallback: usize byte length fits in u128 on all targets.
                     let bytes_u128 = u128::try_from(bytes).unwrap_or(0);
                     let int_id = self.get_or_insert_value_node(
@@ -1567,9 +1603,8 @@ impl LedgerBuilder {
                     out.push(DcShorthand::Long(int_id));
                 }
                 (Some(fmt), None) => {
-                    let fmt_sh = DcShorthand::parse(fmt).with_context(|| {
-                        format!("Invalid format shorthand '{fmt}' in [data:{trimmed}]")
-                    })?;
+                    let fmt_sh = self
+                        .resolve_stable_format_or_shorthand(fmt, "data")?;
                     out.push(fmt_sh);
                 }
                 (None, None) => {
@@ -1661,27 +1696,34 @@ impl LedgerBuilder {
         bail!("Unsupported structured subtype constraint '[{name}:{trimmed}]'")
     }
 
+    fn resolve_stable_format_or_shorthand(
+        &self,
+        raw: &str,
+        context_construct: &str,
+    ) -> Result<DcShorthand> {
+        if let Some(&shorthand) = self.stable_ident_to_shorthand.get(raw) {
+            return Ok(shorthand);
+        }
+        let parsed = DcShorthand::parse(raw).with_context(|| {
+            format!(
+                "Unsupported [{context_construct}:{raw}] format reference (must be a format shorthand f<N> or a @stable_ident() identifier)"
+            )
+        })?;
+        ensure!(
+            matches!(parsed, DcShorthand::Format(_)),
+            "Expected Format shorthand in [{context_construct}:{raw}], found {parsed}"
+        );
+        Ok(parsed)
+    }
+
     fn encode_number_subtype_tokens(
         &mut self,
         sub: &str,
         out: &mut Vec<DcShorthand>,
     ) -> Result<()> {
         if !sub.contains('&') && !sub.contains('<') && !sub.contains('>') {
-            let fmt_sh = match sub {
-                "Integer" | "f199" => DcShorthand::Format(199),
-                "Natural0" | "f200" => DcShorthand::Format(200),
-                "Natural1" | "f351" => DcShorthand::Format(351),
-                other => {
-                    let parsed = DcShorthand::parse(other).with_context(|| {
-                        format!("Unsupported [number:{other}] subtype")
-                    })?;
-                    ensure!(
-                        matches!(parsed, DcShorthand::Format(_)),
-                        "Expected Format shorthand in [number:{other}], found {parsed}"
-                    );
-                    parsed
-                }
-            };
+            let fmt_sh =
+                self.resolve_stable_format_or_shorthand(sub, "number")?;
             out.push(fmt_sh);
             return Ok(());
         }
@@ -1695,13 +1737,7 @@ impl LedgerBuilder {
             if part.is_empty() {
                 continue;
             }
-            if part == "Natural0" || part == "f200" {
-                domain_tok = DcShorthand::Format(200);
-            } else if part == "Natural1" || part == "f351" {
-                domain_tok = DcShorthand::Format(351);
-            } else if part == "Integer" || part == "f199" {
-                domain_tok = DcShorthand::Format(199);
-            } else if let Some(rest) = part.strip_prefix(">=") {
+            if let Some(rest) = part.strip_prefix(">=") {
                 lower_bound =
                     Some((false, NumericBoundValue::parse_dsl_bound(rest)?));
             } else if let Some(rest) = part.strip_prefix('>') {
@@ -1713,6 +1749,10 @@ impl LedgerBuilder {
             } else if let Some(rest) = part.strip_prefix('<') {
                 upper_bound =
                     Some((true, NumericBoundValue::parse_dsl_bound(rest)?));
+            } else if let Ok(fmt_sh) =
+                self.resolve_stable_format_or_shorthand(part, "number")
+            {
+                domain_tok = fmt_sh;
             } else {
                 bail!(
                     "Unsupported clause '{part}' in [number:{sub}] subtype constraint"
@@ -1840,6 +1880,9 @@ impl LedgerBuilder {
         &mut self,
         mut desired: DesiredDatasetState,
     ) -> Result<()> {
+        for (ident, subj) in &desired.stable_ident_to_shorthand {
+            self.stable_ident_to_shorthand.insert(ident.clone(), *subj);
+        }
         for (nick, variant_sh) in &desired.vary_as_to_format_variant {
             self.vary_as_to_format_variant
                 .insert(nick.clone(), *variant_sh);
@@ -2638,6 +2681,45 @@ impl LedgerBuilder {
             resolved_direct.insert((*verb, *subj, obj_tok), comment.clone());
         }
 
+        for &subj in &desired.stable_programmatic_identifiers {
+            if let Some(&(ident_has_a_id, _, _)) = self
+                .active_single_props
+                .get(&(subj, sh(DC_PROGRAMMATIC_IDENTIFIER)))
+            {
+                let stable_key = (
+                    sh(DC_IS_STABLE),
+                    DcShorthand::Long(ident_has_a_id),
+                    sh(DC_BOOLEAN_TRUE),
+                );
+                let stable_stmt_id = if let Some(&existing_id) =
+                    self.active_direct_stmts.get(&stable_key)
+                {
+                    existing_id
+                } else {
+                    let new_id = self.append_statement_node(
+                        stable_key.0,
+                        stable_key.1,
+                        stable_key.2,
+                    )?;
+                    self.active_direct_stmts.insert(stable_key, new_id);
+                    new_id
+                };
+                resolved_direct.insert(
+                    stable_key,
+                    format!("Is stable (l{ident_has_a_id}, true)"),
+                );
+                let ctx_key = (
+                    sh(DC_IN_CONTEXT_OF),
+                    DcShorthand::Long(stable_stmt_id),
+                    sh(DC_COLLECTIVE_TOOLBOX),
+                );
+                resolved_direct.insert(
+                    ctx_key,
+                    format!("In context of (l{stable_stmt_id}, f649)"),
+                );
+            }
+        }
+
         let existing_direct_keys: Vec<(DcShorthand, DcShorthand, DcShorthand)> =
             self.active_direct_stmts.keys().copied().collect();
         for key in existing_direct_keys {
@@ -3062,7 +3144,7 @@ fn compile_defn_statements(
         );
     }
 
-    // Programmatic identifier (`574`)
+    // Programmatic identifier (`574`) and `@stable_ident()` (`645` + `646`)
     if let Some(ident) = &defn.ident {
         if !ident.is_empty() {
             state.single_properties.insert(
@@ -3072,6 +3154,10 @@ fn compile_defn_statements(
                     format!("{subj} ident {ident:?}"),
                 ),
             );
+            if defn.stable_ident {
+                state.stable_programmatic_identifiers.insert(subj);
+                state.stable_ident_to_shorthand.insert(ident.clone(), subj);
+            }
         }
     }
 

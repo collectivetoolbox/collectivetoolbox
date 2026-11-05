@@ -1090,6 +1090,8 @@ pub fn is_relationship_verb_with(
         || tok == framing.retracts
         || tok == framing.is_associated_with
         || tok == framing.has_value
+        || tok == DcShorthand::Short(645)
+        || tok == DcShorthand::Short(646)
 }
 
 /// Parses a relationship statement `<verb> [atom_dc] [atom_dc]` back into `(verb, subj, obj)`.

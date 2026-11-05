@@ -61,12 +61,13 @@ use crate::dc::{
     DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS, DC_FORMAT_PARAM_APPLICATION,
     DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
     DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
-    DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS,
-    DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR,
-    DC_IS_DEPRECATED, DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
-    DC_NEGATED_PATTERN, DC_NICKNAME, DC_OPTIONAL_ABSENT,
-    DC_PATTERN_ALTERNATION, DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION,
-    DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
+    DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_IN_CONTEXT_OF,
+    DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH, DC_IS_BASED_ON,
+    DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED, DC_IS_INSTANCE_OF,
+    DC_IS_STABLE, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE, DC_NEGATED_PATTERN,
+    DC_NICKNAME, DC_OPTIONAL_ABSENT, DC_PATTERN_ALTERNATION,
+    DC_PATTERN_CAPTURE, DC_PATTERN_REPETITION, DC_PATTERN_REPLACEMENT,
+    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_RANGE,
     DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT, DC_REPLACEMENT,
     DC_RETRACTS, DC_ROUTINE_INVOCATION, DC_SELF_REFERENCE,
     DC_SEMANTIC_DECOMPOSITION, DC_START_ENCAPSULATION_BINARY,
@@ -1350,6 +1351,55 @@ impl SeedGraphIndex {
         self.active_direct_stmts.contains_key(&(verb, subj, obj))
     }
 
+    /// Returns `true` if `subj`'s active `Dc 574 "Programmatic identifier"` (`Has a` statement node)
+    /// has an active `Dc 645 "Is stable"` statement (`645 l<ident_has_a_id> 517`) that is
+    /// `Dc 646 "In context of"` `f649` (`Collective Toolbox`).
+    #[must_use]
+    pub fn has_stable_programmatic_identifier(&self, subj: DcShorthand) -> bool {
+        let Some(&(ident_has_a_id, _, _)) = self
+            .active_single_props
+            .get(&(subj, sh(DC_PROGRAMMATIC_IDENTIFIER)))
+        else {
+            return false;
+        };
+        let Some(&stable_stmt_id) = self.active_direct_stmts.get(&(
+            sh(DC_IS_STABLE),
+            DcShorthand::Long(ident_has_a_id),
+            sh(DC_BOOLEAN_TRUE),
+        )) else {
+            return false;
+        };
+        self.active_direct_stmts.contains_key(&(
+            sh(DC_IN_CONTEXT_OF),
+            DcShorthand::Long(stable_stmt_id),
+            sh(DC_COLLECTIVE_TOOLBOX),
+        ))
+    }
+
+    fn format_stable_or_shorthand_token(&self, tok: DcShorthand) -> String {
+        if self.has_stable_programmatic_identifier(tok) {
+            if let Some(ident) = self
+                .get_single_property_string(tok, sh(DC_PROGRAMMATIC_IDENTIFIER))
+            {
+                return ident.to_string();
+            }
+        }
+        // Fallback for historical graph snapshots prior to Dc 645 (Is stable) or synthetic unit tests
+        if !self
+            .active_direct_stmts
+            .keys()
+            .any(|&(v, _, _)| v == sh(DC_IS_STABLE))
+        {
+            match tok {
+                DcShorthand::Format(199) => return "Integer".to_string(),
+                DcShorthand::Format(200) => return "Natural0".to_string(),
+                DcShorthand::Format(351) => return "Natural1".to_string(),
+                _ => {}
+            }
+        }
+        tok.to_string()
+    }
+
     /// Returns all active object tokens `obj` for direct binary statements `(verb, subj, obj)`.
     #[must_use]
     pub fn get_direct_objects(
@@ -1612,7 +1662,7 @@ impl SeedGraphIndex {
                 short_id,
                 ident,
                 role_def: false,
-                stable_ident: false,
+                stable_ident: self.has_stable_programmatic_identifier(subj),
                 title: None,
                 name,
                 category: category.clone(),
@@ -2016,7 +2066,7 @@ impl SeedGraphIndex {
                 short_id,
                 ident,
                 role_def: false,
-                stable_ident: false,
+                stable_ident: self.has_stable_programmatic_identifier(subj),
                 title,
                 name,
                 category: category.clone(),
@@ -2783,10 +2833,11 @@ impl SeedGraphIndex {
                         "DataByteLength token {len_tok} in [data] subtype is not an integer node"
                     )
                 })?;
-                return Ok(format!("{fmt_tok};bytes={bytes}"));
+                let fmt_str = self.format_stable_or_shorthand_token(fmt_tok);
+                return Ok(format!("{fmt_str};bytes={bytes}"));
             }
             if let [single] = tokens {
-                return Ok(single.to_string());
+                return Ok(self.format_stable_or_shorthand_token(*single));
             }
             bail!(
                 "Unsupported token sequence for [data:...] subtype: {tokens:?}"
@@ -2859,15 +2910,11 @@ impl SeedGraphIndex {
         tokens: &[DcShorthand],
     ) -> Result<String> {
         if let [single] = tokens {
-            return match *single {
-                DcShorthand::Format(199) => Ok("Integer".to_string()),
-                DcShorthand::Format(200) => Ok("Natural0".to_string()),
-                DcShorthand::Format(351) => Ok("Natural1".to_string()),
-                DcShorthand::Format(_) => Ok(single.to_string()),
-                other => bail!(
-                    "Unexpected single token {other} in [number:...] subtype"
-                ),
-            };
+            ensure!(
+                matches!(*single, DcShorthand::Format(_)),
+                "Unexpected single token {single} in [number:...] subtype"
+            );
+            return Ok(self.format_stable_or_shorthand_token(*single));
         }
         ensure!(
             tokens.first() == Some(&sh(DC_VALUE_RANGE)) && tokens.len() >= 4,
@@ -2886,9 +2933,9 @@ impl SeedGraphIndex {
 
         let mut parts: Vec<String> = Vec::new();
         match domain_tok {
-            DcShorthand::Format(200) => parts.push("Natural0".to_string()),
-            DcShorthand::Format(351) => parts.push("Natural1".to_string()),
-            DcShorthand::Format(199) => parts.push("Integer".to_string()),
+            DcShorthand::Format(_) => {
+                parts.push(self.format_stable_or_shorthand_token(domain_tok));
+            }
             tok if tok == sh(DC_TYPE_NUMBER) => {}
             other => {
                 bail!(
@@ -3597,12 +3644,18 @@ mod tests {
             );
         }
 
-        // 2. Verify every Dc syntax rule in the dataset decodes identically from the seed graph
+        // 2. Verify every Dc syntax rule and @stable_ident() declaration in the dataset decodes identically from the seed graph
         for defn in crate::lookup::get_all_dc_defns() {
+            let subj = DcShorthand::from_global_id(defn.dc_id);
+            assert_eq!(
+                index.has_stable_programmatic_identifier(subj),
+                defn.stable_ident,
+                "@stable_ident() mismatch in SeedGraphIndex for {subj} ({})",
+                defn.name
+            );
             let Some(expected_rule) = &defn.syntax else {
                 continue;
             };
-            let subj = DcShorthand::from_global_id(defn.dc_id);
             let decoded_rule = index
                 .decode_syntax_rule_for_subject(subj)?
                 .with_context(|| {
@@ -3621,6 +3674,25 @@ mod tests {
                 "Syntax action mismatch in SeedGraphIndex for {subj} ({})",
                 defn.name
             );
+        }
+
+        // Verify f199 (`Integer`), f200 (`Natural0`), and f351 (`Natural1`) reconstruct `stable_ident: true` in a vacuum
+        assert!(index.has_stable_programmatic_identifier(DcShorthand::Format(199)));
+        assert!(index.has_stable_programmatic_identifier(DcShorthand::Format(200)));
+        assert!(index.has_stable_programmatic_identifier(DcShorthand::Format(351)));
+        assert!(!index.has_stable_programmatic_identifier(DcShorthand::Format(207)));
+        assert!(!index.has_stable_programmatic_identifier(DcShorthand::Format(84)));
+        let reconstructed_formats = index.reconstruct_format_defns()?;
+        for (fid, expected_ident) in [(199usize, "Integer"), (200, "Natural0"), (351, "Natural1")] {
+            let rec_fmt = reconstructed_formats
+                .iter()
+                .find(|d| d.short_id == Some(fid))
+                .expect("Expected format in reconstruct_format_defns()");
+            assert!(
+                rec_fmt.stable_ident,
+                "Expected f{fid} ({expected_ident}) to reconstruct stable_ident == true from seed graph"
+            );
+            assert_eq!(rec_fmt.ident.as_deref(), Some(expected_ident));
         }
 
         // 3. Verify integer value node decoding roundtrip

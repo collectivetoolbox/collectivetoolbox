@@ -388,6 +388,10 @@ pub const DC_DATA_BYTE_LENGTH: DcChar = DcChar::from_short(642);
 pub const DC_VALUE_RANGE: DcChar = DcChar::from_short(643);
 /// Marks a lower or upper endpoint of a Dc 643 (Range) expression as strictly exclusive (open interval bound, excluding the endpoint value itself). (Dc 644).
 pub const DC_EXCLUSIVE_RANGE_ENDPOINT: DcChar = DcChar::from_short(644);
+/// Asserts whether the subject identifier, statement, or entity is stable. (Dc 645).
+pub const DC_IS_STABLE: DcChar = DcChar::from_short(645);
+/// Asserts that the subject statement, property, or rule applies within the context or scope of the object entity. (Dc 646).
+pub const DC_IN_CONTEXT_OF: DcChar = DcChar::from_short(646);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

@@ -390,6 +390,10 @@ pub enum DcRole {
     ValueRange,
     /// Marks a lower or upper endpoint of a Dc 643 (Range) expression as strictly exclusive (open interval bound, excluding the endpoint value itself). (`644`).
     ExclusiveRangeEndpoint,
+    /// Asserts whether the subject identifier, statement, or entity is stable. (`645`).
+    IsStable,
+    /// Asserts that the subject statement, property, or rule applies within the context or scope of the object entity. (`646`).
+    InContextOf,
     /// Format indicator for an integer in a number header (`FormatId::Integer`).
 IntegerFormatIndicator,
 /// Base64 encapsulation digit character (0..=63).
@@ -588,6 +592,8 @@ match self {
             Self::DataByteLength => Some(642),
             Self::ValueRange => Some(643),
             Self::ExclusiveRangeEndpoint => Some(644),
+            Self::IsStable => Some(645),
+            Self::InContextOf => Some(646),
             _ => None,
 }
 }
@@ -781,6 +787,8 @@ match self {
             Self::DataByteLength => short == Some(642),
             Self::ValueRange => short == Some(643),
             Self::ExclusiveRangeEndpoint => short == Some(644),
+            Self::IsStable => short == Some(645),
+            Self::InContextOf => short == Some(646),
             Self::IntegerFormatIndicator => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
 && ctb_utilities::format_id::FormatId::from_dc_id(token)
