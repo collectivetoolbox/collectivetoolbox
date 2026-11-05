@@ -1030,6 +1030,9 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     if let Some(ident) = parsed.rust_ident {
         parts.push(format!("@ident(\"{}\")", escape_directive_string(&ident)));
     }
+    if parsed.stable_ident {
+        parts.push("@stable_ident()".to_string());
+    }
     if parsed.role_def {
         parts.push("@roleDef()".to_string());
     }

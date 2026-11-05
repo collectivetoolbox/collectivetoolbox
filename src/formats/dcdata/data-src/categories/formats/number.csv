@@ -15,8 +15,8 @@ Import/export/tests support columns take two space-separated levels: '<general> 
    3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
    4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
    5=4+optional strict validation.",References
-2228423,199,Integer,Integer number,number,@implies(f355),,,,,,,,,,,
-2228424,200,Natural0,"Natural number, including 0",number,"@implies(f355 & f199), :[number:>=0]",,,,,,,,,,,
+2228423,199,Integer,Integer number,number,"@stable_ident(), @implies(f355)",,,,,,,,,,,
+2228424,200,Natural0,"Natural number, including 0",number,"@stable_ident(), @implies(f355 & f199), :[number:>=0]",,,,,,,,,,,
 2228425,201,Positive,Positive number,number,"@implies(f355), :[number:>0]",,,,,,,,,,,
 2228426,202,Negative,Negative number,number,"@implies(f355), :[number:<0]",,,,,,,,,,,
 2228427,203,U8,8-bit unsigned integer,number,"@implies(f200), :[number:>=0 & <(2^8)]",,,,,,,,,,,
@@ -39,7 +39,7 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228573,349,NumeralSystem,Format for representing numbers,number,,,,,,,,,,,,
 2228580,356,BaseNNumber,"Representation of a number in a given base, agnostic to alphabet",number_abstract,"@varies(f354), :~ [format:f354]",,,,,,,,,,,
 2228574,350,BaseNNumeral,Representation of a number in a given base,number,"@varies(f354, f613), :~ [format:f354] [format:base_alphabet]",,,,,,,,,,,
-2228575,351,Natural1,"Natural number, not including zero",number_abstract,"@implies(f355 & f199), :[number:>0]",,,,,,,,,,,
+2228575,351,Natural1,"Natural number, not including zero",number_abstract,"@stable_ident(), @implies(f355 & f199), :[number:>0]",,,,,,,,,,,
 2228579,355,AbstractNumber,"Any number, but not in a specific representation",number_abstract,,,,,,,,,,,,
 2228581,357,DcNumber,"A number represented using Dcs, a sequence of Dcs between Dcs 6 and 7",number,,,,,,,,,,,,
 2228582,358,DcNumberB64Int,A DcNumber representing an integer expressed in base 64,number,@implies(f357),,,,,,,,,,"A DcNumber representing an integer expressed in base 64 using the encapsulation Dcs, not byte-oriented, with optional sign flag (Dc 10 or 11) at start",

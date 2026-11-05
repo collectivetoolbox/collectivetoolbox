@@ -1284,6 +1284,16 @@ pub fn validate_dc_category_file(
             );
         }
 
+        if parsed_col.stable_ident && parsed_col.rust_ident.is_none() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Aliases"),
+                "Document Character has '@stable_ident()' but is missing an '@ident(\"...\")' declaration".to_string(),
+                Some("Add an '@ident(\"...\")' declaration before marking it with '@stable_ident()'"),
+            );
+        }
+
         if script == ".EL Routines"
             && parsed_col
                 .composite_roles
@@ -1316,6 +1326,7 @@ pub fn validate_dc_category_file(
             short_id,
             ident: parsed_col.rust_ident,
             role_def: parsed_col.role_def,
+            stable_ident: parsed_col.stable_ident,
             title: parsed_col.title,
             name,
             category: row_category,
@@ -3279,6 +3290,7 @@ mod tests {
         fmt_registry.add_format(crate::syntax::FormatValidationInfo {
             short_id: 248,
             ident: Some("Sha256".to_string()),
+            stable_ident: true,
             category: "hash".to_string(),
             nicknames: vec!["sha256".to_string()],
             has_import_support: true,
@@ -3288,9 +3300,30 @@ mod tests {
         fmt_registry.add_format(crate::syntax::FormatValidationInfo {
             short_id: 99,
             ident: Some("NoExport".to_string()),
+            stable_ident: true,
             category: "archive".to_string(),
             nicknames: vec![],
             has_import_support: true,
+            has_export_support: false,
+            ..Default::default()
+        });
+        fmt_registry.add_format(crate::syntax::FormatValidationInfo {
+            short_id: 207,
+            ident: Some("U32".to_string()),
+            stable_ident: false,
+            category: "number".to_string(),
+            nicknames: vec![],
+            has_import_support: true,
+            has_export_support: true,
+            ..Default::default()
+        });
+        fmt_registry.add_format(crate::syntax::FormatValidationInfo {
+            short_id: 351,
+            ident: Some("Natural1".to_string()),
+            stable_ident: true,
+            category: "number_abstract".to_string(),
+            nicknames: vec![],
+            has_import_support: false,
             has_export_support: false,
             ..Default::default()
         });
@@ -3398,6 +3431,51 @@ mod tests {
             20,
         );
         assert!(!report_ok.has_errors());
+
+        // [number:U32] rejects format identifier not marked @stable_ident(), while [number:f207] and [number:Natural1] succeed
+        let mut report_unstable_num = ValidationReport::new();
+        let unstable_num_rule = parse_dc_syntax(":[number:U32]").unwrap();
+        validate_dc_syntax(
+            &unstable_num_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            Some(&fmt_registry),
+            &mut report_unstable_num,
+            "test/syntax.csv",
+            21,
+        );
+        assert!(report_unstable_num.has_errors());
+        assert!(
+            report_unstable_num.format_report().contains(
+                "Format identifier 'U32' in '[number:U32]' is not marked '@stable_ident()'"
+            )
+        );
+
+        let mut report_stable_num = ValidationReport::new();
+        let stable_num_rule =
+            parse_dc_syntax(":[number:Natural1] [number:f207]").unwrap();
+        validate_dc_syntax(
+            &stable_num_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            Some(&fmt_registry),
+            &mut report_stable_num,
+            "test/syntax.csv",
+            22,
+        );
+        assert!(
+            !report_stable_num.has_errors(),
+            "Unexpected errors: {}",
+            report_stable_num.format_report()
+        );
     }
 
     #[crate::ctb_test]

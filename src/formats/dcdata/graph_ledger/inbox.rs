@@ -944,6 +944,7 @@ mod tests {
             short_id: Some(short_id),
             ident: Some(format!("DC_TEST_{short_id}")),
             role_def: false,
+            stable_ident: false,
             title: None,
             name: name.to_string(),
             category: "semantic".to_string(),

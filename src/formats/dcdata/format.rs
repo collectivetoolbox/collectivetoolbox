@@ -462,6 +462,16 @@ pub fn validate_formats_category_file(
             split_comma_separated_items(&references)
         };
 
+        if parsed.stable_ident && clean_ident.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Ident"),
+                "Format has '@stable_ident()' but is missing an Ident".to_string(),
+                Some("Provide a valid Rust-friendly Ident in the Ident column"),
+            );
+        }
+
         rows.push(DcDefn {
             dc_id,
             short_id: Some(short_id),
@@ -471,6 +481,7 @@ pub fn validate_formats_category_file(
                 Some(clean_ident.to_string())
             },
             role_def: parsed.role_def,
+            stable_ident: parsed.stable_ident,
             title: parsed.title,
             name: clean_label.to_string(),
             category: formatted_category,

@@ -38,6 +38,7 @@ use std::collections::{HashMap, HashSet};
 pub struct FormatValidationInfo {
     pub short_id: usize,
     pub ident: Option<String>,
+    pub stable_ident: bool,
     pub category: String,
     pub nicknames: Vec<String>,
     pub has_import_support: bool,
@@ -157,6 +158,7 @@ pub fn build_format_validation_registry(
             reg.add_format(FormatValidationInfo {
                 short_id,
                 ident: row.ident.clone(),
+                stable_ident: row.stable_ident,
                 category: row.category.clone(),
                 nicknames,
                 has_import_support,
@@ -528,6 +530,22 @@ fn validate_syntax_element(
                         } else if let Some(fmt_info) =
                             formats.find_format(sub_trimmed)
                         {
+                            if super::parser::parse_target_token(sub_trimmed)
+                                .is_none()
+                                && !fmt_info.stable_ident
+                            {
+                                report.add_error(
+                                    source_file,
+                                    Some(line_no),
+                                    Some(col_name),
+                                    format!(
+                                        "Format identifier '{sub_trimmed}' in '[data:{sub}]' is not marked '@stable_ident()'"
+                                    ),
+                                    Some(
+                                        "Use its numeric shorthand 'f<id>' or add '@stable_ident()' to the format definition",
+                                    ),
+                                );
+                            }
                             if !fmt_info.has_import_support
                                 || !fmt_info.has_export_support
                             {
@@ -558,6 +576,79 @@ fn validate_syntax_element(
                                 ),
                                 Some(
                                     "Specify a registered format identifier that has both import and export support",
+                                ),
+                            );
+                        }
+                    }
+                }
+            } else if name == "number" {
+                if let (Some(sub), Some(formats)) = (subtype, format_registry)
+                    && !formats.formats_by_id.is_empty()
+                {
+                    for raw_clause in sub.split('&') {
+                        let clause = raw_clause.trim();
+                        if clause.is_empty()
+                            || clause.starts_with('<')
+                            || clause.starts_with('>')
+                        {
+                            continue;
+                        }
+                        if let Some(target) =
+                            super::parser::parse_target_token(clause)
+                        {
+                            if matches!(target, CharTarget::Format(_)) {
+                                if formats.find_format(clause).is_none() {
+                                    report.add_error(
+                                        source_file,
+                                        Some(line_no),
+                                        Some(col_name),
+                                        format!(
+                                            "Unknown format ID '{clause}' in '[number:{sub}]'"
+                                        ),
+                                        Some(
+                                            "Ensure referenced format ID is defined in formats category files",
+                                        ),
+                                    );
+                                }
+                            } else {
+                                report.add_error(
+                                    source_file,
+                                    Some(line_no),
+                                    Some(col_name),
+                                    format!(
+                                        "Invalid target '{clause}' in '[number:{sub}]'; expected a format shorthand (e.g. 'f351') or '@stable_ident()' format identifier"
+                                    ),
+                                    Some(
+                                        "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
+                                    ),
+                                );
+                            }
+                        } else if let Some(fmt_info) =
+                            formats.find_format(clause)
+                        {
+                            if !fmt_info.stable_ident {
+                                report.add_error(
+                                    source_file,
+                                    Some(line_no),
+                                    Some(col_name),
+                                    format!(
+                                        "Format identifier '{clause}' in '[number:{sub}]' is not marked '@stable_ident()'"
+                                    ),
+                                    Some(
+                                        "Use its numeric shorthand 'f<id>' or add '@stable_ident()' to the format definition",
+                                    ),
+                                );
+                            }
+                        } else {
+                            report.add_error(
+                                source_file,
+                                Some(line_no),
+                                Some(col_name),
+                                format!(
+                                    "Unknown format identifier '{clause}' in '[number:{sub}]'"
+                                ),
+                                Some(
+                                    "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
                                 ),
                             );
                         }

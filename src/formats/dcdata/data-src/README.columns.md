@@ -105,6 +105,10 @@ Normative formal aliases from Unicode Standard Annex #44 (`NameAliases.txt`) and
   - `@ident("TarGz")`
   - `@ident("Utf8")`
 
+#### `@stable_ident()`
+- **Purpose**: Marks the entry's programmatic identifier (`@ident("...")` or format `Ident` column) as frozen under the stability policy (`README.stability.md`), permitting it to be referenced by name in syntax rules (`:~` / `:`).
+- **Syntax**: `@stable_ident()` (takes no parameters).
+
 #### `@roleDef()`
 - **Purpose**: Marks this Document Character as the defining Dc for a syntactic or semantic role (`DcRole`). The variant name in `pub enum DcRole` is taken from the character's `@ident(...)` declaration.
 - **Syntax**: `@roleDef()` (takes no parameters).
@@ -149,7 +153,8 @@ Normative formal aliases from Unicode Standard Annex #44 (`NameAliases.txt`) and
 When records are generated or serialized, directives and items in Column 9 are arranged in the following deterministic order:
 1. **Formal Name Aliases**: `@formalAliasCorrection(...)`, `@formalAliasControl(...)`, `@formalAliasAlternate(...)`, `@formalAliasFigment(...)`, `@formalAliasAbbreviation(...)`
 2. **Rust Identifier**: `@ident(...)`
-3. **Role Definition**: `@roleDef()`
+3. **Stable Identifier Marker**: `@stable_ident()`
+4. **Role Definition**: `@roleDef()`
 4. **Nicknames**: `@nick(...)`
 5. **Informal Aliases**: Bare alias strings
 6. **Cross-References**: `@xref(...)`

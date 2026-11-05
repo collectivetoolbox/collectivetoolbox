@@ -90,6 +90,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub closes: Option<ctb_storage_minimal::shorthand::DcShorthand>,
     /// Indicates whether this character is declared as defining a semantic or syntactic role via `@roleDef()`.
     pub role_def: bool,
+    /// Indicates whether this character or format's programmatic identifier (`@ident` / `Ident`) is marked stable via `@stable_ident()`.
+    pub stable_ident: bool,
     /// Composite semantic or syntactic role names declared via `@roleDef("...")`.
     pub composite_roles: Vec<String>,
 }
@@ -957,13 +959,49 @@ fn process_column_item(
                 Some("Use '@roleDef()' with empty parentheses"),
             );
             parsed.role_def = true;
+        } else if item_trimmed == "@stable_ident()" {
+            parsed.stable_ident = true;
+        } else if let Some(inner) = item_trimmed.strip_prefix("@stable_ident(")
+        {
+            if let Some(body) = inner.strip_suffix(')') {
+                if body.trim().is_empty() {
+                    parsed.stable_ident = true;
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@stable_ident()': expected empty parentheses in '{item_trimmed}'"),
+                        Some("Use '@stable_ident()' without arguments"),
+                    );
+                    parsed.stable_ident = true;
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@stable_ident(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@stable_ident()' closes with a parenthesis"),
+                );
+                parsed.stable_ident = true;
+            }
+        } else if item_trimmed == "@stable_ident" {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some(col_name),
+                format!("Malformed '@stable_ident': missing parentheses in '{item_trimmed}'"),
+                Some("Use '@stable_ident()' with empty parentheses"),
+            );
+            parsed.stable_ident = true;
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@magic_name(...)', '@vary_as(...)', '@varies(...)', '@closes(...)', and '@roleDef()'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@stable_ident()', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@magic_name(...)', '@vary_as(...)', '@varies(...)', '@closes(...)', and '@roleDef()'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -1508,5 +1546,40 @@ mod tests {
                 .format_report()
                 .contains("Unknown composite role 'UnknownRole'")
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_stable_ident_directive() {
+        let mut report = ValidationReport::new();
+        let parsed = parse_aliases_or_base_column(
+            r#"@ident("Natural1"), @stable_ident()"#,
+            "test_category.csv",
+            1,
+            &mut report,
+            false,
+        );
+        assert!(
+            !report.has_errors(),
+            "Report errors: {}",
+            report.format_report()
+        );
+        assert!(parsed.stable_ident);
+        assert_eq!(parsed.rust_ident.as_deref(), Some("Natural1"));
+
+        let mut err_report = ValidationReport::new();
+        let parsed_err = parse_aliases_or_base_column(
+            r#"@ident("Natural1"), @stable_ident(foo)"#,
+            "test_category.csv",
+            1,
+            &mut err_report,
+            false,
+        );
+        assert!(err_report.has_errors());
+        assert!(
+            err_report
+                .format_report()
+                .contains("Malformed '@stable_ident()'")
+        );
+        assert!(parsed_err.stable_ident);
     }
 }
