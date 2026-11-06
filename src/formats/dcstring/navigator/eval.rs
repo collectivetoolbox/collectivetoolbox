@@ -27,8 +27,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::{
-    Arc, CachedLeafKind, CharTarget, Cow, DCMM_HEADER_LEN, DcByteSpan,
-    DcCharExt, DcDocumentNavigator, DcFrameHeaderInfo, DcMstr, DcMstring,
+    Arc, CharTarget, Cow, DCMM_HEADER_LEN, DcByteSpan, DcCharExt,
+    DcDocumentNavigator, DcFrameHeaderInfo, DcMstr, DcMstring,
     DcProjectionPolicy, DcRole, DcStr, DcString, DcSyntaxArena, DcSyntaxKind,
     Digest, MAX_NAV_CACHE_ENTRIES, NavBackend, Quantifier, Read,
     SubtypeConstraint, SyntaxDiagnostic, SyntaxElement, SyntaxPattern,
@@ -797,6 +797,7 @@ impl DcDocumentNavigator<'_> {
         } else {
             None
         };
+        let mut active_checkpoint = term_checkpoint;
         if !ctx.unescaped_literal_payload
             && let Some((ch, _)) = pre_read
             && ctx.resolver.is_splice_trigger_token(ch.to_u128())
@@ -832,6 +833,7 @@ impl DcDocumentNavigator<'_> {
                     )?
                 };
                 if spliced {
+                    active_checkpoint = self.save_checkpoint();
                     pre_read = if !self.has_spliced_tokens()
                         && self.cursor < self.active_span.end
                     {
@@ -1024,10 +1026,9 @@ impl DcDocumentNavigator<'_> {
                         return Ok(true);
                     }
                     let in_opaque = ctx.unescaped_literal_payload
-                        || (!from_spliced
-                            && ctx.self_dc.is_some_and(|s| {
-                                ctx.resolver.is_opaque_container(s)
-                            }));
+                        || ctx.self_dc.is_some_and(|s| {
+                            ctx.resolver.is_opaque_container(s)
+                        });
                     if !in_opaque {
                         if !from_spliced
                             && first_dc.fills_role_with(
@@ -1046,22 +1047,6 @@ impl DcDocumentNavigator<'_> {
                                 self.cursor = after_bin;
                                 return Ok(true);
                             }
-                        }
-                        if first_dc
-                            .fills_role_with(DcRole::BeginLiteral, ctx.resolver)
-                        {
-                            return self.eval_literal_frame(None, None, ctx);
-                        }
-                        if first_dc.fills_role_with(
-                            DcRole::BeginIdentifier,
-                            ctx.resolver,
-                        ) {
-                            return self.eval_identifier_frame(None, ctx);
-                        }
-                        if first_dc
-                            .fills_role_with(DcRole::BeginNumber, ctx.resolver)
-                        {
-                            return self.eval_number_frame(None, None, ctx);
                         }
                         if let Some(target) = CharTarget::from_u128(first)
                             && let Some(closer_u128) =
@@ -1115,6 +1100,14 @@ impl DcDocumentNavigator<'_> {
                             }
                             return Ok(false);
                         }
+                    } else if !ctx.unescaped_literal_payload
+                        && ctx.self_dc.is_some_and(|s| {
+                            ctx.token_fills_role(s, DcRole::BeginIdentifier)
+                        })
+                        && is_compound_type_starter(first_dc, ctx.resolver)
+                    {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
                     }
                     if in_set {
                         self.restore_checkpoint(term_checkpoint);
@@ -1136,12 +1129,10 @@ impl DcDocumentNavigator<'_> {
                 subtype,
                 capture_var,
             } => {
-                let direct_matched = if name == "data" {
-                    self.eval_data_construct(subtype.as_ref(), ctx)?
-                } else if name == "typed_data" {
-                    self.eval_typed_data_construct(subtype.as_ref(), ctx)?
-                } else if matches!(name.as_str(), "script" | "format" | "type")
-                {
+                let direct_matched = if matches!(
+                    name.as_str(),
+                    "script" | "format" | "type"
+                ) {
                     if name == "type"
                         && is_compound_type_starter(first_dc, ctx.resolver)
                         && let Some(target) = CharTarget::from_u128(first)
@@ -1189,60 +1180,26 @@ impl DcDocumentNavigator<'_> {
                     } else {
                         false
                     }
-                } else if name == "string" || name == "String" {
-                    self.eval_literal_frame(
-                        Some(DcRole::TypeString),
-                        subtype.as_ref(),
-                        ctx,
-                    )?
-                } else if name == "Routine" {
-                    self.eval_literal_frame(
-                        Some(DcRole::TypeRoutine),
-                        subtype.as_ref(),
-                        ctx,
-                    )?
-                } else if name == "value"
-                    && subtype.is_none()
-                    && first_dc
-                        .fills_role_with(DcRole::BeginLiteral, ctx.resolver)
-                {
-                    self.eval_literal_frame(None, None, ctx)?
-                } else if name == "value"
-                    && subtype.is_none()
-                    && first_dc
-                        .fills_role_with(DcRole::BeginNumber, ctx.resolver)
-                {
-                    self.eval_number_frame(None, None, ctx)?
-                } else if name == "value"
-                    && subtype.is_none()
-                    && !from_spliced
-                    && first_dc.fills_role_with(
-                        DcRole::StartEncapsulationBinary,
-                        ctx.resolver,
-                    )
-                    && let Ok((after_bin, DcFrameHeaderInfo::Binary { .. })) =
-                        self.scan_binary_at(
-                            start_offset,
-                            &ctx.policy,
-                            ctx.resolver,
-                        )
-                {
-                    self.cursor = after_bin;
-                    true
-                } else if name == "identifier" {
-                    self.eval_identifier_frame(subtype.as_ref(), ctx)?
-                } else if name == "number" || name == "Number" {
-                    self.eval_number_frame(
-                        subtype.as_ref(),
-                        capture_var.as_deref(),
-                        ctx,
-                    )?
                 } else if name == "atom_dc"
                     && subtype.is_none()
                     && ctx.resolver.is_plain_atom_dc(first)
                 {
                     let _ = self.pop_next_token()?;
                     true
+                } else if !from_spliced
+                    && first_dc.fills_role_with(
+                        DcRole::StartEncapsulationBinary,
+                        ctx.resolver,
+                    )
+                    && matches!(name.as_str(), "data" | "typed_data" | "value")
+                    && let Some(raw_ok) = self.try_eval_raw_binary_construct(
+                        name.as_str(),
+                        subtype.as_ref(),
+                        start_offset,
+                        ctx,
+                    )?
+                {
+                    raw_ok
                 } else {
                     if ctx.depth >= ctx.max_depth {
                         ctx.has_errors = true;
@@ -1271,26 +1228,31 @@ impl DcDocumentNavigator<'_> {
                     } else {
                         (name.as_str(), None)
                     };
+                    let lookup_key = match lookup_name {
+                        "String" => "string",
+                        "Number" => "number",
+                        other => other,
+                    };
                     let mut matched = false;
                     let resolved_pat = if let Some(sub) = subtype.as_ref() {
                         ctx.resolver
-                            .resolve_named_type_with_arg(lookup_name, Some(sub))
+                            .resolve_named_type_with_arg(lookup_key, Some(sub))
                             .map(Cow::Owned)
                     } else {
                         ctx.resolver
-                            .resolve_named_type(lookup_name)
+                            .resolve_named_type(lookup_key)
                             .map(Cow::Borrowed)
                             .or_else(|| {
                                 ctx.resolver
                                     .resolve_named_type_with_arg(
-                                        lookup_name,
+                                        lookup_key,
                                         None,
                                     )
                                     .map(Cow::Owned)
                             })
                     };
                     if let Some(pattern) = resolved_pat {
-                        let skip_value_pattern = lookup_name == "value"
+                        let skip_value_pattern = lookup_key == "value"
                             && subtype.is_none()
                             && !ctx
                                 .resolver
@@ -1306,45 +1268,20 @@ impl DcDocumentNavigator<'_> {
                             ctx.depth = ctx.depth.saturating_sub(1);
                             ctx.call_stack.pop();
                         }
-                        if matched
-                            && lookup_name == "list"
-                            && (subtype.is_some() || list_len_arg.is_some())
-                        {
-                            if from_spliced {
-                                let consumed = self
-                                    .consumed_tokens_since(&term_checkpoint)?;
-                                let mut mstr = DcMstring::new();
-                                for ch in consumed {
-                                    mstr.push_char(ch.to_u128());
-                                }
-                                let mut sub_nav =
-                                    DcDocumentNavigator::from_mstr(&mstr);
-                                // Reason for fallback: length overflow yields 0 for an empty span.
-                                let list_end =
-                                    u64::try_from(mstr.len()).unwrap_or(0);
-                                matched = sub_nav.eval_list_constraints(
-                                    0,
-                                    list_end,
-                                    subtype.as_ref(),
-                                    list_len_arg,
-                                    ctx,
-                                )?;
-                            } else {
-                                let list_end = self.cursor;
-                                matched = self.eval_list_constraints(
-                                    start_offset,
-                                    list_end,
-                                    subtype.as_ref(),
-                                    list_len_arg,
-                                    ctx,
-                                )?;
-                                if matched {
-                                    self.cursor = list_end;
-                                }
-                            }
+                        if matched {
+                            matched = self.validate_matched_construct(
+                                lookup_key,
+                                subtype.as_ref(),
+                                capture_var.as_deref(),
+                                list_len_arg,
+                                &active_checkpoint,
+                                start_offset,
+                                from_spliced,
+                                ctx,
+                            )?;
                         }
                         if !matched
-                            && lookup_name == "value"
+                            && lookup_key == "value"
                             && subtype.is_none()
                         {
                             if let Some(target) = CharTarget::from_u128(first)
@@ -1546,6 +1483,34 @@ impl DcDocumentNavigator<'_> {
                     return Ok(false);
                 }
                 if let Some(rule) = ctx.resolver.resolve_rule(target) {
+                    if !from_spliced
+                        && target.to_u128()
+                            == ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY
+                                .to_u128()
+                        && let Some((
+                            end_offset,
+                            DcFrameHeaderInfo::Binary { .. },
+                        )) = self.try_scan_raw_binary_at(
+                            start_offset,
+                            &ctx.policy,
+                            ctx.resolver,
+                        )?
+                    {
+                        if ctx.validate_interiors
+                            && matches!(
+                                self.backend,
+                                NavBackend::SeekableFile { .. }
+                            )
+                        {
+                            self.parse_binary_arena_node(
+                                DcByteSpan::new(start_offset, end_offset),
+                                &ctx.policy,
+                                ctx.resolver,
+                            )?;
+                        }
+                        self.cursor = end_offset;
+                        return Ok(true);
+                    }
                     self.scan_cache.ensure_resolver(ctx.resolver);
                     if !from_spliced
                         && !ctx.validate_interiors
@@ -1791,59 +1756,14 @@ impl DcDocumentNavigator<'_> {
         Ok(matched_any)
     }
 
-    pub(super) fn eval_data_construct(
+    pub(super) fn try_eval_raw_binary_construct(
         &mut self,
+        construct_name: &str,
         subtype: Option<&SubtypeConstraint>,
+        start_offset: u64,
         ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        let start_offset = self.cursor;
-        let Some((first_dc, _)) = self.read_token_or_binary_at(start_offset)?
-        else {
-            return Ok(false);
-        };
-        if !first_dc
-            .fills_role_with(DcRole::StartEncapsulationBinary, ctx.resolver)
-        {
-            return Ok(false);
-        }
-        let constraint: Option<(
-            Option<FormatId>,
-            Option<&str>,
-            Option<usize>,
-        )> = match subtype {
-            None => None,
-            Some(SubtypeConstraint::Data {
-                format,
-                format_id,
-                bytes,
-            }) => Some((*format_id, format.as_deref(), *bytes)),
-            Some(SubtypeConstraint::Target(fmt)) => Some((
-                subtype.and_then(SubtypeConstraint::resolved_format_id),
-                Some(fmt.as_str()),
-                None,
-            )),
-            Some(other) => {
-                ctx.has_errors = true;
-                ctx.diagnostics.push(SyntaxDiagnostic {
-                    message: format!(
-                        "Invalid data constraint: {}",
-                        other.format_dsl()
-                    ),
-                    token_offset: start_offset,
-                    is_error: true,
-                });
-                return Ok(false);
-            }
-        };
-
-        let matches_expected_fmt = |expected_fmt_id: Option<FormatId>,
-                                    actual_id: Option<u128>|
-         -> bool {
-            let expected_id = expected_fmt_id.and_then(|f| f.dc_id());
-            matches!((expected_id, actual_id), (Some(exp), Some(act)) if ctx.resolver.is_equivalent_to(act, exp))
-        };
-
-        if let Some((
+    ) -> Result<Option<bool>> {
+        let Some((
             end_offset,
             DcFrameHeaderInfo::Binary {
                 data_type,
@@ -1854,329 +1774,367 @@ impl DcDocumentNavigator<'_> {
             start_offset,
             &ctx.policy,
             ctx.resolver,
-        )? {
-            if ctx.validate_interiors
-                && matches!(self.backend, NavBackend::SeekableFile { .. })
-            {
-                self.parse_binary_arena_node(
-                    DcByteSpan::new(start_offset, end_offset),
-                    &ctx.policy,
-                    ctx.resolver,
-                )?;
+        )?
+        else {
+            return Ok(None);
+        };
+        if ctx.validate_interiors
+            && matches!(self.backend, NavBackend::SeekableFile { .. })
+        {
+            self.parse_binary_arena_node(
+                DcByteSpan::new(start_offset, end_offset),
+                &ctx.policy,
+                ctx.resolver,
+            )?;
+        }
+        match construct_name {
+            "value" if subtype.is_none() => {
+                self.cursor = end_offset;
+                Ok(Some(true))
             }
-            if let Some((expected_fmt_id, expected_fmt, expected_bytes)) =
-                constraint
-            {
-                if expected_fmt.is_some() {
-                    let actual_id = data_type.as_ref().and_then(|dt| {
-                        let mut chars = dt.chars();
-                        let first_ch = chars.next()?;
-                        if first_ch
-                            .fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
+            "typed_data" => {
+                let Some(ref dt) = data_type else {
+                    return Ok(Some(false));
+                };
+                let mut sub_nav = DcDocumentNavigator::from_dc_str(dt);
+                let mut sub_ctx = SyntaxEvalContext::new(ctx.resolver, None);
+                sub_ctx.policy.clone_from(&ctx.policy);
+                let type_term = SyntaxTerm::NamedConstruct {
+                    name: "type".to_owned(),
+                    subtype: subtype.cloned(),
+                    capture_var: None,
+                };
+                if sub_nav.eval_term_single(&type_term, &mut sub_ctx)?
+                    && sub_nav.position() == sub_nav.active_span().end
+                {
+                    self.cursor = end_offset;
+                    Ok(Some(true))
+                } else {
+                    Ok(Some(false))
+                }
+            }
+            "data" => {
+                if let Some(sub) = subtype {
+                    let (expected_fmt_id, expected_fmt, expected_bytes) =
+                        match sub {
+                            SubtypeConstraint::Data {
+                                format,
+                                format_id,
+                                bytes,
+                            } => (*format_id, format.as_deref(), *bytes),
+                            SubtypeConstraint::Target(fmt) => (
+                                sub.resolved_format_id(),
+                                Some(fmt.as_str()),
+                                None,
+                            ),
+                            other => {
+                                ctx.has_errors = true;
+                                ctx.diagnostics.push(SyntaxDiagnostic {
+                                    message: format!(
+                                        "Invalid data constraint: {}",
+                                        other.format_dsl()
+                                    ),
+                                    token_offset: start_offset,
+                                    is_error: true,
+                                });
+                                return Ok(Some(false));
+                            }
+                        };
+                    if expected_fmt.is_some() {
+                        let actual_id = data_type.as_ref().and_then(|dt| {
+                            let mut chars = dt.chars();
+                            let first_ch = chars.next()?;
+                            if first_ch.fills_role_with(
+                                DcRole::BeginTypeDef,
+                                ctx.resolver,
+                            ) {
+                                chars.next().map(DcChar::to_u128)
+                            } else {
+                                Some(first_ch.to_u128())
+                            }
+                        });
+                        let expected_id = expected_fmt_id.and_then(|f| f.dc_id());
+                        if !matches!((expected_id, actual_id), (Some(exp), Some(act)) if ctx.resolver.is_equivalent_to(act, exp))
                         {
-                            chars.next().map(DcChar::to_u128)
-                        } else {
-                            Some(first_ch.to_u128())
+                            return Ok(Some(false));
                         }
+                    }
+                    if let Some(req_bytes) = expected_bytes
+                        && payload_len != u64::try_from(req_bytes)?
+                    {
+                        return Ok(Some(false));
+                    }
+                }
+                self.cursor = end_offset;
+                Ok(Some(true))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Post-match constraint validation checks subtype, capture, and span parameters together"
+    )]
+    pub(super) fn validate_matched_construct(
+        &mut self,
+        construct_name: &str,
+        subtype: Option<&SubtypeConstraint>,
+        capture_var: Option<&str>,
+        list_len_arg: Option<&str>,
+        term_checkpoint: &NavigatorCheckpoint,
+        start_offset: u64,
+        from_spliced: bool,
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<bool> {
+        match construct_name {
+            "list" if subtype.is_some() || list_len_arg.is_some() => {
+                if from_spliced {
+                    let consumed =
+                        self.consumed_tokens_since(term_checkpoint)?;
+                    let mut mstr = DcMstring::new();
+                    for ch in consumed {
+                        mstr.push_char(ch.to_u128());
+                    }
+                    let mut sub_nav = DcDocumentNavigator::from_mstr(&mstr);
+                    // Reason for fallback: length overflow yields 0 for an empty span.
+                    let list_end = u64::try_from(mstr.len()).unwrap_or(0);
+                    sub_nav.eval_list_constraints(
+                        0,
+                        list_end,
+                        subtype,
+                        list_len_arg,
+                        ctx,
+                    )
+                } else {
+                    let list_end = self.cursor;
+                    let ok = self.eval_list_constraints(
+                        start_offset,
+                        list_end,
+                        subtype,
+                        list_len_arg,
+                        ctx,
+                    )?;
+                    if ok {
+                        self.cursor = list_end;
+                    }
+                    Ok(ok)
+                }
+            }
+            "string" | "Routine" => {
+                let consumed = self.consumed_tokens_since(term_checkpoint)?;
+                let Some(&type_dc) = consumed.get(2) else {
+                    return Ok(false);
+                };
+                let expected_role = if construct_name == "Routine" {
+                    DcRole::TypeRoutine
+                } else {
+                    DcRole::TypeString
+                };
+                if !type_dc.fills_role_with(expected_role, ctx.resolver)
+                    && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
+                {
+                    return Ok(false);
+                }
+                let Some(sub) = subtype else {
+                    return Ok(true);
+                };
+                if ctx.depth >= ctx.max_depth {
+                    ctx.has_errors = true;
+                    ctx.diagnostics.push(SyntaxDiagnostic {
+                        message:
+                            "String constraint expansion depth limit reached"
+                                .to_owned(),
+                        token_offset: start_offset,
+                        is_error: true,
                     });
-                    if !matches_expected_fmt(expected_fmt_id, actual_id) {
+                    return Ok(false);
+                }
+                let SubtypeConstraint::Pattern(sub_pattern) = sub else {
+                    ctx.has_errors = true;
+                    ctx.diagnostics.push(SyntaxDiagnostic {
+                        message: format!(
+                            "Invalid string constraint: {}",
+                            sub.format_dsl()
+                        ),
+                        token_offset: start_offset,
+                        is_error: true,
+                    });
+                    return Ok(false);
+                };
+                let payload_slice = consumed
+                    .get(4..consumed.len().saturating_sub(1))
+                    .unwrap_or(&[]);
+                let mut decoded_payload =
+                    Vec::with_capacity(payload_slice.len());
+                let mut iter = payload_slice.iter().copied();
+                while let Some(ch) = iter.next() {
+                    if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
+                        if let Some(esc) = iter.next() {
+                            decoded_payload.push(esc);
+                        }
+                    } else {
+                        decoded_payload.push(ch);
+                    }
+                }
+                let mut sub_nav =
+                    DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));
+                sub_nav.push_spliced_tokens(decoded_payload);
+                let mut sub_ctx = SyntaxEvalContext::new(ctx.resolver, None);
+                sub_ctx.policy.clone_from(&ctx.policy);
+                sub_ctx.depth = ctx.depth.saturating_add(1);
+                sub_ctx.max_depth = ctx.max_depth;
+                sub_ctx.call_stack.clone_from(&ctx.call_stack);
+                sub_ctx.unescaped_literal_payload = true;
+                let sub_ok =
+                    sub_nav.eval_pattern(sub_pattern, &mut sub_ctx)?;
+                ctx.has_errors |= sub_ctx.has_errors;
+                ctx.diagnostics.extend(sub_ctx.diagnostics);
+                Ok(sub_ok
+                    && !sub_ctx.has_errors
+                    && !sub_nav.has_spliced_tokens())
+            }
+            "identifier" if subtype.is_some() => {
+                let Some(sub_str) =
+                    subtype.and_then(SubtypeConstraint::as_target_str)
+                else {
+                    return Ok(false);
+                };
+                let consumed = self.consumed_tokens_since(term_checkpoint)?;
+                let mut mstr = DcMstring::new();
+                for ch in consumed {
+                    mstr.push_char(ch);
+                }
+                let mut id_nav = DcDocumentNavigator::from_mstr(&mstr);
+                let _ = id_nav.pop_next_token()?;
+                let closer = ctb_formats_dcdata::dc::DC_END_IDENTIFIER;
+                let mut type_ctx = SyntaxEvalContext::new(ctx.resolver, None);
+                type_ctx.policy.clone_from(&ctx.policy);
+                let leading_type_tokens = id_nav
+                    .try_consume_optional_leading_type(closer, &mut type_ctx)?;
+                if let Some(ref type_tokens) = leading_type_tokens {
+                    Ok(Self::type_tokens_satisfy(
+                        type_tokens,
+                        sub_str,
+                        None,
+                        ctx.resolver,
+                    ))
+                } else {
+                    let mut name_mstr = DcMstring::new();
+                    while let Some(ch) = id_nav.pop_next_token()? {
+                        if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
+                            if let Some(esc) = id_nav.pop_next_token()? {
+                                name_mstr.push_char(esc);
+                            }
+                        } else if ch
+                            .fills_role_with(DcRole::EndIdentifier, ctx.resolver)
+                        {
+                            break;
+                        } else {
+                            name_mstr.push_char(ch);
+                        }
+                    }
+                    self.identifier_bound_to_type_in_scope(
+                        &name_mstr,
+                        start_offset,
+                        sub_str,
+                        ctx,
+                    )
+                }
+            }
+            "number" if subtype.is_some() || capture_var.is_some() => {
+                let consumed = self.consumed_tokens_since(term_checkpoint)?;
+                let digits = consumed
+                    .get(2..consumed.len().saturating_sub(1))
+                    .unwrap_or(&[]);
+                let Ok(val) =
+                    crate::dc_number::parse_dc_number_digits_with_resolver(
+                        digits,
+                        ctx.resolver,
+                    )
+                else {
+                    return Ok(false);
+                };
+                if let Some(sub) = subtype
+                    && !number_satisfies_subtype(&val, sub, ctx.resolver)
+                {
+                    return Ok(false);
+                }
+                if let Some(var) = capture_var {
+                    ctx.captured_numbers.insert(
+                        var.trim_start_matches('$').to_owned(),
+                        val,
+                    );
+                }
+                Ok(true)
+            }
+            "data" if subtype.is_some() => {
+                let Some(sub) = subtype else {
+                    return Ok(true);
+                };
+                let (expected_fmt_id, expected_fmt, expected_bytes) = match sub
+                {
+                    SubtypeConstraint::Data {
+                        format,
+                        format_id,
+                        bytes,
+                    } => (*format_id, format.as_deref(), *bytes),
+                    SubtypeConstraint::Target(fmt) => (
+                        sub.resolved_format_id(),
+                        Some(fmt.as_str()),
+                        None,
+                    ),
+                    other => {
+                        ctx.has_errors = true;
+                        ctx.diagnostics.push(SyntaxDiagnostic {
+                            message: format!(
+                                "Invalid data constraint: {}",
+                                other.format_dsl()
+                            ),
+                            token_offset: start_offset,
+                            is_error: true,
+                        });
+                        return Ok(false);
+                    }
+                };
+                let consumed = self.consumed_tokens_since(term_checkpoint)?;
+                let tokens: Vec<u128> =
+                    consumed.into_iter().map(DcChar::to_u128).collect();
+                if expected_fmt.is_some() {
+                    let actual_id = if tokens.get(1).is_some_and(|&t| {
+                        ctx.token_fills_role(t, DcRole::BeginTypeDef)
+                    }) {
+                        tokens.get(2).copied()
+                    } else {
+                        tokens.get(1).copied()
+                    };
+                    let expected_id = expected_fmt_id.and_then(|f| f.dc_id());
+                    if !matches!((expected_id, actual_id), (Some(exp), Some(act)) if ctx.resolver.is_equivalent_to(act, exp))
+                    {
                         return Ok(false);
                     }
                 }
                 if let Some(req_bytes) = expected_bytes {
-                    if payload_len != u64::try_from(req_bytes)? {
-                        return Ok(false);
+                    match encapsulated_byte_length(&tokens, ctx.resolver) {
+                        Ok(len) if len == req_bytes => {}
+                        Ok(_) => return Ok(false),
+                        Err(err) => {
+                            ctx.has_errors = true;
+                            ctx.diagnostics.push(SyntaxDiagnostic {
+                                message: format!(
+                                    "Invalid constrained binary payload: {err}"
+                                ),
+                                token_offset: start_offset,
+                                is_error: true,
+                            });
+                            return Ok(false);
+                        }
                     }
                 }
+                Ok(true)
             }
-            self.cursor = end_offset;
-            return Ok(true);
+            _ => Ok(true),
         }
-
-        let Some(target_203) = CharTarget::from_u128(first_dc.to_u128()) else {
-            return Ok(false);
-        };
-        let Some(rule_203) = ctx.resolver.resolve_rule(&target_203) else {
-            return Ok(false);
-        };
-        let old_self = ctx.self_dc;
-        ctx.self_dc = Some(first_dc.to_u128());
-        let matched = self.eval_pattern(&rule_203.pattern, ctx)?;
-        ctx.self_dc = old_self;
-        if !matched {
-            self.cursor = start_offset;
-            return Ok(false);
-        }
-        let end_offset = self.cursor;
-
-        if let Some((expected_fmt_id, expected_fmt, expected_bytes)) =
-            constraint
-        {
-            let tokens = self.read_tokens_in_span(DcByteSpan::new(
-                start_offset,
-                end_offset,
-            ))?;
-            if expected_fmt.is_some() {
-                let actual_id = if tokens.get(1).is_some_and(|&t| {
-                    ctx.token_fills_role(t, DcRole::BeginTypeDef)
-                }) {
-                    tokens.get(2).copied()
-                } else {
-                    tokens.get(1).copied()
-                };
-                if !matches_expected_fmt(expected_fmt_id, actual_id) {
-                    self.cursor = start_offset;
-                    return Ok(false);
-                }
-            }
-            if let Some(req_bytes) = expected_bytes {
-                match encapsulated_byte_length(&tokens, ctx.resolver) {
-                    Ok(len) if len == req_bytes => {}
-                    Ok(_) => {
-                        self.cursor = start_offset;
-                        return Ok(false);
-                    }
-                    Err(err) => {
-                        ctx.has_errors = true;
-                        ctx.diagnostics.push(SyntaxDiagnostic {
-                            message: format!(
-                                "Invalid constrained binary payload: {err}"
-                            ),
-                            token_offset: start_offset,
-                            is_error: true,
-                        });
-                        self.cursor = start_offset;
-                        return Ok(false);
-                    }
-                }
-            }
-        }
-        Ok(true)
-    }
-
-    pub(super) fn eval_typed_data_construct(
-        &mut self,
-        subtype: Option<&SubtypeConstraint>,
-        ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        let start_offset = self.cursor;
-        let Some((first_dc, _)) = self.read_token_or_binary_at(start_offset)?
-        else {
-            return Ok(false);
-        };
-        if !first_dc
-            .fills_role_with(DcRole::StartEncapsulationBinary, ctx.resolver)
-        {
-            return Ok(false);
-        }
-        if let Some((end_offset, DcFrameHeaderInfo::Binary { data_type, .. })) =
-            self.try_scan_raw_binary_at(
-                start_offset,
-                &ctx.policy,
-                ctx.resolver,
-            )?
-        {
-            let Some(ref dt) = data_type else {
-                return Ok(false);
-            };
-            let mut sub_nav = DcDocumentNavigator::from_dc_str(dt);
-            let mut sub_ctx = SyntaxEvalContext::new(ctx.resolver, None);
-            sub_ctx.policy.clone_from(&ctx.policy);
-            let type_term = SyntaxTerm::NamedConstruct {
-                name: "type".to_owned(),
-                subtype: subtype.cloned(),
-                capture_var: None,
-            };
-            if sub_nav.eval_term_single(&type_term, &mut sub_ctx)?
-                && sub_nav.position() == sub_nav.active_span().end
-            {
-                self.cursor = end_offset;
-                return Ok(true);
-            }
-            return Ok(false);
-        }
-        let Some(pattern) = ctx
-            .resolver
-            .resolve_named_type_with_arg("typed_data", subtype)
-        else {
-            return Ok(false);
-        };
-        self.eval_pattern(&pattern, ctx)
-    }
-
-    pub(super) fn eval_literal_frame(
-        &mut self,
-        expected_type_role: Option<DcRole>,
-        subtype: Option<&SubtypeConstraint>,
-        ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        let start_offset = self.cursor;
-        self.scan_cache.ensure_resolver(ctx.resolver);
-        if subtype.is_none()
-            && !self.has_spliced_tokens()
-            && let Some(&(cached_end, CachedLeafKind::Literal(type_dc))) =
-                self.scan_cache.validated_leaf_frames.get(&start_offset)
-            && cached_end <= self.active_span.end
-        {
-            if let Some(role) = expected_type_role
-                && !type_dc.fills_role_with(role, ctx.resolver)
-                && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
-            {
-                return Ok(false);
-            }
-            self.cursor = cached_end;
-            return Ok(true);
-        }
-        let term_checkpoint = self.save_checkpoint();
-        let Some(first_dc) = self.pop_next_token()? else {
-            return Ok(false);
-        };
-        if !first_dc.fills_role_with(DcRole::BeginLiteral, ctx.resolver) {
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        let Some(hdr_open) = self.pop_next_token()? else {
-            ctx.has_errors = true;
-            ctx.diagnostics.push(SyntaxDiagnostic {
-                message: format!("Unclosed literal at offset {start_offset}: missing Dc 262..263"),
-                token_offset: start_offset,
-                is_error: true,
-            });
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        };
-        if !hdr_open.fills_role_with(DcRole::BeginTypeDef, ctx.resolver) {
-            ctx.has_errors = true;
-            ctx.diagnostics.push(SyntaxDiagnostic {
-                message: format!("Literal at offset {start_offset} is missing Dc 262..263 type header"),
-                token_offset: start_offset,
-                is_error: true,
-            });
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        let Some(type_dc) = self.pop_next_token()? else {
-            ctx.has_errors = true;
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        };
-        if !ctx.resolver.matches_script(".EL Types", type_dc.to_u128()) {
-            ctx.has_errors = true;
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        let Some(hdr_close) = self.pop_next_token()? else {
-            ctx.has_errors = true;
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        };
-        if !hdr_close.fills_role_with(DcRole::EndTypeDef, ctx.resolver) {
-            ctx.has_errors = true;
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        if let Some(role) = expected_type_role
-            && !type_dc.fills_role_with(role, ctx.resolver)
-            && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
-        {
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-
-        let mut decoded_payload = Vec::new();
-        while let Some(ch) = self.pop_next_token()? {
-            if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
-                let Some(escaped) = self.pop_next_token()? else {
-                    ctx.has_errors = true;
-                    ctx.diagnostics.push(SyntaxDiagnostic {
-                        message: format!(
-                            "Dangling escape Dc 255 in literal at offset {}",
-                            self.cursor
-                        ),
-                        token_offset: self.cursor,
-                        is_error: true,
-                    });
-                    self.restore_checkpoint(term_checkpoint);
-                    return Ok(false);
-                };
-                if subtype.is_some() {
-                    decoded_payload.push(escaped);
-                }
-            } else if ch.fills_role_with(DcRole::EndLiteral, ctx.resolver) {
-                if let Some(sub) = subtype {
-                    if ctx.depth >= ctx.max_depth {
-                        ctx.has_errors = true;
-                        ctx.diagnostics.push(SyntaxDiagnostic {
-                            message: "String constraint expansion depth limit reached".to_owned(),
-                            token_offset: start_offset,
-                            is_error: true,
-                        });
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    }
-                    let SubtypeConstraint::Pattern(sub_pattern) = sub else {
-                        ctx.has_errors = true;
-                        ctx.diagnostics.push(SyntaxDiagnostic {
-                            message: format!(
-                                "Invalid string constraint: {}",
-                                sub.format_dsl()
-                            ),
-                            token_offset: start_offset,
-                            is_error: true,
-                        });
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    };
-                    let mut sub_nav =
-                        DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));
-                    sub_nav.push_spliced_tokens(decoded_payload);
-                    let mut sub_ctx =
-                        SyntaxEvalContext::new(ctx.resolver, None);
-                    sub_ctx.policy.clone_from(&ctx.policy);
-                    sub_ctx.depth = ctx.depth.saturating_add(1);
-                    sub_ctx.max_depth = ctx.max_depth;
-                    sub_ctx.call_stack.clone_from(&ctx.call_stack);
-                    sub_ctx.unescaped_literal_payload = true;
-                    let sub_ok =
-                        sub_nav.eval_pattern(sub_pattern, &mut sub_ctx)?;
-                    ctx.has_errors |= sub_ctx.has_errors;
-                    ctx.diagnostics.extend(sub_ctx.diagnostics);
-                    if !sub_ok
-                        || sub_ctx.has_errors
-                        || sub_nav.has_spliced_tokens()
-                    {
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    }
-                }
-                if !term_checkpoint.has_spliced()
-                    && !self.has_spliced_tokens()
-                {
-                    if self.scan_cache.validated_leaf_frames.len()
-                        >= MAX_NAV_CACHE_ENTRIES
-                    {
-                        self.scan_cache.validated_leaf_frames.clear();
-                    }
-                    self.scan_cache.validated_leaf_frames.insert(
-                        start_offset,
-                        (self.cursor, CachedLeafKind::Literal(type_dc)),
-                    );
-                }
-                return Ok(true);
-            } else if subtype.is_some() {
-                decoded_payload.push(ch);
-            }
-        }
-        ctx.has_errors = true;
-        ctx.diagnostics.push(SyntaxDiagnostic {
-            message: format!(
-                "Unclosed literal frame starting at offset {start_offset}"
-            ),
-            token_offset: start_offset,
-            is_error: true,
-        });
-        self.restore_checkpoint(term_checkpoint);
-        Ok(false)
     }
 
     pub(super) fn try_consume_optional_leading_type(
@@ -2224,136 +2182,6 @@ impl DcDocumentNavigator<'_> {
         } else {
             Ok(None)
         }
-    }
-
-    pub(super) fn eval_identifier_frame(
-        &mut self,
-        subtype: Option<&SubtypeConstraint>,
-        ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        let start_offset = self.cursor;
-        self.scan_cache.ensure_resolver(ctx.resolver);
-        if subtype.is_none()
-            && !self.has_spliced_tokens()
-            && let Some(&(cached_end, CachedLeafKind::Identifier)) =
-                self.scan_cache.validated_leaf_frames.get(&start_offset)
-            && cached_end <= self.active_span.end
-        {
-            self.cursor = cached_end;
-            return Ok(true);
-        }
-        let term_checkpoint = self.save_checkpoint();
-        let Some(first_dc) = self.pop_next_token()? else {
-            return Ok(false);
-        };
-        if !first_dc.fills_role_with(DcRole::BeginIdentifier, ctx.resolver) {
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
-        let closer = CharTarget::from_u128(first_dc.to_u128())
-            .and_then(|t| ctx.resolver.closer_for_opener(&t))
-            .map_or(
-                ctb_formats_dcdata::dc::DC_END_IDENTIFIER,
-                DcChar::from_u128,
-            );
-        let leading_type_tokens =
-            self.try_consume_optional_leading_type(closer, ctx)?;
-        if ctx.has_errors {
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        let mut char_count = 0usize;
-        let mut name_mstr = subtype.is_some().then(DcMstring::new);
-        while let Some(ch) = self.pop_next_token()? {
-            if ch.fills_role_with(DcRole::Escape, ctx.resolver) {
-                let Some(escaped) = self.pop_next_token()? else {
-                    ctx.has_errors = true;
-                    ctx.diagnostics.push(SyntaxDiagnostic {
-                        message: format!(
-                            "Dangling escape Dc 255 in identifier at offset {}",
-                            self.cursor
-                        ),
-                        token_offset: self.cursor,
-                        is_error: true,
-                    });
-                    self.restore_checkpoint(term_checkpoint);
-                    return Ok(false);
-                };
-                if let Some(ref mut mstr) = name_mstr {
-                    mstr.push_char(escaped);
-                }
-                char_count = char_count.saturating_add(1);
-            } else if ch.fills_role_with(DcRole::EndIdentifier, ctx.resolver) {
-                if char_count == 0 {
-                    ctx.has_errors = true;
-                    ctx.diagnostics.push(SyntaxDiagnostic {
-                        message: format!("Empty identifier frame (Dc 270..271) at offset {start_offset}"),
-                        token_offset: start_offset,
-                        is_error: true,
-                    });
-                    self.restore_checkpoint(term_checkpoint);
-                    return Ok(false);
-                }
-                if let Some(sub) = subtype {
-                    let Some(sub_str) = sub.as_target_str() else {
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    };
-                    let type_ok =
-                        if let Some(ref type_tokens) = leading_type_tokens {
-                            Self::type_tokens_satisfy(
-                                type_tokens,
-                                sub_str,
-                                None,
-                                ctx.resolver,
-                            )
-                        } else if let Some(ref mstr) = name_mstr {
-                            self.identifier_bound_to_type_in_scope(
-                                mstr,
-                                start_offset,
-                                sub_str,
-                                ctx,
-                            )?
-                        } else {
-                            false
-                        };
-                    if !type_ok {
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    }
-                }
-                if !term_checkpoint.has_spliced()
-                    && !self.has_spliced_tokens()
-                {
-                    if self.scan_cache.validated_leaf_frames.len()
-                        >= MAX_NAV_CACHE_ENTRIES
-                    {
-                        self.scan_cache.validated_leaf_frames.clear();
-                    }
-                    self.scan_cache.validated_leaf_frames.insert(
-                        start_offset,
-                        (self.cursor, CachedLeafKind::Identifier),
-                    );
-                }
-                return Ok(true);
-            } else {
-                if let Some(ref mut mstr) = name_mstr {
-                    mstr.push_char(ch);
-                }
-                char_count = char_count.saturating_add(1);
-            }
-        }
-        ctx.has_errors = true;
-        ctx.diagnostics.push(SyntaxDiagnostic {
-            message: format!(
-                "Unclosed identifier frame starting at offset {start_offset}"
-            ),
-            token_offset: start_offset,
-            is_error: true,
-        });
-        self.restore_checkpoint(term_checkpoint);
-        Ok(false)
     }
 
     pub(super) fn identifier_bound_to_type_in_scope(
@@ -2505,99 +2333,6 @@ impl DcDocumentNavigator<'_> {
         self.diagnostics.truncate(saved_diag_len);
         self.restore_checkpoint(saved_for_eval);
         Ok(ok)
-    }
-
-    pub(super) fn eval_number_frame(
-        &mut self,
-        subtype: Option<&SubtypeConstraint>,
-        capture_var: Option<&str>,
-        ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        let start_offset = self.cursor;
-        let need_digits = subtype.is_some() || capture_var.is_some();
-        self.scan_cache.ensure_resolver(ctx.resolver);
-        if !need_digits
-            && !self.has_spliced_tokens()
-            && let Some(&(cached_end, CachedLeafKind::Number(_))) =
-                self.scan_cache.validated_leaf_frames.get(&start_offset)
-            && cached_end <= self.active_span.end
-        {
-            self.cursor = cached_end;
-            return Ok(true);
-        }
-        let term_checkpoint = self.save_checkpoint();
-        let Some(first_dc) = self.pop_next_token()? else {
-            return Ok(false);
-        };
-        if !first_dc.fills_role_with(DcRole::BeginNumber, ctx.resolver) {
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        let Some(fmt_dc) = self.pop_next_token()? else {
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        };
-        if !ctx
-            .resolver
-            .matches_script("Formats:number", fmt_dc.to_u128())
-            && !ctx.resolver.matches_script("number", fmt_dc.to_u128())
-        {
-            self.restore_checkpoint(term_checkpoint);
-            return Ok(false);
-        }
-        let mut digits = Vec::new();
-        let mut digit_count = 0usize;
-        while let Some(ch) = self.pop_next_token()? {
-            if ch.fills_role_with(DcRole::EndNumber, ctx.resolver) {
-                if digit_count == 0 {
-                    self.restore_checkpoint(term_checkpoint);
-                    return Ok(false);
-                }
-                if need_digits {
-                    let Ok(val) =
-                        crate::dc_number::parse_dc_number_digits_with_resolver(
-                            &digits,
-                            ctx.resolver,
-                        )
-                    else {
-                        self.restore_checkpoint(term_checkpoint);
-                        return Ok(false);
-                    };
-                    if let Some(sub) = subtype {
-                        if !number_satisfies_subtype(&val, sub, ctx.resolver) {
-                            self.restore_checkpoint(term_checkpoint);
-                            return Ok(false);
-                        }
-                    }
-                    if let Some(var) = capture_var {
-                        ctx.captured_numbers.insert(
-                            var.trim_start_matches('$').to_owned(),
-                            val,
-                        );
-                    }
-                }
-                if !term_checkpoint.has_spliced()
-                    && !self.has_spliced_tokens()
-                {
-                    if self.scan_cache.validated_leaf_frames.len()
-                        >= MAX_NAV_CACHE_ENTRIES
-                    {
-                        self.scan_cache.validated_leaf_frames.clear();
-                    }
-                    self.scan_cache.validated_leaf_frames.insert(
-                        start_offset,
-                        (self.cursor, CachedLeafKind::Number(fmt_dc)),
-                    );
-                }
-                return Ok(true);
-            }
-            digit_count = digit_count.saturating_add(1);
-            if need_digits {
-                digits.push(ch);
-            }
-        }
-        self.restore_checkpoint(term_checkpoint);
-        Ok(false)
     }
 
     pub(super) fn eval_list_constraints(
@@ -2758,18 +2493,6 @@ impl DcDocumentNavigator<'_> {
                 {
                     self.cursor = outer.end;
                     true
-                } else if resolver
-                    .token_fills_role(target.to_u128(), DcRole::BeginLiteral)
-                {
-                    self.eval_literal_frame(None, None, &mut ctx)?
-                } else if resolver
-                    .token_fills_role(target.to_u128(), DcRole::BeginIdentifier)
-                {
-                    self.eval_identifier_frame(None, &mut ctx)?
-                } else if resolver
-                    .token_fills_role(target.to_u128(), DcRole::BeginNumber)
-                {
-                    self.eval_number_frame(None, None, &mut ctx)?
                 } else {
                     self.eval_pattern(&rule.pattern, &mut ctx)?
                 };

@@ -119,13 +119,6 @@ pub(super) struct CachedBalancedContainer {
     pub(super) max_rel_depth: usize,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(super) enum CachedLeafKind {
-    Literal(DcChar),
-    Number(DcChar),
-    Identifier,
-}
-
 #[derive(Debug, Default)]
 pub(super) struct NavScanCache {
     pub(super) resolver_addr: Option<usize>,
@@ -134,8 +127,6 @@ pub(super) struct NavScanCache {
     pub(super) validated_containers: std::collections::HashSet<(u64, u64)>,
     pub(super) validated_rule_spans:
         std::collections::HashMap<(u128, u64), (u64, bool)>,
-    pub(super) validated_leaf_frames:
-        std::collections::HashMap<u64, (u64, CachedLeafKind)>,
     pub(super) assignments_scanned_up_to: Option<u64>,
     pub(super) top_level_assignments: Vec<(u64, DcMstring, DcByteSpan)>,
 }
@@ -152,7 +143,6 @@ impl NavScanCache {
             self.balanced_containers.clear();
             self.validated_containers.clear();
             self.validated_rule_spans.clear();
-            self.validated_leaf_frames.clear();
             self.assignments_scanned_up_to = None;
             self.top_level_assignments.clear();
         }
@@ -1323,81 +1313,25 @@ impl<'a> DcDocumentNavigator<'a> {
                     term:
                         SyntaxTerm::NamedConstruct {
                             name,
-                            subtype,
+                            subtype: None,
                             capture_var: None,
                         },
                     quantifier: Quantifier::ExactOne,
                 },
             ] = operands
+            && name == "boolean"
             && let Some((arg_tok, after_arg)) =
                 self.read_token_or_binary_at(after_first)?
             && !resolver.is_special_wrapper_token(arg_tok.to_u128())
             && !arg_tok
                 .fills_role_with(DcRole::EvaluableExpressionStarter, resolver)
+            && resolver.token_satisfies_type(
+                arg_tok.to_u128(),
+                "boolean",
+                None,
+            )
         {
-            if name == "boolean"
-                && subtype.is_none()
-                && resolver.token_satisfies_type(
-                    arg_tok.to_u128(),
-                    "boolean",
-                    None,
-                )
-            {
-                return Ok(Some(after_arg));
-            }
-            if (name == "string" || name == "String")
-                && subtype.is_none()
-                && arg_tok.fills_role_with(DcRole::BeginLiteral, resolver)
-            {
-                let saved = self.save_checkpoint();
-                self.cursor = after_first;
-                let mut ctx =
-                    SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
-                ctx.policy.clone_from(policy);
-                let ok = self.eval_literal_frame(
-                    Some(DcRole::TypeString),
-                    None,
-                    &mut ctx,
-                )?;
-                let end = self.cursor;
-                let has_spliced = self.has_spliced_tokens();
-                self.restore_checkpoint(saved);
-                if ok && !ctx.has_errors && !has_spliced {
-                    return Ok(Some(end));
-                }
-            } else if name == "identifier"
-                && subtype.is_none()
-                && arg_tok.fills_role_with(DcRole::BeginIdentifier, resolver)
-            {
-                let saved = self.save_checkpoint();
-                self.cursor = after_first;
-                let mut ctx =
-                    SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
-                ctx.policy.clone_from(policy);
-                let ok = self.eval_identifier_frame(None, &mut ctx)?;
-                let end = self.cursor;
-                let has_spliced = self.has_spliced_tokens();
-                self.restore_checkpoint(saved);
-                if ok && !ctx.has_errors && !has_spliced {
-                    return Ok(Some(end));
-                }
-            } else if (name == "number" || name == "Number")
-                && arg_tok.fills_role_with(DcRole::BeginNumber, resolver)
-            {
-                let saved = self.save_checkpoint();
-                self.cursor = after_first;
-                let mut ctx =
-                    SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
-                ctx.policy.clone_from(policy);
-                let ok =
-                    self.eval_number_frame(subtype.as_ref(), None, &mut ctx)?;
-                let end = self.cursor;
-                let has_spliced = self.has_spliced_tokens();
-                self.restore_checkpoint(saved);
-                if ok && !ctx.has_errors && !has_spliced {
-                    return Ok(Some(end));
-                }
-            }
+            return Ok(Some(after_arg));
         }
         let saved = self.save_checkpoint();
         self.cursor = after_first;
