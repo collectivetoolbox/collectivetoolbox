@@ -53,9 +53,9 @@ use ctb_formats_dcdata::dc::{
 };
 use ctb_formats_dcdata::dc_char::DcCharExt;
 use ctb_formats_dcdata::syntax::{
-    CharTarget, DcRole, DcSyntaxRule, Quantifier, SyntaxDiagnostic,
-    SyntaxElement, SyntaxPattern, SyntaxRuleResolver, SyntaxTerm,
-    default_syntax_resolver, parse_data_constraint, parse_dc_syntax,
+    CharTarget, DcRole, DcSyntaxRule, NumberSubtypeConstraint, Quantifier,
+    SubtypeConstraint, SyntaxDiagnostic, SyntaxElement, SyntaxPattern,
+    SyntaxRuleResolver, SyntaxTerm, default_syntax_resolver, parse_dc_syntax,
 };
 use ctb_formats_dctf::{
     decode_dctf_buf, decode_utf_8e_128_buf, encode_dctf_buf,
@@ -1390,7 +1390,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     SyntaxEvalContext::new(resolver, Some(first_dc.to_u128()));
                 ctx.policy.clone_from(policy);
                 let ok =
-                    self.eval_number_frame(subtype.as_deref(), None, &mut ctx)?;
+                    self.eval_number_frame(subtype.as_ref(), None, &mut ctx)?;
                 let end = self.cursor;
                 let has_spliced = self.has_spliced_tokens();
                 self.restore_checkpoint(saved);
@@ -2823,7 +2823,7 @@ mod tests {
         let resolver = default_syntax_resolver();
         let invalid = SyntaxTerm::NamedConstruct {
             name: "string".to_owned(),
-            subtype: Some("]".to_owned()),
+            subtype: Some(SubtypeConstraint::Target("]".to_owned())),
             capture_var: None,
         };
         let mut nav = DcDocumentNavigator::from_dc_str(&s);
@@ -3702,37 +3702,34 @@ mod tests {
 
         // 4. Unknown or invalid number bounds and non-number subtypes must reject rather than fall through.
         let val_3 = malachite::Integer::from(3);
+        let nat0_lt8 = SubtypeConstraint::parse("number", "Natural0&<8")?;
         assert!(number_satisfies_subtype(
             &val_3,
-            "Natural0&<8",
+            &nat0_lt8,
             resolver.as_ref()
         ));
         assert!(!number_satisfies_subtype(
             &malachite::Integer::from(8),
-            "Natural0&<8",
+            &nat0_lt8,
             resolver.as_ref()
         ));
         assert!(!number_satisfies_subtype(
             &val_3,
-            "UnknownBound",
+            &SubtypeConstraint::parse("number", "UnknownBound")?,
+            resolver.as_ref()
+        ));
+        assert!(SubtypeConstraint::parse("number", "<not_a_number").is_err());
+        assert!(SubtypeConstraint::parse("number", "Natural0&").is_err());
+        assert!(!number_satisfies_subtype(
+            &val_3,
+            &SubtypeConstraint::parse("number", "boolean")?,
             resolver.as_ref()
         ));
         assert!(!number_satisfies_subtype(
             &val_3,
-            "<not_a_number",
+            &SubtypeConstraint::parse("number", "f0")?,
             resolver.as_ref()
         ));
-        assert!(!number_satisfies_subtype(
-            &val_3,
-            "Natural0&",
-            resolver.as_ref()
-        ));
-        assert!(!number_satisfies_subtype(
-            &val_3,
-            "boolean",
-            resolver.as_ref()
-        ));
-        assert!(!number_satisfies_subtype(&val_3, "f0", resolver.as_ref()));
 
         // 5. Evaluated input (Dc 256 stream-spliced expression) across all backends:
         // Splicing 7 (digit 134) satisfies Dc 405 ([number:Natural0&<8]); splicing 8 (digit 135) fails.

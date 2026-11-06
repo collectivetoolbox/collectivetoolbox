@@ -1314,7 +1314,12 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         let natural_term = SyntaxTerm::NamedConstruct {
             name: "number".to_string(),
-            subtype: Some("Natural0".to_string()),
+            subtype: Some(
+                ctb_formats_dcdata::syntax::SubtypeConstraint::parse(
+                    "number",
+                    "Natural0",
+                )?,
+            ),
             capture_var: None,
         };
         let natural_matched = nav.eval_term_single(&natural_term, &mut ctx)?;
@@ -1514,9 +1519,12 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let tokens: Vec<DcChar> = equiv_doc.to_dc_string()?.chars().collect();
 
         // 1. Evaluate for [number:Natural0]
+        let nat0_sub = ctb_formats_dcdata::syntax::SubtypeConstraint::parse(
+            "number", "Natural0",
+        )?;
         let num_req = ValueRequirement::NamedConstruct {
             name: "number",
-            subtype: Some("Natural0"),
+            subtype: Some(&nat0_sub),
         };
         let res = evaluator.eval_expression_for_requirement(
             &tokens,
@@ -1566,7 +1574,12 @@ mod tier4_expression_evaluation_and_stream_splicing {
             SyntaxTerm::Group(SyntaxPattern::Sequence(vec![SyntaxElement {
                 term: SyntaxTerm::NamedConstruct {
                     name: "number".to_string(),
-                    subtype: Some("Natural0".to_string()),
+                    subtype: Some(
+                        ctb_formats_dcdata::syntax::SubtypeConstraint::parse(
+                            "number",
+                            "Natural0",
+                        )?,
+                    ),
                     capture_var: None,
                 },
                 quantifier: Quantifier::ExactOne,
@@ -1923,7 +1936,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut ctx = SyntaxEvalContext::new(&**resolver, None);
         let term_f200 = SyntaxTerm::NamedConstruct {
             name: "number".to_string(),
-            subtype: Some("f200".to_string()),
+            subtype: Some(
+                ctb_formats_dcdata::syntax::SubtypeConstraint::parse(
+                    "number", "f200",
+                )?,
+            ),
             capture_var: None,
         };
         ensure!(
@@ -1935,7 +1952,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut ctx_u8 = SyntaxEvalContext::new(&**resolver, None);
         let term_u8 = SyntaxTerm::NamedConstruct {
             name: "number".to_string(),
-            subtype: Some("f203".to_string()),
+            subtype: Some(
+                ctb_formats_dcdata::syntax::SubtypeConstraint::parse(
+                    "number", "f203",
+                )?,
+            ),
             capture_var: None,
         };
         ensure!(
@@ -1948,7 +1969,12 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut ctx_rule = SyntaxEvalContext::new(&**resolver, None);
         let term_ident_rule = SyntaxTerm::NamedConstruct {
             name: "number".to_string(),
-            subtype: Some("DcIdentifier".to_string()),
+            subtype: Some(
+                ctb_formats_dcdata::syntax::SubtypeConstraint::parse(
+                    "number",
+                    "DcIdentifier",
+                )?,
+            ),
             capture_var: None,
         };
         ensure!(
@@ -2851,7 +2877,12 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let mut eval_ctx = SyntaxEvalContext::new(&**resolver, None);
         let constrained_term = SyntaxTerm::NamedConstruct {
             name: "string".to_owned(),
-            subtype: Some(":u0041 517 260 261 255 f494 [^0] u03a9".to_owned()),
+            subtype: Some(
+                ctb_formats_dcdata::syntax::SubtypeConstraint::parse(
+                    "string",
+                    "u0041 517 260 261 255 f494 [^0] u03a9",
+                )?,
+            ),
             capture_var: None,
         };
         ensure!(

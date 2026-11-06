@@ -2434,7 +2434,9 @@ mod tests {
         SupportLevel, validate_extension_entry, validate_rust_identifier,
         validate_support_level,
     };
-    use crate::syntax::{ActionArg, Quantifier, SyntaxPattern, SyntaxTerm};
+    use crate::syntax::{
+        ActionArg, Quantifier, SubtypeConstraint, SyntaxPattern, SyntaxTerm,
+    };
     use crate::updater::{
         UNIFIED_SCHEMA_HEADER, assign_and_update_dc_categories,
         assign_and_update_format_categories, generate_merged_csvs,
@@ -2980,6 +2982,8 @@ mod tests {
         }
 
         // Parameterized named construct with nested pattern: :[list:([filename] | 513)]
+        let expected_nested =
+            parse_dc_syntax(":([filename] | 513)").unwrap().pattern;
         let rule5 = parse_dc_syntax(":[list:([filename] | 513)]").unwrap();
         if let SyntaxPattern::Sequence(elements) = &rule5.pattern {
             assert_eq!(elements.len(), 1);
@@ -2987,7 +2991,9 @@ mod tests {
                 elements[0].term,
                 SyntaxTerm::NamedConstruct {
                     name: "list".to_string(),
-                    subtype: Some("([filename] | 513)".to_string()),
+                    subtype: Some(SubtypeConstraint::Pattern(Box::new(
+                        expected_nested.clone()
+                    ))),
                     capture_var: None,
                 }
             );
@@ -3004,7 +3010,9 @@ mod tests {
                 elements[0].term,
                 SyntaxTerm::NamedConstruct {
                     name: "list".to_string(),
-                    subtype: Some("([filename] | 513)".to_string()),
+                    subtype: Some(SubtypeConstraint::Pattern(Box::new(
+                        expected_nested
+                    ))),
                     capture_var: Some("path".to_string()),
                 }
             );
@@ -3402,30 +3410,15 @@ mod tests {
             report_stable_num.format_report()
         );
 
-        // Invalid [number:...] bound expressions or empty '&'-clauses must be rejected
+        // Invalid [number:...] bound expressions or empty '&'-clauses must be rejected at parse time
         for invalid_num_syntax in [
             ":[number:<not_a_number]",
             ":[number:Natural1&]",
             ":[number:<(2^8 - 1)]",
         ] {
-            let mut report_bad_bound = ValidationReport::new();
-            let bad_bound_rule = parse_dc_syntax(invalid_num_syntax).unwrap();
-            validate_dc_syntax(
-                &bad_bound_rule,
-                246,
-                &known_dcs,
-                &known_fmts,
-                &known_named_types,
-                Some(&known_scripts),
-                &known_syntax_targets,
-                Some(&fmt_registry),
-                &mut report_bad_bound,
-                "test/syntax.csv",
-                23,
-            );
             assert!(
-                report_bad_bound.has_errors(),
-                "Expected validation error for '{invalid_num_syntax}'"
+                parse_dc_syntax(invalid_num_syntax).is_err(),
+                "Expected parse error for '{invalid_num_syntax}'"
             );
         }
     }

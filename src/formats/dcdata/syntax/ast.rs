@@ -202,6 +202,267 @@ impl Quantifier {
     }
 }
 
+/// Exact integer endpoint value used in `Dc 643 "Range"` numeric subtype bounds
+/// (`0..=u128::MAX`, negative `-u128`, or `2^128`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NumericBoundValue {
+    /// Non-negative integer bound in `0..=u128::MAX`.
+    Unsigned(u128),
+    /// Strictly negative integer bound (`-abs_val`).
+    Negative(u128),
+    /// Exact value `2^128` (`340282366920938463463374607431768211456`).
+    TwoPow128,
+}
+
+impl NumericBoundValue {
+    /// Parses a DSL numeric bound expression (such as `"0"`, `"8"`, `"(2^8)"`, `"(-2^7)"`, or `"(2^128)"`).
+    pub fn parse_dsl_bound(raw: &str) -> Result<Self> {
+        let trimmed = raw.trim();
+        let inner = trimmed
+            .strip_prefix('(')
+            .and_then(|s| s.strip_suffix(')'))
+            .map_or(trimmed, str::trim);
+        if inner == "2^128" {
+            return Ok(Self::TwoPow128);
+        }
+        if let Some(exp_str) = inner.strip_prefix("2^") {
+            let exp: u32 = exp_str.trim().parse().with_context(|| {
+                format!(
+                    "Invalid power-of-two exponent in numeric bound '{raw}'"
+                )
+            })?;
+            let val = 1u128.checked_shl(exp).with_context(|| {
+                format!("Power-of-two bound '2^{exp}' overflows u128")
+            })?;
+            return Ok(Self::Unsigned(val));
+        }
+        if let Some(exp_str) = inner.strip_prefix("-2^") {
+            let exp: u32 = exp_str.trim().parse().with_context(|| {
+                format!(
+                    "Invalid negative power-of-two exponent in numeric bound '{raw}'"
+                )
+            })?;
+            let abs_val = 1u128.checked_shl(exp).with_context(|| {
+                format!("Negative power-of-two bound '-2^{exp}' overflows u128")
+            })?;
+            return Ok(Self::Negative(abs_val));
+        }
+        if let Some(abs_str) = inner.strip_prefix('-') {
+            let abs_val: u128 = abs_str.trim().parse().with_context(|| {
+                format!("Invalid negative integer bound '{raw}'")
+            })?;
+            return Ok(Self::Negative(abs_val));
+        }
+        let val: u128 = inner.parse().with_context(|| {
+            format!("Invalid unsigned integer bound '{raw}'")
+        })?;
+        Ok(Self::Unsigned(val))
+    }
+
+    /// Returns the human-readable decimal label for `.ctbnodes` comments.
+    #[must_use]
+    pub fn summary_label(self) -> String {
+        match self {
+            Self::Unsigned(val) => val.to_string(),
+            Self::Negative(abs_val) => format!("-{abs_val}"),
+            Self::TwoPow128 => {
+                "340282366920938463463374607431768211456".to_string()
+            }
+        }
+    }
+
+    /// Formats this bound into canonical `[number:...]` DSL syntax (`0`, `8`, `(2^8)`, `(-2^7)`, `(2^128)`).
+    #[must_use]
+    pub fn format_dsl_bound(self) -> String {
+        match self {
+            Self::TwoPow128 => "(2^128)".to_string(),
+            Self::Unsigned(val) => {
+                if val >= 128 && val.is_power_of_two() {
+                    format!("(2^{})", val.trailing_zeros())
+                } else {
+                    val.to_string()
+                }
+            }
+            Self::Negative(abs_val) => {
+                if abs_val >= 128 && abs_val.is_power_of_two() {
+                    format!("(-2^{})", abs_val.trailing_zeros())
+                } else {
+                    format!("-{abs_val}")
+                }
+            }
+        }
+    }
+}
+
+/// Structured numeric format and/or range bound constraint for `[number:...]` constructs.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NumberSubtypeConstraint {
+    /// Optional numeric format shorthand (`f<N>`) or stable format identifier (`Natural0`).
+    pub format: Option<String>,
+    /// Optional lower bound `(exclusive, bound)` (`>=` when `exclusive == false`, `>` when `exclusive == true`).
+    pub lower_bound: Option<(bool, NumericBoundValue)>,
+    /// Optional upper bound `(exclusive, bound)` (`<=` when `exclusive == false`, `<` when `exclusive == true`).
+    pub upper_bound: Option<(bool, NumericBoundValue)>,
+}
+
+impl NumberSubtypeConstraint {
+    /// Parses a `[number:...]` subtype constraint string into a [`NumberSubtypeConstraint`].
+    pub fn parse(raw: &str) -> Result<Self> {
+        let clauses = crate::syntax::parse_number_constraint(raw)?;
+        let mut out = Self::default();
+        for clause in clauses {
+            match clause {
+                crate::syntax::NumberConstraintClause::Target(target) => {
+                    ensure!(
+                        out.format.is_none(),
+                        "Duplicate format target '{target}' in [number:{raw}] constraint"
+                    );
+                    out.format = Some(target.to_string());
+                }
+                crate::syntax::NumberConstraintClause::LowerBound {
+                    exclusive,
+                    bound,
+                } => {
+                    ensure!(
+                        out.lower_bound.is_none(),
+                        "Duplicate lower bound in [number:{raw}] constraint"
+                    );
+                    out.lower_bound = Some((exclusive, bound));
+                }
+                crate::syntax::NumberConstraintClause::UpperBound {
+                    exclusive,
+                    bound,
+                } => {
+                    ensure!(
+                        out.upper_bound.is_none(),
+                        "Duplicate upper bound in [number:{raw}] constraint"
+                    );
+                    out.upper_bound = Some((exclusive, bound));
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// Formats this numeric constraint into canonical `[number:...]` DSL notation.
+    #[must_use]
+    pub fn format_dsl(&self) -> String {
+        let mut parts = Vec::new();
+        if let Some(fmt) = &self.format {
+            parts.push(fmt.clone());
+        }
+        if let Some((excl, lo)) = self.lower_bound {
+            let op = if excl { ">" } else { ">=" };
+            parts.push(format!("{op}{}", lo.format_dsl_bound()));
+        }
+        if let Some((excl, hi)) = self.upper_bound {
+            let op = if excl { "<" } else { "<=" };
+            parts.push(format!("{op}{}", hi.format_dsl_bound()));
+        }
+        parts.join(" & ")
+    }
+}
+
+/// Structured subtype constraint on a [`SyntaxTerm::NamedConstruct`] (`[<name>:<subtype>]`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SubtypeConstraint {
+    /// Nested syntax pattern constraint (e.g. `[string:[asciiprintable]{4}]` or `[list:([filename] | 513)]`).
+    Pattern(Box<SyntaxPattern>),
+    /// Binary data format and/or byte-length constraint (e.g. `[data:Sha256;bytes=32]`, `[data:bytes=4]`).
+    Data {
+        format: Option<String>,
+        bytes: Option<usize>,
+    },
+    /// Numeric format and/or range bound constraint (e.g. `[number:Natural0]`, `[number:>=0 & <(2^8)]`).
+    Number(NumberSubtypeConstraint),
+    /// Integer length range constraint (e.g. `[asciilatinletterdigit:1..16]`).
+    LengthRange { min: u128, max: u128 },
+    /// Bound template variable reference (e.g. `$type` in `[type:$type]`).
+    BoundVar(String),
+    /// Named target, script, or format constraint (e.g. `[script:.EL Types]`, `[type:transformation]`, `[list:number]`).
+    Target(String),
+}
+
+impl SubtypeConstraint {
+    /// Parses the `<subtype>` portion of a `[<name>:<subtype>]` named construct into a structured [`SubtypeConstraint`].
+    pub fn parse(name: &str, raw: &str) -> Result<Self> {
+        let trimmed = raw.trim();
+        ensure!(
+            !trimmed.is_empty(),
+            "Empty subtype constraint in '[{name}:{raw}]'"
+        );
+        if let Some(var) = trimmed.strip_prefix('$') {
+            let var_trimmed = var.trim();
+            ensure!(
+                !var_trimmed.is_empty(),
+                "Empty bound variable in '[{name}:{raw}]'"
+            );
+            Ok(Self::BoundVar(var_trimmed.to_string()))
+        } else if name == "data" {
+            let (fmt, bytes) = crate::syntax::parse_data_constraint(trimmed)?;
+            Ok(Self::Data {
+                format: fmt.map(str::to_string),
+                bytes,
+            })
+        } else if name == "number" {
+            Ok(Self::Number(NumberSubtypeConstraint::parse(trimmed)?))
+        } else if name == "string"
+            || trimmed.starts_with('[')
+            || trimmed.starts_with('(')
+        {
+            let rule = crate::syntax::parse_dc_syntax(&format!(":{trimmed}"))?;
+            Ok(Self::Pattern(Box::new(rule.pattern)))
+        } else if let Some((min_s, max_s)) = trimmed.split_once("..") {
+            let min: u128 = min_s.trim().parse().with_context(|| {
+                format!("Invalid min length in '[{name}:{raw}]'")
+            })?;
+            let max: u128 = max_s.trim().parse().with_context(|| {
+                format!("Invalid max length in '[{name}:{raw}]'")
+            })?;
+            Ok(Self::LengthRange { min, max })
+        } else {
+            Ok(Self::Target(trimmed.to_string()))
+        }
+    }
+
+    /// Formats this subtype constraint into canonical Dc syntax DSL notation.
+    #[must_use]
+    pub fn format_dsl(&self) -> String {
+        match self {
+            Self::Pattern(pat) => pat.format_dsl(),
+            Self::Data { format, bytes } => match (format, bytes) {
+                (Some(f), Some(b)) => format!("{f};bytes={b}"),
+                (Some(f), None) => f.clone(),
+                (None, Some(b)) => format!("bytes={b}"),
+                (None, None) => String::new(),
+            },
+            Self::Number(num) => num.format_dsl(),
+            Self::LengthRange { min, max } => format!("{min}..{max}"),
+            Self::BoundVar(v) => format!("${v}"),
+            Self::Target(t) => t.clone(),
+        }
+    }
+
+    /// Returns the single target identifier string if this constraint represents an unconstrained
+    /// target name, format shorthand, or format identifier (`Target(s)`, format-only `Number`, or format-only `Data`).
+    #[must_use]
+    pub fn as_target_str(&self) -> Option<&str> {
+        match self {
+            Self::Target(s) => Some(s.as_str()),
+            Self::Data {
+                format: Some(s),
+                bytes: None,
+            } => Some(s.as_str()),
+            Self::Number(NumberSubtypeConstraint {
+                format: Some(s),
+                lower_bound: None,
+                upper_bound: None,
+            }) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+}
+
 /// Syntactic term in a Dc syntax rule.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SyntaxTerm {
@@ -222,7 +483,7 @@ pub enum SyntaxTerm {
     /// `[type:transformation]`, `[statement]`).
     NamedConstruct {
         name: String,
-        subtype: Option<String>,
+        subtype: Option<SubtypeConstraint>,
         capture_var: Option<String>,
     },
     /// Nested parenthesized pattern group `( ... )`.
@@ -277,7 +538,7 @@ impl SyntaxTerm {
                 let mut inner = name.clone();
                 if let Some(sub) = subtype {
                     inner.push(':');
-                    inner.push_str(sub);
+                    inner.push_str(&sub.format_dsl());
                 }
                 if let Some(var) = capture_var {
                     inner.push_str(" $");

@@ -320,14 +320,12 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
             !subtype_str.is_empty(),
             "Named construct in brackets cannot have an empty subtype: '[{trimmed}]'"
         );
-        if name == "data" {
-            super::parse_data_constraint(subtype_str)?;
-        }
+        let subtype = super::SubtypeConstraint::parse(&name, subtype_str)?;
 
         return Ok(SyntaxElement::with_quantifier(
             SyntaxTerm::NamedConstruct {
                 name: name.clone(),
-                subtype: Some(subtype_str.to_string()),
+                subtype: Some(subtype),
                 capture_var,
             },
             elem_quantifier,

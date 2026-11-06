@@ -201,7 +201,7 @@ fn check_target_reference(
                         Some("Ensure Dc range is within valid Dc space"),
                     );
                 }
-            } else if !known_dc_ids.contains(id) {
+            } else if !known_dc_ids.is_empty() && !known_dc_ids.contains(id) {
                 report.add_error(
                     source_file,
                     Some(line_no),
@@ -473,14 +473,19 @@ fn validate_syntax_element(
                 );
             } else if name == "data" {
                 if let Some(sub) = subtype {
-                    let (format, _) = match super::parse_data_constraint(sub) {
-                        Ok(constraint) => constraint,
-                        Err(error) => {
+                    let sub_dsl = sub.format_dsl();
+                    let format = match sub {
+                        super::SubtypeConstraint::Data { format, .. } => {
+                            format.as_deref()
+                        }
+                        _ => {
                             report.add_error(
                                 source_file,
                                 Some(line_no),
                                 Some(col_name),
-                                format!("Invalid data constraint: {error}"),
+                                format!(
+                                    "Invalid data constraint in '[data:{sub_dsl}]'"
+                                ),
                                 None,
                             );
                             return;
@@ -539,7 +544,7 @@ fn validate_syntax_element(
                                     Some(line_no),
                                     Some(col_name),
                                     format!(
-                                        "Format identifier '{sub_trimmed}' in '[data:{sub}]' is not marked '@stable_ident()'"
+                                        "Format identifier '{sub_trimmed}' in '[data:{sub_dsl}]' is not marked '@stable_ident()'"
                                     ),
                                     Some(
                                         "Use its numeric shorthand 'f<id>' or add '@stable_ident()' to the format definition",
@@ -583,71 +588,37 @@ fn validate_syntax_element(
                 }
             } else if name == "number" {
                 if let Some(sub) = subtype {
-                    let clauses = match super::parse_number_constraint(sub) {
-                        Ok(clauses) => clauses,
-                        Err(error) => {
-                            report.add_error(
-                                source_file,
-                                Some(line_no),
-                                Some(col_name),
-                                format!("Invalid number constraint: {error}"),
-                                None,
-                            );
-                            return;
-                        }
+                    let sub_dsl = sub.format_dsl();
+                    let super::SubtypeConstraint::Number(num) = sub else {
+                        report.add_error(
+                            source_file,
+                            Some(line_no),
+                            Some(col_name),
+                            format!(
+                                "Invalid number constraint in '[number:{sub_dsl}]'"
+                            ),
+                            None,
+                        );
+                        return;
                     };
-                    if let Some(formats) = format_registry
+                    if let (Some(formats), Some(clause)) =
+                        (format_registry, num.format.as_deref())
                         && !formats.formats_by_id.is_empty()
                     {
-                        for clause in clauses {
-                            let super::NumberConstraintClause::Target(clause) =
-                                clause
-                            else {
-                                continue;
-                            };
-                            if let Some(target) =
-                                super::parser::parse_target_token(clause)
-                            {
-                                if matches!(target, CharTarget::Format(_)) {
-                                    if formats.find_format(clause).is_none() {
-                                        report.add_error(
-                                            source_file,
-                                            Some(line_no),
-                                            Some(col_name),
-                                            format!(
-                                                "Unknown format ID '{clause}' in '[number:{sub}]'"
-                                            ),
-                                            Some(
-                                                "Ensure referenced format ID is defined in formats category files",
-                                            ),
-                                        );
-                                    }
-                                } else {
+                        if let Some(target) =
+                            super::parser::parse_target_token(clause)
+                        {
+                            if matches!(target, CharTarget::Format(_)) {
+                                if formats.find_format(clause).is_none() {
                                     report.add_error(
                                         source_file,
                                         Some(line_no),
                                         Some(col_name),
                                         format!(
-                                            "Invalid target '{clause}' in '[number:{sub}]'; expected a format shorthand (e.g. 'f351') or '@stable_ident()' format identifier"
+                                            "Unknown format ID '{clause}' in '[number:{sub_dsl}]'"
                                         ),
                                         Some(
-                                            "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
-                                        ),
-                                    );
-                                }
-                            } else if let Some(fmt_info) =
-                                formats.find_format(clause)
-                            {
-                                if !fmt_info.stable_ident {
-                                    report.add_error(
-                                        source_file,
-                                        Some(line_no),
-                                        Some(col_name),
-                                        format!(
-                                            "Format identifier '{clause}' in '[number:{sub}]' is not marked '@stable_ident()'"
-                                        ),
-                                        Some(
-                                            "Use its numeric shorthand 'f<id>' or add '@stable_ident()' to the format definition",
+                                            "Ensure referenced format ID is defined in formats category files",
                                         ),
                                     );
                                 }
@@ -657,18 +628,49 @@ fn validate_syntax_element(
                                     Some(line_no),
                                     Some(col_name),
                                     format!(
-                                        "Unknown format identifier '{clause}' in '[number:{sub}]'"
+                                        "Invalid target '{clause}' in '[number:{sub_dsl}]'; expected a format shorthand (e.g. 'f351') or '@stable_ident()' format identifier"
                                     ),
                                     Some(
                                         "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
                                     ),
                                 );
                             }
+                        } else if let Some(fmt_info) =
+                            formats.find_format(clause)
+                        {
+                            if !fmt_info.stable_ident {
+                                report.add_error(
+                                    source_file,
+                                    Some(line_no),
+                                    Some(col_name),
+                                    format!(
+                                        "Format identifier '{clause}' in '[number:{sub_dsl}]' is not marked '@stable_ident()'"
+                                    ),
+                                    Some(
+                                        "Use its numeric shorthand 'f<id>' or add '@stable_ident()' to the format definition",
+                                    ),
+                                );
+                            }
+                        } else {
+                            report.add_error(
+                                source_file,
+                                Some(line_no),
+                                Some(col_name),
+                                format!(
+                                    "Unknown format identifier '{clause}' in '[number:{sub_dsl}]'"
+                                ),
+                                Some(
+                                    "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
+                                ),
+                            );
                         }
                     }
                 }
             } else if name == "script" {
-                if subtype.as_ref().is_none_or(std::string::String::is_empty) {
+                let script_target = subtype
+                    .as_ref()
+                    .and_then(super::SubtypeConstraint::as_target_str);
+                if script_target.is_none_or(str::is_empty) {
                     report.add_error(
                         source_file,
                         Some(line_no),
@@ -676,7 +678,7 @@ fn validate_syntax_element(
                         "Named construct '[script]' requires a non-empty script name (e.g. '[script:.EL Types]')".to_string(),
                         Some("Specify a valid script name following a colon"),
                     );
-                } else if let Some(st) = subtype {
+                } else if let Some(st) = script_target {
                     let is_valid = if st.starts_with('.') {
                         if let Some(scripts) = known_scripts {
                             scripts.contains(st)
@@ -705,6 +707,24 @@ fn validate_syntax_element(
                     Some(col_name),
                     format!("Unknown named type construct '[{name}]' in syntax rule"),
                     Some("Must be a registered named type defined in README-named-types.csv"),
+                );
+            }
+            if let Some(super::SubtypeConstraint::Pattern(sub_pattern)) = subtype
+            {
+                validate_pattern_node(
+                    sub_pattern,
+                    source_file,
+                    line_no,
+                    col_name,
+                    self_dc_id,
+                    known_dc_ids,
+                    known_format_ids,
+                    known_named_types,
+                    known_scripts,
+                    known_syntax_targets,
+                    format_registry,
+                    bound_vars,
+                    report,
                 );
             }
             if let Some(var) = capture_var {

@@ -356,7 +356,7 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
     fn resolve_named_type_with_arg(
         &self,
         name: &str,
-        arg: Option<&str>,
+        arg: Option<&ctb_formats_dcdata::syntax::SubtypeConstraint>,
     ) -> Option<SyntaxPattern> {
         self.base.resolve_named_type_with_arg(name, arg)
     }
@@ -740,7 +740,7 @@ impl SyntaxRuleResolver for SyntaxRuntimeRegistry {
     fn resolve_named_type_with_arg(
         &self,
         name: &str,
-        arg: Option<&str>,
+        arg: Option<&ctb_formats_dcdata::syntax::SubtypeConstraint>,
     ) -> Option<SyntaxPattern> {
         self.resolver.resolve_named_type_with_arg(name, arg)
     }

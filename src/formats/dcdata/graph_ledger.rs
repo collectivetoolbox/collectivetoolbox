@@ -121,9 +121,10 @@ use crate::format_spec::{
 use crate::report::ValidationReport;
 use crate::shared::SupportLevel;
 use crate::syntax::ast::{
-    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
-    SyntaxElement, SyntaxPattern, SyntaxTerm,
+    ActionArg, CharTarget, DcSyntaxRule, NumberSubtypeConstraint, Quantifier,
+    SubtypeConstraint, SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
+pub use crate::syntax::ast::NumericBoundValue;
 use crate::syntax::parse_dc_syntax;
 
 /// Converts a canonical `DcChar` constant into its `DcShorthand` representation.
@@ -417,59 +418,7 @@ pub fn decode_integer_value_tokens(tokens: &[DcShorthand]) -> Option<u128> {
     Some(val)
 }
 
-/// Exact integer endpoint value used in `Dc 643 "Range"` numeric subtype bounds
-/// (`0..=u128::MAX`, negative `-u128`, or `2^128`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NumericBoundValue {
-    /// Non-negative integer bound in `0..=u128::MAX`.
-    Unsigned(u128),
-    /// Strictly negative integer bound (`-abs_val`).
-    Negative(u128),
-    /// Exact value `2^128` (`340282366920938463463374607431768211456`).
-    TwoPow128,
-}
-
 impl NumericBoundValue {
-    /// Parses a DSL numeric bound expression (such as `"0"`, `"8"`, `"(2^8)"`, `"(-2^7)"`, or `"(2^128)"`).
-    pub fn parse_dsl_bound(raw: &str) -> Result<Self> {
-        let trimmed = raw.trim();
-        let inner = trimmed
-            .strip_prefix('(')
-            .and_then(|s| s.strip_suffix(')'))
-            .map_or(trimmed, str::trim);
-        if inner == "2^128" {
-            return Ok(Self::TwoPow128);
-        }
-        if let Some(exp_str) = inner.strip_prefix("2^") {
-            let exp: u32 = exp_str.trim().parse().with_context(|| {
-                format!("Invalid power-of-two exponent in numeric bound '{raw}'")
-            })?;
-            let val = 1u128.checked_shl(exp).with_context(|| {
-                format!("Power-of-two bound '2^{exp}' overflows u128")
-            })?;
-            return Ok(Self::Unsigned(val));
-        }
-        if let Some(exp_str) = inner.strip_prefix("-2^") {
-            let exp: u32 = exp_str.trim().parse().with_context(|| {
-                format!("Invalid negative power-of-two exponent in numeric bound '{raw}'")
-            })?;
-            let abs_val = 1u128.checked_shl(exp).with_context(|| {
-                format!("Negative power-of-two bound '-2^{exp}' overflows u128")
-            })?;
-            return Ok(Self::Negative(abs_val));
-        }
-        if let Some(abs_str) = inner.strip_prefix('-') {
-            let abs_val: u128 = abs_str.trim().parse().with_context(|| {
-                format!("Invalid negative integer bound '{raw}'")
-            })?;
-            return Ok(Self::Negative(abs_val));
-        }
-        let val: u128 = inner.parse().with_context(|| {
-            format!("Invalid unsigned integer bound '{raw}'")
-        })?;
-        Ok(Self::Unsigned(val))
-    }
-
     /// Encodes this bound into a canonical `Dc 6 "Begin number" f199 ... Dc 7 "End number"` token sequence.
     #[must_use]
     pub fn encode_tokens(self) -> Vec<DcShorthand> {
@@ -529,40 +478,6 @@ impl NumericBoundValue {
             return Some(Self::TwoPow128);
         }
         None
-    }
-
-    /// Returns the human-readable decimal label for `.ctbnodes` comments.
-    #[must_use]
-    pub fn summary_label(self) -> String {
-        match self {
-            Self::Unsigned(val) => val.to_string(),
-            Self::Negative(abs_val) => format!("-{abs_val}"),
-            Self::TwoPow128 => {
-                "340282366920938463463374607431768211456".to_string()
-            }
-        }
-    }
-
-    /// Formats this bound into canonical `[number:...]` DSL syntax (`0`, `8`, `(2^8)`, `(-2^7)`, `(2^128)`).
-    #[must_use]
-    pub fn format_dsl_bound(self) -> String {
-        match self {
-            Self::TwoPow128 => "(2^128)".to_string(),
-            Self::Unsigned(val) => {
-                if val >= 128 && val.is_power_of_two() {
-                    format!("(2^{})", val.trailing_zeros())
-                } else {
-                    val.to_string()
-                }
-            }
-            Self::Negative(abs_val) => {
-                if abs_val >= 128 && abs_val.is_power_of_two() {
-                    format!("(-2^{})", abs_val.trailing_zeros())
-                } else {
-                    format!("-{abs_val}")
-                }
-            }
-        }
     }
 }
 
@@ -1426,11 +1341,13 @@ impl LedgerBuilder {
                 capture_var,
             } => {
                 if name == "script" {
-                    let Some(script_name) = subtype.as_ref() else {
+                    let Some(script_name) =
+                        subtype.as_ref().and_then(SubtypeConstraint::as_target_str)
+                    else {
                         bail!("Missing script name in [script:...] construct");
                     };
                     let normalized_script = if script_name.starts_with('.') {
-                        script_name.clone()
+                        script_name.to_string()
                     } else {
                         format!(".{script_name}")
                     };
@@ -1559,30 +1476,25 @@ impl LedgerBuilder {
     fn encode_named_construct_subtype_tokens(
         &mut self,
         name: &str,
-        sub: &str,
+        sub: &SubtypeConstraint,
         out: &mut Vec<DcShorthand>,
     ) -> Result<()> {
-        let trimmed = sub.trim();
-        if let Some(var_name) = trimmed.strip_prefix('$') {
-            let var_id = self.get_or_insert_value_node(
-                encode_string_value_tokens(var_name),
-                format!("${var_name}"),
-            )?;
-            out.push(sh(DC_REFERENCE_BOUND_VALUE));
-            out.push(DcShorthand::Long(var_id));
-            return Ok(());
-        }
-        if name == "data" {
-            let (expected_fmt, expected_bytes) =
-                crate::syntax::parse_data_constraint(trimmed).with_context(
-                    || format!("Invalid [data:{trimmed}] subtype constraint"),
+        match sub {
+            SubtypeConstraint::BoundVar(var_name) => {
+                let var_id = self.get_or_insert_value_node(
+                    encode_string_value_tokens(var_name),
+                    format!("${var_name}"),
                 )?;
-            match (expected_fmt, expected_bytes) {
+                out.push(sh(DC_REFERENCE_BOUND_VALUE));
+                out.push(DcShorthand::Long(var_id));
+                Ok(())
+            }
+            SubtypeConstraint::Data { format, bytes } => match (format, bytes) {
                 (Some(fmt), Some(bytes)) => {
                     let fmt_sh = self
                         .resolve_stable_format_or_shorthand(fmt, "data")?;
                     // Reason for fallback: usize byte length fits in u128 on all targets.
-                    let bytes_u128 = u128::try_from(bytes).unwrap_or(0);
+                    let bytes_u128 = u128::try_from(*bytes).unwrap_or(0);
                     let int_id = self.get_or_insert_value_node(
                         encode_integer_value_tokens(bytes_u128),
                         bytes.to_string(),
@@ -1591,109 +1503,100 @@ impl LedgerBuilder {
                     out.push(fmt_sh);
                     out.push(sh(DC_DATA_BYTE_LENGTH));
                     out.push(DcShorthand::Long(int_id));
+                    Ok(())
                 }
                 (None, Some(bytes)) => {
                     // Reason for fallback: usize byte length fits in u128 on all targets.
-                    let bytes_u128 = u128::try_from(bytes).unwrap_or(0);
+                    let bytes_u128 = u128::try_from(*bytes).unwrap_or(0);
                     let int_id = self.get_or_insert_value_node(
                         encode_integer_value_tokens(bytes_u128),
                         bytes.to_string(),
                     )?;
                     out.push(sh(DC_DATA_BYTE_LENGTH));
                     out.push(DcShorthand::Long(int_id));
+                    Ok(())
                 }
                 (Some(fmt), None) => {
                     let fmt_sh = self
                         .resolve_stable_format_or_shorthand(fmt, "data")?;
                     out.push(fmt_sh);
+                    Ok(())
                 }
                 (None, None) => {
-                    bail!("Empty [data:{trimmed}] constraint");
+                    bail!("Empty [data:] constraint");
                 }
+            },
+            SubtypeConstraint::Number(num) => {
+                self.encode_number_subtype_tokens(num, out)
             }
-            return Ok(());
-        }
-        if name == "number" {
-            return self.encode_number_subtype_tokens(trimmed, out);
-        }
-        if let Some((min_str, max_str)) = trimmed.split_once("..") {
-            let min_val: u128 = min_str.trim().parse().with_context(|| {
-                format!(
-                    "Invalid minimum length in [{name}:{trimmed}] range constraint"
-                )
-            })?;
-            let max_val: u128 = max_str.trim().parse().with_context(|| {
-                format!(
-                    "Invalid maximum length in [{name}:{trimmed}] range constraint"
-                )
-            })?;
-            let min_id = self.get_or_insert_value_node(
-                encode_integer_value_tokens(min_val),
-                min_val.to_string(),
-            )?;
-            let max_id = self.get_or_insert_value_node(
-                encode_integer_value_tokens(max_val),
-                max_val.to_string(),
-            )?;
-            out.push(sh(DC_VALUE_RANGE));
-            out.push(DcShorthand::Format(200));
-            out.push(DcShorthand::Long(min_id));
-            out.push(DcShorthand::Long(max_id));
-            return Ok(());
-        }
-        if trimmed == "Routine" {
-            out.push(sh(DC_TYPE_ROUTINE));
-            return Ok(());
-        }
-        if let Ok(shorthand) = DcShorthand::parse(trimmed)
-            && matches!(shorthand, DcShorthand::Format(_) | DcShorthand::Short(_))
-        {
-            out.push(shorthand);
-            return Ok(());
-        }
-        if (name == "list" || name.starts_with("list(") || name == "string")
-            && (trimmed.starts_with('(') || trimmed.starts_with('['))
-        {
-            let nested_rule = parse_dc_syntax(&format!(":{trimmed}"))
-                .with_context(|| {
-                    format!(
-                        "Failed to parse nested pattern subtype in [{name}:{trimmed}]"
+            SubtypeConstraint::LengthRange { min, max } => {
+                let min_id = self.get_or_insert_value_node(
+                    encode_integer_value_tokens(*min),
+                    min.to_string(),
+                )?;
+                let max_id = self.get_or_insert_value_node(
+                    encode_integer_value_tokens(*max),
+                    max.to_string(),
+                )?;
+                out.push(sh(DC_VALUE_RANGE));
+                out.push(DcShorthand::Format(200));
+                out.push(DcShorthand::Long(min_id));
+                out.push(DcShorthand::Long(max_id));
+                Ok(())
+            }
+            SubtypeConstraint::Pattern(nested_pat) => {
+                out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
+                self.encode_syntax_pattern_tokens(nested_pat, out)?;
+                out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
+                Ok(())
+            }
+            SubtypeConstraint::Target(trimmed) => {
+                if trimmed == "Routine" {
+                    out.push(sh(DC_TYPE_ROUTINE));
+                    return Ok(());
+                }
+                if let Ok(shorthand) = DcShorthand::parse(trimmed)
+                    && matches!(
+                        shorthand,
+                        DcShorthand::Format(_) | DcShorthand::Short(_)
                     )
-                })?;
-            out.push(sh(DC_BEGIN_ASSOCIATIVITY_GROUP));
-            self.encode_syntax_pattern_tokens(&nested_rule.pattern, out)?;
-            out.push(sh(DC_END_ASSOCIATIVITY_GROUP));
-            return Ok(());
-        }
-        if name == "list" || name.starts_with("list(") {
-            if trimmed == "Semantic:fileflag" {
-                let script_id =
-                    self.ensure_seed_entity(&SeedEntityKey::Script(
-                        ".Semantic:fileflag".to_string(),
-                    ))?;
-                out.push(DcShorthand::Long(script_id));
-                return Ok(());
+                {
+                    out.push(shorthand);
+                    return Ok(());
+                }
+                if name == "list" || name.starts_with("list(") {
+                    if trimmed == "Semantic:fileflag" {
+                        let script_id =
+                            self.ensure_seed_entity(&SeedEntityKey::Script(
+                                ".Semantic:fileflag".to_string(),
+                            ))?;
+                        out.push(DcShorthand::Long(script_id));
+                        return Ok(());
+                    }
+                    let elem_construct_id = self.ensure_seed_entity(
+                        &SeedEntityKey::NamedConstruct(trimmed.to_string()),
+                    )?;
+                    out.push(DcShorthand::Long(elem_construct_id));
+                    return Ok(());
+                }
+                if name == "format" || name == "type" || name == "typed_data" {
+                    let script_name = if trimmed.starts_with('.') {
+                        trimmed.to_string()
+                    } else if trimmed.starts_with("Formats:") {
+                        format!(".{trimmed}")
+                    } else {
+                        format!(".Formats:{trimmed}")
+                    };
+                    let script_id = self
+                        .ensure_seed_entity(&SeedEntityKey::Script(script_name))?;
+                    out.push(DcShorthand::Long(script_id));
+                    return Ok(());
+                }
+                bail!(
+                    "Unsupported structured subtype constraint '[{name}:{trimmed}]'"
+                )
             }
-            let elem_construct_id = self.ensure_seed_entity(
-                &SeedEntityKey::NamedConstruct(trimmed.to_string()),
-            )?;
-            out.push(DcShorthand::Long(elem_construct_id));
-            return Ok(());
         }
-        if name == "format" || name == "type" || name == "typed_data" {
-            let script_name = if trimmed.starts_with('.') {
-                trimmed.to_string()
-            } else if trimmed.starts_with("Formats:") {
-                format!(".{trimmed}")
-            } else {
-                format!(".Formats:{trimmed}")
-            };
-            let script_id =
-                self.ensure_seed_entity(&SeedEntityKey::Script(script_name))?;
-            out.push(DcShorthand::Long(script_id));
-            return Ok(());
-        }
-        bail!("Unsupported structured subtype constraint '[{name}:{trimmed}]'")
     }
 
     fn resolve_stable_format_or_shorthand(
@@ -1718,50 +1621,33 @@ impl LedgerBuilder {
 
     fn encode_number_subtype_tokens(
         &mut self,
-        sub: &str,
+        num: &NumberSubtypeConstraint,
         out: &mut Vec<DcShorthand>,
     ) -> Result<()> {
-        if !sub.contains('&') && !sub.contains('<') && !sub.contains('>') {
+        if let (Some(fmt), None, None) =
+            (&num.format, num.lower_bound, num.upper_bound)
+        {
             let fmt_sh =
-                self.resolve_stable_format_or_shorthand(sub, "number")?;
+                self.resolve_stable_format_or_shorthand(fmt, "number")?;
             out.push(fmt_sh);
             return Ok(());
         }
 
-        let mut domain_tok = sh(DC_TYPE_NUMBER);
-        let mut lower_bound: Option<(bool, NumericBoundValue)> = None;
-        let mut upper_bound: Option<(bool, NumericBoundValue)> = None;
-
-        for clause in crate::syntax::parse_number_constraint(sub)? {
-            match clause {
-                crate::syntax::NumberConstraintClause::LowerBound {
-                    exclusive,
-                    bound,
-                } => {
-                    lower_bound = Some((exclusive, bound));
-                }
-                crate::syntax::NumberConstraintClause::UpperBound {
-                    exclusive,
-                    bound,
-                } => {
-                    upper_bound = Some((exclusive, bound));
-                }
-                crate::syntax::NumberConstraintClause::Target(part) => {
-                    let fmt_sh = self
-                        .resolve_stable_format_or_shorthand(part, "number")
-                        .with_context(|| {
-                            format!(
-                                "Unsupported clause '{part}' in [number:{sub}] subtype constraint"
-                            )
-                        })?;
-                    domain_tok = fmt_sh;
-                }
-            }
-        }
+        let domain_tok = if let Some(part) = &num.format {
+            self.resolve_stable_format_or_shorthand(part, "number")
+                .with_context(|| {
+                    format!(
+                        "Unsupported clause '{part}' in [number:{}] subtype constraint",
+                        num.format_dsl()
+                    )
+                })?
+        } else {
+            sh(DC_TYPE_NUMBER)
+        };
 
         out.push(sh(DC_VALUE_RANGE));
         out.push(domain_tok);
-        for bound_opt in [lower_bound, upper_bound] {
+        for bound_opt in [num.lower_bound, num.upper_bound] {
             match bound_opt {
                 None => {
                     out.push(sh(DC_OPTIONAL_ABSENT));
@@ -3635,10 +3521,13 @@ fn collect_named_constructs_from_pattern(
                 match &elem.term {
                     SyntaxTerm::NamedConstruct { name, subtype, .. } => {
                         if name == "script" {
-                            if let Some(script_name) = subtype {
+                            if let Some(script_name) = subtype
+                                .as_ref()
+                                .and_then(SubtypeConstraint::as_target_str)
+                            {
                                 let normalized_script =
                                     if script_name.starts_with('.') {
-                                        script_name.clone()
+                                        script_name.to_string()
                                     } else {
                                         format!(".{script_name}")
                                     };
@@ -3651,56 +3540,49 @@ fn collect_named_constructs_from_pattern(
                             seed_entities.insert(
                                 SeedEntityKey::NamedConstruct(name.clone()),
                             );
-                            if let Some(sub) = subtype {
-                                let trimmed = sub.trim();
-                                if (name == "list"
-                                    || name.starts_with("list(")
-                                    || name == "string")
-                                    && (trimmed.starts_with('(')
-                                        || trimmed.starts_with('['))
-                                {
-                                    if let Ok(nested_rule) =
-                                        parse_dc_syntax(&format!(":{trimmed}"))
-                                    {
-                                        collect_named_constructs_from_pattern(
-                                            &nested_rule.pattern,
-                                            seed_entities,
-                                        );
-                                    }
-                                } else if name == "list"
-                                    || name.starts_with("list(")
-                                {
-                                    if trimmed == "Semantic:fileflag" {
-                                        insert_script_and_parents(
-                                            seed_entities,
-                                            ".Semantic:fileflag",
-                                        );
-                                    } else {
-                                        seed_entities.insert(
-                                            SeedEntityKey::NamedConstruct(
-                                                trimmed.to_string(),
-                                            ),
-                                        );
-                                    }
-                                } else if (name == "format"
-                                    || name == "type"
-                                    || name == "typed_data")
-                                    && !trimmed.starts_with('$')
-                                    && DcShorthand::parse(trimmed).is_err()
-                                {
-                                    let script_name = if trimmed.starts_with('.')
-                                    {
-                                        trimmed.to_string()
-                                    } else if trimmed.starts_with("Formats:") {
-                                        format!(".{trimmed}")
-                                    } else {
-                                        format!(".Formats:{trimmed}")
-                                    };
-                                    insert_script_and_parents(
+                            match subtype {
+                                Some(SubtypeConstraint::Pattern(nested_pat)) => {
+                                    collect_named_constructs_from_pattern(
+                                        nested_pat,
                                         seed_entities,
-                                        &script_name,
                                     );
                                 }
+                                Some(SubtypeConstraint::Target(trimmed)) => {
+                                    if name == "list" || name.starts_with("list(") {
+                                        if trimmed == "Semantic:fileflag" {
+                                            insert_script_and_parents(
+                                                seed_entities,
+                                                ".Semantic:fileflag",
+                                            );
+                                        } else {
+                                            seed_entities.insert(
+                                                SeedEntityKey::NamedConstruct(
+                                                    trimmed.clone(),
+                                                ),
+                                            );
+                                        }
+                                    } else if (name == "format"
+                                        || name == "type"
+                                        || name == "typed_data")
+                                        && DcShorthand::parse(trimmed).is_err()
+                                    {
+                                        let script_name =
+                                            if trimmed.starts_with('.') {
+                                                trimmed.clone()
+                                            } else if trimmed
+                                                .starts_with("Formats:")
+                                            {
+                                                format!(".{trimmed}")
+                                            } else {
+                                                format!(".Formats:{trimmed}")
+                                            };
+                                        insert_script_and_parents(
+                                            seed_entities,
+                                            &script_name,
+                                        );
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -5038,17 +4920,18 @@ mod tests {
 
         let resolver = DatasetRuleResolver::load_from_seed_graph()?;
         let dc9_gid = crate::dc::short_to_long_dc(9);
+        let calendar_sub = SubtypeConstraint::Target("calendar".to_string());
         assert!(resolver.token_satisfies_type(dc9_gid, "format", None));
         assert!(resolver.token_satisfies_type(
             dc9_gid,
             "format",
-            Some("calendar")
+            Some(&calendar_sub)
         ));
         assert!(resolver.token_satisfies_type(dc9_gid, "type", None));
         assert!(resolver.token_satisfies_type(
             dc9_gid,
             "type",
-            Some("calendar")
+            Some(&calendar_sub)
         ));
 
         Ok(())

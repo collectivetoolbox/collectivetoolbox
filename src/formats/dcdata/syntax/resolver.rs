@@ -31,10 +31,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    CharTarget, DcSyntaxRule, FramingShape, Quantifier, SyntaxElement,
-    SyntaxPattern, SyntaxTerm, classify_rule_framing_shape,
+    CharTarget, DcSyntaxRule, FramingShape, NumberSubtypeConstraint, Quantifier,
+    SubtypeConstraint, SyntaxElement, SyntaxPattern, SyntaxTerm,
+    classify_rule_framing_shape,
 };
-use super::data_constraint::parse_data_constraint;
 use super::parser::parse_dc_syntax;
 use super::role::DcRole;
 use crate::dc::{
@@ -69,11 +69,11 @@ pub trait SyntaxRuleResolver {
     fn resolve_named_type_with_arg(
         &self,
         name: &str,
-        arg: Option<&str>,
+        arg: Option<&SubtypeConstraint>,
     ) -> Option<SyntaxPattern> {
         let pattern = self.resolve_named_type(name)?;
         if let Some(arg_val) = arg {
-            Some(substitute_pattern_param(pattern, "$type", arg_val))
+            Some(substitute_pattern_param(pattern, "type", arg_val))
         } else {
             Some(pattern.clone())
         }
@@ -287,7 +287,7 @@ pub trait SyntaxRuleResolver {
         &self,
         tok: u128,
         req_name: &str,
-        req_subtype: Option<&str>,
+        req_subtype: Option<&SubtypeConstraint>,
     ) -> bool {
         if !matches!(req_name, "format" | "script")
             && !(req_name == "type" && req_subtype.is_some())
@@ -310,14 +310,20 @@ pub trait SyntaxRuleResolver {
                     .is_some_and(|exp| self.is_subtype_of(tok, exp))
         };
         match req_name {
-            "script" => {
-                req_subtype.is_some_and(|sub| self.matches_script(sub, tok))
-            }
+            "script" => req_subtype
+                .and_then(SubtypeConstraint::as_target_str)
+                .is_some_and(|sub| self.matches_script(sub, tok)),
             "string" | "String" => {
                 let is_str = self.token_fills_role(tok, DcRole::TypeString)
                     || self.matches_script("Formats:string", tok)
                     || self.matches_script("string", tok);
-                is_str && req_subtype.is_none_or(matches_format_sub)
+                is_str
+                    && req_subtype.is_none_or(|sub| match sub {
+                        SubtypeConstraint::Pattern(_) => true,
+                        other => other
+                            .as_target_str()
+                            .is_some_and(matches_format_sub),
+                    })
             }
             "number" | "Number" => {
                 let is_num = self.token_fills_role(tok, DcRole::TypeNumber)
@@ -328,26 +334,48 @@ pub trait SyntaxRuleResolver {
                     return false;
                 }
                 if let Some(sub) = req_subtype {
-                    matches_format_sub(sub)
-                        || self.token_fills_role(tok, DcRole::TypeNumber)
-                        || self.is_subtype_of(tok, DC_INTEGER.to_u128())
+                    match sub {
+                        SubtypeConstraint::Number(num) => {
+                            num.format.as_deref().is_none_or(|fmt| {
+                                matches_format_sub(fmt)
+                                    || self.token_fills_role(
+                                        tok,
+                                        DcRole::TypeNumber,
+                                    )
+                                    || self.is_subtype_of(
+                                        tok,
+                                        DC_INTEGER.to_u128(),
+                                    )
+                            })
+                        }
+                        other => other.as_target_str().is_some_and(|s| {
+                            matches_format_sub(s)
+                                || self
+                                    .token_fills_role(tok, DcRole::TypeNumber)
+                                || self.is_subtype_of(tok, DC_INTEGER.to_u128())
+                        }),
+                    }
                 } else {
                     true
                 }
             }
             "data" | "typed_data" => {
                 if let Some(sub) = req_subtype {
-                    if let Ok((expected_fmt, _)) = parse_data_constraint(sub) {
-                        if let Some(efmt) = expected_fmt {
-                            FormatId::from_shorthand(efmt)
-                                .or_else(|| FormatId::from_ident(efmt))
-                                .and_then(|f| f.dc_id())
-                                .is_some_and(|exp| self.is_subtype_of(tok, exp))
-                        } else {
-                            is_format
+                    match sub {
+                        SubtypeConstraint::Data { format, .. } => {
+                            if let Some(efmt) = format.as_deref() {
+                                FormatId::from_shorthand(efmt)
+                                    .or_else(|| FormatId::from_ident(efmt))
+                                    .and_then(|f| f.dc_id())
+                                    .is_some_and(|exp| {
+                                        self.is_subtype_of(tok, exp)
+                                    })
+                            } else {
+                                is_format
+                            }
                         }
-                    } else {
-                        false
+                        SubtypeConstraint::Target(s) => matches_format_sub(s),
+                        _ => false,
                     }
                 } else {
                     is_format
@@ -357,29 +385,33 @@ pub trait SyntaxRuleResolver {
                 let is_type = self.token_fills_role(tok, DcRole::TypeToken)
                     || is_format
                     || self.matches_script(".EL Types", tok);
-                is_type && req_subtype.is_none_or(matches_format_sub)
+                is_type
+                    && req_subtype.is_none_or(|sub| {
+                        sub.as_target_str().is_some_and(matches_format_sub)
+                    })
             }
             "format" => {
-                is_format && req_subtype.is_none_or(matches_format_sub)
+                is_format
+                    && req_subtype.is_none_or(|sub| {
+                        sub.as_target_str().is_some_and(matches_format_sub)
+                    })
             }
             "Routine" => self.token_fills_role(tok, DcRole::TypeRoutine),
             "Routine name" | "RoutineName" => {
                 self.token_fills_role(tok, DcRole::TypeRoutineName)
                     || self.token_fills_role(tok, DcRole::TypeRoutine)
             }
-            "identifier" => req_subtype
-                .is_none_or(|sub| self.token_satisfies_type(tok, sub, None)),
+            "identifier" => req_subtype.is_none_or(|sub| {
+                sub.as_target_str()
+                    .is_some_and(|s| self.token_satisfies_type(tok, s, None))
+            }),
             _ => matches_format_sub(req_name),
         }
-    }
-    /// Resolves a `[string:<subtype>]` pattern constraint into its [`SyntaxPattern`].
-    fn resolve_subtype_pattern(&self, subtype: &str) -> Result<SyntaxPattern> {
-        Ok(parse_dc_syntax(subtype)?.pattern)
     }
     /// Resolves the element [`SyntaxTerm`] for a `[list:<subtype>]` constraint.
     fn resolve_list_element_term(
         &self,
-        subtype: Option<&str>,
+        subtype: Option<&SubtypeConstraint>,
     ) -> Option<SyntaxTerm> {
         let Some(sub) = subtype else {
             return Some(SyntaxTerm::NamedConstruct {
@@ -388,7 +420,6 @@ pub trait SyntaxRuleResolver {
                 capture_var: None,
             });
         };
-        let trimmed = sub.trim();
         let is_known_construct = |name: &str| -> bool {
             self.resolve_named_type(name).is_some()
                 || matches!(
@@ -405,52 +436,78 @@ pub trait SyntaxRuleResolver {
                 )
                 || name.starts_with("list(")
         };
-        if trimmed.starts_with('(') {
-            let rule = parse_dc_syntax(&format!(":{trimmed}")).ok()?;
-            Some(SyntaxTerm::Group(rule.pattern))
-        } else if let Some((base, inner_sub)) = trimmed.split_once(':') {
-            if is_known_construct(base) {
-                Some(SyntaxTerm::NamedConstruct {
-                    name: base.to_owned(),
-                    subtype: Some(inner_sub.to_owned()),
-                    capture_var: None,
-                })
-            } else if self.has_script(trimmed) {
-                Some(SyntaxTerm::NamedConstruct {
-                    name: "script".to_owned(),
-                    subtype: Some(trimmed.to_owned()),
-                    capture_var: None,
-                })
-            } else {
-                None
-            }
-        } else if is_known_construct(trimmed) {
-            Some(SyntaxTerm::NamedConstruct {
-                name: trimmed.to_owned(),
-                subtype: None,
-                capture_var: None,
-            })
-        } else if self.has_script(trimmed) {
-            Some(SyntaxTerm::NamedConstruct {
-                name: "script".to_owned(),
-                subtype: Some(trimmed.to_owned()),
-                capture_var: None,
-            })
-        } else if FormatId::from_shorthand(trimmed).is_some()
-            || FormatId::from_ident(trimmed).is_some()
-            || trimmed.starts_with("<=")
-            || trimmed.starts_with('<')
-            || trimmed.starts_with(">=")
-            || trimmed.starts_with('>')
-            || trimmed.contains('&')
-        {
-            Some(SyntaxTerm::NamedConstruct {
+        match sub {
+            SubtypeConstraint::Pattern(pat) => match pat.as_ref() {
+                SyntaxPattern::Sequence(elems)
+                    if elems.len() == 1
+                        && elems.first().is_some_and(|e| {
+                            e.quantifier == Quantifier::ExactOne
+                        }) =>
+                {
+                    elems.first().map(|e| e.term.clone())
+                }
+                other => Some(SyntaxTerm::Group(other.clone())),
+            },
+            SubtypeConstraint::Number(num) => Some(SyntaxTerm::NamedConstruct {
                 name: "number".to_owned(),
-                subtype: Some(trimmed.to_owned()),
+                subtype: Some(SubtypeConstraint::Number(num.clone())),
                 capture_var: None,
-            })
-        } else {
-            None
+            }),
+            SubtypeConstraint::Target(trimmed) => {
+                if let Some((base, inner_sub)) = trimmed.split_once(':') {
+                    if is_known_construct(base) {
+                        let parsed_inner =
+                            SubtypeConstraint::parse(base, inner_sub).ok()?;
+                        Some(SyntaxTerm::NamedConstruct {
+                            name: base.to_owned(),
+                            subtype: Some(parsed_inner),
+                            capture_var: None,
+                        })
+                    } else if self.has_script(trimmed) {
+                        Some(SyntaxTerm::NamedConstruct {
+                            name: "script".to_owned(),
+                            subtype: Some(SubtypeConstraint::Target(
+                                trimmed.to_owned(),
+                            )),
+                            capture_var: None,
+                        })
+                    } else {
+                        None
+                    }
+                } else if is_known_construct(trimmed) {
+                    Some(SyntaxTerm::NamedConstruct {
+                        name: trimmed.to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    })
+                } else if self.has_script(trimmed) {
+                    Some(SyntaxTerm::NamedConstruct {
+                        name: "script".to_owned(),
+                        subtype: Some(SubtypeConstraint::Target(
+                            trimmed.to_owned(),
+                        )),
+                        capture_var: None,
+                    })
+                } else if FormatId::from_shorthand(trimmed).is_some()
+                    || FormatId::from_ident(trimmed).is_some()
+                    || trimmed.starts_with("<=")
+                    || trimmed.starts_with('<')
+                    || trimmed.starts_with(">=")
+                    || trimmed.starts_with('>')
+                    || trimmed.contains('&')
+                {
+                    let parsed_num =
+                        NumberSubtypeConstraint::parse(trimmed).ok()?;
+                    Some(SyntaxTerm::NamedConstruct {
+                        name: "number".to_owned(),
+                        subtype: Some(SubtypeConstraint::Number(parsed_num)),
+                        capture_var: None,
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 }
@@ -458,7 +515,7 @@ pub trait SyntaxRuleResolver {
 fn substitute_term_param(
     term: &SyntaxTerm,
     param: &str,
-    value: &str,
+    value: &SubtypeConstraint,
 ) -> SyntaxTerm {
     match term {
         SyntaxTerm::NamedConstruct {
@@ -466,14 +523,11 @@ fn substitute_term_param(
             subtype,
             capture_var,
         } => {
-            let new_sub = subtype.as_ref().map(|s| {
-                if s == param {
-                    value.to_string()
-                } else if s.contains(param) {
-                    s.replace(param, value)
-                } else {
-                    s.clone()
+            let new_sub = subtype.as_ref().map(|s| match s {
+                SubtypeConstraint::BoundVar(var) if var == param => {
+                    value.clone()
                 }
+                other => other.clone(),
             });
             SyntaxTerm::NamedConstruct {
                 name: name.clone(),
@@ -491,7 +545,7 @@ fn substitute_term_param(
 fn substitute_pattern_param(
     pat: &SyntaxPattern,
     param: &str,
-    value: &str,
+    value: &SubtypeConstraint,
 ) -> SyntaxPattern {
     match pat {
         SyntaxPattern::Sequence(elements) => SyntaxPattern::Sequence(
@@ -696,7 +750,10 @@ fn pattern_is_pure_type_constructor(pattern: &SyntaxPattern) -> bool {
     };
     tail.iter().all(|el| match &el.term {
         SyntaxTerm::NamedConstruct { name, subtype, .. } => {
-            name == "type" || (name == "list" && subtype.as_deref() == Some("type"))
+            name == "type"
+                || (name == "list"
+                    && subtype.as_ref().and_then(SubtypeConstraint::as_target_str)
+                        == Some("type"))
         }
         SyntaxTerm::Group(SyntaxPattern::Alternation(branches)) => branches.iter().all(|b| {
             let SyntaxPattern::Sequence(sub_elems) = b else {
@@ -707,7 +764,12 @@ fn pattern_is_pure_type_constructor(pattern: &SyntaxPattern) -> bool {
                     matches!(
                         &se.term,
                         SyntaxTerm::NamedConstruct { name, subtype, .. }
-                            if name == "type" || (name == "list" && subtype.as_deref() == Some("type"))
+                            if name == "type"
+                                || (name == "list"
+                                    && subtype
+                                        .as_ref()
+                                        .and_then(SubtypeConstraint::as_target_str)
+                                        == Some("type"))
                     )
                 })
         }),
@@ -991,15 +1053,21 @@ impl DatasetRuleResolver {
             }
             SyntaxTerm::NamedConstruct { name, subtype, .. } => {
                 if name == "script" {
-                    if let Some(sub) = subtype {
-                        out.scripts.push(sub.clone());
+                    if let Some(sub) = subtype
+                        .as_ref()
+                        .and_then(SubtypeConstraint::as_target_str)
+                    {
+                        out.scripts.push(sub.to_string());
                     }
                     return;
                 }
                 if name == "format" && subtype.is_some() {
-                    if let Some(sub) = subtype {
+                    if let Some(sub) = subtype
+                        .as_ref()
+                        .and_then(SubtypeConstraint::as_target_str)
+                    {
                         out.scripts.push(format!("Formats:{sub}"));
-                        out.scripts.push(sub.clone());
+                        out.scripts.push(sub.to_string());
                     }
                 } else if name == "format" && subtype.is_none() {
                     out.scripts.push("Formats".to_string());
@@ -1028,7 +1096,7 @@ impl DatasetRuleResolver {
                 }
                 if visited_named.insert(name.clone()) {
                     if let Some(pat) = self
-                        .resolve_named_type_with_arg(name, subtype.as_deref())
+                        .resolve_named_type_with_arg(name, subtype.as_ref())
                     {
                         self.collect_pattern_starters(
                             &pat,

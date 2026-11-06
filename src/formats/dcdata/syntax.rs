@@ -44,14 +44,14 @@ mod data_constraint;
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use ast::{
     ActionArg, CharTarget, DcSyntaxRule, FramingShape,
-    MAX_LEGACY_FRAMING_SHORT_DC_ID, Quantifier, SyntaxAction, SyntaxDiagnostic,
+    MAX_LEGACY_FRAMING_SHORT_DC_ID, NumberSubtypeConstraint, NumericBoundValue,
+    Quantifier, SubtypeConstraint, SyntaxAction, SyntaxDiagnostic,
     SyntaxElement, SyntaxPattern, SyntaxTerm, classify_rule_framing_shape,
     normalize_syntax_pattern,
 };
 pub use data_constraint::{
     NumberConstraintClause, parse_data_constraint, parse_number_constraint,
 };
-pub use crate::graph_ledger::NumericBoundValue;
 pub use parser::{
     format_extension_regex_pattern, is_extension_regex, parse_dc_syntax,
     parse_extension_regex, parse_target_token,

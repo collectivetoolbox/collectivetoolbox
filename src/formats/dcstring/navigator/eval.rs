@@ -31,8 +31,8 @@ use super::{
     DcCharExt, DcDocumentNavigator, DcFrameHeaderInfo, DcMstr, DcMstring,
     DcProjectionPolicy, DcRole, DcStr, DcString, DcSyntaxArena, DcSyntaxKind,
     Digest, MAX_NAV_CACHE_ENTRIES, NavBackend, Quantifier, Read,
-    SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxRuleResolver,
-    SyntaxTerm, default_syntax_resolver, parse_data_constraint,
+    SubtypeConstraint, SyntaxDiagnostic, SyntaxElement, SyntaxPattern,
+    SyntaxRuleResolver, SyntaxTerm, default_syntax_resolver,
 };
 
 /// Maximum recursion depth allowed during grammar rule expansion.
@@ -44,12 +44,12 @@ pub const DEFAULT_MAX_PROJECTION_DEPTH: usize = 64;
 /// Requirement for a value position in Document Character syntax.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueRequirement<'a> {
-    /// A named construct from README-named-types.csv, e.g. `("string", None)` or `("number", Some("Natural0"))`.
+    /// A named construct from README-named-types.csv, e.g. `("string", None)` or `("number", Some(&SubtypeConstraint::Number(...)))`.
     NamedConstruct {
         /// Name of the construct.
         name: &'a str,
         /// Optional subtype constraint.
-        subtype: Option<&'a str>,
+        subtype: Option<&'a SubtypeConstraint>,
     },
     /// A specific format or type token.
     TypeToken(DcChar),
@@ -119,7 +119,7 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
                 ValueRequirement::NamedConstruct { name, subtype } => {
                     SyntaxTerm::NamedConstruct {
                         name: (*name).to_owned(),
-                        subtype: subtype.map(|s| (*s).to_owned()),
+                        subtype: subtype.cloned(),
                         capture_var: None,
                     }
                 }
@@ -1137,9 +1137,9 @@ impl DcDocumentNavigator<'_> {
                 capture_var,
             } => {
                 let direct_matched = if name == "data" {
-                    self.eval_data_construct(subtype.as_deref(), ctx)?
+                    self.eval_data_construct(subtype.as_ref(), ctx)?
                 } else if name == "typed_data" {
-                    self.eval_typed_data_construct(subtype.as_deref(), ctx)?
+                    self.eval_typed_data_construct(subtype.as_ref(), ctx)?
                 } else if matches!(name.as_str(), "script" | "format" | "type")
                 {
                     if name == "type"
@@ -1167,7 +1167,7 @@ impl DcDocumentNavigator<'_> {
                                 ctx.resolver.token_satisfies_type(
                                     inner_dc.to_u128(),
                                     "type",
-                                    subtype.as_deref(),
+                                    subtype.as_ref(),
                                 )
                             } else {
                                 false
@@ -1182,7 +1182,7 @@ impl DcDocumentNavigator<'_> {
                     } else if ctx.resolver.token_satisfies_type(
                         first,
                         name,
-                        subtype.as_deref(),
+                        subtype.as_ref(),
                     ) {
                         let _ = self.pop_next_token()?;
                         true
@@ -1192,13 +1192,13 @@ impl DcDocumentNavigator<'_> {
                 } else if name == "string" || name == "String" {
                     self.eval_literal_frame(
                         Some(DcRole::TypeString),
-                        subtype.as_deref(),
+                        subtype.as_ref(),
                         ctx,
                     )?
                 } else if name == "Routine" {
                     self.eval_literal_frame(
                         Some(DcRole::TypeRoutine),
-                        subtype.as_deref(),
+                        subtype.as_ref(),
                         ctx,
                     )?
                 } else if name == "value"
@@ -1230,10 +1230,10 @@ impl DcDocumentNavigator<'_> {
                     self.cursor = after_bin;
                     true
                 } else if name == "identifier" {
-                    self.eval_identifier_frame(subtype.as_deref(), ctx)?
+                    self.eval_identifier_frame(subtype.as_ref(), ctx)?
                 } else if name == "number" || name == "Number" {
                     self.eval_number_frame(
-                        subtype.as_deref(),
+                        subtype.as_ref(),
                         capture_var.as_deref(),
                         ctx,
                     )?
@@ -1272,7 +1272,7 @@ impl DcDocumentNavigator<'_> {
                         (name.as_str(), None)
                     };
                     let mut matched = false;
-                    let resolved_pat = if let Some(sub) = subtype.as_deref() {
+                    let resolved_pat = if let Some(sub) = subtype.as_ref() {
                         ctx.resolver
                             .resolve_named_type_with_arg(lookup_name, Some(sub))
                             .map(Cow::Owned)
@@ -1325,7 +1325,7 @@ impl DcDocumentNavigator<'_> {
                                 matched = sub_nav.eval_list_constraints(
                                     0,
                                     list_end,
-                                    subtype.as_deref(),
+                                    subtype.as_ref(),
                                     list_len_arg,
                                     ctx,
                                 )?;
@@ -1334,7 +1334,7 @@ impl DcDocumentNavigator<'_> {
                                 matched = self.eval_list_constraints(
                                     start_offset,
                                     list_end,
-                                    subtype.as_deref(),
+                                    subtype.as_ref(),
                                     list_len_arg,
                                     ctx,
                                 )?;
@@ -1412,7 +1412,7 @@ impl DcDocumentNavigator<'_> {
                             .collect();
                         let req = ValueRequirement::NamedConstruct {
                             name: name.as_str(),
-                            subtype: subtype.as_deref(),
+                            subtype: subtype.as_ref(),
                         };
 
                         if first_dc.fills_role_with(
@@ -1444,7 +1444,7 @@ impl DcDocumentNavigator<'_> {
                                 if !Self::type_tokens_satisfy(
                                     type_tokens,
                                     name,
-                                    subtype.as_deref(),
+                                    subtype.as_ref(),
                                     ctx.resolver,
                                 ) {
                                     self.restore_checkpoint(checkpoint);
@@ -1479,13 +1479,15 @@ impl DcDocumentNavigator<'_> {
                                     }
                                 }
                                 if !evaluated {
-                                    if subtype.as_deref().is_none_or(|sub| {
-                                        Self::type_tokens_satisfy(
-                                            type_tokens,
-                                            sub,
-                                            None,
-                                            ctx.resolver,
-                                        )
+                                    if subtype.as_ref().is_none_or(|sub| {
+                                        sub.as_target_str().is_some_and(|s| {
+                                            Self::type_tokens_satisfy(
+                                                type_tokens,
+                                                s,
+                                                None,
+                                                ctx.resolver,
+                                            )
+                                        })
                                     }) {
                                         self.cursor = stub.outer_span.end;
                                         return Ok(true);
@@ -1791,7 +1793,7 @@ impl DcDocumentNavigator<'_> {
 
     pub(super) fn eval_data_construct(
         &mut self,
-        subtype: Option<&str>,
+        subtype: Option<&SubtypeConstraint>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let start_offset = self.cursor;
@@ -1804,21 +1806,26 @@ impl DcDocumentNavigator<'_> {
         {
             return Ok(false);
         }
-        let constraint = if let Some(sub) = subtype {
-            match parse_data_constraint(sub) {
-                Ok(c) => Some(c),
-                Err(err) => {
-                    ctx.has_errors = true;
-                    ctx.diagnostics.push(SyntaxDiagnostic {
-                        message: format!("Invalid data constraint: {err}"),
-                        token_offset: start_offset,
-                        is_error: true,
-                    });
-                    return Ok(false);
-                }
+        let constraint = match subtype {
+            None => None,
+            Some(SubtypeConstraint::Data { format, bytes }) => {
+                Some((format.as_deref(), *bytes))
             }
-        } else {
-            None
+            Some(SubtypeConstraint::Target(fmt)) => {
+                Some((Some(fmt.as_str()), None))
+            }
+            Some(other) => {
+                ctx.has_errors = true;
+                ctx.diagnostics.push(SyntaxDiagnostic {
+                    message: format!(
+                        "Invalid data constraint: {}",
+                        other.format_dsl()
+                    ),
+                    token_offset: start_offset,
+                    is_error: true,
+                });
+                return Ok(false);
+            }
         };
 
         let matches_expected_fmt = |fmt_str: &str,
@@ -1939,7 +1946,7 @@ impl DcDocumentNavigator<'_> {
 
     pub(super) fn eval_typed_data_construct(
         &mut self,
-        subtype: Option<&str>,
+        subtype: Option<&SubtypeConstraint>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let start_offset = self.cursor;
@@ -1967,7 +1974,7 @@ impl DcDocumentNavigator<'_> {
             sub_ctx.policy.clone_from(&ctx.policy);
             let type_term = SyntaxTerm::NamedConstruct {
                 name: "type".to_owned(),
-                subtype: subtype.map(str::to_owned),
+                subtype: subtype.cloned(),
                 capture_var: None,
             };
             if sub_nav.eval_term_single(&type_term, &mut sub_ctx)?
@@ -1990,7 +1997,7 @@ impl DcDocumentNavigator<'_> {
     pub(super) fn eval_literal_frame(
         &mut self,
         expected_type_role: Option<DcRole>,
-        subtype: Option<&str>,
+        subtype: Option<&SubtypeConstraint>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let start_offset = self.cursor;
@@ -2086,7 +2093,7 @@ impl DcDocumentNavigator<'_> {
                     decoded_payload.push(escaped);
                 }
             } else if ch.fills_role_with(DcRole::EndLiteral, ctx.resolver) {
-                if let Some(sub_str) = subtype {
+                if let Some(sub) = subtype {
                     if ctx.depth >= ctx.max_depth {
                         ctx.has_errors = true;
                         ctx.diagnostics.push(SyntaxDiagnostic {
@@ -2097,22 +2104,19 @@ impl DcDocumentNavigator<'_> {
                         self.restore_checkpoint(term_checkpoint);
                         return Ok(false);
                     }
-                    let sub_pattern =
-                        match ctx.resolver.resolve_subtype_pattern(sub_str) {
-                            Ok(p) => p,
-                            Err(err) => {
-                                ctx.has_errors = true;
-                                ctx.diagnostics.push(SyntaxDiagnostic {
-                                    message: format!(
-                                        "Invalid string constraint: {err}"
-                                    ),
-                                    token_offset: start_offset,
-                                    is_error: true,
-                                });
-                                self.restore_checkpoint(term_checkpoint);
-                                return Ok(false);
-                            }
-                        };
+                    let SubtypeConstraint::Pattern(sub_pattern) = sub else {
+                        ctx.has_errors = true;
+                        ctx.diagnostics.push(SyntaxDiagnostic {
+                            message: format!(
+                                "Invalid string constraint: {}",
+                                sub.format_dsl()
+                            ),
+                            token_offset: start_offset,
+                            is_error: true,
+                        });
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    };
                     let mut sub_nav =
                         DcDocumentNavigator::from_dc_str(<&DcStr>::from(""));
                     sub_nav.push_spliced_tokens(decoded_payload);
@@ -2124,7 +2128,7 @@ impl DcDocumentNavigator<'_> {
                     sub_ctx.call_stack.clone_from(&ctx.call_stack);
                     sub_ctx.unescaped_literal_payload = true;
                     let sub_ok =
-                        sub_nav.eval_pattern(&sub_pattern, &mut sub_ctx)?;
+                        sub_nav.eval_pattern(sub_pattern, &mut sub_ctx)?;
                     ctx.has_errors |= sub_ctx.has_errors;
                     ctx.diagnostics.extend(sub_ctx.diagnostics);
                     if !sub_ok
@@ -2214,7 +2218,7 @@ impl DcDocumentNavigator<'_> {
 
     pub(super) fn eval_identifier_frame(
         &mut self,
-        subtype: Option<&str>,
+        subtype: Option<&SubtypeConstraint>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
         let start_offset = self.cursor;
@@ -2282,11 +2286,15 @@ impl DcDocumentNavigator<'_> {
                     return Ok(false);
                 }
                 if let Some(sub) = subtype {
+                    let Some(sub_str) = sub.as_target_str() else {
+                        self.restore_checkpoint(term_checkpoint);
+                        return Ok(false);
+                    };
                     let type_ok =
                         if let Some(ref type_tokens) = leading_type_tokens {
                             Self::type_tokens_satisfy(
                                 type_tokens,
-                                sub,
+                                sub_str,
                                 None,
                                 ctx.resolver,
                             )
@@ -2294,7 +2302,7 @@ impl DcDocumentNavigator<'_> {
                             self.identifier_bound_to_type_in_scope(
                                 mstr,
                                 start_offset,
-                                sub,
+                                sub_str,
                                 ctx,
                             )?
                         } else {
@@ -2491,7 +2499,7 @@ impl DcDocumentNavigator<'_> {
 
     pub(super) fn eval_number_frame(
         &mut self,
-        subtype: Option<&str>,
+        subtype: Option<&SubtypeConstraint>,
         capture_var: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
@@ -2586,7 +2594,7 @@ impl DcDocumentNavigator<'_> {
         &mut self,
         list_start: u64,
         list_end: u64,
-        subtype: Option<&str>,
+        subtype: Option<&SubtypeConstraint>,
         len_arg: Option<&str>,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
@@ -3131,68 +3139,63 @@ pub(super) fn parse_bound(expr: &str) -> Option<malachite::Integer> {
 
 pub(super) fn number_satisfies_subtype(
     val: &malachite::Integer,
-    subtype: &str,
+    subtype: &SubtypeConstraint,
     resolver: &dyn SyntaxRuleResolver,
 ) -> bool {
-    let Ok(clauses) =
-        ctb_formats_dcdata::syntax::parse_number_constraint(subtype)
-    else {
-        return false;
+    let check_target = |part: &str| -> bool {
+        let fmt = FormatId::from_shorthand(part)
+            .or_else(|| FormatId::from_ident(part));
+        if let Some(fmt) = fmt {
+            if let Some(rule) = resolver.resolve_rule(&CharTarget::Format(fmt))
+                && let Some(ok) = check_pattern_number_constraint(
+                    &rule.pattern,
+                    val,
+                    resolver,
+                )
+            {
+                ok
+            } else {
+                fmt.dc_id().is_some_and(|dc_id| {
+                    resolver.matches_script("Formats:number", dc_id)
+                        || resolver
+                            .matches_script("Formats:number_abstract", dc_id)
+                })
+            }
+        } else if let Some(rule) = resolver.resolve_named_type(part) {
+            // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
+            check_pattern_number_constraint(rule, val, resolver)
+                .unwrap_or(false)
+        } else {
+            false
+        }
     };
-    for clause in clauses {
-        let matched = match clause {
-            ctb_formats_dcdata::syntax::NumberConstraintClause::LowerBound {
-                exclusive,
-                bound,
-            } => {
-                let b = numeric_bound_to_integer(bound);
-                if exclusive { val > &b } else { val >= &b }
+
+    match subtype {
+        SubtypeConstraint::Number(num) => {
+            if let Some(part) = &num.format
+                && !check_target(part)
+            {
+                return false;
             }
-            ctb_formats_dcdata::syntax::NumberConstraintClause::UpperBound {
-                exclusive,
-                bound,
-            } => {
+            if let Some((exclusive, bound)) = num.lower_bound {
                 let b = numeric_bound_to_integer(bound);
-                if exclusive { val < &b } else { val <= &b }
-            }
-            ctb_formats_dcdata::syntax::NumberConstraintClause::Target(
-                part,
-            ) => {
-                let fmt = FormatId::from_shorthand(part)
-                    .or_else(|| FormatId::from_ident(part));
-                if let Some(fmt) = fmt {
-                    if let Some(rule) =
-                        resolver.resolve_rule(&CharTarget::Format(fmt))
-                        && let Some(ok) = check_pattern_number_constraint(
-                            &rule.pattern,
-                            val,
-                            resolver,
-                        )
-                    {
-                        ok
-                    } else {
-                        fmt.dc_id().is_some_and(|dc_id| {
-                            resolver.matches_script("Formats:number", dc_id)
-                                || resolver.matches_script(
-                                    "Formats:number_abstract",
-                                    dc_id,
-                                )
-                        })
-                    }
-                } else if let Some(rule) = resolver.resolve_named_type(part) {
-                    // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
-                    check_pattern_number_constraint(rule, val, resolver)
-                        .unwrap_or(false)
-                } else {
-                    false
+                let ok = if exclusive { val > &b } else { val >= &b };
+                if !ok {
+                    return false;
                 }
             }
-        };
-        if !matched {
-            return false;
+            if let Some((exclusive, bound)) = num.upper_bound {
+                let b = numeric_bound_to_integer(bound);
+                let ok = if exclusive { val < &b } else { val <= &b };
+                if !ok {
+                    return false;
+                }
+            }
+            true
         }
+        SubtypeConstraint::Target(part) => check_target(part),
+        _ => false,
     }
-    true
 }
 
 pub(super) fn check_pattern_number_constraint(
@@ -3291,7 +3294,7 @@ impl DcDocumentNavigator<'_> {
     pub(super) fn type_tokens_satisfy(
         type_tokens: &[DcChar],
         req_name: &str,
-        req_subtype: Option<&str>,
+        req_subtype: Option<&SubtypeConstraint>,
         resolver: &dyn SyntaxRuleResolver,
     ) -> bool {
         let tokens = if type_tokens.len() >= 2
@@ -3319,7 +3322,7 @@ impl DcDocumentNavigator<'_> {
             let mut ctx = SyntaxEvalContext::new(resolver, None);
             let type_term = SyntaxTerm::NamedConstruct {
                 name: "type".to_owned(),
-                subtype: req_subtype.map(str::to_owned),
+                subtype: req_subtype.cloned(),
                 capture_var: None,
             };
             // Reason for fallback: evaluation errors treat requirement as unsatisfied (false).

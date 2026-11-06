@@ -90,8 +90,8 @@ use crate::graph_ledger::{
 };
 use crate::shared::{BidiClass, GeneralCategory};
 use crate::syntax::ast::{
-    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
-    SyntaxElement, SyntaxPattern, SyntaxTerm,
+    ActionArg, CharTarget, DcSyntaxRule, NumberSubtypeConstraint, Quantifier,
+    SubtypeConstraint, SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
 use crate::syntax::format_extension_regex_pattern;
 
@@ -2623,10 +2623,11 @@ impl SeedGraphIndex {
                             .context("Missing subtype constraint tokens")?;
                         (c_slice, &[][..])
                     };
-                    let sub_str = self.decode_named_construct_subtype_tokens(
-                        name,
-                        constraint_tokens,
-                    )?;
+                    let sub_constraint = self
+                        .decode_named_construct_subtype_tokens(
+                            name,
+                            constraint_tokens,
+                        )?;
                     let capture_var = if rem.is_empty() {
                         None
                     } else {
@@ -2650,7 +2651,7 @@ impl SeedGraphIndex {
                     return Ok((
                         SyntaxTerm::NamedConstruct {
                             name: name.clone(),
-                            subtype: Some(sub_str),
+                            subtype: Some(sub_constraint),
                             capture_var,
                         },
                         next_idx,
@@ -2690,7 +2691,9 @@ impl SeedGraphIndex {
                             return Ok((
                                 SyntaxTerm::NamedConstruct {
                                     name: "script".to_string(),
-                                    subtype: Some(script_name.clone()),
+                                    subtype: Some(SubtypeConstraint::Target(
+                                        script_name.clone(),
+                                    )),
                                     capture_var,
                                 },
                                 next_idx,
@@ -2716,9 +2719,10 @@ impl SeedGraphIndex {
                                             format!(
                                                 "NamedConstruct subtype token {sub_tok} is not a string node"
                                             )
-                                        })?
-                                        .to_string();
-                                    subtype = Some(sub_str);
+                                        })?;
+                                    subtype = Some(SubtypeConstraint::parse(
+                                        name, sub_str,
+                                    )?);
                                     pos = pos.saturating_add(2);
                                 } else if qual == sh_capture {
                                     let var_tok = *inner
@@ -2776,7 +2780,7 @@ impl SeedGraphIndex {
         &self,
         name: &str,
         tokens: &[DcShorthand],
-    ) -> Result<String> {
+    ) -> Result<SubtypeConstraint> {
         ensure!(
             !tokens.is_empty(),
             "Empty subtype constraint token slice for [{name}]"
@@ -2792,7 +2796,7 @@ impl SeedGraphIndex {
                 .get(1..tokens.len().saturating_sub(1))
                 .context("Invalid nested subtype slice")?;
             let pat = self.decode_syntax_pattern_tokens(inner)?;
-            return Ok(pat.format_dsl());
+            return Ok(SubtypeConstraint::Pattern(Box::new(pat)));
         }
         if tokens.len() == 2
             && tokens.first() == Some(&sh(DC_REFERENCE_BOUND_VALUE))
@@ -2803,7 +2807,7 @@ impl SeedGraphIndex {
                     "Bound variable token {var_tok} in [{name}] subtype is not a string node"
                 )
             })?;
-            return Ok(format!("${var_name}"));
+            return Ok(SubtypeConstraint::BoundVar(var_name.to_string()));
         }
         if name == "data" {
             if tokens.len() == 2
@@ -2811,12 +2815,18 @@ impl SeedGraphIndex {
             {
                 let len_tok =
                     *tokens.get(1).context("Missing DataByteLength value")?;
-                let bytes = self.get_integer(len_tok).with_context(|| {
+                let bytes_u128 = self.get_integer(len_tok).with_context(|| {
                     format!(
                         "DataByteLength token {len_tok} in [data] subtype is not an integer node"
                     )
                 })?;
-                return Ok(format!("bytes={bytes}"));
+                let bytes = usize::try_from(bytes_u128).context(
+                    "DataByteLength in [data] subtype overflows usize",
+                )?;
+                return Ok(SubtypeConstraint::Data {
+                    format: None,
+                    bytes: Some(bytes),
+                });
             }
             if tokens.len() == 4
                 && tokens.first() == Some(&sh(DC_TYPE_UNION))
@@ -2826,23 +2836,34 @@ impl SeedGraphIndex {
                     *tokens.get(1).context("Missing format token in [data]")?;
                 let len_tok =
                     *tokens.get(3).context("Missing DataByteLength value")?;
-                let bytes = self.get_integer(len_tok).with_context(|| {
+                let bytes_u128 = self.get_integer(len_tok).with_context(|| {
                     format!(
                         "DataByteLength token {len_tok} in [data] subtype is not an integer node"
                     )
                 })?;
+                let bytes = usize::try_from(bytes_u128).context(
+                    "DataByteLength in [data] subtype overflows usize",
+                )?;
                 let fmt_str = self.format_stable_or_shorthand_token(fmt_tok);
-                return Ok(format!("{fmt_str};bytes={bytes}"));
+                return Ok(SubtypeConstraint::Data {
+                    format: Some(fmt_str),
+                    bytes: Some(bytes),
+                });
             }
             if let [single] = tokens {
-                return Ok(self.format_stable_or_shorthand_token(*single));
+                return Ok(SubtypeConstraint::Data {
+                    format: Some(self.format_stable_or_shorthand_token(*single)),
+                    bytes: None,
+                });
             }
             bail!(
                 "Unsupported token sequence for [data:...] subtype: {tokens:?}"
             );
         }
         if name == "number" {
-            return self.decode_number_subtype_tokens(tokens);
+            return Ok(SubtypeConstraint::Number(
+                self.decode_number_subtype_tokens(tokens)?,
+            ));
         }
         if tokens.len() == 4
             && tokens.first() == Some(&sh(DC_VALUE_RANGE))
@@ -2850,26 +2871,26 @@ impl SeedGraphIndex {
         {
             let min_tok = *tokens.get(2).context("Missing range min token")?;
             let max_tok = *tokens.get(3).context("Missing range max token")?;
-            let min_val = self.get_integer(min_tok).with_context(|| {
+            let min = self.get_integer(min_tok).with_context(|| {
                 format!(
                     "Range min token {min_tok} in [{name}] is not an integer node"
                 )
             })?;
-            let max_val = self.get_integer(max_tok).with_context(|| {
+            let max = self.get_integer(max_tok).with_context(|| {
                 format!(
                     "Range max token {max_tok} in [{name}] is not an integer node"
                 )
             })?;
-            return Ok(format!("{min_val}..{max_val}"));
+            return Ok(SubtypeConstraint::LengthRange { min, max });
         }
         if let [tok] = tokens {
             if *tok == sh(DC_TYPE_ROUTINE) {
-                return Ok("Routine".to_string());
+                return Ok(SubtypeConstraint::Target("Routine".to_string()));
             }
             if let DcShorthand::Long(seed_id) = *tok {
                 match self.get_seed_entity(seed_id) {
                     Some(SeedEntityKey::NamedConstruct(c)) => {
-                        return Ok(c.clone());
+                        return Ok(SubtypeConstraint::Target(c.clone()));
                     }
                     Some(SeedEntityKey::Script(s)) => {
                         if name == "format"
@@ -2877,17 +2898,17 @@ impl SeedGraphIndex {
                             || name == "typed_data"
                         {
                             // Reason for fallback: scripts outside `.Formats:` strip only leading dot.
-                            return Ok(s
-                                .strip_prefix(".Formats:")
-                                .or_else(|| s.strip_prefix('.'))
-                                .unwrap_or(s)
-                                .to_string());
+                            return Ok(SubtypeConstraint::Target(
+                                s.strip_prefix(".Formats:")
+                                    .or_else(|| s.strip_prefix('.'))
+                                    .unwrap_or(s)
+                                    .to_string(),
+                            ));
                         }
                         // Reason for fallback: scripts without leading dot are returned as-is.
-                        return Ok(s
-                            .strip_prefix('.')
-                            .unwrap_or(s)
-                            .to_string());
+                        return Ok(SubtypeConstraint::Target(
+                            s.strip_prefix('.').unwrap_or(s).to_string(),
+                        ));
                     }
                     other => {
                         bail!(
@@ -2896,7 +2917,7 @@ impl SeedGraphIndex {
                     }
                 }
             }
-            return Ok(tok.to_string());
+            return Ok(SubtypeConstraint::Target(tok.to_string()));
         }
         bail!(
             "Unsupported subtype constraint tokens for [{name}]: {tokens:?}"
@@ -2906,62 +2927,56 @@ impl SeedGraphIndex {
     fn decode_number_subtype_tokens(
         &self,
         tokens: &[DcShorthand],
-    ) -> Result<String> {
+    ) -> Result<NumberSubtypeConstraint> {
         if let [single] = tokens {
             ensure!(
                 matches!(*single, DcShorthand::Format(_)),
                 "Unexpected single token {single} in [number:...] subtype"
             );
-            return Ok(self.format_stable_or_shorthand_token(*single));
+            return Ok(NumberSubtypeConstraint {
+                format: Some(self.format_stable_or_shorthand_token(*single)),
+                lower_bound: None,
+                upper_bound: None,
+            });
         }
         ensure!(
             tokens.first() == Some(&sh(DC_VALUE_RANGE)) && tokens.len() >= 4,
             "Expected Range (Dc 643) in [number:...] subtype tokens, found {tokens:?}"
         );
-        let domain_tok = *tokens
-            .get(1)
-            .context("Missing domain type token in [number:...] Range (Dc 643)")?;
+        let domain_tok = *tokens.get(1).context(
+            "Missing domain type token in [number:...] Range (Dc 643)",
+        )?;
         let mut idx = 2usize;
-        let lower_bound = self.consume_number_range_endpoint(tokens, &mut idx, true)?;
-        let upper_bound = self.consume_number_range_endpoint(tokens, &mut idx, false)?;
+        let lower_bound = self.consume_number_range_endpoint(tokens, &mut idx)?;
+        let upper_bound = self.consume_number_range_endpoint(tokens, &mut idx)?;
         ensure!(
             idx == tokens.len(),
             "Unexpected trailing tokens in [number:...] Range (Dc 643): {tokens:?}"
         );
 
-        let mut parts: Vec<String> = Vec::new();
-        match domain_tok {
+        let format = match domain_tok {
             DcShorthand::Format(_) => {
-                parts.push(self.format_stable_or_shorthand_token(domain_tok));
+                Some(self.format_stable_or_shorthand_token(domain_tok))
             }
-            tok if tok == sh(DC_TYPE_NUMBER) => {}
+            tok if tok == sh(DC_TYPE_NUMBER) => None,
             other => {
                 bail!(
                     "Unexpected domain type token {other} in [number:...] Range (Dc 643)"
                 );
             }
-        }
-        if let Some((op, val)) = lower_bound {
-            parts.push(format!("{op}{}", val.format_dsl_bound()));
-        }
-        if let Some((op, val)) = upper_bound {
-            parts.push(format!("{op}{}", val.format_dsl_bound()));
-        }
-        if parts.len() == 2
-            && parts.first().map(String::as_str) == Some("Natural0")
-            && parts.get(1).map(String::as_str) == Some("<8")
-        {
-            return Ok("Natural0&<8".to_string());
-        }
-        Ok(parts.join(" & "))
+        };
+        Ok(NumberSubtypeConstraint {
+            format,
+            lower_bound,
+            upper_bound,
+        })
     }
 
     fn consume_number_range_endpoint(
         &self,
         tokens: &[DcShorthand],
         idx: &mut usize,
-        is_lower: bool,
-    ) -> Result<Option<(&'static str, NumericBoundValue)>> {
+    ) -> Result<Option<(bool, NumericBoundValue)>> {
         let tok = *tokens
             .get(*idx)
             .context("Missing range endpoint token in Range (Dc 643)")?;
@@ -2981,13 +2996,7 @@ impl SeedGraphIndex {
                 (false, tok)
             };
         let bound_val = self.decode_numeric_bound_node(val_tok)?;
-        let op = match (is_lower, is_exclusive) {
-            (true, false) => ">=",
-            (true, true) => ">",
-            (false, false) => "<=",
-            (false, true) => "<",
-        };
-        Ok(Some((op, bound_val)))
+        Ok(Some((is_exclusive, bound_val)))
     }
 
     fn decode_numeric_bound_node(
