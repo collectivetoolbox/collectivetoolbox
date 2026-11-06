@@ -1274,16 +1274,6 @@ pub fn validate_dc_category_file(
             (category.clone(), None)
         };
 
-        if parsed_col.role_def && parsed_col.rust_ident.is_none() {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Aliases"),
-                "Document Character has '@roleDef()' but is missing an '@ident(\"...\")' declaration".to_string(),
-                Some("Add an '@ident(\"...\")' declaration to define the role variant name"),
-            );
-        }
-
         if parsed_col.stable_ident && parsed_col.rust_ident.is_none() {
             report.add_error(
                 file_path,
@@ -1294,38 +1284,10 @@ pub fn validate_dc_category_file(
             );
         }
 
-        if script == ".EL Routines"
-            && parsed_col
-                .composite_roles
-                .iter()
-                .any(|r| r == "EvaluableExpressionStarter")
-        {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Aliases"),
-                "Redundant '@roleDef(\"EvaluableExpressionStarter\")' on '.EL Routines' Document Character (implicit for '.EL Routines')"
-                    .to_string(),
-                Some("Remove '@roleDef(\"EvaluableExpressionStarter\")'; it is inferred automatically for '.EL Routines'"),
-            );
-        }
-
-        if script == ".EL Operators" && parsed_col.role_def {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Aliases"),
-                "Redundant '@roleDef()' on '.EL Operators' Document Character (operators are inferred automatically from '.EL Operators')"
-                    .to_string(),
-                Some("Remove '@roleDef()'; operator behavior is inferred from '.EL Operators' and its syntax rule"),
-            );
-        }
-
         rows.push(DcDefn {
             dc_id,
             short_id,
             ident: parsed_col.rust_ident,
-            role_def: parsed_col.role_def,
             stable_ident: parsed_col.stable_ident,
             title: parsed_col.title,
             name,
@@ -4179,51 +4141,9 @@ mod tests {
                 .contains("their syntax rules differ")
         );
 
-        // 9. Redundant @roleDef("EvaluableExpressionStarter") on .EL Routines fails validation
-        let mut report_redundant_eval = ValidationReport::default();
-        let csv_redundant_eval = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114368,256,void lang.say(String),0,BN,,!Cx,.EL Routines,\"@ident(\"\"LangSay\"\"), @roleDef(), @roleDef(\"\"EvaluableExpressionStarter\"\")\",\n";
-        validate_dc_files_data(
-            [("el.csv", &csv_redundant_eval[..])],
-            "test",
-            &known_formats,
-            None,
-            Some(&known_named_types),
-            None,
-            None,
-            None,
-            &mut report_redundant_eval,
-        );
-        assert!(report_redundant_eval.has_errors());
-        assert!(
-            report_redundant_eval
-                .format_report()
-                .contains("Redundant '@roleDef(\"EvaluableExpressionStarter\")' on '.EL Routines'")
-        );
-
-        // 10. Redundant @roleDef() on .EL Operators fails validation
-        let mut report_redundant_op = ValidationReport::default();
-        let csv_redundant_op = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114381,269,Assignment operator,0,BN,,!Cx,.EL Operators,\"@ident(\"\"Assign\"\"), @roleDef()\",\n";
-        validate_dc_files_data(
-            [("el.csv", &csv_redundant_op[..])],
-            "test",
-            &known_formats,
-            None,
-            Some(&known_named_types),
-            None,
-            None,
-            None,
-            &mut report_redundant_op,
-        );
-        assert!(report_redundant_op.has_errors());
-        assert!(
-            report_redundant_op
-                .format_report()
-                .contains("Redundant '@roleDef()' on '.EL Operators'")
-        );
-
         // 11. Redundant explicit syntax rule on .EL Routines fails validation
         let mut report_redundant_routine_syn = ValidationReport::default();
-        let csv_redundant_routine_syn = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114368,256,void lang.say([string] text),0,BN,,!Cx,.EL Routines,\"@ident(\"\"LangSay\"\"), @roleDef(), :~ 258 [string $text] 259\",\n";
+        let csv_redundant_routine_syn = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114368,256,void lang.say([string] text),0,BN,,!Cx,.EL Routines,\"@ident(\"\"LangSay\"\"), :~ 258 [string $text] 259\",\n";
         validate_dc_files_data(
             [("el.csv", &csv_redundant_routine_syn[..])],
             "test",

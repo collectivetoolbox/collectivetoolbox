@@ -152,8 +152,6 @@ pub struct DcDefn {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ident: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub role_def: bool,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub stable_ident: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,

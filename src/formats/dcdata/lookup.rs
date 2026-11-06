@@ -273,6 +273,11 @@ mod tests {
                 c.dc_id
             );
             assert_eq!(g.ident, c.ident, "ident mismatch on {}", c.dc_id);
+            assert_eq!(
+                g.stable_ident, c.stable_ident,
+                "stable_ident mismatch on {}",
+                c.dc_id
+            );
             assert_eq!(g.name, c.name, "name mismatch on {}", c.dc_id);
             assert_eq!(
                 g.category, c.category,
@@ -366,6 +371,11 @@ mod tests {
                 c.short_id
             );
             assert_eq!(g.ident, c.ident, "ident mismatch on f{:?}", c.short_id);
+            assert_eq!(
+                g.stable_ident, c.stable_ident,
+                "stable_ident mismatch on f{:?}",
+                c.short_id
+            );
             assert_eq!(g.name, c.name, "name mismatch on f{:?}", c.short_id);
             assert_eq!(g.title, c.title, "title mismatch on f{:?}", c.short_id);
             assert_eq!(

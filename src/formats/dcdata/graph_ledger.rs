@@ -4137,7 +4137,6 @@ mod tests {
             dc_id: 1_114_112 + u128::try_from(short_id).unwrap(),
             short_id: Some(short_id),
             ident: Some(format!("DC_TEST_{short_id}")),
-            role_def: false,
             stable_ident: false,
             title: None,
             name: name.to_string(),
