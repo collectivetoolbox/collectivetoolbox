@@ -281,16 +281,6 @@ mod tests {
                 .matches_canonical(DcChar::from_short(267).to_u128())
         );
 
-        // IntegerFormatIndicator: Format 199 matches, short Dc 8 does not
-        assert!(
-            DcRole::IntegerFormatIndicator
-                .matches_canonical(DcChar::from_format(199).to_u128())
-        );
-        assert!(
-            !DcRole::IntegerFormatIndicator
-                .matches_canonical(DcChar::from_short(8).to_u128())
-        );
-
         // Base64Digit: 127..=190
         assert!(
             DcRole::Base64Digit
@@ -341,36 +331,6 @@ mod tests {
         assert!(
             !DcRole::EvaluableExpressionStarter
                 .matches_canonical(DcChar::from_short(6).to_u128())
-        );
-
-        // StructuralSeparator: newlines, paragraphs, list element separator
-        assert!(
-            DcRole::StructuralSeparator
-                .matches_canonical(DcChar::from_short(119).to_u128())
-        );
-        assert!(
-            DcRole::StructuralSeparator
-                .matches_canonical(DcChar::from_short(120).to_u128())
-        );
-        assert!(
-            DcRole::StructuralSeparator
-                .matches_canonical(DcChar::from_short(121).to_u128())
-        );
-        assert!(
-            DcRole::StructuralSeparator
-                .matches_canonical(DcChar::from_short(294).to_u128())
-        );
-        assert!(
-            DcRole::StructuralSeparator
-                .matches_canonical(DcChar::from_short(295).to_u128())
-        );
-        assert!(
-            DcRole::StructuralSeparator
-                .matches_canonical(DcChar::from_short(312).to_u128())
-        );
-        assert!(
-            !DcRole::StructuralSeparator
-                .matches_canonical(DcChar::from_short(239).to_u128())
         );
     }
 }

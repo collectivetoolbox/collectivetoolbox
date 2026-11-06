@@ -973,7 +973,30 @@ fn is_legacy_whitespace_pattern(pattern: &SyntaxPattern) -> bool {
         })
 }
 
-fn is_inline_paired_subframe(elements: &[SyntaxElement]) -> bool {
+/// Returns true if `rule` is a 1-argument prefix rule (`:~ <1 ExactOne NamedConstruct>`).
+#[must_use]
+pub fn is_unary_prefix_rule(rule: &DcSyntaxRule) -> bool {
+    let SyntaxPattern::Sequence(elems) = &rule.pattern else {
+        return false;
+    };
+    elems.len() == 2
+        && elems.first().is_some_and(|e| {
+            e.quantifier == Quantifier::ExactOne
+                && matches!(e.term, SyntaxTerm::SelfChar)
+        })
+        && elems.get(1).is_some_and(|e| {
+            e.quantifier == Quantifier::ExactOne
+                && matches!(e.term, SyntaxTerm::NamedConstruct { .. })
+        })
+}
+
+fn is_inline_paired_subframe<FCloser>(
+    elements: &[SyntaxElement],
+    closer_for_opener: &FCloser,
+) -> bool
+where
+    FCloser: Fn(&CharTarget) -> Option<u128>,
+{
     if elements.len() < 2 {
         return false;
     }
@@ -985,22 +1008,24 @@ fn is_inline_paired_subframe(elements: &[SyntaxElement]) -> bool {
     {
         return false;
     }
-    matches!(
-        (&first.term, &last.term),
-        (
-            SyntaxTerm::CharRef(CharTarget::Dc(511)),
-            SyntaxTerm::CharRef(CharTarget::Dc(512))
-        ) | (
-            SyntaxTerm::CharRef(CharTarget::Dc(388)),
-            SyntaxTerm::CharRef(CharTarget::Dc(389))
-        ) | (
-            SyntaxTerm::CharRef(CharTarget::Dc(258)),
-            SyntaxTerm::CharRef(CharTarget::Dc(259))
-        )
-    )
+    if let (SyntaxTerm::CharRef(opener), SyntaxTerm::CharRef(closer)) =
+        (&first.term, &last.term)
+    {
+        closer_for_opener(opener) == Some(closer.to_u128())
+    } else {
+        false
+    }
 }
 
-fn term_fixed_frame_arity(term: &SyntaxTerm) -> Option<u8> {
+fn term_fixed_frame_arity<FCloser, FUnary>(
+    term: &SyntaxTerm,
+    closer_for_opener: &FCloser,
+    is_unary_prefix_target: &FUnary,
+) -> Option<u8>
+where
+    FCloser: Fn(&CharTarget) -> Option<u128>,
+    FUnary: Fn(&CharTarget) -> bool,
+{
     match term {
         SyntaxTerm::NamedConstruct { .. }
         | SyntaxTerm::CharRef(_)
@@ -1010,19 +1035,29 @@ fn term_fixed_frame_arity(term: &SyntaxTerm) -> Option<u8> {
             target: CharTarget::Dc(_),
         } => Some(1),
         SyntaxTerm::Group(SyntaxPattern::Sequence(sub_elems)) => {
-            sequence_fixed_frame_arity(sub_elems)
+            sequence_fixed_frame_arity(
+                sub_elems,
+                closer_for_opener,
+                is_unary_prefix_target,
+            )
         }
         SyntaxTerm::Group(SyntaxPattern::Alternation(branches)) => {
             let first = branches.first()?;
             let first_arity = match first {
-                SyntaxPattern::Sequence(s) => sequence_fixed_frame_arity(s)?,
+                SyntaxPattern::Sequence(s) => sequence_fixed_frame_arity(
+                    s,
+                    closer_for_opener,
+                    is_unary_prefix_target,
+                )?,
                 SyntaxPattern::Alternation(_) => return None,
             };
             for branch in branches.get(1..)? {
                 let branch_arity = match branch {
-                    SyntaxPattern::Sequence(s) => {
-                        sequence_fixed_frame_arity(s)?
-                    }
+                    SyntaxPattern::Sequence(s) => sequence_fixed_frame_arity(
+                        s,
+                        closer_for_opener,
+                        is_unary_prefix_target,
+                    )?,
                     SyntaxPattern::Alternation(_) => return None,
                 };
                 if branch_arity != first_arity {
@@ -1035,11 +1070,19 @@ fn term_fixed_frame_arity(term: &SyntaxTerm) -> Option<u8> {
     }
 }
 
-fn sequence_fixed_frame_arity(elements: &[SyntaxElement]) -> Option<u8> {
+fn sequence_fixed_frame_arity<FCloser, FUnary>(
+    elements: &[SyntaxElement],
+    closer_for_opener: &FCloser,
+    is_unary_prefix_target: &FUnary,
+) -> Option<u8>
+where
+    FCloser: Fn(&CharTarget) -> Option<u128>,
+    FUnary: Fn(&CharTarget) -> bool,
+{
     if elements.is_empty() {
         return Some(0);
     }
-    if is_inline_paired_subframe(elements) {
+    if is_inline_paired_subframe(elements, closer_for_opener) {
         return Some(1);
     }
     let mut total = 0u8;
@@ -1053,8 +1096,11 @@ fn sequence_fixed_frame_arity(elements: &[SyntaxElement]) -> Option<u8> {
             if e0.quantifier == Quantifier::ExactOne
                 && e1.quantifier == Quantifier::ExactOne
                 && e2.quantifier == Quantifier::ExactOne
-                && e0.term == SyntaxTerm::CharRef(CharTarget::Dc(258))
-                && e2.term == SyntaxTerm::CharRef(CharTarget::Dc(259))
+                && let (
+                    SyntaxTerm::CharRef(opener),
+                    SyntaxTerm::CharRef(closer),
+                ) = (&e0.term, &e2.term)
+                && closer_for_opener(opener) == Some(closer.to_u128())
             {
                 total = total.checked_add(1)?;
                 idx = idx.saturating_add(3);
@@ -1066,10 +1112,8 @@ fn sequence_fixed_frame_arity(elements: &[SyntaxElement]) -> Option<u8> {
         {
             if e0.quantifier == Quantifier::ExactOne
                 && e1.quantifier == Quantifier::ExactOne
-                && matches!(
-                    e0.term,
-                    SyntaxTerm::CharRef(CharTarget::Dc(376 | 377))
-                )
+                && let SyntaxTerm::CharRef(sub_op) = &e0.term
+                && is_unary_prefix_target(sub_op)
                 && matches!(e1.term, SyntaxTerm::NamedConstruct { .. })
             {
                 total = total.checked_add(1)?;
@@ -1081,24 +1125,35 @@ fn sequence_fixed_frame_arity(elements: &[SyntaxElement]) -> Option<u8> {
         if el.quantifier != Quantifier::ExactOne {
             return None;
         }
-        let term_arity = term_fixed_frame_arity(&el.term)?;
+        let term_arity = term_fixed_frame_arity(
+            &el.term,
+            closer_for_opener,
+            is_unary_prefix_target,
+        )?;
         total = total.checked_add(term_arity)?;
         idx = idx.saturating_add(1);
     }
     Some(total)
 }
 
-/// Classifies the physical framing shape of a Document Character or Format rule.
+/// Classifies the physical framing shape of a Document Character or Format rule,
+/// using `closer_for_opener` and `is_unary_prefix_target` to identify inline subframes.
 ///
 /// Returns `None` if `rule` does not conform to any recognized framing shape.
 #[must_use]
-pub fn classify_rule_framing_shape(
+pub fn classify_rule_framing_shape_with<FCloser, FUnary>(
     target: &CharTarget,
     rule: Option<&DcSyntaxRule>,
     closer: Option<u128>,
     has_trailing_after_closer: bool,
     closing_opener: Option<CharTarget>,
-) -> Option<FramingShape> {
+    closer_for_opener: FCloser,
+    is_unary_prefix_target: FUnary,
+) -> Option<FramingShape>
+where
+    FCloser: Fn(&CharTarget) -> Option<u128>,
+    FUnary: Fn(&CharTarget) -> bool,
+{
     if let Some(closer) = closer {
         return Some(FramingShape::Paired {
             closer,
@@ -1181,7 +1236,11 @@ pub fn classify_rule_framing_shape(
                 let arity = u8::try_from(tail.len()).ok()?;
                 return Some(FramingShape::PrefixAtomArity(arity));
             }
-            if let Some(arity) = sequence_fixed_frame_arity(tail) {
+            if let Some(arity) = sequence_fixed_frame_arity(
+                tail,
+                &closer_for_opener,
+                &is_unary_prefix_target,
+            ) {
                 return Some(FramingShape::PrefixArity(arity));
             }
             return Some(FramingShape::PrefixVariableArity);
@@ -1204,9 +1263,11 @@ pub fn classify_rule_framing_shape(
                 } else {
                     elems.as_slice()
                 };
-                let Some(branch_arity) =
-                    sequence_fixed_frame_arity(branch_tail)
-                else {
+                let Some(branch_arity) = sequence_fixed_frame_arity(
+                    branch_tail,
+                    &closer_for_opener,
+                    &is_unary_prefix_target,
+                ) else {
                     return Some(FramingShape::PrefixVariableArity);
                 };
                 if let Some(prev) = common_arity {
@@ -1233,4 +1294,25 @@ pub fn classify_rule_framing_shape(
     }
 
     None
+}
+
+/// Classifies the physical framing shape of a Document Character or Format rule
+/// without external subframe lookups.
+#[must_use]
+pub fn classify_rule_framing_shape(
+    target: &CharTarget,
+    rule: Option<&DcSyntaxRule>,
+    closer: Option<u128>,
+    has_trailing_after_closer: bool,
+    closing_opener: Option<CharTarget>,
+) -> Option<FramingShape> {
+    classify_rule_framing_shape_with(
+        target,
+        rule,
+        closer,
+        has_trailing_after_closer,
+        closing_opener,
+        |_| None,
+        |_| false,
+    )
 }

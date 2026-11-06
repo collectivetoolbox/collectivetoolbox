@@ -1914,6 +1914,30 @@ where
             closing_delimiters.insert(short_id, target);
         }
     }
+    for row in &all_rows {
+        if row.script == ".EL Routines" {
+            continue;
+        }
+        let Some(short_id) = row.short_id.and_then(|id| u32::try_from(id).ok())
+        else {
+            continue;
+        };
+        let Some(rule) = &row.syntax else {
+            continue;
+        };
+        if let Some(closer_u128) =
+            crate::syntax::detect_container_closer(&rule.pattern)
+        {
+            if !opener_to_closer.contains_key(&short_id) {
+                opener_to_closer.insert(short_id, closer_u128);
+            }
+            if let Ok(closer_sid) = DcChar::from_u128(closer_u128).to_short() {
+                closing_delimiters
+                    .entry(closer_sid)
+                    .or_insert(crate::syntax::CharTarget::Dc(short_id));
+            }
+        }
+    }
 
     // Second pass: Validate cross-references, decompositions, and syntax rules
     for row in &all_rows {
@@ -2233,12 +2257,26 @@ where
                 .is_empty()
             });
             let closing_opener = closing_delimiters.get(&short_id_u32).cloned();
-            let shape = crate::syntax::classify_rule_framing_shape(
+            let shape = crate::syntax::classify_rule_framing_shape_with(
                 &target,
                 Some(syntax_rule),
                 closer,
                 has_trailing,
                 closing_opener,
+                |o| match o {
+                    crate::syntax::CharTarget::Dc(sid) => {
+                        opener_to_closer.get(sid).copied()
+                    }
+                    _ => None,
+                },
+                |t| match t {
+                    crate::syntax::CharTarget::Dc(sid) => usize::try_from(*sid)
+                        .ok()
+                        .and_then(|s| dc_lookup_by_short.get(&s))
+                        .and_then(|(syn, _, _, _)| syn.as_ref())
+                        .is_some_and(crate::syntax::is_unary_prefix_rule),
+                    _ => false,
+                },
             );
             match shape {
                 None | Some(crate::syntax::FramingShape::ValueConstraint) => {

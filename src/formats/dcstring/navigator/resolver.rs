@@ -568,12 +568,17 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
             let closing_opener = self.closing_opener_for(token).cloned();
             let rule = self.resolve_rule(&target);
             // Reason for fallback: Tokens without a recognized compound framing shape act as atomic tokens.
-            ctb_formats_dcdata::syntax::classify_rule_framing_shape(
+            ctb_formats_dcdata::syntax::classify_rule_framing_shape_with(
                 &target,
                 rule,
                 closer,
                 has_trailing,
                 closing_opener,
+                |o| self.closer_for_opener(o),
+                |t| {
+                    self.resolve_rule(t)
+                        .is_some_and(ctb_formats_dcdata::syntax::is_unary_prefix_rule)
+                },
             )
             .unwrap_or(ctb_formats_dcdata::syntax::FramingShape::Atom)
         } else {

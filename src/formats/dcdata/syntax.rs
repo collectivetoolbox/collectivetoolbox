@@ -47,6 +47,7 @@ pub use ast::{
     MAX_LEGACY_FRAMING_SHORT_DC_ID, NumberSubtypeConstraint, NumericBoundValue,
     Quantifier, SubtypeConstraint, SyntaxAction, SyntaxDiagnostic,
     SyntaxElement, SyntaxPattern, SyntaxTerm, classify_rule_framing_shape,
+    classify_rule_framing_shape_with, is_unary_prefix_rule,
     normalize_syntax_pattern,
 };
 pub use data_constraint::{
@@ -58,7 +59,8 @@ pub use parser::{
 };
 pub use resolver::{
     DatasetRuleResolver, StarterSet, SyntaxRuleResolver,
-    extract_container_header_elements, extract_trailing_after_closer,
+    detect_container_closer, extract_container_header_elements,
+    extract_trailing_after_closer,
 };
 pub use role::DcRole;
 pub use validator::{

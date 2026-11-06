@@ -33,7 +33,7 @@ use crate::utilities::*;
 use super::ast::{
     CharTarget, DcSyntaxRule, FramingShape, NumberSubtypeConstraint, Quantifier,
     SubtypeConstraint, SyntaxElement, SyntaxPattern, SyntaxTerm,
-    classify_rule_framing_shape,
+    classify_rule_framing_shape_with, is_unary_prefix_rule,
 };
 use super::parser::parse_dc_syntax;
 use super::role::DcRole;
@@ -226,12 +226,14 @@ pub trait SyntaxRuleResolver {
         let closing_opener = self.closing_opener_for(token).cloned();
         let rule = self.resolve_rule(&target);
         // Reason for fallback: Tokens without a recognized compound framing shape act as atomic tokens.
-        classify_rule_framing_shape(
+        classify_rule_framing_shape_with(
             &target,
             rule,
             closer,
             has_trailing,
             closing_opener,
+            |o| self.closer_for_opener(o),
+            |t| self.resolve_rule(t).is_some_and(is_unary_prefix_rule),
         )
         .unwrap_or(FramingShape::Atom)
     }
@@ -566,7 +568,7 @@ fn substitute_pattern_param(
     }
 }
 
-fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u128> {
+pub fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u128> {
     let SyntaxPattern::Sequence(elements) = pattern else {
         return None;
     };
@@ -841,6 +843,8 @@ pub struct DatasetRuleResolver {
     pub(super) special_wrapper_tokens: HashSet<u128>,
     pub(super) splice_trigger_tokens: HashSet<u128>,
     pub(super) excluded_atom_dc_tokens: HashSet<u128>,
+    pub(super) type_tokens: HashSet<u128>,
+    pub(super) evaluable_expression_starters: HashSet<u128>,
 }
 
 impl DatasetRuleResolver {
@@ -1198,6 +1202,8 @@ impl DatasetRuleResolver {
         self.special_wrapper_tokens.clear();
         self.splice_trigger_tokens.clear();
         self.excluded_atom_dc_tokens.clear();
+        self.type_tokens.clear();
+        self.evaluable_expression_starters.clear();
 
         let mut candidate_targets: HashSet<CharTarget> =
             self.rules.keys().cloned().collect();
@@ -1222,12 +1228,14 @@ impl DatasetRuleResolver {
                 .is_some_and(|t| !t.is_empty());
             let closing_opener = self.closing_delimiters.get(&tok).cloned();
             let rule = self.rules.get(&target);
-            if let Some(shape) = classify_rule_framing_shape(
+            if let Some(shape) = classify_rule_framing_shape_with(
                 &target,
                 rule,
                 closer,
                 has_trailing,
                 closing_opener,
+                |o| self.opener_to_closer.get(o).copied(),
+                |t| self.rules.get(t).is_some_and(is_unary_prefix_rule),
             ) {
                 if shape != FramingShape::Atom {
                     self.framing_shapes.insert(tok, shape);
@@ -1295,6 +1303,86 @@ impl DatasetRuleResolver {
                             self.excluded_atom_dc_tokens.insert(alias);
                         }
                     }
+                }
+            }
+        }
+
+        // 4. Populate graph-derived `type_tokens` and `evaluable_expression_starters`
+        for script_name in [".EL Types", ".Semantic:Ontological"] {
+            if let Some(tokens) = self.script_chars.get(script_name) {
+                self.type_tokens.extend(tokens.iter().copied());
+            }
+        }
+        if !self.script_chars.is_empty() || !self.rules.is_empty() {
+            for base_type_tok in [
+                DC_FILE_PATH_DELIMITER.to_u128(),
+                crate::dc::DC_TYPE_UNION.to_u128(),
+                crate::dc::DC_TYPE_INTERSECTION.to_u128(),
+                crate::dc::DC_FORMAT_PARAM_APPLICATION.to_u128(),
+                crate::dc::DC_VALUE_RANGE.to_u128(),
+            ] {
+                self.type_tokens.insert(base_type_tok);
+            }
+            for (target, rule) in &self.rules {
+                if pattern_is_pure_type_constructor(&rule.pattern) {
+                    self.type_tokens.insert(target.to_u128());
+                }
+            }
+            let base_type_vec: Vec<u128> =
+                self.type_tokens.iter().copied().collect();
+            for tok in base_type_vec {
+                let canon = self.canonical_token(tok);
+                self.type_tokens.insert(canon);
+                if let Some(equivs) = self.semantic_equivalents.get(&canon) {
+                    self.type_tokens.extend(equivs.iter().copied());
+                }
+            }
+            for (&alias, &canon) in &self.canonical_map {
+                if self.type_tokens.contains(&canon) {
+                    self.type_tokens.insert(alias);
+                }
+            }
+        }
+
+        if let Some(tokens) = self.script_chars.get(".EL Routines") {
+            self.evaluable_expression_starters
+                .extend(tokens.iter().copied());
+        }
+        if let Some(SyntaxPattern::Alternation(branches)) =
+            self.named_types.get("value")
+        {
+            for branch in branches {
+                if let SyntaxPattern::Sequence(elems) = branch
+                    && let Some(SyntaxElement {
+                        term: SyntaxTerm::RuleRef { target },
+                        ..
+                    }) = elems.first()
+                {
+                    self.evaluable_expression_starters.insert(target.to_u128());
+                }
+            }
+        }
+        if !self.script_chars.is_empty() || !self.named_types.is_empty() {
+            self.evaluable_expression_starters
+                .insert(DC_EQUIVALENT_REPRESENTATIONS.to_u128());
+            self.evaluable_expression_starters
+                .insert(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128());
+            let base_eval_vec: Vec<u128> = self
+                .evaluable_expression_starters
+                .iter()
+                .copied()
+                .collect();
+            for tok in base_eval_vec {
+                let canon = self.canonical_token(tok);
+                self.evaluable_expression_starters.insert(canon);
+                if let Some(equivs) = self.semantic_equivalents.get(&canon) {
+                    self.evaluable_expression_starters
+                        .extend(equivs.iter().copied());
+                }
+            }
+            for (&alias, &canon) in &self.canonical_map {
+                if self.evaluable_expression_starters.contains(&canon) {
+                    self.evaluable_expression_starters.insert(alias);
                 }
             }
         }
@@ -2492,12 +2580,14 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
                 let closing_opener = self.closing_opener_for(token).cloned();
                 let rule = self.resolve_rule(&target);
                 // Reason for fallback: Tokens without a recognized compound framing shape act as atomic tokens.
-                return classify_rule_framing_shape(
+                return classify_rule_framing_shape_with(
                     &target,
                     rule,
                     closer,
                     has_trailing,
                     closing_opener,
+                    |o| self.closer_for_opener(o),
+                    |t| self.resolve_rule(t).is_some_and(is_unary_prefix_rule),
                 )
                 .unwrap_or(FramingShape::Atom);
             }
@@ -2547,6 +2637,45 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
                         .any(|m| self.is_equivalent_to(token, m.to_u128()));
                 }
             }
+        }
+        false
+    }
+
+    fn token_fills_role(&self, token: u128, role: DcRole) -> bool {
+        if role == DcRole::TypeToken && !self.type_tokens.is_empty() {
+            return (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                .contains(&token)
+                || self.type_tokens.contains(&token)
+                || self.matches_script("Formats", token)
+                || self.matches_script(".EL Types", token)
+                || self.matches_script(".Semantic:Ontological", token)
+                || role.matches_canonical(self.canonical_token(token));
+        }
+        if role == DcRole::EvaluableExpressionStarter
+            && !self.evaluable_expression_starters.is_empty()
+        {
+            return self.evaluable_expression_starters.contains(&token)
+                || self.matches_script(".EL Routines", token)
+                || role.matches_canonical(self.canonical_token(token));
+        }
+        if role.matches_canonical(token) {
+            return true;
+        }
+        let canonical = self.canonical_token(token);
+        if canonical != token && role.matches_canonical(canonical) {
+            return true;
+        }
+        if role == DcRole::TypeToken
+            && (self.matches_script(".EL Types", token)
+                || self.matches_script(".Semantic:Ontological", token))
+        {
+            return true;
+        }
+        if role == DcRole::EvaluableExpressionStarter
+            && self.matches_script(".EL Routines", token)
+        {
+            return true;
         }
         false
     }
@@ -3027,6 +3156,11 @@ mod tests {
         assert_eq!(
             from_graph.excluded_atom_dc_tokens,
             from_csv.excluded_atom_dc_tokens
+        );
+        assert_eq!(from_graph.type_tokens, from_csv.type_tokens);
+        assert_eq!(
+            from_graph.evaluable_expression_starters,
+            from_csv.evaluable_expression_starters
         );
 
         assert_eq!(from_graph.rules.len(), from_csv.rules.len());

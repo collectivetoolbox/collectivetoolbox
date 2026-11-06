@@ -407,12 +407,15 @@ pub fn generate_role_code_from_index(
     );
     let base64_digits: BTreeSet<u32> = (base64_start..=base64_end).collect();
 
-    // 1. TypeToken: all Short Dcs in `.EL Types`, plus TypeUnion, FilePathDelimiter,
-    // TypeIntersection, FormatParamApplication, EntityType, RelationshipType, Relationship, Entity.
+    // 1. TypeToken: all Short Dcs in `.EL Types` or `.Semantic:Ontological`, plus
+    // TypeUnion, FilePathDelimiter, TypeIntersection, FormatParamApplication, ValueRange.
     let mut type_tokens: BTreeSet<u32> = BTreeSet::new();
     for short_id in index.all_short_dc_ids()? {
         let subj = DcShorthand::Short(short_id);
-        if index.subject_script(subj) == Some(".EL Types") {
+        if matches!(
+            index.subject_script(subj),
+            Some(".EL Types" | ".Semantic:Ontological")
+        ) {
             type_tokens.insert(short_id);
         }
     }
@@ -421,10 +424,6 @@ pub fn generate_role_code_from_index(
         "FilePathDelimiter",
         "TypeIntersection",
         "FormatParamApplication",
-        "EntityType",
-        "RelationshipType",
-        "Relationship",
-        "Entity",
         "ValueRange",
     ] {
         type_tokens.insert(require_short(ident)?);
@@ -466,38 +465,9 @@ pub fn generate_role_code_from_index(
         evaluable_starters.insert(require_short(ident)?);
     }
 
-    // 3. StructuralSeparator: ListElementSeparator + `.Punctuation` Short Dcs that have
-    // a CanonicalDecomposition and GeneralCategory `Zl`/`Zp` or BidiClass `B`.
-    let mut structural_seps: BTreeSet<u32> = BTreeSet::new();
-    structural_seps.insert(require_short("ListElementSeparator")?);
-    let sh_canon_decomp = index.require_ident("CanonicalDecomposition")?;
-    let sh_bidi_prop = index.require_ident("BidirectionalClass")?;
-    let bidi_b_seed =
-        index.seed_node_id(&BuildSeedEntity::BidiClass("B".to_string()));
-
-    for short_id in index.all_short_dc_ids()? {
-        let subj = DcShorthand::Short(short_id);
-        if index.subject_script(subj) == Some(".Punctuation")
-            && !index.property_entries(subj, sh_canon_decomp).is_empty()
-        {
-            let gc_is_line_or_para = matches!(
-                index.subject_general_category(subj),
-                Some("Zl" | "Zp")
-            );
-            let bidi_is_b = bidi_b_seed.is_some_and(|b_id| {
-                index.single_property(subj, sh_bidi_prop)
-                    == Some(DcShorthand::Long(b_id))
-            });
-            if gc_is_line_or_para || bidi_is_b {
-                structural_seps.insert(short_id);
-            }
-        }
-    }
-
     let base64_digits_pat = format_short_id_pattern(&base64_digits);
     let type_tokens_pat = format_short_id_pattern(&type_tokens);
     let evaluable_starters_pat = format_short_id_pattern(&evaluable_starters);
-    let structural_seps_pat = format_short_id_pattern(&structural_seps);
 
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
@@ -541,16 +511,12 @@ pub fn generate_role_code_from_index(
     }
 
     out.push_str(
-        "    /// Format indicator for an integer in a number header (`FormatId::Integer`).\n\
-    IntegerFormatIndicator,\n\
-    /// Base64 encapsulation digit character (0..=63).\n\
+        "    /// Base64 encapsulation digit character (0..=63).\n\
     Base64Digit,\n\
     /// Built-in type token, format token, or type operator.\n\
     TypeToken,\n\
     /// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).\n\
     EvaluableExpressionStarter,\n\
-    /// Structural separator (newlines, paragraph separators, list element separators).\n\
-    StructuralSeparator,\n\
 }\n\n"
     );
 
@@ -590,21 +556,13 @@ match self {\n"
         ));
     }
     out.push_str(&format!(
-        "            Self::IntegerFormatIndicator => {{\n\
-(FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
-&& ctb_utilities::format_id::FormatId::from_dc_id(token)\n\
-== Some(ctb_utilities::format_id::FormatId::Integer)\n\
-}}\n\
-Self::Base64Digit => matches!(short, Some({base64_digits_pat})),\n\
+        "            Self::Base64Digit => matches!(short, Some({base64_digits_pat})),\n\
 Self::TypeToken => {{\n\
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
 || matches!(short, Some({type_tokens_pat}))\n\
 }}\n\
 Self::EvaluableExpressionStarter => {{\n\
 matches!(short, Some({evaluable_starters_pat}))\n\
-}}\n\
-Self::StructuralSeparator => {{\n\
-matches!(short, Some({structural_seps_pat}))\n\
 }}\n\
 }}\n\
 }}\n\n\

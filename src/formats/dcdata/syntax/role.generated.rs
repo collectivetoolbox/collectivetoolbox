@@ -378,7 +378,7 @@ pub enum DcRole {
     ManualEntry,
     /// Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration. (`638`).
     ForEach,
-    /// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (`639`).
+    /// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (The Dc is called "This" by by analogy to jQuery $(this) in .each(), but maybe there's a better name for it.) (`639`).
     ThisElement,
     /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (`640`).
     TypeAtomDc,
@@ -394,16 +394,12 @@ pub enum DcRole {
     IsStable,
     /// Asserts that the subject statement, property, or rule applies within the context or scope of the object entity. (`646`).
     InContextOf,
-    /// Format indicator for an integer in a number header (`FormatId::Integer`).
-IntegerFormatIndicator,
-/// Base64 encapsulation digit character (0..=63).
+    /// Base64 encapsulation digit character (0..=63).
 Base64Digit,
 /// Built-in type token, format token, or type operator.
 TypeToken,
 /// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).
 EvaluableExpressionStarter,
-/// Structural separator (newlines, paragraph separators, list element separators).
-StructuralSeparator,
 }
 
 impl DcRole {
@@ -785,21 +781,13 @@ match self {
             Self::ExclusiveRangeEndpoint => short == Some(644),
             Self::IsStable => short == Some(645),
             Self::InContextOf => short == Some(646),
-            Self::IntegerFormatIndicator => {
-(FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-&& ctb_utilities::format_id::FormatId::from_dc_id(token)
-== Some(ctb_utilities::format_id::FormatId::Integer)
-}
-Self::Base64Digit => matches!(short, Some(127..=190)),
+            Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568 | 640 | 643))
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 640 | 643))
 }
 Self::EvaluableExpressionStarter => {
 matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561))
-}
-Self::StructuralSeparator => {
-matches!(short, Some(119..=121 | 294 | 295 | 312))
 }
 }
 }
