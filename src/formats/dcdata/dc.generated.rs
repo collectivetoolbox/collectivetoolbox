@@ -376,7 +376,7 @@ pub const DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE: DcChar = DcChar::from_shor
 pub const DC_MANUAL_ENTRY: DcChar = DcChar::from_short(637);
 /// Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration. (Dc 638).
 pub const DC_FOR_EACH: DcChar = DcChar::from_short(638);
-/// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (Dc 639).
+/// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (The Dc is called "This" by by analogy to jQuery $(this) in .each(), but maybe there's a better name for it.) (Dc 639).
 pub const DC_THIS_ELEMENT: DcChar = DcChar::from_short(639);
 /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (Dc 640).
 pub const DC_TYPE_ATOM_DC: DcChar = DcChar::from_short(640);
