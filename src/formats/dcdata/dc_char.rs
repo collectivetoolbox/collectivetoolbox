@@ -309,36 +309,6 @@ mod tests {
                 .matches_canonical(DcChar::from_short(195).to_u128())
         );
 
-        // DomainValueAtom: stream kinds, finder labels, file path delimiter, booleans, optional absent
-        assert!(
-            DcRole::DomainValueAtom
-                .matches_canonical(DcChar::from_short(379).to_u128())
-        );
-        assert!(
-            DcRole::DomainValueAtom
-                .matches_canonical(DcChar::from_short(384).to_u128())
-        );
-        assert!(
-            DcRole::DomainValueAtom
-                .matches_canonical(DcChar::from_short(482).to_u128())
-        );
-        assert!(
-            DcRole::DomainValueAtom
-                .matches_canonical(DcChar::from_short(489).to_u128())
-        );
-        assert!(
-            DcRole::DomainValueAtom
-                .matches_canonical(DcChar::from_short(513).to_u128())
-        );
-        assert!(
-            DcRole::DomainValueAtom
-                .matches_canonical(DcChar::from_short(316).to_u128())
-        );
-        assert!(
-            !DcRole::DomainValueAtom
-                .matches_canonical(DcChar::from_short(405).to_u128())
-        );
-
         // EvaluableExpressionStarter: .EL Routines and reference/invocation starters
         assert!(
             DcRole::EvaluableExpressionStarter

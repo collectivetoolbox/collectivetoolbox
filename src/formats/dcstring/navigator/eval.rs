@@ -597,6 +597,18 @@ impl DcDocumentNavigator<'_> {
                         self.restore_checkpoint(branch_start);
                         ctx.restore_checkpoint(&saved_ctx);
                         if let Some(branch) = branches.get(index) {
+                            if branches
+                                .first()
+                                .is_some_and(SyntaxPattern::starts_with_self)
+                                && !branch.starts_with_self()
+                                && !self.eval_term_single(
+                                    &SyntaxTerm::SelfChar,
+                                    ctx,
+                                )?
+                            {
+                                matched = false;
+                                continue;
+                            }
                             frames.push(Frame::Alternation {
                                 branches,
                                 index: index.saturating_add(1),
@@ -1354,13 +1366,15 @@ impl DcDocumentNavigator<'_> {
                                 let rule_term = SyntaxTerm::RuleRef { target };
                                 matched =
                                     self.eval_term_single(&rule_term, ctx)?;
-                            } else if first_dc.fills_role_with(
-                                DcRole::DomainValueAtom,
+                            } else if Self::is_value_atom_with(
+                                first_dc,
                                 ctx.resolver,
-                            ) || first_dc.fills_role_with(
-                                DcRole::PrimitiveValueAtom,
-                                ctx.resolver,
-                            ) {
+                            ) || (ctx
+                                .resolver
+                                .matches_script(".Semantic", first)
+                                && ctx.resolver.framing_shape(first)
+                                    == ctb_formats_dcdata::syntax::FramingShape::Atom)
+                            {
                                 let _ = self.pop_next_token()?;
                                 matched = true;
                             }

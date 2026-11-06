@@ -425,73 +425,16 @@ pub fn generate_role_code_from_index(
         "RelationshipType",
         "Relationship",
         "Entity",
+        "ValueRange",
     ] {
         type_tokens.insert(require_short(ident)?);
     }
-    if let Ok(sid) = require_short("ValueRange") {
-        type_tokens.insert(sid);
-    }
 
-    // 2. PrimitiveValueAtom: OptionalAbsent + Short Dc members of NamedConstruct("boolean").
-    let sh_syntax_rule = index.require_ident("SyntaxRule")?;
-    let sh_pat_alt = index.require_ident("PatternAlternation")?;
-    let sh_subpat = index.require_ident("SubpatternMatch")?;
-    let sh_begin_group = index.require_ident("BeginAssociativityGroup")?;
-    let sh_end_group = index.require_ident("EndAssociativityGroup")?;
-
-    let mut primitive_atoms: BTreeSet<u32> = BTreeSet::new();
-    primitive_atoms.insert(require_short("OptionalAbsent")?);
-    if let Some(bool_seed_id) = index
-        .seed_node_id(&BuildSeedEntity::NamedConstruct("boolean".to_string()))
-    {
-        if let Some(DcShorthand::Long(rule_node_id)) = index
-            .single_property(DcShorthand::Long(bool_seed_id), sh_syntax_rule)
-        {
-            if let Some(tokens) = index.node_tokens(rule_node_id) {
-                for &tok in tokens {
-                    if tok != sh_pat_alt
-                        && tok != sh_begin_group
-                        && tok != sh_end_group
-                    {
-                        if let DcShorthand::Short(sid) = tok {
-                            primitive_atoms.insert(sid);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. DomainValueAtom: PrimitiveValueAtom + FilePathDelimiter + `.Semantic` Short Dcs
-    // that have no SyntaxRule and no IsClosingDelimiterFor of their own and represent
-    // stream kinds or Finder label values.
-    let mut domain_atoms: BTreeSet<u32> = primitive_atoms.clone();
-    domain_atoms.insert(require_short("FilePathDelimiter")?);
-
-    let sh_name = index.require_ident("CanonicalName")?;
-    let sh_closes = index.framing().is_closing_delimiter_for;
-    for short_id in index.all_short_dc_ids()? {
-        let subj = DcShorthand::Short(short_id);
-        if index.subject_script(subj) == Some(".Semantic") {
-            let has_rule =
-                index.single_property(subj, sh_syntax_rule).is_some();
-            let has_closes = !index.direct_objects(sh_closes, subj).is_empty();
-            if !has_rule && !has_closes {
-                if let Some(name) = index.single_property_string(subj, sh_name)
-                {
-                    if name.starts_with("Stream kind:")
-                        || name.starts_with("Mac OS Finder label")
-                    {
-                        domain_atoms.insert(short_id);
-                    }
-                }
-            }
-        }
-    }
-
-    // 4. EvaluableExpressionStarter: all Short Dcs in `.EL Routines`, plus Short Dc
+    // 2. EvaluableExpressionStarter: all Short Dcs in `.EL Routines`, plus Short Dc
     // subpattern targets (`605 <sid>`) in NamedConstruct("value"), plus
     // EquivalentRepresentations and PartiallyEquivalentRepresentations.
+    let sh_syntax_rule = index.require_ident("SyntaxRule")?;
+    let sh_subpat = index.require_ident("SubpatternMatch")?;
     let mut evaluable_starters: BTreeSet<u32> = BTreeSet::new();
     for short_id in index.all_short_dc_ids()? {
         let subj = DcShorthand::Short(short_id);
@@ -523,7 +466,7 @@ pub fn generate_role_code_from_index(
         evaluable_starters.insert(require_short(ident)?);
     }
 
-    // 5. StructuralSeparator: ListElementSeparator + `.Punctuation` Short Dcs that have
+    // 3. StructuralSeparator: ListElementSeparator + `.Punctuation` Short Dcs that have
     // a CanonicalDecomposition and GeneralCategory `Zl`/`Zp` or BidiClass `B`.
     let mut structural_seps: BTreeSet<u32> = BTreeSet::new();
     structural_seps.insert(require_short("ListElementSeparator")?);
@@ -553,8 +496,6 @@ pub fn generate_role_code_from_index(
 
     let base64_digits_pat = format_short_id_pattern(&base64_digits);
     let type_tokens_pat = format_short_id_pattern(&type_tokens);
-    let primitive_atoms_pat = format_short_id_pattern(&primitive_atoms);
-    let domain_atoms_pat = format_short_id_pattern(&domain_atoms);
     let evaluable_starters_pat = format_short_id_pattern(&evaluable_starters);
     let structural_seps_pat = format_short_id_pattern(&structural_seps);
 
@@ -606,10 +547,6 @@ pub fn generate_role_code_from_index(
     Base64Digit,\n\
     /// Built-in type token, format token, or type operator.\n\
     TypeToken,\n\
-    /// Self-delimiting primitive value atom (`OptionalAbsent`, `BooleanTrue`, `BooleanFalse`).\n\
-    PrimitiveValueAtom,\n\
-    /// Self-delimiting domain or primitive value atom (including stream kinds and Finder labels).\n\
-    DomainValueAtom,\n\
     /// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).\n\
     EvaluableExpressionStarter,\n\
     /// Structural separator (newlines, paragraph separators, list element separators).\n\
@@ -663,8 +600,6 @@ Self::TypeToken => {{\n\
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)\n\
 || matches!(short, Some({type_tokens_pat}))\n\
 }}\n\
-Self::PrimitiveValueAtom => matches!(short, Some({primitive_atoms_pat})),\n\
-Self::DomainValueAtom => matches!(short, Some({domain_atoms_pat})),\n\
 Self::EvaluableExpressionStarter => {{\n\
 matches!(short, Some({evaluable_starters_pat}))\n\
 }}\n\

@@ -4333,7 +4333,7 @@ mod tests {
         inode: u64,
         #[dc(short = 337)]
         path: std::path::PathBuf,
-        #[dc(short = 352)]
+        #[dc(short = 369)]
         is_directory: bool,
         #[dc(short = 336)]
         optional_size: Option<u64>,

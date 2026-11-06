@@ -400,10 +400,6 @@ IntegerFormatIndicator,
 Base64Digit,
 /// Built-in type token, format token, or type operator.
 TypeToken,
-/// Self-delimiting primitive value atom (`OptionalAbsent`, `BooleanTrue`, `BooleanFalse`).
-PrimitiveValueAtom,
-/// Self-delimiting domain or primitive value atom (including stream kinds and Finder labels).
-DomainValueAtom,
 /// Expression starter token that can be evaluated (`.EL Routines`, references, invocations, representation sets).
 EvaluableExpressionStarter,
 /// Structural separator (newlines, paragraph separators, list element separators).
@@ -799,8 +795,6 @@ Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
 || matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 565..=568 | 640 | 643))
 }
-Self::PrimitiveValueAtom => matches!(short, Some(316 | 517 | 518)),
-Self::DomainValueAtom => matches!(short, Some(316 | 379..=384 | 482..=489 | 513 | 517 | 518)),
 Self::EvaluableExpressionStarter => {
 matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561))
 }

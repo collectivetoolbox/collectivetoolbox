@@ -936,7 +936,9 @@ impl<'a> DcDocumentNavigator<'a> {
         ch: DcChar,
         resolver: &dyn SyntaxRuleResolver,
     ) -> bool {
-        ch.fills_role_with(DcRole::PrimitiveValueAtom, resolver)
+        ch.fills_role_with(DcRole::OptionalAbsent, resolver)
+            || ch.fills_role_with(DcRole::BooleanTrue, resolver)
+            || ch.fills_role_with(DcRole::BooleanFalse, resolver)
             || ch.fills_role_with(DcRole::Positive, resolver)
             || ch.fills_role_with(DcRole::Negative, resolver)
     }
@@ -949,8 +951,13 @@ impl<'a> DcDocumentNavigator<'a> {
         ch: DcChar,
         resolver: &dyn SyntaxRuleResolver,
     ) -> bool {
+        let code = ch.to_u128();
         Self::is_primitive_value_atom_with(ch, resolver)
-            || ch.fills_role_with(DcRole::DomainValueAtom, resolver)
+            || ch.fills_role_with(DcRole::FilePathDelimiter, resolver)
+            || (resolver.matches_script(".Semantic", code)
+                && !resolver.matches_script(".Semantic:fileflag", code)
+                && resolver.framing_shape(code)
+                    == ctb_formats_dcdata::syntax::FramingShape::Atom)
     }
 
     pub(super) fn is_transparent_wrapper_tag(ch: DcChar) -> bool {

@@ -906,9 +906,6 @@ pub fn classify_rule_framing_shape(
             if tail.is_empty() {
                 return Some(FramingShape::PrefixArity(0));
             }
-            if target == &CharTarget::Dc(279) {
-                return Some(FramingShape::PrefixVariableArity);
-            }
             if tail.iter().all(|el| {
                 el.quantifier == Quantifier::ExactOne
                     && matches!(
@@ -943,10 +940,8 @@ pub fn classify_rule_framing_shape(
                     .is_some_and(|e| matches!(e.term, SyntaxTerm::SelfChar))
                 {
                     elems.get(1..)?
-                } else if matches!(target, CharTarget::Dc(406 | 562)) {
-                    elems.as_slice()
                 } else {
-                    return None;
+                    elems.as_slice()
                 };
                 let Some(branch_arity) =
                     sequence_fixed_frame_arity(branch_tail)

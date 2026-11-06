@@ -43,7 +43,7 @@ pub struct MultiFieldRecord {
     pub id: u64,
     #[dc(short = 400)]
     pub name: String,
-    #[dc(short = 352)]
+    #[dc(short = 369)]
     pub active: bool,
     #[dc(short = 336)]
     pub score: Option<u64>,
@@ -460,7 +460,7 @@ fn test_challenge_unknown_forward_compatible_tokens_preserved_around_edits()
     doc.push_char(DcChar::from_short(400));
     "known_name".encode_dc_mixed(&mut doc)?;
 
-    doc.push_char(DcChar::from_short(352));
+    doc.push_char(DcChar::from_short(369));
     true.encode_dc_mixed(&mut doc)?;
 
     doc.push_char(DcChar::from_short(318));
