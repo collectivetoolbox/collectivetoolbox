@@ -653,9 +653,6 @@ fn pattern_is_opaque_container(
     pattern: &SyntaxPattern,
     closer_token: u128,
 ) -> bool {
-    if closer_token == crate::dc::DC_END_IDENTIFIER.to_u128() {
-        return true;
-    }
     let SyntaxPattern::Sequence(elements) = pattern else {
         return false;
     };
@@ -674,6 +671,20 @@ fn pattern_is_opaque_container(
     if closer_idx <= 1 {
         return false;
     }
+    if closer_idx == 3
+        && elements.get(1).is_some_and(|el| {
+            el.quantifier == Quantifier::Optional
+                && matches!(
+                    &el.term,
+                    SyntaxTerm::NamedConstruct { name, .. } if name == "type"
+                )
+        })
+        && elements
+            .get(2)
+            .is_some_and(|el| term_contains_negated_charset(&el.term))
+    {
+        return true;
+    }
     elements
         .get(closer_idx.saturating_sub(1))
         .is_some_and(|body_el| term_is_lexical_payload(&body_el.term))
@@ -689,12 +700,6 @@ pub fn extract_container_header_elements(
     if !elements
         .first()
         .is_some_and(|el| matches!(el.term, SyntaxTerm::SelfChar))
-    {
-        return Vec::new();
-    }
-    if elements
-        .get(1)
-        .is_some_and(|el| el.term == SyntaxTerm::CharRef(CharTarget::Dc(270)))
     {
         return Vec::new();
     }
@@ -1124,6 +1129,17 @@ impl DatasetRuleResolver {
                 self.opaque_containers.insert(opener.to_u128());
             }
         }
+        for lexical_name in ["identifier", "string", "number", "data"] {
+            if let Some(SyntaxPattern::Sequence(elems)) =
+                self.named_types.get(lexical_name)
+                && let Some(SyntaxElement {
+                    term: SyntaxTerm::RuleRef { target },
+                    ..
+                }) = elems.first()
+            {
+                self.opaque_containers.insert(target.to_u128());
+            }
+        }
 
         // 2. Infix operator rules where `~` is preceded by a left-hand construct
         for (target, rule) in &self.rules {
@@ -1294,17 +1310,23 @@ impl DatasetRuleResolver {
             }
         }
         if !self.script_chars.is_empty() || !self.rules.is_empty() {
-            for base_type_tok in [
-                DC_FILE_PATH_DELIMITER.to_u128(),
-                crate::dc::DC_TYPE_UNION.to_u128(),
-                crate::dc::DC_TYPE_INTERSECTION.to_u128(),
-                crate::dc::DC_FORMAT_PARAM_APPLICATION.to_u128(),
-                crate::dc::DC_VALUE_RANGE.to_u128(),
-            ] {
-                self.type_tokens.insert(base_type_tok);
-            }
+            self.type_tokens.insert(DC_FILE_PATH_DELIMITER.to_u128());
             for (target, rule) in &self.rules {
                 if pattern_is_pure_type_constructor(&rule.pattern) {
+                    self.type_tokens.insert(target.to_u128());
+                } else if !self.opener_to_closer.contains_key(target)
+                    && let SyntaxPattern::Sequence(elems) = &rule.pattern
+                    && elems
+                        .first()
+                        .is_some_and(|el| matches!(el.term, SyntaxTerm::SelfChar))
+                    && elems.get(1).is_some_and(|el| {
+                        el.quantifier == Quantifier::ExactOne
+                            && matches!(
+                                &el.term,
+                                SyntaxTerm::NamedConstruct { name, .. } if name == "type"
+                            )
+                    })
+                {
                     self.type_tokens.insert(target.to_u128());
                 }
             }
