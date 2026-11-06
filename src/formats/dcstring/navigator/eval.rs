@@ -1806,14 +1806,22 @@ impl DcDocumentNavigator<'_> {
         {
             return Ok(false);
         }
-        let constraint = match subtype {
+        let constraint: Option<(
+            Option<FormatId>,
+            Option<&str>,
+            Option<usize>,
+        )> = match subtype {
             None => None,
-            Some(SubtypeConstraint::Data { format, bytes }) => {
-                Some((format.as_deref(), *bytes))
-            }
-            Some(SubtypeConstraint::Target(fmt)) => {
-                Some((Some(fmt.as_str()), None))
-            }
+            Some(SubtypeConstraint::Data {
+                format,
+                format_id,
+                bytes,
+            }) => Some((*format_id, format.as_deref(), *bytes)),
+            Some(SubtypeConstraint::Target(fmt)) => Some((
+                subtype.and_then(SubtypeConstraint::resolved_format_id),
+                Some(fmt.as_str()),
+                None,
+            )),
             Some(other) => {
                 ctx.has_errors = true;
                 ctx.diagnostics.push(SyntaxDiagnostic {
@@ -1828,12 +1836,10 @@ impl DcDocumentNavigator<'_> {
             }
         };
 
-        let matches_expected_fmt = |fmt_str: &str,
+        let matches_expected_fmt = |expected_fmt_id: Option<FormatId>,
                                     actual_id: Option<u128>|
          -> bool {
-            let expected_id = FormatId::from_shorthand(fmt_str)
-                .or_else(|| FormatId::from_ident(fmt_str))
-                .and_then(|f| f.dc_id());
+            let expected_id = expected_fmt_id.and_then(|f| f.dc_id());
             matches!((expected_id, actual_id), (Some(exp), Some(act)) if ctx.resolver.is_equivalent_to(act, exp))
         };
 
@@ -1858,8 +1864,10 @@ impl DcDocumentNavigator<'_> {
                     ctx.resolver,
                 )?;
             }
-            if let Some((expected_fmt, expected_bytes)) = constraint {
-                if let Some(fmt_str) = expected_fmt {
+            if let Some((expected_fmt_id, expected_fmt, expected_bytes)) =
+                constraint
+            {
+                if expected_fmt.is_some() {
                     let actual_id = data_type.as_ref().and_then(|dt| {
                         let mut chars = dt.chars();
                         let first_ch = chars.next()?;
@@ -1871,7 +1879,7 @@ impl DcDocumentNavigator<'_> {
                             Some(first_ch.to_u128())
                         }
                     });
-                    if !matches_expected_fmt(fmt_str, actual_id) {
+                    if !matches_expected_fmt(expected_fmt_id, actual_id) {
                         return Ok(false);
                     }
                 }
@@ -1901,12 +1909,14 @@ impl DcDocumentNavigator<'_> {
         }
         let end_offset = self.cursor;
 
-        if let Some((expected_fmt, expected_bytes)) = constraint {
+        if let Some((expected_fmt_id, expected_fmt, expected_bytes)) =
+            constraint
+        {
             let tokens = self.read_tokens_in_span(DcByteSpan::new(
                 start_offset,
                 end_offset,
             ))?;
-            if let Some(fmt_str) = expected_fmt {
+            if expected_fmt.is_some() {
                 let actual_id = if tokens.get(1).is_some_and(|&t| {
                     ctx.token_fills_role(t, DcRole::BeginTypeDef)
                 }) {
@@ -1914,7 +1924,7 @@ impl DcDocumentNavigator<'_> {
                 } else {
                     tokens.get(1).copied()
                 };
-                if !matches_expected_fmt(fmt_str, actual_id) {
+                if !matches_expected_fmt(expected_fmt_id, actual_id) {
                     self.cursor = start_offset;
                     return Ok(false);
                 }
@@ -3142,9 +3152,11 @@ pub(super) fn number_satisfies_subtype(
     subtype: &SubtypeConstraint,
     resolver: &dyn SyntaxRuleResolver,
 ) -> bool {
-    let check_target = |part: &str| -> bool {
-        let fmt = FormatId::from_shorthand(part)
-            .or_else(|| FormatId::from_ident(part));
+    let check_target = |part: &str, pre_fmt: Option<FormatId>| -> bool {
+        let fmt = pre_fmt.or_else(|| {
+            FormatId::from_shorthand(part)
+                .or_else(|| FormatId::from_ident(part))
+        });
         if let Some(fmt) = fmt {
             if let Some(rule) = resolver.resolve_rule(&CharTarget::Format(fmt))
                 && let Some(ok) = check_pattern_number_constraint(
@@ -3173,7 +3185,7 @@ pub(super) fn number_satisfies_subtype(
     match subtype {
         SubtypeConstraint::Number(num) => {
             if let Some(part) = &num.format
-                && !check_target(part)
+                && !check_target(part, num.format_id)
             {
                 return false;
             }
@@ -3193,7 +3205,9 @@ pub(super) fn number_satisfies_subtype(
             }
             true
         }
-        SubtypeConstraint::Target(part) => check_target(part),
+        SubtypeConstraint::Target(part) => {
+            check_target(part, subtype.resolved_format_id())
+        }
         _ => false,
     }
 }

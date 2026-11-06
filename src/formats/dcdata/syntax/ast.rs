@@ -299,6 +299,8 @@ impl NumericBoundValue {
 pub struct NumberSubtypeConstraint {
     /// Optional numeric format shorthand (`f<N>`) or stable format identifier (`Natural0`).
     pub format: Option<String>,
+    /// Pre-resolved [`FormatId`] corresponding to `format`, if `format` names a known format.
+    pub format_id: Option<FormatId>,
     /// Optional lower bound `(exclusive, bound)` (`>=` when `exclusive == false`, `>` when `exclusive == true`).
     pub lower_bound: Option<(bool, NumericBoundValue)>,
     /// Optional upper bound `(exclusive, bound)` (`<=` when `exclusive == false`, `<` when `exclusive == true`).
@@ -317,6 +319,8 @@ impl NumberSubtypeConstraint {
                         out.format.is_none(),
                         "Duplicate format target '{target}' in [number:{raw}] constraint"
                     );
+                    out.format_id = FormatId::from_shorthand(target)
+                        .or_else(|| FormatId::from_ident(target));
                     out.format = Some(target.to_string());
                 }
                 crate::syntax::NumberConstraintClause::LowerBound {
@@ -371,6 +375,7 @@ pub enum SubtypeConstraint {
     /// Binary data format and/or byte-length constraint (e.g. `[data:Sha256;bytes=32]`, `[data:bytes=4]`).
     Data {
         format: Option<String>,
+        format_id: Option<FormatId>,
         bytes: Option<usize>,
     },
     /// Numeric format and/or range bound constraint (e.g. `[number:Natural0]`, `[number:>=0 & <(2^8)]`).
@@ -400,11 +405,22 @@ impl SubtypeConstraint {
             Ok(Self::BoundVar(var_trimmed.to_string()))
         } else if name == "data" {
             let (fmt, bytes) = crate::syntax::parse_data_constraint(trimmed)?;
+            let format_id = fmt.and_then(|s| {
+                FormatId::from_shorthand(s).or_else(|| FormatId::from_ident(s))
+            });
             Ok(Self::Data {
                 format: fmt.map(str::to_string),
+                format_id,
                 bytes,
             })
-        } else if name == "number" {
+        } else if name == "number"
+            || (name == "list"
+                && (trimmed.starts_with("<=")
+                    || trimmed.starts_with('<')
+                    || trimmed.starts_with(">=")
+                    || trimmed.starts_with('>')
+                    || trimmed.contains('&')))
+        {
             Ok(Self::Number(NumberSubtypeConstraint::parse(trimmed)?))
         } else if name == "string"
             || trimmed.starts_with('[')
@@ -430,7 +446,7 @@ impl SubtypeConstraint {
     pub fn format_dsl(&self) -> String {
         match self {
             Self::Pattern(pat) => pat.format_dsl(),
-            Self::Data { format, bytes } => match (format, bytes) {
+            Self::Data { format, bytes, .. } => match (format, bytes) {
                 (Some(f), Some(b)) => format!("{f};bytes={b}"),
                 (Some(f), None) => f.clone(),
                 (None, Some(b)) => format!("bytes={b}"),
@@ -443,6 +459,31 @@ impl SubtypeConstraint {
         }
     }
 
+    /// Returns the pre-resolved [`FormatId`] for this subtype constraint if it specifies a format.
+    #[must_use]
+    pub fn resolved_format_id(&self) -> Option<FormatId> {
+        match self {
+            Self::Data {
+                format_id, format, ..
+            } => format_id.or_else(|| {
+                format.as_deref().and_then(|s| {
+                    FormatId::from_shorthand(s)
+                        .or_else(|| FormatId::from_ident(s))
+                })
+            }),
+            Self::Number(num) => num.format_id.or_else(|| {
+                num.format.as_deref().and_then(|s| {
+                    FormatId::from_shorthand(s)
+                        .or_else(|| FormatId::from_ident(s))
+                })
+            }),
+            Self::Target(s) => {
+                FormatId::from_shorthand(s).or_else(|| FormatId::from_ident(s))
+            }
+            _ => None,
+        }
+    }
+
     /// Returns the single target identifier string if this constraint represents an unconstrained
     /// target name, format shorthand, or format identifier (`Target(s)`, format-only `Number`, or format-only `Data`).
     #[must_use]
@@ -452,11 +493,13 @@ impl SubtypeConstraint {
             Self::Data {
                 format: Some(s),
                 bytes: None,
+                ..
             } => Some(s.as_str()),
             Self::Number(NumberSubtypeConstraint {
                 format: Some(s),
                 lower_bound: None,
                 upper_bound: None,
+                ..
             }) => Some(s.as_str()),
             _ => None,
         }

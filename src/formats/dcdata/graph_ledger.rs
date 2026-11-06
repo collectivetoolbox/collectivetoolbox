@@ -1489,7 +1489,8 @@ impl LedgerBuilder {
                 out.push(DcShorthand::Long(var_id));
                 Ok(())
             }
-            SubtypeConstraint::Data { format, bytes } => match (format, bytes) {
+            SubtypeConstraint::Data { format, bytes, .. } => {
+                match (format, bytes) {
                 (Some(fmt), Some(bytes)) => {
                     let fmt_sh = self
                         .resolve_stable_format_or_shorthand(fmt, "data")?;
@@ -1525,7 +1526,8 @@ impl LedgerBuilder {
                 (None, None) => {
                     bail!("Empty [data:] constraint");
                 }
-            },
+            }
+            }
             SubtypeConstraint::Number(num) => {
                 self.encode_number_subtype_tokens(num, out)
             }

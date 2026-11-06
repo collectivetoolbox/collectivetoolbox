@@ -2825,6 +2825,7 @@ impl SeedGraphIndex {
                 )?;
                 return Ok(SubtypeConstraint::Data {
                     format: None,
+                    format_id: None,
                     bytes: Some(bytes),
                 });
             }
@@ -2845,14 +2846,24 @@ impl SeedGraphIndex {
                     "DataByteLength in [data] subtype overflows usize",
                 )?;
                 let fmt_str = self.format_stable_or_shorthand_token(fmt_tok);
+                let format_id = fmt_tok
+                    .to_global_id()
+                    .ok()
+                    .and_then(ctb_utilities::format_id::FormatId::from_dc_id);
                 return Ok(SubtypeConstraint::Data {
                     format: Some(fmt_str),
+                    format_id,
                     bytes: Some(bytes),
                 });
             }
             if let [single] = tokens {
+                let format_id = single
+                    .to_global_id()
+                    .ok()
+                    .and_then(ctb_utilities::format_id::FormatId::from_dc_id);
                 return Ok(SubtypeConstraint::Data {
                     format: Some(self.format_stable_or_shorthand_token(*single)),
+                    format_id,
                     bytes: None,
                 });
             }
@@ -2933,8 +2944,13 @@ impl SeedGraphIndex {
                 matches!(*single, DcShorthand::Format(_)),
                 "Unexpected single token {single} in [number:...] subtype"
             );
+            let format_id = single
+                .to_global_id()
+                .ok()
+                .and_then(ctb_utilities::format_id::FormatId::from_dc_id);
             return Ok(NumberSubtypeConstraint {
                 format: Some(self.format_stable_or_shorthand_token(*single)),
+                format_id,
                 lower_bound: None,
                 upper_bound: None,
             });
@@ -2954,11 +2970,15 @@ impl SeedGraphIndex {
             "Unexpected trailing tokens in [number:...] Range (Dc 643): {tokens:?}"
         );
 
-        let format = match domain_tok {
-            DcShorthand::Format(_) => {
-                Some(self.format_stable_or_shorthand_token(domain_tok))
-            }
-            tok if tok == sh(DC_TYPE_NUMBER) => None,
+        let (format, format_id) = match domain_tok {
+            DcShorthand::Format(_) => (
+                Some(self.format_stable_or_shorthand_token(domain_tok)),
+                domain_tok
+                    .to_global_id()
+                    .ok()
+                    .and_then(ctb_utilities::format_id::FormatId::from_dc_id),
+            ),
+            tok if tok == sh(DC_TYPE_NUMBER) => (None, None),
             other => {
                 bail!(
                     "Unexpected domain type token {other} in [number:...] Range (Dc 643)"
@@ -2967,6 +2987,7 @@ impl SeedGraphIndex {
         };
         Ok(NumberSubtypeConstraint {
             format,
+            format_id,
             lower_bound,
             upper_bound,
         })

@@ -302,15 +302,19 @@ pub trait SyntaxRuleResolver {
                 ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                 .contains(&tok)
                 || self.matches_script("Formats", tok);
-        let matches_format_sub = |sub: &str| -> bool {
-            let script_name = format!("Formats:{sub}");
-            self.matches_script(&script_name, tok)
-                || self.matches_script(sub, tok)
-                || FormatId::from_shorthand(sub)
-                    .or_else(|| FormatId::from_ident(sub))
-                    .and_then(|f| f.dc_id())
-                    .is_some_and(|exp| self.is_subtype_of(tok, exp))
-        };
+        let matches_format_sub =
+            |sub: &str, pre_fmt: Option<FormatId>| -> bool {
+                let script_name = format!("Formats:{sub}");
+                self.matches_script(&script_name, tok)
+                    || self.matches_script(sub, tok)
+                    || pre_fmt
+                        .or_else(|| {
+                            FormatId::from_shorthand(sub)
+                                .or_else(|| FormatId::from_ident(sub))
+                        })
+                        .and_then(|f| f.dc_id())
+                        .is_some_and(|exp| self.is_subtype_of(tok, exp))
+            };
         match req_name {
             "script" => req_subtype
                 .and_then(SubtypeConstraint::as_target_str)
@@ -322,9 +326,9 @@ pub trait SyntaxRuleResolver {
                 is_str
                     && req_subtype.is_none_or(|sub| match sub {
                         SubtypeConstraint::Pattern(_) => true,
-                        other => other
-                            .as_target_str()
-                            .is_some_and(matches_format_sub),
+                        other => other.as_target_str().is_some_and(|s| {
+                            matches_format_sub(s, other.resolved_format_id())
+                        }),
                     })
             }
             "number" | "Number" => {
@@ -339,7 +343,7 @@ pub trait SyntaxRuleResolver {
                     match sub {
                         SubtypeConstraint::Number(num) => {
                             num.format.as_deref().is_none_or(|fmt| {
-                                matches_format_sub(fmt)
+                                matches_format_sub(fmt, num.format_id)
                                     || self.token_fills_role(
                                         tok,
                                         DcRole::TypeNumber,
@@ -351,7 +355,7 @@ pub trait SyntaxRuleResolver {
                             })
                         }
                         other => other.as_target_str().is_some_and(|s| {
-                            matches_format_sub(s)
+                            matches_format_sub(s, other.resolved_format_id())
                                 || self
                                     .token_fills_role(tok, DcRole::TypeNumber)
                                 || self.is_subtype_of(tok, DC_INTEGER.to_u128())
@@ -364,19 +368,27 @@ pub trait SyntaxRuleResolver {
             "data" | "typed_data" => {
                 if let Some(sub) = req_subtype {
                     match sub {
-                        SubtypeConstraint::Data { format, .. } => {
-                            if let Some(efmt) = format.as_deref() {
-                                FormatId::from_shorthand(efmt)
-                                    .or_else(|| FormatId::from_ident(efmt))
-                                    .and_then(|f| f.dc_id())
-                                    .is_some_and(|exp| {
-                                        self.is_subtype_of(tok, exp)
-                                    })
+                        SubtypeConstraint::Data {
+                            format, format_id, ..
+                        } => {
+                            if let Some(fid) = format_id.or_else(|| {
+                                format.as_deref().and_then(|efmt| {
+                                    FormatId::from_shorthand(efmt)
+                                        .or_else(|| FormatId::from_ident(efmt))
+                                })
+                            }) {
+                                fid.dc_id().is_some_and(|exp| {
+                                    self.is_subtype_of(tok, exp)
+                                })
+                            } else if format.is_some() {
+                                false
                             } else {
                                 is_format
                             }
                         }
-                        SubtypeConstraint::Target(s) => matches_format_sub(s),
+                        SubtypeConstraint::Target(s) => {
+                            matches_format_sub(s, sub.resolved_format_id())
+                        }
                         _ => false,
                     }
                 } else {
@@ -389,13 +401,17 @@ pub trait SyntaxRuleResolver {
                     || self.matches_script(".EL Types", tok);
                 is_type
                     && req_subtype.is_none_or(|sub| {
-                        sub.as_target_str().is_some_and(matches_format_sub)
+                        sub.as_target_str().is_some_and(|s| {
+                            matches_format_sub(s, sub.resolved_format_id())
+                        })
                     })
             }
             "format" => {
                 is_format
                     && req_subtype.is_none_or(|sub| {
-                        sub.as_target_str().is_some_and(matches_format_sub)
+                        sub.as_target_str().is_some_and(|s| {
+                            matches_format_sub(s, sub.resolved_format_id())
+                        })
                     })
             }
             "Routine" => self.token_fills_role(tok, DcRole::TypeRoutine),
@@ -407,7 +423,7 @@ pub trait SyntaxRuleResolver {
                 sub.as_target_str()
                     .is_some_and(|s| self.token_satisfies_type(tok, s, None))
             }),
-            _ => matches_format_sub(req_name),
+            _ => matches_format_sub(req_name, None),
         }
     }
     /// Resolves the element [`SyntaxTerm`] for a `[list:<subtype>]` constraint.
@@ -490,8 +506,7 @@ pub trait SyntaxRuleResolver {
                         )),
                         capture_var: None,
                     })
-                } else if FormatId::from_shorthand(trimmed).is_some()
-                    || FormatId::from_ident(trimmed).is_some()
+                } else if sub.resolved_format_id().is_some()
                     || trimmed.starts_with("<=")
                     || trimmed.starts_with('<')
                     || trimmed.starts_with(">=")
