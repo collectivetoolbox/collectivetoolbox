@@ -1065,6 +1065,9 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     if let Some(chain) = parsed.format_spec_raw {
         parts.push(chain);
     }
+    if let Some(closes) = parsed.closes {
+        parts.push(format!("@closes({closes})"));
+    }
     for bo in parsed.based_on {
         parts.push(format!("@based_on({bo})"));
     }

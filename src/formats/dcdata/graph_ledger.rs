@@ -3011,68 +3011,6 @@ fn compile_desired_dataset_state(
         }
     }
 
-    // Also register `.EL Types` built-in type names as named syntax constructs if not already present.
-    for defn in dc_defns {
-        if defn.script == ".EL Types" {
-            if let Some(short_id) = defn.short_id {
-                if let Ok(short_u32) = u32::try_from(short_id) {
-                    if let Some(type_name) =
-                        crate::validation::extract_el_type_name(&defn.name)
-                    {
-                        state.seed_entities.insert(
-                            SeedEntityKey::NamedConstruct(type_name.clone()),
-                        );
-                        if !state.named_construct_rules.contains_key(&type_name)
-                        {
-                            let (pattern, raw_syntax) = if let Some(imp) =
-                                defn.implies.iter().map(|s| s.trim()).find(
-                                    |s| s.starts_with('[') && s.ends_with(']'),
-                                ) {
-                                let raw = format!(":{imp}");
-                                let parsed =
-                                    parse_dc_syntax(&raw).with_context(|| {
-                                        format!(
-                                            "Invalid @implies syntax '{imp}' on .EL Types '{}'",
-                                            defn.name
-                                        )
-                                    })?;
-                                (parsed.pattern, raw)
-                            } else {
-                                let lower = type_name.to_ascii_lowercase();
-                                if let Some((existing_pat, existing_raw)) =
-                                    state
-                                        .named_construct_rules
-                                        .get(&lower)
-                                        .cloned()
-                                {
-                                    (existing_pat, existing_raw)
-                                } else {
-                                    let raw = format!(
-                                        ":260 262 {short_u32} 263 [^261]+ 261"
-                                    );
-                                    let parsed = parse_dc_syntax(&raw)
-                                        .with_context(|| {
-                                            format!(
-                                                "Failed to synthesize pattern for .EL Types '{type_name}'"
-                                            )
-                                        })?;
-                                    (parsed.pattern, raw)
-                                }
-                            };
-                            collect_named_constructs_from_pattern(
-                                &pattern,
-                                &mut state.seed_entities,
-                            );
-                            state
-                                .named_construct_rules
-                                .insert(type_name, (pattern, raw_syntax));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     // 3. Compile all Dc and Format definitions in deterministic `dc_id` order.
     let mut all_defns: Vec<&DcDefn> =
         dc_defns.iter().chain(format_defns.iter()).collect();

@@ -26,3 +26,8 @@ text_encoding_control,:([script:.DCE] | [script:.DCE sheets] | [script:.DCE vers
 base64_run,:([127..190] | 195 | [base64_transport_control])*,
 typed_data,:203 [type:$type] [number $length]? [checksum]? [base64_run] 204,
 atom_dc,:([^203 255 616] | (255 (203 | 255 | 616)) | 616:),Defaults to a literal reference to a single Dc token without evaluating its syntax rule; 255 203 is literal Dc 203 255 255 is literal Dc 255 and 255 616 is literal Dc 616; unescaped Dc 616 evaluates a [value] expression in place of itself.
+String,:260:,
+Number,:[6:],
+Routine,:260 262 280 263 [^261]+ 261,
+Routine name,:[identifier:Routine],
+Atom Dc,:[atom_dc],

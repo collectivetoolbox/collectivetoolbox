@@ -648,22 +648,6 @@ pub fn validate_dc_aliases_spacing(
     let _ = parse_dc_aliases_column(raw, file_path, line_no, report);
 }
 
-/// Extracts the built-in type name from a `.EL Types` row's `Name` column
-/// (everything after `"Built-in type identifier: "`, before any parenthetical
-/// explanation), excluding wildcard `*`.
-pub fn extract_el_type_name(name: &str) -> Option<String> {
-    let rest = name.strip_prefix("Built-in type identifier: ")?.trim();
-    let base = match rest.find('(') {
-        Some(idx) => rest.get(..idx)?.trim(),
-        None => rest,
-    };
-    if base.is_empty() || base == "*" {
-        None
-    } else {
-        Some(base.to_string())
-    }
-}
-
 /// Derives a [`DcSyntaxRule`] for a `.EL Routines` entry from the parameter
 /// signature in its `Name` column (e.g. `void lang.say([string] text)` ->
 /// `:~ 258 [string $text] 259`).
@@ -2222,19 +2206,8 @@ where
             };
 
             // Reason for fallback: when optional known_named_types set is None, start with empty set.
-            let mut combined_named_types =
+            let combined_named_types =
                 known_named_types.cloned().unwrap_or_default();
-            if !combined_named_types.is_empty() {
-                for r in &all_rows {
-                    if r.script == ".EL Types" {
-                        if let Some(el_type_name) =
-                            extract_el_type_name(&r.name)
-                        {
-                            combined_named_types.insert(el_type_name);
-                        }
-                    }
-                }
-            }
 
             validate_dc_syntax(
                 syntax_rule,
@@ -2311,20 +2284,8 @@ where
                 {
                     if let Ok(short_id_u32) = u32::try_from(short_id) {
                         // Reason for fallback: when optional known_named_types set is None, start with empty set.
-                        let mut combined_named_types =
+                        let combined_named_types =
                             known_named_types.cloned().unwrap_or_default();
-                        if !combined_named_types.is_empty() {
-                            for r in &all_rows {
-                                if r.script == ".EL Types" {
-                                    if let Some(el_type_name) =
-                                        extract_el_type_name(&r.name)
-                                    {
-                                        combined_named_types
-                                            .insert(el_type_name);
-                                    }
-                                }
-                            }
-                        }
                         validate_dc_syntax(
                             &imp_rule,
                             short_id_u32,

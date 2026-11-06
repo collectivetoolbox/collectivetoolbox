@@ -1384,57 +1384,6 @@ impl DatasetRuleResolver {
             }
         }
 
-        // 2b. Index built-in type names from `.EL Types` Document Characters
-        for defn in dc_defns {
-            if defn.script != ".EL Types" {
-                continue;
-            }
-            let Some(el_type_name) =
-                crate::validation::extract_el_type_name(&defn.name)
-            else {
-                continue;
-            };
-            let pattern_opt = if let Some(imp) = defn
-                .implies
-                .iter()
-                .map(|s| s.trim())
-                .find(|s| s.starts_with('[') && s.ends_with(']'))
-            {
-                Some(
-                    parse_dc_syntax(&format!(":{imp}"))
-                        .with_context(|| {
-                            format!(
-                                "Invalid @implies syntax '{imp}' on .EL Types '{}'",
-                                defn.name
-                            )
-                        })?
-                        .pattern,
-                )
-            } else {
-                let lower = el_type_name.to_ascii_lowercase();
-                if let Some(existing) =
-                    resolver.named_types.get(&lower).cloned()
-                {
-                    Some(existing)
-                } else if let Some(sid) = defn.short_id {
-                    Some(
-                        parse_dc_syntax(&format!(":260 262 {sid} 263 [^261]+ 261"))
-                            .with_context(|| {
-                                format!(
-                                    "Failed to synthesize pattern for .EL Types '{el_type_name}'"
-                                )
-                            })?
-                            .pattern,
-                    )
-                } else {
-                    None
-                }
-            };
-            if let Some(pattern) = pattern_opt {
-                resolver.named_types.entry(el_type_name).or_insert(pattern);
-            }
-        }
-
         for defn in dc_defns.iter().chain(format_defns.iter()) {
             for imp in &defn.implies {
                 for raw_part in imp.split('&') {
@@ -1557,7 +1506,6 @@ impl DatasetRuleResolver {
         let mut explicit_closes_pairs: Vec<(u128, CharTarget)> = Vec::new();
         let mut closes_by_id: HashMap<u128, DcShorthand> = HashMap::new();
         let mut non_routine_short_ids: Vec<u32> = Vec::new();
-        let mut el_type_names: HashSet<String> = HashSet::new();
 
         // Collect all Short Dcs, Unicode clarifications, and Format Dcs in ascending `dc_id` order.
         let mut short_subjects: Vec<(u128, u32)> = Vec::new();
@@ -1619,17 +1567,6 @@ impl DatasetRuleResolver {
             }
             if !script.is_empty() {
                 resolver.add_script_char(script.clone(), sid_u128);
-            }
-            if script == ".EL Types" {
-                if let Some(name) =
-                    index.get_single_property_string(subj, sh_name)
-                {
-                    if let Some(el_type_name) =
-                        crate::validation::extract_el_type_name(name)
-                    {
-                        el_type_names.insert(el_type_name);
-                    }
-                }
             }
 
             let preferred = index
