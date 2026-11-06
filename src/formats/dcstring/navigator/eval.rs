@@ -3107,221 +3107,26 @@ impl DcDocumentNavigator<'_> {
     }
 }
 
+pub(super) fn numeric_bound_to_integer(
+    bound: ctb_formats_dcdata::syntax::NumericBoundValue,
+) -> malachite::Integer {
+    use ctb_formats_dcdata::syntax::NumericBoundValue;
+    use std::ops::{Neg, Shl};
+
+    match bound {
+        NumericBoundValue::Unsigned(v) => malachite::Integer::from(v),
+        NumericBoundValue::Negative(abs) => malachite::Integer::from(abs).neg(),
+        NumericBoundValue::TwoPow128 => {
+            malachite::Integer::from(1u128).shl(128u32)
+        }
+    }
+}
+
 pub(super) fn parse_bound(expr: &str) -> Option<malachite::Integer> {
-    use malachite::base::num::arithmetic::traits::Pow;
-    use std::ops::{Add, Mul, Neg, Sub};
-    use std::str::FromStr;
-
-    struct BoundParser<'a> {
-        bytes: &'a [u8],
-        pos: usize,
-    }
-
-    impl BoundParser<'_> {
-        fn skip_ws(&mut self) {
-            while self
-                .bytes
-                .get(self.pos)
-                .is_some_and(u8::is_ascii_whitespace)
-            {
-                self.pos = self.pos.saturating_add(1);
-            }
-        }
-
-        fn peek(&mut self) -> Option<u8> {
-            self.skip_ws();
-            self.bytes.get(self.pos).copied()
-        }
-
-        fn eat(&mut self, expected: u8) -> bool {
-            if self.peek() == Some(expected) {
-                self.pos = self.pos.saturating_add(1);
-                true
-            } else {
-                false
-            }
-        }
-
-        fn parse_expr(&mut self) -> Option<malachite::Integer> {
-            let mut acc = self.parse_mul()?;
-            loop {
-                if self.eat(b'+') {
-                    let rhs = self.parse_mul()?;
-                    acc = acc.add(rhs);
-                } else if self.eat(b'-') {
-                    let rhs = self.parse_mul()?;
-                    acc = acc.sub(rhs);
-                } else {
-                    break;
-                }
-            }
-            Some(acc)
-        }
-
-        fn parse_mul(&mut self) -> Option<malachite::Integer> {
-            let mut acc = self.parse_unary()?;
-            while self.eat(b'*') {
-                let rhs = self.parse_unary()?;
-                acc = acc.mul(rhs);
-            }
-            Some(acc)
-        }
-
-        fn parse_unary(&mut self) -> Option<malachite::Integer> {
-            if self.eat(b'-') {
-                self.parse_unary().map(Neg::neg)
-            } else if self.eat(b'+') {
-                self.parse_unary()
-            } else {
-                self.parse_power()
-            }
-        }
-
-        fn parse_power(&mut self) -> Option<malachite::Integer> {
-            let base = self.parse_primary()?;
-            if self.eat(b'^') {
-                let exp_int = self.parse_unary()?;
-                let exp = u32::try_from(&exp_int).ok()?;
-                if exp > 1024 {
-                    return None;
-                }
-                let abs_pow = base.unsigned_abs_ref().pow(u64::from(exp));
-                let int_pow = malachite::Integer::from(abs_pow);
-                if base < 0u32 && !exp.is_multiple_of(2) {
-                    Some(int_pow.neg())
-                } else {
-                    Some(int_pow)
-                }
-            } else {
-                Some(base)
-            }
-        }
-
-        fn parse_primary(&mut self) -> Option<malachite::Integer> {
-            if self.eat(b'(') {
-                let val = self.parse_expr()?;
-                if !self.eat(b')') {
-                    return None;
-                }
-                return Some(val);
-            }
-            self.parse_number_literal()
-        }
-
-        fn parse_number_literal(&mut self) -> Option<malachite::Integer> {
-            self.skip_ws();
-            let int_start = self.pos;
-            while self.bytes.get(self.pos).is_some_and(u8::is_ascii_digit) {
-                self.pos = self.pos.saturating_add(1);
-            }
-            let int_end = self.pos;
-            if int_end == int_start {
-                return None;
-            }
-            let int_slice = self.bytes.get(int_start..int_end)?;
-
-            let frac_slice = if self.bytes.get(self.pos) == Some(&b'.')
-                && self
-                    .bytes
-                    .get(self.pos.saturating_add(1))
-                    .is_some_and(u8::is_ascii_digit)
-            {
-                self.pos = self.pos.saturating_add(1);
-                let frac_start = self.pos;
-                while self.bytes.get(self.pos).is_some_and(u8::is_ascii_digit) {
-                    self.pos = self.pos.saturating_add(1);
-                }
-                let frac_raw = self.bytes.get(frac_start..self.pos)?;
-                let mut trimmed_len = frac_raw.len();
-                while trimmed_len > 0
-                    && frac_raw.get(trimmed_len.saturating_sub(1))
-                        == Some(&b'0')
-                {
-                    trimmed_len = trimmed_len.saturating_sub(1);
-                }
-                frac_raw.get(..trimmed_len)?
-            } else {
-                &[]
-            };
-
-            if matches!(self.bytes.get(self.pos), Some(b'e' | b'E')) {
-                self.pos = self.pos.saturating_add(1);
-                let exp_neg = if self.bytes.get(self.pos) == Some(&b'-') {
-                    self.pos = self.pos.saturating_add(1);
-                    true
-                } else if self.bytes.get(self.pos) == Some(&b'+') {
-                    self.pos = self.pos.saturating_add(1);
-                    false
-                } else {
-                    false
-                };
-                let exp_start = self.pos;
-                while self.bytes.get(self.pos).is_some_and(u8::is_ascii_digit) {
-                    self.pos = self.pos.saturating_add(1);
-                }
-                if self.pos == exp_start {
-                    return None;
-                }
-                let exp_str =
-                    std::str::from_utf8(self.bytes.get(exp_start..self.pos)?)
-                        .ok()?;
-                let exp = exp_str.parse::<u32>().ok()?;
-                if exp > 1024 {
-                    return None;
-                }
-                if exp_neg {
-                    if !frac_slice.is_empty() {
-                        return None;
-                    }
-                    let int_str = std::str::from_utf8(int_slice).ok()?;
-                    let nat = malachite::Natural::from_str(int_str).ok()?;
-                    if nat == 0u32 {
-                        return Some(malachite::Integer::from(0));
-                    }
-                    let exp_usize = usize::try_from(exp).ok()?;
-                    if int_slice.len() <= exp_usize {
-                        return None;
-                    }
-                    let split_at = int_slice.len().checked_sub(exp_usize)?;
-                    if !int_slice.get(split_at..)?.iter().all(|&b| b == b'0') {
-                        return None;
-                    }
-                    let prefix_str =
-                        std::str::from_utf8(int_slice.get(..split_at)?).ok()?;
-                    return malachite::Integer::from_str(prefix_str).ok();
-                }
-                let frac_len = u32::try_from(frac_slice.len()).ok()?;
-                let trailing_zeros = exp.checked_sub(frac_len)?;
-                let int_str = std::str::from_utf8(int_slice).ok()?;
-                let frac_str = std::str::from_utf8(frac_slice).ok()?;
-                let mantissa = malachite::Natural::from_str(&format!(
-                    "{int_str}{frac_str}"
-                ))
-                .ok()?;
-                let scale = malachite::Natural::from(10u64)
-                    .pow(u64::from(trailing_zeros));
-                Some(malachite::Integer::from(mantissa.mul(scale)))
-            } else {
-                if !frac_slice.is_empty() {
-                    return None;
-                }
-                let int_str = std::str::from_utf8(int_slice).ok()?;
-                malachite::Integer::from_str(int_str).ok()
-            }
-        }
-    }
-
-    let mut parser = BoundParser {
-        bytes: expr.as_bytes(),
-        pos: 0,
-    };
-    let val = parser.parse_expr()?;
-    parser.skip_ws();
-    if parser.pos == parser.bytes.len() {
-        Some(val)
-    } else {
-        None
-    }
+    let bound =
+        ctb_formats_dcdata::syntax::NumericBoundValue::parse_dsl_bound(expr)
+            .ok()?;
+    Some(numeric_bound_to_integer(bound))
 }
 
 pub(super) fn number_satisfies_subtype(
@@ -3329,47 +3134,59 @@ pub(super) fn number_satisfies_subtype(
     subtype: &str,
     resolver: &dyn SyntaxRuleResolver,
 ) -> bool {
-    let trimmed = subtype.trim();
-    if trimmed.is_empty() {
+    let Ok(clauses) =
+        ctb_formats_dcdata::syntax::parse_number_constraint(subtype)
+    else {
         return false;
-    }
-    for raw_part in trimmed.split('&') {
-        let part = raw_part.trim();
-        if part.is_empty() {
-            return false;
-        }
-        let fmt = FormatId::from_shorthand(part)
-            .or_else(|| FormatId::from_ident(part));
-        let matched = if let Some(fmt) = fmt {
-            if let Some(rule) = resolver.resolve_rule(&CharTarget::Format(fmt))
-                && let Some(ok) = check_pattern_number_constraint(
-                    &rule.pattern,
-                    val,
-                    resolver,
-                )
-            {
-                ok
-            } else {
-                fmt.dc_id().is_some_and(|dc_id| {
-                    resolver.matches_script("Formats:number", dc_id)
-                        || resolver
-                            .matches_script("Formats:number_abstract", dc_id)
-                })
+    };
+    for clause in clauses {
+        let matched = match clause {
+            ctb_formats_dcdata::syntax::NumberConstraintClause::LowerBound {
+                exclusive,
+                bound,
+            } => {
+                let b = numeric_bound_to_integer(bound);
+                if exclusive { val > &b } else { val >= &b }
             }
-        } else if let Some(rule) = resolver.resolve_named_type(part) {
-            // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
-            check_pattern_number_constraint(rule, val, resolver)
-                .unwrap_or(false)
-        } else if let Some(rest) = part.strip_prefix("<=") {
-            parse_bound(rest).is_some_and(|b| val <= &b)
-        } else if let Some(rest) = part.strip_prefix('<') {
-            parse_bound(rest).is_some_and(|b| val < &b)
-        } else if let Some(rest) = part.strip_prefix(">=") {
-            parse_bound(rest).is_some_and(|b| val >= &b)
-        } else if let Some(rest) = part.strip_prefix('>') {
-            parse_bound(rest).is_some_and(|b| val > &b)
-        } else {
-            false
+            ctb_formats_dcdata::syntax::NumberConstraintClause::UpperBound {
+                exclusive,
+                bound,
+            } => {
+                let b = numeric_bound_to_integer(bound);
+                if exclusive { val < &b } else { val <= &b }
+            }
+            ctb_formats_dcdata::syntax::NumberConstraintClause::Target(
+                part,
+            ) => {
+                let fmt = FormatId::from_shorthand(part)
+                    .or_else(|| FormatId::from_ident(part));
+                if let Some(fmt) = fmt {
+                    if let Some(rule) =
+                        resolver.resolve_rule(&CharTarget::Format(fmt))
+                        && let Some(ok) = check_pattern_number_constraint(
+                            &rule.pattern,
+                            val,
+                            resolver,
+                        )
+                    {
+                        ok
+                    } else {
+                        fmt.dc_id().is_some_and(|dc_id| {
+                            resolver.matches_script("Formats:number", dc_id)
+                                || resolver.matches_script(
+                                    "Formats:number_abstract",
+                                    dc_id,
+                                )
+                        })
+                    }
+                } else if let Some(rule) = resolver.resolve_named_type(part) {
+                    // Reason for fallback: pattern evaluation errors or mismatches evaluate to non-match (false).
+                    check_pattern_number_constraint(rule, val, resolver)
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            }
         };
         if !matched {
             return false;

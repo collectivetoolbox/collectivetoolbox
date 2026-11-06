@@ -3379,8 +3379,10 @@ mod tests {
         );
 
         let mut report_stable_num = ValidationReport::new();
-        let stable_num_rule =
-            parse_dc_syntax(":[number:Natural1] [number:f207]").unwrap();
+        let stable_num_rule = parse_dc_syntax(
+            ":[number:Natural1] [number:f207] [number:Natural1&<(2^8)]",
+        )
+        .unwrap();
         validate_dc_syntax(
             &stable_num_rule,
             246,
@@ -3399,6 +3401,33 @@ mod tests {
             "Unexpected errors: {}",
             report_stable_num.format_report()
         );
+
+        // Invalid [number:...] bound expressions or empty '&'-clauses must be rejected
+        for invalid_num_syntax in [
+            ":[number:<not_a_number]",
+            ":[number:Natural1&]",
+            ":[number:<(2^8 - 1)]",
+        ] {
+            let mut report_bad_bound = ValidationReport::new();
+            let bad_bound_rule = parse_dc_syntax(invalid_num_syntax).unwrap();
+            validate_dc_syntax(
+                &bad_bound_rule,
+                246,
+                &known_dcs,
+                &known_fmts,
+                &known_named_types,
+                Some(&known_scripts),
+                &known_syntax_targets,
+                Some(&fmt_registry),
+                &mut report_bad_bound,
+                "test/syntax.csv",
+                23,
+            );
+            assert!(
+                report_bad_bound.has_errors(),
+                "Expected validation error for '{invalid_num_syntax}'"
+            );
+        }
     }
 
     #[crate::ctb_test]

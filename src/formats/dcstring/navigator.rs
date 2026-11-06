@@ -4013,17 +4013,16 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_parse_bound_expressions_and_scientific_notation() {
+    fn test_parse_bound_dsl_bounds() {
         use std::str::FromStr;
 
+        assert_eq!(parse_bound("0"), Some(malachite::Integer::from(0)));
+        assert_eq!(parse_bound("8"), Some(malachite::Integer::from(8)));
+        assert_eq!(parse_bound("-128"), Some(malachite::Integer::from(-128)));
         assert_eq!(parse_bound("(-2^7)"), Some(malachite::Integer::from(-128)));
         assert_eq!(parse_bound("-2^7"), Some(malachite::Integer::from(-128)));
-        assert_eq!(
-            parse_bound("-(2^15)"),
-            Some(malachite::Integer::from(-32768))
-        );
-        assert_eq!(parse_bound("(-2)^8"), Some(malachite::Integer::from(256)));
-        assert_eq!(parse_bound("-2^8"), Some(malachite::Integer::from(-256)));
+        assert_eq!(parse_bound("(2^8)"), Some(malachite::Integer::from(256)));
+        assert_eq!(parse_bound("2^8"), Some(malachite::Integer::from(256)));
         assert_eq!(
             parse_bound("(-2^127)"),
             malachite::Integer::from_str(
@@ -4032,26 +4031,14 @@ mod tests {
             .ok()
         );
         assert_eq!(
-            parse_bound("(2^8 - 1)"),
-            Some(malachite::Integer::from(255))
+            parse_bound("(2^128)"),
+            malachite::Integer::from_str(
+                "340282366920938463463374607431768211456"
+            )
+            .ok()
         );
-        assert_eq!(parse_bound("1e5"), Some(malachite::Integer::from(100_000)));
-        assert_eq!(
-            parse_bound("-1e5"),
-            Some(malachite::Integer::from(-100_000))
-        );
-        assert_eq!(
-            parse_bound("(-1.5e3)"),
-            Some(malachite::Integer::from(-1_500))
-        );
-        assert_eq!(
-            parse_bound("1E+6"),
-            Some(malachite::Integer::from(1_000_000))
-        );
-        assert_eq!(
-            parse_bound("-1000e-2"),
-            Some(malachite::Integer::from(-10))
-        );
+        assert_eq!(parse_bound("(2^8 - 1)"), None);
+        assert_eq!(parse_bound("1e5"), None);
         assert_eq!(parse_bound("1.5e0"), None);
         assert_eq!(parse_bound("15e-1"), None);
     }

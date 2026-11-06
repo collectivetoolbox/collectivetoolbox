@@ -582,31 +582,72 @@ fn validate_syntax_element(
                     }
                 }
             } else if name == "number" {
-                if let (Some(sub), Some(formats)) = (subtype, format_registry)
-                    && !formats.formats_by_id.is_empty()
-                {
-                    for raw_clause in sub.split('&') {
-                        let clause = raw_clause.trim();
-                        if clause.is_empty()
-                            || clause.starts_with('<')
-                            || clause.starts_with('>')
-                        {
-                            continue;
+                if let Some(sub) = subtype {
+                    let clauses = match super::parse_number_constraint(sub) {
+                        Ok(clauses) => clauses,
+                        Err(error) => {
+                            report.add_error(
+                                source_file,
+                                Some(line_no),
+                                Some(col_name),
+                                format!("Invalid number constraint: {error}"),
+                                None,
+                            );
+                            return;
                         }
-                        if let Some(target) =
-                            super::parser::parse_target_token(clause)
-                        {
-                            if matches!(target, CharTarget::Format(_)) {
-                                if formats.find_format(clause).is_none() {
+                    };
+                    if let Some(formats) = format_registry
+                        && !formats.formats_by_id.is_empty()
+                    {
+                        for clause in clauses {
+                            let super::NumberConstraintClause::Target(clause) =
+                                clause
+                            else {
+                                continue;
+                            };
+                            if let Some(target) =
+                                super::parser::parse_target_token(clause)
+                            {
+                                if matches!(target, CharTarget::Format(_)) {
+                                    if formats.find_format(clause).is_none() {
+                                        report.add_error(
+                                            source_file,
+                                            Some(line_no),
+                                            Some(col_name),
+                                            format!(
+                                                "Unknown format ID '{clause}' in '[number:{sub}]'"
+                                            ),
+                                            Some(
+                                                "Ensure referenced format ID is defined in formats category files",
+                                            ),
+                                        );
+                                    }
+                                } else {
                                     report.add_error(
                                         source_file,
                                         Some(line_no),
                                         Some(col_name),
                                         format!(
-                                            "Unknown format ID '{clause}' in '[number:{sub}]'"
+                                            "Invalid target '{clause}' in '[number:{sub}]'; expected a format shorthand (e.g. 'f351') or '@stable_ident()' format identifier"
                                         ),
                                         Some(
-                                            "Ensure referenced format ID is defined in formats category files",
+                                            "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
+                                        ),
+                                    );
+                                }
+                            } else if let Some(fmt_info) =
+                                formats.find_format(clause)
+                            {
+                                if !fmt_info.stable_ident {
+                                    report.add_error(
+                                        source_file,
+                                        Some(line_no),
+                                        Some(col_name),
+                                        format!(
+                                            "Format identifier '{clause}' in '[number:{sub}]' is not marked '@stable_ident()'"
+                                        ),
+                                        Some(
+                                            "Use its numeric shorthand 'f<id>' or add '@stable_ident()' to the format definition",
                                         ),
                                     );
                                 }
@@ -616,41 +657,13 @@ fn validate_syntax_element(
                                     Some(line_no),
                                     Some(col_name),
                                     format!(
-                                        "Invalid target '{clause}' in '[number:{sub}]'; expected a format shorthand (e.g. 'f351') or '@stable_ident()' format identifier"
+                                        "Unknown format identifier '{clause}' in '[number:{sub}]'"
                                     ),
                                     Some(
                                         "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
                                     ),
                                 );
                             }
-                        } else if let Some(fmt_info) =
-                            formats.find_format(clause)
-                        {
-                            if !fmt_info.stable_ident {
-                                report.add_error(
-                                    source_file,
-                                    Some(line_no),
-                                    Some(col_name),
-                                    format!(
-                                        "Format identifier '{clause}' in '[number:{sub}]' is not marked '@stable_ident()'"
-                                    ),
-                                    Some(
-                                        "Use its numeric shorthand 'f<id>' or add '@stable_ident()' to the format definition",
-                                    ),
-                                );
-                            }
-                        } else {
-                            report.add_error(
-                                source_file,
-                                Some(line_no),
-                                Some(col_name),
-                                format!(
-                                    "Unknown format identifier '{clause}' in '[number:{sub}]'"
-                                ),
-                                Some(
-                                    "Use a format shorthand 'f<id>' or a format identifier marked with '@stable_ident()'",
-                                ),
-                            );
                         }
                     }
                 }

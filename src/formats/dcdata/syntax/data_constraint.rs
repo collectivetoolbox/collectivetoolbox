@@ -56,3 +56,71 @@ pub fn parse_data_constraint(
     };
     Ok((format, bytes))
 }
+
+/// A single clause in a `&`-separated `[number:...]` subtype constraint.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NumberConstraintClause<'a> {
+    /// A format shorthand (`f<N>`), format identifier (`Natural0`), or named construct.
+    Target(&'a str),
+    /// A lower bound (`>=` when `exclusive == false`, `>` when `exclusive == true`).
+    LowerBound {
+        exclusive: bool,
+        bound: crate::graph_ledger::NumericBoundValue,
+    },
+    /// An upper bound (`<=` when `exclusive == false`, `<` when `exclusive == true`).
+    UpperBound {
+        exclusive: bool,
+        bound: crate::graph_ledger::NumericBoundValue,
+    },
+}
+
+/// Parses a `[number:...]` subtype constraint into its `&`-separated clauses.
+pub fn parse_number_constraint(
+    subtype: &str,
+) -> anyhow::Result<Vec<NumberConstraintClause<'_>>> {
+    let trimmed = subtype.trim();
+    anyhow::ensure!(
+        !trimmed.is_empty(),
+        "Empty [number:] subtype constraint"
+    );
+    let mut clauses = Vec::new();
+    for raw_part in trimmed.split('&') {
+        let part = raw_part.trim();
+        anyhow::ensure!(
+            !part.is_empty(),
+            "Empty clause in [number:{subtype}] subtype constraint"
+        );
+        if let Some(rest) = part.strip_prefix(">=") {
+            clauses.push(NumberConstraintClause::LowerBound {
+                exclusive: false,
+                bound: crate::graph_ledger::NumericBoundValue::parse_dsl_bound(
+                    rest,
+                )?,
+            });
+        } else if let Some(rest) = part.strip_prefix('>') {
+            clauses.push(NumberConstraintClause::LowerBound {
+                exclusive: true,
+                bound: crate::graph_ledger::NumericBoundValue::parse_dsl_bound(
+                    rest,
+                )?,
+            });
+        } else if let Some(rest) = part.strip_prefix("<=") {
+            clauses.push(NumberConstraintClause::UpperBound {
+                exclusive: false,
+                bound: crate::graph_ledger::NumericBoundValue::parse_dsl_bound(
+                    rest,
+                )?,
+            });
+        } else if let Some(rest) = part.strip_prefix('<') {
+            clauses.push(NumberConstraintClause::UpperBound {
+                exclusive: true,
+                bound: crate::graph_ledger::NumericBoundValue::parse_dsl_bound(
+                    rest,
+                )?,
+            });
+        } else {
+            clauses.push(NumberConstraintClause::Target(part));
+        }
+    }
+    Ok(clauses)
+}

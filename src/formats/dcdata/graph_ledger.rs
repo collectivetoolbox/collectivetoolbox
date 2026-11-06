@@ -1732,31 +1732,30 @@ impl LedgerBuilder {
         let mut lower_bound: Option<(bool, NumericBoundValue)> = None;
         let mut upper_bound: Option<(bool, NumericBoundValue)> = None;
 
-        for raw_part in sub.split('&') {
-            let part = raw_part.trim();
-            if part.is_empty() {
-                continue;
-            }
-            if let Some(rest) = part.strip_prefix(">=") {
-                lower_bound =
-                    Some((false, NumericBoundValue::parse_dsl_bound(rest)?));
-            } else if let Some(rest) = part.strip_prefix('>') {
-                lower_bound =
-                    Some((true, NumericBoundValue::parse_dsl_bound(rest)?));
-            } else if let Some(rest) = part.strip_prefix("<=") {
-                upper_bound =
-                    Some((false, NumericBoundValue::parse_dsl_bound(rest)?));
-            } else if let Some(rest) = part.strip_prefix('<') {
-                upper_bound =
-                    Some((true, NumericBoundValue::parse_dsl_bound(rest)?));
-            } else if let Ok(fmt_sh) =
-                self.resolve_stable_format_or_shorthand(part, "number")
-            {
-                domain_tok = fmt_sh;
-            } else {
-                bail!(
-                    "Unsupported clause '{part}' in [number:{sub}] subtype constraint"
-                );
+        for clause in crate::syntax::parse_number_constraint(sub)? {
+            match clause {
+                crate::syntax::NumberConstraintClause::LowerBound {
+                    exclusive,
+                    bound,
+                } => {
+                    lower_bound = Some((exclusive, bound));
+                }
+                crate::syntax::NumberConstraintClause::UpperBound {
+                    exclusive,
+                    bound,
+                } => {
+                    upper_bound = Some((exclusive, bound));
+                }
+                crate::syntax::NumberConstraintClause::Target(part) => {
+                    let fmt_sh = self
+                        .resolve_stable_format_or_shorthand(part, "number")
+                        .with_context(|| {
+                            format!(
+                                "Unsupported clause '{part}' in [number:{sub}] subtype constraint"
+                            )
+                        })?;
+                    domain_tok = fmt_sh;
+                }
             }
         }
 
