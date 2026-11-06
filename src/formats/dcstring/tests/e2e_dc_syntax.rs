@@ -2114,9 +2114,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let ctx =
             ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped = ctx.unwrap_equivalent_or_self(root)?;
-        let num_node = ctx.node(unwrapped)?;
         ensure!(
-            matches!(num_node.kind, DcSyntaxKind::Number { .. }),
+            arena.is_number_with_resolver(unwrapped, ctx.resolver()),
             "398 must unwrap to Number"
         );
 
@@ -2140,9 +2139,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut ctx =
             ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped_ref = ctx.unwrap_equivalent_or_self(ref_node_id)?;
-        let target_node = ctx.node(unwrapped_ref)?;
         ensure!(
-            matches!(target_node.kind, DcSyntaxKind::Number { .. }),
+            arena.is_number_with_resolver(unwrapped_ref, ctx.resolver()),
             "540 must resolve to assigned Number"
         );
         // Test transparent decoding through decode_dc_node:
@@ -2177,9 +2175,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut ctx =
             ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped_ref = ctx.unwrap_equivalent_or_self(ref_node_id)?;
-        let target_node = ctx.node(unwrapped_ref)?;
         ensure!(
-            matches!(target_node.kind, DcSyntaxKind::Literal { .. }),
+            arena.is_literal_with_resolver(unwrapped_ref, ctx.resolver()),
             "276 must resolve to assigned Literal"
         );
         let decoded_str: String =
@@ -2212,9 +2209,8 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let mut ctx =
             ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped_routine = ctx.unwrap_equivalent_or_self(routine_id)?;
-        let target_node = ctx.node(unwrapped_routine)?;
         ensure!(
-            matches!(target_node.kind, DcSyntaxKind::Literal { .. }),
+            arena.is_literal_with_resolver(unwrapped_routine, ctx.resolver()),
             "279 must resolve to argument Literal"
         );
         let decoded_routine: String =
@@ -2820,23 +2816,22 @@ mod dynamic_runtime_equivalence_overlay_tests {
             &mut arena,
             &policy,
         )?;
-        let root_node =
-            arena.node(root_id).context("Missing literal root node")?;
-        match &root_node.kind {
-            DcSyntaxKind::Literal { decoded, .. } => {
-                ensure!(
-                    *decoded == payload_mstr,
-                    "Arena Literal node must preserve exact DcMstring"
-                );
-                let actual_chars: Vec<DcChar> =
-                    decoded.to_dc_string()?.chars().collect();
-                ensure!(
-                    actual_chars == expected_chars,
-                    "Decoded DcChar sequence mismatch"
-                );
-            }
-            other => bail!("Expected Literal node, found {other:?}"),
-        }
+        let (_type_header, decoded) = arena
+            .decode_literal_with_resolver(
+                root_id,
+                ctb_formats_dcdata::syntax::default_syntax_resolver().as_ref(),
+            )
+            .context("Expected Literal node")?;
+        ensure!(
+            decoded == payload_mstr,
+            "Arena Literal node must preserve exact DcMstring"
+        );
+        let actual_chars: Vec<DcChar> =
+            decoded.to_dc_string()?.chars().collect();
+        ensure!(
+            actual_chars == expected_chars,
+            "Decoded DcChar sequence mismatch"
+        );
 
         // Decoding non-Unicode Dcs into a Rust Unicode String must fail cleanly:
         ensure!(

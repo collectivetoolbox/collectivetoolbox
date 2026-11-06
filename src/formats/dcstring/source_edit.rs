@@ -114,12 +114,6 @@ impl<'a> SourceView<'a> {
             match &n.kind {
                 DcSyntaxKind::Container { opener, .. } => Some(canon(*opener)),
                 DcSyntaxKind::Tagged { tag, .. } => Some(canon(*tag)),
-                DcSyntaxKind::Assignment { .. } => Some(DC_ASSIGN),
-                DcSyntaxKind::Literal { .. } => Some(DC_BEGIN_LITERAL),
-                DcSyntaxKind::Identifier { .. } => Some(DC_BEGIN_IDENTIFIER),
-                DcSyntaxKind::Number { .. } => {
-                    Some(crate::dc_number::DC_BEGIN_NUMBER)
-                }
                 DcSyntaxKind::Binary { .. } => {
                     Some(ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY)
                 }
@@ -135,7 +129,7 @@ impl<'a> SourceView<'a> {
 
     fn is_frame(&self, id: NodeId) -> bool {
         self.node(id)
-            .is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Container { .. }))
+            .is_ok_and(|n| n.is_structural_container_with(self.resolver))
     }
 
     fn contains_map(&self, id: NodeId) -> bool {
@@ -143,6 +137,7 @@ impl<'a> SourceView<'a> {
             return true;
         }
         if let Ok(n) = self.node(id)
+            && n.is_structural_container_with(self.resolver)
             && let DcSyntaxKind::Container { children, .. } = &n.kind
         {
             children.iter().any(|&child| self.contains_map(child))
@@ -202,7 +197,9 @@ impl<'a> SourceView<'a> {
                 canonical.push_binary(&bytes);
             }
             target.extend_from_slice(canonical.to_dc_string()?.as_bytes());
-        } else if let DcSyntaxKind::Container { children, .. } = &node.kind {
+        } else if node.is_structural_container_with(self.resolver)
+            && let DcSyntaxKind::Container { children, .. } = &node.kind
+        {
             let (opening, closing) = self.container_delimiters(id)?;
             target.extend_from_slice(opening);
             for &child in children {

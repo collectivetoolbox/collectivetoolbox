@@ -215,19 +215,8 @@ pub enum DcSyntaxKind<'a> {
         trailing: Vec<NodeId>,
         unclosed: bool,
     },
-    /// Prefix-tagged construct (`:~ <arg1> <arg2> ...`).
+    /// Prefix-tagged or operator construct (`:~ <arg1> <arg2> ...`).
     Tagged { tag: DcChar, args: Vec<NodeId> },
-    /// Assignment statement (`[identifier] 269 [value]`).
-    Assignment { ident: DcMstring, value: NodeId },
-    /// Framed literal (`260 [262:] <payload> 261`) with `255` unescaped.
-    Literal {
-        type_header: Vec<DcChar>,
-        decoded: DcMstring,
-    },
-    /// Framed identifier (`270 <payload> 271`) with `255` unescaped.
-    Identifier { name: DcMstring },
-    /// Framed number (`6 [format:number] [^7]+ 7`).
-    Number { format: DcChar, digits: Vec<DcChar> },
     /// Binary encapsulation (`203 [type]? [number]? [checksum]? ... 204`).
     Binary {
         data_type: Option<DcString>,
@@ -263,6 +252,32 @@ impl DcSyntaxNode<'_> {
             _ => return None,
         };
         Some(token.to_u128())
+    }
+
+    /// Returns true if this container represents a leaf value construct using `resolver`.
+    #[must_use]
+    pub fn is_leaf_value_container_with(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        match &self.kind {
+            DcSyntaxKind::Container { opener, .. } => {
+                opener.fills_role_with(DcRole::BeginLiteral, resolver)
+                    || opener.fills_role_with(DcRole::BeginIdentifier, resolver)
+                    || opener.fills_role_with(DcRole::BeginNumber, resolver)
+            }
+            _ => false,
+        }
+    }
+
+    /// Returns true if this node is a structural (non-leaf) `Container` using `resolver`.
+    #[must_use]
+    pub fn is_structural_container_with(
+        &self,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        matches!(self.kind, DcSyntaxKind::Container { .. })
+            && !self.is_leaf_value_container_with(resolver)
     }
 
     /// Recognizes alternative-representation wrappers and equivalent tokens.
@@ -361,6 +376,273 @@ impl<'a> DcSyntaxArena<'a> {
             escaped: true,
         });
         id
+    }
+
+    fn alloc_atoms(&mut self, span: DcByteSpan, chars: &[DcChar]) -> Vec<NodeId> {
+        chars
+            .iter()
+            .copied()
+            .map(|ch| self.alloc(span, DcSyntaxKind::Atom(ch)))
+            .collect()
+    }
+
+    fn alloc_mstr_atoms(
+        &mut self,
+        span: DcByteSpan,
+        mstr: &DcMstr,
+    ) -> Vec<NodeId> {
+        let mut children = Vec::new();
+        for chunk in mstr.chunks() {
+            if let Some(text) = chunk.as_text() {
+                for ch in text.chars() {
+                    children.push(self.alloc(span, DcSyntaxKind::Atom(ch)));
+                }
+            }
+        }
+        children
+    }
+
+    fn collect_atoms(&self, ids: &[NodeId]) -> Option<Vec<DcChar>> {
+        let mut out = Vec::with_capacity(ids.len());
+        for &id in ids {
+            let DcSyntaxKind::Atom(ch) = self.get(id)?.kind else {
+                return None;
+            };
+            out.push(ch);
+        }
+        Some(out)
+    }
+
+    fn collect_mstring(&self, ids: &[NodeId]) -> Option<DcMstring> {
+        let mut out = DcMstring::new();
+        for &id in ids {
+            let DcSyntaxKind::Atom(ch) = self.get(id)?.kind else {
+                return None;
+            };
+            out.push_char(ch);
+        }
+        Some(out)
+    }
+
+    /// Allocates a framed literal container node (`Dc 260..261`).
+    pub fn alloc_literal(
+        &mut self,
+        span: DcByteSpan,
+        opener: DcChar,
+        closer: DcChar,
+        type_header: &[DcChar],
+        decoded: &DcMstr,
+    ) -> NodeId {
+        let header = self.alloc_atoms(span, type_header);
+        let children = self.alloc_mstr_atoms(span, decoded);
+        self.alloc(
+            span,
+            DcSyntaxKind::Container {
+                opener,
+                closer,
+                header,
+                children,
+                trailing: Vec::new(),
+                unclosed: false,
+            },
+        )
+    }
+
+    /// Allocates a framed identifier container node (`Dc 270..271`).
+    pub fn alloc_identifier(
+        &mut self,
+        span: DcByteSpan,
+        opener: DcChar,
+        closer: DcChar,
+        name: &DcMstr,
+    ) -> NodeId {
+        let children = self.alloc_mstr_atoms(span, name);
+        self.alloc(
+            span,
+            DcSyntaxKind::Container {
+                opener,
+                closer,
+                header: Vec::new(),
+                children,
+                trailing: Vec::new(),
+                unclosed: false,
+            },
+        )
+    }
+
+    /// Allocates a framed number container node (`Dc 6..7`).
+    pub fn alloc_number(
+        &mut self,
+        span: DcByteSpan,
+        opener: DcChar,
+        closer: DcChar,
+        format: DcChar,
+        digits: &[DcChar],
+    ) -> NodeId {
+        let header = vec![self.alloc(span, DcSyntaxKind::Atom(format))];
+        let children = self.alloc_atoms(span, digits);
+        self.alloc(
+            span,
+            DcSyntaxKind::Container {
+                opener,
+                closer,
+                header,
+                children,
+                trailing: Vec::new(),
+                unclosed: false,
+            },
+        )
+    }
+
+    /// Returns true if `id` is a `Container` whose opener fills `role` using `resolver`.
+    #[must_use]
+    pub fn has_opener_role_with_resolver(
+        &self,
+        id: NodeId,
+        role: DcRole,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        matches!(
+            self.get(id).map(|n| &n.kind),
+            Some(DcSyntaxKind::Container { opener, .. })
+                if opener.fills_role_with(role, resolver)
+        )
+    }
+
+    /// Returns true if `id` is a framed literal container (`Dc 260..261`) using `resolver`.
+    #[must_use]
+    pub fn is_literal_with_resolver(
+        &self,
+        id: NodeId,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        self.has_opener_role_with_resolver(id, DcRole::BeginLiteral, resolver)
+    }
+
+    /// Decodes a framed literal container (`Dc 260..261`) into `(type_header, decoded)` using `resolver`.
+    #[must_use]
+    pub fn decode_literal_with_resolver(
+        &self,
+        id: NodeId,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Option<(Vec<DcChar>, DcMstring)> {
+        let DcSyntaxKind::Container {
+            opener,
+            header,
+            children,
+            ..
+        } = &self.get(id)?.kind
+        else {
+            return None;
+        };
+        if !opener.fills_role_with(DcRole::BeginLiteral, resolver) {
+            return None;
+        }
+        Some((self.collect_atoms(header)?, self.collect_mstring(children)?))
+    }
+
+    /// Returns true if `id` is a framed identifier container (`Dc 270..271`) using `resolver`.
+    #[must_use]
+    pub fn is_identifier_with_resolver(
+        &self,
+        id: NodeId,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        self.has_opener_role_with_resolver(id, DcRole::BeginIdentifier, resolver)
+    }
+
+    /// Decodes a framed identifier container (`Dc 270..271`) into its `DcMstring` name using `resolver`.
+    #[must_use]
+    pub fn decode_identifier_with_resolver(
+        &self,
+        id: NodeId,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Option<DcMstring> {
+        let DcSyntaxKind::Container {
+            opener, children, ..
+        } = &self.get(id)?.kind
+        else {
+            return None;
+        };
+        if !opener.fills_role_with(DcRole::BeginIdentifier, resolver) {
+            return None;
+        }
+        self.collect_mstring(children)
+    }
+
+    /// Returns true if `id` is a framed number container (`Dc 6..7`) using `resolver`.
+    #[must_use]
+    pub fn is_number_with_resolver(
+        &self,
+        id: NodeId,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        self.has_opener_role_with_resolver(id, DcRole::BeginNumber, resolver)
+    }
+
+    /// Decodes a framed number container (`Dc 6..7`) into `(format, digits)` using `resolver`.
+    #[must_use]
+    pub fn decode_number_with_resolver(
+        &self,
+        id: NodeId,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Option<(DcChar, Vec<DcChar>)> {
+        let DcSyntaxKind::Container {
+            opener,
+            header,
+            children,
+            ..
+        } = &self.get(id)?.kind
+        else {
+            return None;
+        };
+        if !opener.fills_role_with(DcRole::BeginNumber, resolver) {
+            return None;
+        }
+        let (fmt_id, digit_ids) = if let Some(&fmt_id) = header.first() {
+            (fmt_id, children.as_slice())
+        } else {
+            let (&fmt_id, rest) = children.split_first()?;
+            (fmt_id, rest)
+        };
+        let DcSyntaxKind::Atom(fmt) = self.get(fmt_id)?.kind else {
+            return None;
+        };
+        Some((fmt, self.collect_atoms(digit_ids)?))
+    }
+
+    /// Decodes an assignment construct (`Dc 269` or `Dc 268`) into `(ident_name, value_node_id)` using `resolver`.
+    #[must_use]
+    pub fn decode_assignment_with_resolver(
+        &self,
+        id: NodeId,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Option<(DcMstring, NodeId)> {
+        let DcSyntaxKind::Tagged { tag, args } = &self.get(id)?.kind else {
+            return None;
+        };
+        if !resolver.is_assignment_construct(tag.to_u128()) {
+            return None;
+        }
+        let [raw_ident_id, raw_val_id] = args.as_slice() else {
+            return None;
+        };
+        let unwrap_param = |param_id: NodeId| -> NodeId {
+            if let Some(DcSyntaxKind::Container {
+                opener, children, ..
+            }) = self.get(param_id).map(|n| &n.kind)
+                && opener.fills_role_with(DcRole::BeginParameter, resolver)
+                && let [single] = children.as_slice()
+            {
+                *single
+            } else {
+                param_id
+            }
+        };
+        let ident_id = unwrap_param(*raw_ident_id);
+        let val_id = unwrap_param(*raw_val_id);
+        let ident = self.decode_identifier_with_resolver(ident_id, resolver)?;
+        Some((ident, val_id))
     }
 
     /// Appends a root node ID.
@@ -632,15 +914,8 @@ pub enum DcFrameHeaderInfo {
     },
     /// Format representation (`511 [format] ... 512`).
     FormatRepresentation { format: DcChar },
-    /// Spliced framed literal construct (`260..261`).
-    SplicedLiteral {
-        type_header: Vec<DcChar>,
-        decoded: DcMstring,
-    },
-    /// Spliced framed identifier construct (`270..271`).
-    SplicedIdentifier(DcMstring),
-    /// Spliced number construct (`6..7`).
-    SplicedNumber { format: DcChar, digits: Vec<DcChar> },
+    /// Spliced leaf container tokens (`260..261`, `270..271`, `6..7`).
+    SplicedTokens(Vec<DcChar>),
     /// Character whose syntactic role at this level was escaped by `Dc 255`.
     Escaped,
 }
@@ -984,17 +1259,15 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> bool {
         match kind {
-            DcSyntaxKind::Number { .. }
-            | DcSyntaxKind::Binary { .. }
-            | DcSyntaxKind::Literal { .. }
-            | DcSyntaxKind::Identifier { .. }
-            | DcSyntaxKind::Assignment { .. }
-            | DcSyntaxKind::Container { .. } => true,
+            DcSyntaxKind::Binary { .. } | DcSyntaxKind::Container { .. } => {
+                true
+            }
             DcSyntaxKind::Atom(ch) => {
                 Self::is_primitive_value_atom_with(*ch, resolver)
             }
             DcSyntaxKind::Tagged { tag, .. } => {
                 Self::is_transparent_wrapper_tag_with(*tag, resolver)
+                    || resolver.is_assignment_construct(tag.to_u128())
             }
             DcSyntaxKind::Malformed { .. } => false,
         }
@@ -1128,10 +1401,11 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<NodeId> {
         enum ArenaBuildFrame {
-            Assignment {
+            Infix {
                 outer_span: DcByteSpan,
-                ident: DcMstring,
-                value: Option<NodeId>,
+                tag: DcChar,
+                lhs_id: NodeId,
+                rhs: Option<NodeId>,
             },
             Container {
                 outer_span: DcByteSpan,
@@ -1186,40 +1460,10 @@ impl<'a> DcDocumentNavigator<'a> {
                              current_depth: usize,
                              arena: &mut DcSyntaxArena<'a>|
          -> Result<StubStep> {
-            match &stub.header_info {
-                DcFrameHeaderInfo::Escaped => {
-                    return Ok(StubStep::Leaf(
-                        arena.alloc_escaped_atom(stub.outer_span, stub.head_dc),
-                    ));
-                }
-                DcFrameHeaderInfo::SplicedLiteral {
-                    type_header,
-                    decoded,
-                } => {
-                    return Ok(StubStep::Leaf(arena.alloc(
-                        stub.outer_span,
-                        DcSyntaxKind::Literal {
-                            type_header: type_header.clone(),
-                            decoded: decoded.clone(),
-                        },
-                    )));
-                }
-                DcFrameHeaderInfo::SplicedIdentifier(name) => {
-                    return Ok(StubStep::Leaf(arena.alloc(
-                        stub.outer_span,
-                        DcSyntaxKind::Identifier { name: name.clone() },
-                    )));
-                }
-                DcFrameHeaderInfo::SplicedNumber { format, digits } => {
-                    return Ok(StubStep::Leaf(arena.alloc(
-                        stub.outer_span,
-                        DcSyntaxKind::Number {
-                            format: *format,
-                            digits: digits.clone(),
-                        },
-                    )));
-                }
-                _ => {}
+            if matches!(stub.header_info, DcFrameHeaderInfo::Escaped) {
+                return Ok(StubStep::Leaf(
+                    arena.alloc_escaped_atom(stub.outer_span, stub.head_dc),
+                ));
             }
             let head = stub.head_dc;
             if head.fills_role_with(DcRole::StartEncapsulationBinary, resolver)
@@ -1234,38 +1478,53 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             if head.fills_role_with(DcRole::BeginLiteral, resolver) {
                 let (type_header, decoded) = nav
-                    .decode_literal_span_with_resolver(
-                        stub.outer_span,
+                    .decode_literal_stub_with_resolver(
+                        stub,
                         policy,
                         resolver,
                     )?;
-                return Ok(StubStep::Leaf(arena.alloc(
+                // Reason for fallback: literal closer defaults to DC_END_LITERAL.
+                let closer =
+                    stub.closer_dc.unwrap_or(ctb_formats_dcdata::dc::DC_END_LITERAL);
+                return Ok(StubStep::Leaf(arena.alloc_literal(
                     stub.outer_span,
-                    DcSyntaxKind::Literal {
-                        type_header,
-                        decoded,
-                    },
+                    head,
+                    closer,
+                    &type_header,
+                    decoded.as_mstr(),
                 )));
             }
             if head.fills_role_with(DcRole::BeginIdentifier, resolver) {
-                let name = nav.decode_identifier_span_with_resolver(
-                    stub.outer_span,
+                let name = nav.decode_identifier_stub_with_resolver(
+                    stub,
                     policy,
                     resolver,
                 )?;
-                return Ok(StubStep::Leaf(arena.alloc(
+                // Reason for fallback: identifier closer defaults to DC_END_IDENTIFIER.
+                let closer = stub
+                    .closer_dc
+                    .unwrap_or(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+                return Ok(StubStep::Leaf(arena.alloc_identifier(
                     stub.outer_span,
-                    DcSyntaxKind::Identifier { name },
+                    head,
+                    closer,
+                    name.as_mstr(),
                 )));
             }
             if head.fills_role_with(DcRole::BeginNumber, resolver) {
-                let (format, digits) = nav.decode_number_span_with_resolver(
-                    stub.outer_span,
+                let (format, digits) = nav.decode_number_stub_with_resolver(
+                    stub,
                     resolver,
                 )?;
-                return Ok(StubStep::Leaf(arena.alloc(
+                // Reason for fallback: number closer defaults to DC_END_NUMBER.
+                let closer =
+                    stub.closer_dc.unwrap_or(ctb_formats_dcdata::dc::DC_END_NUMBER);
+                return Ok(StubStep::Leaf(arena.alloc_number(
                     stub.outer_span,
-                    DcSyntaxKind::Number { format, digits },
+                    head,
+                    closer,
+                    format,
+                    &digits,
                 )));
             }
             if resolver.resolve_infix_rule(head.to_u128()).is_some() {
@@ -1285,11 +1544,18 @@ impl<'a> DcDocumentNavigator<'a> {
                     let ident = nav.decode_identifier_span_with_resolver(
                         ident_span, policy, resolver,
                     )?;
+                    let lhs_id = arena.alloc_identifier(
+                        ident_span,
+                        ctb_formats_dcdata::dc::DC_BEGIN_IDENTIFIER,
+                        ctb_formats_dcdata::dc::DC_END_IDENTIFIER,
+                        ident.as_mstr(),
+                    );
                     nav.enter_frame(stub)?;
-                    return Ok(StubStep::Push(ArenaBuildFrame::Assignment {
+                    return Ok(StubStep::Push(ArenaBuildFrame::Infix {
                         outer_span: stub.outer_span,
-                        ident,
-                        value: None,
+                        tag: head,
+                        lhs_id,
+                        rhs: None,
                     }));
                 }
             }
@@ -1356,18 +1622,19 @@ impl<'a> DcDocumentNavigator<'a> {
                 let current_depth = work_stack.len();
                 let need_assignment_rhs = matches!(
                     work_stack.last(),
-                    Some(ArenaBuildFrame::Assignment { value: None, .. })
+                    Some(ArenaBuildFrame::Infix { rhs: None, .. })
                 );
                 let finished_assignment = matches!(
                     work_stack.last(),
-                    Some(ArenaBuildFrame::Assignment { value: Some(_), .. })
+                    Some(ArenaBuildFrame::Infix { rhs: Some(_), .. })
                 );
 
                 if finished_assignment {
-                    let Some(ArenaBuildFrame::Assignment {
+                    let Some(ArenaBuildFrame::Infix {
                         outer_span,
-                        ident,
-                        value: Some(val_id),
+                        tag,
+                        lhs_id,
+                        rhs: Some(val_id),
                     }) = work_stack.pop()
                     else {
                         unreachable!()
@@ -1375,15 +1642,15 @@ impl<'a> DcDocumentNavigator<'a> {
                     self.exit_frame()?;
                     let node_id = arena.alloc(
                         outer_span,
-                        DcSyntaxKind::Assignment {
-                            ident,
-                            value: val_id,
+                        DcSyntaxKind::Tagged {
+                            tag,
+                            args: vec![lhs_id, val_id],
                         },
                     );
                     if let Some(parent) = work_stack.last_mut() {
                         match parent {
-                            ArenaBuildFrame::Assignment { value, .. } => {
-                                *value = Some(node_id);
+                            ArenaBuildFrame::Infix { rhs, .. } => {
+                                *rhs = Some(node_id);
                             }
                             ArenaBuildFrame::Container { children, .. } => {
                                 children.push(node_id);
@@ -1410,11 +1677,8 @@ impl<'a> DcDocumentNavigator<'a> {
                         StubStep::Leaf(child_id) => {
                             if let Some(top) = work_stack.last_mut() {
                                 match top {
-                                    ArenaBuildFrame::Assignment {
-                                        value,
-                                        ..
-                                    } => {
-                                        *value = Some(child_id);
+                                    ArenaBuildFrame::Infix { rhs, .. } => {
+                                        *rhs = Some(child_id);
                                     }
                                     ArenaBuildFrame::Container {
                                         children,
@@ -1482,69 +1746,20 @@ impl<'a> DcDocumentNavigator<'a> {
                                 Self::normalize_field_nodes_with_resolver(
                                     args, arena, resolver,
                                 );
-                            let unwrap_param =
-                                |id: NodeId,
-                                 arena: &DcSyntaxArena<'a>|
-                                 -> NodeId {
-                                    if let Some(DcSyntaxKind::Container {
-                                        opener,
-                                        children,
-                                        ..
-                                    }) = arena.get(id).map(|n| &n.kind)
-                                        && opener.fills_role_with(
-                                            DcRole::BeginParameter,
-                                            resolver,
-                                        )
-                                        && let [single] = children.as_slice()
-                                    {
-                                        *single
-                                    } else {
-                                        id
-                                    }
-                                };
-                            if resolver.is_assignment_construct(tag.to_u128())
-                                && let [raw_ident_id, raw_val_id] =
-                                    normalized_args.as_slice()
-                            {
-                                let ident_id =
-                                    unwrap_param(*raw_ident_id, arena);
-                                let val_id = unwrap_param(*raw_val_id, arena);
-                                if let Some(DcSyntaxKind::Identifier { name }) =
-                                    arena.get(ident_id).map(|n| &n.kind)
-                                {
-                                    let ident = name.clone();
-                                    arena.alloc(
-                                        outer_span,
-                                        DcSyntaxKind::Assignment {
-                                            ident,
-                                            value: val_id,
-                                        },
-                                    )
-                                } else {
-                                    arena.alloc(
-                                        outer_span,
-                                        DcSyntaxKind::Tagged {
-                                            tag,
-                                            args: normalized_args,
-                                        },
-                                    )
-                                }
-                            } else {
-                                arena.alloc(
-                                    outer_span,
-                                    DcSyntaxKind::Tagged {
-                                        tag,
-                                        args: normalized_args,
-                                    },
-                                )
-                            }
+                            arena.alloc(
+                                outer_span,
+                                DcSyntaxKind::Tagged {
+                                    tag,
+                                    args: normalized_args,
+                                },
+                            )
                         }
-                        ArenaBuildFrame::Assignment { .. } => unreachable!(),
+                        ArenaBuildFrame::Infix { .. } => unreachable!(),
                     };
                     if let Some(parent) = work_stack.last_mut() {
                         match parent {
-                            ArenaBuildFrame::Assignment { value, .. } => {
-                                *value = Some(node_id);
+                            ArenaBuildFrame::Infix { rhs, .. } => {
+                                *rhs = Some(node_id);
                             }
                             ArenaBuildFrame::Container { children, .. } => {
                                 children.push(node_id);

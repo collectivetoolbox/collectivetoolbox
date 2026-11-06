@@ -1040,12 +1040,12 @@ fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()>
     // 3. Malformed data payload: Tagged 385 wrapping non-binary/non-list literal node
     let mut arena = DcSyntaxArena::new();
     let span = ctb_formats_dcstring::navigator::DcByteSpan::new(0, 10);
-    let str_node = arena.alloc(
+    let str_node = arena.alloc_literal(
         span,
-        ctb_formats_dcstring::navigator::DcSyntaxKind::Literal {
-            type_header: Vec::new(),
-            decoded: ctb_formats_dcstring::DcMstring::from("hello"),
-        },
+        ctb_formats_dcstring::dc::DC_BEGIN_LITERAL,
+        ctb_formats_dcstring::dc::DC_END_LITERAL,
+        &[],
+        ctb_formats_dcstring::DcMstring::from("hello").as_mstr(),
     );
     let tag_385 = arena.alloc(
         span,

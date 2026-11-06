@@ -1051,8 +1051,7 @@ fn generate_field_value_decoder(
         return Ok(quote! {
             {
                 ctx.decode_transparent(#node_id_expr, |ctx, eq_id| {
-                    let eq_node = ctx.node(eq_id)?;
-                    if matches!(eq_node.kind, #crate_root::navigator::DcSyntaxKind::Number { .. }) {
+                    if ctx.arena.is_number_with_resolver(eq_id, ctx.resolver()) {
                         <#field_ty as #crate_root::dc_mixed_serde::DcMixedNumber>::decode_dc_number(ctx, eq_id)
                     } else {
                         <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, eq_id)
@@ -2402,7 +2401,7 @@ fn expand_derive_dc_mixed(
                         ) -> #anyhow_path::Result<(Self, usize)> {
                             let root = roots.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty flattened document"))?;
                             let local = ctx.node(ctx.unwrap_transparent(root)?)?;
-                            if roots.len() > 1 && !matches!(local.kind, #crate_root::navigator::DcSyntaxKind::Container { .. }) {
+                            if roots.len() > 1 && !local.is_structural_container_with(ctx.resolver()) {
                                 return Ok((Self::decode_dc_fields(ctx, roots)?, roots.len()));
                             }
                             Ok((Self::decode_dc_node(ctx, root)?, 1))
@@ -2415,7 +2414,8 @@ fn expand_derive_dc_mixed(
                             ctx.decode_transparent(node_id, |ctx, unwrap_id| {
                                 let unwrap_node = ctx.node(unwrap_id)?;
                                 let child_ids: ::std::vec::Vec<#crate_root::NodeId> = match &unwrap_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
+                                    #crate_root::navigator::DcSyntaxKind::Container { children, .. }
+                                        if unwrap_node.is_structural_container_with(ctx.resolver()) => children.clone(),
                                     _ => ::std::vec![unwrap_id],
                                 };
                                 Self::decode_dc_fields(ctx, &child_ids)
@@ -3502,7 +3502,9 @@ fn expand_derive_dc_mixed(
                                     if let #crate_root::navigator::DcSyntaxKind::Container { children, .. } = &ln.kind {
                                         if let [single_child] = children.as_slice() {
                                             if let ::std::result::Result::Ok(c0) = ctx.node(*single_child) {
-                                                if let #crate_root::navigator::DcSyntaxKind::Container { children: inner_c, .. } = &c0.kind {
+                                                if c0.is_structural_container_with(ctx.resolver())
+                                                    && let #crate_root::navigator::DcSyntaxKind::Container { children: inner_c, .. } = &c0.kind
+                                                {
                                                     inner_c.as_slice()
                                                 } else {
                                                     children.as_slice()
@@ -3577,7 +3579,9 @@ fn expand_derive_dc_mixed(
                                     if let #crate_root::navigator::DcSyntaxKind::Container { children, .. } = &ln.kind {
                                         if let [single_child] = children.as_slice() {
                                             if let ::std::result::Result::Ok(c0) = ctx.node(*single_child) {
-                                                if let #crate_root::navigator::DcSyntaxKind::Container { children: inner_c, .. } = &c0.kind {
+                                                if c0.is_structural_container_with(ctx.resolver())
+                                                    && let #crate_root::navigator::DcSyntaxKind::Container { children: inner_c, .. } = &c0.kind
+                                                {
                                                     inner_c.as_slice()
                                                 } else {
                                                     children.as_slice()

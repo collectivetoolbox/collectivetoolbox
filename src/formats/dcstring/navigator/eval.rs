@@ -2282,9 +2282,12 @@ impl DcDocumentNavigator<'_> {
                             &quiet,
                             ctx.resolver,
                         )
-                        && let Some(DcSyntaxKind::Assignment { ident, value }) =
-                            temp_arena.get(root_id).map(|n| &n.kind)
-                        && let Some(val_node) = temp_arena.get(*value)
+                        && let Some((ident, value)) = temp_arena
+                            .decode_assignment_with_resolver(
+                                root_id,
+                                ctx.resolver,
+                            )
+                        && let Some(val_node) = temp_arena.get(value)
                     {
                         if self.scan_cache.top_level_assignments.len()
                             >= MAX_NAV_CACHE_ENTRIES
@@ -2293,7 +2296,7 @@ impl DcDocumentNavigator<'_> {
                         }
                         self.scan_cache.top_level_assignments.push((
                             stub.outer_span.end,
-                            ident.clone(),
+                            ident,
                             val_node.span,
                         ));
                     }

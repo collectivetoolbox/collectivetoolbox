@@ -695,7 +695,15 @@ impl DcMixedDecode for DcRawValue {
                     let units = Vec::<u16>::decode_dc_node(ctx, unwrap_id)?;
                     Ok(Self::U16List(units))
                 }
-                DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. } => {
+                DcSyntaxKind::Container { .. }
+                    if ctx
+                        .arena
+                        .is_literal_with_resolver(unwrap_id, ctx.resolver())
+                        || ctx.arena.is_identifier_with_resolver(
+                            unwrap_id,
+                            ctx.resolver(),
+                        ) =>
+                {
                     let s = String::decode_dc_node(ctx, unwrap_id)?;
                     Ok(Self::String(s))
                 }
@@ -710,15 +718,16 @@ fn decode_integer_node(
     node_id: NodeId,
 ) -> Result<malachite::Integer> {
     ctx.decode_transparent(node_id, |ctx, node_id| {
-        let node = ctx.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Number { digits, .. } => {
-                crate::dc_number::parse_dc_number_digits_with_resolver(
-                    digits,
-                    ctx.resolver(),
-                )
-            }
-            other => bail!("Expected Number node for integer, found {other:?}"),
+        if let Some((_format, digits)) =
+            ctx.arena.decode_number_with_resolver(node_id, ctx.resolver())
+        {
+            crate::dc_number::parse_dc_number_digits_with_resolver(
+                &digits,
+                ctx.resolver(),
+            )
+        } else {
+            let node = ctx.node(node_id)?;
+            bail!("Expected Number node for integer, found {:?}", node.kind)
         }
     })
 }
@@ -1278,18 +1287,19 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         &mut self,
         node_id: NodeId,
     ) -> Result<Arc<T>> {
-        let node = self.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Assignment { ident, value } => {
-                let ident_mstr = ident.clone();
-                let decoded = T::decode_dc_node(self, *value)?;
-                let arc = Arc::new(decoded);
-                self.reference_scope.insert(ident_mstr, Arc::clone(&arc))?;
-                Ok(arc)
-            }
-            other => bail!(
-                "Expected assignment declaration (Dc 269), found {other:?}"
-            ),
+        if let Some((ident_mstr, value)) =
+            self.arena.decode_assignment_with_resolver(node_id, self.resolver())
+        {
+            let decoded = T::decode_dc_node(self, value)?;
+            let arc = Arc::new(decoded);
+            self.reference_scope.insert(ident_mstr, Arc::clone(&arc))?;
+            Ok(arc)
+        } else {
+            let node = self.node(node_id)?;
+            bail!(
+                "Expected assignment declaration (Dc 269), found {:?}",
+                node.kind
+            )
         }
     }
 
@@ -1331,11 +1341,14 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         &self,
         name: &crate::DcMstr,
     ) -> Option<NodeId> {
-        for node in self.arena.nodes().iter().rev() {
-            if let DcSyntaxKind::Assignment { ident, value } = &node.kind {
+        let resolver = self.resolver();
+        for idx in (0..self.arena.nodes().len()).rev() {
+            if let Some((ident, value)) =
+                self.arena.decode_assignment_with_resolver(NodeId(idx), resolver)
+            {
                 let ident_mstr: &crate::DcMstr = ident.as_ref();
                 if ident_mstr == name {
-                    return Some(*value);
+                    return Some(value);
                 }
             }
         }
@@ -1367,6 +1380,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             if self.token_fills_role(tok, DcRole::RoutineInvocation)
                 || self.token_fills_role(tok, DcRole::LangSay)
             {
+                let resolver = self.resolver();
                 // In a routine invocation, arguments follow the routine identifier (or are trailing parameter containers).
                 // If an argument payload exists (e.g. `lang.say "payload"` or routine(param)), resolve to it.
                 let candidate_arg = args
@@ -1374,16 +1388,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                     .skip(usize::from(
                         self.token_fills_role(tok, DcRole::RoutineInvocation),
                     ))
-                    .find(|&&id| {
-                        if let Ok(child) = self.node(id) {
-                            !matches!(
-                                child.kind,
-                                DcSyntaxKind::Identifier { .. }
-                            )
-                        } else {
-                            false
-                        }
-                    })
+                    .find(|&&id| !self.arena.is_identifier_with_resolver(id, resolver))
                     .copied()
                     .or_else(|| args.get(1).copied())
                     .or_else(|| args.first().copied());
@@ -1402,7 +1407,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                             }
                         }
                     }
-                    if !matches!(arg_node.kind, DcSyntaxKind::Identifier { .. })
+                    if !self.arena.is_identifier_with_resolver(arg_id, resolver)
                     {
                         return Ok(Some(arg_id));
                     }
@@ -1445,8 +1450,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 DcSyntaxKind::Tagged { args, .. } => {
                     if let Some(&first_arg) = args.first() {
                         let arg_node = self.node(first_arg)?;
-                        if let DcSyntaxKind::Container { children, .. } =
-                            &arg_node.kind
+                        if arg_node.is_structural_container_with(self.resolver())
+                            && let DcSyntaxKind::Container { children, .. } =
+                                &arg_node.kind
                         {
                             children.as_slice()
                         } else {
@@ -1725,22 +1731,20 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let child_node = self.node(child_id)?;
         let (tag, value_node) = match &child_node.kind {
             DcSyntaxKind::Tagged { tag, args } => {
-                let arg_id = match args.as_slice() {
-                    [single_arg] => *single_arg,
-                    _ => child_id,
-                };
-                (tag.to_u128(), arg_id)
+                if self.resolver().is_assignment_construct(tag.to_u128()) {
+                    (crate::dc::DC_ASSIGN.to_u128(), child_id)
+                } else {
+                    let arg_id = match args.as_slice() {
+                        [single_arg] => *single_arg,
+                        _ => child_id,
+                    };
+                    (tag.to_u128(), arg_id)
+                }
             }
             DcSyntaxKind::Container { opener, .. } => {
                 (opener.to_u128(), child_id)
             }
             DcSyntaxKind::Atom(ch) => (ch.to_u128(), child_id),
-            DcSyntaxKind::Assignment { .. } => {
-                (crate::dc::DC_ASSIGN.to_u128(), child_id)
-            }
-            DcSyntaxKind::Identifier { .. } => {
-                (crate::dc::DC_BEGIN_IDENTIFIER.to_u128(), child_id)
-            }
             _ => (0, child_id),
         };
         Ok(FieldProjectionSpec {
@@ -1969,6 +1973,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         node_id: NodeId,
     ) -> Result<Option<crate::DcMstring>> {
         let node = self.node(node_id)?;
+        let resolver = self.resolver();
         match &node.kind {
             DcSyntaxKind::Tagged { tag, args }
                 if self.token_fills_role(*tag, DcRole::ReferenceBoundValue)
@@ -1977,11 +1982,12 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         DcRole::ReferenceNamedObject,
                     ) =>
             {
-                if let Some(&arg_id) = args.first() {
-                    let arg_node = self.node(arg_id)?;
-                    if let DcSyntaxKind::Identifier { name } = &arg_node.kind {
-                        return Ok(Some(name.clone()));
-                    }
+                if let Some(&arg_id) = args.first()
+                    && let Some(name) = self
+                        .arena
+                        .decode_identifier_with_resolver(arg_id, resolver)
+                {
+                    return Ok(Some(name));
                 }
                 bail!("Malformed bound reference under tag {tag}")
             }
@@ -1994,12 +2000,12 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                     DcRole::ReferenceNamedObject,
                 ) =>
             {
-                if let Some(&child_id) = children.first() {
-                    let child_node = self.node(child_id)?;
-                    if let DcSyntaxKind::Identifier { name } = &child_node.kind
-                    {
-                        return Ok(Some(name.clone()));
-                    }
+                if let Some(&child_id) = children.first()
+                    && let Some(name) = self
+                        .arena
+                        .decode_identifier_with_resolver(child_id, resolver)
+                {
+                    return Ok(Some(name));
                 }
                 bail!(
                     "Malformed bound reference container under opener {opener}"
@@ -2276,11 +2282,21 @@ impl DcMixedDecode for crate::DcMstring {
         node_id: NodeId,
     ) -> Result<Self> {
         ctx.decode_transparent(node_id, |ctx, node_id| {
-            let node = ctx.node(node_id)?;
-            match &node.kind {
-                DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.clone()),
-                DcSyntaxKind::Identifier { name } => Ok(name.clone()),
-                other => bail!("Expected Literal or Identifier node for DcMstring, found {other:?}"),
+            let resolver = ctx.resolver();
+            if let Some((_header, decoded)) =
+                ctx.arena.decode_literal_with_resolver(node_id, resolver)
+            {
+                Ok(decoded)
+            } else if let Some(name) =
+                ctx.arena.decode_identifier_with_resolver(node_id, resolver)
+            {
+                Ok(name)
+            } else {
+                let node = ctx.node(node_id)?;
+                bail!(
+                    "Expected Literal or Identifier node for DcMstring, found {:?}",
+                    node.kind
+                )
             }
         })
     }
@@ -2591,16 +2607,18 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         ctx.decode_transparent(node_id, |ctx, mut node_id| {
             if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
                 let candidate = ctx.unwrap_transparent(payload_id)?;
-                if matches!(
-                    ctx.node(candidate)?.kind,
-                    DcSyntaxKind::Container { .. } | DcSyntaxKind::Tagged { .. }
-                ) {
+                let cand_node = ctx.node(candidate)?;
+                if cand_node.is_structural_container_with(ctx.resolver())
+                    || matches!(cand_node.kind, DcSyntaxKind::Tagged { .. })
+                {
                     node_id = candidate;
                 }
             }
             let node = ctx.node(node_id)?;
             match &node.kind {
-                DcSyntaxKind::Container { opener, children, .. } => {
+                DcSyntaxKind::Container { opener, children, .. }
+                    if !node.is_leaf_value_container_with(ctx.resolver()) =>
+                {
                     let child_slice = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation) && children.len() >= 3 {
                         children.get(1..).context("Format representation container missing payload children")?
                     } else {
@@ -2763,8 +2781,7 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
                 let mut iter = children.iter().copied().peekable();
 
                 if let Some(&first_id) = iter.peek() {
-                    let first_node = ctx.node(first_id)?;
-                    if matches!(first_node.kind, DcSyntaxKind::Number { .. }) {
+                    if ctx.arena.is_number_with_resolver(first_id, ctx.resolver()) {
                         let second_id = children.get(1).copied();
                         let is_followed_by_type = if let Some(sec_id) = second_id {
                             let sec_node = ctx.node(sec_id)?;
@@ -3369,7 +3386,9 @@ fn decode_filename_bytes(
                 .first()
                 .context("Empty equivalent representation tagged construct")?;
             let arg_node = ctx.node(first)?;
-            if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
+            if arg_node.is_structural_container_with(ctx.resolver())
+                && let DcSyntaxKind::Container { children, .. } = &arg_node.kind
+            {
                 return decode_equivalent_filename_candidates(ctx, children);
             }
             return decode_equivalent_filename_candidates(ctx, args);
@@ -3384,7 +3403,9 @@ fn decode_filename_bytes(
             let payload = payload.clone();
             Ok(ctx.materialize_binary(&payload)?.into_owned())
         }
-        DcSyntaxKind::Literal { .. } => {
+        DcSyntaxKind::Container { .. }
+            if ctx.arena.is_literal_with_resolver(node_id, ctx.resolver()) =>
+        {
             Ok(String::decode_dc_node(ctx, node_id)?.into_bytes())
         }
         other => bail!(

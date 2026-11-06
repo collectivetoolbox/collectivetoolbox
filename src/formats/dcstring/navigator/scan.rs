@@ -1479,72 +1479,47 @@ impl<'a> DcDocumentNavigator<'a> {
         )
     }
 
-    pub(super) fn decode_literal_span_with_resolver(
+    pub(super) fn decode_literal_from_cursor(
         &mut self,
-        span: DcByteSpan,
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<(Vec<DcChar>, DcMstring)> {
-        let mut offset = span.start;
-        let Some((first, after_first)) =
-            self.read_token_or_binary_at(offset)?
-        else {
+        let Some(first) = self.pop_next_token()? else {
             bail!("Empty literal span");
         };
         ensure!(
             first.fills_role_with(DcRole::BeginLiteral, resolver),
             "Expected literal opener (Dc 260), found {first}"
         );
-        offset = after_first;
         let mut type_header = Vec::new();
-        if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-            if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
-                offset = next_off;
-                while offset < span.end {
-                    let Some((tch, after_tch)) =
-                        self.read_token_or_binary_at(offset)?
-                    else {
-                        break;
-                    };
-                    offset = after_tch;
-                    if tch.fills_role_with(DcRole::EndTypeDef, resolver) {
-                        break;
-                    }
-                    type_header.push(tch);
+        if self
+            .peek_next_token()?
+            .is_some_and(|ch| ch.fills_role_with(DcRole::BeginTypeDef, resolver))
+        {
+            let _ = self.pop_next_token()?;
+            while let Some(tch) = self.pop_next_token()? {
+                if tch.fills_role_with(DcRole::EndTypeDef, resolver) {
+                    break;
                 }
+                type_header.push(tch);
             }
         }
         let mut decoded = DcMstring::new();
-        while offset < span.end {
-            let Some((mut ch, next_off)) =
-                self.read_token_or_binary_at(offset)?
-            else {
-                break;
-            };
-            offset = next_off;
+        while let Some(mut ch) = self.pop_next_token()? {
             if ch.fills_role_with(DcRole::EndLiteral, resolver) {
                 break;
             }
             if ch.fills_role_with(DcRole::Escape, resolver) {
-                if offset < span.end {
-                    if let Some((escaped, after_esc)) =
-                        self.read_token_or_binary_at(offset)?
-                    {
-                        ch = escaped;
-                        offset = after_esc;
-                    } else {
-                        self.syntax_issue(
-                            policy,
-                            offset,
-                            format!("Dangling escape Dc 255 in literal at offset {offset}"),
-                        )?;
-                        break;
-                    }
+                if let Some(escaped) = self.pop_next_token()? {
+                    ch = escaped;
                 } else {
                     self.syntax_issue(
                         policy,
-                        offset,
-                        format!("Dangling escape Dc 255 in literal at offset {offset}"),
+                        self.cursor,
+                        format!(
+                            "Dangling escape Dc 255 in literal at offset {}",
+                            self.cursor
+                        ),
                     )?;
                     break;
                 }
@@ -1552,6 +1527,62 @@ impl<'a> DcDocumentNavigator<'a> {
             decoded.push_char(ch);
         }
         Ok((type_header, decoded))
+    }
+
+    fn with_stub_cursor<R>(
+        &mut self,
+        stub: &crate::navigator::DcFrameStub,
+        f: impl FnOnce(&mut Self) -> Result<R>,
+    ) -> Result<R> {
+        let saved = self.save_checkpoint();
+        let saved_span = self.active_span;
+        if let DcFrameHeaderInfo::SplicedTokens(tokens) = &stub.header_info {
+            let start_idx = self.spliced_buf.len();
+            self.spliced_buf.extend_from_slice(tokens);
+            self.spliced_head = start_idx;
+            self.spliced_end = self.spliced_buf.len();
+            let res = f(self);
+            self.spliced_buf.truncate(start_idx);
+            self.active_span = saved_span;
+            self.restore_checkpoint(saved);
+            res
+        } else {
+            self.cursor = stub.outer_span.start;
+            self.active_span = stub.outer_span;
+            self.spliced_head = self.spliced_end;
+            let res = f(self);
+            self.active_span = saved_span;
+            self.restore_checkpoint(saved);
+            res
+        }
+    }
+
+    pub(super) fn decode_literal_stub_with_resolver(
+        &mut self,
+        stub: &crate::navigator::DcFrameStub,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(Vec<DcChar>, DcMstring)> {
+        self.with_stub_cursor(stub, |nav| {
+            nav.decode_literal_from_cursor(policy, resolver)
+        })
+    }
+
+    pub(super) fn decode_literal_span_with_resolver(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(Vec<DcChar>, DcMstring)> {
+        let saved = self.save_checkpoint();
+        let saved_span = self.active_span;
+        self.cursor = span.start;
+        self.active_span = span;
+        self.spliced_head = self.spliced_end;
+        let res = self.decode_literal_from_cursor(policy, resolver);
+        self.active_span = saved_span;
+        self.restore_checkpoint(saved);
+        res
     }
 
     pub(super) fn decode_identifier_span(
@@ -1566,23 +1597,29 @@ impl<'a> DcDocumentNavigator<'a> {
         )
     }
 
-    pub(super) fn decode_identifier_span_with_resolver(
+    pub(super) fn decode_identifier_stub_with_resolver(
         &mut self,
-        span: DcByteSpan,
+        stub: &crate::navigator::DcFrameStub,
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<DcMstring> {
-        let mut offset = span.start;
-        let Some((first, after_first)) =
-            self.read_token_or_binary_at(offset)?
-        else {
+        self.with_stub_cursor(stub, |nav| {
+            nav.decode_identifier_from_cursor(policy, resolver)
+        })
+    }
+
+    pub(super) fn decode_identifier_from_cursor(
+        &mut self,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcMstring> {
+        let Some(first) = self.pop_next_token()? else {
             bail!("Empty identifier span");
         };
         ensure!(
             first.fills_role_with(DcRole::BeginIdentifier, resolver),
             "Expected identifier opener (Dc 270), found {first}"
         );
-        offset = after_first;
         // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
         let closer = CharTarget::from_u128(first.to_u128())
             .and_then(|t| resolver.closer_for_opener(&t))
@@ -1590,56 +1627,37 @@ impl<'a> DcDocumentNavigator<'a> {
                 ctb_formats_dcdata::dc::DC_END_IDENTIFIER,
                 DcChar::from_u128,
             );
-        let saved_cursor = self.cursor;
-        let saved_span = self.active_span;
-        self.cursor = offset;
-        self.active_span = span;
         let mut type_ctx = SyntaxEvalContext::new(resolver, None);
         type_ctx.policy.clone_from(policy);
-        // Reason for fallback: speculative leading-type evaluation failure leaves offset unchanged.
+        let before_type = self.save_checkpoint();
+        // Reason for fallback: speculative leading-type evaluation failure restores checkpoint.
         if self
             .try_consume_optional_leading_type(closer, &mut type_ctx)
             .unwrap_or(None)
-            .is_some()
-            && !type_ctx.has_errors
-            && self.cursor > offset
-            && self.cursor < span.end
+            .is_none()
+            || type_ctx.has_errors
+            || self
+                .peek_next_token()?
+                .is_none_or(|ch| ch.fills_role_with(DcRole::EndIdentifier, resolver))
         {
-            offset = self.cursor;
+            self.restore_checkpoint(before_type);
         }
-        self.cursor = saved_cursor;
-        self.active_span = saved_span;
         let mut name = DcMstring::new();
-        while offset < span.end {
-            let Some((mut ch, next_off)) =
-                self.read_token_or_binary_at(offset)?
-            else {
-                break;
-            };
-            offset = next_off;
+        while let Some(mut ch) = self.pop_next_token()? {
             if ch.fills_role_with(DcRole::EndIdentifier, resolver) {
                 break;
             }
             if ch.fills_role_with(DcRole::Escape, resolver) {
-                if offset < span.end {
-                    if let Some((escaped, after_esc)) =
-                        self.read_token_or_binary_at(offset)?
-                    {
-                        ch = escaped;
-                        offset = after_esc;
-                    } else {
-                        self.syntax_issue(
-                            policy,
-                            offset,
-                            format!("Dangling escape Dc 255 in identifier at offset {offset}"),
-                        )?;
-                        break;
-                    }
+                if let Some(escaped) = self.pop_next_token()? {
+                    ch = escaped;
                 } else {
                     self.syntax_issue(
                         policy,
-                        offset,
-                        format!("Dangling escape Dc 255 in identifier at offset {offset}"),
+                        self.cursor,
+                        format!(
+                            "Dangling escape Dc 255 in identifier at offset {}",
+                            self.cursor
+                        ),
                     )?;
                     break;
                 }
@@ -1647,6 +1665,23 @@ impl<'a> DcDocumentNavigator<'a> {
             name.push_char(ch);
         }
         Ok(name)
+    }
+
+    pub(super) fn decode_identifier_span_with_resolver(
+        &mut self,
+        span: DcByteSpan,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcMstring> {
+        let saved = self.save_checkpoint();
+        let saved_span = self.active_span;
+        self.cursor = span.start;
+        self.active_span = span;
+        self.spliced_head = self.spliced_end;
+        let res = self.decode_identifier_from_cursor(policy, resolver);
+        self.active_span = saved_span;
+        self.restore_checkpoint(saved);
+        res
     }
 
     pub(super) fn decode_number_span(
@@ -1659,40 +1694,57 @@ impl<'a> DcDocumentNavigator<'a> {
         )
     }
 
-    pub(super) fn decode_number_span_with_resolver(
+    pub(super) fn decode_number_from_cursor(
         &mut self,
-        span: DcByteSpan,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<(DcChar, Vec<DcChar>)> {
-        let mut offset = span.start;
-        let Some((first, after_first)) =
-            self.read_token_or_binary_at(offset)?
-        else {
+        let Some(first) = self.pop_next_token()? else {
             bail!("Empty number span");
         };
         ensure!(
             first.fills_role_with(DcRole::BeginNumber, resolver),
             "Expected number opener (Dc 6), found {first}"
         );
-        offset = after_first;
-        let Some((format, after_fmt)) = self.read_token_or_binary_at(offset)?
-        else {
+        let Some(format) = self.pop_next_token()? else {
             bail!("Truncated number format");
         };
-        offset = after_fmt;
+        if format.fills_role_with(DcRole::EndNumber, resolver) {
+            return Ok((DC_INTEGER, Vec::new()));
+        }
         let mut digits = Vec::new();
-        while offset < span.end {
-            let Some((ch, next_off)) = self.read_token_or_binary_at(offset)?
-            else {
-                break;
-            };
-            offset = next_off;
+        while let Some(ch) = self.pop_next_token()? {
             if ch.fills_role_with(DcRole::EndNumber, resolver) {
                 break;
             }
             digits.push(ch);
         }
         Ok((format, digits))
+    }
+
+    pub(super) fn decode_number_stub_with_resolver(
+        &mut self,
+        stub: &crate::navigator::DcFrameStub,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(DcChar, Vec<DcChar>)> {
+        self.with_stub_cursor(stub, |nav| {
+            nav.decode_number_from_cursor(resolver)
+        })
+    }
+
+    pub(super) fn decode_number_span_with_resolver(
+        &mut self,
+        span: DcByteSpan,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<(DcChar, Vec<DcChar>)> {
+        let saved = self.save_checkpoint();
+        let saved_span = self.active_span;
+        self.cursor = span.start;
+        self.active_span = span;
+        self.spliced_head = self.spliced_end;
+        let res = self.decode_number_from_cursor(resolver);
+        self.active_span = saved_span;
+        self.restore_checkpoint(saved);
+        res
     }
 
     pub(super) fn read_tokens_in_span(

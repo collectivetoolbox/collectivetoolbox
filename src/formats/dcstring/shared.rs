@@ -321,15 +321,17 @@ pub fn decode_dc_identifier(
     ctx: &mut DcProjectionContext<'_, '_>,
     node_id: NodeId,
 ) -> Result<DcMstring> {
-    let node = ctx.node(node_id)?;
-    match &node.kind {
-        crate::navigator::DcSyntaxKind::Identifier { name } => {
-            ensure!(!name.is_empty(), "Identifiers must not be empty");
-            Ok(name.clone())
-        }
-        other => {
-            bail!("Expected Identifier node (Dc 270 .. 271), found {other:?}")
-        }
+    if let Some(name) =
+        ctx.arena.decode_identifier_with_resolver(node_id, ctx.resolver())
+    {
+        ensure!(!name.is_empty(), "Identifiers must not be empty");
+        Ok(name)
+    } else {
+        let node = ctx.node(node_id)?;
+        bail!(
+            "Expected Identifier node (Dc 270 .. 271), found {:?}",
+            node.kind
+        )
     }
 }
 
@@ -367,30 +369,31 @@ pub fn decode_shared_reference(
     ctx: &mut DcProjectionContext<'_, '_>,
     node_id: NodeId,
 ) -> Result<(DcMstring, DcMstring)> {
-    let node = ctx.node(node_id)?;
-    match &node.kind {
-        crate::navigator::DcSyntaxKind::Assignment { ident, value } => {
-            let val_node = ctx.node(*value)?;
-            match &val_node.kind {
-                crate::navigator::DcSyntaxKind::Tagged { tag, args }
-                    if ctx.token_fills_role(
-                        *tag,
-                        ctb_formats_dcdata::syntax::DcRole::ReferenceBoundValue,
-                    ) =>
-                {
-                    let target_id = args
-                        .first()
-                        .copied()
-                        .context("Missing reference target identifier")?;
-                    let target_name = decode_dc_identifier(ctx, target_id)?;
-                    Ok((ident.clone(), target_name))
-                }
-                other => bail!(
-                    "Expected reference tag Dc 540 in assignment, found {other:?}"
-                ),
+    if let Some((ident, value)) =
+        ctx.arena.decode_assignment_with_resolver(node_id, ctx.resolver())
+    {
+        let val_node = ctx.node(value)?;
+        match &val_node.kind {
+            crate::navigator::DcSyntaxKind::Tagged { tag, args }
+                if ctx.token_fills_role(
+                    *tag,
+                    ctb_formats_dcdata::syntax::DcRole::ReferenceBoundValue,
+                ) =>
+            {
+                let target_id = args
+                    .first()
+                    .copied()
+                    .context("Missing reference target identifier")?;
+                let target_name = decode_dc_identifier(ctx, target_id)?;
+                Ok((ident, target_name))
             }
+            other => bail!(
+                "Expected reference tag Dc 540 in assignment, found {other:?}"
+            ),
         }
-        other => bail!("Expected Assignment node, found {other:?}"),
+    } else {
+        let node = ctx.node(node_id)?;
+        bail!("Expected Assignment node, found {:?}", node.kind)
     }
 }
 

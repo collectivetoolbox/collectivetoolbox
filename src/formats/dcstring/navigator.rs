@@ -976,28 +976,6 @@ impl<'a> DcDocumentNavigator<'a> {
         false
     }
 
-    pub(super) fn pop_spliced_escaped_until(
-        &mut self,
-        closer: DcChar,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> DcMstring {
-        let mut out = DcMstring::new();
-        while let Some(tok) = self.pop_spliced_token() {
-            if tok.fills_role_with(DcRole::Escape, resolver) {
-                if let Some(escaped) = self.pop_spliced_token() {
-                    out.push_char(escaped);
-                }
-            } else if tok == closer
-                || resolver.is_equivalent_to(tok.to_u128(), closer.to_u128())
-            {
-                break;
-            } else {
-                out.push_char(tok);
-            }
-        }
-        out
-    }
-
     pub(super) fn scan_spliced_sibling_stub(
         &mut self,
         head_dc: DcChar,
@@ -1044,121 +1022,37 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(None);
         }
 
-        if head_dc.fills_role_with(DcRole::BeginLiteral, resolver) {
-            // Reason for fallback: opener defaults to CharTarget::Dc(260) and closer defaults to DC_END_LITERAL.
-            let closer = resolver
-                .closer_for_opener(
-                    &CharTarget::from_u128(head_dc.to_u128())
-                        .unwrap_or(CharTarget::Dc(260)),
-                )
-                .map_or(
-                    ctb_formats_dcdata::dc::DC_END_LITERAL,
-                    DcChar::from_u128,
-                );
-            if self.spliced_has_unescaped_closer(closer, true, resolver) {
-                self.pop_spliced_token();
-                let mut type_header = Vec::new();
-                if self.peek_spliced_token().is_some_and(|t| {
-                    t.fills_role_with(DcRole::BeginTypeDef, resolver)
-                }) {
-                    self.pop_spliced_token();
-                    while let Some(tok) = self.pop_spliced_token() {
-                        if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
-                            break;
-                        }
-                        type_header.push(tok);
-                    }
-                }
-                let decoded = self.pop_spliced_escaped_until(closer, resolver);
-                return Ok(Some(DcFrameStub {
-                    head_dc,
-                    closer_dc: Some(closer),
-                    outer_span: zero_span,
-                    inner_span: None,
-                    header_info: DcFrameHeaderInfo::SplicedLiteral {
-                        type_header,
-                        decoded,
-                    },
-                }));
-            }
-        }
-
-        if head_dc.fills_role_with(DcRole::BeginIdentifier, resolver) {
-            // Reason for fallback: opener defaults to CharTarget::Dc(270) and closer defaults to DC_END_IDENTIFIER.
-            let closer = resolver
-                .closer_for_opener(
-                    &CharTarget::from_u128(head_dc.to_u128())
-                        .unwrap_or(CharTarget::Dc(270)),
-                )
-                .map_or(
-                    ctb_formats_dcdata::dc::DC_END_IDENTIFIER,
-                    DcChar::from_u128,
-                );
-            if self.spliced_has_unescaped_closer(closer, true, resolver) {
-                self.pop_spliced_token();
-                let mut type_ctx = SyntaxEvalContext::new(resolver, None);
-                type_ctx.policy.clone_from(policy);
-                let _ = self
-                    .try_consume_optional_leading_type(closer, &mut type_ctx);
-                let name = self.pop_spliced_escaped_until(closer, resolver);
-                return Ok(Some(DcFrameStub {
-                    head_dc,
-                    closer_dc: Some(closer),
-                    outer_span: zero_span,
-                    inner_span: None,
-                    header_info: DcFrameHeaderInfo::SplicedIdentifier(name),
-                }));
-            }
-        }
-
-        if head_dc.fills_role_with(DcRole::BeginNumber, resolver) {
-            // Reason for fallback: opener defaults to CharTarget::Dc(6) and closer defaults to DC_END_NUMBER.
-            let closer = resolver
-                .closer_for_opener(
-                    &CharTarget::from_u128(head_dc.to_u128())
-                        .unwrap_or(CharTarget::Dc(6)),
-                )
-                .map_or(
-                    ctb_formats_dcdata::dc::DC_END_NUMBER,
-                    DcChar::from_u128,
-                );
-            if self.spliced_has_unescaped_closer(closer, false, resolver) {
-                self.pop_spliced_token();
-                let format = match self.peek_spliced_token() {
-                    Some(tok)
-                        if tok == closer
-                            || resolver.is_equivalent_to(
-                                tok.to_u128(),
-                                closer.to_u128(),
-                            ) =>
-                    {
-                        DC_INTEGER
-                    }
-                    // Reason for fallback: popped number format token defaults to DC_INTEGER.
-                    Some(_) => {
-                        self.pop_spliced_token().unwrap_or(DC_INTEGER)
-                    }
-                    None => DC_INTEGER,
-                };
-                let mut digits = Vec::new();
+        if head_dc.fills_role_with(DcRole::BeginLiteral, resolver)
+            || head_dc.fills_role_with(DcRole::BeginIdentifier, resolver)
+            || head_dc.fills_role_with(DcRole::BeginNumber, resolver)
+        {
+            let escaped = !head_dc.fills_role_with(DcRole::BeginNumber, resolver);
+            if let Some(closer) = CharTarget::from_u128(head_dc.to_u128())
+                .and_then(|t| resolver.closer_for_opener(&t))
+                .map(DcChar::from_u128)
+                && self.spliced_has_unescaped_closer(closer, escaped, resolver)
+            {
+                let mut tokens = Vec::new();
                 while let Some(tok) = self.pop_spliced_token() {
-                    if tok == closer
+                    tokens.push(tok);
+                    if escaped && tok.fills_role_with(DcRole::Escape, resolver)
+                    {
+                        if let Some(esc) = self.pop_spliced_token() {
+                            tokens.push(esc);
+                        }
+                    } else if tok == closer
                         || resolver
                             .is_equivalent_to(tok.to_u128(), closer.to_u128())
                     {
                         break;
                     }
-                    digits.push(tok);
                 }
                 return Ok(Some(DcFrameStub {
                     head_dc,
                     closer_dc: Some(closer),
                     outer_span: zero_span,
                     inner_span: None,
-                    header_info: DcFrameHeaderInfo::SplicedNumber {
-                        format,
-                        digits,
-                    },
+                    header_info: DcFrameHeaderInfo::SplicedTokens(tokens),
                 }));
             }
         }
@@ -3879,7 +3773,7 @@ mod tests {
         assert!(validate_dc_tokens_strict(&invoke_bad_str).is_err());
 
         // 4. Dc 268 (lang.assign) and Dc 269 (Assign operator) equivalence:
-        //    - 268 258 270 "x" 271 259 258 [number: 99] 259 normalizes to DcSyntaxKind::Assignment
+        //    - 268 258 270 "x" 271 259 258 [number: 99] 259 normalizes to DcSyntaxKind::Tagged
         //      and resolves 540 bound value references identically to 269
         let mut doc_268 = DcMstring::new();
         doc_268.push_char(DcChar::from_short(268));
@@ -3904,10 +3798,14 @@ mod tests {
             .roots()
             .first()
             .context("Missing 268 assignment root")?;
-        assert!(matches!(
-            arena_268.node(assign_root).context("Missing node")?.kind,
-            DcSyntaxKind::Assignment { .. }
-        ));
+        assert!(
+            arena_268
+                .decode_assignment_with_resolver(
+                    assign_root,
+                    default_syntax_resolver().as_ref(),
+                )
+                .is_some()
+        );
         let ref_root = *arena_268
             .roots()
             .get(1)
