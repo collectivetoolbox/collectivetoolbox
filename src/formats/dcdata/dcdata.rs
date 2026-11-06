@@ -32,7 +32,6 @@ pub(crate) use ctb_utilities::*;
 
 pub use crate as ctb_formats_dc_data;
 
-pub mod column_spec;
 #[path = "../../build_support/ctbnbdl.rs"]
 pub mod ctbnbdl;
 #[rustfmt::skip]
@@ -42,17 +41,16 @@ pub mod dc_char;
 pub mod dc_def;
 pub mod dc_number_minimal;
 pub mod dcts;
-pub mod format;
 pub mod format_spec;
-pub mod graph_ledger;
-pub mod layout;
 pub mod lookup;
-pub mod report;
 pub mod seed_graph;
-pub mod shared;
+pub mod support;
 pub mod syntax;
-pub mod updater;
-pub mod validation;
+
+pub use support::{
+    column_spec, format, graph_ledger, layout, report, shared, updater,
+    validation,
+};
 
 pub use column_spec::{
     ParsedAliasesOrBaseColumn, parse_aliases_or_base_column,

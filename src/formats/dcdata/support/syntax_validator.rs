@@ -26,11 +26,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::ast::{
-    ActionArg, CharTarget, DcSyntaxRule, SyntaxElement, SyntaxPattern,
-    SyntaxTerm,
-};
 use crate::report::ValidationReport;
+use crate::syntax::ast::{
+    ActionArg, CharTarget, DcSyntaxRule, SubtypeConstraint, SyntaxElement,
+    SyntaxPattern, SyntaxTerm,
+};
+use crate::syntax::parser::parse_target_token;
 use std::collections::{HashMap, HashSet};
 
 /// Format metadata needed to validate format references in syntax rules (e.g. `[data:<format>]`).
@@ -95,7 +96,7 @@ impl FormatValidationRegistry {
     #[must_use]
     pub fn find_format(&self, token: &str) -> Option<&FormatValidationInfo> {
         let trimmed = token.trim();
-        if let Some(target) = super::parser::parse_target_token(trimmed) {
+        if let Some(target) = parse_target_token(trimmed) {
             if let CharTarget::Format(fid) = target {
                 if let Some(id) = fid
                     .dc_id()
@@ -475,7 +476,7 @@ fn validate_syntax_element(
                 if let Some(sub) = subtype {
                     let sub_dsl = sub.format_dsl();
                     let format = match sub {
-                        super::SubtypeConstraint::Data { format, .. } => {
+                        SubtypeConstraint::Data { format, .. } => {
                             format.as_deref()
                         }
                         _ => {
@@ -535,7 +536,7 @@ fn validate_syntax_element(
                         } else if let Some(fmt_info) =
                             formats.find_format(sub_trimmed)
                         {
-                            if super::parser::parse_target_token(sub_trimmed)
+                            if parse_target_token(sub_trimmed)
                                 .is_none()
                                 && !fmt_info.stable_ident
                             {
@@ -589,7 +590,7 @@ fn validate_syntax_element(
             } else if name == "number" {
                 if let Some(sub) = subtype {
                     let sub_dsl = sub.format_dsl();
-                    let super::SubtypeConstraint::Number(num) = sub else {
+                    let SubtypeConstraint::Number(num) = sub else {
                         report.add_error(
                             source_file,
                             Some(line_no),
@@ -606,7 +607,7 @@ fn validate_syntax_element(
                         && !formats.formats_by_id.is_empty()
                     {
                         if let Some(target) =
-                            super::parser::parse_target_token(clause)
+                            parse_target_token(clause)
                         {
                             if matches!(target, CharTarget::Format(_)) {
                                 if formats.find_format(clause).is_none() {
@@ -669,7 +670,7 @@ fn validate_syntax_element(
             } else if name == "script" {
                 let script_target = subtype
                     .as_ref()
-                    .and_then(super::SubtypeConstraint::as_target_str);
+                    .and_then(SubtypeConstraint::as_target_str);
                 if script_target.is_none_or(str::is_empty) {
                     report.add_error(
                         source_file,
@@ -709,7 +710,7 @@ fn validate_syntax_element(
                     Some("Must be a registered named type defined in README-named-types.csv"),
                 );
             }
-            if let Some(super::SubtypeConstraint::Pattern(sub_pattern)) = subtype
+            if let Some(SubtypeConstraint::Pattern(sub_pattern)) = subtype
             {
                 validate_pattern_node(
                     sub_pattern,

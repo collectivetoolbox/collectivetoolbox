@@ -37,7 +37,7 @@ pub mod resolver;
 #[rustfmt::skip]
 #[path = "syntax/role.generated.rs"]
 pub mod role;
-pub mod validator;
+pub use crate::support::syntax_validator as validator;
 
 mod data_constraint;
 
@@ -79,62 +79,6 @@ impl DatasetRuleResolver {
         )]
         Self::load_from_seed_graph()
             .expect("Bundled runtime seed graph syntax resolver must load")
-    }
-
-    /// Builds a resolver by indexing the CSV fixture dataset
-    /// in `src/formats/dcdata/data-src/`.
-    ///
-    /// Used by the consistency test verifying that the seed graph
-    /// syntax resolver is up to date with the CSV dataset.
-    ///
-    /// # Errors
-    /// Returns an error if the fixture dataset is missing or invalid.
-    pub fn load_from_embedded_dataset() -> Result<Self> {
-        let named_types_csv = crate::get_dc_data_file("README-named-types.csv")
-            .context("Missing README-named-types.csv fixture")?;
-        let named_resolver =
-            Self::load_from_dataset(&[], &[], Some(&named_types_csv))?;
-        let named_types = named_resolver.named_types.keys().cloned().collect();
-        let mut fmt_report = crate::report::ValidationReport::new();
-        let formats_dir = crate::get_formats_categories_dir_path();
-        let format_defns = crate::format::validate_all_format_files_from_disk(
-            &formats_dir,
-            None,
-            &mut fmt_report,
-        );
-        fmt_report
-            .ensure_valid()
-            .context("Invalid format dataset for syntax resolution")?;
-        let format_ids = format_defns
-            .iter()
-            .filter_map(|defn| defn.short_id)
-            .collect();
-        let format_syntax_ids = format_defns
-            .iter()
-            .filter(|defn| defn.syntax.is_some())
-            .filter_map(|defn| defn.short_id)
-            .collect();
-        let format_registry = build_format_validation_registry(&format_defns);
-        let categories_dir = crate::get_dc_categories_dir_path();
-        let mut dc_defns = crate::validation::validate_all_dc_files_from_disk(
-            &categories_dir,
-            &format_ids,
-            None,
-            Some(&named_types),
-            None,
-            Some(&format_syntax_ids),
-            Some(&format_registry),
-            &mut fmt_report,
-        );
-        fmt_report
-            .ensure_valid()
-            .context("Invalid Dc dataset for syntax resolution")?;
-        dc_defns.sort_by_key(|defn| defn.dc_id);
-        Self::load_from_dataset(
-            &dc_defns,
-            &format_defns,
-            Some(&named_types_csv),
-        )
     }
 }
 

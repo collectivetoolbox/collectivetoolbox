@@ -79,7 +79,7 @@ use crate::dc::{
     DC_TYPE_TRANSFORMATION, DC_TYPE_TRANSMUTATION, DC_TYPE_UNION,
     DC_UNICODE_SCRIPT, DC_VALUE_RANGE, DcChar,
 };
-use crate::dc_def::{DcDefn, FormatDetails};
+use crate::dc_def::{BidiClass, DcDefn, FormatDetails, GeneralCategory};
 use crate::format_spec::{DcToken, FormatExpr, decode_dc_stream};
 use crate::graph_ledger::{
     LedgerNode, NumericBoundValue, SeedEntityKey, decode_ctbnbdl_bundle,
@@ -88,7 +88,6 @@ use crate::graph_ledger::{
     parse_for_each_statement_tokens, parse_statement_tokens,
     single_valued_property_set,
 };
-use crate::shared::{BidiClass, GeneralCategory};
 use crate::syntax::ast::{
     ActionArg, CharTarget, DcSyntaxRule, NumberSubtypeConstraint, Quantifier,
     SubtypeConstraint, SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm,
@@ -3292,7 +3291,6 @@ mod tests {
         encode_statement_tokens, encode_string_value_tokens,
         update_ledger_in_memory,
     };
-    use crate::shared::{BidiClass, GeneralCategory};
     use crate::syntax::parse_dc_syntax;
     use ctb_utilities::format_id::DC_FILE_EXTENSION;
     use std::collections::BTreeSet;

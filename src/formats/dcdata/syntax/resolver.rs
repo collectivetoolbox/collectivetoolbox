@@ -35,6 +35,7 @@ use super::ast::{
     SubtypeConstraint, SyntaxElement, SyntaxPattern, SyntaxTerm,
     classify_rule_framing_shape_with, is_unary_prefix_rule,
 };
+#[cfg(test)]
 use super::parser::parse_dc_syntax;
 use super::role::DcRole;
 use crate::dc::{
@@ -42,7 +43,6 @@ use crate::dc::{
     DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
     DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
 };
-use crate::dc_def::DcDefn;
 use ctb_utilities::format_id::FormatId;
 use std::collections::{HashMap, HashSet};
 
@@ -794,41 +794,6 @@ fn pattern_is_pure_type_constructor(pattern: &SyntaxPattern) -> bool {
     })
 }
 
-fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
-    parse_decomposition_target(decompositions, "<prefer>")
-}
-
-fn parse_decomposition_target(
-    decompositions: &[String],
-    marker: &str,
-) -> Option<CharTarget> {
-    for item in decompositions {
-        if let Some(rest) = item.trim().strip_prefix(marker) {
-            let trimmed = rest.trim();
-            if let Ok(shorthand) =
-                ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed)
-            {
-                return match shorthand {
-                    ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
-                        u32::try_from(id).ok().map(CharTarget::Dc)
-                    }
-                    ctb_storage_minimal::shorthand::DcShorthand::Format(_) => {
-                        ctb_utilities::format_id::FormatId::from_shorthand(
-                            trimmed,
-                        )
-                        .map(CharTarget::Format)
-                    }
-                    ctb_storage_minimal::shorthand::DcShorthand::Unicode(
-                        cp,
-                    ) => Some(CharTarget::Unicode(cp)),
-                    _ => None,
-                };
-            }
-        }
-    }
-    None
-}
-
 /// Exclusive upper bound on already-assigned short Dcs eligible for
 /// reverse `<equiv>` Unicode-to-short-Dc mapping (`0..641`).
 pub const MAX_ASSIGNED_SHORT_DC_EXCLUSIVE: u32 = 641;
@@ -836,30 +801,30 @@ pub const MAX_ASSIGNED_SHORT_DC_EXCLUSIVE: u32 = 641;
 /// In-memory resolver caching syntax rules, named types, and script mappings.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DatasetRuleResolver {
-    pub(super) rules: HashMap<CharTarget, DcSyntaxRule>,
-    pub(super) named_types: HashMap<String, SyntaxPattern>,
-    pub(super) script_chars: HashMap<String, HashSet<u128>>,
-    pub(super) closing_delimiters: HashMap<u128, CharTarget>,
-    pub(super) opener_to_closer: HashMap<CharTarget, u128>,
-    pub(super) deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
-    pub(super) container_headers: HashMap<CharTarget, Vec<SyntaxElement>>,
-    pub(super) trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
-    pub(super) infix_rules:
+    pub(crate) rules: HashMap<CharTarget, DcSyntaxRule>,
+    pub(crate) named_types: HashMap<String, SyntaxPattern>,
+    pub(crate) script_chars: HashMap<String, HashSet<u128>>,
+    pub(crate) closing_delimiters: HashMap<u128, CharTarget>,
+    pub(crate) opener_to_closer: HashMap<CharTarget, u128>,
+    pub(crate) deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
+    pub(crate) container_headers: HashMap<CharTarget, Vec<SyntaxElement>>,
+    pub(crate) trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
+    pub(crate) infix_rules:
         HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
-    pub(super) named_type_starters: HashMap<String, StarterSet>,
-    pub(super) semantic_equivalents: HashMap<u128, HashSet<u128>>,
-    pub(super) opaque_containers: HashSet<u128>,
-    pub(super) canonical_map: HashMap<u128, u128>,
-    pub(super) unicode_text_mappings: HashMap<u128, (String, bool)>,
-    pub(super) unicode_to_short_dc_by_first_cp:
+    pub(crate) named_type_starters: HashMap<String, StarterSet>,
+    pub(crate) semantic_equivalents: HashMap<u128, HashSet<u128>>,
+    pub(crate) opaque_containers: HashSet<u128>,
+    pub(crate) canonical_map: HashMap<u128, u128>,
+    pub(crate) unicode_text_mappings: HashMap<u128, (String, bool)>,
+    pub(crate) unicode_to_short_dc_by_first_cp:
         HashMap<u128, Vec<(Vec<u128>, u128)>>,
-    pub(super) subtypes: HashMap<u128, HashSet<u128>>,
-    pub(super) framing_shapes: HashMap<u128, FramingShape>,
-    pub(super) special_wrapper_tokens: HashSet<u128>,
-    pub(super) splice_trigger_tokens: HashSet<u128>,
-    pub(super) excluded_atom_dc_tokens: HashSet<u128>,
-    pub(super) type_tokens: HashSet<u128>,
-    pub(super) evaluable_expression_starters: HashSet<u128>,
+    pub(crate) subtypes: HashMap<u128, HashSet<u128>>,
+    pub(crate) framing_shapes: HashMap<u128, FramingShape>,
+    pub(crate) special_wrapper_tokens: HashSet<u128>,
+    pub(crate) splice_trigger_tokens: HashSet<u128>,
+    pub(crate) excluded_atom_dc_tokens: HashSet<u128>,
+    pub(crate) type_tokens: HashSet<u128>,
+    pub(crate) evaluable_expression_starters: HashSet<u128>,
 }
 
 impl DatasetRuleResolver {
@@ -869,7 +834,7 @@ impl DatasetRuleResolver {
         Self::default()
     }
 
-    fn build_unicode_text_mappings(
+    pub(crate) fn build_unicode_text_mappings(
         &mut self,
         decompositions: &[(u128, Vec<u128>, bool)],
     ) {
@@ -1403,247 +1368,6 @@ impl DatasetRuleResolver {
         }
     }
 
-    /// Builds a resolver by indexing syntax rules directly from parsed
-    /// dataset definitions.
-    ///
-    /// This is the CSV-driven authoritative indexing path used by
-    /// `crate::syntax::codegen::generate_syntax_table_file` and by the
-    /// consistency test verifying that the generated static syntax table
-    /// matches the dataset. `dc_defns` must be sorted by long ID so
-    /// delimiter precedence is deterministic (matching
-    /// `lookup::get_all_dc_defns`).
-    ///
-    /// # Errors
-    /// Returns an error with CSV row and named type context when a named
-    /// type record or its grammar is invalid.
-    pub fn load_from_dataset(
-        dc_defns: &[DcDefn],
-        format_defns: &[DcDefn],
-        named_types_csv: Option<&[u8]>,
-    ) -> Result<Self> {
-        let mut resolver = Self::new();
-
-        let mut explicit_closes_pairs: Vec<(u128, CharTarget)> = Vec::new();
-
-        // 1. Index rules and scripts from Document Character definitions
-        for defn in dc_defns {
-            if let Some(short_id) = defn.short_id {
-                let Ok(sid_u32) = u32::try_from(short_id) else {
-                    continue;
-                };
-                let target = CharTarget::Dc(sid_u32);
-                let sid_u128 = DcChar::from_short(sid_u32).to_u128();
-                if !defn.script.is_empty() {
-                    resolver.add_script_char(defn.script.clone(), sid_u128);
-                }
-                let preferred = parse_prefer_target(&defn.decompositions);
-                if defn.is_deprecated || preferred.is_some() {
-                    resolver.register_deprecated(target.clone(), preferred);
-                }
-                if let Some(ref rule) = defn.syntax {
-                    resolver.add_rule(target, rule.clone());
-                }
-                if let Some(ref closes) = defn.closes {
-                    let opener_target = match closes {
-                        ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
-                            u32::try_from(*id).ok().map(CharTarget::Dc)
-                        }
-                        ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
-                            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{id}"))
-                                .map(CharTarget::Format)
-                        }
-                        ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
-                            Some(CharTarget::Unicode(*cp))
-                        }
-                        _ => None,
-                    };
-                    if let Some(target) = opener_target {
-                        explicit_closes_pairs.push((sid_u128, target.clone()));
-                        resolver.register_closing_delimiter(sid_u128, target);
-                    }
-                }
-            }
-        }
-
-        // Declared delimiters take precedence: a field ending in a nested
-        // representation's closer does not itself open that representation.
-        for defn in dc_defns {
-            if defn.script == ".EL Routines" {
-                continue;
-            }
-            if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax)
-            {
-                if let (Ok(id), Some(closer)) = (
-                    u32::try_from(short_id),
-                    detect_container_closer(&rule.pattern),
-                ) {
-                    let target = CharTarget::Dc(id);
-                    if !resolver.opener_to_closer.contains_key(&target)
-                        && !resolver.closing_delimiters.contains_key(&closer)
-                    {
-                        resolver.register_closing_delimiter(closer, target);
-                    }
-                }
-            }
-        }
-
-        // Index formats from formats category files under their script
-        for defn in format_defns {
-            if let Some(short_id) = defn.short_id {
-                if !defn.script.is_empty() {
-                    resolver.add_script_char(defn.script.clone(), defn.dc_id);
-                }
-                let Some(fid) =
-                    ctb_utilities::format_id::FormatId::from_shorthand(
-                        &format!("f{short_id}"),
-                    )
-                    .or_else(|| {
-                        defn.ident.as_deref().and_then(
-                            ctb_utilities::format_id::FormatId::from_ident,
-                        )
-                    })
-                else {
-                    continue;
-                };
-                let target = CharTarget::Format(fid);
-                let preferred = parse_prefer_target(&defn.decompositions);
-                if defn.is_deprecated || preferred.is_some() {
-                    resolver.register_deprecated(target.clone(), preferred);
-                }
-                if let Some(ref rule) = defn.syntax {
-                    resolver.add_rule(target.clone(), rule.clone());
-                    if let Some(closer_tok) =
-                        detect_container_closer(&rule.pattern)
-                    {
-                        if !resolver.opener_to_closer.contains_key(&target)
-                            && !resolver
-                                .closing_delimiters
-                                .contains_key(&closer_tok)
-                        {
-                            resolver
-                                .register_closing_delimiter(closer_tok, target);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 2. Index named types from README-named-types.csv
-        if let Some(bytes) = named_types_csv {
-            let mut rdr = csv::ReaderBuilder::new()
-                .has_headers(true)
-                .flexible(true)
-                .from_reader(bytes);
-            for (index, result) in rdr.records().enumerate() {
-                let row = index.saturating_add(2);
-                let record = result.with_context(|| {
-                    format!(
-                        "README-named-types.csv row {row}: invalid CSV record"
-                    )
-                })?;
-                let name = record.get(0).map(str::trim)
-                    .filter(|name| !name.is_empty())
-                    .with_context(|| format!("README-named-types.csv row {row}: missing named type"))?;
-                let syntax_raw = record.get(1).map(str::trim)
-                    .filter(|syntax| !syntax.is_empty())
-                    .with_context(|| format!("README-named-types.csv row {row}: named type '{name}' has no syntax"))?;
-                let rule = parse_dc_syntax(syntax_raw).with_context(|| {
-                    format!("README-named-types.csv row {row}: invalid syntax for named type '{name}': {syntax_raw}")
-                })?;
-                resolver.add_named_type(name.to_string(), rule.pattern.clone());
-            }
-        }
-
-        for defn in dc_defns.iter().chain(format_defns.iter()) {
-            for imp in &defn.implies {
-                for raw_part in imp.split('&') {
-                    let trimmed = raw_part.trim();
-                    if let Ok(sh) =
-                        ctb_storage_minimal::shorthand::DcShorthand::parse(
-                            trimmed,
-                        )
-                    {
-                        if let Ok(super_gid) = sh.to_global_id() {
-                            resolver.add_subtype(defn.dc_id, super_gid);
-                        }
-                    }
-                }
-            }
-        }
-
-        let equivalents: Vec<_> = dc_defns
-            .iter()
-            .chain(format_defns.iter())
-            .flat_map(|defn| {
-                defn.decompositions.iter().filter_map(move |decomposition| {
-                    parse_decomposition_target(
-                        std::slice::from_ref(decomposition),
-                        "<equiv>",
-                    )
-                    .map(|target| (defn.dc_id, target))
-                })
-            })
-            .collect();
-        let closes_by_id: HashMap<
-            u128,
-            ctb_storage_minimal::shorthand::DcShorthand,
-        > = dc_defns
-            .iter()
-            .chain(format_defns.iter())
-            .filter_map(|d| d.closes.map(|c| (d.dc_id, c)))
-            .collect();
-        let non_routine_short_ids: Vec<u32> = dc_defns
-            .iter()
-            .filter(|d| d.script != ".EL Routines" && d.syntax.is_some())
-            .filter_map(|d| d.short_id.and_then(|sid| u32::try_from(sid).ok()))
-            .collect();
-
-        resolver.finalize_equivalences_and_derived_tables(
-            &equivalents,
-            &explicit_closes_pairs,
-            &closes_by_id,
-            &non_routine_short_ids,
-        )?;
-        let mut text_decompositions = Vec::new();
-        for defn in dc_defns.iter().chain(format_defns.iter()) {
-            for decomposition in &defn.decompositions {
-                let (payload, approximate) = if let Some(payload) =
-                    decomposition.trim().strip_prefix("<equiv>")
-                {
-                    (payload, false)
-                } else if let Some(payload) =
-                    decomposition.trim().strip_prefix("<approx>")
-                {
-                    (payload, true)
-                } else {
-                    continue;
-                };
-                let targets: Option<Vec<_>> = payload
-                    .split_whitespace()
-                    .map(|token| {
-                        ctb_storage_minimal::shorthand::DcShorthand::parse(
-                            token,
-                        )
-                        .ok()?
-                        .to_global_id()
-                        .ok()
-                    })
-                    .collect();
-                if let Some(targets) = targets
-                    && !targets.is_empty()
-                {
-                    text_decompositions.push((
-                        defn.dc_id,
-                        targets,
-                        approximate,
-                    ));
-                }
-            }
-        }
-        resolver.build_unicode_text_mappings(&text_decompositions);
-        Ok(resolver)
-    }
-
     /// Builds a resolver directly from the runtime `SeedGraphIndex` (`data/graph/85899_34592.ctbnbdl`).
     pub fn from_seed_graph(
         index: &crate::seed_graph::SeedGraphIndex,
@@ -2000,7 +1724,7 @@ impl DatasetRuleResolver {
         Self::from_seed_graph(&index)
     }
 
-    fn finalize_equivalences_and_derived_tables(
+    pub(crate) fn finalize_equivalences_and_derived_tables(
         &mut self,
         equivalents: &[(u128, CharTarget)],
         explicit_closes_pairs: &[(u128, CharTarget)],
