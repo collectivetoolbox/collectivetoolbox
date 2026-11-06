@@ -3339,12 +3339,7 @@ pub(super) fn number_satisfies_subtype(
             return false;
         }
         let fmt = FormatId::from_shorthand(part)
-            .or_else(|| FormatId::from_ident(part))
-            .or(match part {
-                "NonNegative" => Some(FormatId::Natural0),
-                "Natural" => Some(FormatId::Natural1),
-                _ => None,
-            });
+            .or_else(|| FormatId::from_ident(part));
         let matched = if let Some(fmt) = fmt {
             if let Some(rule) = resolver.resolve_rule(&CharTarget::Format(fmt))
                 && let Some(ok) = check_pattern_number_constraint(

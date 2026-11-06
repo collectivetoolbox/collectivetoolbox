@@ -438,7 +438,6 @@ pub trait SyntaxRuleResolver {
             })
         } else if FormatId::from_shorthand(trimmed).is_some()
             || FormatId::from_ident(trimmed).is_some()
-            || matches!(trimmed, "NonNegative" | "Natural")
             || trimmed.starts_with("<=")
             || trimmed.starts_with('<')
             || trimmed.starts_with(">=")
