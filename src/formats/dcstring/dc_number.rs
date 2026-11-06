@@ -353,8 +353,7 @@ where
 
     let second = next_char()?;
     ensure!(
-        resolver
-            .token_fills_role(second.to_u128(), DcRole::IntegerFormatIndicator),
+        resolver.is_equivalent_to(second.to_u128(), DC_INTEGER.to_u128()),
         "Expected format 199 indicator after Dc 6, found {second:?}"
     );
 
@@ -461,13 +460,11 @@ pub fn read_dc_number_short_with_resolver(
     let second_format = DcChar::from_format(second);
     let second_short = DcChar::from_short(second);
     ensure!(
-        resolver.token_fills_role(
-            second_format.to_u128(),
-            DcRole::IntegerFormatIndicator
-        ) || resolver.token_fills_role(
-            second_short.to_u128(),
-            DcRole::IntegerFormatIndicator
-        ),
+        resolver.is_equivalent_to(second_format.to_u128(), DC_INTEGER.to_u128())
+            || resolver.is_equivalent_to(
+                second_short.to_u128(),
+                DC_INTEGER.to_u128(),
+            ),
         "Expected format 199 indicator after Dc 6, found Dc {second}"
     );
 
@@ -549,7 +546,7 @@ pub fn read_dc_number_global_with_resolver(
         .copied()
         .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
     ensure!(
-        gid_fills_role(second, DcRole::IntegerFormatIndicator, resolver),
+        resolver.is_equivalent_to(second, DC_INTEGER.to_u128()),
         "Expected format 199 indicator after Dc 6, found {second}"
     );
 

@@ -171,13 +171,13 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114578,466,File flag: reserved for ext2,0,BN,,!Cx,.Semantic:fileflag,reservedforext2,Reserved flag for ext2/ext4.
 1114579,467,Maybe value,0,BN,,!Cx,.Semantic,:~ [string],"Indicates that a value may be the case, but maybe not."
 1114594,482,Mac OS Finder label: none,0,BN,,!Cx,.Semantic,,Finder label index 0.
-1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,.Semantic,"<ambiguous>468 475","Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
-1114596,484,"Mac OS Finder label 2: (default: ""Project 1"")",0,BN,,!Cx,.Semantic,"<ambiguous>469 476","Finder label index 2, Green."
-1114597,485,"Mac OS Finder label 3: (default: ""Personal"")",0,BN,,!Cx,.Semantic,"<ambiguous>470 477","Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
-1114598,486,"Mac OS Finder label 4: (default: ""Cool"")",0,BN,,!Cx,.Semantic,"<ambiguous>471 478","Finder label index 4, Cyan in Classic Mac OS and Blue in macOS."
-1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,.Semantic,"<ambiguous>472 479","Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
-1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,.Semantic,"<ambiguous>473 480","Finder label index 6, Red."
-1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,.Semantic,"<ambiguous>474 481","Finder label index 7, Orange."
+1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,.Semantic,<ambiguous>468 475,"Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
+1114596,484,"Mac OS Finder label 2: (default: ""Project 1"")",0,BN,,!Cx,.Semantic,<ambiguous>469 476,"Finder label index 2, Green."
+1114597,485,"Mac OS Finder label 3: (default: ""Personal"")",0,BN,,!Cx,.Semantic,<ambiguous>470 477,"Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
+1114598,486,"Mac OS Finder label 4: (default: ""Cool"")",0,BN,,!Cx,.Semantic,<ambiguous>471 478,"Finder label index 4, Cyan in Classic Mac OS and Blue in macOS."
+1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,.Semantic,<ambiguous>472 479,"Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
+1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,.Semantic,<ambiguous>473 480,"Finder label index 6, Red."
+1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,.Semantic,<ambiguous>474 481,"Finder label index 7, Orange."
 1114602,490,Begin Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,:~ [^491]* 491,Begins an extended Mac OS Finder information record (FXInfo).
 1114603,491,End Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,@closes(490),Terminates an extended Mac OS Finder information record (FXInfo).
 1114604,492,Mac OS extended Finder icon identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Custom icon resource ID in extended Finder info.
@@ -319,8 +319,6 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114747,635,Collective Toolbox seed graph data source,0,BN,,!Cx,.Semantic,"@ident(""CollectiveToolboxSeedGraphDataSource"")",Property identifying the data source or provenance from which a seed graph statement or node was derived.
 1114748,636,Collective Toolbox Dc CSV seed database,0,BN,,!Cx,.Semantic,"@ident(""CollectiveToolboxDcCsvSeedDatabase"")",Identifies the Collective Toolbox Dc CSV seed database tables in src/formats/dcdata/data-src/ as a data source.
 1114749,637,Manual entry,0,BN,,!Cx,.Semantic,"@ident(""ManualEntry"")",General concept of manual entry or direct human authoring.
-1114750,638,For each,0,BN,,!Cx,.Semantic,"@ident(""ForEach""), :~ [statement] ([list] | [atom_dc])","Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration."
-1114751,639,This element,0,BN,,!Cx,.Semantic,"@ident(""ThisElement"")",Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression.
 1114753,641,Global graph system block most recent node ID at time of document creation,0,BN,,!Cx,.Semantic,"@ident(""GlobalGraphSystemBlockMostRecentNodeId""), :~ [atom_dc]",Records the highest allocated System node ID when the document was written.
 1114754,642,Data byte length,0,BN,,!Cx,.Semantic,"@ident(""DataByteLength""), :~ [number:Natural0]",Length of a data payload or representation in bytes.
 1114755,643,Range,0,BN,,!Cx,.Semantic,"@ident(""ValueRange""), :~ [type] ([value] | [atom_dc] | [644:] | 316) ([value] | [atom_dc] | [644:] | 316)","Defines a contiguous range of values of the specified type (or Dc 275 * for an unconstrained range) between a lower endpoint and an upper endpoint. Endpoints are inclusive unless wrapped in Dc 644 (Exclusive range endpoint), or unbounded if Dc 316 (Optional value absent)."

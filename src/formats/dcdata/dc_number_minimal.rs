@@ -214,9 +214,8 @@ pub fn read_dc_number_u128_with_resolver(
     let Some(&second) = gids.get(1) else {
         bail!("Unexpected end of stream after Dc 6");
     };
-    let second_dc = DcChar::from_u128(second);
     ensure!(
-        second_dc.fills_role_with(DcRole::IntegerFormatIndicator, resolver),
+        resolver.is_equivalent_to(second, DC_INTEGER.to_u128()),
         "Expected Format 199 (DC_INTEGER) after Dc 6, found {second}"
     );
 
