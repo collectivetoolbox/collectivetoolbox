@@ -16,7 +16,10 @@ The complete inputs are:
 1. The original document octets, before parsing them as Dcs.
 2. The resolved graph selected by the document's pins, including all transitive
   dependencies. The System pin selects the System block; lower definition
-  regions (besides the reserved Data block beginning at `4294967296`, which is treated the same as the blocks higher than system) follow the foundational kernel contract. References to blocks above System must declare pins for those blocks too. Such blocks are currently unimplemented/unpopulated.
+  regions, excluding the reserved Data block, follow the foundational kernel
+  contract. The reserved Data block beginning at `4294967296` and blocks above
+  System follow the same per-block pinning rule: references must declare pins
+  for those blocks too. Support for these additional blocks remains pending.
 3. All external responses and events: clock readings, filesystem and network
   results, keyboard/mouse input, authorization decisions, cancellation, and
   externally imposed resource interruptions. Their ordering and logical
@@ -38,9 +41,20 @@ Graph pinning fixes the document's requests, not the host's authorization policy
 A current host may deny a request that an older host allowed; that is a different
 external response, not a compatibility violation. Host-only logging and diagnostic
 wording are outside the trace unless explicitly exposed to the document.
-Bit-identical emitted frame documents do not alone guarantee identical rasterized
-pixels: fonts, rendering semantics, and other rendering inputs must also be fixed
-or supplied explicitly to make that stronger guarantee.
+
+Canonical rendering is deterministic software execution and includes the final
+rasterized pixel output in the observable trace. Fonts, rendering algorithms,
+and all other defining information must come from the pinned graph or explicit
+inputs, never implicit host rendering defaults. The output format chain specifies
+the frame conversion configuration, including subpixel rendering and vertical or
+horizontal pixel alignment. With identical inputs, graph pins, and configuration,
+canonical pixel output must be bit-for-bit identical regardless of hardware.
+This guarantee concerns generated pixels, not the physical appearance of a display.
+
+GPU rendering is not planned for the current implementation. A distant-future
+optional GPU optimization could provide a non-authoritative preview, but must
+never define or replace the canonical rendering of the document. Any differing
+preview pixels are outside the canonical output contract.
 
 Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but not sufficient on its own:
 1. Snapshot resolution for `Dc 641 "Global graph system block most recent node ID at time of document creation"` must never silently substitute `HEAD` when history is missing, when a pin is newer than the local graph, or when resolver loading fails.
@@ -77,9 +91,12 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
   - Make the Core Architectural Guarantee precise for documents pinned via `Dc 641 "Global graph system block most recent node ID at time of document creation"`: define trace record encodings, request identity, emitted output boundaries/order, document-visible diagnostics, and completion/failure/suspension outcomes.
   - Specify logical delivery points and ordering for asynchronous events, concurrent responses, cancellation, and resource interruptions. Replay must compare each request before supplying its recorded response; matching only final output or response bytes is insufficient.
   - Define which resource limits are external inputs and which budget/interruption semantics are fixed by the execution contract. Optimization-dependent CPU/WASM instruction counts must not silently become logical document execution points.
+- [ ] **Specify canonical pixel rendering as part of the output contract**:
+  - Define the output format chain's rendering configuration, including pixel format, dimensions, subpixel rendering, and vertical/horizontal pixel alignment. Resolve fonts and rendering definitions from the pinned graph or explicit inputs, with no implicit host defaults.
+  - Require bit-identical canonical raster output across hardware for identical inputs, pins, and configuration. Any future optional GPU preview is non-authoritative and cannot replace canonical software rendering.
 - [ ] **Specify complete graph dependency selection**:
-  - Define how the System pin and future pins for blocks above System select all transitive definitions, with no implicit `HEAD` lookup or unrecorded mutable data access.
-  - Document the treatment of lower definition regions and the reserved Data block described in the Core Architectural Guarantee. Require explicit snapshot selection or recorded external reads for data that affects output.
+  - Define how the System pin and future per-block pins for the reserved Data block and blocks above System select all transitive dependencies, with no implicit `HEAD` lookup or unrecorded mutable data access.
+  - Document the treatment of lower definition regions. Apply the same per-block pinning requirements to the reserved Data block and blocks above System; do not give reserved graph data an alternative unpinned I/O lookup path. External OS/resource reads remain recorded inputs, distinct from pinned graph access.
   - Specify how unsupported block references/pins are reported until those blocks are implemented; do not substitute another snapshot.
 - [ ] **Use internal semantic cases as regression coverage, not separate top-level guarantees**:
   - The following cases exercise the replay contract. Internal representations may change; their effects on the observable trace must remain identical:
@@ -106,7 +123,7 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
 - [ ] **Specify pin placement and nested-document inheritance (`src/formats/dcstring/navigator.rs:289-317`)**:
   - Support and validate `Dc 641 "Global graph system block most recent node ID at time of document creation"` both at the raw stream start and inside document/environment headers (`Dc 235 "Begin document"`..`Dc 236 "End document"`, `Dc 340 "Begin execution environment description"`..`Dc 341 "End execution environment description"`, `Dc 617 "Begin graph node definition"`..`Dc 618 "End graph node definition"`).
   - Define how nested documents inherit the enclosing document's pin unless they declare their own scoped `Dc 641 "Global graph system block most recent node ID at time of document creation"`.
-  - Extend the dependency-selection specification to future per-block pins and their inheritance. Supporting populated blocks above System remains pending; do not describe System-only resolution as full multi-block compatibility.
+  - Extend the dependency-selection specification to future per-block pins and their inheritance, treating the reserved Data block and blocks above System identically. Supporting these additional blocks remains pending; do not describe System-only resolution as full multi-block compatibility.
 
 ### Gate 3: Document the Minimal Trusted Kernel & Enforce VM Budgets
 - [ ] **Freeze and document the minimal trusted bootstrap kernel**:
@@ -136,6 +153,7 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
     3. Preserve the original document octets and record its observable trace and external responses/events. Verify that it resolves the $R_1$ definition and replays the identical trace after the graph update and the Rust behavior migration. Compare requests before supplying recorded responses and compare output bytes and outcomes, not internal parser/VM representations. A document pinned to $R_2$ must use the updated $R_2$ definition.
     4. Verify that a document pinned to an unavailable future revision $R_3 > R_2$ produces an explicit diagnostic/error rather than silently running against $R_2$.
     5. Add focused replay cases for denied/mocked capabilities and asynchronous event ordering at defined logical delivery points, using mocks or in-memory transports. Different external responses may change output, but must not change requests or outputs that precede their delivery.
+    6. Add canonical raster-output cases with explicit font and format-chain inputs, including subpixel rendering and vertical/horizontal pixel alignment. Compare exact pixel bytes across implementation revisions and supported hardware; changing rendering configuration changes inputs, not the compatibility guarantee.
 
 ### Gate 5: Incremental Expansion & Cleanup (Post-Proof)
 - [ ] **Eliminate implicit Rust rule synthesis in `DatasetRuleResolver::from_seed_graph` (`src/formats/dcdata/syntax/resolver.rs`)**:
