@@ -101,7 +101,178 @@ pub struct ReconstructedNamedType {
     pub description: String,
 }
 
+struct CommonSubjectDefn {
+    dc_id: u128,
+    name: String,
+    description: String,
+    ident: Option<String>,
+    stable_ident: bool,
+    general_category: GeneralCategory,
+    script: String,
+    category: String,
+    is_deprecated: bool,
+    closes: Option<DcShorthand>,
+    syntax: Option<DcSyntaxRule>,
+    annotations: Vec<String>,
+    magic_names: Vec<String>,
+    cross_references: Vec<String>,
+    decompositions: Vec<String>,
+    implies: Vec<String>,
+    based_on: Vec<String>,
+    os_associations: Vec<String>,
+}
+
 impl SeedGraphIndex {
+    fn get_multi_property_strings(
+        &self,
+        subj: DcShorthand,
+        prop: DcShorthand,
+    ) -> Vec<String> {
+        self.get_multi_properties(subj, prop)
+            .iter()
+            .filter_map(|e| self.get_string(e.value).map(str::to_string))
+            .collect()
+    }
+
+    fn get_joined_multi_property_strings(
+        &self,
+        subj: DcShorthand,
+        prop: DcShorthand,
+    ) -> Option<String> {
+        let items = self.get_multi_property_strings(subj, prop);
+        (!items.is_empty()).then(|| items.join(", "))
+    }
+
+    fn reconstruct_common_subject_defn(
+        &self,
+        subj: DcShorthand,
+        skip_format_expr: bool,
+    ) -> Result<CommonSubjectDefn> {
+        let dc_id = subj.to_global_id()?;
+        // Reason for fallback: subjects were selected from active_single_props by DC_CANONICAL_NAME.
+        let name = self
+            .get_single_property_string(subj, sh(DC_CANONICAL_NAME))
+            .unwrap_or_default()
+            .to_string();
+        // Reason for fallback: subjects without an explicit description default to empty string.
+        let description = self
+            .get_single_property_string(subj, sh(DC_DESCRIPTION))
+            .unwrap_or_default()
+            .to_string();
+        let ident = self
+            .get_single_property_string(subj, sh(DC_PROGRAMMATIC_IDENTIFIER))
+            .map(str::to_string);
+        let stable_ident = self.has_stable_programmatic_identifier(subj);
+
+        let mut general_category = GeneralCategory::NonUnicodeControl;
+        let mut script = String::new();
+        for &obj in self.get_direct_objects(sh(DC_IS_INSTANCE_OF), subj) {
+            if let DcShorthand::Long(seed_id) = obj {
+                match self.get_seed_entity(seed_id) {
+                    Some(SeedEntityKey::GeneralCategory(code)) => {
+                        general_category = code.parse::<GeneralCategory>()?;
+                    }
+                    Some(SeedEntityKey::Script(s)) => {
+                        script.clone_from(s);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let category = category_for_dc_subject(subj, &script);
+        let is_deprecated = self.has_direct_statement(
+            sh(DC_IS_DEPRECATED),
+            subj,
+            sh(DC_BOOLEAN_TRUE),
+        );
+        let closes = self
+            .get_direct_objects(sh(DC_IS_CLOSING_DELIMITER_FOR), subj)
+            .first()
+            .copied();
+        let syntax = self.decode_syntax_rule_for_subject(subj)?;
+        let annotations =
+            self.get_multi_property_strings(subj, sh(DC_ANNOTATION));
+        let magic_names =
+            self.get_multi_property_strings(subj, sh(DC_MAGIC_SIGNATURE));
+        let cross_references = self
+            .get_multi_properties(subj, sh(DC_CROSS_REFERENCE))
+            .iter()
+            .map(|e| {
+                self.get_string(e.value)
+                    .map_or_else(|| e.value.to_string(), str::to_string)
+            })
+            .collect();
+
+        let mut decompositions = Vec::new();
+        for (decomp_dc, tag) in [
+            (DC_CANONICAL_DECOMPOSITION, "equiv"),
+            (DC_APPROXIMATE_DECOMPOSITION, "approx"),
+            (DC_SEMANTIC_DECOMPOSITION, "semantic"),
+            (DC_COMPATIBILITY_DECOMPOSITION, "compat"),
+        ] {
+            for entry in self.get_multi_properties(subj, sh(decomp_dc)) {
+                if let Some(payload) = self.decode_decomposition_payload(
+                    entry.value,
+                    skip_format_expr,
+                ) {
+                    decompositions.push(format!("<{tag}>{payload}"));
+                }
+            }
+        }
+        for &pref_val in self.get_preferred_replacements(subj) {
+            if let Some(payload) =
+                self.decode_decomposition_payload(pref_val, skip_format_expr)
+            {
+                decompositions.push(format!("<prefer>{payload}"));
+            }
+        }
+
+        let implies = self
+            .get_direct_objects(sh(DC_IS_SUBTYPE_OF), subj)
+            .iter()
+            .filter_map(|&obj| {
+                self.decode_relation_target_string(obj, skip_format_expr)
+            })
+            .collect();
+        let based_on = if skip_format_expr {
+            Vec::new()
+        } else {
+            self.get_direct_objects(sh(DC_IS_BASED_ON), subj)
+                .iter()
+                .filter_map(|&obj| {
+                    self.decode_relation_target_string(obj, false)
+                })
+                .collect()
+        };
+        let os_associations = self
+            .get_direct_objects(sh(DC_IS_ASSOCIATED_WITH), subj)
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+
+        Ok(CommonSubjectDefn {
+            dc_id,
+            name,
+            description,
+            ident,
+            stable_ident,
+            general_category,
+            script,
+            category,
+            is_deprecated,
+            closes,
+            syntax,
+            annotations,
+            magic_names,
+            cross_references,
+            decompositions,
+            implies,
+            based_on,
+            os_associations,
+        })
+    }
+
     /// Reconstructs all Document Character definitions (`DcDefn` for Unicode clarifications and Short Dcs)
     /// directly from the indexed seed graph, sorted in ascending `dc_id` order.
     pub fn reconstruct_dc_defns(&self) -> Result<Vec<DcDefn>> {
@@ -119,27 +290,9 @@ impl SeedGraphIndex {
         skip_format_expr: bool,
     ) -> Result<Vec<DcDefn>> {
         let sh_name = sh(DC_CANONICAL_NAME);
-        let sh_desc = sh(DC_DESCRIPTION);
-        let sh_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
         let sh_cc = sh(DC_CANONICAL_COMBINING_CLASS);
         let sh_bidi = sh(DC_BIDIRECTIONAL_CLASS);
-        let sh_inst = sh(DC_IS_INSTANCE_OF);
         let sh_case = sh(DC_CASE_MAPPING_PARTNER);
-        let sh_dep = sh(DC_IS_DEPRECATED);
-        let sh_true = sh(DC_BOOLEAN_TRUE);
-        let sh_closes = sh(DC_IS_CLOSING_DELIMITER_FOR);
-        let sh_subtype = sh(DC_IS_SUBTYPE_OF);
-        let sh_based = sh(DC_IS_BASED_ON);
-        let sh_assoc = sh(DC_IS_ASSOCIATED_WITH);
-        let sh_alias = sh(DC_INFORMAL_ALIAS);
-        let sh_falias = sh(DC_FORMAL_ALIAS);
-        let sh_ann = sh(DC_ANNOTATION);
-        let sh_magic = sh(DC_MAGIC_SIGNATURE);
-        let sh_xref = sh(DC_CROSS_REFERENCE);
-        let sh_equiv = sh(DC_CANONICAL_DECOMPOSITION);
-        let sh_approx = sh(DC_APPROXIMATE_DECOMPOSITION);
-        let sh_sem = sh(DC_SEMANTIC_DECOMPOSITION);
-        let sh_compat = sh(DC_COMPATIBILITY_DECOMPOSITION);
 
         let mut subjects: Vec<DcShorthand> = self
             .active_single_props
@@ -165,24 +318,12 @@ impl SeedGraphIndex {
 
         let mut defns = Vec::with_capacity(subjects.len());
         for subj in subjects {
-            let dc_id = subj.to_global_id()?;
+            let common =
+                self.reconstruct_common_subject_defn(subj, skip_format_expr)?;
             let short_id = match subj {
                 DcShorthand::Short(sid) => usize::try_from(sid).ok(),
                 _ => None,
             };
-            // Reason for fallback: subjects were selected from active_single_props by sh_name.
-            let name = self
-                .get_single_property_string(subj, sh_name)
-                .unwrap_or_default()
-                .to_string();
-            // Reason for fallback: characters without an explicit description default to empty string.
-            let description = self
-                .get_single_property_string(subj, sh_desc)
-                .unwrap_or_default()
-                .to_string();
-            let ident = self
-                .get_single_property_string(subj, sh_ident)
-                .map(str::to_string);
             // Reason for fallback: characters without a combining class statement have combining class 0.
             let combining_class = self
                 .get_single_property_integer(subj, sh_cc)
@@ -203,152 +344,56 @@ impl SeedGraphIndex {
                 BidiClass::BN
             };
 
-            let mut general_category = GeneralCategory::NonUnicodeControl;
-            let mut script = String::new();
-            for &obj in self.get_direct_objects(sh_inst, subj) {
-                if let DcShorthand::Long(seed_id) = obj {
-                    match self.get_seed_entity(seed_id) {
-                        Some(SeedEntityKey::GeneralCategory(code)) => {
-                            general_category =
-                                code.parse::<GeneralCategory>()?;
-                        }
-                        Some(SeedEntityKey::Script(s)) => {
-                            script.clone_from(s);
-                        }
-                        _ => {}
-                    }
-                }
-            }
-
-            let category = category_for_dc_subject(subj, &script);
             let casing_partner = match self.get_single_property(subj, sh_case) {
                 Some(DcShorthand::Short(partner)) => Some(partner),
                 _ => None,
             };
-            let is_deprecated =
-                self.has_direct_statement(sh_dep, subj, sh_true);
-            let closes =
-                self.get_direct_objects(sh_closes, subj).first().copied();
-            let syntax = self.decode_syntax_rule_for_subject(subj)?;
 
-            let aliases: Vec<String> = self
-                .get_multi_properties(subj, sh_alias)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
+            let aliases =
+                self.get_multi_property_strings(subj, sh(DC_INFORMAL_ALIAS));
             let formal_aliases: Vec<(String, String)> = self
-                .get_multi_properties(subj, sh_falias)
-                .iter()
-                .filter_map(|e| {
-                    self.get_string(e.value)
-                        .map(|s| (String::new(), s.to_string()))
-                })
-                .collect();
-            let annotations: Vec<String> = self
-                .get_multi_properties(subj, sh_ann)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let magic_names: Vec<String> = self
-                .get_multi_properties(subj, sh_magic)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let cross_references: Vec<String> = self
-                .get_multi_properties(subj, sh_xref)
-                .iter()
-                .map(|e| {
-                    if let Some(s) = self.get_string(e.value) {
-                        s.to_string()
-                    } else {
-                        e.value.to_string()
-                    }
-                })
+                .get_multi_property_strings(subj, sh(DC_FORMAL_ALIAS))
+                .into_iter()
+                .map(|s| (String::new(), s))
                 .collect();
 
-            let mut decompositions = Vec::new();
-            for (decomp_prop, tag) in [
-                (sh_equiv, "equiv"),
-                (sh_approx, "approx"),
-                (sh_sem, "semantic"),
-                (sh_compat, "compat"),
-            ] {
-                for entry in self.get_multi_properties(subj, decomp_prop) {
-                    if let Some(payload) = self.decode_decomposition_payload(
-                        entry.value,
-                        skip_format_expr,
-                    ) {
-                        decompositions.push(format!("<{tag}>{payload}"));
-                    }
-                }
-            }
-            for &pref_val in self.get_preferred_replacements(subj) {
-                if let Some(payload) = self
-                    .decode_decomposition_payload(pref_val, skip_format_expr)
-                {
-                    decompositions.push(format!("<prefer>{payload}"));
-                }
-            }
-
-            let implies: Vec<String> = self
-                .get_direct_objects(sh_subtype, subj)
-                .iter()
-                .filter_map(|&obj| {
-                    self.decode_relation_target_string(obj, skip_format_expr)
-                })
-                .collect();
-            let based_on: Vec<String> = if skip_format_expr {
-                Vec::new()
-            } else {
-                self.get_direct_objects(sh_based, subj)
-                    .iter()
-                    .filter_map(|&obj| {
-                        self.decode_relation_target_string(obj, false)
-                    })
-                    .collect()
-            };
-            let os_associations: Vec<String> = self
-                .get_direct_objects(sh_assoc, subj)
-                .iter()
-                .map(ToString::to_string)
-                .collect();
-
-            let format_details = if script.starts_with(".Formats:")
-                || script.starts_with("Formats:")
+            let format_details = if common.script.starts_with(".Formats:")
+                || common.script.starts_with("Formats:")
             {
                 Some(FormatDetails::default())
             } else {
                 None
             };
 
+            let source_file = format!("{}.csv", common.category);
             defns.push(DcDefn {
-                dc_id,
+                dc_id: common.dc_id,
                 short_id,
-                ident,
-                stable_ident: self.has_stable_programmatic_identifier(subj),
+                ident: common.ident,
+                stable_ident: common.stable_ident,
                 title: None,
-                name,
-                category: category.clone(),
+                name: common.name,
+                category: common.category,
                 combining_class,
                 bidi_class,
                 casing_partner,
-                general_category,
-                script,
-                is_deprecated,
-                decompositions,
+                general_category: common.general_category,
+                script: common.script,
+                is_deprecated: common.is_deprecated,
+                decompositions: common.decompositions,
                 aliases,
                 formal_aliases,
-                cross_references,
-                annotations,
-                implies,
-                based_on,
-                os_associations,
-                magic_names,
-                syntax,
-                closes,
-                description,
+                cross_references: common.cross_references,
+                annotations: common.annotations,
+                implies: common.implies,
+                based_on: common.based_on,
+                os_associations: common.os_associations,
+                magic_names: common.magic_names,
+                syntax: common.syntax,
+                closes: common.closes,
+                description: common.description,
                 format: format_details,
-                source_file: format!("{category}.csv"),
+                source_file,
                 line_number: 0,
             });
         }
@@ -373,29 +418,8 @@ impl SeedGraphIndex {
         skip_format_expr: bool,
     ) -> Result<Vec<DcDefn>> {
         let sh_name = sh(DC_CANONICAL_NAME);
-        let sh_desc = sh(DC_DESCRIPTION);
-        let sh_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
-        let sh_inst = sh(DC_IS_INSTANCE_OF);
-        let sh_dep = sh(DC_IS_DEPRECATED);
-        let sh_true = sh(DC_BOOLEAN_TRUE);
-        let sh_closes = sh(DC_IS_CLOSING_DELIMITER_FOR);
-        let sh_subtype = sh(DC_IS_SUBTYPE_OF);
-        let sh_based = sh(DC_IS_BASED_ON);
-        let sh_assoc = sh(DC_IS_ASSOCIATED_WITH);
-        let sh_nick = sh(DC_NICKNAME);
-        let sh_falias = sh(DC_FORMAL_ALIAS);
-        let sh_ann = sh(DC_ANNOTATION);
-        let sh_magic = sh(DC_MAGIC_SIGNATURE);
-        let sh_xref = sh(DC_CROSS_REFERENCE);
-        let sh_equiv = sh(DC_CANONICAL_DECOMPOSITION);
-        let sh_approx = sh(DC_APPROXIMATE_DECOMPOSITION);
-        let sh_sem = sh(DC_SEMANTIC_DECOMPOSITION);
-        let sh_compat = sh(DC_COMPATIBILITY_DECOMPOSITION);
         let sh_fmt_desc = sh(DC_DATA_FORMAT_DESCRIPTION);
         let sh_ext = sh(DC_FILE_EXTENSION);
-        let sh_mime = sh(DC_MEDIA_TYPE);
-        let sh_uti = sh(DC_UNIFORM_TYPE_IDENTIFIER);
-        let sh_ostype = sh(DC_APPLE_OS_TYPE);
         let sh_var_aspect = sh(DC_FORMAT_VARIATION_ASPECT);
         let sh_var_nick = sh(DC_DC_FORMAT_VARIATION_NICKNAME);
         let sh_def_variant = sh(DC_DEFAULT_FORMAT_VARIANT);
@@ -447,120 +471,18 @@ impl SeedGraphIndex {
 
         let mut defns = Vec::with_capacity(subjects.len());
         for subj in subjects {
-            let dc_id = subj.to_global_id()?;
+            let common =
+                self.reconstruct_common_subject_defn(subj, skip_format_expr)?;
             let short_id = match subj {
                 DcShorthand::Format(sid) => usize::try_from(sid).ok(),
                 _ => None,
             };
-            // Reason for fallback: subjects were selected from active_single_props by sh_name.
-            let name = self
-                .get_single_property_string(subj, sh_name)
-                .unwrap_or_default()
-                .to_string();
-            // Reason for fallback: formats without an explicit description default to empty string.
-            let description = self
-                .get_single_property_string(subj, sh_desc)
-                .unwrap_or_default()
-                .to_string();
-            let ident = self
-                .get_single_property_string(subj, sh_ident)
-                .map(str::to_string);
 
-            let mut script = String::new();
-            for &obj in self.get_direct_objects(sh_inst, subj) {
-                if let DcShorthand::Long(seed_id) = obj {
-                    if let Some(SeedEntityKey::Script(s)) =
-                        self.get_seed_entity(seed_id)
-                    {
-                        script.clone_from(s);
-                    }
-                }
-            }
-
-            let category = category_for_dc_subject(subj, &script);
-            let is_deprecated =
-                self.has_direct_statement(sh_dep, subj, sh_true);
-            let closes =
-                self.get_direct_objects(sh_closes, subj).first().copied();
-            let syntax = self.decode_syntax_rule_for_subject(subj)?;
-
-            let aliases: Vec<String> = self
-                .get_multi_properties(subj, sh_nick)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let title: Option<String> = self
-                .get_multi_properties(subj, sh_falias)
-                .iter()
-                .find_map(|e| self.get_string(e.value).map(str::to_string));
-            let annotations: Vec<String> = self
-                .get_multi_properties(subj, sh_ann)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let magic_names: Vec<String> = self
-                .get_multi_properties(subj, sh_magic)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let cross_references: Vec<String> = self
-                .get_multi_properties(subj, sh_xref)
-                .iter()
-                .map(|e| {
-                    if let Some(s) = self.get_string(e.value) {
-                        s.to_string()
-                    } else {
-                        e.value.to_string()
-                    }
-                })
-                .collect();
-
-            let mut decompositions = Vec::new();
-            for (decomp_prop, tag) in [
-                (sh_equiv, "equiv"),
-                (sh_approx, "approx"),
-                (sh_sem, "semantic"),
-                (sh_compat, "compat"),
-            ] {
-                for entry in self.get_multi_properties(subj, decomp_prop) {
-                    if let Some(payload) = self.decode_decomposition_payload(
-                        entry.value,
-                        skip_format_expr,
-                    ) {
-                        decompositions.push(format!("<{tag}>{payload}"));
-                    }
-                }
-            }
-            for &pref_val in self.get_preferred_replacements(subj) {
-                if let Some(payload) = self
-                    .decode_decomposition_payload(pref_val, skip_format_expr)
-                {
-                    decompositions.push(format!("<prefer>{payload}"));
-                }
-            }
-
-            let implies: Vec<String> = self
-                .get_direct_objects(sh_subtype, subj)
-                .iter()
-                .filter_map(|&obj| {
-                    self.decode_relation_target_string(obj, skip_format_expr)
-                })
-                .collect();
-            let based_on: Vec<String> = if skip_format_expr {
-                Vec::new()
-            } else {
-                self.get_direct_objects(sh_based, subj)
-                    .iter()
-                    .filter_map(|&obj| {
-                        self.decode_relation_target_string(obj, false)
-                    })
-                    .collect()
-            };
-            let os_associations: Vec<String> = self
-                .get_direct_objects(sh_assoc, subj)
-                .iter()
-                .map(ToString::to_string)
-                .collect();
+            let aliases = self.get_multi_property_strings(subj, sh(DC_NICKNAME));
+            let title = self
+                .get_multi_property_strings(subj, sh(DC_FORMAL_ALIAS))
+                .into_iter()
+                .next();
 
             let format_spec = if skip_format_expr {
                 None
@@ -571,7 +493,6 @@ impl SeedGraphIndex {
             } else {
                 None
             };
-            let chain = None;
 
             let ext_items: Vec<String> = self
                 .get_multi_properties(subj, sh_ext)
@@ -588,50 +509,16 @@ impl SeedGraphIndex {
                     }
                 })
                 .collect();
-            let extensions = if ext_items.is_empty() {
-                None
-            } else {
-                Some(ext_items.join(", "))
-            };
-
-            let mime_items: Vec<String> = self
-                .get_multi_properties(subj, sh_mime)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let mime = if mime_items.is_empty() {
-                None
-            } else {
-                Some(mime_items.join(", "))
-            };
-
-            let uti_items: Vec<String> = self
-                .get_multi_properties(subj, sh_uti)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let uti = if uti_items.is_empty() {
-                None
-            } else {
-                Some(uti_items.join(", "))
-            };
-
-            let apple_items: Vec<String> = self
-                .get_multi_properties(subj, sh_ostype)
-                .iter()
-                .filter_map(|e| self.get_string(e.value).map(str::to_string))
-                .collect();
-            let apple_type = if apple_items.is_empty() {
-                None
-            } else {
-                Some(apple_items.join(", "))
-            };
-
-            let nicknames = if aliases.is_empty() {
-                None
-            } else {
-                Some(aliases.join(", "))
-            };
+            let extensions = (!ext_items.is_empty()).then(|| ext_items.join(", "));
+            let mime =
+                self.get_joined_multi_property_strings(subj, sh(DC_MEDIA_TYPE));
+            let uti = self.get_joined_multi_property_strings(
+                subj,
+                sh(DC_UNIFORM_TYPE_IDENTIFIER),
+            );
+            let apple_type = self
+                .get_joined_multi_property_strings(subj, sh(DC_APPLE_OS_TYPE));
+            let nicknames = (!aliases.is_empty()).then(|| aliases.join(", "));
 
             let format_support_pair =
                 |gen_dc: DcChar, dc_dc: DcChar| -> Option<String> {
@@ -692,11 +579,8 @@ impl SeedGraphIndex {
                     }
                 }
             }
-            let variant_types = if variant_type_items.is_empty() {
-                None
-            } else {
-                Some(variant_type_items.join(", "))
-            };
+            let variant_types = (!variant_type_items.is_empty())
+                .then(|| variant_type_items.join(", "));
 
             let default_line_ending =
                 match self.get_single_property(subj, sh_def_variant) {
@@ -721,21 +605,15 @@ impl SeedGraphIndex {
                     _ => None,
                 };
 
-            let fmt_implies = if implies.is_empty() {
-                None
-            } else {
-                Some(implies.join(", "))
-            };
-            let fmt_based_on = if based_on.is_empty() {
-                None
-            } else {
-                Some(based_on.join(", "))
-            };
+            let fmt_implies =
+                (!common.implies.is_empty()).then(|| common.implies.join(", "));
+            let fmt_based_on = (!common.based_on.is_empty())
+                .then(|| common.based_on.join(", "));
 
             let format_details = FormatDetails {
                 implies: fmt_implies,
                 based_on: fmt_based_on,
-                chain,
+                chain: None,
                 format_spec,
                 extensions,
                 mime,
@@ -752,34 +630,35 @@ impl SeedGraphIndex {
                 varies,
             };
 
+            let source_file = format!("{}.csv", common.category);
             defns.push(DcDefn {
-                dc_id,
+                dc_id: common.dc_id,
                 short_id,
-                ident,
-                stable_ident: self.has_stable_programmatic_identifier(subj),
+                ident: common.ident,
+                stable_ident: common.stable_ident,
                 title,
-                name,
-                category: category.clone(),
+                name: common.name,
+                category: common.category,
                 combining_class: 0,
                 bidi_class: BidiClass::BN,
                 casing_partner: None,
                 general_category: GeneralCategory::NonUnicodeControl,
-                script,
-                is_deprecated,
-                decompositions,
+                script: common.script,
+                is_deprecated: common.is_deprecated,
+                decompositions: common.decompositions,
                 aliases,
                 formal_aliases: Vec::new(),
-                cross_references,
-                annotations,
-                implies,
-                based_on,
-                os_associations,
-                magic_names,
-                syntax,
-                closes,
-                description,
+                cross_references: common.cross_references,
+                annotations: common.annotations,
+                implies: common.implies,
+                based_on: common.based_on,
+                os_associations: common.os_associations,
+                magic_names: common.magic_names,
+                syntax: common.syntax,
+                closes: common.closes,
+                description: common.description,
                 format: Some(format_details),
-                source_file: format!("{category}.csv"),
+                source_file,
                 line_number: 0,
             });
         }
@@ -867,6 +746,22 @@ impl SeedGraphIndex {
         })
     }
 
+    fn node_starts_format_expr(tokens: &[DcShorthand]) -> bool {
+        let is_format_op = |tok: DcShorthand| -> bool {
+            tok == sh(DC_TYPE_UNION)
+                || tok == sh(DC_TYPE_TRANSFORMATION)
+                || tok == sh(DC_TYPE_CONVERSION)
+                || tok == sh(DC_TYPE_TRANSMUTATION)
+                || tok == sh(DC_TYPE_INTERSECTION)
+                || tok == sh(DC_FORMAT_PARAM_APPLICATION)
+        };
+        tokens.first().is_some_and(|&t| {
+            is_format_op(t)
+                || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
+                    && tokens.get(1).copied().is_some_and(is_format_op))
+        })
+    }
+
     fn decode_decomposition_payload(
         &self,
         val_tok: DcShorthand,
@@ -894,25 +789,7 @@ impl SeedGraphIndex {
         }
         if let DcShorthand::Long(node_id) = val_tok {
             if let Some(node) = self.get_node(node_id) {
-                let is_format_op = |tok: DcShorthand| -> bool {
-                    tok == sh(DC_TYPE_UNION)
-                        || tok == sh(DC_TYPE_TRANSFORMATION)
-                        || tok == sh(DC_TYPE_CONVERSION)
-                        || tok == sh(DC_TYPE_TRANSMUTATION)
-                        || tok == sh(DC_TYPE_INTERSECTION)
-                        || tok == sh(DC_FORMAT_PARAM_APPLICATION)
-                };
-                let starts_format_expr =
-                    node.tokens.first().is_some_and(|&t| {
-                        is_format_op(t)
-                            || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
-                                && node
-                                    .tokens
-                                    .get(1)
-                                    .copied()
-                                    .is_some_and(is_format_op))
-                    });
-                if starts_format_expr {
+                if Self::node_starts_format_expr(&node.tokens) {
                     if skip_format_expr {
                         return None;
                     }
@@ -937,32 +814,14 @@ impl SeedGraphIndex {
             return Some(s.to_string());
         }
         if let DcShorthand::Long(node_id) = obj {
-            if let Some(node) = self.get_node(node_id) {
-                let is_format_op = |tok: DcShorthand| -> bool {
-                    tok == sh(DC_TYPE_UNION)
-                        || tok == sh(DC_TYPE_TRANSFORMATION)
-                        || tok == sh(DC_TYPE_CONVERSION)
-                        || tok == sh(DC_TYPE_TRANSMUTATION)
-                        || tok == sh(DC_TYPE_INTERSECTION)
-                        || tok == sh(DC_FORMAT_PARAM_APPLICATION)
-                };
-                let starts_format_expr =
-                    node.tokens.first().is_some_and(|&t| {
-                        is_format_op(t)
-                            || (t == sh(DC_BEGIN_ASSOCIATIVITY_GROUP)
-                                && node
-                                    .tokens
-                                    .get(1)
-                                    .copied()
-                                    .is_some_and(is_format_op))
-                    });
-                if starts_format_expr {
-                    if skip_format_expr {
-                        return None;
-                    }
-                    if let Ok(expr) = self.decode_format_expr_node(node_id) {
-                        return Some(crate::format_spec::format_expr(&expr));
-                    }
+            if let Some(node) = self.get_node(node_id)
+                && Self::node_starts_format_expr(&node.tokens)
+            {
+                if skip_format_expr {
+                    return None;
+                }
+                if let Ok(expr) = self.decode_format_expr_node(node_id) {
+                    return Some(crate::format_spec::format_expr(&expr));
                 }
             }
             if skip_format_expr {

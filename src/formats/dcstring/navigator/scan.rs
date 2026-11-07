@@ -71,40 +71,26 @@ impl<'a> DcDocumentNavigator<'a> {
         if offset >= self.active_span.end {
             return Ok(None);
         }
-        match &mut self.backend {
-            NavBackend::MemoryMstr(mstr) => {
-                let pos = usize::try_from(offset)?;
-                let Some(rem) = mstr.as_bytes().get(pos..) else {
-                    return Ok(None);
-                };
-                if rem.is_empty() {
-                    return Ok(None);
-                }
-                let Some((val, len)) = decode_dctf_buf(rem) else {
-                    bail!("Invalid DcTF character at byte offset {offset}");
-                };
-                let next_offset = offset.saturating_add(u64::try_from(len)?);
-                if next_offset > self.active_span.end {
-                    return Ok(None);
-                }
-                Ok(Some((DcChar::from_u128(val), next_offset)))
+        if let Some(bytes) = self.backend.memory_bytes() {
+            let pos = usize::try_from(offset)?;
+            let Some(rem) = bytes.get(pos..) else {
+                return Ok(None);
+            };
+            if rem.is_empty() {
+                return Ok(None);
+            };
+            let Some((val, len)) = decode_dctf_buf(rem) else {
+                bail!("Invalid DcTF character at byte offset {offset}");
+            };
+            let next_offset = offset.saturating_add(u64::try_from(len)?);
+            if next_offset > self.active_span.end {
+                return Ok(None);
             }
-            NavBackend::MemoryText(text) => {
-                let pos = usize::try_from(offset)?;
-                let Some(rem) = text.as_bytes().get(pos..) else {
-                    return Ok(None);
-                };
-                if rem.is_empty() {
-                    return Ok(None);
-                }
-                let Some((val, len)) = decode_dctf_buf(rem) else {
-                    bail!("Invalid DcTF character at byte offset {offset}");
-                };
-                let next_offset = offset.saturating_add(u64::try_from(len)?);
-                if next_offset > self.active_span.end {
-                    return Ok(None);
-                }
-                Ok(Some((DcChar::from_u128(val), next_offset)))
+            return Ok(Some((DcChar::from_u128(val), next_offset)));
+        }
+        match &mut self.backend {
+            NavBackend::MemoryMstr(_) | NavBackend::MemoryText(_) => {
+                unreachable!()
             }
             NavBackend::SeekableFile {
                 reader,
@@ -1269,42 +1255,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 expected_digest: payload.materialize_bytes()?.into_owned(),
             }
         };
-        let matches = match &mut self.backend {
-            NavBackend::MemoryMstr(mstr) => {
-                let mut body = mstr
-                    .as_bytes()
-                    .get(body_span.to_usize_range()?)
-                    .context("Section body span out of bounds")?;
-                checksum.matches_reader(&mut body, body_span.len())?
-            }
-            NavBackend::MemoryText(text) => {
-                let mut body = text
-                    .as_bytes()
-                    .get(body_span.to_usize_range()?)
-                    .context("Section body span out of bounds")?;
-                checksum.matches_reader(&mut body, body_span.len())?
-            }
-            NavBackend::SeekableFile {
-                reader, reader_pos, ..
-            } => {
-                let saved_position = match *reader_pos {
-                    Some(pos) => pos,
-                    None => reader.stream_position()?,
-                };
-                let result = (|| -> Result<bool> {
-                    seek_buffered_file(reader, reader_pos, body_span.start)?;
-                    let ok =
-                        checksum.matches_reader(reader, body_span.len())?;
-                    *reader_pos = Some(body_span.end);
-                    Ok(ok)
-                })();
-                if result.is_err() {
-                    *reader_pos = None;
-                }
-                seek_buffered_file(reader, reader_pos, saved_position)?;
-                result?
-            }
-        };
+        let matches = self.verify_checksum_over_span(body_span, &checksum)?;
         let valid = checksum_ok && matches;
         if !valid {
             self.syntax_issue(
@@ -1314,6 +1265,61 @@ impl<'a> DcDocumentNavigator<'a> {
             )?;
         }
         Ok((final_end, sequence_id, valid))
+    }
+
+    fn verify_checksum_over_span(
+        &mut self,
+        span: DcByteSpan,
+        checksum: &BinaryChecksum,
+    ) -> Result<bool> {
+        if let Some(bytes) = self.backend.memory_bytes() {
+            let mut body = bytes
+                .get(span.to_usize_range()?)
+                .context("Checksummed span out of bounds")?;
+            return checksum.matches_reader(&mut body, span.len());
+        }
+        match &mut self.backend {
+            NavBackend::SeekableFile {
+                reader, reader_pos, ..
+            } => {
+                let saved_pos = match *reader_pos {
+                    Some(pos) => pos,
+                    None => reader.stream_position()?,
+                };
+                let result = (|| -> Result<bool> {
+                    seek_buffered_file(reader, reader_pos, span.start)?;
+                    let ok = checksum.matches_reader(reader, span.len())?;
+                    *reader_pos = Some(span.end);
+                    Ok(ok)
+                })();
+                if result.is_err() {
+                    *reader_pos = None;
+                }
+                seek_buffered_file(reader, reader_pos, saved_pos)
+                    .context("Failed to restore checksum reader position")?;
+                result
+            }
+            NavBackend::MemoryMstr(_) | NavBackend::MemoryText(_) => {
+                unreachable!()
+            }
+        }
+    }
+
+    fn parse_textual_binary_arena_node(
+        sub: &DcStr,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<DcSyntaxKind<'a>> {
+        let (header, data, _) =
+            crate::encapsulation::parse_text_with_policy_and_resolver(
+                sub, policy, resolver,
+            )?;
+        let cf = header.chars().next();
+        Ok(DcSyntaxKind::Binary {
+            data_type: (!header.is_empty()).then_some(header),
+            checksum_format: cf,
+            payload: BinaryPayloadRef::Inline(data),
+        })
     }
 
     pub(super) fn parse_binary_arena_node(
@@ -1331,18 +1337,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     .context("Binary node span out of bounds")?;
                 let mut chunks = crate::dc_mixed::DcMixedChunks { slice };
                 let Some(chunk) = chunks.next() else {
-                    let sub = DcStr::from_bytes(slice)?;
-                    let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(sub, policy, resolver)?;
-                    let cf = header.chars().next();
-                    return Ok(DcSyntaxKind::Binary {
-                        data_type: if header.is_empty() {
-                            None
-                        } else {
-                            Some(header)
-                        },
-                        checksum_format: cf,
-                        payload: BinaryPayloadRef::Inline(data),
-                    });
+                    return Self::parse_textual_binary_arena_node(
+                        DcStr::from_bytes(slice)?,
+                        policy,
+                        resolver,
+                    );
                 };
                 match chunk {
                     crate::DcMixedChunk::Binary { data, .. } => {
@@ -1367,17 +1366,9 @@ impl<'a> DcDocumentNavigator<'a> {
                         })
                     }
                     crate::DcMixedChunk::Text(txt) => {
-                        let (header, data, _) = crate::encapsulation::parse_text_with_policy_and_resolver(txt, policy, resolver)?;
-                        let cf = header.chars().next();
-                        Ok(DcSyntaxKind::Binary {
-                            data_type: if header.is_empty() {
-                                None
-                            } else {
-                                Some(header)
-                            },
-                            checksum_format: cf,
-                            payload: BinaryPayloadRef::Inline(data),
-                        })
+                        Self::parse_textual_binary_arena_node(
+                            txt, policy, resolver,
+                        )
                     }
                 }
             }
@@ -1386,20 +1377,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 let sub = text
                     .get(range)
                     .context("Binary node span out of bounds in DcStr")?;
-                let (header, data, _) =
-                    crate::encapsulation::parse_text_with_policy_and_resolver(
-                        sub, policy, resolver,
-                    )?;
-                let cf = header.chars().next();
-                Ok(DcSyntaxKind::Binary {
-                    data_type: if header.is_empty() {
-                        None
-                    } else {
-                        Some(header)
-                    },
-                    checksum_format: cf,
-                    payload: BinaryPayloadRef::Inline(data),
-                })
+                Self::parse_textual_binary_arena_node(sub, policy, resolver)
             }
             NavBackend::SeekableFile { .. } => {
                 let (_, info) =
@@ -1415,37 +1393,14 @@ impl<'a> DcDocumentNavigator<'a> {
                 };
                 let checksum_format =
                     data_type.as_ref().and_then(|d| d.chars().next());
-                if let Some(checksum) = &checksum {
-                    let NavBackend::SeekableFile {
-                        reader, reader_pos, ..
-                    } = &mut self.backend
-                    else {
-                        bail!("Expected seekable binary source");
-                    };
-                    let saved_pos = match *reader_pos {
-                        Some(pos) => pos,
-                        None => reader.stream_position()?,
-                    };
-                    let result = (|| -> Result<bool> {
-                        seek_buffered_file(reader, reader_pos, pspan.start)?;
-                        let ok =
-                            checksum.matches_reader(reader, payload_len)?;
-                        *reader_pos = Some(pspan.end);
-                        Ok(ok)
-                    })();
-                    if result.is_err() {
-                        *reader_pos = None;
-                    }
-                    seek_buffered_file(reader, reader_pos, saved_pos).context(
-                        "Failed to restore checksum reader position",
+                if let Some(checksum) = &checksum
+                    && !self.verify_checksum_over_span(pspan, checksum)?
+                {
+                    self.syntax_issue(
+                        policy,
+                        span.start,
+                        "Encapsulation checksum mismatch".to_owned(),
                     )?;
-                    if !result? {
-                        self.syntax_issue(
-                            policy,
-                            span.start,
-                            "Encapsulation checksum mismatch".to_owned(),
-                        )?;
-                    }
                 }
                 let payload = if payload_len <= INLINE_BINARY_THRESHOLD {
                     let bytes = self.read_span_bytes(pspan)?.into_owned();

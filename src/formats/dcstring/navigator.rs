@@ -100,6 +100,16 @@ pub(super) enum NavBackend<'a> {
     },
 }
 
+impl<'a> NavBackend<'a> {
+    pub(super) const fn memory_bytes(&self) -> Option<&'a [u8]> {
+        match self {
+            Self::MemoryMstr(mstr) => Some(mstr.as_bytes()),
+            Self::MemoryText(text) => Some(text.as_bytes()),
+            Self::SeekableFile { .. } => None,
+        }
+    }
+}
+
 /// Generalized hierarchical navigator and seeker over `.dcmm` files, borrowed
 /// [`DcMstr`] slices, or [`DcStr`] buffers.
 ///
@@ -621,23 +631,13 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         span: DcByteSpan,
     ) -> Result<Cow<'a, [u8]>> {
+        if let Some(bytes) = self.backend.memory_bytes() {
+            let range = span.to_usize_range()?;
+            let slice =
+                bytes.get(range).context("Span out of bounds in memory")?;
+            return Ok(Cow::Borrowed(slice));
+        }
         match &mut self.backend {
-            NavBackend::MemoryMstr(mstr) => {
-                let range = span.to_usize_range()?;
-                let slice = mstr
-                    .as_bytes()
-                    .get(range)
-                    .context("Span out of bounds in DcMstr")?;
-                Ok(Cow::Borrowed(slice))
-            }
-            NavBackend::MemoryText(text) => {
-                let range = span.to_usize_range()?;
-                let slice = text
-                    .as_bytes()
-                    .get(range)
-                    .context("Span out of bounds in DcStr")?;
-                Ok(Cow::Borrowed(slice))
-            }
             NavBackend::SeekableFile {
                 reader, reader_pos, ..
             } => {
@@ -653,6 +653,9 @@ impl<'a> DcDocumentNavigator<'a> {
                 *reader_pos = Some(span.end);
                 seek_buffered_file(reader, reader_pos, self.cursor)?;
                 Ok(Cow::Owned(buf))
+            }
+            NavBackend::MemoryMstr(_) | NavBackend::MemoryText(_) => {
+                unreachable!()
             }
         }
     }
@@ -677,53 +680,6 @@ impl<'a> DcDocumentNavigator<'a> {
             wrapped.extend_from_slice(&DCMM_UUID);
             wrapped.extend_from_slice(&raw_bytes);
             Ok(DcMstring::from_bytes(wrapped)?)
-        }
-    }
-
-    /// Computes the SHA-256 digest of a byte span, streaming in 64 KiB chunks
-    /// when backed by a file so large sections do not allocate in memory.
-    pub fn sha256_of_span(&mut self, span: DcByteSpan) -> Result<[u8; 32]> {
-        match &mut self.backend {
-            NavBackend::MemoryMstr(mstr) => {
-                let range = span.to_usize_range()?;
-                let slice = mstr
-                    .as_bytes()
-                    .get(range)
-                    .context("Span out of bounds for SHA-256")?;
-                Ok(ctb_formats_checksum::sha256(slice))
-            }
-            NavBackend::MemoryText(text) => {
-                let range = span.to_usize_range()?;
-                let slice = text
-                    .as_bytes()
-                    .get(range)
-                    .context("Span out of bounds for SHA-256")?;
-                Ok(ctb_formats_checksum::sha256(slice))
-            }
-            NavBackend::SeekableFile {
-                reader, reader_pos, ..
-            } => {
-                seek_buffered_file(reader, reader_pos, span.start)?;
-                let mut hasher = Sha256::new();
-                let mut remaining = span.len();
-                let mut buf = [0_u8; 65536];
-                while remaining > 0 {
-                    let to_read = usize::try_from(remaining.min(65536))?;
-                    let slice = buf
-                        .get_mut(..to_read)
-                        .context("Buffer slice bounds invalid")?;
-                    if let Err(err) = reader.read_exact(slice) {
-                        *reader_pos = None;
-                        return Err(err.into());
-                    }
-                    hasher.update(&*slice);
-                    remaining =
-                        remaining.saturating_sub(u64::try_from(to_read)?);
-                }
-                *reader_pos = Some(span.end);
-                seek_buffered_file(reader, reader_pos, self.cursor)?;
-                Ok(hasher.finalize().into())
-            }
         }
     }
 
@@ -1186,6 +1142,17 @@ impl<'a> DcDocumentNavigator<'a> {
             }
         }
 
+        let prefix_stub = |end_offset: u64| -> DcFrameStub {
+            DcFrameStub {
+                head_dc: first_dc,
+                closer_dc: None,
+                outer_span: DcByteSpan::new(start_offset, end_offset),
+                inner_span: (end_offset > after_first)
+                    .then(|| DcByteSpan::new(after_first, end_offset)),
+                header_info: DcFrameHeaderInfo::None,
+            }
+        };
+
         // 0. Escape sequence (Dc 255 + escaped character)
         if first_dc.fills_role_with(DcRole::Escape, resolver) {
             let Some((escaped_dc, after_escaped)) =
@@ -1197,13 +1164,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     format!("Dangling escape Dc 255 at offset {start_offset}"),
                 )?;
                 self.cursor = after_first;
-                return Ok(Some(DcFrameStub {
-                    head_dc: first_dc,
-                    closer_dc: None,
-                    outer_span: DcByteSpan::new(start_offset, after_first),
-                    inner_span: None,
-                    header_info: DcFrameHeaderInfo::None,
-                }));
+                return Ok(Some(prefix_stub(after_first)));
             };
             self.cursor = after_escaped;
             return Ok(Some(DcFrameStub {
@@ -1233,13 +1194,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }));
             }
             self.cursor = after_first;
-            return Ok(Some(DcFrameStub {
-                head_dc: first_dc,
-                closer_dc: None,
-                outer_span: DcByteSpan::new(start_offset, after_first),
-                inner_span: None,
-                header_info: DcFrameHeaderInfo::None,
-            }));
+            return Ok(Some(prefix_stub(after_first)));
         }
 
         // 1.5. Stream say invocation (Dc 256)
@@ -1264,13 +1219,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 ),
             )?;
             self.cursor = after_first;
-            return Ok(Some(DcFrameStub {
-                head_dc: first_dc,
-                closer_dc: None,
-                outer_span: DcByteSpan::new(start_offset, after_first),
-                inner_span: None,
-                header_info: DcFrameHeaderInfo::None,
-            }));
+            return Ok(Some(prefix_stub(after_first)));
         }
 
         if let Some(target) = CharTarget::from_u128(first_dc.to_u128()) {
@@ -1378,22 +1327,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         {
                             if cached_end <= self.active_span.end {
                                 self.cursor = cached_end;
-                                return Ok(Some(DcFrameStub {
-                                    head_dc: first_dc,
-                                    closer_dc: None,
-                                    outer_span: DcByteSpan::new(
-                                        start_offset,
-                                        cached_end,
-                                    ),
-                                    inner_span: (cached_end > after_first)
-                                        .then(|| {
-                                            DcByteSpan::new(
-                                                after_first,
-                                                cached_end,
-                                            )
-                                        }),
-                                    header_info: DcFrameHeaderInfo::None,
-                                }));
+                                return Ok(Some(prefix_stub(cached_end)));
                             }
                         }
                         let fast_end = match resolver
@@ -1430,22 +1364,7 @@ impl<'a> DcDocumentNavigator<'a> {
                                 (end_offset, true),
                             );
                             self.cursor = end_offset;
-                            return Ok(Some(DcFrameStub {
-                                head_dc: first_dc,
-                                closer_dc: None,
-                                outer_span: DcByteSpan::new(
-                                    start_offset,
-                                    end_offset,
-                                ),
-                                inner_span: (end_offset > after_first)
-                                    .then(|| {
-                                        DcByteSpan::new(
-                                            after_first,
-                                            end_offset,
-                                        )
-                                    }),
-                                header_info: DcFrameHeaderInfo::None,
-                            }));
+                            return Ok(Some(prefix_stub(end_offset)));
                         }
                     }
                     if after_first >= self.active_span.end {
@@ -1508,15 +1427,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             );
                         }
                         self.cursor = last_end;
-                        return Ok(Some(DcFrameStub {
-                            head_dc: first_dc,
-                            closer_dc: None,
-                            outer_span: DcByteSpan::new(start_offset, last_end),
-                            inner_span: (last_end > after_first).then(|| {
-                                DcByteSpan::new(after_first, last_end)
-                            }),
-                            header_info: DcFrameHeaderInfo::None,
-                        }));
+                        return Ok(Some(prefix_stub(last_end)));
                     }
                     self.syntax_issue(
                         policy,
@@ -1536,26 +1447,13 @@ impl<'a> DcDocumentNavigator<'a> {
                         resolver,
                     )?;
                 self.cursor = last_end;
-                return Ok(Some(DcFrameStub {
-                    head_dc: first_dc,
-                    closer_dc: None,
-                    outer_span: DcByteSpan::new(start_offset, last_end),
-                    inner_span: (last_end > after_first)
-                        .then(|| DcByteSpan::new(after_first, last_end)),
-                    header_info: DcFrameHeaderInfo::None,
-                }));
+                return Ok(Some(prefix_stub(last_end)));
             }
         }
 
         // 6. Standalone atomic DcChar (e.g. boolean 517/518, 316, 551, enum discriminant)
         self.cursor = after_first;
-        Ok(Some(DcFrameStub {
-            head_dc: first_dc,
-            closer_dc: None,
-            outer_span: DcByteSpan::new(start_offset, after_first),
-            inner_span: None,
-            header_info: DcFrameHeaderInfo::None,
-        }))
+        Ok(Some(prefix_stub(after_first)))
     }
 
     pub(super) fn record_diagnostic(
