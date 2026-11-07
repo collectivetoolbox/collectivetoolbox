@@ -270,12 +270,6 @@ pub struct NavigatorCheckpoint {
 }
 
 impl NavigatorCheckpoint {
-    /// Returns true if this checkpoint has active spliced tokens remaining.
-    #[must_use]
-    pub const fn has_spliced(&self) -> bool {
-        self.spliced_head < self.spliced_end
-    }
-
     /// Returns the number of active spliced tokens in this checkpoint.
     #[must_use]
     pub const fn spliced_len(&self) -> usize {

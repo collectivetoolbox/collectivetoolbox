@@ -342,84 +342,9 @@ impl<'a> DcDocumentNavigator<'a> {
         self.spliced_head = self.spliced_end;
     }
 
-    /// Returns true if the next token fills `role` under `resolver`.
-    ///
-    /// # Errors
-    /// Returns an error if reading the next token fails.
-    pub fn peek_fills_role(
-        &mut self,
-        role: DcRole,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<bool> {
-        if let Some(ch) = self.peek_token()? {
-            Ok(resolver.token_fills_role(ch.to_u128(), role))
-        } else {
-            Ok(false)
-        }
-    }
-
-    /// Advances and returns the next token if it fills `role` under `resolver`.
-    ///
-    /// # Errors
-    /// Returns an error if reading the next token fails.
-    pub fn next_if_fills_role(
-        &mut self,
-        role: DcRole,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.peek_token()? {
-            if resolver.token_fills_role(ch.to_u128(), role) {
-                return self.read_next_token();
-            }
-        }
-        Ok(None)
-    }
-
-    /// Peeks the next token in the stream without advancing the cursor.
-    ///
-    /// # Errors
-    /// Returns an error if reading from the stream fails.
-    pub fn peek_token(&mut self) -> Result<Option<DcChar>> {
+    fn next_token_or_splice(&mut self) -> Result<Option<(DcChar, Option<u64>)>> {
         if let Some(ch) = self.peek_spliced_token() {
-            return Ok(Some(ch));
-        }
-        if self.cursor >= self.active_span.end {
-            return Ok(None);
-        }
-        let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? else {
-            return Ok(None);
-        };
-        let resolver = self.effective_resolver();
-        if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || resolver.is_splice_trigger_token(ch.to_u128())
-        {
-            let policy = DcProjectionPolicy::forgiving_quiet();
-            if self.splice_stream_invocation(
-                &DefaultDcExpressionEvaluator,
-                &*resolver,
-                &policy,
-            )? {
-                if let Some(spliced) = self.peek_spliced_token() {
-                    return Ok(Some(spliced));
-                }
-                if let Some((next_ch, _)) =
-                    self.read_token_or_binary_at(self.cursor)?
-                {
-                    return Ok(Some(next_ch));
-                }
-                return Ok(None);
-            }
-        }
-        Ok(Some(ch))
-    }
-
-    /// Consumes and returns the next token from the spliced buffer or backend stream.
-    ///
-    /// # Errors
-    /// Returns an error if reading from the stream fails.
-    pub fn read_next_token(&mut self) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.pop_spliced_token() {
-            return Ok(Some(ch));
+            return Ok(Some((ch, None)));
         }
         if self.cursor >= self.active_span.end {
             return Ok(None);
@@ -430,28 +355,45 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(None);
         };
         let resolver = self.effective_resolver();
-        if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || resolver.is_splice_trigger_token(ch.to_u128())
-        {
-            let policy = DcProjectionPolicy::forgiving_quiet();
-            if self.splice_stream_invocation(
+        if (ch == ctb_formats_dcdata::dc::DC_LANG_SAY
+            || resolver.is_splice_trigger_token(ch.to_u128()))
+            && self.splice_stream_invocation(
                 &DefaultDcExpressionEvaluator,
                 &*resolver,
-                &policy,
-            )? {
-                if let Some(spliced) = self.pop_spliced_token() {
-                    return Ok(Some(spliced));
-                }
-                if let Some((next_ch, after_next)) =
-                    self.read_token_or_binary_at(self.cursor)?
-                {
-                    self.cursor = after_next;
-                    return Ok(Some(next_ch));
-                }
-                return Ok(None);
+                &DcProjectionPolicy::forgiving_quiet(),
+            )?
+        {
+            if let Some(spliced) = self.peek_spliced_token() {
+                return Ok(Some((spliced, None)));
             }
+            return Ok(self
+                .read_token_or_binary_at(self.cursor)?
+                .map(|(next_ch, after_next)| (next_ch, Some(after_next))));
         }
-        self.cursor = next_offset;
+        Ok(Some((ch, Some(next_offset))))
+    }
+
+    /// Peeks the next token in the stream without advancing the cursor.
+    ///
+    /// # Errors
+    /// Returns an error if reading from the stream fails.
+    pub fn peek_token(&mut self) -> Result<Option<DcChar>> {
+        Ok(self.next_token_or_splice()?.map(|(ch, _)| ch))
+    }
+
+    /// Consumes and returns the next token from the spliced buffer or backend stream.
+    ///
+    /// # Errors
+    /// Returns an error if reading from the stream fails.
+    pub fn read_next_token(&mut self) -> Result<Option<DcChar>> {
+        let Some((ch, next_offset)) = self.next_token_or_splice()? else {
+            return Ok(None);
+        };
+        if let Some(offset) = next_offset {
+            self.cursor = offset;
+        } else {
+            let _ = self.pop_spliced_token();
+        }
         Ok(Some(ch))
     }
 
@@ -492,21 +434,6 @@ impl<'a> DcDocumentNavigator<'a> {
             .unwrap_or(&[])
     }
 
-    /// If the cursor is currently positioned at a stream-splicing invocation (e.g. `256 lang.say`),
-    /// parses the invocation frame, executes it, advances the cursor past the call,
-    /// and pushes the emitted tokens into `spliced_tokens`.
-    pub fn splice_stream_say(
-        &mut self,
-        policy: &DcProjectionPolicy,
-    ) -> Result<bool> {
-        let resolver = self.effective_resolver();
-        self.splice_stream_invocation(
-            &DefaultDcExpressionEvaluator,
-            &*resolver,
-            policy,
-        )
-    }
-
     /// Evaluates a stream-splicing invocation at the current cursor via `evaluator`,
     /// advances the cursor past the call, and pushes emitted tokens into `spliced_tokens`.
     pub fn splice_stream_invocation(
@@ -541,25 +468,6 @@ impl<'a> DcDocumentNavigator<'a> {
             }
         }
         Ok(false)
-    }
-
-    /// Consumes and returns the next token from `spliced_tokens` or backend stream,
-    /// automatically evaluating any stream-splicing invocation encountered.
-    pub fn read_next_token_spliced(
-        &mut self,
-        evaluator: &dyn DcExpressionEvaluator,
-        resolver: &dyn SyntaxRuleResolver,
-        policy: &DcProjectionPolicy,
-    ) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.pop_spliced_token() {
-            return Ok(Some(ch));
-        }
-        if self.splice_stream_invocation(evaluator, resolver, policy)? {
-            if let Some(ch) = self.pop_spliced_token() {
-                return Ok(Some(ch));
-            }
-        }
-        self.read_next_token()
     }
 
     /// Saves the current cursor and spliced token slice state into a zero-copy checkpoint.
