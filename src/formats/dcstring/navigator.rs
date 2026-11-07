@@ -521,12 +521,13 @@ impl<'a> DcDocumentNavigator<'a> {
         file.read_exact(&mut header)
             .context("Failed to read DcMixed header")?;
         ensure!(
-            header.get(..5) == Some(&DCMM_MAGIC)
-                && (header.get(5..21) == Some(&DCMM_UUID)
-                    || header.get(5..21) == Some(&crate::DCMM_UUID_V1)),
+            header.get(..5) == Some(DCMM_MAGIC.as_slice())
+                && (header.get(5..21) == Some(DCMM_UUID.as_slice())
+                    || header.get(5..21)
+                        == Some(crate::DCMM_UUID_V1.as_slice())),
             "Invalid DcMixed (.dcmm) header magic or UUID"
         );
-        let is_v1 = header.get(5..21) == Some(&crate::DCMM_UUID_V1);
+        let is_v1 = header.get(5..21) == Some(crate::DCMM_UUID_V1.as_slice());
         let reader = BufReader::with_capacity(64 * 1024, file);
         let mut nav = Self {
             backend: NavBackend::SeekableFile {

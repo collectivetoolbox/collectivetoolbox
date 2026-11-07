@@ -4237,7 +4237,7 @@ mod tests {
                 entries
                     .iter()
                     .map(|(key, value)| ((*key).to_owned(), *value))
-                    .collect()
+                    .collect::<BTreeMap<_, _>>()
             );
             let canonical = decoded.to_dc_mixed()?;
             let mut nav = crate::DcDocumentNavigator::from_mstr(&canonical);

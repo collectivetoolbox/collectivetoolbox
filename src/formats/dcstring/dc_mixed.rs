@@ -1750,8 +1750,8 @@ pub fn dcmm_to_dcmstring_with_options(
 ) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
     if !options.best_effort {
         if bytes.len() >= DCMM_HEADER_LEN
-            && bytes.get(..5) == Some(&DCMM_MAGIC)
-            && bytes.get(5..21) == Some(&DCMM_UUID_V1)
+            && bytes.get(..5) == Some(DCMM_MAGIC.as_slice())
+            && bytes.get(5..21) == Some(DCMM_UUID_V1.as_slice())
         {
             return dcmm1_to_dcmstring(bytes);
         }
@@ -1805,14 +1805,16 @@ fn decode_dcmm_slice_best_effort(
     let mut offset = 0usize;
     let mut had_valid_initial_header = false;
 
-    if bytes.len() >= DCMM_HEADER_LEN && bytes.get(..5) == Some(&DCMM_MAGIC) {
-        if bytes.get(5..21) == Some(&DCMM_UUID) {
+    if bytes.len() >= DCMM_HEADER_LEN
+        && bytes.get(..5) == Some(DCMM_MAGIC.as_slice())
+    {
+        if bytes.get(5..21) == Some(DCMM_UUID.as_slice()) {
             if default_v1 {
                 log.warn("Expected DcMixed1 UUID at offset 5, found DcMixed2 UUID; decoding as DcMixed2");
             }
             is_v1 = false;
             had_valid_initial_header = true;
-        } else if bytes.get(5..21) == Some(&DCMM_UUID_V1) {
+        } else if bytes.get(5..21) == Some(DCMM_UUID_V1.as_slice()) {
             is_v1 = true;
             had_valid_initial_header = true;
         } else {
@@ -1833,9 +1835,9 @@ fn decode_dcmm_slice_best_effort(
 
         if !had_valid_initial_header
             && slice.len() >= DCMM_HEADER_LEN
-            && slice.get(..5) == Some(&DCMM_MAGIC)
+            && slice.get(..5) == Some(DCMM_MAGIC.as_slice())
         {
-            if slice.get(5..21) == Some(&DCMM_UUID) {
+            if slice.get(5..21) == Some(DCMM_UUID.as_slice()) {
                 log.warn(&format!(
                     "Found embedded DcMixed2 header at offset {offset}; aligning stream"
                 ));
@@ -1843,7 +1845,7 @@ fn decode_dcmm_slice_best_effort(
                 escaped = false;
                 offset = offset.saturating_add(DCMM_HEADER_LEN);
                 continue;
-            } else if slice.get(5..21) == Some(&DCMM_UUID_V1) {
+            } else if slice.get(5..21) == Some(DCMM_UUID_V1.as_slice()) {
                 log.warn(&format!(
                     "Found embedded DcMixed1 header at offset {offset}; aligning stream"
                 ));

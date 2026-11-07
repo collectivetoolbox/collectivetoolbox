@@ -153,6 +153,7 @@ pub use syntax::{
     SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm, parse_dc_syntax,
     parse_target_token, validate_dc_syntax,
 };
+pub use tinywasm;
 pub use updater::{
     MergedGenerationStats, TableUpdateStats, assign_and_update_dc_categories,
     assign_and_update_format_categories,

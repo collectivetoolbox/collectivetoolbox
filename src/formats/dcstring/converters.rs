@@ -33,6 +33,7 @@ pub mod dcts;
 pub mod eite;
 pub mod transform;
 pub mod utf8;
+pub mod wasm;
 
 /// Produces DcUtf while retaining binary payload types and checksums.
 ///
@@ -71,4 +72,9 @@ pub use transform::{
 };
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
+};
+pub use wasm::{
+    assemble_wasm_instructions, dcmstring_to_wasm,
+    dcmstring_to_wasm_with_resolver, dcstring_to_wasm,
+    dcstring_to_wasm_with_resolver,
 };
