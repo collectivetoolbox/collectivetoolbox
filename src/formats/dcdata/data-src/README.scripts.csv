@@ -6,11 +6,11 @@ Script,Block increment size
 .DCE versions,TBD
 .EL Control Flow,64
 .EL Miscellaneous,128
-.EL Operators,16
+.EL Operators,64
 .EL Pronouns,32
 .EL Routines,256
 .EL Syntax,256
-.EL Types,256
+.EL Types,64
 .Emoji,TBD
 .Encapsulation,TBD
 .Financial,TBD
@@ -20,7 +20,7 @@ Script,Block increment size
 .Punctuation,256
 .Semantic,256
 .Semantic:Relationship,256
-.Semantic:Pattern,256
+.Semantic:Pattern,64
 .Semantic:fileflag,128
 .Styling,256
 .Symbols,256
@@ -30,40 +30,40 @@ Script,Block increment size
 .WASM GC,256
 .WASM Relaxed SIMD,256
 .WASM SIMD,256
-.Formats:arch,256
+.Formats:arch,128
 .Formats:armor,256
 .Formats:base_alphabet,256
-.Formats:calendar,256
-.Formats:color_depth,256
+.Formats:calendar,64
+.Formats:color_depth,64
 .Formats:compression,256
 .Formats:container,256
 .Formats:database,256
-.Formats:date,256
+.Formats:date,64
 .Formats:device_caps,256
 .Formats:display_system,256
 .Formats:document,256
-.Formats:duration,256
+.Formats:duration,64
 .Formats:encoding,256
-.Formats:executable,256
-.Formats:filesystem,256
+.Formats:executable,128
+.Formats:filesystem,128
 .Formats:format_variant,256
 .Formats:hash,256
 .Formats:identifier,256
-.Formats:kernel,256
+.Formats:kernel,64
 .Formats:language,256
-.Formats:libc,256
+.Formats:libc,64
 .Formats:math,256
-.Formats:number,256
-.Formats:number_abstract,256
-.Formats:numeral_system,256
-.Formats:os,256
-.Formats:packagemgr,256
+.Formats:number,128
+.Formats:number_abstract,128
+.Formats:numeral_system,128
+.Formats:os,128
+.Formats:packagemgr,128
 .Formats:programming,256
 .Formats:semantic,256
 .Formats:transformation,256
 .Formats:userspace,256
-.Formats:userspace_libraries,256
-.Formats:userspace_utilities,256
+.Formats:userspace_libraries,64
+.Formats:userspace_utilities,64
 .Formats:v:case,32
 .Formats:v:lineEndings,32
 .Formats:v:padding,32
