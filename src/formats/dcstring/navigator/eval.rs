@@ -108,6 +108,40 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
         let Some(first) = expr_tokens.first() else {
             return Ok(None);
         };
+        if let Some(wasm_shorthands) =
+            resolver.resolve_wasm_definition_tokens(first.to_u128())
+        {
+            let doc =
+                crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice(
+                    wasm_shorthands,
+                    expr_tokens,
+                    resolver,
+                )?;
+            return Ok(Some(DcEvaluatedValue::Document(doc)));
+        }
+        let is_direct_wasm = first
+            .fills_role_with(DcRole::BeginWasmProgram, resolver)
+            || (first.fills_role_with(DcRole::BeginLiteral, resolver)
+                && expr_tokens.get(1).is_some_and(|t| {
+                    t.fills_role_with(DcRole::BeginTypeDef, resolver)
+                })
+                && expr_tokens.get(2).is_some_and(|t| {
+                    t.fills_role_with(DcRole::TypeRoutine, resolver)
+                }));
+        if is_direct_wasm {
+            let mut prog_mstr = DcMstring::new();
+            for &tok in expr_tokens {
+                prog_mstr.push_char(tok);
+            }
+            let empty_input = DcMstring::new();
+            let doc =
+                crate::converters::wasm::run_dc_wasm_pure_conversion_with_resolver(
+                    &prog_mstr,
+                    &empty_input,
+                    resolver,
+                )?;
+            return Ok(Some(DcEvaluatedValue::Document(doc)));
+        }
         if resolver.is_representation_set(first.to_u128()) {
             let mut mstr = DcMstring::new();
             for &tok in expr_tokens {
@@ -211,6 +245,18 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
         let Some(first) = call_tokens.first() else {
             return Ok(None);
         };
+        if let Some(wasm_shorthands) =
+            resolver.resolve_wasm_definition_tokens(first.to_u128())
+        {
+            let doc =
+                crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice(
+                    wasm_shorthands,
+                    call_tokens,
+                    resolver,
+                )?;
+            let dc_str = doc.to_dc_string()?;
+            return Ok(Some(dc_str.chars().collect()));
+        }
         if first.fills_role_with(DcRole::LangSay, resolver) {
             let mut in_str = false;
             let mut expect_hdr = false;
@@ -1452,10 +1498,17 @@ impl DcDocumentNavigator<'_> {
                 }
 
                 if name != "value"
-                    && first_dc.fills_role_with(
+                    && (first_dc.fills_role_with(
                         DcRole::EvaluableExpressionStarter,
                         ctx.resolver,
-                    )
+                    ) || ctx
+                        .resolver
+                        .resolve_wasm_definition_tokens(first)
+                        .is_some()
+                        || first_dc.fills_role_with(
+                            DcRole::BeginWasmProgram,
+                            ctx.resolver,
+                        ))
                 {
                     let checkpoint = self.save_checkpoint();
                     if let Ok(Some(stub)) = self

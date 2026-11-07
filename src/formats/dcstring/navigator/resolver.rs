@@ -53,6 +53,10 @@ pub struct SyntaxRuntimeResolver {
     closing_delimiters: std::collections::HashMap<u128, CharTarget>,
     opener_to_closer: std::collections::HashMap<CharTarget, u128>,
     opaque_containers: std::collections::HashSet<u128>,
+    custom_wasm_definitions: std::collections::HashMap<
+        u128,
+        Vec<ctb_storage_minimal::shorthand::DcShorthand>,
+    >,
 }
 
 impl std::fmt::Debug for SyntaxRuntimeResolver {
@@ -67,6 +71,7 @@ impl std::fmt::Debug for SyntaxRuntimeResolver {
             .field("closing_delimiters", &self.closing_delimiters)
             .field("opener_to_closer", &self.opener_to_closer)
             .field("opaque_containers", &self.opaque_containers)
+            .field("custom_wasm_definitions", &self.custom_wasm_definitions)
             .finish()
     }
 }
@@ -94,6 +99,7 @@ impl SyntaxRuntimeResolver {
             closing_delimiters: std::collections::HashMap::new(),
             opener_to_closer: std::collections::HashMap::new(),
             opaque_containers: std::collections::HashSet::new(),
+            custom_wasm_definitions: std::collections::HashMap::new(),
         }
     }
 
@@ -204,6 +210,17 @@ impl SyntaxRuntimeResolver {
         self.opaque_containers.insert(opener_token);
     }
 
+    /// Registers a `.WASM` program (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`)
+    /// or `wasm_routine` definition for `token`, marking `token` as an evaluable expression starter.
+    pub fn register_wasm_definition(
+        &mut self,
+        token: u128,
+        wasm_tokens: Vec<ctb_storage_minimal::shorthand::DcShorthand>,
+    ) {
+        self.custom_wasm_definitions.insert(token, wasm_tokens);
+        self.register_role(token, DcRole::EvaluableExpressionStarter);
+    }
+
     fn canonical_target(&self, target: &CharTarget) -> Option<CharTarget> {
         let token = target.to_u128();
         let canon = self.canonical_token(token);
@@ -246,6 +263,28 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         name: &str,
     ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
         self.base.resolve_named_type_tokens(name)
+    }
+
+    fn resolve_wasm_definition_tokens(
+        &self,
+        token: u128,
+    ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
+        if let Some(tokens) = self.custom_wasm_definitions.get(&token) {
+            return Some(tokens.as_slice());
+        }
+        let canon = self.canonical_token(token);
+        if canon != token
+            && let Some(tokens) = self.custom_wasm_definitions.get(&canon)
+        {
+            return Some(tokens.as_slice());
+        }
+        self.base.resolve_wasm_definition_tokens(token).or_else(|| {
+            if canon == token {
+                None
+            } else {
+                self.base.resolve_wasm_definition_tokens(canon)
+            }
+        })
     }
 
     fn canonical_token(&self, mut token: u128) -> u128 {

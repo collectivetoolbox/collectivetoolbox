@@ -29,7 +29,8 @@ use crate::utilities::*;
 
 use crate::dc_number::read_dc_number_from_reader_with_resolver;
 use crate::{
-    DcChar, DcCharExt, DcDocumentNavigator, DcMstr, DcProjectionPolicy, DcStr,
+    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcChar, DcCharExt,
+    DcDocumentNavigator, DcMstr, DcMstring, DcProjectionPolicy, DcStr,
     DcString, Integer,
 };
 use anyhow::{Context, Result, anyhow, bail, ensure};
@@ -41,7 +42,43 @@ use ctb_formats_dcdata::syntax::{
     CharTarget, DcRole, SyntaxElement, SyntaxPattern, SyntaxRuleResolver,
     SyntaxTerm, default_syntax_resolver,
 };
+use ctb_formats_dcdata::tinywasm::{Module, ModuleInstance, Store};
 use ctb_utilities::format_id::FormatId;
+
+/// Linear-memory byte offset (`0..4`) holding the `u32` little-endian input slice pointer.
+pub const DC_WASM_MAILBOX_INPUT_PTR: u32 = 0;
+
+/// Linear-memory byte offset (`4..8`) holding the `u32` little-endian input slice byte length.
+pub const DC_WASM_MAILBOX_INPUT_LEN: u32 = 4;
+
+/// Linear-memory byte offset (`8..12`) holding the `u32` little-endian output slice pointer.
+pub const DC_WASM_MAILBOX_OUTPUT_PTR: u32 = 8;
+
+/// Linear-memory byte offset (`12..16`) holding the `u32` little-endian output slice byte length.
+pub const DC_WASM_MAILBOX_OUTPUT_LEN: u32 = 12;
+
+/// Linear-memory byte offset (`16..32`) holding the `u128` little-endian
+/// `Dc 641 "Global graph system block most recent node ID at time of document creation"`.
+pub const DC_WASM_MAILBOX_MOST_RECENT_NODE_ID: u32 = 16;
+
+/// Total byte length (`32`) of the standard linear-memory mailbox header at `0..32`.
+pub const DC_WASM_MAILBOX_HEADER_LEN: u32 = 32;
+
+/// Minimum default linear-memory byte offset (`256`) where the host places input/output slices,
+/// leaving `0..32` for the mailbox header and `32..256` for scratch state or small data segments.
+pub const DC_WASM_MIN_IO_BUFFER_OFFSET: usize = 256;
+
+/// `step()` return status code `0`: execution or conversion completed.
+pub const WASM_STEP_STATUS_COMPLETE: i32 = 0;
+
+/// `step()` return status code `1`: streaming frame yielded; call `step()` again to continue.
+pub const WASM_STEP_STATUS_YIELD_FRAME: i32 = 1;
+
+/// `step()` return status code `2`: capability requested; provide response and call `step()` again.
+pub const WASM_STEP_STATUS_REQUEST_CAPABILITY: i32 = 2;
+
+/// Default maximum number of `step()` quanta allowed in a one-shot pure conversion.
+pub const DEFAULT_MAX_PURE_CONVERSION_STEPS: usize = 1024;
 
 const WASM_MAGIC_AND_VERSION: [u8; 8] =
     [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
@@ -859,10 +896,10 @@ fn assemble_instruction_sequence(
 
 trait FromNeBytesExt {
     fn from_ne_bytes_of_u32(v: u32) -> i32 {
-        i32::from_ne_bytes(v.to_ne_bytes())
+        i32::from_le_bytes(v.to_le_bytes())
     }
     fn from_ne_bytes_of_u64(v: u64) -> i64 {
-        i64::from_ne_bytes(v.to_ne_bytes())
+        i64::from_le_bytes(v.to_le_bytes())
     }
 }
 impl FromNeBytesExt for i32 {}
@@ -1268,7 +1305,7 @@ pub fn dcstring_to_wasm_with_resolver(
             }
         }
 
-        let mut next_data_offset = 0u32;
+        let mut next_data_offset = DC_WASM_MAILBOX_HEADER_LEN;
         while let Some(pair_peek) = cursor.peek() {
             if cursor.token_fills_role(pair_peek, DcRole::EndKvMap) {
                 let _ = cursor.next()?;
@@ -1390,6 +1427,520 @@ pub fn dcstring_to_wasm_with_resolver(
     );
 
     encode_wasm_module(&routines, &globals, &data_segments)
+}
+
+/// Status code returned by a pure-compute WebAssembly `step()` quantum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WasmStepStatus {
+    /// `0 = Complete`: Execution or conversion finished; the output region holds the converted Dc document.
+    Complete,
+    /// `1 = YieldFrame`: Streaming execution; the output region holds an emitted frame, and the
+    /// instance's linear memory and globals remain intact for the next `step()` call.
+    YieldFrame,
+    /// `2 = RequestCapability`: Execution paused requesting a privileged capability; the output
+    /// region holds the capability request Dc document.
+    RequestCapability,
+}
+
+impl WasmStepStatus {
+    /// Converts a raw `i32` return value from `step()` into a [`WasmStepStatus`].
+    ///
+    /// # Errors
+    /// Returns an error if `code` is not `0`, `1`, or `2`.
+    pub fn from_i32(code: i32) -> Result<Self> {
+        match code {
+            WASM_STEP_STATUS_COMPLETE => Ok(Self::Complete),
+            WASM_STEP_STATUS_YIELD_FRAME => Ok(Self::YieldFrame),
+            WASM_STEP_STATUS_REQUEST_CAPABILITY => Ok(Self::RequestCapability),
+            other => bail!(
+                "Invalid WASM step() return status code {other}: expected 0 (Complete), 1 (YieldFrame), or 2 (RequestCapability)"
+            ),
+        }
+    }
+
+    /// Returns the canonical `i32` status code (`0`, `1`, or `2`).
+    #[must_use]
+    pub const fn as_i32(self) -> i32 {
+        match self {
+            Self::Complete => WASM_STEP_STATUS_COMPLETE,
+            Self::YieldFrame => WASM_STEP_STATUS_YIELD_FRAME,
+            Self::RequestCapability => WASM_STEP_STATUS_REQUEST_CAPABILITY,
+        }
+    }
+}
+
+/// Outcome of a single [`DcWasmSession::step`] invocation, pairing the [`WasmStepStatus`]
+/// with the [`DcMstring`] decoded from the WASM instance's output slice in linear memory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WasmStepOutcome {
+    /// `0 = Complete`: Conversion or execution finished with the output [`DcMstring`].
+    Complete(DcMstring),
+    /// `1 = YieldFrame`: Emitted a streaming frame [`DcMstring`]; call `step()` again to continue.
+    YieldFrame(DcMstring),
+    /// `2 = RequestCapability`: Paused requesting a capability described by [`DcMstring`];
+    /// write the response via [`DcWasmSession::provide_input`] and call `step()` again to resume.
+    RequestCapability(DcMstring),
+}
+
+/// Pure-compute WebAssembly execution state machine (`step() -> StatusCode`) backed by `tinywasm`.
+///
+/// Owns a persistent [`Store`] and [`ModuleInstance`] whose linear memory and globals survive
+/// across `step()` calls without requiring host FFI imports.
+#[derive(Debug)]
+pub struct DcWasmSession {
+    store: Store,
+    instance: ModuleInstance,
+    entry_func_name: String,
+    base_io_offset: usize,
+    current_input_ptr: u32,
+    current_input_len: u32,
+    default_output_ptr: u32,
+    most_recent_node_id: Option<u128>,
+}
+
+fn align_up_8(val: usize) -> Result<usize> {
+    let rem = val.checked_rem(8).unwrap_or(0);
+    if rem == 0 {
+        Ok(val)
+    } else {
+        val.checked_add(8usize.saturating_sub(rem))
+            .context("Linear memory offset overflow during 8-byte alignment")
+    }
+}
+
+fn decode_output_bytes_to_dcmstring(out_bytes: &[u8]) -> Result<DcMstring> {
+    if out_bytes.len() >= DCMM_HEADER_LEN
+        && out_bytes.get(0..5) == Some(DCMM_MAGIC.as_slice())
+    {
+        return DcMstring::from_slice(out_bytes).map_err(|e| {
+            anyhow!(
+                "WASM output buffer contains invalid DcMixed document: {e}"
+            )
+        });
+    }
+    let mut full =
+        Vec::with_capacity(DCMM_HEADER_LEN.saturating_add(out_bytes.len()));
+    full.extend_from_slice(&DCMM_MAGIC);
+    full.extend_from_slice(&DCMM_UUID);
+    full.extend_from_slice(out_bytes);
+    DcMstring::from_bytes(full).map_err(|e| {
+        anyhow!("WASM output buffer contains invalid DcTF payload: {e}")
+    })
+}
+
+impl DcWasmSession {
+    /// Instantiates a pure-compute [`DcWasmSession`] from compiled `.wasm` module bytes,
+    /// loading `initial_input` and `most_recent_node_id` (`Dc 641`) into linear memory.
+    ///
+    /// # Errors
+    /// Returns an error if parsing or instantiating the module fails, if the module exports
+    /// neither `"step"` nor `"main"`, or if writing the initial input into linear memory fails.
+    pub fn from_wasm_bytes(
+        wasm_bytes: &[u8],
+        initial_input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+    ) -> Result<Self> {
+        let module = Module::parse_bytes(wasm_bytes).map_err(|e| {
+            anyhow!("Failed to parse WebAssembly module in tinywasm: {e:?}")
+        })?;
+        let mut store = Store::default();
+        let instance =
+            module.instantiate(&mut store, None).map_err(|e| {
+                anyhow!(
+                    "Failed to instantiate WebAssembly module in tinywasm: {e:?}"
+                )
+            })?;
+
+        let entry_func_name = if instance.export_addr("step").is_some() {
+            "step".to_owned()
+        } else if instance.export_addr("main").is_some() {
+            "main".to_owned()
+        } else {
+            bail!(
+                "WebAssembly module must export a 'step' or 'main' entry function"
+            );
+        };
+
+        // Determine the highest byte initialized by active data segments so I/O buffers
+        // never overwrite static data segments in linear memory.
+        let base_io_offset = {
+            let mut mem = instance
+                .exported_memory_mut(&mut store, "memory")
+                .map_err(|e| {
+                    anyhow!(
+                        "WebAssembly module is missing exported 'memory': {e:?}"
+                    )
+                })?;
+            let total_len = mem.page_count().saturating_mul(65_536);
+            let slice = mem.load(0, total_len).map_err(|e| {
+                anyhow!("Failed to inspect initial WASM linear memory: {e:?}")
+            })?;
+            let last_nonzero_end = slice
+                .iter()
+                .rposition(|&b| b != 0)
+                .map_or(0, |idx| idx.saturating_add(1));
+            align_up_8(last_nonzero_end.max(DC_WASM_MIN_IO_BUFFER_OFFSET))?
+        };
+
+        let mut session = Self {
+            store,
+            instance,
+            entry_func_name,
+            base_io_offset,
+            current_input_ptr: 0,
+            current_input_len: 0,
+            default_output_ptr: 0,
+            most_recent_node_id,
+        };
+        session.provide_input(initial_input)?;
+        Ok(session)
+    }
+
+    /// Assembles a Dc-WASM document (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
+    /// or `wasm_routine`) using the default syntax resolver and instantiates a [`DcWasmSession`].
+    ///
+    /// # Errors
+    /// Returns an error if assembling or instantiating the Dc-WASM program fails.
+    pub fn from_dc_wasm(
+        wasm_doc: &DcMstr,
+        initial_input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+    ) -> Result<Self> {
+        let resolver = default_syntax_resolver();
+        Self::from_dc_wasm_with_resolver(
+            wasm_doc,
+            initial_input,
+            most_recent_node_id,
+            resolver.as_ref(),
+        )
+    }
+
+    /// Assembles a Dc-WASM document (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
+    /// or `wasm_routine`) using `resolver` and instantiates a [`DcWasmSession`].
+    ///
+    /// # Errors
+    /// Returns an error if assembling or instantiating the Dc-WASM program fails.
+    pub fn from_dc_wasm_with_resolver(
+        wasm_doc: &DcMstr,
+        initial_input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Self> {
+        let wasm_bytes = dcmstring_to_wasm_with_resolver(wasm_doc, resolver)?;
+        Self::from_wasm_bytes(&wasm_bytes, initial_input, most_recent_node_id)
+    }
+
+    /// Writes a new input [`DcMstr`] payload into WASM linear memory and updates the
+    /// 32-byte mailbox header at `0..32`.
+    ///
+    /// Used both for initial document loading and for supplying the response/mock Dc document
+    /// before resuming after [`WasmStepOutcome::RequestCapability`].
+    ///
+    /// # Errors
+    /// Returns an error if linear memory cannot grow to accommodate the input and output buffers.
+    pub fn provide_input(&mut self, input: &DcMstr) -> Result<()> {
+        let raw_bytes = input.as_bytes();
+        // Strip the 21-byte `DcMM\0` + UUID file header so `input_ptr` points directly
+        // to the DcTF character/encapsulation stream.
+        // Reason for fallback: slices shorter than DCMM_HEADER_LEN are already raw payload slices.
+        let payload_bytes =
+            raw_bytes.get(DCMM_HEADER_LEN..).unwrap_or(raw_bytes);
+        let input_ptr = self.base_io_offset;
+        let input_len = payload_bytes.len();
+        let after_input = input_ptr
+            .checked_add(input_len)
+            .context("WASM input buffer end offset overflow")?;
+        let default_output_ptr = align_up_8(after_input)?;
+        let min_output_reserve = input_len.saturating_mul(2).max(4096);
+        let required_mem_bytes = default_output_ptr
+            .checked_add(min_output_reserve)
+            .context("WASM required linear memory size overflow")?;
+
+        let mut mem = self
+            .instance
+            .exported_memory_mut(&mut self.store, "memory")
+            .map_err(|e| {
+                anyhow!("Failed to access WASM exported 'memory': {e:?}")
+            })?;
+        let current_pages = mem.page_count();
+        let current_bytes = current_pages.saturating_mul(65_536);
+        if required_mem_bytes > current_bytes {
+            let missing_bytes = required_mem_bytes.saturating_sub(current_bytes);
+            // Reason for fallback: 65_536 is a non-zero constant divisor.
+            let extra_pages = missing_bytes
+                .saturating_add(65_535)
+                .checked_div(65_536)
+                .unwrap_or(1);
+            let delta = i32::try_from(extra_pages)
+                .context("WASM memory page growth exceeds i32")?;
+            if mem.grow(delta).is_none() {
+                bail!("Failed to grow WASM linear memory by {delta} pages");
+            }
+        }
+
+        if !payload_bytes.is_empty() {
+            mem.store(input_ptr, input_len, payload_bytes).map_err(|e| {
+                anyhow!("Failed to write input payload to WASM memory: {e:?}")
+            })?;
+        }
+
+        let input_ptr_u32 = u32::try_from(input_ptr)
+            .context("WASM input_ptr exceeds u32 address space")?;
+        let input_len_u32 = u32::try_from(input_len)
+            .context("WASM input_len exceeds u32 address space")?;
+        let output_ptr_u32 = u32::try_from(default_output_ptr)
+            .context("WASM default_output_ptr exceeds u32 address space")?;
+
+        let mut header = [0u8; 32];
+        header[0..4].copy_from_slice(&input_ptr_u32.to_le_bytes());
+        header[4..8].copy_from_slice(&input_len_u32.to_le_bytes());
+        header[8..12].copy_from_slice(&output_ptr_u32.to_le_bytes());
+        header[12..16].copy_from_slice(&0u32.to_le_bytes());
+        // Reason for fallback: when no Dc 641 watermark is bound, the mailbox slot is 0.
+        header[16..32].copy_from_slice(
+            &self.most_recent_node_id.unwrap_or(0).to_le_bytes(),
+        );
+
+        mem.store(0, header.len(), &header).map_err(|e| {
+            anyhow!("Failed to write WASM mailbox header at 0..32: {e:?}")
+        })?;
+
+        self.current_input_ptr = input_ptr_u32;
+        self.current_input_len = input_len_u32;
+        self.default_output_ptr = output_ptr_u32;
+        Ok(())
+    }
+
+    /// Executes one pure-compute quantum by calling the module's exported `"step"` (or `"main"`)
+    /// function and decoding the output [`DcMstring`] from linear memory according to the returned
+    /// [`WasmStepStatus`].
+    ///
+    /// # Errors
+    /// Returns an error if the WASM function traps, returns an invalid status code, or writes
+    /// an out-of-bounds or malformed Dc output slice.
+    pub fn step(&mut self) -> Result<WasmStepOutcome> {
+        {
+            let mut mem = self
+                .instance
+                .exported_memory_mut(&mut self.store, "memory")
+                .map_err(|e| {
+                    anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                })?;
+            let mut out_reset = [0u8; 8];
+            out_reset[0..4]
+                .copy_from_slice(&self.default_output_ptr.to_le_bytes());
+            out_reset[4..8].copy_from_slice(&0u32.to_le_bytes());
+            mem.store(
+                usize::try_from(DC_WASM_MAILBOX_OUTPUT_PTR)?,
+                out_reset.len(),
+                &out_reset,
+            )
+            .map_err(|e| {
+                anyhow!("Failed to reset WASM output mailbox fields: {e:?}")
+            })?;
+        }
+
+        let in_ptr_i32 =
+            i32::from_le_bytes(self.current_input_ptr.to_le_bytes());
+        let in_len_i32 =
+            i32::from_le_bytes(self.current_input_len.to_le_bytes());
+
+        let raw_status = if let Ok(func) = self
+            .instance
+            .exported_func::<(), i32>(&self.store, &self.entry_func_name)
+        {
+            func.call(&mut self.store, ()).map_err(|e| {
+                anyhow!(
+                    "WASM execution trapped in '{}': {e:?}",
+                    self.entry_func_name
+                )
+            })?
+        } else if let Ok(func) = self.instance.exported_func::<(i32, i32), i32>(
+            &self.store,
+            &self.entry_func_name,
+        ) {
+            func.call(&mut self.store, (in_ptr_i32, in_len_i32))
+                .map_err(|e| {
+                    anyhow!(
+                        "WASM execution trapped in '{}': {e:?}",
+                        self.entry_func_name
+                    )
+                })?
+        } else if let Ok(func) = self
+            .instance
+            .exported_func::<(), ()>(&self.store, &self.entry_func_name)
+        {
+            func.call(&mut self.store, ()).map_err(|e| {
+                anyhow!(
+                    "WASM execution trapped in '{}': {e:?}",
+                    self.entry_func_name
+                )
+            })?;
+            WASM_STEP_STATUS_COMPLETE
+        } else if let Ok(func) = self.instance.exported_func::<(i32, i32), ()>(
+            &self.store,
+            &self.entry_func_name,
+        ) {
+            func.call(&mut self.store, (in_ptr_i32, in_len_i32))
+                .map_err(|e| {
+                    anyhow!(
+                        "WASM execution trapped in '{}': {e:?}",
+                        self.entry_func_name
+                    )
+                })?;
+            WASM_STEP_STATUS_COMPLETE
+        } else {
+            bail!(
+                "Exported WASM entry function '{}' must have signature () -> i32, (i32, i32) -> i32, () -> (), or (i32, i32) -> ()",
+                self.entry_func_name
+            );
+        };
+
+        let status = WasmStepStatus::from_i32(raw_status)?;
+
+        let out_bytes = {
+            let mem = self
+                .instance
+                .exported_memory(&mut self.store, "memory")
+                .map_err(|e| {
+                    anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                })?;
+            let hdr = mem.load(8, 8).map_err(|e| {
+                anyhow!(
+                    "Failed to read WASM output mailbox header at 8..16: {e:?}"
+                )
+            })?;
+            let hdr_arr: [u8; 8] = hdr
+                .try_into()
+                .context("WASM output mailbox header slice is not 8 bytes")?;
+            let out_ptr = usize::try_from(u32::from_le_bytes([
+                hdr_arr[0], hdr_arr[1], hdr_arr[2], hdr_arr[3],
+            ]))?;
+            let out_len = usize::try_from(u32::from_le_bytes([
+                hdr_arr[4], hdr_arr[5], hdr_arr[6], hdr_arr[7],
+            ]))?;
+            mem.load_vec(out_ptr, out_len).map_err(|e| {
+                anyhow!(
+                    "WASM output slice ({out_ptr}..{}) is out of linear memory bounds: {e:?}",
+                    out_ptr.saturating_add(out_len)
+                )
+            })?
+        };
+
+        let out_doc = decode_output_bytes_to_dcmstring(&out_bytes)?;
+        Ok(match status {
+            WasmStepStatus::Complete => WasmStepOutcome::Complete(out_doc),
+            WasmStepStatus::YieldFrame => WasmStepOutcome::YieldFrame(out_doc),
+            WasmStepStatus::RequestCapability => {
+                WasmStepOutcome::RequestCapability(out_doc)
+            }
+        })
+    }
+}
+
+/// Runs a pure-compute Dc-WASM conversion (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
+/// or `wasm_routine`) over `input` using the default syntax resolver.
+///
+/// Any `2 = RequestCapability` status returned during a pure conversion is immediately denied with
+/// an error. If the program emits streaming frames via `1 = YieldFrame`, they are concatenated in
+/// order ahead of the final `0 = Complete` document.
+///
+/// # Errors
+/// Returns an error if assembly or execution fails, if the program requests a privileged
+/// capability during pure conversion, or if it exceeds [`DEFAULT_MAX_PURE_CONVERSION_STEPS`].
+pub fn run_dc_wasm_pure_conversion(
+    wasm_doc: &DcMstr,
+    input: &DcMstr,
+) -> Result<DcMstring> {
+    let resolver = default_syntax_resolver();
+    run_dc_wasm_pure_conversion_with_resolver(wasm_doc, input, resolver.as_ref())
+}
+
+/// Runs a pure-compute Dc-WASM conversion (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
+/// or `wasm_routine`) over `input` using the supplied [`SyntaxRuleResolver`].
+///
+/// # Errors
+/// Returns an error if assembly or execution fails, if the program requests a privileged
+/// capability during pure conversion, or if it exceeds [`DEFAULT_MAX_PURE_CONVERSION_STEPS`].
+pub fn run_dc_wasm_pure_conversion_with_resolver(
+    wasm_doc: &DcMstr,
+    input: &DcMstr,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<DcMstring> {
+    let most_recent = resolver
+        .seed_graph()
+        .and_then(ctb_formats_dcdata::seed_graph::SeedGraphIndex::system_block_most_recent_node_id);
+    let mut session = DcWasmSession::from_dc_wasm_with_resolver(
+        wasm_doc,
+        input,
+        most_recent,
+        resolver,
+    )?;
+    let mut accumulated = DcMstring::new();
+    for _ in 0..DEFAULT_MAX_PURE_CONVERSION_STEPS {
+        match session.step()? {
+            WasmStepOutcome::Complete(doc) => {
+                if accumulated.is_empty() {
+                    return Ok(doc);
+                }
+                if let Some(tail) = doc.as_bytes().get(DCMM_HEADER_LEN..) {
+                    accumulated.inner.extend_from_slice(tail);
+                }
+                return Ok(accumulated);
+            }
+            WasmStepOutcome::YieldFrame(frame) => {
+                if let Some(tail) = frame.as_bytes().get(DCMM_HEADER_LEN..) {
+                    accumulated.inner.extend_from_slice(tail);
+                }
+            }
+            WasmStepOutcome::RequestCapability(req) => {
+                bail!(
+                    "Pure Dc-WASM conversion denied capability request: {req}"
+                );
+            }
+        }
+    }
+    bail!(
+        "Pure Dc-WASM conversion exceeded maximum step limit ({DEFAULT_MAX_PURE_CONVERSION_STEPS})"
+    )
+}
+
+/// Runs a pure-compute Dc-WASM conversion from a slice of [`ctb_storage_minimal::shorthand::DcShorthand`]
+/// tokens (such as a `.WASM` definition stored in the system graph) over `input_tokens`.
+///
+/// # Errors
+/// Returns an error if the shorthand tokens cannot be converted or if the WASM conversion fails.
+pub fn run_graph_wasm_tokens_on_dc_slice(
+    wasm_shorthands: &[ctb_storage_minimal::shorthand::DcShorthand],
+    input_tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<DcMstring> {
+    let mut wasm_doc = DcMstring::new();
+    for &sh in wasm_shorthands {
+        let gid = sh
+            .to_global_id()
+            .map_err(|e| anyhow!("Invalid graph WASM shorthand {sh}: {e}"))?;
+        if let Some(sg) = resolver.seed_graph()
+            && let ctb_storage_minimal::shorthand::DcShorthand::Long(node_id) = sh
+            && let Some(node) = sg.get_node(node_id)
+        {
+            for &sub_sh in &node.tokens {
+                let sub_gid = sub_sh.to_global_id().map_err(|e| {
+                    anyhow!("Invalid sub-node shorthand {sub_sh}: {e}")
+                })?;
+                wasm_doc.push_char(DcChar::from_u128(sub_gid));
+            }
+            continue;
+        }
+        wasm_doc.push_char(DcChar::from_u128(gid));
+    }
+
+    let mut input_doc = DcMstring::new();
+    for &tok in input_tokens {
+        input_doc.push_char(tok);
+    }
+
+    run_dc_wasm_pure_conversion_with_resolver(&wasm_doc, &input_doc, resolver)
 }
 
 #[cfg(test)]
@@ -1741,6 +2292,214 @@ mod tests {
             .map_err(|e| anyhow!("exported_func compute failed: {e:?}"))?;
         assert_eq!(compute_fn.call(&mut prog_store, ()).unwrap(), 75);
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_wasm_session_pure_conversion_and_stage1_evaluator() -> Result<()>
+    {
+        use crate::{
+            DcExpressionEvaluator, DefaultDcExpressionEvaluator,
+            SyntaxRuntimeResolver, ValueRequirement,
+        };
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        let i32_dc = i32_type_dc();
+
+        // Build a standalone `wasm_routine` `() -> i32` that performs a zero-copy slice:
+        // skips the first 4-byte short Dc token at `input_ptr` (`0..4`):
+        //   output_ptr (addr 8) = i32.load(0) + 4
+        //   output_len (addr 12) = i32.load(4) - 4
+        //   return 0 (WasmStepStatus::Complete)
+        let mut routine_doc = DcMstring::new();
+        routine_doc.push_char(DcChar::from_short(260)); // Begin literal value
+        routine_doc.push_char(DcChar::from_short(262)); // Begin type definition
+        routine_doc.push_char(DcChar::from_short(280)); // Routine
+        routine_doc.push_char(i32_dc); // returnType = i32
+        routine_doc.push_char(DcChar::from_short(263)); // End type definition
+
+        // addr 8 = i32.load(0) + 4
+        routine_doc.push_char(DcChar::from_short(712)); // i32.const 8
+        i32::encode_dc_mixed(&8, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712)); // i32.const 0
+        i32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(687)); // i32.load (memidx=0, align=2, offset=0)
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712)); // i32.const 4
+        i32::encode_dc_mixed(&4, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(753)); // i32.add
+        routine_doc.push_char(DcChar::from_short(701)); // i32.store (memidx=0, align=2, offset=0)
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+
+        // addr 12 = i32.load(4) - 4
+        routine_doc.push_char(DcChar::from_short(712)); // i32.const 12
+        i32::encode_dc_mixed(&12, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712)); // i32.const 4
+        i32::encode_dc_mixed(&4, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(687)); // i32.load
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712)); // i32.const 4
+        i32::encode_dc_mixed(&4, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(754)); // i32.sub
+        routine_doc.push_char(DcChar::from_short(701)); // i32.store
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+
+        // return 0 (Complete)
+        routine_doc.push_char(DcChar::from_short(712)); // i32.const 0
+        i32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(261)); // End literal value
+
+        // Input: [Dc 256,Dc 517] -> stripping the first 2-byte short Dc (256) yields [Dc 517]
+        let mut input = DcMstring::new();
+        input.push_char(DcChar::from_short(256));
+        input.push_char(DcChar::from_short(517));
+
+        let output = run_dc_wasm_pure_conversion(&routine_doc, &input)?;
+        let out_str = output.to_dc_string()?;
+        let out_chars: Vec<DcChar> = out_str.chars().collect();
+        assert_eq!(out_chars, vec![DcChar::from_short(517)]);
+
+        // Register this `.WASM` routine on a custom token in `SyntaxRuntimeResolver` and verify
+        // Stage 1 evaluation in `DefaultDcExpressionEvaluator`.
+        let mut resolver =
+            SyntaxRuntimeResolver::new(default_syntax_resolver().clone());
+        let routine_shorthands: Vec<DcShorthand> = routine_doc
+            .to_dc_string()?
+            .chars()
+            .map(|ch| DcShorthand::from_global_id(ch.to_u128()))
+            .collect();
+        let custom_op = DcChar::from_short(256);
+        resolver.register_wasm_definition(custom_op.to_u128(), routine_shorthands);
+
+        let evaluator = DefaultDcExpressionEvaluator;
+        let call_tokens = vec![custom_op, DcChar::from_short(517)];
+        let spliced = evaluator
+            .eval_stream_splice(&call_tokens, &resolver)?
+            .expect("Expected WASM splice evaluation");
+        assert_eq!(spliced, vec![DcChar::from_short(517)]);
+
+        let eval_val = evaluator
+            .eval_expression_for_requirement(
+                &call_tokens,
+                &ValueRequirement::NamedConstruct {
+                    name: "boolean",
+                    subtype: None,
+                },
+                &resolver,
+            )?
+            .expect("Expected WASM requirement evaluation");
+        let crate::DcEvaluatedValue::Document(doc) = eval_val else {
+            bail!("Expected DcEvaluatedValue::Document");
+        };
+        assert_eq!(
+            doc.to_dc_string()?.chars().collect::<Vec<_>>(),
+            vec![DcChar::from_short(517)]
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_wasm_session_yield_frame_and_capability_rejection() -> Result<()>
+    {
+        let i32_dc = i32_type_dc();
+
+        // Build a routine that checks a counter at address 64:
+        // - If mem[64] == 0: sets mem[64] = 1, points output at input_ptr..input_ptr+input_len, returns 1 (YieldFrame)
+        // - Else: points output at input_ptr..input_ptr+input_len, returns 0 (Complete)
+        let mut routine_doc = DcMstring::new();
+        routine_doc.push_char(DcChar::from_short(260));
+        routine_doc.push_char(DcChar::from_short(262));
+        routine_doc.push_char(DcChar::from_short(280));
+        routine_doc.push_char(i32_dc);
+        routine_doc.push_char(DcChar::from_short(263));
+
+        // Copy input_ptr (0) -> output_ptr (8) and input_len (4) -> output_len (12)
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+
+        // Check mem[64] == 0 (`i32.eqz` = Dc 716 = 647 + 0x45)
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(716)); // i32.eqz
+        routine_doc.push_char(DcChar::from_short(651)); // WASM if (result i32)
+        routine_doc.push_char(i32_dc);
+        // then: mem[64] = 1; return 1 (YieldFrame)
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(652)); // WASM else
+        // else: return 0 (Complete)
+        routine_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut routine_doc)?;
+        routine_doc.push_char(DcChar::from_short(658)); // WASM end
+        routine_doc.push_char(DcChar::from_short(261));
+
+        let mut input = DcMstring::new();
+        input.push_char(DcChar::from_short(517));
+
+        // Pure conversion concatenates the yielded frame and final Complete output: [517, 517]
+        let combined = run_dc_wasm_pure_conversion(&routine_doc, &input)?;
+        let chars: Vec<DcChar> = combined.to_dc_string()?.chars().collect();
+        assert_eq!(
+            chars,
+            vec![DcChar::from_short(517), DcChar::from_short(517)]
+        );
+
+        // Capability request (status = 2) must be rejected by pure conversion
+        let mut cap_routine = DcMstring::new();
+        cap_routine.push_char(DcChar::from_short(260));
+        cap_routine.push_char(DcChar::from_short(262));
+        cap_routine.push_char(DcChar::from_short(280));
+        cap_routine.push_char(i32_dc);
+        cap_routine.push_char(DcChar::from_short(263));
+        cap_routine.push_char(DcChar::from_short(712)); // i32.const 2 (RequestCapability)
+        i32::encode_dc_mixed(&2, &mut cap_routine)?;
+        cap_routine.push_char(DcChar::from_short(261));
+
+        assert!(run_dc_wasm_pure_conversion(&cap_routine, &input).is_err());
         Ok(())
     }
 }

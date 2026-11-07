@@ -42,13 +42,17 @@ use ctb_storage_minimal::shorthand::DcShorthand;
 use ctb_utilities::format_id::DC_COLLECTIVE_TOOLBOX;
 
 use crate::dc::{
-    DC_BEGIN_LIST, DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_NAME,
+    DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BEGIN_LIST, DC_BEGIN_LITERAL,
+    DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM, DC_BIDIRECTIONAL_CLASS,
+    DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
     DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DC_GENERAL_CATEGORY,
-    DC_ENCLOSING_DOCUMENT, DC_END_LIST, DC_ENTITY_TYPE, DC_HAS_A,
-    DC_HAS_VALUE, DC_IN_CONTEXT_OF, DC_IS_INSTANCE_OF, DC_IS_STABLE,
-    DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER, DC_REPLACEMENT, DC_RETRACTS,
-    DC_SUPERSEDES, DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_UNICODE_SCRIPT, DcChar,
+    DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
+    DC_END_LIST, DC_ENTITY_TYPE, DC_HAS_A, DC_HAS_VALUE, DC_IN_CONTEXT_OF,
+    DC_IS_INSTANCE_OF, DC_IS_STABLE, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
+    DC_PROGRAMMATIC_IDENTIFIER, DC_REPLACEMENT, DC_RETRACTS,
+    DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES, DC_SYNTAX_RULE, DC_THIS_ELEMENT,
+    DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
@@ -1443,6 +1447,85 @@ impl SeedGraphIndex {
         let key = SeedEntityKey::NamedConstruct(name.to_string());
         let seed_id = self.get_seed_entity_id(&key)?;
         self.get_syntax_rule_tokens(DcShorthand::Long(seed_id))
+    }
+
+    /// Returns `true` if `tokens` begins with a Dc-WASM program (`Dc 1927 "Begin WASM program"`)
+    /// or a `wasm_routine` literal (`Dc 260 "Begin literal value"`, `Dc 262 "Begin type definition"`,
+    /// `Dc 280 "Built-in type identifier: Routine"`).
+    #[must_use]
+    pub fn tokens_start_wasm_definition(tokens: &[DcShorthand]) -> bool {
+        let Some(&first) = tokens.first() else {
+            return false;
+        };
+        if first == sh(DC_BEGIN_WASM_PROGRAM) {
+            return true;
+        }
+        first == sh(DC_BEGIN_LITERAL)
+            && tokens.get(1) == Some(&sh(DC_BEGIN_TYPE_DEF))
+            && tokens.get(2) == Some(&sh(DC_TYPE_ROUTINE))
+    }
+
+    /// Resolves any active `.WASM` program (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`)
+    /// or `wasm_routine` definition attached to `subj` via `Dc 611 "Canonical decomposition"`,
+    /// `Dc 571 "Decomposition"`, `Dc 614 "Semantic decomposition"`, or a trailing
+    /// `Dc 607 "Pattern replacement"` action inside `subj`'s `Dc 594 "Syntax rule"`.
+    #[must_use]
+    pub fn get_wasm_definition_tokens(
+        &self,
+        subj: DcShorthand,
+    ) -> Option<&[DcShorthand]> {
+        for prop_dc in [
+            DC_CANONICAL_DECOMPOSITION,
+            DC_DECOMPOSITION,
+            DC_SEMANTIC_DECOMPOSITION,
+        ] {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                if let DcShorthand::Long(node_id) = entry.value
+                    && let Some(node) = self.get_node(node_id)
+                    && Self::tokens_start_wasm_definition(&node.tokens)
+                {
+                    return Some(node.tokens.as_slice());
+                }
+            }
+        }
+
+        let rule_tokens = self.get_syntax_rule_tokens(subj)?;
+        let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
+        let sh_close = sh(DC_END_ASSOCIATIVITY_GROUP);
+        let sh_repl = sh(DC_PATTERN_REPLACEMENT);
+        if rule_tokens.last() != Some(&sh_close) {
+            return None;
+        }
+        let mut depth = 0usize;
+        let mut open_idx = None;
+        for (idx, &tok) in rule_tokens.iter().enumerate().rev() {
+            if tok == sh_close {
+                depth = depth.saturating_add(1);
+            } else if tok == sh_open {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    open_idx = Some(idx);
+                    break;
+                }
+            }
+        }
+        let start = open_idx?;
+        let group_slice = rule_tokens.get(start..)?;
+        if group_slice.get(1) != Some(&sh_repl) {
+            return None;
+        }
+        let inner = group_slice.get(2..group_slice.len().saturating_sub(1))?;
+        if Self::tokens_start_wasm_definition(inner) {
+            return Some(inner);
+        }
+        if inner.len() == 1
+            && let Some(&DcShorthand::Long(node_id)) = inner.first()
+            && let Some(node) = self.get_node(node_id)
+            && Self::tokens_start_wasm_definition(&node.tokens)
+        {
+            return Some(node.tokens.as_slice());
+        }
+        None
     }
 }
 

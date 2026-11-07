@@ -108,6 +108,28 @@ pub trait SyntaxRuleResolver {
     ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
         self.seed_graph()?.get_named_construct_tokens(name)
     }
+    /// Resolves any active `.WASM` program (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`)
+    /// or `wasm_routine` definition attached to `token` (or its canonical equivalent) in the seed graph.
+    fn resolve_wasm_definition_tokens(
+        &self,
+        token: u128,
+    ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
+        let sg = self.seed_graph()?;
+        let sh_tok =
+            ctb_storage_minimal::shorthand::DcShorthand::from_global_id(token);
+        if let Some(tokens) = sg.get_wasm_definition_tokens(sh_tok) {
+            return Some(tokens);
+        }
+        let canon = self.canonical_token(token);
+        if canon != token {
+            let canon_sh =
+                ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+                    canon,
+                );
+            return sg.get_wasm_definition_tokens(canon_sh);
+        }
+        None
+    }
     /// Resolves the syntax rule associated with a character or format target.
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule>;
     /// Returns the number of payload elements (excluding `~`) in a format's sequence syntax rule.

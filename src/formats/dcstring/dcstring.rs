@@ -53,6 +53,13 @@ pub use converters::transform::{
 pub use converters::utf8::{
     DcNormalizationMode, normalize_dclist_all, normalize_dcmstring_all,
 };
+pub use converters::wasm::{
+    DC_WASM_MAILBOX_HEADER_LEN, DC_WASM_MAILBOX_INPUT_LEN,
+    DC_WASM_MAILBOX_INPUT_PTR, DC_WASM_MAILBOX_MOST_RECENT_NODE_ID,
+    DC_WASM_MAILBOX_OUTPUT_LEN, DC_WASM_MAILBOX_OUTPUT_PTR, DcWasmSession,
+    WasmStepOutcome, WasmStepStatus, run_dc_wasm_pure_conversion,
+    run_dc_wasm_pure_conversion_with_resolver, run_graph_wasm_tokens_on_dc_slice,
+};
 pub use converters::{dcal, dctext, dcts, eite, transform, utf8, wasm};
 pub use ctb_dc_macro::DcMixed;
 pub use ctb_formats_dcdata::dc;

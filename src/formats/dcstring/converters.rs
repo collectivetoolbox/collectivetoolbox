@@ -74,7 +74,11 @@ pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
 };
 pub use wasm::{
-    assemble_wasm_instructions, dcmstring_to_wasm,
-    dcmstring_to_wasm_with_resolver, dcstring_to_wasm,
-    dcstring_to_wasm_with_resolver,
+    DC_WASM_MAILBOX_HEADER_LEN, DC_WASM_MAILBOX_INPUT_LEN,
+    DC_WASM_MAILBOX_INPUT_PTR, DC_WASM_MAILBOX_MOST_RECENT_NODE_ID,
+    DC_WASM_MAILBOX_OUTPUT_LEN, DC_WASM_MAILBOX_OUTPUT_PTR, DcWasmSession,
+    WasmStepOutcome, WasmStepStatus, assemble_wasm_instructions,
+    dcmstring_to_wasm, dcmstring_to_wasm_with_resolver, dcstring_to_wasm,
+    dcstring_to_wasm_with_resolver, run_dc_wasm_pure_conversion,
+    run_dc_wasm_pure_conversion_with_resolver, run_graph_wasm_tokens_on_dc_slice,
 };
