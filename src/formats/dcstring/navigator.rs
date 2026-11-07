@@ -3816,14 +3816,14 @@ mod tests {
     #[crate::ctb_test]
     fn test_navigator_dc_641_pins_historical_syntax_resolver() -> Result<()> {
         // Construct two historical syntax resolvers for synthetic System-block
-        // node IDs `t1` and `t2` where unassigned short Dc 915 has unary syntax
+        // node IDs `t1` and `t2` where unassigned short Dc 3915 has unary syntax
         // `:~ [atom_dc]` at `t1` and binary syntax `:~ [atom_dc] [atom_dc]` at `t2`.
         let t1: u128 = 8_589_999_901;
         let t2: u128 = 8_589_999_902;
 
         let mut res_t1 = (**default_syntax_resolver()).clone();
         res_t1.add_rule(
-            CharTarget::Dc(915),
+            CharTarget::Dc(3915),
             parse_dc_syntax(":~ [atom_dc]")?,
         );
         res_t1.rebuild_framing_and_wrapper_tables();
@@ -3834,7 +3834,7 @@ mod tests {
 
         let mut res_t2 = (**default_syntax_resolver()).clone();
         res_t2.add_rule(
-            CharTarget::Dc(915),
+            CharTarget::Dc(3915),
             parse_dc_syntax(":~ [atom_dc] [atom_dc]")?,
         );
         res_t2.rebuild_framing_and_wrapper_tables();
@@ -3845,19 +3845,19 @@ mod tests {
 
         let strict = DcProjectionPolicy::strict();
 
-        // Document 1: stamped with `641 l<t1>`, followed by unary `915 u65` and atom `u66`.
+        // Document 1: stamped with `641 l<t1>`, followed by unary `3915 u65` and atom `u66`.
         let mut doc_t1 = DcMstring::new();
         for tok in [
             DcChar::from_short(641),
             DcChar::from_long(t1),
-            DcChar::from_short(915),
+            DcChar::from_short(3915),
             DcChar::from_u128(65),
             DcChar::from_u128(66),
         ] {
             doc_t1.push_char(tok);
         }
 
-        // Under `t1` (`915` is unary), `doc_t1` has 3 roots: `(641 l<t1>)`, `(915 u65)`, and `u66`.
+        // Under `t1` (`3915` is unary), `doc_t1` has 3 roots: `(641 l<t1>)`, `(3915 u65)`, and `u66`.
         let mut nav_t1 = DcDocumentNavigator::from_mstr(&doc_t1);
         assert_eq!(nav_t1.document_most_recent_node_id(), Some(t1));
         let mut arena_t1 = DcSyntaxArena::new();
@@ -3871,7 +3871,7 @@ mod tests {
         assert!(matches!(
             arena_t1.node(arena_t1.roots()[1]).map(|n| &n.kind),
             Some(DcSyntaxKind::Tagged { tag, args })
-                if *tag == DcChar::from_short(915) && args.len() == 1
+                if *tag == DcChar::from_short(3915) && args.len() == 1
         ));
         assert!(matches!(
             arena_t1.node(arena_t1.roots()[2]).map(|n| &n.kind),
@@ -3883,7 +3883,7 @@ mod tests {
         for tok in [
             DcChar::from_short(641),
             DcChar::from_long(t1),
-            DcChar::from_short(915),
+            DcChar::from_short(3915),
             DcChar::from_u128(65),
             DcChar::from_u128(66),
         ] {
@@ -3901,13 +3901,13 @@ mod tests {
         assert_eq!(nav_file.document_most_recent_node_id(), Some(t1));
         nav_file.validate_document(&strict)?;
 
-        // Document 2: identical payload (`915 u65 u66`), but stamped with `641 l<t2>`.
-        // Under `t2` (`915` is binary), `doc_t2` has 2 roots: `(641 l<t2>)` and `(915 u65 u66)`.
+        // Document 2: identical payload (`3915 u65 u66`), but stamped with `641 l<t2>`.
+        // Under `t2` (`3915` is binary), `doc_t2` has 2 roots: `(641 l<t2>)` and `(3915 u65 u66)`.
         let mut doc_t2 = DcMstring::new();
         for tok in [
             DcChar::from_short(641),
             DcChar::from_long(t2),
-            DcChar::from_short(915),
+            DcChar::from_short(3915),
             DcChar::from_u128(65),
             DcChar::from_u128(66),
         ] {
@@ -3921,16 +3921,16 @@ mod tests {
         assert!(matches!(
             arena_t2.node(arena_t2.roots()[1]).map(|n| &n.kind),
             Some(DcSyntaxKind::Tagged { tag, args })
-                if *tag == DcChar::from_short(915) && args.len() == 2
+                if *tag == DcChar::from_short(3915) && args.len() == 2
         ));
 
-        // Document 3: `641 l<t2> 915 u65` (only 1 operand for binary `915` at `t2`) must fail validation at `t2`,
-        // whereas `641 l<t1> 915 u65` succeeds at `t1`.
+        // Document 3: `641 l<t2> 3915 u65` (only 1 operand for binary `3915` at `t2`) must fail validation at `t2`,
+        // whereas `641 l<t1> 3915 u65` succeeds at `t1`.
         let mut unary_only_at_t2 = DcMstring::new();
         for tok in [
             DcChar::from_short(641),
             DcChar::from_long(t2),
-            DcChar::from_short(915),
+            DcChar::from_short(3915),
             DcChar::from_u128(65),
         ] {
             unary_only_at_t2.push_char(tok);
@@ -3942,7 +3942,7 @@ mod tests {
         for tok in [
             DcChar::from_short(641),
             DcChar::from_long(t1),
-            DcChar::from_short(915),
+            DcChar::from_short(3915),
             DcChar::from_u128(65),
         ] {
             unary_at_t1.push_char(tok);
@@ -3961,6 +3961,80 @@ mod tests {
         let inspected = stamped_value.inspect::<u32>();
         assert_eq!(inspected.value(), Some(&42u32));
         assert!(inspected.diagnostics().is_empty());
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_wasm_block_and_immediate_syntax_framing() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+
+        // Build a nested WASM program:
+        // block (result i32 = f206):
+        //   loop (void = 316):
+        //     local.get 0
+        //     i32.const 10
+        //     i32.add
+        //     br_if 0
+        //   end
+        //   i32.load memidx=0 align=2 offset=4
+        // end
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_short(649)); // WASM block
+        doc.push_char(
+            FormatId::from_shorthand("f206")
+                .and_then(|f| f.dc_id())
+                .map(DcChar::from_u128)
+                .context("Missing f206")?,
+        );
+        doc.push_char(DcChar::from_short(650)); // WASM loop
+        doc.push_char(DcChar::from_short(316)); // Optional value absent (void block type)
+        doc.push_char(DcChar::from_short(679)); // WASM local.get
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut doc)?;
+        doc.push_char(DcChar::from_short(712)); // WASM i32.const
+        crate::DcMixedEncode::encode_dc_mixed(&10i32, &mut doc)?;
+        doc.push_char(DcChar::from_short(753)); // WASM i32.add (0-arg atom)
+        doc.push_char(DcChar::from_short(660)); // WASM br_if
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut doc)?;
+        doc.push_char(DcChar::from_short(658)); // WASM end (loop)
+        doc.push_char(DcChar::from_short(687)); // WASM i32.load (3-number memarg)
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut doc)?;
+        crate::DcMixedEncode::encode_dc_mixed(&2u32, &mut doc)?;
+        crate::DcMixedEncode::encode_dc_mixed(&4u32, &mut doc)?;
+        doc.push_char(DcChar::from_short(658)); // WASM end (block)
+
+        let mut val_nav = DcDocumentNavigator::from_mstr(&doc);
+        val_nav.validate_document(&strict)?;
+
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &strict)?;
+        assert_eq!(arena.roots().len(), 1);
+        let root = arena.node(arena.roots()[0]).context("Missing block root")?;
+        let DcSyntaxKind::Container {
+            opener,
+            closer,
+            children,
+            unclosed,
+            ..
+        } = &root.kind
+        else {
+            anyhow::bail!("Expected outer WASM block to parse as Container");
+        };
+        assert_eq!(*opener, DcChar::from_short(649));
+        assert_eq!(*closer, DcChar::from_short(658));
+        assert!(!*unclosed);
+        // Children of outer block: [result_type (f206), nested loop Container, Tagged(i32.load, 3 args)]
+        assert_eq!(children.len(), 3);
+
+        // Non-WASM token inside a WASM block (e.g. raw Unicode 'A') must be rejected by strict validation
+        let mut bad_doc = DcMstring::new();
+        bad_doc.push_char(DcChar::from_short(649));
+        bad_doc.push_char(DcChar::from_short(316));
+        bad_doc.push_char(DcChar::from_u128(65));
+        bad_doc.push_char(DcChar::from_short(658));
+        let mut bad_nav = DcDocumentNavigator::from_mstr(&bad_doc);
+        assert!(bad_nav.validate_document(&strict).is_err());
 
         Ok(())
     }

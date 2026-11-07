@@ -1566,7 +1566,8 @@ impl<'a> DcDocumentNavigator<'a> {
                             let is_format_or_temporal = opener.fills_role_with(
                                 DcRole::BeginFormatRepresentation,
                                 resolver,
-                            );
+                            ) || resolver
+                                .matches_script(".WASM", opener.to_u128());
                             let normalized_children = if is_format_or_temporal {
                                 children
                             } else {

@@ -235,10 +235,22 @@ impl DatasetRuleResolver {
                     detect_container_closer(&rule.pattern),
                 ) {
                     let target = CharTarget::Dc(id);
-                    if !resolver.opener_to_closer.contains_key(&target)
-                        && !resolver.closing_delimiters.contains_key(&closer)
-                    {
-                        resolver.register_closing_delimiter(closer, target);
+                    if !resolver.opener_to_closer.contains_key(&target) {
+                        if !resolver.closing_delimiters.contains_key(&closer) {
+                            resolver.register_closing_delimiter(closer, target);
+                        } else if let crate::syntax::ast::SyntaxPattern::Sequence(
+                            elems,
+                        ) = &rule.pattern
+                            && elems.len() >= 3
+                            && elems
+                                .get(elems.len().saturating_sub(2))
+                                .is_some_and(|el| {
+                                    el.quantifier
+                                        != crate::syntax::ast::Quantifier::ExactOne
+                                })
+                        {
+                            resolver.opener_to_closer.insert(target, closer);
+                        }
                     }
                 }
             }

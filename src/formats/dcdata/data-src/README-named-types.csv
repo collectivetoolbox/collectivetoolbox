@@ -31,3 +31,5 @@ Number,:[6:],
 Routine,:260 262 280 263 [^261]+ 261,
 Routine name,:[identifier:Routine],
 Atom Dc,:[atom_dc],
+wasm_instr,:([647..648] | 649: | 650: | 651: | [652..657] | [659..677] | 678: | [679..1926]),One WebAssembly opcode or structured control-flow block.
+wasm_arg,:([number] | [type] | [list]),One static immediate argument of a WebAssembly instruction.

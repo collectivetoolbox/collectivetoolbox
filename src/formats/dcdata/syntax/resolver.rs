@@ -1752,10 +1752,12 @@ impl DatasetRuleResolver {
             }
 
             self.closing_delimiters
-                .insert(canonical_closer, canonical_opener_target.clone());
+                .entry(canonical_closer)
+                .or_insert_with(|| canonical_opener_target.clone());
             for &c in closer_members {
                 self.closing_delimiters
-                    .insert(c, canonical_opener_target.clone());
+                    .entry(c)
+                    .or_insert_with(|| canonical_opener_target.clone());
             }
         }
 
