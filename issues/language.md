@@ -16,12 +16,7 @@ The complete inputs are:
 1. The original document octets, before parsing them as Dcs.
 2. The resolved graph selected by the document's pins, including all transitive
   dependencies. The System pin selects the System block; lower definition
-  regions follow the foundational kernel contract. References to blocks above
-  System must declare pins for those blocks too. Such blocks are currently
-  unimplemented/unpopulated. The reserved Data block beginning at `4294967296`
-  is excluded from this definition-snapshot rule, but any reads from it that
-  affect execution must be snapshot-selected separately or supplied as recorded
-  external responses, never as hidden mutable inputs.
+  regions (besides the reserved Data block beginning at `4294967296`, which is treated the same as the blocks higher than system) follow the foundational kernel contract. References to blocks above System must declare pins for those blocks too. Such blocks are currently unimplemented/unpopulated.
 3. All external responses and events: clock readings, filesystem and network
   results, keyboard/mouse input, authorization decisions, cancellation, and
   externally imposed resource interruptions. Their ordering and logical
