@@ -32,8 +32,25 @@ pub const SHORT_DC_REGION_START: u128 = 1_114_112;
 pub const SHORT_DC_REGION_END: u128 = 2_228_223;
 pub const FORMAT_REGION_START: u128 = 2_228_224;
 pub const FORMAT_REGION_END: u128 = 3_342_335;
+pub const DATA_REGION_START: u128 = 4_294_967_296;
+pub const DATA_REGION_END: u128 = 8_589_934_591;
 pub const SYSTEM_REGION_START: u128 = 8_589_934_592;
 pub const SYSTEM_REGION_END: u128 = 12_884_901_887;
+
+/// Returns a human-readable description if `gid` falls within a not-yet-implemented
+/// graph block (the reserved Data block `4294967296..=8589934591` or blocks above System `> 12884901887`).
+#[must_use]
+pub const fn unsupported_graph_block_description(
+    gid: u128,
+) -> Option<&'static str> {
+    if gid >= DATA_REGION_START && gid <= DATA_REGION_END {
+        Some("reserved Data block (4294967296..=8589934591)")
+    } else if gid > SYSTEM_REGION_END {
+        Some("graph block above System (> 12884901887)")
+    } else {
+        None
+    }
+}
 
 /// Converts a short Document Character (Dc) ID to its Global Graph ID.
 #[must_use]

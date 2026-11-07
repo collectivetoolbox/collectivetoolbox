@@ -30,10 +30,10 @@ use anyhow::Result;
 
 mod regions;
 pub use regions::{
-    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
-    SHORT_DC_REGION_START, SYSTEM_REGION_END, SYSTEM_REGION_START,
-    UNICODE_REGION_END, UNICODE_REGION_START, dc_to_gid, format_to_gid,
-    gid_to_short,
+    DATA_REGION_END, DATA_REGION_START, FORMAT_REGION_END, FORMAT_REGION_START,
+    SHORT_DC_REGION_END, SHORT_DC_REGION_START, SYSTEM_REGION_END,
+    SYSTEM_REGION_START, UNICODE_REGION_END, UNICODE_REGION_START, dc_to_gid,
+    format_to_gid, gid_to_short, unsupported_graph_block_description,
 };
 
 /// Static embedded CSV bytes for the global graph layout table.
