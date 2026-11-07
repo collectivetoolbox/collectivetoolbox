@@ -647,6 +647,36 @@ pub fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u128> {
     }
 }
 
+fn propagate_char_target_table<V: Clone>(
+    table: &mut HashMap<CharTarget, V>,
+    members: &HashSet<u128>,
+) {
+    let val = members
+        .iter()
+        .find_map(|m| {
+            CharTarget::from_u128(*m).and_then(|target| table.get(&target))
+        })
+        .cloned();
+    if let Some(val) = val {
+        for &m in members {
+            if let Some(target) = CharTarget::from_u128(m) {
+                table.entry(target).or_insert_with(|| val.clone());
+            }
+        }
+    }
+}
+
+fn script_name_matches_query(name: &str, script_name: &str) -> bool {
+    if name == script_name {
+        return true;
+    }
+    let clean_target = script_name.trim_start_matches('.');
+    let clean_name = name.trim_start_matches('.');
+    clean_name == clean_target
+        || clean_name.starts_with(clean_target)
+        || clean_name.split(':').next_back() == Some(clean_target)
+}
+
 fn element_matches_closer(el: &SyntaxElement, closer_token: u128) -> bool {
     match &el.term {
         SyntaxTerm::CharRef(t) => {
@@ -1670,22 +1700,7 @@ impl DatasetRuleResolver {
 
         // Expand rules across equivalent tokens
         for members in &components {
-            let rule = members
-                .iter()
-                .find_map(|m| {
-                    CharTarget::from_u128(*m)
-                        .and_then(|target| self.rules.get(&target))
-                })
-                .cloned();
-            if let Some(rule) = rule {
-                for &m in members {
-                    if let Some(target) = CharTarget::from_u128(m) {
-                        self.rules
-                            .entry(target)
-                            .or_insert_with(|| rule.clone());
-                    }
-                }
-            }
+            propagate_char_target_table(&mut self.rules, members);
         }
 
         // Expand closing delimiters and opener_to_closer across equivalent tokens
@@ -1746,40 +1761,11 @@ impl DatasetRuleResolver {
 
         // Ensure derived tables are fully closed across equivalent tokens
         for members in &components {
-            let headers = members
-                .iter()
-                .find_map(|m| {
-                    CharTarget::from_u128(*m)
-                        .and_then(|target| self.container_headers.get(&target))
-                })
-                .cloned();
-            if let Some(headers) = headers {
-                for &m in members {
-                    if let Some(target) = CharTarget::from_u128(m) {
-                        self.container_headers
-                            .entry(target)
-                            .or_insert_with(|| headers.clone());
-                    }
-                }
-            }
-
-            let trailing = members
-                .iter()
-                .find_map(|m| {
-                    CharTarget::from_u128(*m).and_then(|target| {
-                        self.trailing_after_closer.get(&target)
-                    })
-                })
-                .cloned();
-            if let Some(trailing) = trailing {
-                for &m in members {
-                    if let Some(target) = CharTarget::from_u128(m) {
-                        self.trailing_after_closer
-                            .entry(target)
-                            .or_insert_with(|| trailing.clone());
-                    }
-                }
-            }
+            propagate_char_target_table(&mut self.container_headers, members);
+            propagate_char_target_table(
+                &mut self.trailing_after_closer,
+                members,
+            );
 
             let infix = members
                 .iter()
@@ -1947,47 +1933,17 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         {
             return true;
         }
-
-        let clean_target = script_name.trim_start_matches('.');
-        // Support matching by dot prefix or hierarchical suffix (e.g. "fileflag" matches ".Semantic:fileflag",
-        // "EL Types" matches ".EL Types")
-        for (name, set) in &self.script_chars {
-            let clean_name = name.trim_start_matches('.');
-            if (clean_name == clean_target
-                || clean_name.starts_with(clean_target))
-                && set.contains(&token)
-            {
-                return true;
-            }
-            if let Some(suffix) = clean_name.split(':').next_back() {
-                if suffix == clean_target && set.contains(&token) {
-                    return true;
-                }
-            }
-        }
-
-        false
+        self.script_chars.iter().any(|(name, set)| {
+            script_name_matches_query(name, script_name) && set.contains(&token)
+        })
     }
 
     fn has_script(&self, script_name: &str) -> bool {
-        if self.script_chars.contains_key(script_name) {
-            return true;
-        }
-        let clean_target = script_name.trim_start_matches('.');
-        for name in self.script_chars.keys() {
-            let clean_name = name.trim_start_matches('.');
-            if clean_name == clean_target
-                || clean_name.starts_with(clean_target)
-            {
-                return true;
-            }
-            if let Some(suffix) = clean_name.split(':').next_back() {
-                if suffix == clean_target {
-                    return true;
-                }
-            }
-        }
-        false
+        self.script_chars.contains_key(script_name)
+            || self
+                .script_chars
+                .keys()
+                .any(|name| script_name_matches_query(name, script_name))
     }
 
     fn matches_named_type_starter(&self, name: &str, token: u128) -> bool {

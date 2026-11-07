@@ -1502,36 +1502,17 @@ impl DcDocumentNavigator<'_> {
                                     self.restore_checkpoint(checkpoint);
                                     return Ok(false);
                                 }
-                                let mut evaluated = false;
-                                if let Some(evaluator) = &ctx.evaluator {
-                                    if let Ok(Some(
-                                        DcEvaluatedValue::Document(doc),
-                                    )) = evaluator
-                                        .eval_expression_for_requirement(
-                                            &expr_dc_chars,
-                                            &req,
-                                            ctx.resolver,
-                                        )
-                                    {
-                                        evaluated = true;
-                                        let mut sub_nav =
-                                            DcDocumentNavigator::from_mstr(
-                                                &doc,
-                                            );
-                                        let mut sub_ctx = ctx.clone();
-                                        if let Ok(true) = sub_nav
-                                            .eval_term_single(
-                                                term,
-                                                &mut sub_ctx,
-                                            )
-                                        {
-                                            self.cursor = stub.outer_span.end;
-                                            return Ok(true);
-                                        }
+                                match self.eval_expr_and_check_term(
+                                    &expr_dc_chars,
+                                    &req,
+                                    term,
+                                    ctx,
+                                ) {
+                                    Some(true) => {
+                                        self.cursor = stub.outer_span.end;
+                                        return Ok(true);
                                     }
-                                }
-                                if !evaluated {
-                                    if subtype.as_ref().is_none_or(|sub| {
+                                    None if subtype.as_ref().is_none_or(|sub| {
                                         sub.as_target_str().is_some_and(|s| {
                                             Self::type_tokens_satisfy(
                                                 type_tokens,
@@ -1540,34 +1521,28 @@ impl DcDocumentNavigator<'_> {
                                                 ctx.resolver,
                                             )
                                         })
-                                    }) {
+                                    }) =>
+                                    {
                                         self.cursor = stub.outer_span.end;
                                         return Ok(true);
                                     }
+                                    _ => {
+                                        self.restore_checkpoint(checkpoint);
+                                        return Ok(false);
+                                    }
                                 }
-                                self.restore_checkpoint(checkpoint);
-                                return Ok(false);
                             }
                         }
 
-                        if let Some(evaluator) = &ctx.evaluator {
-                            if let Ok(Some(DcEvaluatedValue::Document(doc))) =
-                                evaluator.eval_expression_for_requirement(
-                                    &expr_dc_chars,
-                                    &req,
-                                    ctx.resolver,
-                                )
-                            {
-                                let mut sub_nav =
-                                    DcDocumentNavigator::from_mstr(&doc);
-                                let mut sub_ctx = ctx.clone();
-                                if let Ok(true) =
-                                    sub_nav.eval_term_single(term, &mut sub_ctx)
-                                {
-                                    self.cursor = stub.outer_span.end;
-                                    return Ok(true);
-                                }
-                            }
+                        if self.eval_expr_and_check_term(
+                            &expr_dc_chars,
+                            &req,
+                            term,
+                            ctx,
+                        ) == Some(true)
+                        {
+                            self.cursor = stub.outer_span.end;
+                            return Ok(true);
                         }
                     }
                     self.restore_checkpoint(checkpoint);
@@ -1738,6 +1713,24 @@ impl DcDocumentNavigator<'_> {
         }
     }
 
+    pub(super) fn eval_expr_and_check_term(
+        &self,
+        expr_dc_chars: &[DcChar],
+        req: &ValueRequirement<'_>,
+        term: &SyntaxTerm,
+        ctx: &SyntaxEvalContext<'_>,
+    ) -> Option<bool> {
+        let evaluator = ctx.evaluator.as_ref()?;
+        let Ok(Some(DcEvaluatedValue::Document(doc))) = evaluator
+            .eval_expression_for_requirement(expr_dc_chars, req, ctx.resolver)
+        else {
+            return None;
+        };
+        let mut sub_nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut sub_ctx = ctx.clone();
+        Some(matches!(sub_nav.eval_term_single(term, &mut sub_ctx), Ok(true)))
+    }
+
     pub(super) fn enter_list_body_after_header(
         &mut self,
         list_start: u64,
@@ -1766,15 +1759,8 @@ impl DcDocumentNavigator<'_> {
         let list_body_end = list_end.saturating_sub(close_len);
         self.active_span = DcByteSpan::new(after_list_open, list_body_end);
         self.cursor = after_list_open;
-        if !self.eval_pattern(
-            &SyntaxPattern::Sequence(
-                ctx.resolver
-                    .container_header_elements(&list_target)
-                    .to_vec(),
-            ),
-            ctx,
-        )? || ctx.has_errors
-        {
+        let header = ctx.resolver.container_header_elements(&list_target);
+        if !self.eval_fixed_prefix_operands(header, ctx)? || ctx.has_errors {
             return Ok(None);
         }
         Ok(Some((after_list_open, list_body_end)))
@@ -1936,31 +1922,11 @@ impl DcDocumentNavigator<'_> {
             }
             "data" => {
                 if let Some(sub) = subtype {
-                    let (expected_fmt_id, expected_fmt, expected_bytes) =
-                        match sub {
-                            SubtypeConstraint::Data {
-                                format,
-                                format_id,
-                                bytes,
-                            } => (*format_id, format.as_deref(), *bytes),
-                            SubtypeConstraint::Target(fmt) => (
-                                sub.resolved_format_id(),
-                                Some(fmt.as_str()),
-                                None,
-                            ),
-                            other => {
-                                ctx.has_errors = true;
-                                ctx.diagnostics.push(SyntaxDiagnostic {
-                                    message: format!(
-                                        "Invalid data constraint: {}",
-                                        other.format_dsl()
-                                    ),
-                                    token_offset: start_offset,
-                                    is_error: true,
-                                });
-                                return Ok(Some(false));
-                            }
-                        };
+                    let Some((expected_fmt_id, expected_fmt, expected_bytes)) =
+                        parse_data_subtype_constraint(sub, start_offset, ctx)
+                    else {
+                        return Ok(Some(false));
+                    };
                     if expected_fmt.is_some() {
                         let actual_id = data_type.as_ref().and_then(|dt| {
                             let mut chars = dt.chars();
@@ -1974,9 +1940,11 @@ impl DcDocumentNavigator<'_> {
                                 Some(first_ch.to_u128())
                             }
                         });
-                        let expected_id = expected_fmt_id.and_then(|f| f.dc_id());
-                        if !matches!((expected_id, actual_id), (Some(exp), Some(act)) if ctx.resolver.is_equivalent_to(act, exp))
-                        {
+                        if !data_format_id_matches(
+                            expected_fmt_id,
+                            actual_id,
+                            ctx.resolver,
+                        ) {
                             return Ok(Some(false));
                         }
                     }
@@ -2193,30 +2161,10 @@ impl DcDocumentNavigator<'_> {
                 let Some(sub) = subtype else {
                     return Ok(true);
                 };
-                let (expected_fmt_id, expected_fmt, expected_bytes) = match sub
-                {
-                    SubtypeConstraint::Data {
-                        format,
-                        format_id,
-                        bytes,
-                    } => (*format_id, format.as_deref(), *bytes),
-                    SubtypeConstraint::Target(fmt) => (
-                        sub.resolved_format_id(),
-                        Some(fmt.as_str()),
-                        None,
-                    ),
-                    other => {
-                        ctx.has_errors = true;
-                        ctx.diagnostics.push(SyntaxDiagnostic {
-                            message: format!(
-                                "Invalid data constraint: {}",
-                                other.format_dsl()
-                            ),
-                            token_offset: start_offset,
-                            is_error: true,
-                        });
-                        return Ok(false);
-                    }
+                let Some((expected_fmt_id, expected_fmt, expected_bytes)) =
+                    parse_data_subtype_constraint(sub, start_offset, ctx)
+                else {
+                    return Ok(false);
                 };
                 let consumed = self.consumed_tokens_since(term_checkpoint)?;
                 let tokens: Vec<u128> =
@@ -2229,9 +2177,11 @@ impl DcDocumentNavigator<'_> {
                     } else {
                         tokens.get(1).copied()
                     };
-                    let expected_id = expected_fmt_id.and_then(|f| f.dc_id());
-                    if !matches!((expected_id, actual_id), (Some(exp), Some(act)) if ctx.resolver.is_equivalent_to(act, exp))
-                    {
+                    if !data_format_id_matches(
+                        expected_fmt_id,
+                        actual_id,
+                        ctx.resolver,
+                    ) {
                         return Ok(false);
                     }
                 }
@@ -2316,44 +2266,31 @@ impl DcDocumentNavigator<'_> {
             name: expected_type,
             subtype: None,
         };
-        if let Some(evaluator) = &ctx.evaluator {
+        let term = SyntaxTerm::NamedConstruct {
+            name: expected_type.to_owned(),
+            subtype: None,
+            capture_var: None,
+        };
+        if ctx.evaluator.is_some()
+            && let Ok(dc_str) = ident_name.to_dc_string()
+        {
             let mut expr_dcs = vec![
                 ctb_formats_dcdata::dc::DC_REFERENCE_BOUND_VALUE,
                 ctb_formats_dcdata::dc::DC_BEGIN_IDENTIFIER,
             ];
-            if let Ok(dc_str) = ident_name.to_dc_string() {
-                for ch in dc_str.chars() {
-                    if ch.fills_role_with(DcRole::Escape, ctx.resolver)
-                        || ch.fills_role_with(
-                            DcRole::EndIdentifier,
-                            ctx.resolver,
-                        )
-                    {
-                        expr_dcs.push(ctb_formats_dcdata::dc::DC_ESCAPE);
-                    }
-                    expr_dcs.push(ch);
-                }
-                expr_dcs.push(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
-                if let Ok(Some(DcEvaluatedValue::Document(doc))) = evaluator
-                    .eval_expression_for_requirement(
-                        &expr_dcs,
-                        &req,
-                        ctx.resolver,
-                    )
+            for ch in dc_str.chars() {
+                if ch.fills_role_with(DcRole::Escape, ctx.resolver)
+                    || ch.fills_role_with(DcRole::EndIdentifier, ctx.resolver)
                 {
-                    let mut sub_nav = DcDocumentNavigator::from_mstr(&doc);
-                    let mut sub_ctx = ctx.clone();
-                    let term = SyntaxTerm::NamedConstruct {
-                        name: expected_type.to_owned(),
-                        subtype: None,
-                        capture_var: None,
-                    };
-                    if let Ok(true) =
-                        sub_nav.eval_term_single(&term, &mut sub_ctx)
-                    {
-                        return Ok(true);
-                    }
+                    expr_dcs.push(ctb_formats_dcdata::dc::DC_ESCAPE);
                 }
+                expr_dcs.push(ch);
+            }
+            expr_dcs.push(ctb_formats_dcdata::dc::DC_END_IDENTIFIER);
+            if self.eval_expr_and_check_term(&expr_dcs, &req, &term, ctx)
+                == Some(true)
+            {
+                return Ok(true);
             }
         }
         if ctx.depth > 8 {
@@ -2445,11 +2382,6 @@ impl DcDocumentNavigator<'_> {
         self.clear_spliced_tokens();
         let mut sub_ctx = ctx.clone();
         sub_ctx.depth = sub_ctx.depth.saturating_add(1);
-        let term = SyntaxTerm::NamedConstruct {
-            name: expected_type.to_owned(),
-            subtype: None,
-            capture_var: None,
-        };
         // Reason for fallback: term evaluation errors or mismatches evaluate to non-match (false).
         let ok = self.eval_term_single(&term, &mut sub_ctx).unwrap_or(false)
             && !sub_ctx.has_errors
@@ -2665,10 +2597,8 @@ impl DcDocumentNavigator<'_> {
                         Some(target.to_u128()),
                     );
                     ctx.policy.clone_from(policy);
-                    if !self.eval_pattern(
-                        &SyntaxPattern::Sequence(header.to_vec()),
-                        &mut ctx,
-                    )? || ctx.has_errors
+                    if !self.eval_fixed_prefix_operands(header, &mut ctx)?
+                        || ctx.has_errors
                     {
                         self.syntax_issue(
                             policy,
@@ -2982,6 +2912,46 @@ impl DcDocumentNavigator<'_> {
         }
         Ok(Vec::new())
     }
+}
+
+pub(super) fn parse_data_subtype_constraint<'a>(
+    sub: &'a SubtypeConstraint,
+    start_offset: u64,
+    ctx: &mut SyntaxEvalContext<'_>,
+) -> Option<(Option<FormatId>, Option<&'a str>, Option<usize>)> {
+    match sub {
+        SubtypeConstraint::Data {
+            format,
+            format_id,
+            bytes,
+        } => Some((*format_id, format.as_deref(), *bytes)),
+        SubtypeConstraint::Target(fmt) => {
+            Some((sub.resolved_format_id(), Some(fmt.as_str()), None))
+        }
+        other => {
+            ctx.has_errors = true;
+            ctx.diagnostics.push(SyntaxDiagnostic {
+                message: format!(
+                    "Invalid data constraint: {}",
+                    other.format_dsl()
+                ),
+                token_offset: start_offset,
+                is_error: true,
+            });
+            None
+        }
+    }
+}
+
+pub(super) fn data_format_id_matches(
+    expected_fmt_id: Option<FormatId>,
+    actual_id: Option<u128>,
+    resolver: &dyn SyntaxRuleResolver,
+) -> bool {
+    matches!(
+        (expected_fmt_id.and_then(|f| f.dc_id()), actual_id),
+        (Some(exp), Some(act)) if resolver.is_equivalent_to(act, exp)
+    )
 }
 
 pub(super) fn numeric_bound_to_integer(
