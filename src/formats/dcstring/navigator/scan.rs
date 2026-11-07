@@ -34,7 +34,7 @@ use super::{
     INLINE_BINARY_THRESHOLD, MAX_NAV_CACHE_ENTRIES, NavBackend,
     NavigatorCheckpoint, Read, Seek, SeekFrom, SyntaxEvalContext,
     SyntaxRuleResolver, SyntaxTerm, decode_dctf_buf, decode_utf_8e_128_buf,
-    default_syntax_resolver, encode_dctf_buf,
+    encode_dctf_buf,
 };
 
 pub(super) fn seek_buffered_file(
@@ -1467,18 +1467,6 @@ impl<'a> DcDocumentNavigator<'a> {
         }
     }
 
-    pub(super) fn decode_literal_span(
-        &mut self,
-        span: DcByteSpan,
-        policy: &DcProjectionPolicy,
-    ) -> Result<(Vec<DcChar>, DcMstring)> {
-        self.decode_literal_span_with_resolver(
-            span,
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
-    }
-
     pub(super) fn decode_literal_from_cursor(
         &mut self,
         policy: &DcProjectionPolicy,
@@ -1529,14 +1517,30 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok((type_header, decoded))
     }
 
+    fn with_span_cursor<R>(
+        &mut self,
+        span: DcByteSpan,
+        f: impl FnOnce(&mut Self) -> Result<R>,
+    ) -> Result<R> {
+        let saved = self.save_checkpoint();
+        let saved_span = self.active_span;
+        self.cursor = span.start;
+        self.active_span = span;
+        self.spliced_head = self.spliced_end;
+        let res = f(self);
+        self.active_span = saved_span;
+        self.restore_checkpoint(saved);
+        res
+    }
+
     fn with_stub_cursor<R>(
         &mut self,
         stub: &crate::navigator::DcFrameStub,
         f: impl FnOnce(&mut Self) -> Result<R>,
     ) -> Result<R> {
-        let saved = self.save_checkpoint();
-        let saved_span = self.active_span;
         if let DcFrameHeaderInfo::SplicedTokens(tokens) = &stub.header_info {
+            let saved = self.save_checkpoint();
+            let saved_span = self.active_span;
             let start_idx = self.spliced_buf.len();
             self.spliced_buf.extend_from_slice(tokens);
             self.spliced_head = start_idx;
@@ -1547,13 +1551,7 @@ impl<'a> DcDocumentNavigator<'a> {
             self.restore_checkpoint(saved);
             res
         } else {
-            self.cursor = stub.outer_span.start;
-            self.active_span = stub.outer_span;
-            self.spliced_head = self.spliced_end;
-            let res = f(self);
-            self.active_span = saved_span;
-            self.restore_checkpoint(saved);
-            res
+            self.with_span_cursor(stub.outer_span, f)
         }
     }
 
@@ -1566,35 +1564,6 @@ impl<'a> DcDocumentNavigator<'a> {
         self.with_stub_cursor(stub, |nav| {
             nav.decode_literal_from_cursor(policy, resolver)
         })
-    }
-
-    pub(super) fn decode_literal_span_with_resolver(
-        &mut self,
-        span: DcByteSpan,
-        policy: &DcProjectionPolicy,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<(Vec<DcChar>, DcMstring)> {
-        let saved = self.save_checkpoint();
-        let saved_span = self.active_span;
-        self.cursor = span.start;
-        self.active_span = span;
-        self.spliced_head = self.spliced_end;
-        let res = self.decode_literal_from_cursor(policy, resolver);
-        self.active_span = saved_span;
-        self.restore_checkpoint(saved);
-        res
-    }
-
-    pub(super) fn decode_identifier_span(
-        &mut self,
-        span: DcByteSpan,
-        policy: &DcProjectionPolicy,
-    ) -> Result<DcMstring> {
-        self.decode_identifier_span_with_resolver(
-            span,
-            policy,
-            default_syntax_resolver().as_ref(),
-        )
     }
 
     pub(super) fn decode_identifier_stub_with_resolver(
@@ -1673,25 +1642,9 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<DcMstring> {
-        let saved = self.save_checkpoint();
-        let saved_span = self.active_span;
-        self.cursor = span.start;
-        self.active_span = span;
-        self.spliced_head = self.spliced_end;
-        let res = self.decode_identifier_from_cursor(policy, resolver);
-        self.active_span = saved_span;
-        self.restore_checkpoint(saved);
-        res
-    }
-
-    pub(super) fn decode_number_span(
-        &mut self,
-        span: DcByteSpan,
-    ) -> Result<(DcChar, Vec<DcChar>)> {
-        self.decode_number_span_with_resolver(
-            span,
-            default_syntax_resolver().as_ref(),
-        )
+        self.with_span_cursor(span, |nav| {
+            nav.decode_identifier_from_cursor(policy, resolver)
+        })
     }
 
     pub(super) fn decode_number_from_cursor(
@@ -1736,15 +1689,9 @@ impl<'a> DcDocumentNavigator<'a> {
         span: DcByteSpan,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<(DcChar, Vec<DcChar>)> {
-        let saved = self.save_checkpoint();
-        let saved_span = self.active_span;
-        self.cursor = span.start;
-        self.active_span = span;
-        self.spliced_head = self.spliced_end;
-        let res = self.decode_number_from_cursor(resolver);
-        self.active_span = saved_span;
-        self.restore_checkpoint(saved);
-        res
+        self.with_span_cursor(span, |nav| {
+            nav.decode_number_from_cursor(resolver)
+        })
     }
 
     pub(super) fn read_tokens_in_span(

@@ -79,6 +79,15 @@ fn sh(dc: DcChar) -> DcShorthand {
     DcShorthand::from_global_id(dc.to_u128())
 }
 
+/// A single stepped element from a `.Semantic:Pattern` `&[DcShorthand]` token slice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PatternTokenStep<'a> {
+    /// A leaf term (character ref, range, set, named construct, or rule ref).
+    Term(SyntaxTerm),
+    /// A nested pattern group slice (`298 ... 299`) evaluated recursively as tokens.
+    Group(&'a [DcShorthand]),
+}
+
 /// Named syntax construct reconstructed from the System-block seed graph (`README-named-types.csv`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReconstructedNamedType {
@@ -1156,6 +1165,79 @@ impl SeedGraphIndex {
             }
         }
         false
+    }
+
+    /// Returns true if the `.Semantic:Pattern` token sequence begins with `Dc 599 "Self reference"`
+    /// or a character set (`298 604 ...` or `298 602 <non-group> ...`).
+    #[must_use]
+    pub fn pattern_tokens_start_with_self_or_charset(
+        &self,
+        tokens: &[DcShorthand],
+    ) -> bool {
+        let sh_self = sh(DC_SELF_REFERENCE);
+        let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
+        let sh_neg = sh(DC_NEGATED_PATTERN);
+        let sh_alt = sh(DC_PATTERN_ALTERNATION);
+        if tokens.first() == Some(&sh_self) {
+            return true;
+        }
+        if tokens.first() == Some(&sh_open) {
+            if tokens.get(1) == Some(&sh_neg) {
+                return true;
+            }
+            if tokens.get(1) == Some(&sh_alt) && tokens.get(2) != Some(&sh_open)
+            {
+                return true;
+            }
+        }
+        if let Ok(Some(branches)) = self.split_alternation_branches(tokens) {
+            if let Some(first_branch) = branches.first() {
+                return self
+                    .pattern_tokens_start_with_self_or_charset(first_branch);
+            }
+        }
+        false
+    }
+
+    /// Steps a single quantified element from `tokens` at `idx` without constructing
+    /// a `SyntaxPattern` AST for nested groups (`298 ... 299`).
+    pub fn step_pattern_token_slice<'a>(
+        &self,
+        tokens: &'a [DcShorthand],
+        idx: usize,
+    ) -> Result<(PatternTokenStep<'a>, Quantifier, usize)> {
+        let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
+        let sh_neg = sh(DC_NEGATED_PATTERN);
+        let sh_alt = sh(DC_PATTERN_ALTERNATION);
+        let sh_sub = sh(DC_SUBPATTERN_MATCH);
+
+        if tokens.get(idx) == Some(&sh_open) {
+            let close_idx = find_matching_group_close(tokens, idx)?
+                .context("Unclosed BeginAssociativityGroup (298) in pattern")?;
+            let inner = tokens
+                .get(idx.saturating_add(1)..close_idx)
+                .context("Invalid group token range")?;
+            let after_group = close_idx.saturating_add(1);
+            let is_leaf_group = inner.first().is_some_and(|&f| {
+                f == sh_neg
+                    || f == sh_sub
+                    || (f == sh_alt && inner.get(1) != Some(&sh_open))
+            });
+            if !is_leaf_group {
+                let (quantifier, after_quant) =
+                    self.decode_optional_quantifier_at(tokens, after_group)?;
+                return Ok((
+                    PatternTokenStep::Group(inner),
+                    quantifier,
+                    after_quant,
+                ));
+            }
+        }
+
+        let (term, after_term) = self.decode_syntax_term_at(tokens, idx)?;
+        let (quantifier, after_quant) =
+            self.decode_optional_quantifier_at(tokens, after_term)?;
+        Ok((PatternTokenStep::Term(term), quantifier, after_quant))
     }
 
     /// If `tokens` is a top-level `298 602 (branch1) (branch2) ... 299` alternation, returns

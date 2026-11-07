@@ -36,6 +36,7 @@ pub mod resolver;
 #[path = "syntax/role.generated.rs"]
 pub mod role;
 pub use crate::support::data_constraint;
+pub use crate::support::seed_graph_reconstruct::PatternTokenStep;
 pub use crate::support::syntax_ast as ast;
 pub use crate::support::syntax_parser as parser;
 pub use crate::support::syntax_validator as validator;

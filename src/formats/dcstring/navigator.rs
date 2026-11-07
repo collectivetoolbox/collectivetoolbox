@@ -1553,8 +1553,13 @@ impl<'a> DcDocumentNavigator<'a> {
                         Some(first_dc.to_u128()),
                     );
                     ctx.policy.clone_from(policy);
-                    let mut matched =
-                        self.eval_pattern(&rule.pattern, &mut ctx)?;
+                    let mut matched = if let Some(raw_tokens) =
+                        resolver.resolve_rule_tokens(&target)
+                    {
+                        self.eval_pattern_tokens(raw_tokens, &mut ctx)?
+                    } else {
+                        self.eval_pattern(&rule.pattern, &mut ctx)?
+                    };
                     if matched
                         && !ctx.has_errors
                         && resolver

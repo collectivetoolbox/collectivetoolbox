@@ -144,47 +144,17 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             else {
                 return Ok(None);
             };
-            let Some((list_open, after_list_open)) =
-                nav.read_token_or_binary_at(after_wrapper)?
-            else {
-                return Ok(None);
-            };
-            if !list_open.fills_role_with(DcRole::BeginList, resolver) {
-                return Ok(None);
-            }
-            // Reason for fallback: default closing delimiter for BeginList is DC_END_LIST.
-            let list_closer = CharTarget::from_u128(list_open.to_u128())
-                .and_then(|t| resolver.closer_for_opener(&t))
-                .map_or(ctb_formats_dcdata::dc::DC_END_LIST, DcChar::from_u128);
-            let close_len = nav.char_encoded_len(list_closer);
             let Ok(mstr_len) = u64::try_from(mstr.len()) else {
                 return Ok(None);
             };
-            let list_end = mstr_len.saturating_sub(close_len);
-            if list_end < after_list_open {
+            let Some((_, list_end)) = nav.enter_list_body_after_header(
+                after_wrapper,
+                mstr_len,
+                &mut ctx,
+            )?
+            else {
                 return Ok(None);
-            }
-            nav.active_span = DcByteSpan::new(after_list_open, list_end);
-            nav.cursor = after_list_open;
-
-            // Skip optional [number] and [type] header
-            let num_term = SyntaxTerm::NamedConstruct {
-                name: "number".to_owned(),
-                subtype: None,
-                capture_var: None,
             };
-            let num_pos = nav.cursor;
-            if !nav.eval_term_single(&num_term, &mut ctx)? {
-                nav.cursor = num_pos;
-            }
-            let type_term = SyntaxTerm::NamedConstruct {
-                name: "type".to_owned(),
-                subtype: None,
-                capture_var: None,
-            };
-            if !nav.eval_term_single(&type_term, &mut ctx)? {
-                return Ok(None);
-            }
 
             while nav.cursor < list_end {
                 let elem_start = nav.cursor;
@@ -410,6 +380,12 @@ struct EvalContextCheckpoint {
         Option<std::collections::HashMap<String, malachite::Integer>>,
 }
 
+enum EvalInit<'p> {
+    Pattern(&'p SyntaxPattern),
+    Tokens(&'p [ctb_storage_minimal::shorthand::DcShorthand]),
+    Sequence(&'p [SyntaxElement]),
+}
+
 impl DcDocumentNavigator<'_> {
     /// Evaluates a [`SyntaxPattern`] starting at the navigator's current cursor.
     ///
@@ -421,103 +397,218 @@ impl DcDocumentNavigator<'_> {
         pattern: &'p SyntaxPattern,
         ctx: &mut SyntaxEvalContext<'r>,
     ) -> Result<bool> {
-        enum Frame<'p> {
+        self.run_eval_frames(EvalInit::Pattern(pattern), ctx)
+    }
+
+    /// Evaluates a `.Semantic:Pattern` `&[DcShorthand]` token slice directly from the seed graph
+    /// without constructing a recursive `SyntaxPattern` AST.
+    pub fn eval_pattern_tokens<'p, 'r: 'p>(
+        &mut self,
+        raw_tokens: &'p [ctb_storage_minimal::shorthand::DcShorthand],
+        ctx: &mut SyntaxEvalContext<'r>,
+    ) -> Result<bool> {
+        self.run_eval_frames(EvalInit::Tokens(raw_tokens), ctx)
+    }
+
+    /// Evaluates a fixed-arity sequence of `ExactOne` operands starting at the current cursor.
+    pub(super) fn eval_fixed_prefix_operands<'p, 'r: 'p>(
+        &mut self,
+        operands: &'p [SyntaxElement],
+        ctx: &mut SyntaxEvalContext<'r>,
+    ) -> Result<bool> {
+        self.run_eval_frames(EvalInit::Sequence(operands), ctx)
+    }
+
+    fn run_eval_frames<'p, 'r: 'p>(
+        &mut self,
+        init: EvalInit<'p>,
+        ctx: &mut SyntaxEvalContext<'r>,
+    ) -> Result<bool> {
+        use ctb_formats_dcdata::syntax::PatternTokenStep;
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        #[derive(Clone)]
+        enum EvalStep<'p> {
+            Term(Cow<'p, SyntaxTerm>),
+            TokenGroup(&'p [DcShorthand]),
+        }
+
+        enum EvalBranches<'p> {
+            Ast(&'p [SyntaxPattern]),
+            Tokens(Vec<&'p [DcShorthand]>),
+        }
+
+        enum EvalFrame<'p> {
             Pattern(&'p SyntaxPattern),
+            Tokens(&'p [DcShorthand]),
             Sequence(&'p [SyntaxElement], usize, NavigatorCheckpoint),
+            TokenSequence(&'p [DcShorthand], usize, NavigatorCheckpoint),
             Alternation {
-                branches: &'p [SyntaxPattern],
+                branches: EvalBranches<'p>,
                 index: usize,
                 branch_start: NavigatorCheckpoint,
                 saved_ctx: EvalContextCheckpoint,
                 zero_match:
                     Option<(EvalContextCheckpoint, NavigatorCheckpoint)>,
             },
-            Element(
-                &'p SyntaxElement,
-                usize,
-                NavigatorCheckpoint,
-                NavigatorCheckpoint,
-            ),
-            Term(&'p SyntaxTerm),
+            Element {
+                step: EvalStep<'p>,
+                quantifier: Quantifier,
+                count: usize,
+                element_start: NavigatorCheckpoint,
+                iteration_start: NavigatorCheckpoint,
+            },
+            Step(EvalStep<'p>),
             Restore(Option<u128>, usize, NavigatorCheckpoint),
         }
 
+        let sg_opt = ctx.resolver.seed_graph();
         let start = self.save_checkpoint();
         let old_depth = ctx.depth;
         let old_self = ctx.self_dc;
+        let first_frame = match init {
+            EvalInit::Pattern(p) => EvalFrame::Pattern(p),
+            EvalInit::Tokens(t) => {
+                if sg_opt.is_none() {
+                    return Ok(false);
+                }
+                EvalFrame::Tokens(t)
+            }
+            EvalInit::Sequence(s) => EvalFrame::Sequence(s, 0, start),
+        };
         let result = (|| -> Result<bool> {
-            let mut frames = vec![Frame::Pattern(pattern)];
+            let mut frames = vec![first_frame];
             let mut matched = true;
             while let Some(frame) = frames.pop() {
                 match frame {
-                    Frame::Term(term) => {
-                        let token = self.peek_next_token()?;
-                        let constructor = matches!(
-                            term,
-                            SyntaxTerm::NamedConstruct { name, subtype: None, .. } if name == "type"
-                        ) && token.is_some_and(|ch| {
-                            ch.fills_role_with(
-                                DcRole::BeginTypeDef,
-                                ctx.resolver,
-                            ) || ch.fills_role_with(
-                                DcRole::TypeUnion,
-                                ctx.resolver,
-                            ) || ch.fills_role_with(
-                                DcRole::TypeIntersection,
-                                ctx.resolver,
-                            ) || ch.fills_role_with(
-                                DcRole::FormatParamApplication,
-                                ctx.resolver,
-                            )
-                        });
-                        let has_term_wrapper = !ctx.unescaped_literal_payload
-                            && token.is_some_and(|ch| {
-                                ctx.resolver
-                                    .is_special_wrapper_token(ch.to_u128())
-                            });
-                        if constructor {
-                            let Some(rule) = token
-                                .and_then(|ch| {
-                                    CharTarget::from_u128(ch.to_u128())
-                                })
-                                .and_then(|target| {
-                                    ctx.resolver.resolve_rule(&target)
-                                })
-                            else {
+                    EvalFrame::Step(step) => match step {
+                        EvalStep::TokenGroup(group_tokens) => {
+                            let Some(sg) = sg_opt else {
                                 matched = false;
                                 continue;
                             };
-                            if ctx.depth >= ctx.max_depth {
-                                ctx.has_errors = true;
-                                ctx.diagnostics.push(SyntaxDiagnostic {
-                                    message: format!(
-                                        "Syntax expansion depth limit reached ({}) for type constructor",
-                                        ctx.max_depth
-                                    ),
-                                    token_offset: self.cursor,
-                                    is_error: true,
+                            let token = self.peek_next_token()?;
+                            let has_wrapper = !ctx.unescaped_literal_payload
+                                && !sg.pattern_tokens_start_with_self_or_charset(
+                                    group_tokens,
+                                )
+                                && token.is_some_and(|ch| {
+                                    ctx.resolver
+                                        .is_special_wrapper_token(ch.to_u128())
                                 });
-                                return Ok(false);
+                            if has_wrapper
+                                && let Some(first_dc) = token
+                            {
+                                if first_dc.fills_role_with(
+                                    DcRole::OptionalPresent,
+                                    ctx.resolver,
+                                ) {
+                                    let opt_cp = self.save_checkpoint();
+                                    while self.peek_next_token()?.is_some_and(
+                                        |ch| {
+                                            ch.fills_role_with(
+                                                DcRole::OptionalPresent,
+                                                ctx.resolver,
+                                            )
+                                        },
+                                    ) {
+                                        let _ = self.pop_next_token()?;
+                                    }
+                                    if self
+                                        .eval_pattern_tokens(group_tokens, ctx)?
+                                    {
+                                        matched = true;
+                                        continue;
+                                    }
+                                    ctx.has_errors = false;
+                                    self.restore_checkpoint(opt_cp);
+                                } else if first_dc.fills_role_with(
+                                    DcRole::OptionalAbsent,
+                                    ctx.resolver,
+                                ) {
+                                    let _ = self.pop_next_token()?;
+                                    matched = true;
+                                    continue;
+                                }
                             }
-                            frames.push(Frame::Restore(
-                                ctx.self_dc,
-                                ctx.depth,
-                                self.save_checkpoint(),
-                            ));
-                            ctx.depth = ctx.depth.saturating_add(1);
-                            ctx.self_dc = token.map(DcChar::to_u128);
-                            frames.push(Frame::Pattern(&rule.pattern));
-                        } else if !has_term_wrapper
-                            && let SyntaxTerm::Group(group_pat) = term
-                        {
-                            frames.push(Frame::Pattern(group_pat));
-                        } else {
-                            matched = self.eval_term_single(term, ctx)?;
+                            frames.push(EvalFrame::Tokens(group_tokens));
                         }
-                    }
-                    Frame::Pattern(pat) => match pat {
+                        EvalStep::Term(term) => {
+                            let token = self.peek_next_token()?;
+                            let constructor = matches!(
+                                term.as_ref(),
+                                SyntaxTerm::NamedConstruct { name, subtype: None, .. } if name == "type"
+                            ) && token.is_some_and(|ch| {
+                                is_compound_type_starter(ch, ctx.resolver)
+                            });
+                            let has_term_wrapper = !ctx.unescaped_literal_payload
+                                && token.is_some_and(|ch| {
+                                    ctx.resolver
+                                        .is_special_wrapper_token(ch.to_u128())
+                                });
+                            if constructor {
+                                let target_opt = token.and_then(|ch| {
+                                    CharTarget::from_u128(ch.to_u128())
+                                });
+                                let rule_tokens_opt = target_opt
+                                    .as_ref()
+                                    .and_then(|target| {
+                                        ctx.resolver.resolve_rule_tokens(target)
+                                    });
+                                let rule_opt = if rule_tokens_opt.is_none() {
+                                    target_opt.as_ref().and_then(|target| {
+                                        ctx.resolver.resolve_rule(target)
+                                    })
+                                } else {
+                                    None
+                                };
+                                if rule_tokens_opt.is_none()
+                                    && rule_opt.is_none()
+                                {
+                                    matched = false;
+                                    continue;
+                                }
+                                if ctx.depth >= ctx.max_depth {
+                                    ctx.has_errors = true;
+                                    ctx.diagnostics.push(SyntaxDiagnostic {
+                                        message: format!(
+                                            "Syntax expansion depth limit reached ({}) for type constructor",
+                                            ctx.max_depth
+                                        ),
+                                        token_offset: self.cursor,
+                                        is_error: true,
+                                    });
+                                    return Ok(false);
+                                }
+                                frames.push(EvalFrame::Restore(
+                                    ctx.self_dc,
+                                    ctx.depth,
+                                    self.save_checkpoint(),
+                                ));
+                                ctx.depth = ctx.depth.saturating_add(1);
+                                ctx.self_dc = token.map(DcChar::to_u128);
+                                if let Some(rule_tokens) = rule_tokens_opt {
+                                    frames.push(EvalFrame::Tokens(rule_tokens));
+                                } else if let Some(rule) = rule_opt {
+                                    frames.push(EvalFrame::Pattern(
+                                        &rule.pattern,
+                                    ));
+                                }
+                            } else if !has_term_wrapper
+                                && let Cow::Borrowed(SyntaxTerm::Group(
+                                    group_pat,
+                                )) = term
+                            {
+                                frames.push(EvalFrame::Pattern(group_pat));
+                            } else {
+                                matched =
+                                    self.eval_term_single(term.as_ref(), ctx)?;
+                            }
+                        }
+                    },
+                    EvalFrame::Pattern(pat) => match pat {
                         SyntaxPattern::Sequence(elements) => {
-                            frames.push(Frame::Sequence(
+                            frames.push(EvalFrame::Sequence(
                                 elements,
                                 0,
                                 self.save_checkpoint(),
@@ -529,17 +620,48 @@ impl DcDocumentNavigator<'_> {
                                 matched = false;
                                 continue;
                             };
-                            frames.push(Frame::Alternation {
-                                branches,
+                            frames.push(EvalFrame::Alternation {
+                                branches: EvalBranches::Ast(branches),
                                 index: 1,
                                 branch_start: self.save_checkpoint(),
                                 saved_ctx: ctx.save_checkpoint(),
                                 zero_match: None,
                             });
-                            frames.push(Frame::Pattern(branch));
+                            frames.push(EvalFrame::Pattern(branch));
                         }
                     },
-                    Frame::Sequence(elements, index, sequence_start) => {
+                    EvalFrame::Tokens(raw_slice) => {
+                        let Some(sg) = sg_opt else {
+                            matched = false;
+                            continue;
+                        };
+                        let tokens =
+                            sg.strip_pattern_action_tokens(raw_slice)?;
+                        if let Some(branches) =
+                            sg.split_alternation_branches(tokens)?
+                        {
+                            let Some(&first_branch) = branches.first() else {
+                                matched = false;
+                                continue;
+                            };
+                            frames.push(EvalFrame::Alternation {
+                                branches: EvalBranches::Tokens(branches),
+                                index: 1,
+                                branch_start: self.save_checkpoint(),
+                                saved_ctx: ctx.save_checkpoint(),
+                                zero_match: None,
+                            });
+                            frames.push(EvalFrame::Tokens(first_branch));
+                        } else {
+                            frames.push(EvalFrame::TokenSequence(
+                                tokens,
+                                0,
+                                self.save_checkpoint(),
+                            ));
+                            matched = true;
+                        }
+                    }
+                    EvalFrame::Sequence(elements, index, sequence_start) => {
                         if !matched {
                             self.restore_checkpoint(sequence_start);
                             continue;
@@ -558,22 +680,74 @@ impl DcDocumentNavigator<'_> {
                                 break;
                             }
                             let cp = self.save_checkpoint();
-                            frames.push(Frame::Sequence(
+                            let step =
+                                EvalStep::Term(Cow::Borrowed(&elem.term));
+                            frames.push(EvalFrame::Sequence(
                                 elements,
                                 next_idx.saturating_add(1),
                                 sequence_start,
                             ));
-                            frames.push(Frame::Element(
-                                elem,
-                                0,
-                                cp,
-                                cp,
-                            ));
-                            frames.push(Frame::Term(&elem.term));
+                            frames.push(EvalFrame::Element {
+                                step: step.clone(),
+                                quantifier: elem.quantifier,
+                                count: 0,
+                                element_start: cp,
+                                iteration_start: cp,
+                            });
+                            frames.push(EvalFrame::Step(step));
                             break;
                         }
                     }
-                    Frame::Alternation {
+                    EvalFrame::TokenSequence(tokens, index, sequence_start) => {
+                        if !matched {
+                            self.restore_checkpoint(sequence_start);
+                            continue;
+                        }
+                        let Some(sg) = sg_opt else {
+                            matched = false;
+                            continue;
+                        };
+                        let mut next_idx = index;
+                        while next_idx < tokens.len() {
+                            let (raw_step, quantifier, after_idx) =
+                                sg.step_pattern_token_slice(tokens, next_idx)?;
+                            let at_end = self.cursor >= self.active_span.end
+                                && !self.has_spliced_tokens();
+                            if at_end && quantifier.allows_zero() {
+                                next_idx = after_idx;
+                                continue;
+                            }
+                            if at_end {
+                                matched = false;
+                                self.restore_checkpoint(sequence_start);
+                                break;
+                            }
+                            let cp = self.save_checkpoint();
+                            let step = match raw_step {
+                                PatternTokenStep::Group(g) => {
+                                    EvalStep::TokenGroup(g)
+                                }
+                                PatternTokenStep::Term(t) => {
+                                    EvalStep::Term(Cow::Owned(t))
+                                }
+                            };
+                            frames.push(EvalFrame::TokenSequence(
+                                tokens,
+                                after_idx,
+                                sequence_start,
+                            ));
+                            frames.push(EvalFrame::Element {
+                                step: step.clone(),
+                                quantifier,
+                                count: 0,
+                                element_start: cp,
+                                iteration_start: cp,
+                            });
+                            frames.push(EvalFrame::Step(step));
+                            break;
+                        }
+                    }
+                    EvalFrame::Alternation {
                         branches,
                         index,
                         branch_start,
@@ -596,11 +770,31 @@ impl DcDocumentNavigator<'_> {
                         }
                         self.restore_checkpoint(branch_start);
                         ctx.restore_checkpoint(&saved_ctx);
-                        if let Some(branch) = branches.get(index) {
-                            if branches
-                                .first()
-                                .is_some_and(SyntaxPattern::starts_with_self)
-                                && !branch.starts_with_self()
+                        let next_branch = match &branches {
+                            EvalBranches::Ast(b) => b.get(index).map(|pat| {
+                                let need_self = b
+                                    .first()
+                                    .is_some_and(SyntaxPattern::starts_with_self)
+                                    && !pat.starts_with_self();
+                                (need_self, EvalFrame::Pattern(pat))
+                            }),
+                            EvalBranches::Tokens(b) => {
+                                b.get(index).and_then(|&toks| {
+                                    let sg = sg_opt?;
+                                    let need_self = b.first().is_some_and(
+                                        |first| {
+                                            sg.pattern_tokens_start_with_self(
+                                                first,
+                                            )
+                                        },
+                                    ) && !sg
+                                        .pattern_tokens_start_with_self(toks);
+                                    Some((need_self, EvalFrame::Tokens(toks)))
+                                })
+                            }
+                        };
+                        if let Some((need_self, branch_frame)) = next_branch {
+                            if need_self
                                 && !self.eval_term_single(
                                     &SyntaxTerm::SelfChar,
                                     ctx,
@@ -609,14 +803,14 @@ impl DcDocumentNavigator<'_> {
                                 matched = false;
                                 continue;
                             }
-                            frames.push(Frame::Alternation {
+                            frames.push(EvalFrame::Alternation {
                                 branches,
                                 index: index.saturating_add(1),
                                 branch_start,
                                 saved_ctx,
                                 zero_match,
                             });
-                            frames.push(Frame::Pattern(branch));
+                            frames.push(branch_frame);
                         } else if let Some((zm_ctx, zm_cp)) = zero_match {
                             self.restore_checkpoint(zm_cp);
                             ctx.restore_checkpoint(&zm_ctx);
@@ -625,12 +819,13 @@ impl DcDocumentNavigator<'_> {
                             matched = false;
                         }
                     }
-                    Frame::Element(
-                        element,
+                    EvalFrame::Element {
+                        step,
+                        quantifier,
                         count,
                         element_start,
                         iteration_start,
-                    ) => {
+                    } => {
                         if ctx.has_errors {
                             self.restore_checkpoint(element_start);
                             return Ok(false);
@@ -648,20 +843,21 @@ impl DcDocumentNavigator<'_> {
                             || self.has_spliced_tokens();
                         if matched
                             && progressed
-                            && !element.quantifier.reached_max(count)
+                            && !quantifier.reached_max(count)
                             && more_input
                         {
                             let cp = self.save_checkpoint();
-                            frames.push(Frame::Element(
-                                element,
+                            frames.push(EvalFrame::Element {
+                                step: step.clone(),
+                                quantifier,
                                 count,
                                 element_start,
-                                cp,
-                            ));
-                            frames.push(Frame::Term(&element.term));
+                                iteration_start: cp,
+                            });
+                            frames.push(EvalFrame::Step(step));
                             continue;
                         }
-                        matched = match element.quantifier {
+                        matched = match quantifier {
                             Quantifier::ExactOne => count == 1,
                             Quantifier::Optional | Quantifier::ZeroOrMore => {
                                 true
@@ -676,7 +872,7 @@ impl DcDocumentNavigator<'_> {
                             self.restore_checkpoint(element_start);
                         }
                     }
-                    Frame::Restore(self_dc, depth, rule_start) => {
+                    EvalFrame::Restore(self_dc, depth, rule_start) => {
                         ctx.self_dc = self_dc;
                         ctx.depth = depth;
                         if !matched {
@@ -693,169 +889,6 @@ impl DcDocumentNavigator<'_> {
             self.restore_checkpoint(start);
         }
         result
-    }
-
-    /// Evaluates a `.Semantic:Pattern` `&[DcShorthand]` token slice directly from the seed graph
-    /// without constructing a recursive `SyntaxPattern` AST.
-    pub fn eval_pattern_tokens(
-        &mut self,
-        raw_tokens: &[ctb_storage_minimal::shorthand::DcShorthand],
-        ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        let Some(sg) = ctx.resolver.seed_graph() else {
-            return Ok(false);
-        };
-        let tokens = sg.strip_pattern_action_tokens(raw_tokens)?;
-        let start = self.save_checkpoint();
-        if let Some(branches) = sg.split_alternation_branches(tokens)? {
-            let saved_ctx = ctx.save_checkpoint();
-            let mut zero_match = None;
-            let first_starts_self = branches
-                .first()
-                .is_some_and(|b| sg.pattern_tokens_start_with_self(b));
-            for (idx, branch) in branches.iter().enumerate() {
-                self.restore_checkpoint(start);
-                ctx.restore_checkpoint(&saved_ctx);
-                if idx > 0
-                    && first_starts_self
-                    && !sg.pattern_tokens_start_with_self(branch)
-                    && !self.eval_term_single(&SyntaxTerm::SelfChar, ctx)?
-                {
-                    continue;
-                }
-                if self.eval_pattern_tokens(branch, ctx)? && !ctx.has_errors {
-                    let consumed = self.cursor > start.cursor
-                        || self.spliced_len() < start.spliced_len();
-                    if consumed {
-                        return Ok(true);
-                    }
-                    if zero_match.is_none() {
-                        zero_match = Some((
-                            ctx.save_checkpoint(),
-                            self.save_checkpoint(),
-                        ));
-                    }
-                }
-            }
-            if let Some((zm_ctx, zm_cp)) = zero_match {
-                self.restore_checkpoint(zm_cp);
-                ctx.restore_checkpoint(&zm_ctx);
-                return Ok(true);
-            }
-            self.restore_checkpoint(start);
-            ctx.restore_checkpoint(&saved_ctx);
-            return Ok(false);
-        }
-
-        let mut idx = 0usize;
-        while idx < tokens.len() {
-            let (elem, next_idx) =
-                sg.step_pattern_element_tokens(tokens, idx)?;
-            let at_end = self.cursor >= self.active_span.end
-                && !self.has_spliced_tokens();
-            if at_end && elem.quantifier.allows_zero() {
-                idx = next_idx;
-                continue;
-            }
-            if at_end {
-                self.restore_checkpoint(start);
-                return Ok(false);
-            }
-            if !self.eval_element(&elem, ctx)? {
-                self.restore_checkpoint(start);
-                return Ok(false);
-            }
-            idx = next_idx;
-        }
-        Ok(true)
-    }
-
-    /// Evaluates a quantified [`SyntaxElement`] starting at the current cursor.
-    pub fn eval_element(
-        &mut self,
-        element: &SyntaxElement,
-        ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        self.eval_pattern(&SyntaxPattern::Sequence(vec![element.clone()]), ctx)
-    }
-
-    /// Evaluates a fixed-arity sequence of `ExactOne` operands starting at the current cursor
-    /// without allocating the general `eval_pattern` backtracking frame stack.
-    pub(super) fn eval_fixed_prefix_operands(
-        &mut self,
-        operands: &[SyntaxElement],
-        ctx: &mut SyntaxEvalContext<'_>,
-    ) -> Result<bool> {
-        let start = self.save_checkpoint();
-        for elem in operands {
-            if self.cursor >= self.active_span.end && !self.has_spliced_tokens()
-            {
-                self.restore_checkpoint(start);
-                return Ok(false);
-            }
-            let matched = match &elem.term {
-                SyntaxTerm::Group(group_pat) => {
-                    let has_wrapper = !ctx.unescaped_literal_payload
-                        && self.peek_next_token()?.is_some_and(|ch| {
-                            ctx.resolver.is_special_wrapper_token(ch.to_u128())
-                        });
-                    if has_wrapper {
-                        self.eval_term_single(&elem.term, ctx)?
-                    } else {
-                        self.eval_pattern(group_pat, ctx)?
-                    }
-                }
-                SyntaxTerm::NamedConstruct {
-                    name,
-                    subtype: None,
-                    ..
-                } if name == "type" => {
-                    let token = self.peek_next_token()?;
-                    let is_constructor = token.is_some_and(|ch| {
-                        ch.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
-                            || ch.fills_role_with(
-                                DcRole::TypeUnion,
-                                ctx.resolver,
-                            )
-                            || ch.fills_role_with(
-                                DcRole::TypeIntersection,
-                                ctx.resolver,
-                            )
-                            || ch.fills_role_with(
-                                DcRole::FormatParamApplication,
-                                ctx.resolver,
-                            )
-                    });
-                    if is_constructor {
-                        let Some(rule) = token
-                            .and_then(|ch| CharTarget::from_u128(ch.to_u128()))
-                            .and_then(|target| {
-                                ctx.resolver.resolve_rule(&target)
-                            })
-                        else {
-                            self.restore_checkpoint(start);
-                            return Ok(false);
-                        };
-                        let old_self = ctx.self_dc;
-                        let old_depth = ctx.depth;
-                        ctx.self_dc = token.map(DcChar::to_u128);
-                        ctx.depth = ctx.depth.saturating_add(1);
-                        let res = self.eval_pattern(&rule.pattern, ctx);
-                        ctx.self_dc = old_self;
-                        ctx.depth = old_depth;
-                        res?
-                    } else {
-                        self.eval_term_single(&elem.term, ctx)?
-                    }
-                }
-                term => self.eval_term_single(term, ctx)?,
-            };
-            if !matched || ctx.has_errors {
-                self.restore_checkpoint(start);
-                return Ok(false);
-            }
-        }
-        Ok(true)
     }
 
     /// Evaluates a single [`SyntaxTerm`] occurrence starting at the current cursor.
@@ -2627,33 +2660,41 @@ impl DcDocumentNavigator<'_> {
             self.active_span = inner;
             self.cursor = inner.start;
             self.clear_spliced_tokens();
-            let header = resolver.container_header_elements(target);
-            let mut declared_list_len = None;
-            if !header.is_empty() {
-                let mut ctx =
-                    SyntaxEvalContext::new(resolver, Some(target.to_u128()));
-                ctx.policy.clone_from(policy);
-                if !self.eval_pattern(
-                    &SyntaxPattern::Sequence(header.to_vec()),
-                    &mut ctx,
-                )? || ctx.has_errors
+            let is_list =
+                resolver.token_fills_role(target.to_u128(), DcRole::BeginList);
+            if resolver.resolve_rule(target).is_none() || is_list {
+                let header = resolver.container_header_elements(target);
+                let mut declared_list_len = None;
+                if !header.is_empty() {
+                    let mut ctx = SyntaxEvalContext::new(
+                        resolver,
+                        Some(target.to_u128()),
+                    );
+                    ctx.policy.clone_from(policy);
+                    if !self.eval_pattern(
+                        &SyntaxPattern::Sequence(header.to_vec()),
+                        &mut ctx,
+                    )? || ctx.has_errors
+                    {
+                        self.syntax_issue(
+                            policy,
+                            inner.start,
+                            format!(
+                                "Container header mismatch inside {target} at offset {}",
+                                inner.start
+                            ),
+                        )?;
+                    }
+                    declared_list_len = ctx.captured_numbers.remove("length");
+                }
+                if let Some(length) = declared_list_len
+                    && is_list
                 {
-                    self.syntax_issue(
-                        policy,
-                        inner.start,
-                        format!("Container header mismatch inside {target} at offset {}", inner.start),
+                    let body_start = self.cursor;
+                    self.check_declared_list_length_with_resolver(
+                        target, inner, body_start, &length, policy, resolver,
                     )?;
                 }
-                declared_list_len = ctx.captured_numbers.remove("length");
-            }
-            if let Some(length) = declared_list_len
-                && resolver
-                    .token_fills_role(target.to_u128(), DcRole::BeginList)
-            {
-                let body_start = self.cursor;
-                self.check_declared_list_length_with_resolver(
-                    target, inner, body_start, &length, policy, resolver,
-                )?;
             }
             if resolver.token_fills_role(
                 target.to_u128(),
