@@ -244,7 +244,9 @@ pub struct DcSyntaxNode<'a> {
 }
 
 impl DcSyntaxNode<'_> {
-    pub(super) fn semantic_token(&self) -> Option<u128> {
+    /// Returns the leading semantic token (`opener`, `tag`, or `Atom` value) of this node.
+    #[must_use]
+    pub fn semantic_token(&self) -> Option<u128> {
         let token = match &self.kind {
             DcSyntaxKind::Container { opener, .. } => opener,
             DcSyntaxKind::Tagged { tag, .. } => tag,
@@ -252,6 +254,20 @@ impl DcSyntaxNode<'_> {
             _ => return None,
         };
         Some(token.to_u128())
+    }
+
+    /// Returns `(head_dc, child_slice)` for a `Container` or `Tagged` node.
+    #[must_use]
+    pub fn head_and_children(&self) -> Option<(DcChar, &[NodeId])> {
+        match &self.kind {
+            DcSyntaxKind::Container {
+                opener, children, ..
+            } => Some((*opener, children.as_slice())),
+            DcSyntaxKind::Tagged { tag, args } => {
+                Some((*tag, args.as_slice()))
+            }
+            _ => None,
+        }
     }
 
     /// Returns true if this container represents a leaf value construct using `resolver`.
