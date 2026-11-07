@@ -24,7 +24,7 @@ csv = "1.4.0"
 ctb-formats-dctf = { path = "../dctf" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tinywasm = { version = "0.8.0", default-features = false, features = ["std", "parser"] }
+tinywasm = "0.8.0"
 
 [build-dependencies]
 anyhow = "1.0.100"

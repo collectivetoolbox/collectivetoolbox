@@ -995,10 +995,14 @@ fn capitalize_heading_words(s: &str) -> String {
             // Check if this is the start of a word (first letter or preceded by non-alpha)
             let is_start = i == 0;
             // Check for exception words: "a ", "and ", "or ", "the "
-            let is_exception = title.get(i..i.saturating_add(2)) == Some(b"a ")
-                || title.get(i..i.saturating_add(4)) == Some(b"and ")
-                || title.get(i..i.saturating_add(3)) == Some(b"or ")
-                || title.get(i..i.saturating_add(4)) == Some(b"the ");
+            let is_exception =
+                title.get(i..i.saturating_add(2)) == Some(b"a ".as_slice())
+                    || title.get(i..i.saturating_add(4))
+                        == Some(b"and ".as_slice())
+                    || title.get(i..i.saturating_add(3))
+                        == Some(b"or ".as_slice())
+                    || title.get(i..i.saturating_add(4))
+                        == Some(b"the ".as_slice());
 
             if is_start || !is_exception {
                 // Capitalize first letter
