@@ -402,6 +402,10 @@ pub const DC_WASM_FC_START: DcChar = DcChar::from_short(1159);
 pub const DC_WASM_FD_PAGE0_START: DcChar = DcChar::from_short(1415);
 /// WebAssembly instruction `i8x16.relaxed_swizzle` (opcode 0xFD 0x80 0x02, stack type `[v128 v128]->[v128]`). (Dc 1671).
 pub const DC_WASM_FD_PAGE1_START: DcChar = DcChar::from_short(1671);
+/// Begins a WebAssembly program consisting of either an ordered key-value array of program members or a direct sequence of WebAssembly instructions. (Dc 1927).
+pub const DC_BEGIN_WASM_PROGRAM: DcChar = DcChar::from_short(1927);
+/// Terminates a WebAssembly program begun by Dc 1927. (Dc 1928).
+pub const DC_END_WASM_PROGRAM: DcChar = DcChar::from_short(1928);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

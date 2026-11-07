@@ -1279,3 +1279,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1116036,1924,WASM Reserved 0xFD 0xFD 0x03,0,BN,,!Cx,.WASM,,Reserved WebAssembly SIMD opcode 0xFD 0xFD 0x03.
 1116037,1925,WASM Reserved 0xFD 0xFE 0x03,0,BN,,!Cx,.WASM,,Reserved WebAssembly SIMD opcode 0xFD 0xFE 0x03.
 1116038,1926,WASM Reserved 0xFD 0xFF 0x03,0,BN,,!Cx,.WASM,,Reserved WebAssembly SIMD opcode 0xFD 0xFF 0x03.
+1116039,1927,Begin WASM program,0,BN,,!Cx,.WASM,"@ident(""BeginWasmProgram""), : ~ ([key_value] | ([wasm_instr] [wasm_arg]*)+) 1928",Begins a WebAssembly program consisting of either an ordered key-value array of program members or a direct sequence of WebAssembly instructions.
+1116040,1928,End WASM program,0,BN,,!Cx,.WASM,"@ident(""EndWasmProgram""), @closes(1927)",Terminates a WebAssembly program begun by Dc 1927.

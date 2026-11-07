@@ -4038,4 +4038,147 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_wasm_program_and_routine_type_signatures() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+        let i32_dc = FormatId::from_shorthand("f206")
+            .and_then(|f| f.dc_id())
+            .map(DcChar::from_u128)
+            .context("Missing f206")?;
+
+        // 1. Direct instruction sequence inside Dc 1927..1928 (Begin/End WASM program)
+        let mut direct_prog = DcMstring::new();
+        direct_prog.push_char(DcChar::from_short(1927)); // Begin WASM program
+        direct_prog.push_char(DcChar::from_short(679)); // WASM local.get 0
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut direct_prog)?;
+        direct_prog.push_char(DcChar::from_short(679)); // WASM local.get 1
+        crate::DcMixedEncode::encode_dc_mixed(&1u32, &mut direct_prog)?;
+        direct_prog.push_char(DcChar::from_short(753)); // WASM i32.add
+        direct_prog.push_char(DcChar::from_short(1928)); // End WASM program
+
+        let mut nav1 = DcDocumentNavigator::from_mstr(&direct_prog);
+        nav1.validate_document(&strict)?;
+
+        // 2. Helper to build a typed routine identifier:
+        //    270 262 280 f206 [list:identifier (i32/p1, i32/p2)] 263 "sum" 271
+        let mut sum_ident = DcMstring::new();
+        sum_ident.push_char(DcChar::from_short(270)); // Begin identifier
+        sum_ident.push_char(DcChar::from_short(262)); // Begin type definition
+        sum_ident.push_char(DcChar::from_short(280)); // Built-in type identifier: Routine
+        sum_ident.push_char(i32_dc); // returnType = i32
+        sum_ident.push_char(DcChar::from_short(310)); // Begin list (params)
+        sum_ident.push_char(DcChar::from_short(275)); // element type *
+        // param 0: i32/p1
+        sum_ident.push_char(DcChar::from_short(270));
+        sum_ident.push_char(i32_dc);
+        sum_ident.push_str("p1");
+        sum_ident.push_char(DcChar::from_short(271));
+        sum_ident.push_char(DcChar::from_short(312)); // List element separator
+        // param 1: i32/p2
+        sum_ident.push_char(DcChar::from_short(270));
+        sum_ident.push_char(i32_dc);
+        sum_ident.push_str("p2");
+        sum_ident.push_char(DcChar::from_short(271));
+        sum_ident.push_char(DcChar::from_short(311)); // End list
+        sum_ident.push_char(DcChar::from_short(263)); // End type definition
+        sum_ident.push_str("sum");
+        sum_ident.push_char(DcChar::from_short(271)); // End identifier
+
+        // Helper to build a wasm_routine literal:
+        //    260 262 280 263 [list:type (i32)] local.get 0 local.get 1 i32.add end 261
+        let mut sum_body = DcMstring::new();
+        sum_body.push_char(DcChar::from_short(260)); // Begin literal value
+        sum_body.push_char(DcChar::from_short(262)); // Begin type definition
+        sum_body.push_char(DcChar::from_short(280)); // Built-in type identifier: Routine
+        sum_body.push_char(DcChar::from_short(263)); // End type definition
+        sum_body.push_char(DcChar::from_short(310)); // Begin list (locals)
+        sum_body.push_char(DcChar::from_short(275));
+        sum_body.push_char(i32_dc);
+        sum_body.push_char(DcChar::from_short(311)); // End list
+        sum_body.push_char(DcChar::from_short(679)); // WASM local.get 0
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut sum_body)?;
+        sum_body.push_char(DcChar::from_short(679)); // WASM local.get 1
+        crate::DcMixedEncode::encode_dc_mixed(&1u32, &mut sum_body)?;
+        sum_body.push_char(DcChar::from_short(753)); // WASM i32.add
+        sum_body.push_char(DcChar::from_short(261)); // End literal value
+
+        // Validate wasm_routine and wasm_member named types directly
+        let resolver = default_syntax_resolver();
+        let mut routine_nav = DcDocumentNavigator::from_mstr(&sum_body);
+        let mut routine_ctx = SyntaxEvalContext::new(resolver.as_ref(), None);
+        let wasm_routine_term = SyntaxTerm::NamedConstruct {
+            name: "wasm_routine".to_owned(),
+            subtype: None,
+            capture_var: None,
+        };
+        assert!(
+            routine_nav
+                .eval_term_single(&wasm_routine_term, &mut routine_ctx)?
+        );
+        assert_eq!(routine_nav.position(), routine_nav.active_span().end);
+
+        let mut member_nav = DcDocumentNavigator::from_mstr(&sum_body);
+        let mut member_ctx = SyntaxEvalContext::new(resolver.as_ref(), None);
+        let wasm_member_term = SyntaxTerm::NamedConstruct {
+            name: "wasm_member".to_owned(),
+            subtype: None,
+            capture_var: None,
+        };
+        assert!(
+            member_nav.eval_term_single(&wasm_member_term, &mut member_ctx)?
+        );
+        assert_eq!(member_nav.position(), member_nav.active_span().end);
+
+        // 3. Key-value WASM program inside Dc 1927..1928 containing the routine and a global number
+        let mut kv_prog = DcMstring::new();
+        kv_prog.push_char(DcChar::from_short(1927)); // Begin WASM program
+        kv_prog.push_char(DcChar::from_short(559)); // Begin key-value array (ordered)
+        kv_prog.push_char(DcChar::from_short(275)); // keyType = *
+        kv_prog.push_char(DcChar::from_short(275)); // valType = *
+        kv_prog.push_char(DcChar::from_short(514)); // Key-value pair
+        for ch in sum_ident.to_dc_string()?.chars() {
+            kv_prog.push_char(ch);
+        }
+        kv_prog.push_char(DcChar::from_short(312)); // List element separator
+        for ch in sum_body.to_dc_string()?.chars() {
+            kv_prog.push_char(ch);
+        }
+        kv_prog.push_char(DcChar::from_short(515)); // End key-value pair
+        kv_prog.push_char(DcChar::from_short(560)); // End key-value array
+        kv_prog.push_char(DcChar::from_short(1928)); // End WASM program
+
+        let mut nav2 = DcDocumentNavigator::from_mstr(&kv_prog);
+        nav2.validate_document(&strict)?;
+
+        // 4. Assignment (`Dc 269`) of a Routine-typed identifier with signature to a Routine body,
+        //    followed by `Dc 307` (`lang.invoke`) referencing `[Routine name]` (`[identifier:Routine]`)
+        let mut assign_doc = DcMstring::new();
+        for ch in sum_ident.to_dc_string()?.chars() {
+            assign_doc.push_char(ch);
+        }
+        assign_doc.push_char(DcChar::from_short(269)); // Assignment operator
+        for ch in sum_body.to_dc_string()?.chars() {
+            assign_doc.push_char(ch);
+        }
+        assign_doc.push_char(DcChar::from_short(307)); // lang.invoke
+        assign_doc.push_char(DcChar::from_short(258)); // Begin parameter
+        for ch in sum_ident.to_dc_string()?.chars() {
+            assign_doc.push_char(ch);
+        }
+        assign_doc.push_char(DcChar::from_short(259)); // End parameter
+
+        let mut nav3 = DcDocumentNavigator::from_mstr(&assign_doc);
+        nav3.validate_document(&strict)?;
+
+        // 5. Invalid token inside Dc 1927..1928 must fail strict validation
+        let mut bad_prog = DcMstring::new();
+        bad_prog.push_char(DcChar::from_short(1927));
+        bad_prog.push_char(DcChar::from_u128(65));
+        bad_prog.push_char(DcChar::from_short(1928));
+        let mut bad_prog_nav = DcDocumentNavigator::from_mstr(&bad_prog);
+        assert!(bad_prog_nav.validate_document(&strict).is_err());
+
+        Ok(())
+    }
 }

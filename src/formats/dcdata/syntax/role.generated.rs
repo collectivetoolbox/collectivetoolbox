@@ -404,6 +404,10 @@ pub enum DcRole {
     WasmFdPage0Start,
     /// WebAssembly instruction `i8x16.relaxed_swizzle` (opcode 0xFD 0x80 0x02, stack type `[v128 v128]->[v128]`). (`1671`).
     WasmFdPage1Start,
+    /// Begins a WebAssembly program consisting of either an ordered key-value array of program members or a direct sequence of WebAssembly instructions. (`1927`).
+    BeginWasmProgram,
+    /// Terminates a WebAssembly program begun by Dc 1927. (`1928`).
+    EndWasmProgram,
     /// Base64 encapsulation digit character (0..=63).
 Base64Digit,
 /// Built-in type token, format token, or type operator.
@@ -601,6 +605,8 @@ match self {
             Self::WasmFcStart => Some(1159),
             Self::WasmFdPage0Start => Some(1415),
             Self::WasmFdPage1Start => Some(1671),
+            Self::BeginWasmProgram => Some(1927),
+            Self::EndWasmProgram => Some(1928),
             _ => None,
 }
 }
@@ -801,6 +807,8 @@ match self {
             Self::WasmFcStart => short == Some(1159),
             Self::WasmFdPage0Start => short == Some(1415),
             Self::WasmFdPage1Start => short == Some(1671),
+            Self::BeginWasmProgram => short == Some(1927),
+            Self::EndWasmProgram => short == Some(1928),
             Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)

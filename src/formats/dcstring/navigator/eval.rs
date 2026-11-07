@@ -1249,19 +1249,19 @@ impl DcDocumentNavigator<'_> {
                             .fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
                         {
                             let type_cp = self.save_checkpoint();
-                            let _ = self.pop_next_token()?;
-                            let matched = if let Some(inner_dc) =
-                                self.pop_next_token()?
-                                && let Some(close_dc) = self.pop_next_token()?
-                                && close_dc.fills_role_with(
-                                    DcRole::EndTypeDef,
-                                    ctx.resolver,
-                                ) {
-                                ctx.resolver.token_satisfies_type(
-                                    inner_dc.to_u128(),
-                                    "type",
-                                    subtype.as_ref(),
-                                )
+                            let matched = if self.eval_term_single(
+                                &SyntaxTerm::RuleRef { target },
+                                ctx,
+                            )? {
+                                let consumed =
+                                    self.consumed_tokens_since(&type_cp)?;
+                                consumed.get(1).is_some_and(|inner_dc| {
+                                    ctx.resolver.token_satisfies_type(
+                                        inner_dc.to_u128(),
+                                        "type",
+                                        subtype.as_ref(),
+                                    )
+                                })
                             } else {
                                 false
                             };
@@ -1277,8 +1277,18 @@ impl DcDocumentNavigator<'_> {
                         name,
                         subtype.as_ref(),
                     ) {
-                        let _ = self.pop_next_token()?;
-                        true
+                        if name == "script"
+                            && let Some(target) = CharTarget::from_u128(first)
+                            && ctx.resolver.resolve_rule(&target).is_some()
+                        {
+                            self.eval_term_single(
+                                &SyntaxTerm::RuleRef { target },
+                                ctx,
+                            )?
+                        } else {
+                            let _ = self.pop_next_token()?;
+                            true
+                        }
                     } else {
                         false
                     }
@@ -2051,8 +2061,30 @@ impl DcDocumentNavigator<'_> {
                     });
                     return Ok(false);
                 };
+                let mut payload_start = 4usize;
+                if consumed.get(1).is_some_and(|ch| {
+                    ch.fills_role_with(DcRole::BeginTypeDef, ctx.resolver)
+                }) {
+                    let mut depth = 0usize;
+                    for (idx, ch) in consumed.iter().enumerate().skip(1) {
+                        if ch.fills_role_with(
+                            DcRole::BeginTypeDef,
+                            ctx.resolver,
+                        ) {
+                            depth = depth.saturating_add(1);
+                        } else if ch
+                            .fills_role_with(DcRole::EndTypeDef, ctx.resolver)
+                        {
+                            depth = depth.saturating_sub(1);
+                            if depth == 0 {
+                                payload_start = idx.saturating_add(1);
+                                break;
+                            }
+                        }
+                    }
+                }
                 let payload_slice = consumed
-                    .get(4..consumed.len().saturating_sub(1))
+                    .get(payload_start..consumed.len().saturating_sub(1))
                     .unwrap_or(&[]);
                 let mut decoded_payload =
                     Vec::with_capacity(payload_slice.len());
@@ -3156,6 +3188,15 @@ impl DcDocumentNavigator<'_> {
 
         if let [tok] = tokens {
             resolver.token_satisfies_type(tok.to_u128(), req_name, req_subtype)
+        } else if let Some(&first_tok) = tokens.first()
+            && first_tok.fills_role_with(DcRole::TypeRoutine, resolver)
+            && resolver.token_satisfies_type(
+                first_tok.to_u128(),
+                req_name,
+                req_subtype,
+            )
+        {
+            true
         } else if !tokens.is_empty() && req_name == "type" {
             let mut mstr = DcMstring::new();
             for &t in tokens {

@@ -74,7 +74,7 @@ fn parse_syntax_action(raw: &str) -> Result<SyntaxAction> {
         );
     };
     ensure!(
-        open_idx < close_idx,
+        open_idx < close_idx && close_idx == trimmed.len().saturating_sub(1),
         "Mismatched parenthesis in action: '{trimmed}'"
     );
 
@@ -82,7 +82,14 @@ fn parse_syntax_action(raw: &str) -> Result<SyntaxAction> {
         Some(m) => m.trim().to_string(),
         None => bail!("Failed to extract action method name"),
     };
-    ensure!(!method.is_empty(), "Action method name cannot be empty");
+    ensure!(
+        !method.is_empty()
+            && method.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+            && method
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.'),
+        "Invalid action method name: '{method}'"
+    );
 
     let args_str = match trimmed.get(open_idx.saturating_add(1)..close_idx) {
         Some(a) => a.trim(),
@@ -723,6 +730,36 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
             '[' => depth_bracket = depth_bracket.saturating_add(1),
             ']' => depth_bracket = depth_bracket.saturating_sub(1),
             ':' if depth_paren == 0 && depth_bracket == 0 => {
+                // Skip bare rule reference suffix ':' (e.g., `280:` in `:260 262 280: 263 (...)`)
+                let is_bare_rule_ref = if i > 0 {
+                    let mut tok_start = i;
+                    while tok_start > 0 {
+                        let prev_idx = tok_start.saturating_sub(1);
+                        let Some(&prev_c) = chars.get(prev_idx) else {
+                            break;
+                        };
+                        if prev_c.is_whitespace()
+                            || matches!(
+                                prev_c,
+                                '(' | ')' | '[' | ']' | '{' | '}' | '|' | ':'
+                            )
+                        {
+                            break;
+                        }
+                        tok_start = prev_idx;
+                    }
+                    tok_start < i
+                        && chars.get(tok_start..i).is_some_and(|slice| {
+                            let tok: String = slice.iter().collect();
+                            parse_target_token(&tok).is_some()
+                        })
+                } else {
+                    false
+                };
+                if is_bare_rule_ref {
+                    continue;
+                }
+
                 // Ensure this ':' is followed by an action expression like ' lang.action('
                 let Some(after_slice) = chars.get(i.saturating_add(1)..) else {
                     bail!(
