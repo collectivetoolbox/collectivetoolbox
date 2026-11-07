@@ -30,6 +30,7 @@ Script,Block increment size
 .WASM GC,256
 .WASM Relaxed SIMD,256
 .WASM SIMD,256
+Latin,TBD
 .Formats:arch,128
 .Formats:armor,256
 .Formats:base_alphabet,256

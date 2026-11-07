@@ -362,13 +362,17 @@ pub fn parse_scripts_block_sizes_with_report(
                 "Script identifier cannot be empty".to_string(),
                 Some("Specify a script name"),
             );
-        } else if !script.starts_with('.') {
+        } else if !script.starts_with('.')
+            && !ctb_formats_unicode::is_valid_unicode_script(script)
+        {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some("Script"),
-                format!("Dc-specific script '{script}' must start with a full stop '.'"),
-                Some("Prefix script name with '.'"),
+                format!(
+                    "Script '{script}' must start with a full stop '.' or be a valid Unicode script"
+                ),
+                Some("Prefix Dc-specific script name with '.'"),
             );
         } else if valid_scripts
             .insert(script.to_string(), parsed_block_size)
@@ -1620,7 +1624,9 @@ where
 
         for row in rows {
             if let Some(scripts) = known_scripts {
-                let is_valid = if row.script.starts_with('.') {
+                let is_valid = if row.short_id.is_some() {
+                    scripts.contains(&row.script)
+                } else if row.script.starts_with('.') {
                     scripts.contains(&row.script)
                 } else {
                     ctb_formats_unicode::is_valid_unicode_script(&row.script)
@@ -1631,7 +1637,7 @@ where
                         Some(row.line_number),
                         Some("Script"),
                         format!("Unknown script '{}'", row.script),
-                        Some("Ensure script is registered in README.scripts.csv or is a valid Unicode script"),
+                        Some("Ensure script is registered in README.scripts.csv"),
                     );
                 }
             }
@@ -2813,7 +2819,7 @@ mod tests {
                 "BN".to_string(),
                 String::new(),
                 "Cc".to_string(),
-                ".System".to_string(),
+                ".Controls".to_string(),
                 String::new(),
                 String::new(),
             ],
@@ -4402,7 +4408,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_validate_scripts_table_block_sizes() {
         let mut report = ValidationReport::default();
-        let valid_csv = b"Script,Block increment size,Comments\n.System,256,Core\n.Emoji,TBD,Deferred\n.Formats:v:case,32,Small\n";
+        let valid_csv = b"Script,Block increment size,Comments\n.Controls,256,Core\n.Emoji,TBD,Deferred\nLatin,TBD,Deprecated short Latin Dcs\n.Formats:v:case,32,Small\n";
         let map = parse_scripts_block_sizes_with_report(
             valid_csv,
             "README.scripts.csv",
@@ -4413,8 +4419,9 @@ mod tests {
             "Unexpected errors: {}",
             report.format_report()
         );
-        assert_eq!(map.get(".System"), Some(&Some(256)));
+        assert_eq!(map.get(".Controls"), Some(&Some(256)));
         assert_eq!(map.get(".Emoji"), Some(&None));
+        assert_eq!(map.get("Latin"), Some(&None));
         assert_eq!(map.get(".Formats:v:case"), Some(&Some(32)));
 
         let mut bad_report = ValidationReport::default();

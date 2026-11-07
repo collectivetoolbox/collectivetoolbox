@@ -1407,7 +1407,7 @@ mod tests {
                 "BN".to_string(),
                 String::new(),
                 "Cc".to_string(),
-                ".System".to_string(),
+                ".Controls".to_string(),
                 String::new(),
                 String::new(),
             ],
@@ -1464,7 +1464,7 @@ mod tests {
         let mut alloc = ScriptBlockAllocator::from_existing(
             sizes.clone(),
             PREEXISTING_CONTIGUOUS_DC_MAX,
-            vec![(0, ".System".to_string()), (1928, ".WASM".to_string())],
+            vec![(0, ".Controls".to_string()), (1928, ".WASM".to_string())],
         );
         assert_eq!(alloc.first_block_start, 1936);
 
@@ -1510,7 +1510,7 @@ mod tests {
         // for a new 64-ID block in .Other!
         sizes.insert(".Large".to_string(), Some(128));
         let mut assigned = vec![
-            (0, ".System".to_string()),
+            (0, ".Controls".to_string()),
             (1928, ".WASM".to_string()),
             (1968, ".Large".to_string()),
             (2224, ".Small".to_string()),
