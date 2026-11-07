@@ -1,68 +1,68 @@
-Script
-.Colors
-.Controls
-.DCE
-.DCE sheets
-.DCE versions
-.EL Control Flow
-.EL Miscellaneous
-.EL Operators
-.EL Pronouns
-.EL Routines
-.EL Syntax
-.EL Types
-.Emoji
-.Encapsulation
-.Financial
-.Mathematics
-.Miscellaneous
-.Noncharacters
-.Punctuation
-.Semantic
-.Semantic:Relationship
-.Semantic:Pattern
-.Semantic:fileflag
-.Styling
-.Symbols
-.Variant selectors
-.WASM
-.Formats:arch
-.Formats:armor
-.Formats:base_alphabet
-.Formats:calendar
-.Formats:color_depth
-.Formats:compression
-.Formats:container
-.Formats:database
-.Formats:date
-.Formats:device_caps
-.Formats:display_system
-.Formats:document
-.Formats:duration
-.Formats:encoding
-.Formats:executable
-.Formats:filesystem
-.Formats:format_variant
-.Formats:hash
-.Formats:identifier
-.Formats:kernel
-.Formats:language
-.Formats:libc
-.Formats:math
-.Formats:number
-.Formats:number_abstract
-.Formats:numeral_system
-.Formats:os
-.Formats:packagemgr
-.Formats:programming
-.Formats:semantic
-.Formats:transformation
-.Formats:userspace
-.Formats:userspace_libraries
-.Formats:userspace_utilities
-.Formats:v:case
-.Formats:v:lineEndings
-.Formats:v:padding
-.Formats:v:unicodePua
-.Formats:videoterminal
-.Formats:virtualfilesystem
+Script:::Block increment size
+.Colors:::256
+.Controls:::256
+.DCE:::none
+.DCE sheets:::none
+.DCE versions:::none
+.EL Control Flow:::64
+.EL Miscellaneous:::128
+.EL Operators:::16
+.EL Pronouns:::32
+.EL Routines:::256
+.EL Syntax:::256
+.EL Types:::256
+.Emoji:::none
+.Encapsulation:::none
+.Financial:::none
+.Mathematics:::none
+.Miscellaneous:::none
+.Noncharacters:::none
+.Punctuation:::256
+.Semantic:::256
+.Semantic:Relationship::256
+.Semantic:Pattern::256
+.Semantic:fileflag::128
+.Styling:::256
+.Symbols:::256
+.Variant selectors:::none
+.WASM:::
+.Formats:arch::256
+.Formats:armor::256
+.Formats:base_alphabet::256
+.Formats:calendar::256
+.Formats:color_depth::256
+.Formats:compression::256
+.Formats:container::256
+.Formats:database::256
+.Formats:date::256
+.Formats:device_caps::256
+.Formats:display_system::256
+.Formats:document::256
+.Formats:duration::256
+.Formats:encoding::256
+.Formats:executable::256
+.Formats:filesystem::256
+.Formats:format_variant::256
+.Formats:hash::256
+.Formats:identifier::256
+.Formats:kernel::256
+.Formats:language::256
+.Formats:libc::256
+.Formats:math::256
+.Formats:number::256
+.Formats:number_abstract::256
+.Formats:numeral_system::256
+.Formats:os::256
+.Formats:packagemgr::256
+.Formats:programming::256
+.Formats:semantic::256
+.Formats:transformation::256
+.Formats:userspace::256
+.Formats:userspace_libraries::256
+.Formats:userspace_utilities::256
+.Formats:v:case:32
+.Formats:v:lineEndings:32
+.Formats:v:padding:32
+.Formats:v:unicodePua:256
+.Formats:videoterminal::256
+.Formats:virtualfilesystem::256
