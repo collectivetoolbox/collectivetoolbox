@@ -1956,6 +1956,9 @@ fn category_for_dc_subject(subj: DcShorthand, script: &str) -> String {
     if script == ".DCE" || script.starts_with(".DCE ") {
         return "dce".to_string();
     }
+    if script == ".WASM" || script.starts_with(".WASM ") {
+        return "wasm".to_string();
+    }
     let static_cat = match script {
         ".Colors" => "colors",
         ".Controls" => "controls",
@@ -1969,7 +1972,6 @@ fn category_for_dc_subject(subj: DcShorthand, script: &str) -> String {
         ".Styling" => "styling",
         ".Symbols" | ".Emoji" => "symbols",
         ".Variant selectors" => "variant_selectors",
-        ".WASM" => "wasm",
         _ => "controls",
     };
     static_cat.to_string()
