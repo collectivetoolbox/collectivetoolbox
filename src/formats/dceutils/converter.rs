@@ -399,7 +399,7 @@ pub fn get_dce_version(data: &[u8]) -> String {
 /// Detects the DCE format version (`"3_0a"` or `"3_01a"`) of `data`,
 /// recording any errors in `log`.
 pub fn get_dce_version_with_log(data: &[u8], log: &mut FormatLog) -> String {
-    if data.len() < 7 || data.get(0..6) != Some(b"DCEe\x02\x01") {
+    if data.len() < 7 || data.get(0..6) != Some(b"DCEe\x02\x01".as_slice()) {
         log.error("This document does not appear to be stored using DCE.");
         return "This document does not appear to be stored using DCE."
             .to_string();
@@ -525,7 +525,7 @@ pub fn decode_dce_preserving_controls_with_options(
         }
         "3_0a" | "3_01a" | "dce" => {
             if raw_bytes.len() < 7
-                || raw_bytes.get(0..6) != Some(b"DCEe\x02\x01")
+                || raw_bytes.get(0..6) != Some(b"DCEe\x02\x01".as_slice())
             {
                 log.error(
                     "This document is not stored using the specified format.",

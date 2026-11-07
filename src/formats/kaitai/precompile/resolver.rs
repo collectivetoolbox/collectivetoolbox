@@ -2577,7 +2577,7 @@ fn infer_expr_type(
             }
             for (scope_name, scope_ksy) in scopes.iter().rev() {
                 if let Some(attr) =
-                    scope_ksy.seq.iter().find(|a| a.id.as_deref() == Some(name))
+                    scope_ksy.seq.iter().find(|a| a.id.as_deref() == Some(name.as_str()))
                 {
                     if let Some(enum_name) = &attr.enum_name {
                         let mut owner = scope_name.to_vec();
@@ -2754,7 +2754,7 @@ fn infer_expr_type(
             if let Some(seq_attr) = target_scope_ksy
                 .seq
                 .iter()
-                .find(|a| a.id.as_deref() == Some(attr))
+                .find(|a| a.id.as_deref() == Some(attr.as_str()))
             {
                 if let Some(enum_name) = &seq_attr.enum_name {
                     return Some(DataType::EnumType {

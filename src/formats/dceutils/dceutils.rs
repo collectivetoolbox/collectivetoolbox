@@ -138,7 +138,7 @@ pub fn get_dce_version(data: &[u8]) -> String {
 }
 
 pub fn get_dce_version_with_log(data: &[u8], log: &mut FormatLog) -> String {
-    if data.len() < 7 || data.get(0..6) != Some(b"DCEe\x02\x01") {
+    if data.len() < 7 || data.get(0..6) != Some(b"DCEe\x02\x01".as_slice()) {
         log.error("This document does not appear to be stored using DCE.");
         return "This document does not appear to be stored using DCE."
             .to_string();

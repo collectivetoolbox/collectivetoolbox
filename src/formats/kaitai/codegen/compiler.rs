@@ -123,7 +123,7 @@ fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
             let is_common = root_spec.meta_imports.iter().any(|imp| {
                 imp.starts_with("/common/")
                     && imp.trim_start_matches('/').split('/').next_back()
-                        == Some(first)
+                        == Some(first.as_str())
             });
             if is_common {
                 w.puts(&format!("use crate::generated::common::{first_escaped}::{class_name};"));

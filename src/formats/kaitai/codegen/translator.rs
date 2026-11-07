@@ -464,7 +464,7 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                         if let DataType::UserType { names, .. } = &a.data_type {
                             resolve_user_class_name(&names.join("::"), ctx)
                                 .as_deref()
-                                == Some(&user_class)
+                                == Some(user_class.as_str())
                                 || types_to_class_name(names) == user_class
                         } else {
                             false
