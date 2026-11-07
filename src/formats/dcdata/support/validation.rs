@@ -245,13 +245,27 @@ pub fn validate_all_data_tables_from_repo(
     report
 }
 
-/// Validates the README.scripts.csv registry table, verifying schema and uniqueness,
+/// Validates the README.scripts.csv registry table, verifying schema, uniqueness,
+/// and block increment sizes (`TBD` or a positive integer multiple of 16),
 /// and returning the set of valid script identifiers.
 pub fn validate_scripts_table(
     csv_bytes: &[u8],
     file_path: &str,
     report: &mut ValidationReport,
 ) -> HashSet<String> {
+    parse_scripts_block_sizes_with_report(csv_bytes, file_path, report)
+        .into_keys()
+        .collect()
+}
+
+/// Validates and parses the `README.scripts.csv` registry table into a map from
+/// script name to its optional block increment size (`None` when `"TBD"`, or
+/// `Some(size)` where `size` is a positive multiple of 16).
+pub fn parse_scripts_block_sizes_with_report(
+    csv_bytes: &[u8],
+    file_path: &str,
+    report: &mut ValidationReport,
+) -> HashMap<String, Option<u32>> {
     let vec_bytes = csv_bytes.to_vec();
     let table = match csv_tools::parse_csv_reader(
         &vec_bytes,
@@ -270,11 +284,11 @@ pub fn validate_scripts_table(
                 format!("Failed to parse CSV: {e}"),
                 Some("Verify CSV syntax and formatting"),
             );
-            return HashSet::new();
+            return HashMap::new();
         }
     };
 
-    let mut valid_scripts = HashSet::new();
+    let mut valid_scripts = HashMap::new();
     for i in 0..table.row_count() {
         let line_no = i.saturating_add(2);
         let Some(row) = table.row(i) else {
@@ -287,7 +301,7 @@ pub fn validate_scripts_table(
                 Some(line_no),
                 None,
                 "Empty row in scripts registry".to_string(),
-                Some("Specify script name"),
+                Some("Specify script name and block increment size"),
             );
             continue;
         }
@@ -297,6 +311,49 @@ pub fn validate_scripts_table(
             reason = "Row is guaranteed non-empty by the is_empty() check above"
         )]
         let script = row.first().expect("row is non-empty").trim();
+        let raw_block_size = row.get(1).map_or("", |s| s.trim());
+
+        let parsed_block_size = if raw_block_size.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Block increment size"),
+                format!("Script '{script}' is missing a Block increment size"),
+                Some("Specify 'TBD' or a positive integer multiple of 16 (e.g. 16, 32, 64, 128, 256)"),
+            );
+            None
+        } else if raw_block_size == "TBD" {
+            None
+        } else {
+            match raw_block_size.parse::<u32>() {
+                Ok(size) if size > 0 && size.is_multiple_of(16) => Some(size),
+                Ok(size) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Block increment size"),
+                        format!(
+                            "Block increment size {size} for script '{script}' must be a positive multiple of 16"
+                        ),
+                        Some("Use a multiple of 16 so blocks align to 0..F hexadecimal boundaries"),
+                    );
+                    None
+                }
+                Err(_) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Block increment size"),
+                        format!(
+                            "Invalid Block increment size '{raw_block_size}' for script '{script}'"
+                        ),
+                        Some("Specify 'TBD' or a positive integer multiple of 16"),
+                    );
+                    None
+                }
+            }
+        };
+
         if script.is_empty() {
             report.add_error(
                 file_path,
@@ -313,7 +370,10 @@ pub fn validate_scripts_table(
                 format!("Dc-specific script '{script}' must start with a full stop '.'"),
                 Some("Prefix script name with '.'"),
             );
-        } else if !valid_scripts.insert(script.to_string()) {
+        } else if valid_scripts
+            .insert(script.to_string(), parsed_block_size)
+            .is_some()
+        {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -2753,7 +2813,7 @@ mod tests {
                 "BN".to_string(),
                 String::new(),
                 "Cc".to_string(),
-                String::new(),
+                ".System".to_string(),
                 String::new(),
                 String::new(),
             ],
@@ -2765,7 +2825,7 @@ mod tests {
                 "BN".to_string(),
                 String::new(),
                 "Po".to_string(),
-                String::new(),
+                ".Punctuation".to_string(),
                 String::new(),
                 String::new(),
             ],
@@ -2824,14 +2884,14 @@ mod tests {
         )
         .unwrap();
 
-        // Run auto assignment
+        // Run auto assignment (first block after 0 starts at 16 = 0x10)
         let dc_stats = assign_and_update_dc_categories(repo).unwrap();
         assert_eq!(dc_stats.new_ids_assigned, 1);
-        assert_eq!(dc_stats.max_short_id, 1);
+        assert_eq!(dc_stats.max_short_id, 16);
 
         let fmt_stats = assign_and_update_format_categories(repo).unwrap();
         assert_eq!(fmt_stats.new_ids_assigned, 1);
-        assert_eq!(fmt_stats.max_short_id, 1);
+        assert_eq!(fmt_stats.max_short_id, 16);
 
         // Run merge generation
         let gen_stats = generate_merged_csvs(repo).unwrap();
@@ -2854,8 +2914,8 @@ mod tests {
         assert_eq!(dc_gen_rows.len(), 2);
         assert_eq!(dc_gen_rows[0][0], "1114112");
         assert_eq!(dc_gen_rows[0][1], "0");
-        assert_eq!(dc_gen_rows[1][0], "1114113");
-        assert_eq!(dc_gen_rows[1][1], "1");
+        assert_eq!(dc_gen_rows[1][0], "1114128");
+        assert_eq!(dc_gen_rows[1][1], "16");
 
         // Verify generated formats.generated.csv contents and order
         let (fmt_gen_hdr, fmt_gen_rows) = read_csv_file(
@@ -2866,8 +2926,8 @@ mod tests {
         assert_eq!(fmt_gen_rows.len(), 2);
         assert_eq!(fmt_gen_rows[0][0], "2228224");
         assert_eq!(fmt_gen_rows[0][1], "f0");
-        assert_eq!(fmt_gen_rows[1][0], "2228225");
-        assert_eq!(fmt_gen_rows[1][1], "f1");
+        assert_eq!(fmt_gen_rows[1][0], "2228240");
+        assert_eq!(fmt_gen_rows[1][1], "f16");
 
         // FIXME Readd this but not included in the binary.
         /*
@@ -4337,5 +4397,37 @@ mod tests {
             "Got: {}",
             report_err_selfless.format_report()
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_validate_scripts_table_block_sizes() {
+        let mut report = ValidationReport::default();
+        let valid_csv = b"Script,Block increment size,Comments\n.System,256,Core\n.Emoji,TBD,Deferred\n.Formats:v:case,32,Small\n";
+        let map = parse_scripts_block_sizes_with_report(
+            valid_csv,
+            "README.scripts.csv",
+            &mut report,
+        );
+        assert!(
+            !report.has_errors(),
+            "Unexpected errors: {}",
+            report.format_report()
+        );
+        assert_eq!(map.get(".System"), Some(&Some(256)));
+        assert_eq!(map.get(".Emoji"), Some(&None));
+        assert_eq!(map.get(".Formats:v:case"), Some(&Some(32)));
+
+        let mut bad_report = ValidationReport::default();
+        let bad_csv = b"Script,Block increment size,Comments\n.BadMissing,,Missing\n.BadZero,0,Zero\n.BadOdd,24,Not multiple of 16\n.BadText,none,Old token\n";
+        let _ = parse_scripts_block_sizes_with_report(
+            bad_csv,
+            "README.scripts.csv",
+            &mut bad_report,
+        );
+        assert!(bad_report.has_errors());
+        let formatted = bad_report.format_report();
+        assert!(formatted.contains("missing a Block increment size"));
+        assert!(formatted.contains("must be a positive multiple of 16"));
+        assert!(formatted.contains("Invalid Block increment size 'none'"));
     }
 }

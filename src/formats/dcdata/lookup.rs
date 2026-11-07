@@ -208,7 +208,7 @@ mod tests {
 
         let max_dc = maximum_known_short_dc();
         assert!(max_dc >= 308);
-        assert_eq!(get_dc_count(), max_dc + 1);
+        assert!(get_dc_count() <= max_dc + 1);
 
         let dc308 = get_short_dc_defn(308).expect("Dc 308 exists");
         assert_eq!(dc308.name, "Next number is a long (global graph) Dc");

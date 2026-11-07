@@ -373,7 +373,7 @@ mod tests {
         let dc_count = get_dc_count()?;
         let max_dc = maximum_known_short_dc()?;
         assert_eq!(dc_dataset_length("DcData")?, dc_count);
-        assert_eq!(dc_count, max_dc.saturating_add(1));
+        assert!(dc_count <= max_dc.saturating_add(1));
         assert!(max_dc >= 308);
         assert!(is_format("unicode"));
         assert!(is_format("utf8"));

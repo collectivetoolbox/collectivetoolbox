@@ -49,9 +49,9 @@ pub use ctb_formats_dcdata::dc_number_minimal::is_dc_base64_encapsulation_char;
 /* ===== Dc classification & queries ===== */
 
 pub fn is_known_dc(v: u32) -> Result<bool> {
-    let max = u32::try_from(maximum_known_short_dc()?)
-        .context("Failed to convert maximum_known_short_dc to u32")?;
-    Ok(v <= max)
+    let short_id =
+        usize::try_from(v).context("Failed to convert Dc ID to usize")?;
+    Ok(ctb_formats_dcdata::get_short_dc_defn(short_id).is_some())
 }
 
 pub fn maximum_known_short_dc() -> Result<usize> {
@@ -106,13 +106,6 @@ pub fn dc_get_el_class(dc: u32) -> Result<String> {
 pub fn dc_get_field(dc: u32, field_number: usize) -> Result<String> {
     let dc_str = dc.to_string();
     dc_data_lookup_by_value("DcData", DCDATA_ID_COL, &dc_str, field_number)
-        .or_else(|_| {
-            dc_data_lookup_by_id(
-                "DcData",
-                usize::try_from(dc).context("Could not get usize from Dc")?,
-                field_number,
-            )
-        })
         .map_err(|e| anyhow!("dc_get_field: {e}"))
 }
 
