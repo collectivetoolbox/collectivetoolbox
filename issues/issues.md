@@ -14,6 +14,9 @@ assuming the current code still has the reported fault.
   native-platform qualification, and metadata privacy.
 - [Dc parser](dc-parser.md): syntax validation, semantic roles, projection,
   derives, diagnostics, and streaming parser work.
+- [Dc language and execution compatibility](language.md): graph snapshot pinning,
+  minimal trusted kernel, bounded WASM execution, vertical migration gates, and
+  future VSO language design.
 - [EITE](eite.md): encodings, runtime integration, and editor RPC reproduction.
 - [Format detection](format-detection.md): detection parity, source/OS priors,
   and MIME metadata.
@@ -112,8 +115,4 @@ assuming the current code still has the reported fault.
 # Theme, probably won't fix:
 
 The glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
-
-# WASM
-
-Add a linter to ensure that only key Dcs use WASM from trivial definitions recorded in the graph, and everything else is defined in EL source, so WASM without human-readable/editable source can't end up in the graph.
 
