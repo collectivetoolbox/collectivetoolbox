@@ -27,18 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::{
-    CharTarget, DC_EQUIVALENT_REPRESENTATIONS, DC_LIST_ELEMENT_SEPARATOR,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_TYPE_ANY, DcRole, DcSyntaxRule,
-    Digest, SyntaxElement, SyntaxPattern, SyntaxRuleResolver,
-    default_syntax_resolver,
+    CharTarget, DcRole, DcSyntaxRule, Digest, SyntaxElement, SyntaxPattern,
+    SyntaxRuleResolver, default_syntax_resolver,
 };
-
-/// Format syntax rule wrapping the format's AST syntax pattern expression.
-#[derive(Debug, Clone)]
-pub struct FormatSyntaxRule {
-    /// Evaluated syntax pattern expression for the format.
-    pub expr: ctb_formats_dcdata::DcSyntaxExpr,
-}
 
 /// Runtime resolver providing syntax rule lookups, dynamic `<equiv>` overlays,
 /// and custom [`DcRole`] classifications for Document Character formats and streams.
@@ -213,31 +204,50 @@ impl SyntaxRuntimeResolver {
         self.opaque_containers.insert(opener_token);
     }
 
-    /// Looks up the syntax rule for a format by its [`FormatId`].
-    #[must_use]
-    pub fn get_format_rule(&self, fid: FormatId) -> Option<FormatSyntaxRule> {
-        let rule = self.resolve_rule(&CharTarget::Format(fid))?;
-        let expr = match &rule.pattern {
-            ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) => {
-                let payload_items: Vec<_> = items
-                    .iter()
-                    .filter(|el| {
-                        !matches!(
-                            el.term,
-                            ctb_formats_dcdata::SyntaxTerm::SelfChar
-                        )
-                    })
-                    .cloned()
-                    .collect();
-                ctb_formats_dcdata::DcSyntaxExpr::Sequence(payload_items)
-            }
-            other => other.clone(),
-        };
-        Some(FormatSyntaxRule { expr })
+    fn canonical_target(&self, target: &CharTarget) -> Option<CharTarget> {
+        let token = target.to_u128();
+        let canon = self.canonical_token(token);
+        if canon == token {
+            None
+        } else {
+            CharTarget::from_u128(canon)
+        }
     }
 }
 
 impl SyntaxRuleResolver for SyntaxRuntimeResolver {
+    fn seed_graph(
+        &self,
+    ) -> Option<&ctb_formats_dcdata::seed_graph::SeedGraphIndex> {
+        self.base.seed_graph()
+    }
+
+    fn resolve_rule_tokens(
+        &self,
+        target: &CharTarget,
+    ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
+        if self.custom_rules.contains_key(target) {
+            return None;
+        }
+        if let Some(tokens) = self.base.resolve_rule_tokens(target) {
+            return Some(tokens);
+        }
+        if let Some(canon_target) = self.canonical_target(target) {
+            if self.custom_rules.contains_key(&canon_target) {
+                return None;
+            }
+            return self.base.resolve_rule_tokens(&canon_target);
+        }
+        None
+    }
+
+    fn resolve_named_type_tokens(
+        &self,
+        name: &str,
+    ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
+        self.base.resolve_named_type_tokens(name)
+    }
+
     fn canonical_token(&self, mut token: u128) -> u128 {
         let mut depth = 0usize;
         while let Some(&target) = self.canonical_overlay.get(&token) {
@@ -330,23 +340,17 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
     }
 
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule> {
-        if let Some(rule) = self.custom_rules.get(target) {
+        if let Some(rule) = self
+            .custom_rules
+            .get(target)
+            .or_else(|| self.base.resolve_rule(target))
+        {
             return Some(rule);
         }
-        if let Some(rule) = self.base.resolve_rule(target) {
-            return Some(rule);
-        }
-        let token = target.to_u128();
-        let canon = self.canonical_token(token);
-        if canon != token {
-            if let Some(canon_target) = CharTarget::from_u128(canon) {
-                if let Some(rule) = self.custom_rules.get(&canon_target) {
-                    return Some(rule);
-                }
-                return self.base.resolve_rule(&canon_target);
-            }
-        }
-        None
+        let canon_target = self.canonical_target(target)?;
+        self.custom_rules
+            .get(&canon_target)
+            .or_else(|| self.base.resolve_rule(&canon_target))
     }
 
     fn resolve_named_type(&self, name: &str) -> Option<&SyntaxPattern> {
@@ -408,29 +412,16 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         })
     }
 
-    fn is_representation_set(&self, token: u128) -> bool {
-        self.is_equivalent_to(token, DC_EQUIVALENT_REPRESENTATIONS.to_u128())
-            || self.is_equivalent_to(
-                token,
-                DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128(),
-            )
-    }
-
-    fn is_representation_header_or_separator(&self, token: u128) -> bool {
-        self.is_equivalent_to(token, DC_LIST_ELEMENT_SEPARATOR.to_u128())
-            || self.is_equivalent_to(token, DC_TYPE_ANY.to_u128())
-    }
-
     fn closing_opener_for(&self, token: u128) -> Option<&CharTarget> {
         if let Some(target) = self.closing_delimiters.get(&token) {
             return Some(target);
         }
         let canon = self.canonical_token(token);
         if canon != token {
-            if let Some(target) = self.closing_delimiters.get(&canon) {
-                return Some(target);
-            }
-            return self.base.closing_opener_for(canon);
+            return self
+                .closing_delimiters
+                .get(&canon)
+                .or_else(|| self.base.closing_opener_for(canon));
         }
         self.base.closing_opener_for(token)
     }
@@ -439,16 +430,12 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         if let Some(&closer) = self.opener_to_closer.get(opener) {
             return Some(closer);
         }
-        let token = opener.to_u128();
-        let canon = self.canonical_token(token);
-        if canon != token {
-            if let Some(canon_target) = CharTarget::from_u128(canon) {
-                if let Some(&closer) = self.opener_to_closer.get(&canon_target)
-                {
-                    return Some(closer);
-                }
-                return self.base.closer_for_opener(&canon_target);
-            }
+        if let Some(canon_target) = self.canonical_target(opener) {
+            return self
+                .opener_to_closer
+                .get(&canon_target)
+                .copied()
+                .or_else(|| self.base.closer_for_opener(&canon_target));
         }
         self.base.closer_for_opener(opener)
     }
@@ -471,20 +458,15 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         if let Some(elements) = self.custom_container_headers.get(opener) {
             return elements;
         }
-        let token = opener.to_u128();
-        let canon = self.canonical_token(token);
-        if canon != token {
-            if let Some(canon_target) = CharTarget::from_u128(canon) {
-                if let Some(elements) =
-                    self.custom_container_headers.get(&canon_target)
-                {
-                    return elements;
-                }
-                let elements =
-                    self.base.container_header_elements(&canon_target);
-                if !elements.is_empty() {
-                    return elements;
-                }
+        if let Some(canon_target) = self.canonical_target(opener) {
+            if let Some(elements) =
+                self.custom_container_headers.get(&canon_target)
+            {
+                return elements;
+            }
+            let elements = self.base.container_header_elements(&canon_target);
+            if !elements.is_empty() {
+                return elements;
             }
         }
         self.base.container_header_elements(opener)
@@ -494,18 +476,13 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         if let Some(trailing) = self.custom_trailing.get(opener) {
             return trailing;
         }
-        let token = opener.to_u128();
-        let canon = self.canonical_token(token);
-        if canon != token {
-            if let Some(canon_target) = CharTarget::from_u128(canon) {
-                if let Some(trailing) = self.custom_trailing.get(&canon_target)
-                {
-                    return trailing;
-                }
-                let trailing = self.base.trailing_after_closer(&canon_target);
-                if !trailing.is_empty() {
-                    return trailing;
-                }
+        if let Some(canon_target) = self.canonical_target(opener) {
+            if let Some(trailing) = self.custom_trailing.get(&canon_target) {
+                return trailing;
+            }
+            let trailing = self.base.trailing_after_closer(&canon_target);
+            if !trailing.is_empty() {
+                return trailing;
             }
         }
         self.base.trailing_after_closer(opener)
@@ -629,212 +606,5 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
             self.canonical_token(token)
         };
         self.base.is_plain_atom_dc(canon)
-    }
-}
-
-/// Global runtime registry for Document Character syntax rules and resolvers.
-#[derive(Debug, Clone, Default)]
-pub struct SyntaxRuntimeRegistry {
-    resolver: SyntaxRuntimeResolver,
-}
-
-impl SyntaxRuntimeRegistry {
-    /// Returns the shared global [`SyntaxRuntimeRegistry`] instance.
-    #[must_use]
-    pub fn global() -> &'static Self {
-        static INSTANCE: std::sync::LazyLock<SyntaxRuntimeRegistry> =
-            std::sync::LazyLock::new(|| SyntaxRuntimeRegistry {
-                resolver: SyntaxRuntimeResolver::new(
-                    default_syntax_resolver().clone(),
-                ),
-            });
-        &INSTANCE
-    }
-
-    /// Creates a new [`SyntaxRuntimeRegistry`] backed by the default syntax resolver.
-    #[must_use]
-    pub fn new() -> Self {
-        Self {
-            resolver: SyntaxRuntimeResolver::default(),
-        }
-    }
-
-    /// Creates a new [`SyntaxRuntimeRegistry`] wrapping an existing [`SyntaxRuntimeResolver`].
-    #[must_use]
-    pub fn with_resolver(resolver: SyntaxRuntimeResolver) -> Self {
-        Self { resolver }
-    }
-
-    /// Creates a new [`SyntaxRuntimeRegistry`] wrapping a base [`SyntaxRuleResolver`].
-    #[must_use]
-    pub fn with_base(
-        base: std::sync::Arc<dyn SyntaxRuleResolver + Send + Sync>,
-    ) -> Self {
-        Self {
-            resolver: SyntaxRuntimeResolver::new(base),
-        }
-    }
-
-    /// Registers an equivalence relationship mapping `token` to `canonical_target`.
-    pub fn register_equivalence(
-        &mut self,
-        token: u128,
-        canonical_target: u128,
-    ) {
-        self.resolver.register_equivalence(token, canonical_target);
-    }
-
-    /// Registers a custom [`DcRole`] membership for `token`.
-    pub fn register_role(&mut self, token: u128, role: DcRole) {
-        self.resolver.register_role(token, role);
-    }
-
-    /// Returns a shared reference to the inner [`SyntaxRuntimeResolver`].
-    #[must_use]
-    pub fn resolver(&self) -> &SyntaxRuntimeResolver {
-        &self.resolver
-    }
-
-    /// Returns a mutable reference to the inner [`SyntaxRuntimeResolver`].
-    pub fn resolver_mut(&mut self) -> &mut SyntaxRuntimeResolver {
-        &mut self.resolver
-    }
-
-    /// Consumes the registry and returns the inner [`SyntaxRuntimeResolver`].
-    #[must_use]
-    pub fn into_resolver(self) -> SyntaxRuntimeResolver {
-        self.resolver
-    }
-}
-
-impl std::ops::Deref for SyntaxRuntimeRegistry {
-    type Target = SyntaxRuntimeResolver;
-
-    fn deref(&self) -> &Self::Target {
-        &self.resolver
-    }
-}
-
-impl std::ops::DerefMut for SyntaxRuntimeRegistry {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.resolver
-    }
-}
-
-impl SyntaxRuleResolver for SyntaxRuntimeRegistry {
-    fn canonical_token(&self, token: u128) -> u128 {
-        self.resolver.canonical_token(token)
-    }
-
-    fn is_equivalent_to(&self, a: u128, b: u128) -> bool {
-        self.resolver.is_equivalent_to(a, b)
-    }
-
-    fn token_fills_role(&self, token: u128, role: DcRole) -> bool {
-        self.resolver.token_fills_role(token, role)
-    }
-
-    fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule> {
-        self.resolver.resolve_rule(target)
-    }
-
-    fn resolve_named_type(&self, name: &str) -> Option<&SyntaxPattern> {
-        self.resolver.resolve_named_type(name)
-    }
-
-    fn resolve_named_type_with_arg(
-        &self,
-        name: &str,
-        arg: Option<&ctb_formats_dcdata::syntax::SubtypeConstraint>,
-    ) -> Option<SyntaxPattern> {
-        self.resolver.resolve_named_type_with_arg(name, arg)
-    }
-
-    fn matches_script(&self, script_name: &str, token: u128) -> bool {
-        self.resolver.matches_script(script_name, token)
-    }
-
-    fn has_script(&self, script_name: &str) -> bool {
-        self.resolver.has_script(script_name)
-    }
-
-    fn matches_named_type_starter(&self, name: &str, token: u128) -> bool {
-        self.resolver.matches_named_type_starter(name, token)
-    }
-
-    fn base64_digit_value(&self, token: u128) -> Option<u8> {
-        self.resolver.base64_digit_value(token)
-    }
-
-    fn is_representation_set(&self, token: u128) -> bool {
-        self.resolver.is_representation_set(token)
-    }
-
-    fn is_representation_header_or_separator(&self, token: u128) -> bool {
-        self.resolver.is_representation_header_or_separator(token)
-    }
-
-    fn closing_opener_for(&self, token: u128) -> Option<&CharTarget> {
-        self.resolver.closing_opener_for(token)
-    }
-
-    fn closer_for_opener(&self, opener: &CharTarget) -> Option<u128> {
-        self.resolver.closer_for_opener(opener)
-    }
-
-    fn is_deprecated(&self, target: &CharTarget) -> bool {
-        self.resolver.is_deprecated(target)
-    }
-
-    fn preferred_replacement(
-        &self,
-        target: &CharTarget,
-    ) -> Option<&CharTarget> {
-        self.resolver.preferred_replacement(target)
-    }
-
-    fn container_header_elements(
-        &self,
-        opener: &CharTarget,
-    ) -> &[SyntaxElement] {
-        self.resolver.container_header_elements(opener)
-    }
-
-    fn trailing_after_closer(&self, opener: &CharTarget) -> &[SyntaxElement] {
-        self.resolver.trailing_after_closer(opener)
-    }
-
-    fn resolve_infix_rule(
-        &self,
-        op_token: u128,
-    ) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
-        self.resolver.resolve_infix_rule(op_token)
-    }
-
-    fn is_opaque_container(&self, opener_token: u128) -> bool {
-        self.resolver.is_opaque_container(opener_token)
-    }
-
-    fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
-        self.resolver.is_subtype_of(sub_token, super_token)
-    }
-
-    fn framing_shape(
-        &self,
-        token: u128,
-    ) -> ctb_formats_dcdata::syntax::FramingShape {
-        self.resolver.framing_shape(token)
-    }
-
-    fn is_special_wrapper_token(&self, token: u128) -> bool {
-        self.resolver.is_special_wrapper_token(token)
-    }
-
-    fn is_splice_trigger_token(&self, token: u128) -> bool {
-        self.resolver.is_splice_trigger_token(token)
-    }
-
-    fn is_plain_atom_dc(&self, token: u128) -> bool {
-        self.resolver.is_plain_atom_dc(token)
     }
 }

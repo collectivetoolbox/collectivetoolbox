@@ -93,11 +93,10 @@ pub use navigator::{
     DcBinaryResolver, DcByteSpan, DcDocumentNavigator, DcEvaluatedValue,
     DcExpressionEvaluator, DcForgivingDefault, DcFrameHeaderInfo, DcFrameStub,
     DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
-    DefaultDcExpressionEvaluator, DiagnosticAction, FormatSyntaxRule,
-    INLINE_BINARY_THRESHOLD, MAX_SYNTAX_EXPANSION_DEPTH, NodeId,
-    SyntaxEvalContext, SyntaxRuntimeRegistry, SyntaxRuntimeResolver,
-    ValueRequirement, validate_dc_mixed_strict, validate_dc_str_strict,
-    validate_dc_tokens_strict,
+    DefaultDcExpressionEvaluator, DiagnosticAction, INLINE_BINARY_THRESHOLD,
+    MAX_SYNTAX_EXPANSION_DEPTH, NodeId, SyntaxEvalContext,
+    SyntaxRuntimeResolver, ValueRequirement, validate_dc_mixed_strict,
+    validate_dc_str_strict, validate_dc_tokens_strict,
 };
 pub use shared::{
     SharedJson, SharedValueContext, decode_dc_identifier, decode_identifier,

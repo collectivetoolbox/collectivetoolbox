@@ -912,34 +912,6 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         self.resolver().token_fills_role(token.into(), role)
     }
 
-    /// Looks up the syntax rule for a format by its [`FormatId`] using the active resolver.
-    #[must_use]
-    pub fn get_format_rule(
-        &self,
-        fid: FormatId,
-    ) -> Option<crate::navigator::FormatSyntaxRule> {
-        let rule = self
-            .resolver()
-            .resolve_rule(&ctb_formats_dcdata::CharTarget::Format(fid))?;
-        let expr = match &rule.pattern {
-            ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) => {
-                let payload_items: Vec<_> = items
-                    .iter()
-                    .filter(|el| {
-                        !matches!(
-                            el.term,
-                            ctb_formats_dcdata::SyntaxTerm::SelfChar
-                        )
-                    })
-                    .cloned()
-                    .collect();
-                ctb_formats_dcdata::DcSyntaxExpr::Sequence(payload_items)
-            }
-            other => other.clone(),
-        };
-        Some(crate::navigator::FormatSyntaxRule { expr })
-    }
-
     /// Creates a new projection context with an optional enclosing shared context.
     #[must_use]
     pub fn with_shared_context(
@@ -1919,17 +1891,12 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         ),
                     };
                     let canon_format = self.canonical_token(format);
-                    let is_sequence_format = if let Some(fid) =
+                    let is_sequence_format =
                         FormatId::from_dc_id(canon_format.to_u128())
-                    {
-                        if let Some(rule) = self.get_format_rule(fid) {
-                            matches!(&rule.expr, ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) if items.len() >= 2)
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    };
+                            .and_then(|fid| {
+                                self.resolver().format_rule_payload_arity(fid)
+                            })
+                            .is_some_and(|n| n >= 2);
                     let payload_id = if children.len() > 2 {
                         let c1_node = self.node(c1)?;
                         if let DcSyntaxKind::Atom(ch) = c1_node.kind {
@@ -2553,21 +2520,11 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
         mst: &mut crate::DcWriter<'_>,
         context: &crate::SharedValueContext,
     ) -> Result<()> {
-        let canon = ctb_formats_dcdata::syntax::default_syntax_resolver()
-            .canonical_token(format.to_u128());
-        let is_seq_len_2 = if let Some(fid) = FormatId::from_dc_id(canon) {
-            if let Some(rule) =
-                crate::navigator::SyntaxRuntimeRegistry::global()
-                    .resolver()
-                    .get_format_rule(fid)
-            {
-                matches!(&rule.expr, ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) if items.len() == 2)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let canon = resolver.canonical_token(format.to_u128());
+        let is_seq_len_2 = FormatId::from_dc_id(canon)
+            .and_then(|fid| resolver.format_rule_payload_arity(fid))
+            == Some(2);
         if is_seq_len_2 {
             self.0.encode_dc_mixed_to_with_context(mst, context)?;
             self.1.encode_dc_mixed_to_with_context(mst, context)?;

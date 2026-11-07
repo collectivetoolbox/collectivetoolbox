@@ -110,6 +110,19 @@ pub trait SyntaxRuleResolver {
     }
     /// Resolves the syntax rule associated with a character or format target.
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule>;
+    /// Returns the number of payload elements (excluding `~`) in a format's sequence syntax rule.
+    fn format_rule_payload_arity(&self, fid: FormatId) -> Option<usize> {
+        let rule = self.resolve_rule(&CharTarget::Format(fid))?;
+        match &rule.pattern {
+            SyntaxPattern::Sequence(items) => Some(
+                items
+                    .iter()
+                    .filter(|el| !matches!(el.term, SyntaxTerm::SelfChar))
+                    .count(),
+            ),
+            SyntaxPattern::Alternation(_) => None,
+        }
+    }
     /// Resolves the pattern definition for a named syntactic construct.
     fn resolve_named_type(&self, name: &str) -> Option<&SyntaxPattern>;
     /// Resolves the pattern definition for a named construct with macro arguments substituted.

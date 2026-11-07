@@ -2322,7 +2322,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
     fn test_list_openers_closers_and_separators_equivalence_overlay()
     -> Result<()> {
         let policy = DcProjectionPolicy::strict();
-        let mut registry = SyntaxRuntimeRegistry::default();
+        let mut registry = SyntaxRuntimeResolver::default();
 
         let synth_list_open = DcChar::from_short(3910).to_u128();
         let synth_list_close = DcChar::from_short(3911).to_u128();
@@ -2347,7 +2347,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         // 1. Decodes successfully using the overlay resolver on DcMstr
         let list: Vec<u64> =
-            doc.decode_with_resolver(registry.resolver(), &policy)?;
+            doc.decode_with_resolver(&registry, &policy)?;
         ensure!(
             list == [10, 20, 30],
             "List must decode elements [10, 20, 30]"
@@ -2356,7 +2356,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         // 2. Decodes successfully using the overlay resolver on DcStr
         let dc_string = doc.to_dc_string()?;
         let list_str: Vec<u64> =
-            dc_string.decode_with_resolver(registry.resolver(), &policy)?;
+            dc_string.decode_with_resolver(&registry, &policy)?;
         ensure!(list_str == [10, 20, 30], "DcStr must decode elements");
 
         // 3. Without the overlay resolver, decoding fails strict validation
@@ -2373,7 +2373,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
     #[crate::ctb_test]
     fn test_map_openers_closers_and_pairs_equivalence_overlay() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
-        let mut registry = SyntaxRuntimeRegistry::default();
+        let mut registry = SyntaxRuntimeResolver::default();
 
         let synth_map_open = DcChar::from_short(3959).to_u128();
         let synth_map_close = DcChar::from_short(3960).to_u128();
@@ -2411,7 +2411,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         // 1. Decode into BTreeMap using overlay resolver
         let map: std::collections::BTreeMap<u64, u64> =
-            doc.decode_with_resolver(registry.resolver(), &policy)?;
+            doc.decode_with_resolver(&registry, &policy)?;
         ensure!(map.len() == 2, "Decoded map must contain 2 entries");
         ensure!(map.get(&1) == Some(&100), "Map key 1 must map to 100");
         ensure!(map.get(&2) == Some(&200), "Map key 2 must map to 200");
@@ -2422,12 +2422,12 @@ mod dynamic_runtime_equivalence_overlay_tests {
         nav.parse_document_into_arena_with_resolver(
             &mut arena,
             &policy,
-            registry.resolver(),
+            &registry,
         )?;
         let root = *arena.roots().first().context("Missing arena root")?;
         let (_opener, pairs) = arena.extract_kv_map_node_pairs_with_resolver(
             root,
-            registry.resolver(),
+            &registry,
         )?;
         ensure!(pairs.len() == 2, "Must extract 2 pair nodes from arena");
 
@@ -2441,7 +2441,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
     fn test_primitives_literals_identifiers_numbers_and_booleans_overlay()
     -> Result<()> {
         let policy = DcProjectionPolicy::strict();
-        let mut registry = SyntaxRuntimeRegistry::default();
+        let mut registry = SyntaxRuntimeResolver::default();
 
         let synth_lit_open = DcChar::from_short(3962).to_u128();
         let synth_lit_close = DcChar::from_short(3963).to_u128();
@@ -2482,7 +2482,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         lit_doc.push_char(DcChar::from_u128(synth_lit_close));
 
         let decoded_str: String =
-            lit_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            lit_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(
             decoded_str == "overlay_text",
             "Decoded literal string mismatch"
@@ -2495,7 +2495,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         ident_doc.push_char(DcChar::from_u128(synth_ident_close));
 
         let decoded_ident: String =
-            ident_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            ident_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(
             decoded_ident == "sample_identifier",
             "Decoded identifier mismatch"
@@ -2515,20 +2515,20 @@ mod dynamic_runtime_equivalence_overlay_tests {
         num_doc.push_char(DcChar::from_u128(synth_num_close));
 
         let decoded_num: u64 =
-            num_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            num_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(decoded_num == 4242, "Decoded number mismatch");
 
         // 4. Boolean decoding (bool)
         let mut true_doc = DcMstring::new();
         true_doc.push_char(DcChar::from_u128(synth_bool_true));
         let decoded_true: bool =
-            true_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            true_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(decoded_true, "Expected decoded true");
 
         let mut false_doc = DcMstring::new();
         false_doc.push_char(DcChar::from_u128(synth_bool_false));
         let decoded_false: bool =
-            false_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            false_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(!decoded_false, "Expected decoded false");
 
         Ok(())
@@ -2541,7 +2541,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
     fn test_derive_dc_mixed_structs_and_enums_equivalence_overlay() -> Result<()>
     {
         let policy = DcProjectionPolicy::strict();
-        let mut registry = SyntaxRuntimeRegistry::default();
+        let mut registry = SyntaxRuntimeResolver::default();
 
         let synth_rec_open = DcChar::from_short(3801).to_u128();
         let synth_rec_close = DcChar::from_short(3802).to_u128();
@@ -2585,7 +2585,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         struct_doc.push_char(DcChar::from_u128(synth_rec_close));
 
         let decoded_struct: OverlaySampleRecord =
-            struct_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            struct_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(decoded_struct.title == "hello_overlay", "Title mismatch");
         ensure!(decoded_struct.count == 777, "Count mismatch");
 
@@ -2595,7 +2595,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         1234u64.encode_dc_mixed(&mut active_doc)?;
 
         let decoded_active: OverlaySampleStatus =
-            active_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            active_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(
             decoded_active == OverlaySampleStatus::Active(1234),
             "Active variant mismatch"
@@ -2605,7 +2605,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         inactive_doc.push_char(DcChar::from_u128(synth_variant_inactive));
 
         let decoded_inactive: OverlaySampleStatus =
-            inactive_doc.decode_with_resolver(registry.resolver(), &policy)?;
+            inactive_doc.decode_with_resolver(&registry, &policy)?;
         ensure!(
             decoded_inactive == OverlaySampleStatus::Inactive,
             "Inactive variant mismatch"
@@ -2613,7 +2613,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         // 3. Inspection with overlay resolver
         let inspection = struct_doc
-            .inspect_with_resolver::<OverlaySampleRecord>(registry.resolver());
+            .inspect_with_resolver::<OverlaySampleRecord>(&registry);
         let fields = inspection.fields();
         ensure!(
             fields.iter().any(|f| f.field() == "title"),
@@ -2633,7 +2633,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
             DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm,
         };
 
-        let mut registry = SyntaxRuntimeRegistry::new();
+        let mut registry = SyntaxRuntimeResolver::default();
         let custom_open = CharTarget::Dc(9800);
         let custom_close = CharTarget::Dc(9801);
         let custom_close_u128 = custom_close.to_u128();
@@ -2681,7 +2681,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         registry.register_rule(custom_open.clone(), rule);
 
         let headers =
-            registry.resolver().container_header_elements(&custom_open);
+            &registry.container_header_elements(&custom_open);
         ensure!(
             headers.len() == 1,
             "Expected 1 header element, found {}",
@@ -2692,7 +2692,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
             "Header should be type construct"
         );
 
-        let trailing = registry.resolver().trailing_after_closer(&custom_open);
+        let trailing = &registry.trailing_after_closer(&custom_open);
         ensure!(
             trailing.len() == 1,
             "Expected 1 trailing element, found {}",
@@ -2708,13 +2708,13 @@ mod dynamic_runtime_equivalence_overlay_tests {
         registry
             .register_equivalence(equiv_open.to_u128(), custom_open.to_u128());
         let equiv_headers =
-            registry.resolver().container_header_elements(&equiv_open);
+            &registry.container_header_elements(&equiv_open);
         ensure!(
             equiv_headers.len() == 1,
             "Equiv opener must inherit custom header"
         );
         let equiv_trailing =
-            registry.resolver().trailing_after_closer(&equiv_open);
+            &registry.trailing_after_closer(&equiv_open);
         ensure!(
             equiv_trailing.len() == 1,
             "Equiv opener must inherit custom trailing"
@@ -2725,7 +2725,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
     #[crate::ctb_test]
     fn test_source_edit_and_dctext_equivalence_overlay() -> Result<()> {
-        let mut registry = SyntaxRuntimeRegistry::new();
+        let mut registry = SyntaxRuntimeResolver::default();
         let synth_local = DcChar::from_short(9810).to_u128();
         let canon_local = ctb_formats_dcdata::dc::DC_LOCAL_NODE.to_u128();
         registry.register_equivalence(synth_local, canon_local);
@@ -2740,7 +2740,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         ]; // @L5@
         let dctext_bytes = converters::dctext::dclist_to_dctext_with_resolver(
             &gids,
-            registry.resolver(),
+            &registry,
         );
         let dctext_str = std::str::from_utf8(&dctext_bytes)?;
         ensure!(dctext_str == "@L5@", "Expected @L5@, found {dctext_str}");
@@ -2772,7 +2772,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
             ctb_formats_dcstring::source_edit::preserve_source_with_resolver(
                 &old_doc,
                 &new_doc,
-                registry.resolver(),
+                &registry,
             )?;
         ensure!(
             !preserved.as_bytes().is_empty(),
@@ -2841,7 +2841,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
 
         // Single-token <equiv> alias of a Unicode scalar is preserved in DcMstring without
         // lossy canonicalization, and rejected by pure-UTF-8 String::decode:
-        let mut registry = SyntaxRuntimeRegistry::new();
+        let mut registry = SyntaxRuntimeResolver::default();
         let alias_dc = DcChar::from_short(9850);
         registry.register_equivalence(
             alias_dc.to_u128(),
@@ -2853,14 +2853,14 @@ mod dynamic_runtime_equivalence_overlay_tests {
                 .collect();
         let encoded_alias_lit = alias_payload.to_dc_mixed()?;
         let preserved_mstr: DcMstring = encoded_alias_lit
-            .decode_with_resolver(registry.resolver(), &policy)?;
+            .decode_with_resolver(&registry, &policy)?;
         ensure!(
             preserved_mstr == alias_payload,
             "DcMstring decode must preserve original alias DcChar without lossy canonicalization"
         );
         ensure!(
             encoded_alias_lit
-                .decode_with_resolver::<String>(registry.resolver(), &policy)
+                .decode_with_resolver::<String>(&registry, &policy)
                 .is_err(),
             "String decode must reject non-Unicode DcChar even if it has a runtime equivalence"
         );
@@ -3007,7 +3007,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         );
 
         // 3. DcInspection::inspect_with_resolver + replace_field threads custom resolver:
-        let mut registry = SyntaxRuntimeRegistry::default();
+        let mut registry = SyntaxRuntimeResolver::default();
         let synth_rec_open = DcChar::from_short(3801).to_u128();
         let synth_rec_close = DcChar::from_short(3802).to_u128();
         let synth_field_title = DcChar::from_short(3803).to_u128();
@@ -3038,7 +3038,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         overlay_doc.push_char(DcChar::from_u128(synth_rec_close));
 
         let overlay_insp = overlay_doc
-            .inspect_with_resolver::<OverlaySampleRecord>(registry.resolver());
+            .inspect_with_resolver::<OverlaySampleRecord>(&registry);
         let updated_rec = OverlaySampleRecord {
             title: "after".to_owned(),
             count: 10,
@@ -3046,14 +3046,14 @@ mod dynamic_runtime_equivalence_overlay_tests {
         let replaced_doc = overlay_insp.replace_field("title", &updated_rec)?;
         let replaced_rec: OverlaySampleRecord = replaced_doc
             .decode_with_resolver(
-                registry.resolver(),
+                &registry,
                 &DcProjectionPolicy::strict(),
             )?;
         ensure!(replaced_rec.title == "after", "Replaced title mismatch");
         ensure!(replaced_rec.count == 10, "Replaced count mismatch");
 
         // 4. Textual binary encapsulation decoding via DcStr::decode_with_resolver uses custom resolver in Cursor::read_payload:
-        let mut enc_registry = SyntaxRuntimeRegistry::default();
+        let mut enc_registry = SyntaxRuntimeResolver::default();
         let synth_digit_zero = DcChar::from_short(3820);
         enc_registry.register_equivalence(
             synth_digit_zero.to_u128(),
@@ -3072,7 +3072,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         }
         let decoded_bin: ctb_formats_dcstring::BinaryPayload = alias_dc_str
             .decode_with_resolver(
-                enc_registry.resolver(),
+                &enc_registry,
                 &DcProjectionPolicy::strict(),
             )?;
         ensure!(
