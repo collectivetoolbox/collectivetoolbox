@@ -77,6 +77,16 @@ pub fn validate_all_data_tables_from_repo(
 ) -> ValidationReport {
     let mut report = ValidationReport::new();
 
+    if let Err(error) = crate::updater::validate_category_allocations(repo_root) {
+        report.add_error(
+            "src/formats/dcdata/data-src",
+            None,
+            None,
+            format!("Invalid block reservations or ID assignments: {error:#}"),
+            Some("Check block ranges, allocation high-water marks, and category IDs"),
+        );
+    }
+
     // 1. Validate Global Graph Layout table
     let layout_path =
         repo_root.join("src/storage/minimal/data/global-graph-layout.csv");

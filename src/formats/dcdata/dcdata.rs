@@ -159,7 +159,7 @@ pub use updater::{
     assign_and_update_format_categories,
     check_category_csvs_need_no_id_updates, find_repository_root,
     generate_merged_csvs, is_empty_row, is_unassigned_id, read_csv_file,
-    write_csv_file,
+    validate_category_allocations, write_csv_file,
 };
 pub use validation::{
     parse_dc_aliases_column, split_dc_aliases_column, validate_all_data_tables,

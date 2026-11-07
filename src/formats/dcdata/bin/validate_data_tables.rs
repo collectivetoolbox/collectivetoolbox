@@ -24,7 +24,7 @@ use ctb_formats_dcdata::{
     assign_and_update_dc_categories, assign_and_update_format_categories,
     check_category_csvs_need_no_id_updates, find_repository_root,
     generate_merged_csvs, validate_all_data_tables,
-    validate_all_data_tables_from_repo,
+    validate_all_data_tables_from_repo, validate_category_allocations,
 };
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -189,6 +189,10 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     } else {
+        if let Err(error) = validate_category_allocations(&repo_root) {
+            eprintln!("Error validating ID allocations: {error:#}");
+            return ExitCode::FAILURE;
+        }
         match assign_and_update_dc_categories(&repo_root) {
             Ok(stats) => {
                 if stats.new_ids_assigned > 0 || stats.dc_ids_recalculated > 0 {
