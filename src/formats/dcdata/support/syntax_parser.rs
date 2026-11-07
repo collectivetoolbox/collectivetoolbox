@@ -26,9 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::ast::{
-    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
-    SyntaxElement, SyntaxPattern, SyntaxTerm,
+use super::syntax_ast::{
+    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SubtypeConstraint,
+    SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
 use anyhow::{Context, Result, bail, ensure};
 
@@ -320,7 +320,7 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
             !subtype_str.is_empty(),
             "Named construct in brackets cannot have an empty subtype: '[{trimmed}]'"
         );
-        let subtype = super::SubtypeConstraint::parse(&name, subtype_str)?;
+        let subtype = SubtypeConstraint::parse(&name, subtype_str)?;
 
         return Ok(SyntaxElement::with_quantifier(
             SyntaxTerm::NamedConstruct {

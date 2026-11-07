@@ -61,6 +61,53 @@ pub struct StarterSet {
 
 /// Trait providing resolution of syntax rules, named types, and script sets.
 pub trait SyntaxRuleResolver {
+    /// Returns the underlying `SeedGraphIndex` when backed by the System-block seed graph.
+    fn seed_graph(&self) -> Option<&crate::seed_graph::SeedGraphIndex> {
+        None
+    }
+    /// Resolves the raw `.Semantic:Pattern` token sequence (`Dc 594 "Syntax rule"`) for `target`
+    /// directly from the seed graph without constructing a Rust `SyntaxPattern` AST.
+    fn resolve_rule_tokens(
+        &self,
+        target: &CharTarget,
+    ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
+        let sg = self.seed_graph()?;
+        let subj = match target {
+            CharTarget::Dc(id) => {
+                ctb_storage_minimal::shorthand::DcShorthand::Short(*id)
+            }
+            CharTarget::Format(fid) => {
+                ctb_storage_minimal::shorthand::DcShorthand::parse(
+                    fid.shorthand(),
+                )
+                .ok()?
+            }
+            CharTarget::Unicode(cp) => {
+                ctb_storage_minimal::shorthand::DcShorthand::Unicode(*cp)
+            }
+            CharTarget::FormatRegionEnd => return None,
+        };
+        if let Some(tokens) = sg.get_syntax_rule_tokens(subj) {
+            return Some(tokens);
+        }
+        let canon = self.canonical_token(target.to_u128());
+        if canon != target.to_u128() {
+            let canon_sh =
+                ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+                    canon,
+                );
+            return sg.get_syntax_rule_tokens(canon_sh);
+        }
+        None
+    }
+    /// Resolves the raw `.Semantic:Pattern` token sequence (`Dc 594 "Syntax rule"`) for a named
+    /// construct directly from the seed graph without constructing a Rust `SyntaxPattern` AST.
+    fn resolve_named_type_tokens(
+        &self,
+        name: &str,
+    ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
+        self.seed_graph()?.get_named_construct_tokens(name)
+    }
     /// Resolves the syntax rule associated with a character or format target.
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule>;
     /// Resolves the pattern definition for a named syntactic construct.
@@ -804,8 +851,10 @@ fn pattern_is_pure_type_constructor(pattern: &SyntaxPattern) -> bool {
 pub const MAX_ASSIGNED_SHORT_DC_EXCLUSIVE: u32 = 641;
 
 /// In-memory resolver caching syntax rules, named types, and script mappings.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct DatasetRuleResolver {
+    pub(crate) seed_graph:
+        Option<std::sync::Arc<crate::seed_graph::SeedGraphIndex>>,
     pub(crate) rules: HashMap<CharTarget, DcSyntaxRule>,
     pub(crate) named_types: HashMap<String, SyntaxPattern>,
     pub(crate) script_chars: HashMap<String, HashSet<u128>>,
@@ -1394,338 +1443,19 @@ impl DatasetRuleResolver {
     pub fn from_seed_graph(
         index: &crate::seed_graph::SeedGraphIndex,
     ) -> Result<Self> {
-        use crate::dc::{
-            DC_APPROXIMATE_DECOMPOSITION, DC_BOOLEAN_TRUE,
-            DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
-            DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED, DC_IS_INSTANCE_OF,
-            DC_PROGRAMMATIC_IDENTIFIER,
-        };
-        use crate::graph_ledger::SeedEntityKey;
-        use ctb_storage_minimal::shorthand::DcShorthand;
-
-        let sh_name = DcShorthand::from_global_id(DC_CANONICAL_NAME.to_u128());
-        let sh_ident =
-            DcShorthand::from_global_id(DC_PROGRAMMATIC_IDENTIFIER.to_u128());
-        let sh_inst = DcShorthand::from_global_id(DC_IS_INSTANCE_OF.to_u128());
-        let sh_dep = DcShorthand::from_global_id(DC_IS_DEPRECATED.to_u128());
-        let sh_true = DcShorthand::from_global_id(DC_BOOLEAN_TRUE.to_u128());
-        let sh_closes =
-            DcShorthand::from_global_id(DC_IS_CLOSING_DELIMITER_FOR.to_u128());
-        let sh_equiv =
-            DcShorthand::from_global_id(DC_CANONICAL_DECOMPOSITION.to_u128());
-        let sh_approx =
-            DcShorthand::from_global_id(DC_APPROXIMATE_DECOMPOSITION.to_u128());
-        let sh_subtype =
-            DcShorthand::from_global_id(DC_IS_SUBTYPE_OF.to_u128());
-
-        let mut resolver = Self::new();
-        let mut explicit_closes_pairs: Vec<(u128, CharTarget)> = Vec::new();
-        let mut closes_by_id: HashMap<u128, DcShorthand> = HashMap::new();
-        let mut non_routine_short_ids: Vec<u32> = Vec::new();
-
-        // Collect all Short Dcs, Unicode clarifications, and Format Dcs in ascending `dc_id` order.
-        let mut short_subjects: Vec<(u128, u32)> = Vec::new();
-        let mut unicode_subjects: Vec<(u128, u32)> = Vec::new();
-        let mut format_subjects: Vec<(u128, usize)> = Vec::new();
-
-        for &(subj, prop) in index.active_single_props().keys() {
-            if prop != sh_name {
-                continue;
-            }
-            match subj {
-                DcShorthand::Short(sid) => {
-                    if let Ok(gid) = subj.to_global_id() {
-                        short_subjects.push((gid, sid));
-                    }
-                }
-                DcShorthand::Unicode(cp) => {
-                    if let Ok(gid) = subj.to_global_id() {
-                        unicode_subjects.push((gid, cp));
-                    }
-                }
-                DcShorthand::Format(fid) => {
-                    if let Ok(gid) = subj.to_global_id() {
-                        format_subjects.push((gid, fid));
-                    }
-                }
-                DcShorthand::Long(_) | DcShorthand::Local(_) => {}
-            }
-        }
-        short_subjects.sort_by_key(|&(gid, _)| gid);
-        unicode_subjects.sort_by_key(|&(gid, _)| gid);
-        format_subjects.sort_by_key(|&(gid, _)| gid);
-
-        for &(gid, cp) in &unicode_subjects {
-            let subj = DcShorthand::Unicode(cp);
-            if let Some(&closes) =
-                index.get_direct_objects(sh_closes, subj).first()
-            {
-                closes_by_id.insert(gid, closes);
-            }
-        }
-
-        // 1. Index rules, scripts, deprecation, and explicit `@closes` from Short Dcs
-        let mut short_scripts: Vec<(u32, String)> =
-            Vec::with_capacity(short_subjects.len());
-        for &(sid_u128, sid_u32) in &short_subjects {
-            let subj = DcShorthand::Short(sid_u32);
-            let target = CharTarget::Dc(sid_u32);
-
-            let mut script = String::new();
-            for &obj in index.get_direct_objects(sh_inst, subj) {
-                if let DcShorthand::Long(seed_id) = obj {
-                    if let Some(SeedEntityKey::Script(s)) =
-                        index.get_seed_entity(seed_id)
-                    {
-                        script.clone_from(s);
-                    }
-                }
-            }
-            if !script.is_empty() {
-                resolver.add_script_char(script.clone(), sid_u128);
-            }
-
-            let preferred = index
-                .get_preferred_replacements(subj)
-                .first()
-                .and_then(|tok| tok.to_global_id().ok())
-                .and_then(CharTarget::from_u128);
-            let is_deprecated =
-                index.has_direct_statement(sh_dep, subj, sh_true);
-            if is_deprecated || preferred.is_some() {
-                resolver.register_deprecated(target.clone(), preferred);
-            }
-
-            if let Some(rule) = index.decode_syntax_rule_for_subject(subj)? {
-                if script != ".EL Routines" {
-                    non_routine_short_ids.push(sid_u32);
-                }
-                resolver.add_rule(target, rule);
-            }
-
-            if let Some(&closes) =
-                index.get_direct_objects(sh_closes, subj).first()
-            {
-                closes_by_id.insert(sid_u128, closes);
-                let opener_target = match closes {
-                    DcShorthand::Short(id) => Some(CharTarget::Dc(id)),
-                    DcShorthand::Format(id) => {
-                        ctb_utilities::format_id::FormatId::from_shorthand(
-                            &format!("f{id}"),
-                        )
-                        .map(CharTarget::Format)
-                    }
-                    DcShorthand::Unicode(cp) => Some(CharTarget::Unicode(cp)),
-                    DcShorthand::Long(_) | DcShorthand::Local(_) => None,
-                };
-                if let Some(opener) = opener_target {
-                    explicit_closes_pairs.push((sid_u128, opener.clone()));
-                    resolver.register_closing_delimiter(sid_u128, opener);
-                }
-            }
-
-            short_scripts.push((sid_u32, script));
-        }
-
-        // Declared delimiters take precedence: auto-detect container closers for Short Dcs
-        for (sid_u32, script) in &short_scripts {
-            if script == ".EL Routines" {
-                continue;
-            }
-            let target = CharTarget::Dc(*sid_u32);
-            if let Some(closer) = resolver
-                .rules
-                .get(&target)
-                .and_then(|rule| detect_container_closer(&rule.pattern))
-            {
-                if !resolver.opener_to_closer.contains_key(&target)
-                    && !resolver.closing_delimiters.contains_key(&closer)
-                {
-                    resolver.register_closing_delimiter(closer, target);
-                }
-            }
-        }
-
-        // Index formats under their script, deprecation, and syntax rules
-        for &(dc_id, short_id) in &format_subjects {
-            let subj = DcShorthand::Format(short_id);
-            for &obj in index.get_direct_objects(sh_inst, subj) {
-                if let DcShorthand::Long(seed_id) = obj {
-                    if let Some(SeedEntityKey::Script(s)) =
-                        index.get_seed_entity(seed_id)
-                    {
-                        if !s.is_empty() {
-                            resolver.add_script_char(s.clone(), dc_id);
-                        }
-                    }
-                }
-            }
-            let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(
-                &format!("f{short_id}"),
-            )
-            .or_else(|| {
-                index
-                    .get_single_property_string(subj, sh_ident)
-                    .and_then(ctb_utilities::format_id::FormatId::from_ident)
-            }) else {
-                continue;
-            };
-            let target = CharTarget::Format(fid);
-            let preferred = index
-                .get_preferred_replacements(subj)
-                .first()
-                .and_then(|tok| tok.to_global_id().ok())
-                .and_then(CharTarget::from_u128);
-            let is_deprecated =
-                index.has_direct_statement(sh_dep, subj, sh_true);
-            if is_deprecated || preferred.is_some() {
-                resolver.register_deprecated(target.clone(), preferred);
-            }
-            if let Some(rule) = index.decode_syntax_rule_for_subject(subj)? {
-                if let Some(closer_tok) = detect_container_closer(&rule.pattern)
-                {
-                    if !resolver.opener_to_closer.contains_key(&target)
-                        && !resolver
-                            .closing_delimiters
-                            .contains_key(&closer_tok)
-                    {
-                        resolver.register_closing_delimiter(
-                            closer_tok,
-                            target.clone(),
-                        );
-                    }
-                }
-                resolver.add_rule(target, rule);
-            }
-            if let Some(&closes) =
-                index.get_direct_objects(sh_closes, subj).first()
-            {
-                closes_by_id.insert(dc_id, closes);
-            }
-            for &super_obj in index.get_direct_objects(sh_subtype, subj) {
-                if let Ok(super_gid) = super_obj.to_global_id() {
-                    resolver.add_subtype(dc_id, super_gid);
-                }
-            }
-        }
-
-        // 2. Index named constructs from the seed graph in ascending `seed_id` order
-        let mut named_constructs: Vec<(u128, String)> = index
-            .seed_entities()
-            .iter()
-            .filter_map(|(key, &seed_id)| match key {
-                SeedEntityKey::NamedConstruct(name) => {
-                    Some((seed_id, name.clone()))
-                }
-                _ => None,
-            })
+        let dc_defns = index.reconstruct_dc_defns()?;
+        let format_defns = index.reconstruct_format_defns()?;
+        let named_types = index
+            .reconstruct_named_types()?
+            .into_iter()
+            .map(|nt| (nt.name, nt.syntax.pattern))
             .collect();
-        named_constructs
-            .sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
-
-        for (seed_id, name) in named_constructs {
-            let Some(rule) = index
-                .decode_syntax_rule_for_subject(DcShorthand::Long(seed_id))?
-            else {
-                continue;
-            };
-            resolver.add_named_type(name, rule.pattern);
-        }
-
-        // 3. Collect `<equiv>` (`DC_CANONICAL_DECOMPOSITION`) pairs across Unicode clarifications, Short Dcs, and Format Dcs
-        let mut all_char_subjects: Vec<(u128, DcShorthand)> = unicode_subjects
-            .iter()
-            .map(|&(gid, cp)| (gid, DcShorthand::Unicode(cp)))
-            .chain(
-                short_subjects
-                    .iter()
-                    .map(|&(gid, sid)| (gid, DcShorthand::Short(sid))),
-            )
-            .chain(
-                format_subjects
-                    .iter()
-                    .map(|&(gid, fid)| (gid, DcShorthand::Format(fid))),
-            )
-            .collect();
-        all_char_subjects.sort_by_key(|&(gid, _)| gid);
-
-        let mut equivalents: Vec<(u128, CharTarget)> = Vec::new();
-        let mut text_decompositions = Vec::new();
-        for (source_gid, subj) in all_char_subjects {
-            for &super_obj in index.get_direct_objects(sh_subtype, subj) {
-                if let Ok(super_gid) = super_obj.to_global_id() {
-                    resolver.add_subtype(source_gid, super_gid);
-                }
-            }
-            for entry in index.get_multi_properties(subj, sh_equiv) {
-                if matches!(
-                    entry.value,
-                    DcShorthand::Short(_)
-                        | DcShorthand::Format(_)
-                        | DcShorthand::Unicode(_)
-                ) {
-                    if let Ok(target_gid) = entry.value.to_global_id() {
-                        if let Some(target_ct) =
-                            CharTarget::from_u128(target_gid)
-                        {
-                            equivalents.push((source_gid, target_ct));
-                        }
-                    }
-                }
-            }
-            for (property, approximate) in
-                [(sh_equiv, false), (sh_approx, true)]
-            {
-                for entry in index.get_multi_properties(subj, property) {
-                    let tokens = if let Some(text) =
-                        index.get_string(entry.value)
-                    {
-                        if let Some(tokens) = text
-                            .split_whitespace()
-                            .map(|token| DcShorthand::parse(token).ok())
-                            .collect::<Option<Vec<_>>>()
-                        {
-                            tokens
-                        } else if crate::format_spec::parse_format_expr(text)
-                            .is_ok()
-                        {
-                            continue;
-                        } else {
-                            text.chars()
-                                .map(|ch| DcShorthand::Unicode(u32::from(ch)))
-                                .collect()
-                        }
-                    } else if let DcShorthand::Long(node_id) = entry.value
-                        && let Some(node) = index.get_node(node_id)
-                    {
-                        node.tokens.clone()
-                    } else {
-                        vec![entry.value]
-                    };
-                    let targets: Option<Vec<_>> = tokens
-                        .iter()
-                        .map(|token| token.to_global_id().ok())
-                        .collect();
-                    if let Some(targets) = targets
-                        && !targets.is_empty()
-                    {
-                        text_decompositions.push((
-                            source_gid,
-                            targets,
-                            approximate,
-                        ));
-                    }
-                }
-            }
-        }
-
-        resolver.finalize_equivalences_and_derived_tables(
-            &equivalents,
-            &explicit_closes_pairs,
-            &closes_by_id,
-            &non_routine_short_ids,
+        let mut resolver = Self::load_from_definitions(
+            &dc_defns,
+            &format_defns,
+            named_types,
         )?;
-        resolver.build_unicode_text_mappings(&text_decompositions);
+        resolver.seed_graph = Some(std::sync::Arc::new(index.clone()));
         Ok(resolver)
     }
 
@@ -2138,6 +1868,10 @@ impl DatasetRuleResolver {
 }
 
 impl SyntaxRuleResolver for DatasetRuleResolver {
+    fn seed_graph(&self) -> Option<&crate::seed_graph::SeedGraphIndex> {
+        self.seed_graph.as_deref()
+    }
+
     fn is_subtype_of(&self, sub_token: u128, super_token: u128) -> bool {
         if self.is_equivalent_to(sub_token, super_token) {
             return true;

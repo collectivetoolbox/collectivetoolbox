@@ -22,11 +22,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod column_spec;
 pub mod csv_resolver;
+pub mod data_constraint;
 pub mod format;
 pub mod graph_ledger;
 pub mod layout;
 pub mod report;
+pub mod seed_graph_reconstruct;
 pub mod shared;
+pub mod syntax_ast;
+pub mod syntax_parser;
 pub mod syntax_validator;
 pub mod updater;
 pub mod validation;

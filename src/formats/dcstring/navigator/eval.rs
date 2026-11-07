@@ -695,6 +695,81 @@ impl DcDocumentNavigator<'_> {
         result
     }
 
+    /// Evaluates a `.Semantic:Pattern` `&[DcShorthand]` token slice directly from the seed graph
+    /// without constructing a recursive `SyntaxPattern` AST.
+    pub fn eval_pattern_tokens(
+        &mut self,
+        raw_tokens: &[ctb_storage_minimal::shorthand::DcShorthand],
+        ctx: &mut SyntaxEvalContext<'_>,
+    ) -> Result<bool> {
+        let Some(sg) = ctx.resolver.seed_graph() else {
+            return Ok(false);
+        };
+        let tokens = sg.strip_pattern_action_tokens(raw_tokens)?;
+        let start = self.save_checkpoint();
+        if let Some(branches) = sg.split_alternation_branches(tokens)? {
+            let saved_ctx = ctx.save_checkpoint();
+            let mut zero_match = None;
+            let first_starts_self = branches
+                .first()
+                .is_some_and(|b| sg.pattern_tokens_start_with_self(b));
+            for (idx, branch) in branches.iter().enumerate() {
+                self.restore_checkpoint(start);
+                ctx.restore_checkpoint(&saved_ctx);
+                if idx > 0
+                    && first_starts_self
+                    && !sg.pattern_tokens_start_with_self(branch)
+                    && !self.eval_term_single(&SyntaxTerm::SelfChar, ctx)?
+                {
+                    continue;
+                }
+                if self.eval_pattern_tokens(branch, ctx)? && !ctx.has_errors {
+                    let consumed = self.cursor > start.cursor
+                        || self.spliced_len() < start.spliced_len();
+                    if consumed {
+                        return Ok(true);
+                    }
+                    if zero_match.is_none() {
+                        zero_match = Some((
+                            ctx.save_checkpoint(),
+                            self.save_checkpoint(),
+                        ));
+                    }
+                }
+            }
+            if let Some((zm_ctx, zm_cp)) = zero_match {
+                self.restore_checkpoint(zm_cp);
+                ctx.restore_checkpoint(&zm_ctx);
+                return Ok(true);
+            }
+            self.restore_checkpoint(start);
+            ctx.restore_checkpoint(&saved_ctx);
+            return Ok(false);
+        }
+
+        let mut idx = 0usize;
+        while idx < tokens.len() {
+            let (elem, next_idx) =
+                sg.step_pattern_element_tokens(tokens, idx)?;
+            let at_end = self.cursor >= self.active_span.end
+                && !self.has_spliced_tokens();
+            if at_end && elem.quantifier.allows_zero() {
+                idx = next_idx;
+                continue;
+            }
+            if at_end {
+                self.restore_checkpoint(start);
+                return Ok(false);
+            }
+            if !self.eval_element(&elem, ctx)? {
+                self.restore_checkpoint(start);
+                return Ok(false);
+            }
+            idx = next_idx;
+        }
+        Ok(true)
+    }
+
     /// Evaluates a quantified [`SyntaxElement`] starting at the current cursor.
     pub fn eval_element(
         &mut self,
@@ -1234,7 +1309,14 @@ impl DcDocumentNavigator<'_> {
                         other => other,
                     };
                     let mut matched = false;
-                    let resolved_pat = if let Some(sub) = subtype.as_ref() {
+                    let raw_tokens_opt = if subtype.is_none() {
+                        ctx.resolver.resolve_named_type_tokens(lookup_key)
+                    } else {
+                        None
+                    };
+                    let resolved_pat = if raw_tokens_opt.is_some() {
+                        None
+                    } else if let Some(sub) = subtype.as_ref() {
                         ctx.resolver
                             .resolve_named_type_with_arg(lookup_key, Some(sub))
                             .map(Cow::Owned)
@@ -1251,7 +1333,7 @@ impl DcDocumentNavigator<'_> {
                                     .map(Cow::Owned)
                             })
                     };
-                    if let Some(pattern) = resolved_pat {
+                    if raw_tokens_opt.is_some() || resolved_pat.is_some() {
                         let skip_value_pattern = lookup_key == "value"
                             && subtype.is_none()
                             && !ctx
@@ -1264,7 +1346,13 @@ impl DcDocumentNavigator<'_> {
                         if !skip_value_pattern {
                             ctx.call_stack.push(frame_key);
                             ctx.depth = ctx.depth.saturating_add(1);
-                            matched = self.eval_pattern(&pattern, ctx)?;
+                            matched = if let Some(raw_tokens) = raw_tokens_opt {
+                                self.eval_pattern_tokens(raw_tokens, ctx)?
+                            } else if let Some(pattern) = &resolved_pat {
+                                self.eval_pattern(pattern, ctx)?
+                            } else {
+                                false
+                            };
                             ctx.depth = ctx.depth.saturating_sub(1);
                             ctx.call_stack.pop();
                         }
@@ -1540,7 +1628,13 @@ impl DcDocumentNavigator<'_> {
                         let _ = self.pop_next_token()?;
                     }
 
-                    let matched = self.eval_pattern(&rule.pattern, ctx)?;
+                    let matched = if let Some(raw_tokens) =
+                        ctx.resolver.resolve_rule_tokens(target)
+                    {
+                        self.eval_pattern_tokens(raw_tokens, ctx)?
+                    } else {
+                        self.eval_pattern(&rule.pattern, ctx)?
+                    };
 
                     ctx.depth = ctx.depth.saturating_sub(1);
                     ctx.call_stack.pop();

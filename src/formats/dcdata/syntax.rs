@@ -31,15 +31,14 @@ use crate::utilities::*;
 
 use std::sync::{Arc, LazyLock};
 
-pub mod ast;
-pub mod parser;
 pub mod resolver;
 #[rustfmt::skip]
 #[path = "syntax/role.generated.rs"]
 pub mod role;
+pub use crate::support::data_constraint;
+pub use crate::support::syntax_ast as ast;
+pub use crate::support::syntax_parser as parser;
 pub use crate::support::syntax_validator as validator;
-
-mod data_constraint;
 
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use ast::{

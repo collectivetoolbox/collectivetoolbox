@@ -144,6 +144,40 @@ impl DatasetRuleResolver {
         format_defns: &[DcDefn],
         named_types_csv: Option<&[u8]>,
     ) -> Result<Self> {
+        let mut named_types = Vec::new();
+        if let Some(bytes) = named_types_csv {
+            let mut rdr = csv::ReaderBuilder::new()
+                .has_headers(true)
+                .flexible(true)
+                .from_reader(bytes);
+            for (index, result) in rdr.records().enumerate() {
+                let row = index.saturating_add(2);
+                let record = result.with_context(|| {
+                    format!(
+                        "README-named-types.csv row {row}: invalid CSV record"
+                    )
+                })?;
+                let name = record.get(0).map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .with_context(|| format!("README-named-types.csv row {row}: missing named type"))?;
+                let syntax_raw = record.get(1).map(str::trim)
+                    .filter(|syntax| !syntax.is_empty())
+                    .with_context(|| format!("README-named-types.csv row {row}: named type '{name}' has no syntax"))?;
+                let rule = parse_dc_syntax(syntax_raw).with_context(|| {
+                    format!("README-named-types.csv row {row}: invalid syntax for named type '{name}': {syntax_raw}")
+                })?;
+                named_types.push((name.to_string(), rule.pattern));
+            }
+        }
+        Self::load_from_definitions(dc_defns, format_defns, named_types)
+    }
+
+    /// Builds a resolver from reconstructed or parsed character, format, and named construct definitions.
+    pub(crate) fn load_from_definitions(
+        dc_defns: &[DcDefn],
+        format_defns: &[DcDefn],
+        named_types: Vec<(String, crate::syntax::ast::SyntaxPattern)>,
+    ) -> Result<Self> {
         let mut resolver = Self::new();
 
         let mut explicit_closes_pairs: Vec<(u128, CharTarget)> = Vec::new();
@@ -251,30 +285,9 @@ impl DatasetRuleResolver {
             }
         }
 
-        // 2. Index named types from README-named-types.csv
-        if let Some(bytes) = named_types_csv {
-            let mut rdr = csv::ReaderBuilder::new()
-                .has_headers(true)
-                .flexible(true)
-                .from_reader(bytes);
-            for (index, result) in rdr.records().enumerate() {
-                let row = index.saturating_add(2);
-                let record = result.with_context(|| {
-                    format!(
-                        "README-named-types.csv row {row}: invalid CSV record"
-                    )
-                })?;
-                let name = record.get(0).map(str::trim)
-                    .filter(|name| !name.is_empty())
-                    .with_context(|| format!("README-named-types.csv row {row}: missing named type"))?;
-                let syntax_raw = record.get(1).map(str::trim)
-                    .filter(|syntax| !syntax.is_empty())
-                    .with_context(|| format!("README-named-types.csv row {row}: named type '{name}' has no syntax"))?;
-                let rule = parse_dc_syntax(syntax_raw).with_context(|| {
-                    format!("README-named-types.csv row {row}: invalid syntax for named type '{name}': {syntax_raw}")
-                })?;
-                resolver.add_named_type(name.to_string(), rule.pattern.clone());
-            }
+        // 2. Index named types
+        for (name, pattern) in named_types {
+            resolver.add_named_type(name, pattern);
         }
 
         for defn in dc_defns.iter().chain(format_defns.iter()) {
@@ -351,7 +364,21 @@ impl DatasetRuleResolver {
                         .to_global_id()
                         .ok()
                     })
-                    .collect();
+                    .collect::<Option<Vec<_>>>()
+                    .or_else(|| {
+                        if crate::format_spec::parse_format_expr(payload)
+                            .is_ok()
+                        {
+                            None
+                        } else {
+                            Some(
+                                payload
+                                    .chars()
+                                    .map(|ch| u128::from(u32::from(ch)))
+                                    .collect(),
+                            )
+                        }
+                    });
                 if let Some(targets) = targets
                     && !targets.is_empty()
                 {
