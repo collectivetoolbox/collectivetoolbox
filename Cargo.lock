@@ -1653,7 +1653,7 @@ version = "3.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6dee98b0db6a962de883bf5d20362dee4d7ca0d12fe39a7c6c73c844e1cd7c1f"
 dependencies = [
- "darling 0.23.0",
+ "darling 0.21.3",
  "ident_case",
  "prettyplease",
  "proc-macro2",
@@ -1769,7 +1769,18 @@ version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23cdc57ce23ac53c931e88a43d06d070a6fd142f2617be5855eb75efc9beb1c2"
 dependencies = [
- "bytecheck_derive",
+ "bytecheck_derive 0.6.12",
+ "ptr_meta",
+ "simdutf8",
+]
+
+[[package]]
+name = "bytecheck"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41502630fe304ce54cbb2f8389e017784dee2b0328147779fcbe43b9db06d35d"
+dependencies = [
+ "bytecheck_derive 0.7.0",
  "ptr_meta",
  "simdutf8",
 ]
@@ -1779,6 +1790,17 @@ name = "bytecheck_derive"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3db406d29fbcd95542e92559bed4d8ad92636d1ca8b3b72ede10b4bcc010e659"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "bytecheck_derive"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eda88c587085bc07dc201ab9df871bd9baa5e07f7754b745e4d7194b43ac1eda"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3140,6 +3162,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "tinywasm",
 ]
 
 [[package]]
@@ -10128,9 +10151,9 @@ checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
 
 [[package]]
 name = "portable-atomic-util"
-version = "0.2.7"
+version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2a106d1259c23fac8e543272398ae0e3c0b8d33c88ed73d0cc71b0f1d902618"
+checksum = "10ab3eb7f3becc3a1cbc4f2c6f20267996cfc1a6467a873763411b136a122715"
 dependencies = [
  "portable-atomic",
 ]
@@ -10865,7 +10888,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71fe3824f5629716b1589be05dacd749f6aa084c87e00e016714a8cdfccc997c"
 dependencies = [
- "bytecheck",
+ "bytecheck 0.6.12",
 ]
 
 [[package]]
@@ -10964,7 +10987,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2297bf9c81a3f0dc96bc9521370b88f054168c29826a75e89c55ff196e7ed6a1"
 dependencies = [
  "bitvec",
- "bytecheck",
+ "bytecheck 0.6.12",
  "bytes",
  "hashbrown 0.12.3",
  "ptr_meta",
@@ -13600,6 +13623,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "tinywasm"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1a7e7ad5b05ca08236dde1fb2af95a30af146ac834ee79c1d07d38101293bdc"
+dependencies = [
+ "libm",
+ "log",
+ "tinywasm-parser",
+ "tinywasm-types",
+]
+
+[[package]]
+name = "tinywasm-parser"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d597943c961ca8a80ad1b7448afbf05b38cfe1532f5d3af7927eecfdbb65f18"
+dependencies = [
+ "log",
+ "tinywasm-types",
+ "wasmparser 0.216.1",
+]
+
+[[package]]
+name = "tinywasm-types"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7b9c7822f388596a7cdcaf382ba6711b57b4a1ff48d9977463c6a455f99b376"
+dependencies = [
+ "bytecheck 0.7.0",
+ "log",
+ "rkyv",
+]
+
+[[package]]
 name = "tls_codec"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14859,7 +14916,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "990065f2fe63003fe337b932cfb5e3b80e0b4d0f5ff650e6985b1048f62c8319"
 dependencies = [
  "leb128fmt",
- "wasmparser",
+ "wasmparser 0.244.0",
 ]
 
 [[package]]
@@ -14871,7 +14928,7 @@ dependencies = [
  "anyhow",
  "indexmap 2.14.0",
  "wasm-encoder",
- "wasmparser",
+ "wasmparser 0.244.0",
 ]
 
 [[package]]
@@ -14885,6 +14942,19 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "wasmparser"
+version = "0.216.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cc7c63191ae61c70befbe6045b9be65ef2082fa89421a386ae172cb1e08e92d"
+dependencies = [
+ "ahash 0.8.12",
+ "bitflags 2.13.0",
+ "hashbrown 0.14.5",
+ "indexmap 2.14.0",
+ "semver 1.0.28",
 ]
 
 [[package]]
@@ -15806,7 +15876,7 @@ dependencies = [
  "serde_json",
  "wasm-encoder",
  "wasm-metadata",
- "wasmparser",
+ "wasmparser 0.244.0",
  "wit-parser",
 ]
 
@@ -15825,7 +15895,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "unicode-xid",
- "wasmparser",
+ "wasmparser 0.244.0",
 ]
 
 [[package]]
