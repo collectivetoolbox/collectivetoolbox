@@ -91,7 +91,7 @@ fn should_skip_dir(dir: &Path, path: &Path, rel_str: &str) -> bool {
     if rel_str == "docs/reference-implementations"
         || rel_str == "packaging/guix/generated"
         || rel_str == "assets/web/vendor"
-        || rel_str == "src/formats/dcdata/data/magic/upstream"
+        || rel_str == "assets/data/detection/magic/upstream"
         || rel_str == "src/formats/detection/fixtures/magic"
         || rel_str == "src/formats/detection/fixtures/droid/skeletons"
     {

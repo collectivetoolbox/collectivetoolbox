@@ -114,7 +114,7 @@
   - [x] Macro subroutines: parse and execute named rule templates (`name` declaration and `use` invocation).
   - [x] Per-test custom magic file evaluation (`-m <file>.magic`, e.g. for `regex-eol`, `searchbug`, `multiple`).
   - [x] Ingestion & compilation pipeline for full upstream `Magdir/` database:
-    - [x] Compile all 359 Magdir files (`src/formats/dcdata/data/magic/upstream/magic/Magdir/`, >15,000 rules) into an offline precompiled binary cache or code-generated lookup tables.
+    - [x] Compile all 359 Magdir files (`assets/data/detection/magic/upstream/magic/Magdir/`, >15,000 rules) into an offline precompiled binary cache or code-generated lookup tables.
     - [x] Resolve remaining hierarchical chunk, search, and offset rules across Magdir cases (APNG, OpenPGP key packets, Android vdex, ARJ, bcachefs).
     - [x] Map upstream MIME types and descriptions systematically to authoritative Dc format IDs.
   - [x] passing all upstream `file` tests
@@ -140,7 +140,7 @@
   - [x] Integrate DROID database patterns and container triggers.
 
 - [x] **Sub-Phase 5G: Automated Upstream `file` Test Suite Harness & Differential Verification (`detection/upstream_suite.rs`):**
-  - [x] Test suite discovery & loader: parse and index all 88 canonical test files and `.result` expectations in `src/formats/dcdata/data/magic/upstream/magic/tests/`.
+  - [x] Test suite discovery & loader: parse and index all 88 canonical test files and `.result` expectations in `src/formats/detection/fixtures/magic/tests/`.
   - [x] Execution safety & denial-of-service verification: execute all 88 test cases through `guess_format_report` asserting zero panics, crashes, or hangs (verifying recursion protection on `CVE-2014-1943.testfile`).
   - [x] Full feature parity on all 88 test cases (100% pass rate: 88/88 passing, 0 mismatches, 0 pending).
   - [x] Live differential testing with system `file`: implement host `file` probing (`query_real_file`), comparing MIME types and format classifications with semantic alias tolerance (`application/xml` <-> `text/plain`, `text/x-shellscript` <-> `text/plain`, `application/zstd` <-> `application/x-zstd`).
@@ -619,7 +619,7 @@ literals is separate from treating quoted payloads as executable code.
     tool to compile libmagic's extensive `Magdir/` rule database (15,000+ rules)
     into binary or Dc-keyed rule tables, mapping libmagic format outputs to
     authoritative Dc format IDs.
-  - **Priority Weighting & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving signature conflicts between general and specific formats, as well as MIME inheritance graphs (`sub-class-of`). Implementation must be strictly clean-room based *only* on the input data file `src/formats/dcdata/data/shared-mime-info/freedesktop.org.xml.in`; do *not* reuse any existing implementation of the format as there are some other files (not in this repository) without the GPL 2 "or later" option, making them incompatible.
+  - **Priority Weighting & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving signature conflicts between general and specific formats, as well as MIME inheritance graphs (`sub-class-of`). Implementation must be strictly clean-room based *only* on the input data file `assets/data/detection/shared-mime-info/freedesktop.org.xml.in`; do *not* reuse any existing implementation of the format as there are some other files (not in this repository) without the GPL 2 "or later" option, making them incompatible.
   - **DROID / PRONOM (`old/filedetect/droid/`, BSD-3-Clause):** Adopt dual-anchored
     byte patterns: BOF (Beginning of File) and EOF (End of File) anchored signatures
     with variable offset windows. Adopt its declarative **container signature model**
@@ -691,7 +691,7 @@ Ported from [`softmagic.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/
   - Support `%s`, `%d`, `%u`, `%x`, `%o` in description strings to format matched integer, string, or date values dynamically (e.g. `version %d.%d`).
   - Support backspace `\b` space suppression when concatenating child descriptions.
 - **Full Magdir database compilation:**
-  - Provide an ingestion tool to precompile all 359 files in `src/formats/dcdata/data/magic/upstream/magic/Magdir/` into a binary lookup structure, eliminating runtime string parsing while activating the complete 15,000+ rule catalog.
+  - Provide an ingestion tool to precompile all 359 files in `assets/data/detection/magic/upstream/magic/Magdir/` into a binary lookup structure, eliminating runtime string parsing while activating the complete 15,000+ rule catalog.
 
 #### 3. Specialized Deep Parsers & Container Inspection (`detection/container.rs`)
 Ported from specialized C inspection routines in `file`:

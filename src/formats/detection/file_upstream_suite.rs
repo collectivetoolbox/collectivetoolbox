@@ -446,7 +446,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! Provides automated discovery, loading, and evaluation of the canonical
 //! `file` test suite (88 testfiles in
-//! `src/formats/dcdata/data/magic/upstream/magic/tests`) against the `ctoolbox`
+//! `src/formats/detection/fixtures/magic/tests`) against the `ctoolbox`
 //! format detection engine, and provides live differential comparison against
 //! the system `file` command when available.
 

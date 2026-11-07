@@ -129,7 +129,7 @@ Implementing `cargo-fuzz` in this codebase is **straightforward (estimated initi
    Fuzz targets depend directly on isolated sub-crates (e.g. `ctb-formats-utilities`, `ctb-formats-compression`, `ctb-formats-apple-single-double`). Compiling a fuzz harness only builds the target sub-crate and its direct dependencies, taking **under 30 seconds** rather than rebuilding the full workspace.
 2. **Ready-Made Seed Corpora Already in Repository:**
    Effective fuzzers need high-quality seeds. The repository already includes rich test datasets:
-   - Upstream `file(1)` test cases: `src/formats/dcdata/data/magic/upstream/magic/tests/` (88 canonical test files).
+   - Upstream `file(1)` test cases: `src/formats/detection/fixtures/magic/tests/` (88 canonical test files).
    - Kaitai fixture datasets: `src/formats/kaitai/tests/` and `kaitai_struct_tests/`.
    - AppleSingle/Double sample assets: `src/formats/apple_single_double/data/`.
    - LNK fixtures: `src/formats/lnk/data/`.
@@ -298,7 +298,7 @@ gantt
   - [ ] Add `fuzz` to the `exclude` list in root [`Cargo.toml`](file:///workspaces/ctoolbox/Cargo.toml#L8).
   - [ ] Initialize `fuzz/Cargo.toml` with `libfuzzer-sys = "0.4"`.
   - [ ] Create `scripts/fuzz` wrapper script for intuitive usage (e.g. `./scripts/fuzz run fuzz_magic -- -max_total_time=60`).
-  - [ ] Ingest seeds from `src/formats/dcdata/data/magic/upstream/magic/tests/` into `fuzz/corpus/fuzz_magic/`.
+  - [ ] Ingest seeds from `src/formats/detection/fixtures/magic/tests/` into `fuzz/corpus/fuzz_magic/`.
 
 - [ ] **Phase 2: High-Value Target Implementation (Tier 1)**
   - [ ] Implement `fuzz_magic` for `guess_format_report`.
