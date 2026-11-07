@@ -52,9 +52,8 @@ canonical pixel output must be bit-for-bit identical regardless of hardware.
 This guarantee concerns generated pixels, not the physical appearance of a display.
 
 GPU rendering is not planned for the current implementation. A distant-future
-optional GPU optimization could provide a non-authoritative preview, but must
-never define or replace the canonical rendering of the document. Any differing
-preview pixels are outside the canonical output contract.
+optional GPU optimization could provide a non-authoritative performance optimization, but must
+never define or replace the canonical rendering of the document. Any differing pixels when using GPU rendering would be outside the canonical output contract. Functionality must never depend on GPU.
 
 Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but not sufficient on its own:
 1. Snapshot resolution for `Dc 641 "Global graph system block most recent node ID at time of document creation"` must never silently substitute `HEAD` when history is missing, when a pin is newer than the local graph, or when resolver loading fails.
