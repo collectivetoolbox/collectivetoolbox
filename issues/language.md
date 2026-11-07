@@ -76,41 +76,17 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
 - **`FramingShape` Precomputation, New-Dc Framing Validation, and `Copy` Splicing Checkpoints**:
   - `FramingShape` (`PrefixAtomArity` and `PrefixArity`) fast-paths are wired into `scan_sibling_stub_with_resolver` (`src/formats/dcstring/navigator.rs:1334-1369`), and dataset validation (`src/formats/dcdata/support/validation.rs`) requires deterministic framing for newly allocated Short Dcs above `Dc 634 "Dc format variation nickname"`.
   - `DcDocumentNavigator` replaced heap-cloned `VecDeque<DcChar>` in checkpoints with `spliced_buf: Vec<DcChar>` and `Copy` indices (`spliced_head`, `spliced_end` in `NavigatorCheckpoint`, `src/formats/dcstring/navigator/eval.rs:307-316`) plus precomputed `splice_trigger_tokens` (`src/formats/dcdata/syntax/resolver.rs:1375-1384`).
-- **Initial Historical Graph Loading & Root Pin Detection (`src/formats/dcdata/seed_graph.rs`, `src/formats/dcstring/navigator.rs`)**:
-  - `SeedGraphIndex::load_at_most_recent_from_asset_bundle` (`src/formats/dcdata/seed_graph.rs:324-344`) and `DcDocumentNavigator::detect_leading_document_most_recent` (`src/formats/dcstring/navigator.rs:289-317`) provide initial plumbing for `Dc 641 "Global graph system block most recent node ID at time of document creation"` (subject to the High-severity defects in Gate 2 below).
+- **Initial Historical Graph Loading, Root Pin Detection, and Incremental Splicing (`src/formats/dcdata/seed_graph.rs`, `src/formats/dcstring/navigator.rs`)**:
+  - `SeedGraphIndex::load_at_most_recent_from_asset_bundle` (`src/formats/dcdata/seed_graph.rs:324-344`) and `DcDocumentNavigator::detect_leading_document_most_recent` (`src/formats/dcstring/navigator.rs:289-317`) provide initial plumbing for `Dc 641 "Global graph system block most recent node ID at time of document creation"` (subject to the High-severity defects in Gate 1 below).
+  - `DcDocumentNavigator` (`src/formats/dcstring/navigator.rs:355-408`, `1201-1211`) already preserves incremental expansion-before-framing for evaluated spliced streams (`Dc 256 "void lang.say([string] text)"` and WASM splice routines) while keeping raw source-span editing (`src/formats/dcstring/source_edit.rs`) on unevaluated frame stubs.
 
 ---
 
 ## Remaining Gaps / Pending Work (Gate-Driven Plan)
 
-The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST deletion and static two-pass framing ahead of splicing) are replaced by the following five verification and migration gates.
+With the compatibility and replay contract defined in **Core Architectural Guarantee** above (and the earlier "four drastic phases" / static two-pass framing proposals retired), the remaining engineering work is organized into four actionable implementation gates.
 
-### Gate 1: Define the Compatibility Contract
-- [ ] **Specify the observable execution/replay protocol**:
-  - Make the Core Architectural Guarantee precise for documents pinned via `Dc 641 "Global graph system block most recent node ID at time of document creation"`: define trace record encodings, request identity, emitted output boundaries/order, document-visible diagnostics, and completion/failure/suspension outcomes.
-  - Specify logical delivery points and ordering for asynchronous events, concurrent responses, cancellation, and resource interruptions. Replay must compare each request before supplying its recorded response; matching only final output or response bytes is insufficient.
-  - Define which resource limits are external inputs and which budget/interruption semantics are fixed by the execution contract. Optimization-dependent CPU/WASM instruction counts must not silently become logical document execution points.
-- [ ] **Specify canonical pixel rendering as part of the output contract**:
-  - Define the output format chain's rendering configuration, including pixel format, dimensions, subpixel rendering, and vertical/horizontal pixel alignment. Resolve fonts and rendering definitions from the pinned graph or explicit inputs, with no implicit host defaults.
-  - Require bit-identical canonical raster output across hardware for identical inputs, pins, and configuration. Any future optional GPU preview is non-authoritative and cannot replace canonical software rendering.
-- [ ] **Specify complete graph dependency selection**:
-  - Define how the System pin and future per-block pins for the reserved Data block and blocks above System select all transitive dependencies, with no implicit `HEAD` lookup or unrecorded mutable data access.
-  - Document the treatment of lower definition regions. Apply the same per-block pinning requirements to the reserved Data block and blocks above System; do not give reserved graph data an alternative unpinned I/O lookup path. External OS/resource reads remain recorded inputs, distinct from pinned graph access.
-  - Specify how unsupported block references/pins are reported until those blocks are implemented; do not substitute another snapshot.
-- [ ] **Use internal semantic cases as regression coverage, not separate top-level guarantees**:
-  - The following cases exercise the replay contract. Internal representations may change; their effects on the observable trace must remain identical:
-    1. Structural framing boundaries (`Dc 590 "Is a closing delimiter of syntactic block for"`, prefix arity, `Dc 255 "Ignore following Dc"` escaping, and `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"` encapsulation).
-    2. Decoded primitive values (`Dc 6 "Begin number"`..`Dc 7 "End number"`, `Dc 260 "Begin literal value"`..`Dc 261 "End literal value"`, `Dc 270 "Begin identifier"`..`Dc 271 "End identifier"`).
-    3. Lexical scope and variable bindings (`Dc 541 "Enter identifier scope"`..`Dc 542 "Exit identifier scope"`, `Dc 269 "Assignment operator"`, `Dc 268 "void lang.assign([identifier] identifier, [value] value)"`, `Dc 540 "Reference bound value"`, `Dc 276 "Reference named object"`, `Dc 638 "For each"`, `Dc 639 "This element"`).
-    4. Spliced token stream output (`Dc 256 "void lang.say([string] text)"` and `Dc 397 "Equivalent representations"` / `Dc 561 "Partially equivalent representations"`).
-    5. Document-visible diagnostics, effects of forgiving recovery container boundaries, and capability/effect requests (`WasmStepOutcome::RequestCapability`). Host-only diagnostic wording need not remain identical.
-- [ ] **Separate Unevaluated Source Mode from Evaluated Spliced Mode**:
-  - Preserve incremental expansion-before-framing when evaluating spliced streams (`splicing = true`), where `Dc 256 "void lang.say([string] text)"` or WASM splice routines can emit openers/closers that alter container boundaries.
-  - Keep unevaluated source inspection (`splicing = false`, used by source editing, formatting, and raw CST inspection) distinct so `Dc 256 "void lang.say([string] text)"` is treated as an ordinary routine call frame without mutating surrounding containment.
-- [ ] **Define policy for unpinned legacy documents**:
-  - Because an unpinned document's creation revision cannot be recovered automatically, specify the explicit fallback policy (e.g., resolve against a designated baseline snapshot or `HEAD` with an explicit diagnostic/provenance note).
-
-### Gate 2: Make Snapshot Resolution Trustworthy (Fix Silent Substitution)
+### Gate 1: Make Snapshot & Block Pin Resolution Trustworthy (Fix Silent Substitution)
 - [ ] **Propagate pin-resolution errors instead of silently falling back to `HEAD` (`src/formats/dcstring/navigator.rs:280-287`)**:
   - In `DcDocumentNavigator::bind_document_most_recent_node_id`, stop discarding `Err` from `syntax_resolver_at_most_recent(node_id)`. Record an explicit syntax/diagnostic error under the active `DcProjectionPolicy` while still allowing raw token/source inspection and forgiving recovery.
 - [ ] **Reject pins newer than the local graph (`src/formats/dcdata/seed_graph.rs:333-338`)**:
@@ -119,12 +95,13 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
   - When `most_recent_node_id < head_id` and active nodes have superseded/retracted prior statements, verify that `system_graph_history.rsrc` (`data/graph/system/*.ctbnbdl`) is present and covers the pinned revision without gaps, returning an explicit error if history is absent or incomplete.
 - [ ] **Enforce transitive snapshot isolation for all helpers (`src/formats/dcstring/converters/wasm.rs:1913-1944`, `src/formats/dcdata/syntax/resolver.rs`)**:
   - Ensure that every referenced subpattern (`Dc 605 "Subpattern match"`), equivalence (`Dc 611 "Canonical decomposition"`), subtype (`Dc 587 "Is a subtype of"` / `Dc 586 "Is an instance of"`), and WASM helper or value node (`run_graph_wasm_tokens_on_dc_slice` in `src/formats/dcstring/converters/wasm.rs:1923-1934`) resolves strictly against the document's pinned `SeedGraphIndex` (filtering out any node with `id > most_recent_node_id` and applying only `Dc 591 "Supersedes"` / `Dc 592 "Retracts"` up to `most_recent_node_id`).
-- [ ] **Specify pin placement and nested-document inheritance (`src/formats/dcstring/navigator.rs:289-317`)**:
+- [ ] **Support header pin placement, nested-document inheritance, and explicit rejection of unsupported block pins (`src/formats/dcstring/navigator.rs:289-317`)**:
   - Support and validate `Dc 641 "Global graph system block most recent node ID at time of document creation"` both at the raw stream start and inside document/environment headers (`Dc 235 "Begin document"`..`Dc 236 "End document"`, `Dc 340 "Begin execution environment description"`..`Dc 341 "End execution environment description"`, `Dc 617 "Begin graph node definition"`..`Dc 618 "End graph node definition"`).
-  - Define how nested documents inherit the enclosing document's pin unless they declare their own scoped `Dc 641 "Global graph system block most recent node ID at time of document creation"`.
-  - Extend the dependency-selection specification to future per-block pins and their inheritance, treating the reserved Data block and blocks above System identically. Supporting these additional blocks remains pending; do not describe System-only resolution as full multi-block compatibility.
+  - Propagate the enclosing document's pin to nested documents unless they declare their own scoped `Dc 641 "Global graph system block most recent node ID at time of document creation"`.
+  - Reject references or pins targeting not-yet-implemented graph blocks (the reserved Data block beginning at `4294967296` and blocks above System) with an explicit unsupported-block diagnostic/error rather than ignoring them or substituting `HEAD`.
+  - Define and enforce the explicit fallback policy for legacy documents that omit `Dc 641 "Global graph system block most recent node ID at time of document creation"` (e.g., resolving against a designated baseline snapshot or `HEAD` with an explicit diagnostic/provenance note).
 
-### Gate 3: Document the Minimal Trusted Kernel & Enforce VM Budgets
+### Gate 2: Document the Minimal Trusted Kernel & Enforce VM Budgets
 - [ ] **Freeze and document the minimal trusted bootstrap kernel**:
   - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version. Identical graph bytes under different kernel interpretations are not sufficient. Version selection must be available during bootstrap, before interpretation that depends on it.
   - Write a specification covering the exact host-implemented primitives that graph nodes rely upon:
@@ -135,17 +112,17 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
 - [ ] **Enforce intra-step instruction metering (fuel) in `tinywasm` (`src/formats/dcstring/converters/wasm.rs:1721-1798`)**:
   - `DcWasmSession::step` currently calls `func.call(&mut self.store, ...)` synchronously with no instruction budget, allowing a tight loop (`Dc 650 "WASM loop"` .. `Dc 659 "WASM br"` `0`) to hang the host inside a single `step()` call.
   - Add per-call instruction fuel / metering inside the `tinywasm` interpreter loop so execution traps or yields `Privilege::ExcessiveCompute` deterministically after a bounded number of WASM instructions.
-  - Distinguish physical VM metering from logical document progress. If a safety limit interrupts execution, expose and record the interruption under the Gate 1 protocol; a changed compiler's instruction count is not proof that replay reached the same logical point.
+  - Distinguish physical VM metering from logical document progress. If a safety limit interrupts execution, expose and record the interruption as an external resource event in the execution trace; a changed compiler's instruction count is not proof that replay reached the same logical point.
 - [ ] **Enforce linear-memory and output-slice resource budgets (`src/formats/dcstring/converters/wasm.rs:1665-1685`, `1801-1830`)**:
   - Cap maximum linear memory pages (both during `provide_input` and WASM `memory.grow` instructions), single-step output slice length (`out_len`), and cumulative yielded output bytes across a session.
 - [ ] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs:266-370`)**:
   - Ensure historical graph pinning applies only to language/document semantics and never grants or restores obsolete security permissions or capability policies.
   - Compare the document's capability requests during replay, then supply recorded allow/deny/mock responses. Real execution remains subject to current host policy; changed authorization responses are changed inputs.
 
-### Gate 4: Prove One End-to-End Vertical Migration with Real Graph History
+### Gate 3: Prove One End-to-End Vertical Migration with Real Graph History
 - [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:
   - Select a small self-contained behavior currently hardcoded in Rust (for example, `Dc 256 "void lang.say([string] text)"` payload extraction in `DefaultDcExpressionEvaluator::eval_stream_splice` at `src/formats/dcstring/navigator/eval.rs:260-300`, or a specific format/value rule), emit its definition through `src/formats/dcdata/support/graph_ledger.rs` into `.ctbnodes` / `.ctbnbdl`, and delete the corresponding procedural Rust fallback.
-- [ ] **Build the end-to-end historical-behavior regression test**:
+- [ ] **Build the end-to-end historical-behavior and trace-replay regression suite**:
   - Using real generated graph history (`Dc 591 "Supersedes"` / `Dc 592 "Retracts"` across active and historical `.ctbnbdl` bundles):
     1. Author a document pinned to `Dc 641 "Global graph system block most recent node ID at time of document creation"` at revision $R_1$.
     2. Append a modified definition at revision $R_2 > R_1$ via the ledger generator.
@@ -153,8 +130,9 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
     4. Verify that a document pinned to an unavailable future revision $R_3 > R_2$ produces an explicit diagnostic/error rather than silently running against $R_2$.
     5. Add focused replay cases for denied/mocked capabilities and asynchronous event ordering at defined logical delivery points, using mocks or in-memory transports. Different external responses may change output, but must not change requests or outputs that precede their delivery.
     6. Add canonical raster-output cases with explicit font and format-chain inputs, including subpixel rendering and vertical/horizontal pixel alignment. Compare exact pixel bytes across implementation revisions and supported hardware; changing rendering configuration changes inputs, not the compatibility guarantee.
+    7. Exercise internal semantic constructs through observable trace outputs (framing boundaries for `Dc 590 "Is a closing delimiter of syntactic block for"`, `Dc 255 "Ignore following Dc"`, and `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`; decoded values for `Dc 6 "Begin number"`..`Dc 7 "End number"`, `Dc 260 "Begin literal value"`..`Dc 261 "End literal value"`, and `Dc 270 "Begin identifier"`..`Dc 271 "End identifier"`; lexical bindings for `Dc 541 "Enter identifier scope"`..`Dc 542 "Exit identifier scope"`, `Dc 269 "Assignment operator"`, `Dc 268 "void lang.assign([identifier] identifier, [value] value)"`, `Dc 540 "Reference bound value"`, `Dc 276 "Reference named object"`, `Dc 638 "For each"`, and `Dc 639 "This element"`; spliced streams for `Dc 256 "void lang.say([string] text)"` and `Dc 397 "Equivalent representations"` / `Dc 561 "Partially equivalent representations"`; and forgiving-recovery diagnostics).
 
-### Gate 5: Incremental Expansion & Cleanup (Post-Proof)
+### Gate 4: Incremental Expansion & Cleanup (Post-Proof)
 - [ ] **Eliminate implicit Rust rule synthesis in `DatasetRuleResolver::from_seed_graph` (`src/formats/dcdata/syntax/resolver.rs`)**:
   - Emit explicit `Dc 590 "Is a closing delimiter of syntactic block for"` statements into `.ctbnodes` so container closers do not rely on `detect_container_closer` heuristics (`src/formats/dcdata/syntax/resolver.rs:1716-1734`).
   - Emit explicit graph rules/subtypes for `.EL Types` literal constructs so runtime loading does not scrape English canonical names (`extract_el_type_name`).
@@ -168,7 +146,7 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
 ## Deferred Items (Not Required for Compatibility Closure)
 
 ### 1. Tier 0 & Tier 1 Textual Languages (`Dcsh`+ and VSO / Polish Prefix Language)
-- **Status**: `Deferred` until Gates 1–4 are established.
+- **Status**: `Deferred` until Gates 1–3 are established.
 - **Preserved Design Notes from [`docs/chats/2026-10-31-language.md`](../docs/chats/2026-10-31-language.md)**:
   - **Tier 0 (`Dcsh`+ assembler)**: Minimal human-writable assembler extending `src/formats/dcstring/converters/dcal.rs` with `@ident` resolution, inline literals, and automatic closer insertion via `Dc 590 "Is a closing delimiter of syntactic block for"`.
   - **Tier 1 (VSO / Polish Prefix Semantic & Programming Language in `src/formats/dct_el/`)**:
