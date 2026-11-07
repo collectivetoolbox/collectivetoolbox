@@ -392,6 +392,16 @@ pub const DC_EXCLUSIVE_RANGE_ENDPOINT: DcChar = DcChar::from_short(644);
 pub const DC_IS_STABLE: DcChar = DcChar::from_short(645);
 /// Asserts that the subject statement, property, or rule applies within the context or scope of the object entity. (Dc 646).
 pub const DC_IN_CONTEXT_OF: DcChar = DcChar::from_short(646);
+/// WebAssembly instruction `unreachable` (opcode 0x00, stack type `[t* 1]->[t* 2]`). (Dc 647).
+pub const DC_WASM_START: DcChar = DcChar::from_short(647);
+/// WebAssembly instruction `struct.new x` (opcode 0xFB 0x00, stack type `[t*]->[(ref x)]`). (Dc 903).
+pub const DC_WASM_FB_START: DcChar = DcChar::from_short(903);
+/// WebAssembly instruction `i32.trunc_sat_f32_s` (opcode 0xFC 0x00, stack type `[f32]->[i32]`). (Dc 1159).
+pub const DC_WASM_FC_START: DcChar = DcChar::from_short(1159);
+/// WebAssembly instruction `v128.load x memarg` (opcode 0xFD 0x00, stack type `[at]->[v128]`). (Dc 1415).
+pub const DC_WASM_FD_PAGE0_START: DcChar = DcChar::from_short(1415);
+/// WebAssembly instruction `i8x16.relaxed_swizzle` (opcode 0xFD 0x80 0x02, stack type `[v128 v128]->[v128]`). (Dc 1671).
+pub const DC_WASM_FD_PAGE1_START: DcChar = DcChar::from_short(1671);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

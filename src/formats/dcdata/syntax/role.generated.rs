@@ -394,6 +394,16 @@ pub enum DcRole {
     IsStable,
     /// Asserts that the subject statement, property, or rule applies within the context or scope of the object entity. (`646`).
     InContextOf,
+    /// WebAssembly instruction `unreachable` (opcode 0x00, stack type `[t* 1]->[t* 2]`). (`647`).
+    WasmStart,
+    /// WebAssembly instruction `struct.new x` (opcode 0xFB 0x00, stack type `[t*]->[(ref x)]`). (`903`).
+    WasmFbStart,
+    /// WebAssembly instruction `i32.trunc_sat_f32_s` (opcode 0xFC 0x00, stack type `[f32]->[i32]`). (`1159`).
+    WasmFcStart,
+    /// WebAssembly instruction `v128.load x memarg` (opcode 0xFD 0x00, stack type `[at]->[v128]`). (`1415`).
+    WasmFdPage0Start,
+    /// WebAssembly instruction `i8x16.relaxed_swizzle` (opcode 0xFD 0x80 0x02, stack type `[v128 v128]->[v128]`). (`1671`).
+    WasmFdPage1Start,
     /// Base64 encapsulation digit character (0..=63).
 Base64Digit,
 /// Built-in type token, format token, or type operator.
@@ -586,6 +596,11 @@ match self {
             Self::ExclusiveRangeEndpoint => Some(644),
             Self::IsStable => Some(645),
             Self::InContextOf => Some(646),
+            Self::WasmStart => Some(647),
+            Self::WasmFbStart => Some(903),
+            Self::WasmFcStart => Some(1159),
+            Self::WasmFdPage0Start => Some(1415),
+            Self::WasmFdPage1Start => Some(1671),
             _ => None,
 }
 }
@@ -781,6 +796,11 @@ match self {
             Self::ExclusiveRangeEndpoint => short == Some(644),
             Self::IsStable => short == Some(645),
             Self::InContextOf => short == Some(646),
+            Self::WasmStart => short == Some(647),
+            Self::WasmFbStart => short == Some(903),
+            Self::WasmFcStart => short == Some(1159),
+            Self::WasmFdPage0Start => short == Some(1415),
+            Self::WasmFdPage1Start => short == Some(1671),
             Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)

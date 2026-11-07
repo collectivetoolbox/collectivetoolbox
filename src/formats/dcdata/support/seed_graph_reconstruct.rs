@@ -1969,6 +1969,7 @@ fn category_for_dc_subject(subj: DcShorthand, script: &str) -> String {
         ".Styling" => "styling",
         ".Symbols" | ".Emoji" => "symbols",
         ".Variant selectors" => "variant_selectors",
+        ".WASM" => "wasm",
         _ => "controls",
     };
     static_cat.to_string()
