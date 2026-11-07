@@ -572,7 +572,7 @@ impl SyntaxTerm {
                 format!("[{prefix}{}]", items.join(" "))
             }
             Self::CharRange { start, end } => format!("[{start}-{end}]"),
-            Self::RuleRef { target } => format!("{target}:"),
+            Self::RuleRef { target } => format!("[{target}:]"),
             Self::NamedConstruct {
                 name,
                 subtype,

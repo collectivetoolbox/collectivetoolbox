@@ -1,15 +1,15 @@
 Named type,Syntax,notes
 number,:[6:],
-string,:260:,A framed literal character sequence with a declared type. Its payload is quoted data; embedded expression markers are not evaluated.
+string,:[260:],A framed literal character sequence with a declared type. Its payload is quoted data; embedded expression markers are not evaluated.
 date,:[390:],
 data,:[203:],One encapsulated payload. [data:bytes=N] constrains decoded byte length; [data:f84;bytes=N] additionally constrains the declared format. An external quantifier repeats complete payloads rather than bytes.
 checksum,:[typed_data:hash],
 unicode_any,:[u0..u10ffff],includes unpaired surrogates
-identifier,:270:,A nonempty framed name. Naming an object does not itself dereference or invoke it.
+identifier,:[270:],A nonempty framed name. Naming an object does not itself dereference or invoke it.
 type,:([262:] | [format]),
 format,:[f0..f1114111],
 list,:[310:],
-key_value,:(559: | 313:),Ordered key-value array. Dc 559 is canonical; Dc 313 remains readable for existing documents.
+key_value,:([559:] | [313:]),Ordered key-value array. Dc 559 is canonical; Dc 313 remains readable for existing documents.
 duration,:[395:],
 datemagnitude,:[393:],A positive duration
 asciilatinletter,:([u41..u5a] | [u61..u7a]),ASCII Latin letter (A-Z or a-z)
@@ -18,20 +18,20 @@ asciiprintable,:[u20..u7e],ASCII printable character
 filename,:511 [f228:] 512,
 filepath,:511 [f229:] 512,
 ipaddr,:511 [f226:] 512,
-statement,:([value] | 269:),One expression in statement position: a value expression or an assignment. This is not an arbitrary unframed character sequence. Additional routine forms require explicit operand boundaries before inclusion.
-value,:([string] | [number] | [boolean] | [data] | [date] | [duration] | [datemagnitude] | [list] | [key_value] | 511: | 276: | 540: | 279:),One value expression: a literal (string number boolean data date duration datemagnitude format representation) a compound sequence (list key_value) or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.
+statement,:([value] | [269:]),One expression in statement position: a value expression or an assignment. This is not an arbitrary unframed character sequence. Additional routine forms require explicit operand boundaries before inclusion.
+value,:([string] | [number] | [boolean] | [data] | [date] | [duration] | [datemagnitude] | [list] | [key_value] | [511:] | [276:] | [540:] | [279:]),One value expression: a literal (string number boolean data date duration datemagnitude format representation) a compound sequence (list key_value) or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.
 boolean,:(517 | 518),
 base64_transport_control,:(13 | 14 | [script:.DCE sheets]),Encoding state changes carry no payload bytes.
 text_encoding_control,:([script:.DCE] | [script:.DCE sheets] | [script:.DCE versions] | 114 | 115),Encoding and unbounded-content framing has no Unicode text output.
 base64_run,:([127..190] | 195 | [base64_transport_control])*,
 typed_data,:203 [type:$type] [number $length]? [checksum]? [base64_run] 204,
-atom_dc,:([^203 255 616] | (255 (203 | 255 | 616)) | 616:),Defaults to a literal reference to a single Dc token without evaluating its syntax rule; 255 203 is literal Dc 203 255 255 is literal Dc 255 and 255 616 is literal Dc 616; unescaped Dc 616 evaluates a [value] expression in place of itself.
-String,:260:,
+atom_dc,:([^203 255 616] | (255 (203 | 255 | 616)) | [616:]),Defaults to a literal reference to a single Dc token without evaluating its syntax rule; 255 203 is literal Dc 203 255 255 is literal Dc 255 and 255 616 is literal Dc 616; unescaped Dc 616 evaluates a [value] expression in place of itself.
+String,:[260:],
 Number,:[6:],
-Routine,:260 262 280: 263 [^261]+ 261,
+Routine,:260 262 [280:] 263 [^261]+ 261,
 Routine name,:[identifier:Routine],
 Atom Dc,:[atom_dc],
-wasm_instr,:([647..648] | 649: | 650: | 651: | [652..657] | [659..677] | 678: | [679..1926]),One WebAssembly opcode or structured control-flow block.
+wasm_instr,:([647..648] | [649:] | [650:] | [651:] | [652..657] | [659..677] | [678:] | [679..1926]),One WebAssembly opcode or structured control-flow block.
 wasm_arg,:([number] | [type] | [list]),One static immediate argument of a WebAssembly instruction.
-wasm_routine,:260 262 280: 263 [list:type $locals]? ([wasm_instr] [wasm_arg]*)+ 261,One WebAssembly routine literal with optional local variable types and one or more WebAssembly instructions.
+wasm_routine,:260 262 [280:] 263 [list:type $locals]? ([wasm_instr] [wasm_arg]*)+ 261,One WebAssembly routine literal with optional local variable types and one or more WebAssembly instructions.
 wasm_member,:([wasm_routine] | [number] | [data]),One WebAssembly program member (routine global number or data segment).

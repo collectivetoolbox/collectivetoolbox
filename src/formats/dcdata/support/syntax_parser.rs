@@ -576,7 +576,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             continue;
         }
 
-        // Bare target token or bare rule reference (e.g. "248", "258:", "f80", "u0020")
+        // Bare target token (e.g. "248", "f80", "u0020")
         let start = idx;
         while idx < chars.len() {
             let Some(&c) = chars.get(idx) else {
@@ -603,22 +603,6 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
         };
         let token_str: String = token_slice.iter().collect();
         let token_trim = token_str.trim();
-
-        if let Some(rule_tok) = token_trim.strip_suffix(':') {
-            let target = parse_target_token(rule_tok).with_context(|| {
-                format!(
-                    "Invalid bare rule reference in pattern: '{token_trim}'"
-                )
-            })?;
-            let (quantifier, next_idx) =
-                parse_trailing_quantifier(&chars, idx)?;
-            idx = next_idx;
-            elements.push(SyntaxElement::with_quantifier(
-                SyntaxTerm::RuleRef { target },
-                quantifier,
-            ));
-            continue;
-        }
 
         if let Some(target) = parse_target_token(token_trim) {
             let (quantifier, next_idx) =
@@ -730,36 +714,6 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
             '[' => depth_bracket = depth_bracket.saturating_add(1),
             ']' => depth_bracket = depth_bracket.saturating_sub(1),
             ':' if depth_paren == 0 && depth_bracket == 0 => {
-                // Skip bare rule reference suffix ':' (e.g., `280:` in `:260 262 280: 263 (...)`)
-                let is_bare_rule_ref = if i > 0 {
-                    let mut tok_start = i;
-                    while tok_start > 0 {
-                        let prev_idx = tok_start.saturating_sub(1);
-                        let Some(&prev_c) = chars.get(prev_idx) else {
-                            break;
-                        };
-                        if prev_c.is_whitespace()
-                            || matches!(
-                                prev_c,
-                                '(' | ')' | '[' | ']' | '{' | '}' | '|' | ':'
-                            )
-                        {
-                            break;
-                        }
-                        tok_start = prev_idx;
-                    }
-                    tok_start < i
-                        && chars.get(tok_start..i).is_some_and(|slice| {
-                            let tok: String = slice.iter().collect();
-                            parse_target_token(&tok).is_some()
-                        })
-                } else {
-                    false
-                };
-                if is_bare_rule_ref {
-                    continue;
-                }
-
                 // Ensure this ':' is followed by an action expression like ' lang.action('
                 let Some(after_slice) = chars.get(i.saturating_add(1)..) else {
                     bail!(

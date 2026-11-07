@@ -635,12 +635,8 @@ impl<'a> DcDocumentNavigator<'a> {
             self.read_token_or_binary_at(after_opener)?
         {
             if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
-                return self.scan_until_token(
-                    next_off,
-                    ctb_formats_dcdata::dc::DC_END_TYPE_DEF,
-                    policy,
-                    resolver,
-                );
+                return self
+                    .scan_balanced_type_def(next_off, policy, resolver);
             }
             self.record_diagnostic(
                 policy,
@@ -658,6 +654,63 @@ impl<'a> DcDocumentNavigator<'a> {
             )?;
             Ok(after_opener)
         }
+    }
+
+    fn advance_past_optional_identifier_type_header(
+        &mut self,
+        after_opener: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<u64> {
+        if let Some((ch, next_off)) =
+            self.read_token_or_binary_at(after_opener)?
+            && ch.fills_role_with(DcRole::BeginTypeDef, resolver)
+        {
+            return self.scan_balanced_type_def(next_off, policy, resolver);
+        }
+        Ok(after_opener)
+    }
+
+    fn scan_balanced_type_def(
+        &mut self,
+        start: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<u64> {
+        let mut offset = start;
+        let mut escaped = false;
+        let mut depth = 1usize;
+        while let Some((ch, next_offset)) =
+            self.read_token_or_binary_at(offset)?
+        {
+            offset = next_offset;
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                escaped = true;
+                continue;
+            }
+            if ch.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                depth = depth.saturating_add(1);
+            } else if ch.fills_role_with(DcRole::EndTypeDef, resolver) {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    return Ok(offset);
+                }
+            }
+        }
+        let closer = ctb_formats_dcdata::dc::DC_END_TYPE_DEF;
+        self.record_diagnostic(
+            policy,
+            policy.syntax_error,
+            start,
+            format!(
+                "Unclosed frame starting at {start}: missing closer {closer:?}"
+            ),
+        )?;
+        Ok(offset)
     }
 
     pub(super) fn scan_until_token(
@@ -838,6 +891,15 @@ impl<'a> DcDocumentNavigator<'a> {
         if opener.fills_role_with(DcRole::BeginLiteral, resolver) {
             offset = self
                 .advance_past_literal_type_header(offset, policy, resolver)?;
+            if self.diagnostics.len() > diag_base
+                && let Some(top) = closer_stack.last_mut()
+            {
+                top.had_issue = true;
+            }
+        } else if opener.fills_role_with(DcRole::BeginIdentifier, resolver) {
+            offset = self.advance_past_optional_identifier_type_header(
+                offset, policy, resolver,
+            )?;
             if self.diagnostics.len() > diag_base
                 && let Some(top) = closer_stack.last_mut()
             {
@@ -1100,6 +1162,22 @@ impl<'a> DcDocumentNavigator<'a> {
                             policy,
                             resolver,
                         )?;
+                        if self.diagnostics.len() > diag_before_hdr
+                            && let Some(top) = closer_stack.last_mut()
+                        {
+                            top.had_issue = true;
+                        }
+                        continue;
+                    } else if ch
+                        .fills_role_with(DcRole::BeginIdentifier, resolver)
+                    {
+                        let diag_before_hdr = self.diagnostics.len();
+                        offset = self
+                            .advance_past_optional_identifier_type_header(
+                                next_offset,
+                                policy,
+                                resolver,
+                            )?;
                         if self.diagnostics.len() > diag_before_hdr
                             && let Some(top) = closer_stack.last_mut()
                         {
@@ -1440,9 +1518,15 @@ impl<'a> DcDocumentNavigator<'a> {
             .is_some_and(|ch| ch.fills_role_with(DcRole::BeginTypeDef, resolver))
         {
             let _ = self.pop_next_token()?;
+            let mut depth = 1usize;
             while let Some(tch) = self.pop_next_token()? {
-                if tch.fills_role_with(DcRole::EndTypeDef, resolver) {
-                    break;
+                if tch.fills_role_with(DcRole::BeginTypeDef, resolver) {
+                    depth = depth.saturating_add(1);
+                } else if tch.fills_role_with(DcRole::EndTypeDef, resolver) {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        break;
+                    }
                 }
                 type_header.push(tch);
             }

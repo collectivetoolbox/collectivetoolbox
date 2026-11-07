@@ -2993,6 +2993,8 @@ mod tests {
         } else {
             panic!("Expected sequence pattern");
         }
+        assert!(parse_dc_syntax(":260:").is_err());
+        assert!(parse_dc_syntax(":260 262 280: 263").is_err());
 
         // Rule with named constructs and action invocation:
         // :[identifier $ident] ~ [value $val] : lang.assign($ident, $val)

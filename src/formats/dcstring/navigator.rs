@@ -2656,12 +2656,12 @@ mod tests {
             ),
             ("[statement]", vec![sdc(270), 65, sdc(271), sdc(269)], false),
             (
-                "258:",
+                "[258:]",
                 vec![sdc(258), sdc(279), sdc(270), 65, sdc(271), sdc(259)],
                 true,
             ),
             (
-                "258:",
+                "[258:]",
                 vec![
                     sdc(258),
                     sdc(260),
@@ -2674,9 +2674,9 @@ mod tests {
                 ],
                 true,
             ),
-            ("258:", vec![sdc(258), sdc(259)], false),
+            ("[258:]", vec![sdc(258), sdc(259)], false),
             (
-                "315:",
+                "[315:]",
                 vec![sdc(315), sdc(276), sdc(270), 65, sdc(271)],
                 true,
             ),
