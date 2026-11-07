@@ -25,6 +25,7 @@ Script
 .Styling
 .Symbols
 .Variant selectors
+.WASM
 .Formats:arch
 .Formats:armor
 .Formats:base_alphabet

@@ -168,123 +168,17 @@ pub use validation::{
     validate_dc_files_data,
 };
 
-use std::sync::LazyLock;
-
-static DROID_SIGNATURE_XML: LazyLock<Option<Vec<u8>>> = LazyLock::new(|| {
-    let key = "data/detection/droid/signatures/DROID_SignatureFile_V125.xml";
-    if let Some(bytes) = ctb_storage_asset_bundle::get_asset(key) {
-        return Some(bytes);
-    }
-    // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
-    let disk_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../assets")
-        .join(key);
-    std::fs::read(disk_path).ok()
-});
-
-static DROID_CONTAINER_SIGNATURE_XML: LazyLock<Option<Vec<u8>>> =
-    LazyLock::new(|| {
-        let key =
-            "data/detection/droid/signatures/container-signature-20260119.xml";
-        if let Some(bytes) = ctb_storage_asset_bundle::get_asset(key) {
-            return Some(bytes);
-        }
-        // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
-        let disk_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../assets")
-            .join(key);
-        std::fs::read(disk_path).ok()
-    });
-
-static MAGDIR_FILES: LazyLock<Vec<(String, Vec<u8>)>> = LazyLock::new(|| {
-    let mut files = Vec::new();
-    if let Ok(paths) = ctb_storage_asset_bundle::find_assets(
-        "data/detection/magic/upstream/magic/Magdir/*",
-    ) {
-        for path in paths {
-            if let Some(bytes) = ctb_storage_asset_bundle::get_asset(&path) {
-                files.push((path, bytes));
-            }
-        }
-    }
-    if files.is_empty() {
-        // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
-        let magdir_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../assets/data/detection/magic/upstream/magic/Magdir");
-        if let Ok(entries) = std::fs::read_dir(&magdir_path) {
-            let mut sorted_entries = entries.flatten().collect::<Vec<_>>();
-            sorted_entries.sort_by_key(|e| e.path());
-            for entry in sorted_entries {
-                let p = entry.path();
-                if p.is_file() {
-                    if let Ok(bytes) = std::fs::read(&p) {
-                        let name = p
-                            .file_name()
-                            .map(|n| n.to_string_lossy().into_owned())
-                            // Reason for fallback: default to empty string if path has no file name
-                            .unwrap_or_default();
-                        files.push((name, bytes));
-                    }
-                }
-            }
-        }
-    }
-    files
-});
-
-/// Returns the raw bytes of a data file within the runtime asset bundle or source repository,
-/// or a source data file from `src/formats/dcdata/data-src/` when running in test mode.
+/// Returns the raw bytes of a data source file from `src/formats/dcdata/data-src/`.
 pub fn get_dc_data_file(key: &str) -> Option<Vec<u8>> {
-    let load_from_data_src = |rel: &str| -> Option<Vec<u8>> {
-        // Reason for fallback: strip optional data-src/ or fixtures/ prefix, defaulting to full relative key
-        let clean = rel
-            .strip_prefix("data-src/")
-            .or_else(|| rel.strip_prefix("fixtures/"))
-            .unwrap_or(rel);
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("data-src")
-            .join(clean);
-        std::fs::read(path).ok()
-    };
-    if key.starts_with("data-src/") || key.starts_with("fixtures/") {
-        return load_from_data_src(key);
-    }
-
-    let candidate_keys = [
-        if key.starts_with("data/detection/") {
-            key.to_string()
-        } else if let Some(stripped) = key.strip_prefix("data/") {
-            format!("data/detection/{stripped}")
-        } else if let Some(stripped) = key.strip_prefix("detection/") {
-            format!("data/detection/{stripped}")
-        } else {
-            format!("data/detection/{key}")
-        },
-        if key.starts_with("data/") {
-            key.to_string()
-        } else {
-            format!("data/{key}")
-        },
-        key.to_string(),
-    ];
-
-    for asset_key in &candidate_keys {
-        if let Some(bytes) = ctb_storage_asset_bundle::get_asset(asset_key) {
-            return Some(bytes);
-        }
-        // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
-        let disk_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../assets")
-            .join(asset_key);
-        if let Ok(bytes) = std::fs::read(&disk_path) {
-            return Some(bytes);
-        }
-    }
-
-    if ctb_utilities::testing::is_in_test() {
-        return load_from_data_src(key);
-    }
-    None
+    // Reason for fallback: strip optional data-src/ or fixtures/ prefix, defaulting to full relative key
+    let clean = key
+        .strip_prefix("data-src/")
+        .or_else(|| key.strip_prefix("fixtures/"))
+        .unwrap_or(key);
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("data-src")
+        .join(clean);
+    std::fs::read(path).ok()
 }
 
 pub(crate) fn get_dc_categories_dir_path() -> std::path::PathBuf {
@@ -297,54 +191,4 @@ pub(crate) fn get_formats_categories_dir_path() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("data-src")
         .join("categories/formats")
-}
-
-/// Returns all bundled Magdir rule files as (`relative_path`, `content_bytes`) pairs.
-pub fn get_dc_magdir_files() -> Vec<(&'static str, &'static [u8])> {
-    MAGDIR_FILES
-        .iter()
-        .map(|(path, bytes)| (path.as_str(), bytes.as_slice()))
-        .collect()
-}
-
-/// Returns the canonical DROID PRONOM binary signature file (V125) as raw bytes.
-pub fn get_droid_signature_xml() -> Option<&'static [u8]> {
-    DROID_SIGNATURE_XML.as_deref()
-}
-
-/// Returns the canonical DROID container signature file as raw bytes.
-pub fn get_droid_container_signature_xml() -> Option<&'static [u8]> {
-    DROID_CONTAINER_SIGNATURE_XML.as_deref()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn test_detection_assets_loading_from_asset_bundle() {
-        let ctb_magic = get_dc_data_file("magic/ctoolbox.magic");
-        assert!(
-            ctb_magic.is_some(),
-            "Expected magic/ctoolbox.magic to be accessible"
-        );
-
-        let droid_sig = get_droid_signature_xml();
-        assert!(
-            droid_sig.is_some(),
-            "Expected DROID signature XML to be accessible"
-        );
-
-        let container_sig = get_droid_container_signature_xml();
-        assert!(
-            container_sig.is_some(),
-            "Expected DROID container signature XML to be accessible"
-        );
-
-        let magdir_files = get_dc_magdir_files();
-        assert!(
-            !magdir_files.is_empty(),
-            "Expected Magdir files to be loaded from asset bundle"
-        );
-    }
 }

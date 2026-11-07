@@ -458,6 +458,63 @@ use super::magic_parser::{
     HierarchicalMagicRule, parse_magic_content_with_templates,
 };
 
+static MAGDIR_FILES: LazyLock<Vec<(String, Vec<u8>)>> = LazyLock::new(|| {
+    let mut files = Vec::new();
+    if let Ok(paths) = ctb_storage_asset_bundle::find_assets(
+        "data/detection/magic/upstream/magic/Magdir/*",
+    ) {
+        for path in paths {
+            if let Some(bytes) = ctb_storage_asset_bundle::get_asset(&path) {
+                files.push((path, bytes));
+            }
+        }
+    }
+    if files.is_empty() {
+        // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
+        let magdir_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../assets/data/detection/magic/upstream/magic/Magdir");
+        if let Ok(entries) = std::fs::read_dir(&magdir_path) {
+            let mut sorted_entries = entries.flatten().collect::<Vec<_>>();
+            sorted_entries.sort_by_key(|e| e.path());
+            for entry in sorted_entries {
+                let p = entry.path();
+                if p.is_file() {
+                    if let Ok(bytes) = std::fs::read(&p) {
+                        let name = p
+                            .file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            // Reason for fallback: default to empty string if path has no file name
+                            .unwrap_or_default();
+                        files.push((name, bytes));
+                    }
+                }
+            }
+        }
+    }
+    files
+});
+
+/// Returns all bundled Magdir rule files as (`relative_path`, `content_bytes`) pairs.
+pub fn get_magdir_files() -> Vec<(&'static str, &'static [u8])> {
+    MAGDIR_FILES
+        .iter()
+        .map(|(path, bytes)| (path.as_str(), bytes.as_slice()))
+        .collect()
+}
+
+/// Returns the content of `ctoolbox.magic` from the asset bundle or repository assets.
+pub fn get_ctb_magic_content() -> Option<Vec<u8>> {
+    let key = "data/detection/magic/ctoolbox.magic";
+    if let Some(bytes) = ctb_storage_asset_bundle::get_asset(key) {
+        return Some(bytes);
+    }
+    // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
+    let disk_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../assets")
+        .join(key);
+    std::fs::read(disk_path).ok()
+}
+
 /// Global compiled hierarchical magic database loaded from in-repo custom definitions (`ctoolbox.magic`)
 /// and upstream Magdir rule files.
 pub static COMPILED_MAGIC_DATABASE: LazyLock<(
@@ -470,9 +527,7 @@ pub static COMPILED_MAGIC_DATABASE: LazyLock<(
     let mut all_templates = HashMap::new();
 
     // 1. In-repo custom rules (ctoolbox.magic)
-    if let Some(bytes) =
-        ctb_formats_dcdata::get_dc_data_file("magic/ctoolbox.magic")
-    {
+    if let Some(bytes) = get_ctb_magic_content() {
         if let Ok(content) = std::str::from_utf8(&bytes) {
             let (rules, tpls) = parse_magic_content_with_templates(content);
             ctb_rules.extend(rules);
@@ -481,7 +536,7 @@ pub static COMPILED_MAGIC_DATABASE: LazyLock<(
     }
 
     // 2. Upstream Magdir rule files
-    for (_path, bytes) in ctb_formats_dcdata::get_dc_magdir_files() {
+    for (_path, bytes) in get_magdir_files() {
         if let Ok(content) = std::str::from_utf8(bytes) {
             let (rules, tpls) = parse_magic_content_with_templates(content);
             file_rules.extend(rules);

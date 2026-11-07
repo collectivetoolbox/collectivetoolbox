@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
+ctb-storage-asset-bundle = { path = "../../storage/asset_bundle" }
 ctb-formats-dcdata = { path = "../dcdata" }
 ctb-formats-dcstring = { path = "../dcstring" }
 ctb-formats-ipaddr = { path = "../ipaddr" }

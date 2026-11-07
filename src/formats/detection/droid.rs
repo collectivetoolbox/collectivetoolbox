@@ -1494,10 +1494,46 @@ pub fn parse_droid_container_signatures_xml(
     Some(db)
 }
 
+static DROID_SIGNATURE_XML: LazyLock<Option<Vec<u8>>> = LazyLock::new(|| {
+    let key = "data/detection/droid/signatures/DROID_SignatureFile_V125.xml";
+    if let Some(bytes) = ctb_storage_asset_bundle::get_asset(key) {
+        return Some(bytes);
+    }
+    // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
+    let disk_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../assets")
+        .join(key);
+    std::fs::read(disk_path).ok()
+});
+
+static DROID_CONTAINER_SIGNATURE_XML: LazyLock<Option<Vec<u8>>> =
+    LazyLock::new(|| {
+        let key =
+            "data/detection/droid/signatures/container-signature-20260119.xml";
+        if let Some(bytes) = ctb_storage_asset_bundle::get_asset(key) {
+            return Some(bytes);
+        }
+        // Reason for fallback: when running tests or before asset bundle repack, load from repository assets directory
+        let disk_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../assets")
+            .join(key);
+        std::fs::read(disk_path).ok()
+    });
+
+/// Returns the canonical DROID PRONOM binary signature file (V125) as raw bytes.
+pub fn get_droid_signature_xml() -> Option<&'static [u8]> {
+    DROID_SIGNATURE_XML.as_deref()
+}
+
+/// Returns the canonical DROID container signature file as raw bytes.
+pub fn get_droid_container_signature_xml() -> Option<&'static [u8]> {
+    DROID_CONTAINER_SIGNATURE_XML.as_deref()
+}
+
 /// Authoritative DROID PRONOM binary signature database loaded from embedded XML.
 pub static DROID_PRONOM_DB: LazyLock<PronomDatabase> = LazyLock::new(|| {
     // Reason for fallback: default empty database used if embedded asset fails to parse
-    ctb_formats_dcdata::get_droid_signature_xml()
+    get_droid_signature_xml()
         .and_then(|bytes| std::str::from_utf8(bytes).ok())
         .and_then(parse_pronom_signature_xml)
         .unwrap_or_default()
@@ -1507,7 +1543,7 @@ pub static DROID_PRONOM_DB: LazyLock<PronomDatabase> = LazyLock::new(|| {
 pub static DROID_CONTAINER_DB: LazyLock<ContainerSignatureDatabase> =
     LazyLock::new(|| {
         // Reason for fallback: default empty database used if embedded asset fails to parse
-        ctb_formats_dcdata::get_droid_container_signature_xml()
+        get_droid_container_signature_xml()
             .and_then(|bytes| std::str::from_utf8(bytes).ok())
             .and_then(parse_droid_container_signatures_xml)
             .unwrap_or_default()

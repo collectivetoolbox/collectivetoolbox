@@ -3216,6 +3216,7 @@ dependencies = [
  "ctb-formats-utilities",
  "ctb-formats-uuid",
  "ctb-io-file",
+ "ctb-storage-asset-bundle",
  "ctb-utilities",
  "flate2",
  "regex",

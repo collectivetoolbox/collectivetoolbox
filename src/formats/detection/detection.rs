@@ -2092,6 +2092,33 @@ mod tests {
     use super::*;
 
     #[ctb_test]
+    fn test_detection_assets_loading_from_asset_bundle() {
+        let ctb_magic = magic_data::get_ctb_magic_content();
+        assert!(
+            ctb_magic.is_some(),
+            "Expected magic/ctoolbox.magic to be accessible"
+        );
+
+        let droid_sig = droid::get_droid_signature_xml();
+        assert!(
+            droid_sig.is_some(),
+            "Expected DROID signature XML to be accessible"
+        );
+
+        let container_sig = droid::get_droid_container_signature_xml();
+        assert!(
+            container_sig.is_some(),
+            "Expected DROID container signature XML to be accessible"
+        );
+
+        let magdir_files = magic_data::get_magdir_files();
+        assert!(
+            !magdir_files.is_empty(),
+            "Expected Magdir files to be loaded from asset bundle"
+        );
+    }
+
+    #[ctb_test]
     fn test_detect_format_id() {
         let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
         let fmt = detect_format_id(
