@@ -237,7 +237,10 @@ struct ScriptBlockAllocator {
 }
 
 const BLOCK_REGISTRY_HEADER: [&str; 4] = [
-    "Script", "First long ID", "Last long ID", "Last allocated long ID",
+    "Script",
+    "First long ID",
+    "Last long ID",
+    "Last allocated long ID",
 ];
 
 fn assigned_category_id(raw: &str, formats: bool) -> Result<Option<u32>> {
@@ -251,8 +254,11 @@ fn assigned_category_id(raw: &str, formats: bool) -> Result<Option<u32>> {
     } else {
         trimmed
     };
-    if !numeric.is_empty() && numeric.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Ok(Some(numeric.parse().context("Short ID exceeds numeric range")?));
+    if !numeric.is_empty() && numeric.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return Ok(Some(
+            numeric.parse().context("Short ID exceeds numeric range")?,
+        ));
     }
     ensure!(is_unassigned_id(trimmed), "Invalid category ID: {raw}");
     Ok(None)
@@ -306,7 +312,9 @@ impl ScriptBlockAllocator {
     ) -> Result<Self> {
         assigned.sort_by(|a, b| a.0.cmp(&b.0));
         let max_allowed_id = u32::try_from(
-            region_end.checked_sub(region_start).context("Invalid ID region")?,
+            region_end
+                .checked_sub(region_start)
+                .context("Invalid ID region")?,
         )?;
         let mut seen = HashSet::new();
         for (id, _) in &assigned {
@@ -314,40 +322,62 @@ impl ScriptBlockAllocator {
             ensure!(seen.insert(*id), "Duplicate short ID: {id}");
         }
 
-        let max_short_id =
-            assigned.last().map_or(0, |&(id, _)| id);
-        let first_block_start = preexisting_cap.checked_add(1)
+        let max_short_id = assigned.last().map_or(0, |&(id, _)| id);
+        let first_block_start = preexisting_cap
+            .checked_add(1)
             .and_then(|id| id.checked_next_multiple_of(16))
             .context("Legacy ID boundary overflow")?;
         blocks.sort_by_key(|block| block.start);
         let mut previous_end = first_block_start;
         for block in &blocks {
-            ensure!(script_block_sizes.contains_key(&block.script),
-                "Unknown script '{}' in block registry", block.script);
-            ensure!(block.start.is_multiple_of(16)
-                && block.end_exclusive.is_multiple_of(16)
-                && block.start < block.end_exclusive,
-                "Invalid hexadecimal-aligned block for '{}'", block.script);
-            ensure!(block.start >= previous_end,
-                "Overlapping or legacy-region block for '{}'", block.script);
-            ensure!(block.end_exclusive <= max_allowed_id.checked_add(1)
-                .context("ID region overflow")?,
-                "Maximum short ID exceeded by block for '{}'", block.script);
-            ensure!(block.max_used >= block.start.saturating_sub(1)
-                && block.max_used < block.end_exclusive,
-                "Invalid allocation high-water mark for '{}'", block.script);
+            ensure!(
+                script_block_sizes.contains_key(&block.script),
+                "Unknown script '{}' in block registry",
+                block.script
+            );
+            ensure!(
+                block.start.is_multiple_of(16)
+                    && block.end_exclusive.is_multiple_of(16)
+                    && block.start < block.end_exclusive,
+                "Invalid hexadecimal-aligned block for '{}'",
+                block.script
+            );
+            ensure!(
+                block.start >= previous_end,
+                "Overlapping or legacy-region block for '{}'",
+                block.script
+            );
+            ensure!(
+                block.end_exclusive
+                    <= max_allowed_id
+                        .checked_add(1)
+                        .context("ID region overflow")?,
+                "Maximum short ID exceeded by block for '{}'",
+                block.script
+            );
+            ensure!(
+                block.max_used >= block.start.saturating_sub(1)
+                    && block.max_used < block.end_exclusive,
+                "Invalid allocation high-water mark for '{}'",
+                block.script
+            );
             previous_end = block.end_exclusive;
         }
         for (id, script) in assigned {
             if id <= preexisting_cap {
                 continue;
             }
-            let block = blocks.iter_mut().find(|block|
-                id >= block.start && id < block.end_exclusive)
-                .with_context(|| format!("Assigned short ID {id} has no reserved block"))?;
-            ensure!(block.script == script,
+            let block = blocks
+                .iter_mut()
+                .find(|block| id >= block.start && id < block.end_exclusive)
+                .with_context(|| {
+                    format!("Assigned short ID {id} has no reserved block")
+                })?;
+            ensure!(
+                block.script == script,
                 "Assigned short ID {id} has script '{script}', but its block belongs to '{}'",
-                block.script);
+                block.script
+            );
             block.max_used = block.max_used.max(id);
         }
 
@@ -372,44 +402,88 @@ impl ScriptBlockAllocator {
         match fs::metadata(registry_path) {
             Ok(_) => {
                 let (header, rows) = read_csv_file(registry_path)?;
-                ensure!(header.iter().map(String::as_str).eq(BLOCK_REGISTRY_HEADER),
-                    "Invalid block registry header in {}", registry_path.display());
+                ensure!(
+                    header.iter().map(String::as_str).eq(BLOCK_REGISTRY_HEADER),
+                    "Invalid block registry header in {}",
+                    registry_path.display()
+                );
                 for row in rows {
-                    if is_empty_row(&row) { continue; }
+                    if is_empty_row(&row) {
+                        continue;
+                    }
                     let mut cells = row.iter();
-                    let script = cells.next().context("Missing block script")?.trim().to_string();
+                    let script = cells
+                        .next()
+                        .context("Missing block script")?
+                        .trim()
+                        .to_string();
                     let mut ids = Vec::new();
                     for cell in cells {
-                        let hex = cell.strip_prefix("0x").context("Block IDs must use 0x hexadecimal long IDs")?;
+                        let hex = cell.strip_prefix("0x").context(
+                            "Block IDs must use 0x hexadecimal long IDs",
+                        )?;
                         let long_id = u128::from_str_radix(hex, 16)?;
-                        let short_id = long_id.checked_sub(region_start)
+                        let short_id = long_id
+                            .checked_sub(region_start)
                             .context("Block ID precedes its region")?;
                         ids.push(u32::try_from(short_id)?);
                     }
                     let mut ids = ids.into_iter();
                     let start = ids.next().context("Missing block start")?;
-                    let end_exclusive = ids.next().context("Missing block end")?
-                        .checked_add(1).context("Block end overflow")?;
-                    let max_used = ids.next().context("Missing allocation high-water mark")?;
-                    blocks.push(AllocatedScriptBlock { script, start, end_exclusive, max_used });
+                    let end_exclusive = ids
+                        .next()
+                        .context("Missing block end")?
+                        .checked_add(1)
+                        .context("Block end overflow")?;
+                    let max_used = ids
+                        .next()
+                        .context("Missing allocation high-water mark")?;
+                    blocks.push(AllocatedScriptBlock {
+                        script,
+                        start,
+                        end_exclusive,
+                        max_used,
+                    });
                 }
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error).context("Failed to read block registry"),
+            Err(error) => {
+                return Err(error).context("Failed to read block registry");
+            }
         }
-        Self::from_existing(script_block_sizes, preexisting_cap, assigned,
-            blocks, region_start, region_end)
-            .with_context(|| format!("Invalid block registry {}", registry_path.display()))
+        Self::from_existing(
+            script_block_sizes,
+            preexisting_cap,
+            assigned,
+            blocks,
+            region_start,
+            region_end,
+        )
+        .with_context(|| {
+            format!("Invalid block registry {}", registry_path.display())
+        })
     }
 
-    fn registry_csv(&self, path: PathBuf, region_start: u128) -> Result<ProcessedCategoryCsv> {
-        let header = BLOCK_REGISTRY_HEADER.iter().map(|cell| (*cell).to_string()).collect::<Vec<_>>();
+    fn registry_csv(
+        &self,
+        path: PathBuf,
+        region_start: u128,
+    ) -> Result<ProcessedCategoryCsv> {
+        let header = BLOCK_REGISTRY_HEADER
+            .iter()
+            .map(|cell| (*cell).to_string())
+            .collect::<Vec<_>>();
         let mut rows = Vec::new();
         for block in &self.blocks {
-            let last = block.end_exclusive.checked_sub(1).context("Invalid block end")?;
+            let last = block
+                .end_exclusive
+                .checked_sub(1)
+                .context("Invalid block end")?;
             let mut row = vec![block.script.clone()];
             for id in [block.start, last, block.max_used] {
-                let long_id = region_start.checked_add(u128::from(id)).context("Long ID overflow")?;
+                let long_id = region_start
+                    .checked_add(u128::from(id))
+                    .context("Long ID overflow")?;
                 row.push(format!("0x{long_id:X}"));
             }
             rows.push(row);
@@ -418,9 +492,17 @@ impl ScriptBlockAllocator {
         let modified = match fs::read(&path) {
             Ok(existing) => existing != bytes,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => true,
-            Err(error) => return Err(error).context("Failed to read block registry"),
+            Err(error) => {
+                return Err(error).context("Failed to read block registry");
+            }
         };
-        Ok(ProcessedCategoryCsv { path, file_name: String::new(), header, rows, modified })
+        Ok(ProcessedCategoryCsv {
+            path,
+            file_name: String::new(),
+            header,
+            rows,
+            modified,
+        })
     }
 
     fn allocate(
@@ -447,9 +529,14 @@ impl ScriptBlockAllocator {
 
         if let Some(open_block) = self.blocks.iter_mut().find(|b| {
             b.script == trimmed
-                && b.max_used.checked_add(1).is_some_and(|id| id < b.end_exclusive)
+                && b.max_used
+                    .checked_add(1)
+                    .is_some_and(|id| id < b.end_exclusive)
         }) {
-            let next_id = open_block.max_used.checked_add(1).context("Short ID overflow")?;
+            let next_id = open_block
+                .max_used
+                .checked_add(1)
+                .context("Short ID overflow")?;
             open_block.max_used = next_id;
             self.max_short_id = self.max_short_id.max(next_id);
             return Ok(next_id);
@@ -457,7 +544,9 @@ impl ScriptBlockAllocator {
 
         let mut cand_start = self.first_block_start;
         for b in &self.blocks {
-            let cand_end = cand_start.checked_add(block_size).context("Block end overflow")?;
+            let cand_end = cand_start
+                .checked_add(block_size)
+                .context("Block end overflow")?;
             if cand_end <= b.start {
                 break;
             }
@@ -466,7 +555,9 @@ impl ScriptBlockAllocator {
             }
         }
 
-        let end_exclusive = cand_start.checked_add(block_size).context("Block end overflow")?;
+        let end_exclusive = cand_start
+            .checked_add(block_size)
+            .context("Block end overflow")?;
         ensure!(
             end_exclusive <= self.max_allowed_id.saturating_add(1),
             "Cannot allocate ID in {file_name}:{line_no}: maximum short ID exceeded"
@@ -485,7 +576,11 @@ impl ScriptBlockAllocator {
 
 fn process_dc_category_files(
     categories_dir: &Path,
-) -> Result<(Vec<ProcessedCategoryCsv>, TableUpdateStats, ProcessedCategoryCsv)> {
+) -> Result<(
+    Vec<ProcessedCategoryCsv>,
+    TableUpdateStats,
+    ProcessedCategoryCsv,
+)> {
     if !categories_dir.is_dir() {
         bail!(
             "Dc categories directory not found at {}",
@@ -549,7 +644,12 @@ fn process_dc_category_files(
                 }
                 if let Some(short_str) = row.get(1) {
                     if let Some(id) = assigned_category_id(short_str, false)
-                        .with_context(|| format!("Invalid short ID in {file_name}: {short_str}"))? {
+                        .with_context(|| {
+                            format!(
+                                "Invalid short ID in {file_name}: {short_str}"
+                            )
+                        })?
+                    {
                         let script =
                             row.get(7).map_or("", |s| s.trim()).to_string();
                         assigned_entries.push((id, script));
@@ -560,7 +660,9 @@ fn process_dc_category_files(
         files_data.push((path.clone(), file_name, header, rows));
     }
 
-    let registry_path = categories_dir.parent().context("Missing data source directory")?
+    let registry_path = categories_dir
+        .parent()
+        .context("Missing data source directory")?
         .join("README.dc-blocks.csv");
     let mut allocator = ScriptBlockAllocator::load(
         script_block_sizes,
@@ -665,7 +767,8 @@ fn process_dc_category_files(
 
     // Reason for fallback: u32 always fits in usize on supported 32/64-bit targets
     stats.max_short_id = usize::try_from(allocator.max_short_id).unwrap_or(0);
-    let registry = allocator.registry_csv(registry_path, SHORT_DC_REGION_START)?;
+    let registry =
+        allocator.registry_csv(registry_path, SHORT_DC_REGION_START)?;
     Ok((processed, stats, registry))
 }
 
@@ -700,7 +803,8 @@ pub fn assign_and_update_dc_categories(
 ) -> Result<TableUpdateStats> {
     let categories_dir =
         repo_root.join("src/formats/dcdata/data-src/categories");
-    let (processed, stats, registry) = process_dc_category_files(&categories_dir)?;
+    let (processed, stats, registry) =
+        process_dc_category_files(&categories_dir)?;
     write_processed_categories(processed, registry)?;
     Ok(stats)
 }
@@ -712,13 +816,15 @@ fn write_processed_categories(
     let mut writes = Vec::new();
     for file in std::iter::once(registry).chain(processed) {
         if file.modified {
-            let bytes = serialize_csv_bytes(&file.path, &file.header, &file.rows)?;
+            let bytes =
+                serialize_csv_bytes(&file.path, &file.header, &file.rows)?;
             writes.push((file.path, bytes));
         }
     }
     for (path, bytes) in writes {
-        fs::write(&path, bytes)
-            .with_context(|| format!("Failed to save CSV to {}", path.display()))?;
+        fs::write(&path, bytes).with_context(|| {
+            format!("Failed to save CSV to {}", path.display())
+        })?;
     }
     Ok(())
 }
@@ -736,7 +842,11 @@ fn format_category_to_script(raw_cat: &str) -> String {
 
 fn process_format_category_files(
     formats_dir: &Path,
-) -> Result<(Vec<ProcessedCategoryCsv>, TableUpdateStats, ProcessedCategoryCsv)> {
+) -> Result<(
+    Vec<ProcessedCategoryCsv>,
+    TableUpdateStats,
+    ProcessedCategoryCsv,
+)> {
     if !formats_dir.is_dir() {
         bail!("Formats directory not found at {}", formats_dir.display());
     }
@@ -783,7 +893,10 @@ fn process_format_category_files(
             }
             if let Some(short_str) = row.get(1) {
                 if let Some(id) = assigned_category_id(short_str, true)
-                    .with_context(|| format!("Invalid format ID in {file_name}: {short_str}"))? {
+                    .with_context(|| {
+                        format!("Invalid format ID in {file_name}: {short_str}")
+                    })?
+                {
                     let script = format_category_to_script(
                         row.get(4).map_or("", |s| s.as_str()),
                     );
@@ -794,8 +907,11 @@ fn process_format_category_files(
         files_data.push((path.clone(), file_name, header, rows));
     }
 
-    let registry_path = formats_dir.parent().and_then(Path::parent)
-        .context("Missing data source directory")?.join("README.format-blocks.csv");
+    let registry_path = formats_dir
+        .parent()
+        .and_then(Path::parent)
+        .context("Missing data source directory")?
+        .join("README.format-blocks.csv");
     let mut allocator = ScriptBlockAllocator::load(
         script_block_sizes,
         PREEXISTING_CONTIGUOUS_FORMAT_MAX,
@@ -898,7 +1014,8 @@ fn process_format_category_files(
 
     // Reason for fallback: u32 always fits in usize on supported 32/64-bit targets
     stats.max_short_id = usize::try_from(allocator.max_short_id).unwrap_or(0);
-    let registry = allocator.registry_csv(registry_path, FORMAT_REGION_START)?;
+    let registry =
+        allocator.registry_csv(registry_path, FORMAT_REGION_START)?;
     Ok((processed, stats, registry))
 }
 
@@ -933,7 +1050,8 @@ pub fn assign_and_update_format_categories(
 ) -> Result<TableUpdateStats> {
     let formats_dir =
         repo_root.join("src/formats/dcdata/data-src/categories/formats");
-    let (processed, stats, registry) = process_format_category_files(&formats_dir)?;
+    let (processed, stats, registry) =
+        process_format_category_files(&formats_dir)?;
     write_processed_categories(processed, registry)?;
     Ok(stats)
 }
@@ -941,7 +1059,8 @@ pub fn assign_and_update_format_categories(
 /// Validates reservations and proposed assignments in both namespaces without
 /// writing files, including duplicate IDs, script ownership, and region bounds.
 pub fn validate_category_allocations(repo_root: &Path) -> Result<()> {
-    let categories_dir = repo_root.join("src/formats/dcdata/data-src/categories");
+    let categories_dir =
+        repo_root.join("src/formats/dcdata/data-src/categories");
     process_dc_category_files(&categories_dir)?;
     process_format_category_files(&categories_dir.join("formats"))?;
     Ok(())
@@ -952,8 +1071,12 @@ pub fn validate_category_allocations(repo_root: &Path) -> Result<()> {
 pub fn check_category_csvs_need_no_id_updates(repo_root: &Path) -> Result<()> {
     let categories_dir =
         repo_root.join("src/formats/dcdata/data-src/categories");
-    let (_, dc_stats, dc_registry) = process_dc_category_files(&categories_dir)?;
-    ensure!(!dc_registry.modified, "Dc block registry needs updating before reconciliation");
+    let (_, dc_stats, dc_registry) =
+        process_dc_category_files(&categories_dir)?;
+    ensure!(
+        !dc_registry.modified,
+        "Dc block registry needs updating before reconciliation"
+    );
     ensure!(
         dc_stats.files_modified == 0,
         "Dc category CSVs have {} unassigned or inconsistent IDs across {} file(s); assign IDs before running manifest-enforced or dry-run reconciliation",
@@ -963,8 +1086,12 @@ pub fn check_category_csvs_need_no_id_updates(repo_root: &Path) -> Result<()> {
         dc_stats.files_modified
     );
     let formats_dir = categories_dir.join("formats");
-    let (_, fmt_stats, fmt_registry) = process_format_category_files(&formats_dir)?;
-    ensure!(!fmt_registry.modified, "Format block registry needs updating before reconciliation");
+    let (_, fmt_stats, fmt_registry) =
+        process_format_category_files(&formats_dir)?;
+    ensure!(
+        !fmt_registry.modified,
+        "Format block registry needs updating before reconciliation"
+    );
     ensure!(
         fmt_stats.files_modified == 0,
         "Format category CSVs have {} unassigned or inconsistent IDs across {} file(s); assign IDs before running manifest-enforced or dry-run reconciliation",
@@ -1572,7 +1699,8 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_script_block_allocator_alignment_overflow_increment_change_and_tbd() {
+    fn test_script_block_allocator_alignment_overflow_increment_change_and_tbd()
+    {
         let mut sizes = HashMap::new();
         sizes.insert(".Small".to_string(), Some(32));
         sizes.insert(".Large".to_string(), Some(256));
@@ -1584,8 +1712,11 @@ mod tests {
             sizes.clone(),
             PREEXISTING_CONTIGUOUS_DC_MAX,
             vec![(0, ".Controls".to_string()), (1928, ".WASM".to_string())],
-            Vec::new(), SHORT_DC_REGION_START, crate::dc::SHORT_DC_REGION_END,
-        ).unwrap();
+            Vec::new(),
+            SHORT_DC_REGION_START,
+            crate::dc::SHORT_DC_REGION_END,
+        )
+        .unwrap();
         assert_eq!(alloc.first_block_start, 1936);
 
         // Allocate first item in .Small (block 1936..1968)
@@ -1640,8 +1771,11 @@ mod tests {
             sizes,
             PREEXISTING_CONTIGUOUS_DC_MAX,
             assigned,
-            alloc.blocks, SHORT_DC_REGION_START, crate::dc::SHORT_DC_REGION_END,
-        ).unwrap();
+            alloc.blocks,
+            SHORT_DC_REGION_START,
+            crate::dc::SHORT_DC_REGION_END,
+        )
+        .unwrap();
         let o0 = shrunk_alloc.allocate(".Other", "test.csv", 8).unwrap();
         assert_eq!(o0, 2256);
         assert_eq!(o0 % 16, 0);
@@ -1650,19 +1784,40 @@ mod tests {
     #[crate::ctb_test]
     fn test_script_block_allocator_rejects_invalid_ids() {
         let sizes = HashMap::from([(".Small".to_string(), Some(32))]);
-        assert!(ScriptBlockAllocator::from_existing(
-            sizes.clone(), 1928,
-            vec![(1936, ".Small".to_string()), (1936, ".Small".to_string())],
-            Vec::new(), SHORT_DC_REGION_START, crate::dc::SHORT_DC_REGION_END,
-        ).is_err());
-        assert!(ScriptBlockAllocator::from_existing(
-            sizes.clone(), 1928, vec![(1_114_112, ".Small".to_string())],
-            Vec::new(), SHORT_DC_REGION_START, crate::dc::SHORT_DC_REGION_END,
-        ).is_err());
+        assert!(
+            ScriptBlockAllocator::from_existing(
+                sizes.clone(),
+                1928,
+                vec![
+                    (1936, ".Small".to_string()),
+                    (1936, ".Small".to_string())
+                ],
+                Vec::new(),
+                SHORT_DC_REGION_START,
+                crate::dc::SHORT_DC_REGION_END,
+            )
+            .is_err()
+        );
+        assert!(
+            ScriptBlockAllocator::from_existing(
+                sizes.clone(),
+                1928,
+                vec![(1_114_112, ".Small".to_string())],
+                Vec::new(),
+                SHORT_DC_REGION_START,
+                crate::dc::SHORT_DC_REGION_END,
+            )
+            .is_err()
+        );
         let mut allocator = ScriptBlockAllocator::from_existing(
-            sizes, 1928, vec![(1928, ".WASM".to_string())],
-            Vec::new(), SHORT_DC_REGION_START, crate::dc::SHORT_DC_REGION_END,
-        ).unwrap();
+            sizes,
+            1928,
+            vec![(1928, ".WASM".to_string())],
+            Vec::new(),
+            SHORT_DC_REGION_START,
+            crate::dc::SHORT_DC_REGION_END,
+        )
+        .unwrap();
         allocator.max_allowed_id = 1935;
         assert!(allocator.allocate(".Small", "test.csv", 2).is_err());
     }
@@ -1670,8 +1825,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_script_block_allocator_csv_round_trip_and_manual_shrink() {
         for (region_start, region_end, cap) in [
-            (SHORT_DC_REGION_START, crate::dc::SHORT_DC_REGION_END, PREEXISTING_CONTIGUOUS_DC_MAX),
-            (FORMAT_REGION_START, crate::FORMAT_REGION_END, PREEXISTING_CONTIGUOUS_FORMAT_MAX),
+            (
+                SHORT_DC_REGION_START,
+                crate::dc::SHORT_DC_REGION_END,
+                PREEXISTING_CONTIGUOUS_DC_MAX,
+            ),
+            (
+                FORMAT_REGION_START,
+                crate::FORMAT_REGION_END,
+                PREEXISTING_CONTIGUOUS_FORMAT_MAX,
+            ),
         ] {
             let temp = tempfile::tempdir().unwrap();
             let path = temp.path().join("blocks.csv");
@@ -1680,36 +1843,81 @@ mod tests {
                 (".Other".to_string(), Some(16)),
             ]);
             let mut allocator = ScriptBlockAllocator::load(
-                sizes.clone(), cap, Vec::new(), &path, region_start, region_end,
-            ).unwrap();
+                sizes.clone(),
+                cap,
+                Vec::new(),
+                &path,
+                region_start,
+                region_end,
+            )
+            .unwrap();
             let first = allocator.allocate(".Small", "test.csv", 2).unwrap();
             let second = allocator.allocate(".Small", "test.csv", 3).unwrap();
-            let registry = allocator.registry_csv(path.clone(), region_start).unwrap();
+            let registry =
+                allocator.registry_csv(path.clone(), region_start).unwrap();
             assert!(registry.modified);
-            assert_eq!(registry.rows[0][1], format!("0x{:X}", region_start + u128::from(first)));
+            assert_eq!(
+                registry.rows[0][1],
+                format!("0x{:X}", region_start + u128::from(first))
+            );
             assert_eq!((region_start + u128::from(first)) % 16, 0);
             let last = u128::from(first + 31) + region_start;
             assert_eq!(last % 16, 15);
             write_csv_file(&path, &registry.header, &registry.rows).unwrap();
             sizes.insert(".Small".to_string(), Some(16));
             let mut reloaded = ScriptBlockAllocator::load(
-                sizes.clone(), cap, Vec::new(), &path, region_start, region_end,
-            ).unwrap();
-            assert!(!reloaded.registry_csv(path.clone(), region_start).unwrap().modified);
+                sizes.clone(),
+                cap,
+                Vec::new(),
+                &path,
+                region_start,
+                region_end,
+            )
+            .unwrap();
+            assert!(
+                !reloaded
+                    .registry_csv(path.clone(), region_start)
+                    .unwrap()
+                    .modified
+            );
             assert_eq!(reloaded.blocks[0].end_exclusive, first + 32);
-            assert_eq!(reloaded.allocate(".Small", "test.csv", 4).unwrap(), second + 1);
-            assert_eq!(reloaded.allocate(".Other", "test.csv", 5).unwrap(), first + 32);
+            assert_eq!(
+                reloaded.allocate(".Small", "test.csv", 4).unwrap(),
+                second + 1
+            );
+            assert_eq!(
+                reloaded.allocate(".Other", "test.csv", 5).unwrap(),
+                first + 32
+            );
 
             let mut rows = registry.rows;
-            rows[0][2] = format!("0x{:X}", region_start + u128::from(first + 15));
+            rows[0][2] =
+                format!("0x{:X}", region_start + u128::from(first + 15));
             write_csv_file(&path, &registry.header, &rows).unwrap();
             let mut shrunk = ScriptBlockAllocator::load(
-                sizes.clone(), cap, vec![(second, ".Small".to_string())], &path, region_start, region_end,
-            ).unwrap();
-            assert_eq!(shrunk.allocate(".Other", "test.csv", 6).unwrap(), first + 16);
-            assert!(ScriptBlockAllocator::load(
-                sizes, cap, vec![(first + 16, ".Small".to_string())], &path, region_start, region_end,
-            ).is_err());
+                sizes.clone(),
+                cap,
+                vec![(second, ".Small".to_string())],
+                &path,
+                region_start,
+                region_end,
+            )
+            .unwrap();
+            assert_eq!(
+                shrunk.allocate(".Other", "test.csv", 6).unwrap(),
+                first + 16
+            );
+            assert!(
+                ScriptBlockAllocator::load(
+                    sizes,
+                    cap,
+                    vec![(first + 16, ".Small".to_string())],
+                    &path,
+                    region_start,
+                    region_end,
+                )
+                .is_err()
+            );
         }
     }
 
@@ -1720,31 +1928,74 @@ mod tests {
             (".Other".to_string(), Some(16)),
         ]);
         let block = AllocatedScriptBlock {
-            script: ".Small".to_string(), start: 1936, end_exclusive: 1968, max_used: 1936,
+            script: ".Small".to_string(),
+            start: 1936,
+            end_exclusive: 1968,
+            max_used: 1936,
         };
-        let validate = |blocks, assigned| ScriptBlockAllocator::from_existing(
-            sizes.clone(), PREEXISTING_CONTIGUOUS_DC_MAX, assigned,
-            blocks, SHORT_DC_REGION_START, crate::dc::SHORT_DC_REGION_END,
+        let validate = |blocks, assigned| {
+            ScriptBlockAllocator::from_existing(
+                sizes.clone(),
+                PREEXISTING_CONTIGUOUS_DC_MAX,
+                assigned,
+                blocks,
+                SHORT_DC_REGION_START,
+                crate::dc::SHORT_DC_REGION_END,
+            )
+        };
+        assert!(
+            validate(vec![block.clone(), block.clone()], Vec::new()).is_err()
         );
-        assert!(validate(vec![block.clone(), block.clone()], Vec::new()).is_err());
-        assert!(validate(vec![block.clone()], vec![(1937, ".Other".to_string())]).is_err());
-        assert!(validate(Vec::new(), vec![(1936, ".Small".to_string())]).is_err());
+        assert!(
+            validate(vec![block.clone()], vec![(1937, ".Other".to_string())])
+                .is_err()
+        );
+        assert!(
+            validate(Vec::new(), vec![(1936, ".Small".to_string())]).is_err()
+        );
         for invalid in [
-            AllocatedScriptBlock { start: 1937, ..block.clone() },
-            AllocatedScriptBlock { end_exclusive: 1967, ..block.clone() },
-            AllocatedScriptBlock { max_used: 1968, ..block.clone() },
-            AllocatedScriptBlock { max_used: 1934, ..block.clone() },
-            AllocatedScriptBlock { start: 1920, ..block.clone() },
-            AllocatedScriptBlock { end_exclusive: 1_114_128, ..block.clone() },
-            AllocatedScriptBlock { script: ".Unknown".to_string(), ..block.clone() },
+            AllocatedScriptBlock {
+                start: 1937,
+                ..block.clone()
+            },
+            AllocatedScriptBlock {
+                end_exclusive: 1967,
+                ..block.clone()
+            },
+            AllocatedScriptBlock {
+                max_used: 1968,
+                ..block.clone()
+            },
+            AllocatedScriptBlock {
+                max_used: 1934,
+                ..block.clone()
+            },
+            AllocatedScriptBlock {
+                start: 1920,
+                ..block.clone()
+            },
+            AllocatedScriptBlock {
+                end_exclusive: 1_114_128,
+                ..block.clone()
+            },
+            AllocatedScriptBlock {
+                script: ".Unknown".to_string(),
+                ..block.clone()
+            },
         ] {
             assert!(validate(vec![invalid], Vec::new()).is_err());
         }
         let final_block = AllocatedScriptBlock {
-            start: 1_114_096, end_exclusive: 1_114_112, max_used: 1_114_110, ..block
+            start: 1_114_096,
+            end_exclusive: 1_114_112,
+            max_used: 1_114_110,
+            ..block
         };
         let mut allocator = validate(vec![final_block], Vec::new()).unwrap();
-        assert_eq!(allocator.allocate(".Small", "test.csv", 2).unwrap(), 1_114_111);
+        assert_eq!(
+            allocator.allocate(".Small", "test.csv", 2).unwrap(),
+            1_114_111
+        );
         allocator.first_block_start = 1_114_096;
         assert!(allocator.allocate(".Small", "test.csv", 3).is_err());
     }
@@ -1755,15 +2006,37 @@ mod tests {
             let temp = tempfile::tempdir().unwrap();
             let data = temp.path().join("src/formats/dcdata/data-src");
             let categories = data.join("categories");
-            let directory = if formats { categories.join("formats") } else { categories };
+            let directory = if formats {
+                categories.join("formats")
+            } else {
+                categories
+            };
             fs::create_dir_all(&directory).unwrap();
             let path = directory.join("test.csv");
             let (header, script, region_start) = if formats {
-                (vec!["Dc", "Short", "Ident", "Name", "Category"], "encoding", FORMAT_REGION_START)
+                (
+                    vec!["Dc", "Short", "Ident", "Name", "Category"],
+                    "encoding",
+                    FORMAT_REGION_START,
+                )
             } else {
-                (vec!["Dc", "Short", "Name", "Combining", "Bidi", "Case", "Type", "Script"], ".Controls", SHORT_DC_REGION_START)
+                (
+                    vec![
+                        "Dc",
+                        "Short",
+                        "Name",
+                        "Combining",
+                        "Bidi",
+                        "Case",
+                        "Type",
+                        "Script",
+                    ],
+                    ".Controls",
+                    SHORT_DC_REGION_START,
+                )
             };
-            let header = header.into_iter().map(str::to_string).collect::<Vec<_>>();
+            let header =
+                header.into_iter().map(str::to_string).collect::<Vec<_>>();
             let make_row = |id: &str| {
                 let mut row = vec![String::new(); header.len()];
                 row[1] = id.to_string();
@@ -1771,7 +2044,12 @@ mod tests {
                 *row.last_mut().unwrap() = script.to_string();
                 row
             };
-            for ids in [["0", "0"], ["0", "1114112"], ["0", "18446744073709551616"], ["0", "1937"]] {
+            for ids in [
+                ["0", "0"],
+                ["0", "1114112"],
+                ["0", "18446744073709551616"],
+                ["0", "1937"],
+            ] {
                 write_csv_file(&path, &header, &ids.map(make_row)).unwrap();
                 let before = fs::read(&path).unwrap();
                 let result = if formats {
@@ -1781,9 +2059,20 @@ mod tests {
                 };
                 assert!(result.is_err(), "accepted invalid IDs {ids:?}");
                 assert_eq!(fs::read(&path).unwrap(), before);
-                assert!(!data.join(if formats { "README.format-blocks.csv" } else { "README.dc-blocks.csv" }).exists());
+                assert!(
+                    !data
+                        .join(if formats {
+                            "README.format-blocks.csv"
+                        } else {
+                            "README.dc-blocks.csv"
+                        })
+                        .exists()
+                );
             }
-            let mut rows = vec![make_row(if formats { "f0" } else { "0" }), make_row("AUTO")];
+            let mut rows = vec![
+                make_row(if formats { "f0" } else { "0" }),
+                make_row("AUTO"),
+            ];
             rows[0][0] = region_start.to_string();
             write_csv_file(&path, &header, &rows).unwrap();
             if formats {

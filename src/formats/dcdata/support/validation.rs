@@ -77,7 +77,8 @@ pub fn validate_all_data_tables_from_repo(
 ) -> ValidationReport {
     let mut report = ValidationReport::new();
 
-    if let Err(error) = crate::updater::validate_category_allocations(repo_root) {
+    if let Err(error) = crate::updater::validate_category_allocations(repo_root)
+    {
         report.add_error(
             "src/formats/dcdata/data-src",
             None,
@@ -2900,14 +2901,14 @@ mod tests {
         )
         .unwrap();
 
-        // Run auto assignment (first block after 0 starts at 16 = 0x10)
+        // Sparse fixtures must still reserve the complete legacy regions.
         let dc_stats = assign_and_update_dc_categories(repo).unwrap();
         assert_eq!(dc_stats.new_ids_assigned, 1);
-        assert_eq!(dc_stats.max_short_id, 16);
+        assert_eq!(dc_stats.max_short_id, 1936);
 
         let fmt_stats = assign_and_update_format_categories(repo).unwrap();
         assert_eq!(fmt_stats.new_ids_assigned, 1);
-        assert_eq!(fmt_stats.max_short_id, 16);
+        assert_eq!(fmt_stats.max_short_id, 656);
 
         // Run merge generation
         let gen_stats = generate_merged_csvs(repo).unwrap();
@@ -2930,8 +2931,8 @@ mod tests {
         assert_eq!(dc_gen_rows.len(), 2);
         assert_eq!(dc_gen_rows[0][0], "1114112");
         assert_eq!(dc_gen_rows[0][1], "0");
-        assert_eq!(dc_gen_rows[1][0], "1114128");
-        assert_eq!(dc_gen_rows[1][1], "16");
+        assert_eq!(dc_gen_rows[1][0], "1116048");
+        assert_eq!(dc_gen_rows[1][1], "1936");
 
         // Verify generated formats.generated.csv contents and order
         let (fmt_gen_hdr, fmt_gen_rows) = read_csv_file(
@@ -2942,8 +2943,8 @@ mod tests {
         assert_eq!(fmt_gen_rows.len(), 2);
         assert_eq!(fmt_gen_rows[0][0], "2228224");
         assert_eq!(fmt_gen_rows[0][1], "f0");
-        assert_eq!(fmt_gen_rows[1][0], "2228240");
-        assert_eq!(fmt_gen_rows[1][1], "f16");
+        assert_eq!(fmt_gen_rows[1][0], "2228880");
+        assert_eq!(fmt_gen_rows[1][1], "f656");
 
         // FIXME Readd this but not included in the binary.
         /*
