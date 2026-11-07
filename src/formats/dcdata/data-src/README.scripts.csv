@@ -1,68 +1,72 @@
-Script:::Block increment size
-.Colors:::256
-.Controls:::256
-.DCE:::none
-.DCE sheets:::none
-.DCE versions:::none
-.EL Control Flow:::64
-.EL Miscellaneous:::128
-.EL Operators:::16
-.EL Pronouns:::32
-.EL Routines:::256
-.EL Syntax:::256
-.EL Types:::256
-.Emoji:::none
-.Encapsulation:::none
-.Financial:::none
-.Mathematics:::none
-.Miscellaneous:::none
-.Noncharacters:::none
-.Punctuation:::256
-.Semantic:::256
-.Semantic:Relationship::256
-.Semantic:Pattern::256
-.Semantic:fileflag::128
-.Styling:::256
-.Symbols:::256
-.Variant selectors:::none
-.WASM:::
-.Formats:arch::256
-.Formats:armor::256
-.Formats:base_alphabet::256
-.Formats:calendar::256
-.Formats:color_depth::256
-.Formats:compression::256
-.Formats:container::256
-.Formats:database::256
-.Formats:date::256
-.Formats:device_caps::256
-.Formats:display_system::256
-.Formats:document::256
-.Formats:duration::256
-.Formats:encoding::256
-.Formats:executable::256
-.Formats:filesystem::256
-.Formats:format_variant::256
-.Formats:hash::256
-.Formats:identifier::256
-.Formats:kernel::256
-.Formats:language::256
-.Formats:libc::256
-.Formats:math::256
-.Formats:number::256
-.Formats:number_abstract::256
-.Formats:numeral_system::256
-.Formats:os::256
-.Formats:packagemgr::256
-.Formats:programming::256
-.Formats:semantic::256
-.Formats:transformation::256
-.Formats:userspace::256
-.Formats:userspace_libraries::256
-.Formats:userspace_utilities::256
-.Formats:v:case:32
-.Formats:v:lineEndings:32
-.Formats:v:padding:32
-.Formats:v:unicodePua:256
-.Formats:videoterminal::256
-.Formats:virtualfilesystem::256
+Script,Block increment size
+.Colors,256
+.Controls,256
+.DCE,TBD
+.DCE sheets,TBD
+.DCE versions,TBD
+.EL Control Flow,64
+.EL Miscellaneous,128
+.EL Operators,16
+.EL Pronouns,32
+.EL Routines,256
+.EL Syntax,256
+.EL Types,256
+.Emoji,TBD
+.Encapsulation,TBD
+.Financial,TBD
+.Mathematics,TBD
+.Miscellaneous,TBD
+.Noncharacters,TBD
+.Punctuation,256
+.Semantic,256
+.Semantic:Relationship,256
+.Semantic:Pattern,256
+.Semantic:fileflag,128
+.Styling,256
+.Symbols,256
+.Variant selectors,TBD
+.WASM,256
+.WASM Extended,256
+.WASM GC,256
+.WASM Relaxed SIMD,256
+.WASM SIMD,256
+.Formats:arch,256
+.Formats:armor,256
+.Formats:base_alphabet,256
+.Formats:calendar,256
+.Formats:color_depth,256
+.Formats:compression,256
+.Formats:container,256
+.Formats:database,256
+.Formats:date,256
+.Formats:device_caps,256
+.Formats:display_system,256
+.Formats:document,256
+.Formats:duration,256
+.Formats:encoding,256
+.Formats:executable,256
+.Formats:filesystem,256
+.Formats:format_variant,256
+.Formats:hash,256
+.Formats:identifier,256
+.Formats:kernel,256
+.Formats:language,256
+.Formats:libc,256
+.Formats:math,256
+.Formats:number,256
+.Formats:number_abstract,256
+.Formats:numeral_system,256
+.Formats:os,256
+.Formats:packagemgr,256
+.Formats:programming,256
+.Formats:semantic,256
+.Formats:transformation,256
+.Formats:userspace,256
+.Formats:userspace_libraries,256
+.Formats:userspace_utilities,256
+.Formats:v:case,32
+.Formats:v:lineEndings,32
+.Formats:v:padding,32
+.Formats:v:unicodePua,256
+.Formats:videoterminal,256
+.Formats:virtualfilesystem,256
