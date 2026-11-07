@@ -112,3 +112,8 @@ assuming the current code still has the reported fault.
 # Theme, probably won't fix:
 
 The glass theme has broken for some reason. I haven't changed anything related to that recently that I recall. I guess it doesn't matter that much since it only ever worked in Firefox anyway.
+
+# WASM
+
+Add a linter to ensure that only key Dcs use WASM from trivial definitions recorded in the graph, and everything else is defined in EL source, so WASM without human-readable/editable source can't end up in the graph.
+
