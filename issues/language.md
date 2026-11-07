@@ -6,7 +6,46 @@ Reviewed against [`docs/chats/2026-10-31-language.md`](../docs/chats/2026-10-31-
 
 ## Core Architectural Guarantee
 
-**An existing document must resolve the exact same transitive definitions and retain the exact same framing, validation, and execution behavior after future code or graph updates.**
+**Given identical document input octets, identical resolved graph snapshots, and an identical external event/response sequence, conforming implementations must produce a bit-for-bit identical observable execution trace after future code or graph updates.**
+
+This is an execution/replay contract, not a requirement to preserve internal
+parser trees, decoded-value representations, bindings tables, or VM states.
+Those mechanisms may change provided observable document behavior does not.
+
+The complete inputs are:
+1. The original document octets, before parsing them as Dcs.
+2. The resolved graph selected by the document's pins, including all transitive
+  dependencies. The System pin selects the System block; lower definition
+  regions follow the foundational kernel contract. References to blocks above
+  System must declare pins for those blocks too. Such blocks are currently
+  unimplemented/unpopulated. The reserved Data block beginning at `4294967296`
+  is excluded from this definition-snapshot rule, but any reads from it that
+  affect execution must be snapshot-selected separately or supplied as recorded
+  external responses, never as hidden mutable inputs.
+3. All external responses and events: clock readings, filesystem and network
+  results, keyboard/mouse input, authorization decisions, cancellation, and
+  externally imposed resource interruptions. Their ordering and logical
+  delivery points are inputs too.
+
+The observable trace includes the ordered capability and I/O requests/calls,
+converted document bytes, emitted frame bytes, document-visible diagnostics,
+and completion, failure, or suspension outcomes. For interactive or nonterminating
+documents, equality applies to every corresponding finite trace prefix, not only
+to a final converted document.
+
+"The same execution states" means the same logical document execution points,
+not identical Rust states, CPU instructions, WASM instruction counts, or wall
+clock times. During replay, the next request must be identical; delivering the
+recorded response must produce identical subsequent outputs and the next
+request. Asynchronous events need specified logical delivery points and ordering.
+
+Graph pinning fixes the document's requests, not the host's authorization policy.
+A current host may deny a request that an older host allowed; that is a different
+external response, not a compatibility violation. Host-only logging and diagnostic
+wording are outside the trace unless explicitly exposed to the document.
+Bit-identical emitted frame documents do not alone guarantee identical rasterized
+pixels: fonts, rendering semantics, and other rendering inputs must also be fixed
+or supplied explicitly to make that stronger guarantee.
 
 Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but not sufficient on its own:
 1. Snapshot resolution for `Dc 641 "Global graph system block most recent node ID at time of document creation"` must never silently substitute `HEAD` when history is missing, when a pin is newer than the local graph, or when resolver loading fails.
@@ -39,13 +78,21 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
 The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST deletion and static two-pass framing ahead of splicing) are replaced by the following five verification and migration gates.
 
 ### Gate 1: Define the Compatibility Contract
-- [ ] **Specify stable cross-revision invariants**:
-  - Document the exact invariants guaranteed for a document pinned via `Dc 641 "Global graph system block most recent node ID at time of document creation"`:
+- [ ] **Specify the observable execution/replay protocol**:
+  - Make the Core Architectural Guarantee precise for documents pinned via `Dc 641 "Global graph system block most recent node ID at time of document creation"`: define trace record encodings, request identity, emitted output boundaries/order, document-visible diagnostics, and completion/failure/suspension outcomes.
+  - Specify logical delivery points and ordering for asynchronous events, concurrent responses, cancellation, and resource interruptions. Replay must compare each request before supplying its recorded response; matching only final output or response bytes is insufficient.
+  - Define which resource limits are external inputs and which budget/interruption semantics are fixed by the execution contract. Optimization-dependent CPU/WASM instruction counts must not silently become logical document execution points.
+- [ ] **Specify complete graph dependency selection**:
+  - Define how the System pin and future pins for blocks above System select all transitive definitions, with no implicit `HEAD` lookup or unrecorded mutable data access.
+  - Document the treatment of lower definition regions and the reserved Data block described in the Core Architectural Guarantee. Require explicit snapshot selection or recorded external reads for data that affects output.
+  - Specify how unsupported block references/pins are reported until those blocks are implemented; do not substitute another snapshot.
+- [ ] **Use internal semantic cases as regression coverage, not separate top-level guarantees**:
+  - The following cases exercise the replay contract. Internal representations may change; their effects on the observable trace must remain identical:
     1. Structural framing boundaries (`Dc 590 "Is a closing delimiter of syntactic block for"`, prefix arity, `Dc 255 "Ignore following Dc"` escaping, and `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"` encapsulation).
     2. Decoded primitive values (`Dc 6 "Begin number"`..`Dc 7 "End number"`, `Dc 260 "Begin literal value"`..`Dc 261 "End literal value"`, `Dc 270 "Begin identifier"`..`Dc 271 "End identifier"`).
     3. Lexical scope and variable bindings (`Dc 541 "Enter identifier scope"`..`Dc 542 "Exit identifier scope"`, `Dc 269 "Assignment operator"`, `Dc 268 "void lang.assign([identifier] identifier, [value] value)"`, `Dc 540 "Reference bound value"`, `Dc 276 "Reference named object"`, `Dc 638 "For each"`, `Dc 639 "This element"`).
     4. Spliced token stream output (`Dc 256 "void lang.say([string] text)"` and `Dc 397 "Equivalent representations"` / `Dc 561 "Partially equivalent representations"`).
-    5. Diagnostics, forgiving recovery container boundaries, and capability/effect requests (`WasmStepOutcome::RequestCapability`).
+    5. Document-visible diagnostics, effects of forgiving recovery container boundaries, and capability/effect requests (`WasmStepOutcome::RequestCapability`). Host-only diagnostic wording need not remain identical.
 - [ ] **Separate Unevaluated Source Mode from Evaluated Spliced Mode**:
   - Preserve incremental expansion-before-framing when evaluating spliced streams (`splicing = true`), where `Dc 256 "void lang.say([string] text)"` or WASM splice routines can emit openers/closers that alter container boundaries.
   - Keep unevaluated source inspection (`splicing = false`, used by source editing, formatting, and raw CST inspection) distinct so `Dc 256 "void lang.say([string] text)"` is treated as an ordinary routine call frame without mutating surrounding containment.
@@ -64,9 +111,11 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
 - [ ] **Specify pin placement and nested-document inheritance (`src/formats/dcstring/navigator.rs:289-317`)**:
   - Support and validate `Dc 641 "Global graph system block most recent node ID at time of document creation"` both at the raw stream start and inside document/environment headers (`Dc 235 "Begin document"`..`Dc 236 "End document"`, `Dc 340 "Begin execution environment description"`..`Dc 341 "End execution environment description"`, `Dc 617 "Begin graph node definition"`..`Dc 618 "End graph node definition"`).
   - Define how nested documents inherit the enclosing document's pin unless they declare their own scoped `Dc 641 "Global graph system block most recent node ID at time of document creation"`.
+  - Extend the dependency-selection specification to future per-block pins and their inheritance. Supporting populated blocks above System remains pending; do not describe System-only resolution as full multi-block compatibility.
 
 ### Gate 3: Document the Minimal Trusted Kernel & Enforce VM Budgets
 - [ ] **Freeze and document the minimal trusted bootstrap kernel**:
+  - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version. Identical graph bytes under different kernel interpretations are not sufficient. Version selection must be available during bootstrap, before interpretation that depends on it.
   - Write a specification covering the exact host-implemented primitives that graph nodes rely upon:
     1. Physical token codecs (`DcTF`, `.dcmm` header, `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`).
     2. Active triple resolution in `SeedGraphIndex` (`Dc 584 "Has a"`, `Dc 610 "Has value"`, `Dc 591 "Supersedes"`, `Dc 592 "Retracts"`, `Dc 611 "Canonical decomposition"`).
@@ -75,10 +124,12 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
 - [ ] **Enforce intra-step instruction metering (fuel) in `tinywasm` (`src/formats/dcstring/converters/wasm.rs:1721-1798`)**:
   - `DcWasmSession::step` currently calls `func.call(&mut self.store, ...)` synchronously with no instruction budget, allowing a tight loop (`Dc 650 "WASM loop"` .. `Dc 659 "WASM br"` `0`) to hang the host inside a single `step()` call.
   - Add per-call instruction fuel / metering inside the `tinywasm` interpreter loop so execution traps or yields `Privilege::ExcessiveCompute` deterministically after a bounded number of WASM instructions.
+  - Distinguish physical VM metering from logical document progress. If a safety limit interrupts execution, expose and record the interruption under the Gate 1 protocol; a changed compiler's instruction count is not proof that replay reached the same logical point.
 - [ ] **Enforce linear-memory and output-slice resource budgets (`src/formats/dcstring/converters/wasm.rs:1665-1685`, `1801-1830`)**:
   - Cap maximum linear memory pages (both during `provide_input` and WASM `memory.grow` instructions), single-step output slice length (`out_len`), and cumulative yielded output bytes across a session.
 - [ ] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs:266-370`)**:
   - Ensure historical graph pinning applies only to language/document semantics and never grants or restores obsolete security permissions or capability policies.
+  - Compare the document's capability requests during replay, then supply recorded allow/deny/mock responses. Real execution remains subject to current host policy; changed authorization responses are changed inputs.
 
 ### Gate 4: Prove One End-to-End Vertical Migration with Real Graph History
 - [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:
@@ -87,8 +138,9 @@ The previously proposed "four drastic phases" (wholesale `DcSyntaxKind` CST dele
   - Using real generated graph history (`Dc 591 "Supersedes"` / `Dc 592 "Retracts"` across active and historical `.ctbnbdl` bundles):
     1. Author a document pinned to `Dc 641 "Global graph system block most recent node ID at time of document creation"` at revision $R_1$.
     2. Append a modified definition at revision $R_2 > R_1$ via the ledger generator.
-    3. Verify that the document pinned to $R_1$ resolves the $R_1$ definition and produces identical framing, values, and output, while a document pinned to $R_2$ uses the updated $R_2$ definition.
+    3. Preserve the original document octets and record its observable trace and external responses/events. Verify that it resolves the $R_1$ definition and replays the identical trace after the graph update and the Rust behavior migration. Compare requests before supplying recorded responses and compare output bytes and outcomes, not internal parser/VM representations. A document pinned to $R_2$ must use the updated $R_2$ definition.
     4. Verify that a document pinned to an unavailable future revision $R_3 > R_2$ produces an explicit diagnostic/error rather than silently running against $R_2$.
+    5. Add focused replay cases for denied/mocked capabilities and asynchronous event ordering at defined logical delivery points, using mocks or in-memory transports. Different external responses may change output, but must not change requests or outputs that precede their delivery.
 
 ### Gate 5: Incremental Expansion & Cleanup (Post-Proof)
 - [ ] **Eliminate implicit Rust rule synthesis in `DatasetRuleResolver::from_seed_graph` (`src/formats/dcdata/syntax/resolver.rs`)**:
