@@ -317,30 +317,142 @@ impl SeedGraphIndex {
     /// Loads a `SeedGraphIndex` pinned to the System-block state as of `most_recent_node_id`
     /// (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
     ///
-    /// If `most_recent_node_id` is at or newer than the shared `HEAD` seed graph's
+    /// If `most_recent_node_id` matches the shared `HEAD` seed graph's
     /// `system_block_most_recent_node_id()`, returns the shared `HEAD` index in $O(1)$.
-    /// Otherwise, loads active and historical `.ctbnbdl` bundles and reconstructs the
-    /// graph state as of `most_recent_node_id`.
+    /// If `most_recent_node_id` exceeds `HEAD`, returns an error rather than silently
+    /// substituting `HEAD`. Otherwise, loads active and historical `.ctbnbdl` bundles,
+    /// verifies that historical coverage is complete up to `most_recent_node_id`, and
+    /// reconstructs the graph state as of `most_recent_node_id`.
     pub fn load_at_most_recent_from_asset_bundle(
         most_recent_node_id: u128,
     ) -> Result<Arc<Self>> {
+        if let Some(block_desc) = ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(most_recent_node_id) {
+            bail!(
+                "Document pin Dc 641 targets unsupported graph block ({block_desc}): l{most_recent_node_id} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+            );
+        }
         ensure!(
             (SYSTEM_REGION_START..=SYSTEM_REGION_END)
                 .contains(&most_recent_node_id),
             "Most recent System block node ID l{most_recent_node_id} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
         );
         let shared = Self::shared()?;
-        if shared
-            .system_block_most_recent_node_id()
-            .is_some_and(|head_id| most_recent_node_id >= head_id)
-        {
-            return Ok(Arc::clone(shared));
+        if let Some(head_id) = shared.system_block_most_recent_node_id() {
+            if most_recent_node_id == head_id {
+                return Ok(Arc::clone(shared));
+            }
+            if most_recent_node_id > head_id {
+                bail!(
+                    "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{most_recent_node_id} > l{head_id})"
+                );
+            }
         }
-        let (_, merged) = Self::load_merged_nodes_with_history()?;
-        Ok(Arc::new(Self::from_nodes_at_most_recent(
+        let (active_most_recent, active_nodes) = Self::load_nodes_from_asset_dir(
+            SEED_GRAPH_ASSET_GLOB,
+            "data/graph",
+            Some(PRIMARY_SEED_GRAPH_ASSET_KEY),
+            true,
+        )?;
+        let (history_most_recent, history_nodes) =
+            Self::load_nodes_from_asset_dir(
+                SYSTEM_GRAPH_HISTORY_ASSET_GLOB,
+                "data/graph/system",
+                None,
+                false,
+            )?;
+        let index = Self::from_active_and_history_nodes_at_most_recent(
+            active_most_recent,
+            active_nodes,
+            history_most_recent,
+            history_nodes,
+            most_recent_node_id,
+        )?;
+        Ok(Arc::new(index))
+    }
+
+    /// Reconstructs a `SeedGraphIndex` pinned to `most_recent_node_id` from separate
+    /// active (`data/graph/*.ctbnbdl`) and historical (`data/graph/system/*.ctbnbdl`)
+    /// node lists, enforcing snapshot bounds and historical bundle completeness.
+    pub fn from_active_and_history_nodes_at_most_recent(
+        active_most_recent: Option<u128>,
+        active_nodes: Vec<LedgerNode>,
+        history_most_recent: Option<u128>,
+        history_nodes: Vec<LedgerNode>,
+        most_recent_node_id: u128,
+    ) -> Result<Self> {
+        if let Some(block_desc) = ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(most_recent_node_id) {
+            bail!(
+                "Document pin Dc 641 targets unsupported graph block ({block_desc}): l{most_recent_node_id} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+            );
+        }
+        ensure!(
+            (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                .contains(&most_recent_node_id),
+            "Most recent System block node ID l{most_recent_node_id} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+        );
+        let head_id = active_most_recent
+            .max(history_most_recent)
+            .or_else(|| active_nodes.last().map(|n| n.id))
+            .or_else(|| history_nodes.last().map(|n| n.id))
+            .context("Cannot resolve Dc 641 pin against an empty System graph")?;
+        if most_recent_node_id > head_id {
+            bail!(
+                "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{most_recent_node_id} > l{head_id})"
+            );
+        }
+        if most_recent_node_id < head_id {
+            let active_has_revisions_or_gaps = active_nodes.iter().any(|n| {
+                matches!(
+                    n.tokens.first().copied(),
+                    Some(tok) if tok == sh(DC_SUPERSEDES) || tok == sh(DC_RETRACTS)
+                )
+            }) || active_nodes
+                .first()
+                .is_none_or(|first| first.id > SYSTEM_REGION_START)
+                || active_nodes
+                    .windows(2)
+                    .any(|w| {
+                        let Some(first) = w.first() else {
+                            return false;
+                        };
+                        let Some(second) = w.get(1) else {
+                            return false;
+                        };
+                        first.id.saturating_add(1) != second.id
+                    });
+            if active_has_revisions_or_gaps && history_nodes.is_empty() {
+                bail!(
+                    "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is absent; cannot reconstruct historical System graph pin l{most_recent_node_id} (< HEAD l{head_id})"
+                );
+            }
+        }
+        let (_, merged) = Self::merge_active_and_history_nodes(
+            active_most_recent,
+            active_nodes,
+            history_most_recent,
+            history_nodes,
+        )?;
+        if most_recent_node_id < head_id {
+            let mut expected_id = SYSTEM_REGION_START;
+            for node in &merged {
+                if node.id > most_recent_node_id {
+                    break;
+                }
+                ensure!(
+                    node.id == expected_id,
+                    "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is incomplete: missing node l{expected_id} required for historical pin l{most_recent_node_id}"
+                );
+                expected_id = expected_id.saturating_add(1);
+            }
+            ensure!(
+                expected_id > most_recent_node_id,
+                "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is incomplete: missing node l{expected_id}..=l{most_recent_node_id} for historical pin l{most_recent_node_id}"
+            );
+        }
+        Ok(Self::from_nodes_at_most_recent(
             merged,
             most_recent_node_id,
-        )))
+        ))
     }
 
     fn load_merged_nodes_with_history() -> Result<(Option<u128>, Vec<LedgerNode>)>
@@ -358,6 +470,20 @@ impl SeedGraphIndex {
                 None,
                 false,
             )?;
+        Self::merge_active_and_history_nodes(
+            active_most_recent,
+            active_nodes,
+            history_most_recent,
+            history_nodes,
+        )
+    }
+
+    fn merge_active_and_history_nodes(
+        active_most_recent: Option<u128>,
+        active_nodes: Vec<LedgerNode>,
+        history_most_recent: Option<u128>,
+        history_nodes: Vec<LedgerNode>,
+    ) -> Result<(Option<u128>, Vec<LedgerNode>)> {
         let bundle_most_recent = active_most_recent.max(history_most_recent);
         if history_nodes.is_empty() {
             return Ok((bundle_most_recent, active_nodes));
@@ -1188,13 +1314,23 @@ impl SeedGraphIndex {
         }
     }
 
+    /// Resolves `id` through any active `Dc 591` (`Supersedes`) chain within this snapshot
+    /// and returns the active terminal `LedgerNode`, or `None` if `id` is unknown, retracted
+    /// (`Dc 592`), or outside the snapshot.
+    #[must_use]
+    pub fn get_active_node(&self, id: u128) -> Option<&LedgerNode> {
+        let resolved_id = self.resolve_latest_node_id(id)?;
+        self.get_node(resolved_id)
+    }
+
     /// Resolves `tok` as a string value node (`DcShorthand::Long(id)`), returning its decoded UTF-8 string.
     #[must_use]
     pub fn get_string(&self, tok: DcShorthand) -> Option<&str> {
         let DcShorthand::Long(id) = tok else {
             return None;
         };
-        self.string_by_node_id.get(&id).map(String::as_str)
+        let resolved_id = self.resolve_latest_node_id(id)?;
+        self.string_by_node_id.get(&resolved_id).map(String::as_str)
     }
 
     /// Resolves `tok` as an integer value node (`DcShorthand::Long(id)`), returning its decoded `u128`.
@@ -1203,7 +1339,8 @@ impl SeedGraphIndex {
         let DcShorthand::Long(id) = tok else {
             return None;
         };
-        self.integer_by_node_id.get(&id).copied()
+        let resolved_id = self.resolve_latest_node_id(id)?;
+        self.integer_by_node_id.get(&resolved_id).copied()
     }
 
     /// Looks up the allocated `u128` node ID for a `SeedEntityKey`.
@@ -1434,7 +1571,7 @@ impl SeedGraphIndex {
         else {
             return None;
         };
-        self.get_node(node_id).map(|n| n.tokens.as_slice())
+        self.get_active_node(node_id).map(|n| n.tokens.as_slice())
     }
 
     /// Returns the raw `.Semantic:Pattern` token slice for a named syntax construct
@@ -1481,7 +1618,7 @@ impl SeedGraphIndex {
         ] {
             for entry in self.get_multi_properties(subj, sh(prop_dc)) {
                 if let DcShorthand::Long(node_id) = entry.value
-                    && let Some(node) = self.get_node(node_id)
+                    && let Some(node) = self.get_active_node(node_id)
                     && Self::tokens_start_wasm_definition(&node.tokens)
                 {
                     return Some(node.tokens.as_slice());
@@ -1520,7 +1657,7 @@ impl SeedGraphIndex {
         }
         if inner.len() == 1
             && let Some(&DcShorthand::Long(node_id)) = inner.first()
-            && let Some(node) = self.get_node(node_id)
+            && let Some(node) = self.get_active_node(node_id)
             && Self::tokens_start_wasm_definition(&node.tokens)
         {
             return Some(node.tokens.as_slice());
@@ -2305,6 +2442,86 @@ mod tests {
                 sh(DC_PROGRAMMATIC_IDENTIFIER)
             ),
             Some("AddSystemGraphMostRecent")
+        );
+
+        // Gate 1: Reject pins newer than the local graph (`most_recent_node_id > head_id`)
+        // rather than silently substituting `HEAD`.
+        let future_id = head_id.saturating_add(1);
+        let future_err =
+            SeedGraphIndex::load_at_most_recent_from_asset_bundle(future_id)
+                .expect_err("Pin newer than HEAD must fail");
+        assert!(
+            future_err
+                .to_string()
+                .contains(&format!("l{future_id} > l{head_id}")),
+            "Unexpected error for future pin: {future_err}"
+        );
+        let future_res_err =
+            crate::syntax::syntax_resolver_at_most_recent(future_id)
+                .expect_err("syntax_resolver_at_most_recent must reject pin newer than HEAD");
+        assert!(
+            future_res_err
+                .to_string()
+                .contains(&format!("l{future_id} > l{head_id}")),
+            "Unexpected resolver error for future pin: {future_res_err}"
+        );
+
+        // Gate 1: Reject unsupported graph blocks (Data block and blocks above System).
+        for unsupported_id in [
+            ctb_storage_minimal::global_graph_layout::DATA_REGION_START,
+            ctb_storage_minimal::global_graph_layout::SYSTEM_REGION_END
+                .saturating_add(1),
+        ] {
+            let err = SeedGraphIndex::load_at_most_recent_from_asset_bundle(
+                unsupported_id,
+            )
+            .expect_err("Unsupported graph block pin must fail");
+            assert!(
+                err.to_string().contains("unsupported graph block"),
+                "Expected unsupported graph block error for l{unsupported_id}, got: {err}"
+            );
+        }
+
+        // Gate 1: Require complete historical graph bundles when resolving historical pins.
+        let full_hist = SeedGraphIndex::load_with_history_from_asset_bundle()?;
+        let (part_active, part_history) =
+            crate::ctbnbdl::partition_active_and_inactive_nodes_with(
+                &full_hist.nodes,
+                crate::graph_ledger::default_ctbnbdl_framing_dcs(),
+            );
+        let missing_hist_err =
+            SeedGraphIndex::from_active_and_history_nodes_at_most_recent(
+                Some(head_id),
+                part_active.clone(),
+                None,
+                Vec::new(),
+                8_589_958_834,
+            )
+            .expect_err("Historical pin without history bundle must fail");
+        assert!(
+            missing_hist_err
+                .to_string()
+                .contains("system_graph_history.rsrc"),
+            "Expected system_graph_history.rsrc error when history is absent, got: {missing_hist_err}"
+        );
+
+        let mut gapped_history = part_history;
+        let removed_hist_node = gapped_history.remove(0);
+        let incomplete_hist_err =
+            SeedGraphIndex::from_active_and_history_nodes_at_most_recent(
+                Some(head_id),
+                part_active,
+                Some(head_id),
+                gapped_history,
+                8_589_958_834,
+            )
+            .expect_err("Historical pin with gap in history bundle must fail");
+        assert!(
+            incomplete_hist_err.to_string().contains(&format!(
+                "missing node l{}",
+                removed_hist_node.id
+            )),
+            "Expected missing node error for incomplete history, got: {incomplete_hist_err}"
         );
 
         // Verify that no active Dc 594 "Syntax rule" pattern node at HEAD uses deprecated Dc 4 "!Range (deprecated)"

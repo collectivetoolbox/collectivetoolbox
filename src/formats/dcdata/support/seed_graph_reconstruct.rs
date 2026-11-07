@@ -707,8 +707,8 @@ impl SeedGraphIndex {
 
     /// Decodes a `FormatExpr` value node by its `node_id`.
     pub fn decode_format_expr_node(&self, node_id: u128) -> Result<FormatExpr> {
-        let node = self.get_node(node_id).with_context(|| {
-            format!("FormatExpr value node l{node_id} not found in seed graph")
+        let node = self.get_active_node(node_id).with_context(|| {
+            format!("FormatExpr value node l{node_id} not found or inactive in seed graph")
         })?;
         let sh_var_nick = sh(DC_DC_FORMAT_VARIATION_NICKNAME);
         let sh_begin_param = sh(DC_BEGIN_PARAMETER);
@@ -788,7 +788,7 @@ impl SeedGraphIndex {
             return Some(s.to_string());
         }
         if let DcShorthand::Long(node_id) = val_tok {
-            if let Some(node) = self.get_node(node_id) {
+            if let Some(node) = self.get_active_node(node_id) {
                 if Self::node_starts_format_expr(&node.tokens) {
                     if skip_format_expr {
                         return None;
@@ -814,7 +814,7 @@ impl SeedGraphIndex {
             return Some(s.to_string());
         }
         if let DcShorthand::Long(node_id) = obj {
-            if let Some(node) = self.get_node(node_id)
+            if let Some(node) = self.get_active_node(node_id)
                 && Self::node_starts_format_expr(&node.tokens)
             {
                 if skip_format_expr {
@@ -836,8 +836,8 @@ impl SeedGraphIndex {
 
     /// Decodes a `.Semantic:Pattern` value node by its `node_id` into a `DcSyntaxRule`.
     pub fn decode_pattern_node(&self, node_id: u128) -> Result<DcSyntaxRule> {
-        let node = self.get_node(node_id).with_context(|| {
-            format!("Pattern value node l{node_id} not found in seed graph")
+        let node = self.get_active_node(node_id).with_context(|| {
+            format!("Pattern value node l{node_id} not found or inactive in seed graph")
         })?;
         self.decode_syntax_rule_tokens(&node.tokens)
             .with_context(|| {
@@ -1741,8 +1741,8 @@ impl SeedGraphIndex {
                 "Expected Long value node ID for numeric range bound, found {tok}"
             );
         };
-        let node = self.get_node(node_id).with_context(|| {
-            format!("Numeric range bound node l{node_id} not found in seed graph")
+        let node = self.get_active_node(node_id).with_context(|| {
+            format!("Numeric range bound node l{node_id} not found or inactive in seed graph")
         })?;
         NumericBoundValue::decode_tokens(&node.tokens).with_context(|| {
             format!(

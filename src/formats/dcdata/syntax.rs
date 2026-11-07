@@ -116,23 +116,21 @@ pub fn register_historical_syntax_resolver(
 /// Returns a shared syntax resolver reflecting the System-block graph state as of
 /// `most_recent_node_id` (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
 ///
-/// When `most_recent_node_id` matches the current `HEAD` System-block most recent node ID
-/// (or is newer than `HEAD` and not explicitly registered), returns [`default_syntax_resolver()`]
-/// without rebuilding.
+/// When `most_recent_node_id` matches the current `HEAD` System-block most recent node ID,
+/// returns [`default_syntax_resolver()`] without rebuilding. When `most_recent_node_id`
+/// exceeds `HEAD` (and is not explicitly registered in the resolver cache), returns an error
+/// rather than silently substituting `HEAD`.
 pub fn syntax_resolver_at_most_recent(
     most_recent_node_id: u128,
 ) -> Result<Arc<DatasetRuleResolver>> {
-    let shared_graph = crate::seed_graph::SeedGraphIndex::shared()?;
-    let head_id = shared_graph.system_block_most_recent_node_id();
-    if head_id == Some(most_recent_node_id) {
-        return Ok(Arc::clone(default_syntax_resolver()));
-    }
     if let Ok(cache) = HISTORICAL_RESOLVER_CACHE.lock()
         && let Some(existing) = cache.get(&most_recent_node_id)
     {
         return Ok(Arc::clone(existing));
     }
-    if head_id.is_some_and(|head| most_recent_node_id >= head) {
+    let shared_graph = crate::seed_graph::SeedGraphIndex::shared()?;
+    let head_id = shared_graph.system_block_most_recent_node_id();
+    if head_id == Some(most_recent_node_id) {
         return Ok(Arc::clone(default_syntax_resolver()));
     }
     let built = Arc::new(DatasetRuleResolver::load_at_most_recent(
