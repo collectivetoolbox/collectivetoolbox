@@ -1443,8 +1443,8 @@ impl DatasetRuleResolver {
     pub fn from_seed_graph(
         index: &crate::seed_graph::SeedGraphIndex,
     ) -> Result<Self> {
-        let dc_defns = index.reconstruct_dc_defns()?;
-        let format_defns = index.reconstruct_format_defns()?;
+        let dc_defns = index.reconstruct_dc_defns_for_resolver()?;
+        let format_defns = index.reconstruct_format_defns_for_resolver()?;
         let named_types = index
             .reconstruct_named_types()?
             .into_iter()

@@ -2590,6 +2590,10 @@ impl DcDocumentNavigator<'_> {
                 {
                     self.cursor = outer.end;
                     true
+                } else if let Some(raw_tokens) =
+                    resolver.resolve_rule_tokens(target)
+                {
+                    self.eval_pattern_tokens(raw_tokens, &mut ctx)?
                 } else {
                     self.eval_pattern(&rule.pattern, &mut ctx)?
                 };

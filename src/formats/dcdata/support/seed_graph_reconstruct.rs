@@ -96,6 +96,19 @@ impl SeedGraphIndex {
     /// Reconstructs all Document Character definitions (`DcDefn` for Unicode clarifications and Short Dcs)
     /// directly from the indexed seed graph, sorted in ascending `dc_id` order.
     pub fn reconstruct_dc_defns(&self) -> Result<Vec<DcDefn>> {
+        self.reconstruct_dc_defns_inner(false)
+    }
+
+    pub(crate) fn reconstruct_dc_defns_for_resolver(
+        &self,
+    ) -> Result<Vec<DcDefn>> {
+        self.reconstruct_dc_defns_inner(true)
+    }
+
+    fn reconstruct_dc_defns_inner(
+        &self,
+        skip_format_expr: bool,
+    ) -> Result<Vec<DcDefn>> {
         let sh_name = sh(DC_CANONICAL_NAME);
         let sh_desc = sh(DC_DESCRIPTION);
         let sh_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
@@ -252,26 +265,39 @@ impl SeedGraphIndex {
                 (sh_compat, "compat"),
             ] {
                 for entry in self.get_multi_properties(subj, decomp_prop) {
-                    let payload =
-                        self.decode_decomposition_payload(entry.value);
-                    decompositions.push(format!("<{tag}>{payload}"));
+                    if let Some(payload) = self.decode_decomposition_payload(
+                        entry.value,
+                        skip_format_expr,
+                    ) {
+                        decompositions.push(format!("<{tag}>{payload}"));
+                    }
                 }
             }
             for &pref_val in self.get_preferred_replacements(subj) {
-                let payload = self.decode_decomposition_payload(pref_val);
-                decompositions.push(format!("<prefer>{payload}"));
+                if let Some(payload) = self
+                    .decode_decomposition_payload(pref_val, skip_format_expr)
+                {
+                    decompositions.push(format!("<prefer>{payload}"));
+                }
             }
 
             let implies: Vec<String> = self
                 .get_direct_objects(sh_subtype, subj)
                 .iter()
-                .map(|&obj| self.decode_relation_target_string(obj))
+                .filter_map(|&obj| {
+                    self.decode_relation_target_string(obj, skip_format_expr)
+                })
                 .collect();
-            let based_on: Vec<String> = self
-                .get_direct_objects(sh_based, subj)
-                .iter()
-                .map(|&obj| self.decode_relation_target_string(obj))
-                .collect();
+            let based_on: Vec<String> = if skip_format_expr {
+                Vec::new()
+            } else {
+                self.get_direct_objects(sh_based, subj)
+                    .iter()
+                    .filter_map(|&obj| {
+                        self.decode_relation_target_string(obj, false)
+                    })
+                    .collect()
+            };
             let os_associations: Vec<String> = self
                 .get_direct_objects(sh_assoc, subj)
                 .iter()
@@ -324,6 +350,19 @@ impl SeedGraphIndex {
     /// Reconstructs all Format definitions (`DcShorthand::Format(_)`) from the active seed graph
     /// statements, sorted by ascending `dc_id`.
     pub fn reconstruct_format_defns(&self) -> Result<Vec<DcDefn>> {
+        self.reconstruct_format_defns_inner(false)
+    }
+
+    pub(crate) fn reconstruct_format_defns_for_resolver(
+        &self,
+    ) -> Result<Vec<DcDefn>> {
+        self.reconstruct_format_defns_inner(true)
+    }
+
+    fn reconstruct_format_defns_inner(
+        &self,
+        skip_format_expr: bool,
+    ) -> Result<Vec<DcDefn>> {
         let sh_name = sh(DC_CANONICAL_NAME);
         let sh_desc = sh(DC_DESCRIPTION);
         let sh_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
@@ -475,33 +514,48 @@ impl SeedGraphIndex {
                 (sh_compat, "compat"),
             ] {
                 for entry in self.get_multi_properties(subj, decomp_prop) {
-                    let payload =
-                        self.decode_decomposition_payload(entry.value);
-                    decompositions.push(format!("<{tag}>{payload}"));
+                    if let Some(payload) = self.decode_decomposition_payload(
+                        entry.value,
+                        skip_format_expr,
+                    ) {
+                        decompositions.push(format!("<{tag}>{payload}"));
+                    }
                 }
             }
             for &pref_val in self.get_preferred_replacements(subj) {
-                let payload = self.decode_decomposition_payload(pref_val);
-                decompositions.push(format!("<prefer>{payload}"));
+                if let Some(payload) = self
+                    .decode_decomposition_payload(pref_val, skip_format_expr)
+                {
+                    decompositions.push(format!("<prefer>{payload}"));
+                }
             }
 
             let implies: Vec<String> = self
                 .get_direct_objects(sh_subtype, subj)
                 .iter()
-                .map(|&obj| self.decode_relation_target_string(obj))
+                .filter_map(|&obj| {
+                    self.decode_relation_target_string(obj, skip_format_expr)
+                })
                 .collect();
-            let based_on: Vec<String> = self
-                .get_direct_objects(sh_based, subj)
-                .iter()
-                .map(|&obj| self.decode_relation_target_string(obj))
-                .collect();
+            let based_on: Vec<String> = if skip_format_expr {
+                Vec::new()
+            } else {
+                self.get_direct_objects(sh_based, subj)
+                    .iter()
+                    .filter_map(|&obj| {
+                        self.decode_relation_target_string(obj, false)
+                    })
+                    .collect()
+            };
             let os_associations: Vec<String> = self
                 .get_direct_objects(sh_assoc, subj)
                 .iter()
                 .map(ToString::to_string)
                 .collect();
 
-            let format_spec = if let Some(DcShorthand::Long(expr_node_id)) =
+            let format_spec = if skip_format_expr {
+                None
+            } else if let Some(DcShorthand::Long(expr_node_id)) =
                 self.get_single_property(subj, sh_fmt_desc)
             {
                 Some(self.decode_format_expr_node(expr_node_id)?)
@@ -804,9 +858,30 @@ impl SeedGraphIndex {
         })
     }
 
-    fn decode_decomposition_payload(&self, val_tok: DcShorthand) -> String {
+    fn decode_decomposition_payload(
+        &self,
+        val_tok: DcShorthand,
+        skip_format_expr: bool,
+    ) -> Option<String> {
         if let Some(s) = self.get_string(val_tok) {
-            return s.to_string();
+            if skip_format_expr {
+                if s.trim_start().starts_with('(') {
+                    return None;
+                }
+                if !s
+                    .split_whitespace()
+                    .all(|tok| DcShorthand::parse(tok).is_ok())
+                {
+                    let u_tokens: Vec<String> = s
+                        .chars()
+                        .map(|ch| {
+                            DcShorthand::Unicode(u32::from(ch)).to_string()
+                        })
+                        .collect();
+                    return Some(u_tokens.join(" "));
+                }
+            }
+            return Some(s.to_string());
         }
         if let DcShorthand::Long(node_id) = val_tok {
             if let Some(node) = self.get_node(node_id) {
@@ -829,21 +904,28 @@ impl SeedGraphIndex {
                                     .is_some_and(is_format_op))
                     });
                 if starts_format_expr {
+                    if skip_format_expr {
+                        return None;
+                    }
                     if let Ok(expr) = self.decode_format_expr_node(node_id) {
-                        return crate::format_spec::format_expr(&expr);
+                        return Some(crate::format_spec::format_expr(&expr));
                     }
                 }
                 let parts: Vec<String> =
                     node.tokens.iter().map(ToString::to_string).collect();
-                return parts.join(" ");
+                return Some(parts.join(" "));
             }
         }
-        val_tok.to_string()
+        Some(val_tok.to_string())
     }
 
-    fn decode_relation_target_string(&self, obj: DcShorthand) -> String {
+    fn decode_relation_target_string(
+        &self,
+        obj: DcShorthand,
+        skip_format_expr: bool,
+    ) -> Option<String> {
         if let Some(s) = self.get_string(obj) {
-            return s.to_string();
+            return Some(s.to_string());
         }
         if let DcShorthand::Long(node_id) = obj {
             if let Some(node) = self.get_node(node_id) {
@@ -866,16 +948,22 @@ impl SeedGraphIndex {
                                     .is_some_and(is_format_op))
                     });
                 if starts_format_expr {
+                    if skip_format_expr {
+                        return None;
+                    }
                     if let Ok(expr) = self.decode_format_expr_node(node_id) {
-                        return crate::format_spec::format_expr(&expr);
+                        return Some(crate::format_spec::format_expr(&expr));
                     }
                 }
             }
+            if skip_format_expr {
+                return None;
+            }
             if let Ok(rule) = self.decode_pattern_node(node_id) {
-                return rule.pattern.format_dsl();
+                return Some(rule.pattern.format_dsl());
             }
         }
-        obj.to_string()
+        Some(obj.to_string())
     }
 
     /// Decodes a `.Semantic:Pattern` value node by its `node_id` into a `DcSyntaxRule`.
@@ -1047,7 +1135,7 @@ impl SeedGraphIndex {
         &self,
         tokens: &'a [DcShorthand],
     ) -> Result<&'a [DcShorthand]> {
-        let (pattern_slice, _) = self.strip_trailing_action(tokens)?;
+        let (pattern_slice, _) = self.split_trailing_syntax_action(tokens)?;
         Ok(pattern_slice)
     }
 

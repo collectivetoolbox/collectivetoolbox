@@ -364,21 +364,7 @@ impl DatasetRuleResolver {
                         .to_global_id()
                         .ok()
                     })
-                    .collect::<Option<Vec<_>>>()
-                    .or_else(|| {
-                        if crate::format_spec::parse_format_expr(payload)
-                            .is_ok()
-                        {
-                            None
-                        } else {
-                            Some(
-                                payload
-                                    .chars()
-                                    .map(|ch| u128::from(u32::from(ch)))
-                                    .collect(),
-                            )
-                        }
-                    });
+                    .collect();
                 if let Some(targets) = targets
                     && !targets.is_empty()
                 {
