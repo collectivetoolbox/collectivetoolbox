@@ -123,22 +123,27 @@ cross-revision execution, event, and pixel replay suite in Gate 3 remain pending
 these parser/resolver tests do not establish the full compatibility guarantee.
 
 ### Gate 2: Document the Minimal Trusted Kernel & Enforce VM Budgets
-- [ ] **Freeze and document the minimal trusted bootstrap kernel**:
-  - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version. Identical graph bytes under different kernel interpretations are not sufficient. Version selection must be available during bootstrap, before interpretation that depends on it.
-  - Write a specification covering the exact host-implemented primitives that graph nodes rely upon:
+- [x] **Freeze and document the minimal trusted bootstrap kernel (`docs/bootstrap-kernel-spec.md`, `src/formats/dcstring/navigator/policy.rs`, `src/formats/dcstring/navigator.rs`)**:
+  - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version (`BootstrapKernelVersion::V1 = 1`, `BootstrapKernelVersion::CURRENT`, `DcProjectionPolicy::with_kernel_version` / `try_with_kernel_version_number`, and `DcDocumentNavigator::select_bootstrap_kernel_version`). Identical graph bytes under different kernel interpretations are not sufficient. Version selection must be available during bootstrap, before interpretation that depends on it.
+  - Wrote [`docs/bootstrap-kernel-spec.md`](../docs/bootstrap-kernel-spec.md) covering the exact host-implemented primitives that graph nodes rely upon:
     1. Physical token codecs (`DcTF`, `.dcmm` header, `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`).
     2. Active triple resolution in `SeedGraphIndex` (`Dc 584 "Has a"`, `Dc 610 "Has value"`, `Dc 591 "Supersedes"`, `Dc 592 "Retracts"`, `Dc 611 "Canonical decomposition"`).
     3. `.Semantic:Pattern` operators (`Dc 599 "Self reference"`, `Dc 600 "Wildcard pattern"`, `Dc 601 "Pattern conjunction"`, `Dc 602 "Pattern alternation"`, `Dc 603 "Pattern repetition"`, `Dc 604 "Negated pattern"`, `Dc 605 "Subpattern match"`, `Dc 606 "Pattern capture"`, `Dc 607 "Pattern replacement"`, `Dc 643 "Range"`, `Dc 644 "Exclusive range endpoint"`, `Dc 642 "Data byte length"`).
     4. Dc-WASM binary lowering (`Dc 647 "WASM unreachable"`..`Dc 1928 "End WASM program"`) and the 32-byte linear-memory mailbox ABI (`DC_WASM_MAILBOX_*` at bytes `0..32`).
-- [ ] **Enforce intra-step instruction metering (fuel) in `tinywasm` (`src/formats/dcstring/converters/wasm.rs:1721-1798`)**:
-  - `DcWasmSession::step` currently calls `func.call(&mut self.store, ...)` synchronously with no instruction budget, allowing a tight loop (`Dc 650 "WASM loop"` .. `Dc 659 "WASM br"` `0`) to hang the host inside a single `step()` call.
-  - Add per-call instruction fuel / metering inside the `tinywasm` interpreter loop so execution traps or yields `Privilege::ExcessiveCompute` deterministically after a bounded number of WASM instructions.
-  - Distinguish physical VM metering from logical document progress. If a safety limit interrupts execution, expose and record the interruption as an external resource event in the execution trace; a changed compiler's instruction count is not proof that replay reached the same logical point.
-- [ ] **Enforce linear-memory and output-slice resource budgets (`src/formats/dcstring/converters/wasm.rs:1665-1685`, `1801-1830`)**:
-  - Cap maximum linear memory pages (both during `provide_input` and WASM `memory.grow` instructions), single-step output slice length (`out_len`), and cumulative yielded output bytes across a session.
-- [ ] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs:266-370`)**:
-  - Ensure historical graph pinning applies only to language/document semantics and never grants or restores obsolete security permissions or capability policies.
-  - Compare the document's capability requests during replay, then supply recorded allow/deny/mock responses. Real execution remains subject to current host policy; changed authorization responses are changed inputs.
+- [x] **Enforce intra-step instruction metering (fuel) in `tinywasm` (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`, `src/runtime/runtime.rs`)**:
+  - `DcWasmSession::step` configures per-step instruction fuel (`DcWasmResourceLimits::max_instructions_per_step`, default `1_000_000`) on `tinywasm::Store` before each `func.call(&mut self.store, ...)`, preventing tight loops (`Dc 650 "WASM loop"` .. `Dc 659 "WASM br"` `0`) from hanging inside a single `step()` call.
+  - Added `Trap::InstructionFuelExhausted` inside `tinywasm::Executor::exec_next` and mapped it to `WasmResourceInterruption::InstructionFuelExhausted` and `Privilege::ExcessiveCompute`.
+  - Distinguished physical VM metering from logical document progress via `WasmExecutionTrace` and `WasmTraceEvent::ResourceInterruption`: safety-limit interruptions are exposed and recorded as external resource events in the execution trace, while trace replay (`ExecutionContext::replay_wasm_session_trace`) compares logical capability requests and ignores physical instruction count differences across compilers.
+- [x] **Enforce linear-memory and output-slice resource budgets (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`)**:
+  - Capped maximum linear memory pages (`DcWasmResourceLimits::max_memory_pages`, default `256` pages = `16 MiB`) across module instantiation, `provide_input`, and WASM `memory.grow` instructions (`WasmResourceInterruption::MemoryLimitExceeded`), single-step output slice length (`DcWasmResourceLimits::max_step_output_bytes`, default `4 MiB`, `WasmResourceInterruption::StepOutputSliceTooLarge`), and cumulative yielded output bytes across a session (`DcWasmResourceLimits::max_session_output_bytes`, default `16 MiB`, `WasmResourceInterruption::SessionOutputBudgetExceeded`).
+- [x] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs`)**:
+  - Historical graph pinning (`Dc 641 "Global graph system block most recent node ID at time of document creation"`) applies only to language/document semantics and never grants or restores security permissions or capability policies (`ExecutionContext::set_privilege_decision` / `with_privilege_decision`).
+  - `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::replay_wasm_session_trace` compare the document's capability requests at each logical step during replay and supply the recorded allow/deny/mock responses while live execution remains governed by the current host policy.
+
+#### Gate 2 Status & Remaining Gaps (2026-11-08)
+
+- All four Gate 2 items are implemented and covered by unit tests in `ctb-formats-dcstring` and `ctb-runtime` on `x86_64-unknown-linux-musl`.
+- **Remaining Gaps**: Overall status of `issues/language.md` remains `Partially Implemented` because Gate 3 (vertical migration of a concrete Rust-defined behavior into `.ctbnodes`/`.ctbnbdl` and the end-to-end cross-revision execution, event, and pixel replay regression suite) and Gate 4 (eliminating implicit Rust rule synthesis in `DatasetRuleResolver::from_seed_graph`, migrating remaining procedural evaluators in `eval.rs`, and enforcing graph WASM source-provenance linting) are not yet implemented.
 
 ### Gate 3: Prove One End-to-End Vertical Migration with Real Graph History
 - [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:

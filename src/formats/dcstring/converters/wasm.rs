@@ -3231,4 +3231,254 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_gate2_wasm_intra_step_instruction_fuel_stops_tight_loop()
+    -> Result<()> {
+        let i32_dc = i32_type_dc();
+        // Build a tight infinite loop inside a single `step()` call:
+        // `loop (empty blocktype: Dc 316 = 0x40) br 0 end i32.const 0`
+        let mut loop_doc = DcMstring::new();
+        loop_doc.push_char(DcChar::from_short(260));
+        loop_doc.push_char(DcChar::from_short(262));
+        loop_doc.push_char(DcChar::from_short(280));
+        loop_doc.push_char(i32_dc);
+        loop_doc.push_char(DcChar::from_short(263));
+        loop_doc.push_char(DcChar::from_short(650)); // WASM loop (0x03)
+        loop_doc.push_char(DcChar::from_short(316)); // empty blocktype (Dc 316 -> 0x40)
+        loop_doc.push_char(DcChar::from_short(659)); // WASM br (0x0C)
+        u32::encode_dc_mixed(&0, &mut loop_doc)?;
+        loop_doc.push_char(DcChar::from_short(658)); // WASM end (0x0B)
+        loop_doc.push_char(DcChar::from_short(712)); // WASM i32.const 0
+        i32::encode_dc_mixed(&0, &mut loop_doc)?;
+        loop_doc.push_char(DcChar::from_short(261));
+
+        let input = DcMstring::new();
+        let limits =
+            DcWasmResourceLimits::default().with_max_instructions_per_step(400);
+        let mut session = DcWasmSession::from_dc_wasm(&loop_doc, &input, None)?
+            .with_resource_limits(limits);
+
+        let err = session
+            .step()
+            .expect_err("Tight infinite WASM loop must exhaust fuel");
+        let interruption = err
+            .downcast_ref::<WasmResourceInterruption>()
+            .expect("Error must downcast to WasmResourceInterruption");
+        assert_eq!(
+            interruption,
+            &WasmResourceInterruption::InstructionFuelExhausted { limit: 400 }
+        );
+        assert_eq!(
+            session.last_resource_interruption(),
+            Some(&WasmResourceInterruption::InstructionFuelExhausted {
+                limit: 400
+            })
+        );
+        assert_eq!(session.last_step_instructions(), 400);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_wasm_memory_page_cap_on_provide_input_and_memory_grow()
+    -> Result<()> {
+        let i32_dc = i32_type_dc();
+        // Routine that calls `memory.grow(4)` (Dc 711 = 0x40 `memory.grow 0x00`), stores the
+        // returned page count (`-1` when capped) into `mem[64]`, and returns `0` (`Complete`).
+        let mut grow_doc = DcMstring::new();
+        grow_doc.push_char(DcChar::from_short(260));
+        grow_doc.push_char(DcChar::from_short(262));
+        grow_doc.push_char(DcChar::from_short(280));
+        grow_doc.push_char(i32_dc);
+        grow_doc.push_char(DcChar::from_short(263));
+        // i32.const 64 (destination address for memory.grow result)
+        grow_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut grow_doc)?;
+        // i32.const 4 (request 4 additional pages)
+        grow_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut grow_doc)?;
+        // memory.grow 0 (Dc 711 = 647 + 0x40)
+        grow_doc.push_char(DcChar::from_short(711));
+        u8::encode_dc_mixed(&0, &mut grow_doc)?;
+        // i32.store mem[64] = grow_result
+        grow_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut grow_doc)?;
+        u32::encode_dc_mixed(&2, &mut grow_doc)?;
+        u32::encode_dc_mixed(&0, &mut grow_doc)?;
+        // Check that mem[64] == -1; if not, trap via unreachable (Dc 647)
+        grow_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut grow_doc)?;
+        grow_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut grow_doc)?;
+        u32::encode_dc_mixed(&2, &mut grow_doc)?;
+        u32::encode_dc_mixed(&0, &mut grow_doc)?;
+        grow_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&-1, &mut grow_doc)?;
+        grow_doc.push_char(DcChar::from_short(718)); // i32.ne (647 + 0x47)
+        grow_doc.push_char(DcChar::from_short(651)); // if (empty blocktype: Dc 316 -> 0x40)
+        grow_doc.push_char(DcChar::from_short(316));
+        grow_doc.push_char(DcChar::from_short(647)); // unreachable
+        grow_doc.push_char(DcChar::from_short(658)); // end
+        // return 0 (Complete)
+        grow_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut grow_doc)?;
+        grow_doc.push_char(DcChar::from_short(261));
+
+        let input = DcMstring::new();
+        let limits = DcWasmResourceLimits::default().with_max_memory_pages(2);
+        let mut session = DcWasmSession::from_dc_wasm(&grow_doc, &input, None)?
+            .with_resource_limits(limits);
+
+        // 1. WASM `memory.grow(4)` is denied (returns -1) when max_memory_pages == 2
+        let outcome = session.step()?;
+        assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
+        assert_eq!(session.current_memory_pages()?, 1);
+
+        // 2. `provide_input` with an input requiring > 2 pages (128 KiB) fails with `MemoryLimitExceeded`
+        let mut large_input = DcMstring::new();
+        large_input.push_str(&"A".repeat(60_000));
+        let err = session
+            .provide_input(&large_input)
+            .expect_err("Input exceeding max_memory_pages must be rejected");
+        let interruption = err
+            .downcast_ref::<WasmResourceInterruption>()
+            .expect("Must downcast to WasmResourceInterruption");
+        assert!(matches!(
+            interruption,
+            WasmResourceInterruption::MemoryLimitExceeded { max_pages: 2, .. }
+        ));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_wasm_step_output_slice_and_cumulative_session_output_budgets()
+    -> Result<()> {
+        let i32_dc = i32_type_dc();
+        // Routine that echoes its input mailbox (0..8) to output mailbox (8..16) and returns 1 (`YieldFrame`).
+        let mut yield_echo_doc = DcMstring::new();
+        yield_echo_doc.push_char(DcChar::from_short(260));
+        yield_echo_doc.push_char(DcChar::from_short(262));
+        yield_echo_doc.push_char(DcChar::from_short(280));
+        yield_echo_doc.push_char(i32_dc);
+        yield_echo_doc.push_char(DcChar::from_short(263));
+        // mem[8] = mem[0]
+        yield_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut yield_echo_doc)?;
+        yield_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        yield_echo_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        yield_echo_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        // mem[12] = mem[4]
+        yield_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut yield_echo_doc)?;
+        yield_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut yield_echo_doc)?;
+        yield_echo_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        yield_echo_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut yield_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut yield_echo_doc)?;
+        // return 1 (YieldFrame)
+        yield_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut yield_echo_doc)?;
+        yield_echo_doc.push_char(DcChar::from_short(261));
+
+        let mut payload = DcMstring::new();
+        payload.push_str("0123456789"); // 10 bytes of DcTF payload
+
+        // 1. Single-step output slice limit (`max_step_output_bytes = 5`)
+        let step_limits =
+            DcWasmResourceLimits::default().with_max_step_output_bytes(5);
+        let mut step_session =
+            DcWasmSession::from_dc_wasm(&yield_echo_doc, &payload, None)?
+                .with_resource_limits(step_limits);
+        let step_err = step_session
+            .step()
+            .expect_err("Step output exceeding max_step_output_bytes must fail");
+        assert_eq!(
+            step_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::StepOutputSliceTooLarge {
+                output_bytes: 10,
+                max_step_output_bytes: 5,
+            })
+        );
+
+        // 2. Cumulative session output budget (`max_step_output_bytes = 16`, `max_session_output_bytes = 25`)
+        let session_limits = DcWasmResourceLimits::default()
+            .with_max_step_output_bytes(16)
+            .with_max_session_output_bytes(25);
+        let mut cum_session =
+            DcWasmSession::from_dc_wasm(&yield_echo_doc, &payload, None)?
+                .with_resource_limits(session_limits);
+        assert!(matches!(
+            cum_session.step()?,
+            WasmStepOutcome::YieldFrame(_)
+        ));
+        assert_eq!(cum_session.cumulative_output_bytes(), 10);
+        assert!(matches!(
+            cum_session.step()?,
+            WasmStepOutcome::YieldFrame(_)
+        ));
+        assert_eq!(cum_session.cumulative_output_bytes(), 20);
+        let cum_err = cum_session.step().expect_err(
+            "3rd 10-byte step exceeding 25-byte cumulative session limit must fail",
+        );
+        assert_eq!(
+            cum_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::SessionOutputBudgetExceeded {
+                cumulative_output_bytes: 30,
+                max_session_output_bytes: 25,
+            })
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_bootstrap_kernel_version_selection_and_validation()
+    -> Result<()> {
+        use crate::navigator::{
+            BootstrapKernelVersion, DcDocumentNavigator, DcProjectionPolicy,
+        };
+
+        assert_eq!(
+            BootstrapKernelVersion::CURRENT,
+            BootstrapKernelVersion::V1
+        );
+        assert_eq!(BootstrapKernelVersion::V1.as_u32(), 1);
+        assert_eq!(
+            BootstrapKernelVersion::try_from_u32(1)?,
+            BootstrapKernelVersion::V1
+        );
+        assert!(BootstrapKernelVersion::try_from_u32(0).is_err());
+        assert!(BootstrapKernelVersion::try_from_u32(2).is_err());
+
+        let policy =
+            DcProjectionPolicy::strict().try_with_kernel_version_number(1)?;
+        assert_eq!(policy.kernel_version, BootstrapKernelVersion::V1);
+        assert!(
+            DcProjectionPolicy::strict()
+                .try_with_kernel_version_number(99)
+                .is_err()
+        );
+
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_short(517));
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        assert_eq!(nav.kernel_version(), BootstrapKernelVersion::V1);
+        assert_eq!(
+            nav.select_bootstrap_kernel_version(1)?,
+            BootstrapKernelVersion::V1
+        );
+        assert!(nav.select_bootstrap_kernel_version(2).is_err());
+        Ok(())
+    }
 }

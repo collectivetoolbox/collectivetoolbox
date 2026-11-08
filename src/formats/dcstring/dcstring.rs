@@ -56,7 +56,8 @@ pub use converters::utf8::{
 pub use converters::wasm::{
     DC_WASM_MAILBOX_HEADER_LEN, DC_WASM_MAILBOX_INPUT_LEN,
     DC_WASM_MAILBOX_INPUT_PTR, DC_WASM_MAILBOX_MOST_RECENT_NODE_ID,
-    DC_WASM_MAILBOX_OUTPUT_LEN, DC_WASM_MAILBOX_OUTPUT_PTR, DcWasmSession,
+    DC_WASM_MAILBOX_OUTPUT_LEN, DC_WASM_MAILBOX_OUTPUT_PTR,
+    DcWasmResourceLimits, DcWasmSession, WasmResourceInterruption,
     WasmStepOutcome, WasmStepStatus, run_dc_wasm_pure_conversion,
     run_dc_wasm_pure_conversion_with_resolver, run_graph_wasm_tokens_on_dc_slice,
 };
@@ -95,7 +96,8 @@ pub use error::DcUtfError;
 pub use kv_map::DcKvMapEncoding;
 pub use malachite::{Integer, Natural};
 pub use navigator::{
-    BinaryPayloadRef, DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+    BinaryPayloadRef, BootstrapKernelVersion,
+    DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
     DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES, DEFAULT_MAX_PROJECTION_DEPTH,
     DcBinaryResolver, DcByteSpan, DcDocumentNavigator, DcEvaluatedValue,
     DcExpressionEvaluator, DcForgivingDefault, DcFrameHeaderInfo, DcFrameStub,

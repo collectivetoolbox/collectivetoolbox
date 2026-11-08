@@ -15,14 +15,14 @@ All higher-level language definitions, syntax rules (`Dc 594` `"Syntax rule"`), 
 ### 1.1 Global Graph ID Space and `DcTF` (`f549`)
 Every token in a Dc stream is a 128-bit unsigned Global Graph ID (`u128` / [`DcChar`](../src/formats/dcdata/dc_char.rs)):
 - **Unicode region** (`0x0000_0000..=0x0010_FFFF`, `u<hex>`): standard Unicode scalar values and surrogate code points.
-- **Short Dc region** (`0xF000_0000..=0xFFFF_FFFF` in `UTF-8e-128`, or shifted in `DcTF`, `<decimal>`): compact Document Characters `Dc 1`..`Dc 268435455`, with `Dc 185` (`"Begin long Dc"`) reserved as the `DcTF` escape into the full 128-bit space.
+- **Short Dc region** (`0x0011_0000..=0x0021_FFFF` in `DcChar` / `DcTF`, `<decimal>`): compact Document Characters `Dc 1`..`Dc 1114111`, with `Dc 308` (`"Begin long Dc"`, `DC_LONG_DC`) reserved as the `DcTF` escape into the full 128-bit space.
 - **Format region** (`4_294_967_296..=8_589_934_591`, `f<N>`): format identifiers (`FormatId`, where `f<N>` has Global ID `4_294_967_296 + N`).
 - **System graph block** (`8_589_934_592..=1_099_511_627_775`, `l<id>`): immutable/append-only System-block graph nodes.
 
 `DcTF` (`ctb_formats_dctf`, [`src/formats/dctf/codec.rs`](../src/formats/dctf/codec.rs)) encodes each `u128` token as follows:
 1. Code points in `0..=0x0010_FFFF` encode directly as `UTF-8e-128` (1 to 4 bytes).
-2. Short Dcs `1..=268_435_455` (excluding `Dc 185` `"Begin long Dc"`) encode as `UTF-8e-128(0x0011_0000 + (short_id - 1))`.
-3. Any other 128-bit Global ID `gid` (including `Dc 185` `"Begin long Dc"` itself, Format IDs `f<N>`, and System-block node IDs `l<id>`) encodes as the prefix token `Dc 185` `"Begin long Dc"` (`UTF-8e-128(0x0011_0000 + 184)`) immediately followed by `UTF-8e-128(gid)`.
+2. Short Dcs `1..=1_114_111` (excluding `Dc 308` `"Begin long Dc"`) encode as `UTF-8e-128(0x0011_0000 + short_id)`.
+3. Any other 128-bit Global ID `gid` (including `Dc 308` `"Begin long Dc"` itself, Format IDs `f<N>`, and System-block node IDs `l<id>`) encodes as the prefix token `Dc 308` `"Begin long Dc"` (`UTF-8e-128(0x0011_0000 + 308)`) immediately followed by `UTF-8e-128(gid)`.
 
 ### 1.2 `.dcmm` (`DcMixed2`, `f643`) File Header
 Every binary `.dcmm` document ([`src/formats/dcstring/dc_mixed.rs`](../src/formats/dcstring/dc_mixed.rs)) begins with a fixed 21-byte header (`DCMM_HEADER_LEN = 21`):
@@ -36,13 +36,13 @@ Raw binary payloads inside `.dcmm` streams are framed by `Dc 203` (`"Begin encap
 2. Binary header following `Dc 203` in `DcMixed2`:
    - 8-byte little-endian `u64` total byte length of `(metadata_slice || raw_payload_bytes)`.
    - `metadata_slice` (encoded in `DcTF`), containing:
-     - Optional `Dc 241` (`"Begin checksummed section"`) .. `Dc 242` (`"End checksummed section"`) with `Dc 243` (`"Section digest"`) checksum pairs (`FormatId` algorithm token + digest encapsulation).
-     - Optional `Dc 237` (`"Begin format representation"`) .. `Dc 238` (`"End format representation"`) format specifier.
+     - Optional `Dc 543` (`"Begin checksummed section"`) .. `Dc 544` (`"End checksummed section"`) with `Dc 545` (`"Section digest"`) checksum pairs (`FormatId` algorithm token + digest encapsulation).
+     - Optional `Dc 511` (`"Begin format representation"`) .. `Dc 512` (`"End format representation"`) format specifier.
      - `Dc 260` (`"Begin literal value"`): marks the end of the `DcTF` metadata header and the exact byte offset where raw binary payload bytes begin.
 3. Raw payload bytes (exact length = `total_len - metadata_len`).
 4. Closer token: `Dc 204` (`"End encapsulated binary data"`), immediately following the raw payload bytes.
 
-In textual `DcString` / `DcText` streams, `Dc 203`..`Dc 204` encapsulates the payload using Base64 digits (`Dc 121`..`Dc 184`) between `Dc 119` (`"Begin Base64 data"`) and `Dc 120` (`"End Base64 data"`) with `Dc 186` (`"Base64 padding"`).
+In textual `DcString` / `DcText` streams, `Dc 203`..`Dc 204` encapsulates the payload using Base64 digits (`Dc 127`..`Dc 190`) with `Dc 195` (`"Base64 padding"`).
 
 ---
 
@@ -59,13 +59,13 @@ When pinned to `most_recent_node_id`, only `LedgerNode`s with `node.id <= most_r
 
 ### 2.3 Value Nodes and Property Triples (`Dc 584` `"Has a"` and `Dc 610` `"Has value"`)
 1. **String and Integer Value Nodes**:
-   - A node whose tokens are `[DcShorthand::Unicode(cp), ...]` (or `[Dc 260 "Begin literal value", Dc 262 "Begin type definition", Dc 279 "Built-in type identifier: String", Dc 263 "End type definition", Dc 199 "Begin encapsulated UTF-8 string", ... Dc 200 "End encapsulated UTF-8 string", Dc 261 "End literal value"]`) is indexed in `string_by_node_id`.
-   - A node whose tokens encode a `Dc 265` (`"Begin number"`)..`Dc 266` (`"End number"`) integer literal is decoded via base-64 digits (`Dc 121`..`Dc 184`) and indexed in `integer_by_node_id`.
+   - A node whose tokens are `[DcShorthand::Unicode(cp), ...]` (or `[Dc 260 "Begin literal value", Dc 262 "Begin type definition", Dc 264 "Built-in type identifier: String", Dc 263 "End type definition", Dc 191 "Begin encapsulated UTF-8 string", ... Dc 192 "End encapsulated UTF-8 string", Dc 261 "End literal value"]`) is indexed in `string_by_node_id`.
+   - A node whose tokens encode a `Dc 6` (`"Begin number"`)..`Dc 7` (`"End number"`) integer literal is decoded via base-64 digits (`Dc 127`..`Dc 190`) and indexed in `integer_by_node_id`.
 2. **Two-Part Property Statements**:
    - Statement node `l<has_a_id>: 584 <subject> <property>` declares that `<subject>` has property `<property>` (`Dc 584` `"Has a"`).
    - Statement node `l<has_val_id>: 610 l<has_a_id> <value_token>` binds `<value_token>` to `l<has_a_id>` (`Dc 610` `"Has value"`).
    - Both `l<has_a_id>` and `l<has_val_id>` must be active (`!inactive_ids.contains(&id)`).
-   - Single-valued properties (`Dc 572` `"Canonical name"`, `Dc 573` `"Description"`, `Dc 574` `"Programmatic identifier"`, `Dc 576` `"Canonical combining class"`, `Dc 577` `"Bidirectional class"`, `Dc 578` `"Case mapping partner"`, `Dc 594` `"Syntax rule"`, etc.) are indexed in `active_single_props[(subject, property)]`.
+   - Single-valued properties (`Dc 572` `"Canonical name"`, `Dc 573` `"Description"`, `Dc 574` `"Programmatic identifier"`, `Dc 580` `"Canonical combining class"`, `Dc 581` `"Bidirectional class"`, `Dc 582` `"Case mapping partner"`, `Dc 594` `"Syntax rule"`, etc.) are indexed in `active_single_props[(subject, property)]`.
    - Multi-valued properties (including `Dc 611` `"Canonical decomposition"`) are indexed in `multi_props_by_subj_prop[(subject, property)]`, ordered with `Dc 570` (`"Preferred"`) entries first.
 3. **Direct Binary Statements**:
    - Active 3-token nodes `l<stmt_id>: <verb> <subject> <object>` (where `<verb>` is `Dc 586` `"Is instance of"`, `Dc 587` `"Is subtype of"`, `Dc 588` `"Is based on"`, `Dc 589` `"Is deprecated"`, `Dc 590` `"Is closing delimiter for"`, `Dc 598` `"Is associated with"`, `Dc 645` `"Is stable"`, `Dc 646` `"In context of"`, etc.) are indexed in `active_direct_stmts[(verb, subject, object)]`.
@@ -88,14 +88,14 @@ Syntax rules (`Dc 594` `"Syntax rule"`) are stored in the seed graph as token se
 | `Dc 600` | `"Wildcard pattern"` | Matches any single token (`SyntaxTerm::Any`). |
 | `Dc 601` | `"Pattern conjunction"` | Sequential/conjunctive composition within an associativity group (`Dc 298` `"Begin associativity group"` .. `Dc 299` `"End associativity group"`). |
 | `Dc 602` | `"Pattern alternation"` | Inside `298 602 (branch1) (branch2) ... 299`, matches the first matching branch (`SyntaxPattern::Alternation`). Inside `298 602 tok1 tok2 ... 299` (where `tok1 != 298`), defines a positive character set (`SyntaxTerm::CharSet { negated: false, .. }`). |
-| `Dc 603` | `"Pattern repetition"` | Postfix quantifier group `298 603 643 f200 <min_node> <max_node_or_258> 299` (or `298 603 4 <min_node> [<max_node>] 299`) specifying `Quantifier` (`ZeroOrMore` `0..`, `OneOrMore` `1..`, `Optional` `0..=1`, or bounded `Range { min, max }`). |
+| `Dc 603` | `"Pattern repetition"` | Postfix quantifier group `298 603 643 f200 <min_node> <max_node_or_316> 299` (or `298 603 4 <min_node> [<max_node>] 299`) specifying `Quantifier` (`ZeroOrMore` `0..`, `OneOrMore` `1..`, `Optional` `0..=1`, or bounded `Range { min, max }`). |
 | `Dc 604` | `"Negated pattern"` | Inside `298 604 tok1 tok2 ... 299`, defines a negated character set (`SyntaxTerm::CharSet { negated: true, .. }`) matching any token not equivalent to a member. |
 | `Dc 605` | `"Subpattern match"` | Inside `298 605 <target> ... 299`, invokes a named construct (`SeedEntityKey::NamedConstruct`), a script membership check (`SeedEntityKey::Script`), a constrained construct (`298 605 300 l<construct_id> <constraint_tokens> 299`), or another token's syntax rule (`SyntaxTerm::RuleRef`). |
-| `Dc 606` | `"Pattern capture"` | Inside a `Dc 605` `"Subpattern match"` group (`... 606 l<var_name_str_node>`), binds the matched subpattern span/value to capture variable `<var_name>` for downstream bound-value constraints (`Dc 271` `"Reference bound value"`) or replacement actions (`Dc 607` `"Pattern replacement"`). |
-| `Dc 607` | `"Pattern replacement"` | Trailing action group `298 607 273 l<method_str_node> <args...> 299` (`SyntaxAction`) specifying the semantic projection or `.WASM` routine transformation for the matched rule. |
+| `Dc 606` | `"Pattern capture"` | Inside a `Dc 605` `"Subpattern match"` group (`... 606 l<var_name_str_node>`), binds the matched subpattern span/value to capture variable `<var_name>` for downstream bound-value constraints (`Dc 540` `"Reference bound value"`) or replacement actions (`Dc 607` `"Pattern replacement"`). |
+| `Dc 607` | `"Pattern replacement"` | Trailing action group `298 607 279 l<method_str_node> <args...> 299` (`SyntaxAction`) specifying the semantic projection or `.WASM` routine transformation for the matched rule. |
 | `Dc 642` | `"Data byte length"` | Inside `[data:...]` subtype constraints (`642 l<int_node>` or `300 <fmt_tok> 642 l<int_node>`), constrains the exact decoded byte length of a binary encapsulation payload. |
 | `Dc 643` | `"Range"` | Token range `643 640 <start_tok> <end_tok>` (`SyntaxTerm::CharRange`), length range `643 f200 <min_node> <max_node>` (`SubtypeConstraint::LengthRange`), repetition bounds in `Dc 603` `"Pattern repetition"`, or numeric range `643 <domain_type> <lower_endpoint> <upper_endpoint>` (`NumberSubtypeConstraint`). |
-| `Dc 644` | `"Exclusive range endpoint"` | Prefix qualifier (`644 <bound_node>`) on a lower or upper endpoint in a `Dc 643` `"Range"` constraint marking that bound as strictly exclusive (`>` or `<` rather than `>=` or `<=`). Unbounded endpoints use `Dc 258` (`"Optional value absent"`). |
+| `Dc 644` | `"Exclusive range endpoint"` | Prefix qualifier (`644 <bound_node>`) on a lower or upper endpoint in a `Dc 643` `"Range"` constraint marking that bound as strictly exclusive (`>` or `<` rather than `>=` or `<=`). Unbounded endpoints use `Dc 316` (`"Optional value absent"`). |
 
 ---
 
@@ -104,7 +104,7 @@ Syntax rules (`Dc 594` `"Syntax rule"`) are stored in the seed graph as token se
 ### 4.1 Zero-Table Arithmetic Opcode Lowering (`Dc 647`..`Dc 1926`)
 Every WebAssembly instruction in a `.WASM` program (`Dc 1927` `"Begin WASM program"` .. `Dc 1928` `"End WASM program"`) lowers to standard WebAssembly binary bytecode via five contiguous 256-slot short-Dc pages ([`decode_wasm_opcode`](../src/formats/dcstring/converters/wasm.rs)):
 1. **Core single-byte page** (`Dc 647`..`Dc 902`, `256` slots):
-   - `byte = short_id - 647` (`0x00..=0xFF`, e.g., `Dc 647` `"WASM unreachable"` -> `0x00`, `Dc 650` `"WASM loop"` -> `0x03`, `Dc 659` `"WASM br"` -> `0x0C`, `Dc 753` `"WASM i32.add"` -> `0x6A`).
+   - `byte = short_id - 647` (`0x00..=0xFF`, e.g., `Dc 647` `"WASM unreachable"` -> `0x00`, `Dc 650` `"WASM loop"` -> `0x03`, `Dc 659` `"WASM br"` -> `0x0C`, `Dc 753` `"WASM i32.add"` -> `0x6A`). Structured control-flow instructions (`Dc 649` `"WASM block"`, `Dc 650` `"WASM loop"`, `Dc 651` `"WASM if"`, `Dc 678` `"WASM try_table"`) encode an empty blocktype (`0x40`) via `Dc 316` (`"Optional value absent"`).
 2. **`0xFB` GC prefix page** (`Dc 903`..`Dc 1158`, `256` slots):
    - Prefix byte `0xFB` followed by `u32` LEB128 opcode `short_id - 903`.
 3. **`0xFC` miscellaneous prefix page** (`Dc 1159`..`Dc 1414`, `256` slots):
@@ -116,8 +116,8 @@ Every WebAssembly instruction in a `.WASM` program (`Dc 1927` `"Begin WASM progr
 
 ### 4.2 `.WASM` Module Envelope (`Dc 1927`..`Dc 1928`)
 A `.WASM` program is enclosed in `Dc 1927` (`"Begin WASM program"`) .. `Dc 1928` (`"End WASM program"`) and contains:
-- Optional global variable declarations (`Dc 260` `"Begin literal value"`, `Dc 262` `"Begin type definition"`, `<valtype>`, `Dc 263` `"End type definition"`, `Dc 267` `"Begin identifier"` .. `Dc 268` `"End identifier"`, `<init_expr>`, `Dc 261` `"End literal value"`).
-- Optional static linear-memory data segments (`Dc 260` `"Begin literal value"`, `Dc 265` `"Begin number"` .. `Dc 266` `"End number"`, `Dc 203` `"Begin encapsulated binary data"` .. `Dc 204` `"End encapsulated binary data"`, `Dc 261` `"End literal value"`).
+- Optional global variable declarations (`Dc 260` `"Begin literal value"`, `Dc 262` `"Begin type definition"`, `<valtype>`, `Dc 263` `"End type definition"`, `Dc 270` `"Begin identifier"` .. `Dc 271` `"End identifier"`, `<init_expr>`, `Dc 261` `"End literal value"`).
+- Optional static linear-memory data segments (`Dc 260` `"Begin literal value"`, `Dc 6` `"Begin number"` .. `Dc 7` `"End number"`, `Dc 203` `"Begin encapsulated binary data"` .. `Dc 204` `"End encapsulated binary data"`, `Dc 261` `"End literal value"`).
 - One or more `wasm_routine` definitions (`Dc 260` `"Begin literal value"`, `Dc 262` `"Begin type definition"`, `Dc 280` `"Built-in type identifier: Routine"`, ..., `Dc 261` `"End literal value"`), exporting `"step"` or `"main"` and default 1-page exported `"memory"`.
 
 ### 4.3 32-Byte Linear-Memory Mailbox ABI (`0..32`)
