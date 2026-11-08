@@ -145,6 +145,18 @@ backend instruction dispatch counts must not move this boundary. Independent
 emergency host interruptions remain distinct external events. See
 [the resource contract](../docs/bootstrap-kernel-spec.md#45-portable-resource-semantics-versus-host-watchdogs).
 
+- [ ] **Complete and freeze the minimal trusted bootstrap kernel** (`docs/bootstrap-kernel-spec.md`):
+  - Finish the explicitly specified, immutable or version-selected foundational
+    execution contract. Select the kernel version before leading pin discovery
+    and token decoding on every navigation path, including file-backed documents.
+  - Specify and add independent conformance fixtures for the physical token
+    codecs and malformed-input recovery, active graph statement and equivalence
+    resolution, `.Semantic:Pattern` operators and historical encodings, Dc-WASM
+    lowering, and the 32-byte mailbox ABI. Cover choice and backtracking,
+    capture scope, recursive references, malformed patterns, and range arity.
+  - Keep the specification `Partially Implemented` and draft until these gaps
+    and the Gate 3 and 4 migrations are resolved; then freeze or explicitly
+    version the resulting kernel contract.
 - [ ] **Move resource accounting policy and configuration under the trusted System supervisor document in the graph**:
   - Distinguish logical budget policy from emergency host watchdogs.
   - Hardcode only the workspace bootstrap entry document: one short Dc, with
@@ -183,7 +195,7 @@ emergency host interruptions remain distinct external events. See
   - Allocate the production Short Dc for the unpinned 1-Short-Dc workspace bootstrap entry document (requires operator approval) and emit its System-block supervisor definition and typed user quota configuration schema through the graph ledger generator.
   - Move logical resource limits (`DcWasmResourceLimits`, `DEFAULT_MAX_WASM_*`), operation cost weights, `__ctb_*` bytecode instrumentation (`instrument_wasm_module_bytes`), and task-tree quota management (`SharedWasmTaskQuota`) out of transitional host Rust scaffolding (`wasm.rs` / `wasm_quota.rs`) into the System supervisor document so resource semantics are versioned by the recorded System supervisor revision rather than the host binary. Once migrated, `wasm.rs` / `runtime.rs` should retain only zero-table Dc-WASM lowering (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`), the 32-byte linear-memory mailbox ABI (`0..32`), and host capability mediation / emergency process watchdogs.
   - Update `SystemSupervisorAdmission::admit_from_bootstrap_tokens` (`src/runtime/runtime.rs:189-224`) to resolve and validate the graph-backed user quota configuration document through the System supervisor rather than accepting a host Rust `DcWasmResourceLimits` struct.
-  - Enforce `SystemSupervisorAdmission::verify_ordinary_document_cannot_elevate` (`src/runtime/runtime.rs:232-251`) and required supervisor admission automatically on ordinary document execution paths in `ExecutionContext` (`src/runtime/runtime.rs:537, 871-873`).
+  - Correct `SystemSupervisorAdmission::verify_ordinary_document_cannot_elevate` (`src/runtime/runtime.rs:232-251`) before enforcing supervisor admission on ordinary execution paths in `ExecutionContext`. An ordinary document's graph pin or reference to the entry Dc is not itself an elevation attempt; neither may grant supervisor authority. Test that valid pinned ordinary documents can execute without supervisor privilege and that actual attempts to claim it are denied.
 - [ ] **Execute and verify actual WASM resource interruptions during trace replay (`src/runtime/runtime.rs:1241-1346, 1672-1734`)**:
   - In `ExecutionContext::replay_wasm_session_trace` (`src/runtime/runtime.rs:1312-1346`), stop intercepting recorded `WasmTraceEvent::ResourceInterruption` events before calling `session.step()`:
     - When `decision != PermissionDecision::Allow`, execute `session.step()`, verify that the module actually triggers the recorded `WasmResourceInterruption` at the exact recorded `last_interrupted_op_ordinal` and `last_interrupted_op_required_cost`, and do not copy recorded interruption ordinals onto `trace` in `finalize_checked_trace` (`src/runtime/runtime.rs:1251-1258`) without executing the step.
@@ -195,7 +207,34 @@ emergency host interruptions remain distinct external events. See
 - [ ] **Align Dc-WASM opcode support across `wasm.csv`, `wasm_quota.rs`, and the runtime, and expand cross-runtime conformance (`src/formats/dcstring/converters/wasm_quota.rs:1100-1201`, `scripts/test-wasm-compat`, `docs/bootstrap-kernel-spec.md`)**:
   - `instrument_function_body` (`src/formats/dcstring/converters/wasm_quota.rs:1100-1201`) and `tinywasm 0.8.0` currently reject the `0xFB` GC opcode page (`Dc 903 "WASM struct.new"`..`Dc 1158 "WASM Reserved 0xFB 0xFF 0x01"`), exception-handling instructions (`Dc 655 "WASM throw"`, `Dc 657 "WASM throw_ref"`, `Dc 678 "WASM try_table"`), and `0xFD` Relaxed SIMD (`Dc 1671 "WASM i8x16.relaxed_swizzle"`..`Dc 1926 "WASM Reserved 0xFD 0xFF 0x03"`). Either support or explicitly gate those opcode pages in `BootstrapKernelVersion::V1`.
   - Expand [`scripts/test-wasm-compat`](../scripts/test-wasm-compat) beyond the single loop/call/bulk-memory/growth fixture to cover traps, tables, numeric edge cases, and continuation resumption across runtimes.
-  - Keep [`docs/bootstrap-kernel-spec.md`](../docs/bootstrap-kernel-spec.md) in draft (`Partially Implemented`) until Gates 3 and 4 eliminate remaining procedural syntax-rule synthesis and complete self-hosted `.WASM` definitions.
+
+#### Resource Logic in Host Rust
+
+The resource code is **not dead code yet**: the System supervisor document has
+not been authored. [`DcWasmSession`](../src/formats/dcstring/converters/wasm.rs)
+and [`instrument_wasm_module_bytes`](../src/formats/dcstring/converters/wasm_quota.rs)
+remain active through [`DefaultDcExpressionEvaluator`](../src/formats/dcstring/navigator/eval.rs)
+and [`ExecutionContext`](../src/runtime/runtime.rs).
+
+Under the supervisor design above and the [resource contract](../docs/bootstrap-kernel-spec.md#45-portable-resource-semantics-versus-host-watchdogs),
+the following host Rust logic is transitional:
+- **Default budgets and configuration**: `DcWasmResourceLimits` and
+  `DEFAULT_MAX_WASM_*` in [wasm.rs](../src/formats/dcstring/converters/wasm.rs)
+  should give way to the supervisor and its graph-backed user settings schema.
+- **Logical cost model and bytecode instrumentation**: Operation cost weights,
+  batching rules, and the `__ctb_*` instrumentation and continuation transform
+  in [wasm_quota.rs](../src/formats/dcstring/converters/wasm_quota.rs) and
+  [wasm.rs](../src/formats/dcstring/converters/wasm.rs) must be versioned by
+  the supervisor revision rather than the host binary.
+- **Task-tree quota state and continuation replay**: `SharedWasmTaskQuota` and
+  `DcWasmSession::restore_pre_step_state_for_resume` are transitional; the
+  supervisor owns task admission, child-helper debiting, and resumption after a
+  `Privilege::ExcessiveCompute` grant.
+
+Once logical resource management is migrated, the host still needs zero-table
+Dc-WASM lowering, the 32-byte mailbox and `step()` runner, capability mediation,
+and emergency process watchdogs. Physical allocation failures and watchdog
+interruptions remain external host events rather than logical budget policy.
 
 ### Gate 3: Prove One End-to-End Vertical Migration with Real Graph History
 - [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:
@@ -243,21 +282,3 @@ emergency host interruptions remain distinct external events. See
 ### 2. Wholesale CST (`DcSyntaxKind`) Rewrite
 - **Status**: `Deferred`.
 - Replacing `DcSyntaxKind` variants in `src/formats/dcstring/navigator/arena.rs` or removing compiled lookup caches in `DatasetRuleResolver` is not required for backwards compatibility; compiled Rust tables and AST caches are acceptable wherever they faithfully and deterministically reflect the document's pinned graph snapshot.
-
-### Resource logic in wasm.rs
-
-It is **not dead code yet** in the call graph, because the System supervisor document in the graph has not been authored yet ([language.md](file:///workspaces/ctoolbox/issues/language.md#L166-L199), [language.md](file:///workspaces/ctoolbox/issues/language.md#L210)). Right now, [`DcWasmSession`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs#L1758-L1786) in [wasm.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs) and [`instrument_wasm_module_bytes`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_quota.rs#L1012-L1017) in [wasm_quota.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_quota.rs) are the active code path called by [`DefaultDcExpressionEvaluator`](file:///workspaces/ctoolbox/src/formats/dcstring/navigator/eval.rs#L111-L144) and [`ExecutionContext`](file:///workspaces/ctoolbox/src/runtime/runtime.rs#L314-L370).
-
-However, **architecturally under the revised [language.md](file:///workspaces/ctoolbox/issues/language.md#L166-L199) design, most of the resource management in [wasm.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs) and [wasm_quota.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_quota.rs) is in the wrong layer and should be superseded once the System base document exists**:
-
-### 1. What is transitional scaffolding in `wasm.rs` / `wasm_quota.rs` (belongs in the System base document)
-Per [language.md](file:///workspaces/ctoolbox/issues/language.md#L166-L199) and [bootstrap-kernel-spec.md](file:///workspaces/ctoolbox/docs/bootstrap-kernel-spec.md#L235-L293), logical resource policy must be defined by the unpinned 1-Short-Dc startup entry resolved to the latest trusted System-block supervisor document—not hardcoded in host Rust:
-- **Hardcoded default budgets and configuration** ([`DcWasmResourceLimits`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs#L1504-L1611), `DEFAULT_MAX_WASM_*` at [wasm.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs#L1485-L1498)): Logical limits and user quota configuration validation/inheritance belong in the System supervisor document and its graph-backed user settings schema.
-- **Logical cost model and bytecode instrumentation** ([`instrument_wasm_module_bytes`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_quota.rs#L1012-L1017) in [wasm_quota.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_quota.rs) and [`CtbGlobalAddrs`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs#L1710-L1750) in [wasm.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs)): Operation cost weights (`1 + 64 * delta`, bulk op costs, batching rules) and the `__ctb_*` instrumentation/continuation transform are versioned by the System supervisor revision. Keeping them in Rust means resource semantics are still tied to the host binary version rather than the recorded System supervisor revision.
-- **Task-tree quota state and continuation replay** ([`SharedWasmTaskQuota`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm_quota.rs#L149-L209) and [`DcWasmSession::restore_pre_step_state_for_resume`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs#L2588-L2698)): The supervisor owns task admission, debiting child/helper sessions against the parent allowance, and resuming paused continuations when `Privilege::ExcessiveCompute` is granted.
-
-### 2. What remains relevant in host Rust (`wasm.rs` / `runtime.rs`)
-Once the System supervisor owns logical resource management, [wasm.rs](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs) should shrink back to only the minimal trusted bootstrap kernel primitives:
-1. **Zero-table Dc-WASM lowering** ([`dcmstring_to_wasm_with_resolver`](file:///workspaces/ctoolbox/src/formats/dcstring/converters/wasm.rs#L1294-L1301)) from `Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"` to standard `.wasm` bytecode.
-2. **The 32-byte linear-memory mailbox ABI (`0..32`) and `step() -> StatusCode` runner** (`0 = Complete`, `1 = YieldFrame`, `2 = RequestCapability`) for executing the supervisor itself and its transformed child modules.
-3. **Host capability mediation and emergency process watchdogs**: Surfacing physical OS/allocator failure or emergency watchdog timeouts as external host events and mediating host permission prompts (`Privilege::ExcessiveCompute`), without defining logical document budget policy in Rust.
