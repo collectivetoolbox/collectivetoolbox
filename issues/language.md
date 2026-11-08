@@ -89,7 +89,9 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
 
 ## Remaining Gaps / Pending Work (Gate-Driven Plan)
 
-With the compatibility and replay contract defined in **Core Architectural Guarantee** above, the remaining engineering work is organized into the remaining implementation gates below (Gate 1 snapshot/pin resolution and transitive WASM helper/splicing items are complete).
+With the compatibility and replay contract defined in **Core Architectural Guarantee**
+above, the remaining engineering work is organized into the implementation gates
+below.
 
 #### Existing Dc Semantics: Evidence and Regression Requirements
 

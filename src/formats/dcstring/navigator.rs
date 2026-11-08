@@ -1205,9 +1205,9 @@ impl<'a> DcDocumentNavigator<'a> {
                 seek_buffered_file(reader, reader_pos, self.cursor)?;
             }
         }
-        if self.root_header_pin_candidate.is_none()
-            && self.pin_provenance == DcPinProvenance::UnpinnedLegacyFallback
-        {
+        if let Some(candidate) = self.root_header_pin_candidate {
+            self.apply_header_pin_candidate(candidate, policy)?;
+        } else if self.pin_provenance == DcPinProvenance::UnpinnedLegacyFallback {
             self.apply_unpinned_fallback_policy(self.cursor, policy)?;
         }
         Ok(())
@@ -1631,83 +1631,13 @@ impl<'a> DcDocumentNavigator<'a> {
     /// [`Self::next_sibling_stub`] calls to the container's children until
     /// [`Self::exit_frame`] is called.
     pub fn enter_frame(&mut self, stub: &DcFrameStub) -> Result<()> {
-        let inner = stub
-            .inner_span
-            .context("Cannot enter a non-container DcFrameStub")?;
         let resolver = self.effective_resolver();
-        let is_env_header = stub.closer_dc.is_some()
-            && Self::is_environment_description_opener(
-                stub.head_dc,
-                resolver.as_ref(),
-            )
-            && self.is_header_position_for_pin(
-                stub.outer_span.start,
-                resolver.as_ref(),
-            );
-        let is_full_root_doc = stub.closer_dc.is_some()
-            && self.level_stack.is_empty()
-            && stub.outer_span == self.active_span
-            && Self::is_document_or_node_scope_opener(
-                stub.head_dc,
-                resolver.as_ref(),
-            );
-        self.level_stack.push(NavLevelState {
-            parent_span: self.active_span,
-            saved_cursor: stub.outer_span.end,
-            opener_dc: stub.head_dc,
-            closer_dc: stub.closer_dc,
-            saved_most_recent_node_id: self.document_most_recent_node_id,
-            saved_pinned_resolver: self.pinned_resolver.clone(),
-            saved_pin_provenance: self.pin_provenance,
-            propagates_pin_to_parent: is_env_header || is_full_root_doc,
-        });
-        self.active_span = inner;
-        self.cursor = inner.start;
-        if stub.closer_dc.is_some() {
-            if Self::is_document_or_node_scope_opener(
-                stub.head_dc,
-                resolver.as_ref(),
-            ) {
-                if (!is_full_root_doc
-                    && self.document_most_recent_node_id.is_some())
-                    || matches!(
-                        self.pin_provenance,
-                        DcPinProvenance::ExplicitPin
-                            | DcPinProvenance::InheritedPin
-                            | DcPinProvenance::CallerOverride
-                    )
-                {
-                    self.pin_provenance = DcPinProvenance::InheritedPin;
-                }
-                if let Some(cand) = self.find_header_pin_in_span(
-                    inner,
-                    Some(stub.head_dc),
-                    resolver.as_ref(),
-                ) && !cand.arg_escaped
-                    && let Some(arg_dc) = cand.arg_dc
-                {
-                    self.bind_document_most_recent_node_id(arg_dc.to_u128());
-                }
-            } else if Self::is_environment_description_opener(
-                stub.head_dc,
-                resolver.as_ref(),
-            ) && let Some(cand) = self.find_header_pin_in_span(
-                inner,
-                Some(stub.head_dc),
-                resolver.as_ref(),
-            ) && !cand.arg_escaped
-                && let Some(arg_dc) = cand.arg_dc
-            {
-                self.bind_document_most_recent_node_id(arg_dc.to_u128());
-            }
-        }
-        if let NavBackend::SeekableFile {
-            reader, reader_pos, ..
-        } = &mut self.backend
-        {
-            seek_buffered_file(reader, reader_pos, inner.start)?;
-        }
-        Ok(())
+        let policy = if let Some(policy) = &self.configured_policy {
+            policy.clone()
+        } else {
+            DcProjectionPolicy::forgiving_quiet()
+        };
+        self.enter_frame_with_policy(stub, &policy, resolver.as_ref())
     }
 
     pub(super) fn enter_frame_with_policy(
@@ -5508,6 +5438,30 @@ mod tests {
 
         // Strict policy rejects a pin newer than local HEAD instead of substituting HEAD.
         let strict = DcProjectionPolicy::strict();
+        let mut strict_token_nav =
+            DcDocumentNavigator::from_mstr_with_policy(&doc, &strict);
+        assert!(strict_token_nav.peek_token().is_err());
+        assert!(strict_token_nav.read_next_token().is_err());
+
+        let mut nested_doc = DcMstring::new();
+        for token in [
+            DcChar::from_short(517),
+            DcChar::from_short(235),
+            DcChar::from_short(641),
+            DcChar::from_long(future_id),
+            DcChar::from_short(517),
+            DcChar::from_short(236),
+        ] {
+            nested_doc.push_char(token);
+        }
+        let mut nested_nav =
+            DcDocumentNavigator::from_mstr_with_policy(&nested_doc, &strict);
+        assert!(nested_nav.next_sibling_stub(&strict)?.is_some());
+        let nested_stub = nested_nav
+            .next_sibling_stub(&DcProjectionPolicy::forgiving())?
+            .context("Expected nested document frame")?;
+        assert!(nested_nav.enter_frame(&nested_stub).is_err());
+
         let mut strict_nav = DcDocumentNavigator::from_mstr(&doc);
         assert_eq!(strict_nav.document_most_recent_node_id(), Some(future_id));
         let err = strict_nav
