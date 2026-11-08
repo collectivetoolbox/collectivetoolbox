@@ -236,7 +236,7 @@ these parser/resolver tests do not establish the full compatibility guarantee.
       - Untyped/any return (`Dc 275 "Built-in type identifier: * (Object or any subtype)"`): `v//...`
       - Void / no-return routines: explicit `v/void/log` or `v/never/log` (rather than `v//log`).
     - **Repetition Dcs (`dipre`, `daun`, `dato`)**: Compact 1-token repetition of the word before previous (`dipre`) or previous word (`daun`, `dato`) to provide elegant variation when spoken.
-    - **Possibly new anaphoric / backreference Dcs**: Compact 1-token backreferences to the previous clause or previous identifier to avoid repeating long identifiers or minting intermediate node IDs.
+    - **Possibly new anaphoric / backreference Dcs**: Compact 1-token backreferences to the previous clause or previous identifier to avoid repeating long identifiers or assigning intermediate node IDs.
 
 ### 2. Wholesale CST (`DcSyntaxKind`) Rewrite
 - **Status**: `Deferred`.
