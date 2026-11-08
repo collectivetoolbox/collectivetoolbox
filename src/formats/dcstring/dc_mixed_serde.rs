@@ -1001,7 +1001,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     }
 
     /// Skips a leading `Dc 641 "Global graph system block most recent node ID at time of document creation"`
-    /// document header node when present before the payload root(s).
+    /// or `Dc 340 "Begin execution environment description"` document header node when present before the payload root(s).
     #[must_use]
     pub fn strip_leading_document_most_recent_root<'r>(
         &self,
@@ -1010,14 +1010,21 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         if roots.len() > 1
             && let Some(&first_id) = roots.first()
             && let Ok(first_node) = self.node(first_id)
-            && matches!(
+            && (matches!(
                 &first_node.kind,
                 DcSyntaxKind::Tagged { tag, .. }
                     if self.tokens_equivalent(
                         *tag,
                         ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
                     )
-            )
+            ) || matches!(
+                &first_node.kind,
+                DcSyntaxKind::Container { opener, .. }
+                    if self.tokens_equivalent(
+                        *opener,
+                        ctb_formats_dcdata::dc::DC_BEGIN_ENVIRONMENT_DESCRIPTION,
+                    )
+            ))
             && let Some(tail) = roots.get(1..)
         {
             return tail;

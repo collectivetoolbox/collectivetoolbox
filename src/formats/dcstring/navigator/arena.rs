@@ -1056,13 +1056,31 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
+        self.detect_leading_document_most_recent();
         let mut raw_roots = Vec::new();
         let res = (|| -> Result<()> {
-            while let Some(stub) =
-                self.next_sibling_stub_with_resolver(policy, resolver)?
-            {
+            loop {
+                let pinned_arc = self.pinned_resolver.clone();
+                let active_res: &dyn SyntaxRuleResolver =
+                    if let Some(ref r) = pinned_arc {
+                        r.as_ref()
+                    } else {
+                        resolver
+                    };
+                let Some(stub) =
+                    self.next_sibling_stub_with_resolver(policy, active_res)?
+                else {
+                    break;
+                };
+                let post_pinned_arc = self.pinned_resolver.clone();
+                let build_res: &dyn SyntaxRuleResolver =
+                    if let Some(ref r) = post_pinned_arc {
+                        r.as_ref()
+                    } else {
+                        resolver
+                    };
                 let id = self.build_arena_node_from_stub_with_resolver(
-                    &stub, arena, policy, resolver,
+                    &stub, arena, policy, build_res,
                 )?;
                 raw_roots.push(id);
                 for diagnostic in self.diagnostics.drain(..) {
@@ -1075,8 +1093,15 @@ impl<'a> DcDocumentNavigator<'a> {
             arena.push_diagnostic(diagnostic);
         }
         res?;
+        let final_pinned = self.pinned_resolver.clone();
+        let norm_res: &dyn SyntaxRuleResolver =
+            if let Some(ref r) = final_pinned {
+                r.as_ref()
+            } else {
+                resolver
+            };
         for id in Self::normalize_field_nodes_with_resolver(
-            raw_roots, arena, resolver,
+            raw_roots, arena, norm_res,
         ) {
             arena.push_root(id);
         }
@@ -1138,6 +1163,9 @@ impl<'a> DcDocumentNavigator<'a> {
         let code = ch.to_u128();
         Self::is_primitive_value_atom_with(ch, resolver)
             || ch.fills_role_with(DcRole::FilePathDelimiter, resolver)
+            || (ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START
+                ..=ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END)
+                .contains(&code)
             || (resolver.matches_script(".Semantic", code)
                 && !resolver.matches_script(".Semantic:fileflag", code)
                 && resolver.framing_shape(code)
@@ -1332,7 +1360,8 @@ impl<'a> DcDocumentNavigator<'a> {
         let classify_stub = |nav: &mut Self,
                              stub: &DcFrameStub,
                              current_depth: usize,
-                             arena: &mut DcSyntaxArena<'a>|
+                             arena: &mut DcSyntaxArena<'a>,
+                             cur_resolver: &dyn SyntaxRuleResolver|
          -> Result<StubStep> {
             if matches!(stub.header_info, DcFrameHeaderInfo::Escaped) {
                 return Ok(StubStep::Leaf(
@@ -1340,22 +1369,24 @@ impl<'a> DcDocumentNavigator<'a> {
                 ));
             }
             let head = stub.head_dc;
-            if head.fills_role_with(DcRole::StartEncapsulationBinary, resolver)
-                && matches!(stub.header_info, DcFrameHeaderInfo::Binary { .. })
+            if head.fills_role_with(
+                DcRole::StartEncapsulationBinary,
+                cur_resolver,
+            ) && matches!(stub.header_info, DcFrameHeaderInfo::Binary { .. })
             {
                 let node = nav.parse_binary_arena_node(
                     stub.outer_span,
                     policy,
-                    resolver,
+                    cur_resolver,
                 )?;
                 return Ok(StubStep::Leaf(arena.alloc(stub.outer_span, node)));
             }
-            if head.fills_role_with(DcRole::BeginLiteral, resolver) {
+            if head.fills_role_with(DcRole::BeginLiteral, cur_resolver) {
                 let (type_header, decoded) = nav
                     .decode_literal_stub_with_resolver(
                         stub,
                         policy,
-                        resolver,
+                        cur_resolver,
                     )?;
                 // Reason for fallback: literal closer defaults to DC_END_LITERAL.
                 let closer =
@@ -1368,11 +1399,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     decoded.as_mstr(),
                 )));
             }
-            if head.fills_role_with(DcRole::BeginIdentifier, resolver) {
+            if head.fills_role_with(DcRole::BeginIdentifier, cur_resolver) {
                 let name = nav.decode_identifier_stub_with_resolver(
                     stub,
                     policy,
-                    resolver,
+                    cur_resolver,
                 )?;
                 // Reason for fallback: identifier closer defaults to DC_END_IDENTIFIER.
                 let closer = stub
@@ -1385,10 +1416,10 @@ impl<'a> DcDocumentNavigator<'a> {
                     name.as_mstr(),
                 )));
             }
-            if head.fills_role_with(DcRole::BeginNumber, resolver) {
+            if head.fills_role_with(DcRole::BeginNumber, cur_resolver) {
                 let (format, digits) = nav.decode_number_stub_with_resolver(
                     stub,
-                    resolver,
+                    cur_resolver,
                 )?;
                 // Reason for fallback: number closer defaults to DC_END_NUMBER.
                 let closer =
@@ -1401,7 +1432,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     &digits,
                 )));
             }
-            if resolver.resolve_infix_rule(head.to_u128()).is_some() {
+            if cur_resolver.resolve_infix_rule(head.to_u128()).is_some() {
                 if let Some(inner) = stub.inner_span {
                     if let Some(step) = check_depth_exceeded_leaf(
                         nav,
@@ -1416,7 +1447,9 @@ impl<'a> DcDocumentNavigator<'a> {
                         inner.start.saturating_sub(nav.char_encoded_len(head)),
                     );
                     let ident = nav.decode_identifier_span_with_resolver(
-                        ident_span, policy, resolver,
+                        ident_span,
+                        policy,
+                        cur_resolver,
                     )?;
                     let lhs_id = arena.alloc_identifier(
                         ident_span,
@@ -1424,7 +1457,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         ctb_formats_dcdata::dc::DC_END_IDENTIFIER,
                         ident.as_mstr(),
                     );
-                    nav.enter_frame(stub)?;
+                    nav.enter_frame_with_policy(stub, policy, cur_resolver)?;
                     return Ok(StubStep::Push(ArenaBuildFrame::Infix {
                         outer_span: stub.outer_span,
                         tag: head,
@@ -1436,7 +1469,7 @@ impl<'a> DcDocumentNavigator<'a> {
             if let Some(closer) = stub.closer_dc {
                 let unclosed = stub.is_unclosed();
                 if stub.inner_span.is_some()
-                    && !resolver.is_opaque_container(head.to_u128())
+                    && !cur_resolver.is_opaque_container(head.to_u128())
                 {
                     if let Some(step) = check_depth_exceeded_leaf(
                         nav,
@@ -1446,7 +1479,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     )? {
                         return Ok(step);
                     }
-                    nav.enter_frame(stub)?;
+                    nav.enter_frame_with_policy(stub, policy, cur_resolver)?;
                     return Ok(StubStep::Push(ArenaBuildFrame::Container {
                         outer_span: stub.outer_span,
                         opener: head,
@@ -1473,7 +1506,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 {
                     return Ok(step);
                 }
-                nav.enter_frame(stub)?;
+                nav.enter_frame_with_policy(stub, policy, cur_resolver)?;
                 return Ok(StubStep::Push(ArenaBuildFrame::Tagged {
                     outer_span: stub.outer_span,
                     tag: head,
@@ -1486,7 +1519,14 @@ impl<'a> DcDocumentNavigator<'a> {
         };
 
         let mut work_stack: Vec<ArenaBuildFrame> = Vec::new();
-        match classify_stub(self, root_stub, 0, arena)? {
+        let root_pinned = self.pinned_resolver.clone();
+        let root_res: &dyn SyntaxRuleResolver =
+            if let Some(ref r) = root_pinned {
+                r.as_ref()
+            } else {
+                resolver
+            };
+        match classify_stub(self, root_stub, 0, arena, root_res)? {
             StubStep::Leaf(id) => return Ok(id),
             StubStep::Push(frame) => work_stack.push(frame),
         }
@@ -1529,14 +1569,29 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
 
                 let start = self.cursor;
+                let step_pinned = self.pinned_resolver.clone();
+                let step_res: &dyn SyntaxRuleResolver =
+                    if let Some(ref r) = step_pinned {
+                        r.as_ref()
+                    } else {
+                        resolver
+                    };
                 if let Some(child_stub) =
-                    self.next_sibling_stub_with_resolver(policy, resolver)?
+                    self.next_sibling_stub_with_resolver(policy, step_res)?
                 {
+                    let post_pinned = self.pinned_resolver.clone();
+                    let classify_res: &dyn SyntaxRuleResolver =
+                        if let Some(ref r) = post_pinned {
+                            r.as_ref()
+                        } else {
+                            resolver
+                        };
                     match classify_stub(
                         self,
                         &child_stub,
                         current_depth,
                         arena,
+                        classify_res,
                     )? {
                         StubStep::Leaf(child_id) => {
                             if let Some(top) = work_stack.last_mut() {
@@ -1554,6 +1609,13 @@ impl<'a> DcDocumentNavigator<'a> {
                     let Some(finished_frame) = work_stack.pop() else {
                         bail!("Internal error: empty arena work stack");
                     };
+                    let frame_pinned = self.pinned_resolver.clone();
+                    let frame_res: &dyn SyntaxRuleResolver =
+                        if let Some(ref r) = frame_pinned {
+                            r.as_ref()
+                        } else {
+                            resolver
+                        };
                     self.exit_frame()?;
                     let node_id = match finished_frame {
                         ArenaBuildFrame::Container {
@@ -1565,14 +1627,14 @@ impl<'a> DcDocumentNavigator<'a> {
                         } => {
                             let is_format_or_temporal = opener.fills_role_with(
                                 DcRole::BeginFormatRepresentation,
-                                resolver,
-                            ) || resolver
+                                frame_res,
+                            ) || frame_res
                                 .matches_script(".WASM", opener.to_u128());
                             let normalized_children = if is_format_or_temporal {
                                 children
                             } else {
                                 Self::normalize_field_nodes_with_resolver(
-                                    children, arena, resolver,
+                                    children, arena, frame_res,
                                 )
                             };
                             arena.alloc(
@@ -1594,7 +1656,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         } => {
                             let normalized_args =
                                 Self::normalize_field_nodes_with_resolver(
-                                    args, arena, resolver,
+                                    args, arena, frame_res,
                                 );
                             arena.alloc(
                                 outer_span,

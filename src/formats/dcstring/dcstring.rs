@@ -99,11 +99,11 @@ pub use navigator::{
     DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES, DEFAULT_MAX_PROJECTION_DEPTH,
     DcBinaryResolver, DcByteSpan, DcDocumentNavigator, DcEvaluatedValue,
     DcExpressionEvaluator, DcForgivingDefault, DcFrameHeaderInfo, DcFrameStub,
-    DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
-    DefaultDcExpressionEvaluator, DiagnosticAction, INLINE_BINARY_THRESHOLD,
-    MAX_SYNTAX_EXPANSION_DEPTH, NodeId, SyntaxEvalContext,
-    SyntaxRuntimeResolver, ValueRequirement, validate_dc_mixed_strict,
-    validate_dc_str_strict, validate_dc_tokens_strict,
+    DcPinProvenance, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind,
+    DcSyntaxNode, DefaultDcExpressionEvaluator, DiagnosticAction,
+    INLINE_BINARY_THRESHOLD, MAX_SYNTAX_EXPANSION_DEPTH, NodeId,
+    SyntaxEvalContext, SyntaxRuntimeResolver, ValueRequirement,
+    validate_dc_mixed_strict, validate_dc_str_strict, validate_dc_tokens_strict,
 };
 pub use shared::{
     SharedJson, SharedValueContext, decode_dc_identifier, decode_identifier,

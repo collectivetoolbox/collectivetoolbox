@@ -214,7 +214,9 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
                     return Ok(Some(DcEvaluatedValue::Document(cand_mstr)));
                 }
                 nav.cursor = elem_start;
-                if let Ok(Some(stub)) = nav.next_sibling_stub(&ctx.policy) {
+                if let Ok(Some(stub)) =
+                    nav.next_sibling_stub_with_resolver(&ctx.policy, resolver)
+                {
                     if stub.outer_span.end > elem_start {
                         nav.cursor = stub.outer_span.end;
                     } else {
@@ -1008,6 +1010,23 @@ impl DcDocumentNavigator<'_> {
 
         let start_offset = self.cursor;
         let first = first_dc.to_u128();
+
+        if let Some(block_desc) =
+            ctb_formats_dcdata::global_graph_layout::unsupported_graph_block_description(
+                first,
+            )
+        {
+            ctx.has_errors = true;
+            ctx.diagnostics.push(SyntaxDiagnostic {
+                message: format!(
+                    "Reference to unsupported graph block at offset {start_offset}: token l{first} targets {block_desc}"
+                ),
+                token_offset: start_offset,
+                is_error: true,
+            });
+            self.restore_checkpoint(term_checkpoint);
+            return Ok(false);
+        }
 
         if !ctx.unescaped_literal_payload
             && ctx.resolver.is_special_wrapper_token(first)
@@ -2923,79 +2942,128 @@ impl DcDocumentNavigator<'_> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
+        enum ValidateWorkItem {
+            Step {
+                span: DcByteSpan,
+                cursor: u64,
+                depth: usize,
+            },
+            ExitFrame,
+        }
+
+        let base_level_depth = self.level_stack.len();
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
-        let mut span_stack: Vec<(DcByteSpan, u64, usize)> =
-            vec![(initial_span, initial_span.start, initial_depth)];
+        let mut span_stack: Vec<ValidateWorkItem> =
+            vec![ValidateWorkItem::Step {
+                span: initial_span,
+                cursor: initial_span.start,
+                depth: initial_depth,
+            }];
 
         let res = (|| -> Result<()> {
-            while let Some((span, cursor, depth)) = span_stack.pop() {
-                if cursor >= span.end {
-                    continue;
-                }
-                self.active_span = span;
-                self.cursor = cursor;
-                let sub_spans = self.step_validate_construct_with_resolver(
-                    depth, policy, resolver,
-                )?;
-                let next_cursor = self.cursor;
-                ensure!(
-                    next_cursor > cursor,
-                    "Parser made no progress at offset {cursor}"
-                );
-                if next_cursor < span.end {
-                    span_stack.push((span, next_cursor, depth));
-                }
-                for (sub_span, sub_depth) in sub_spans.into_iter().rev() {
-                    if !sub_span.is_empty() {
-                        span_stack.push((sub_span, sub_span.start, sub_depth));
+            while let Some(item) = span_stack.pop() {
+                match item {
+                    ValidateWorkItem::ExitFrame => {
+                        self.exit_frame()?;
+                    }
+                    ValidateWorkItem::Step {
+                        span,
+                        cursor,
+                        depth,
+                    } => {
+                        if cursor >= span.end {
+                            continue;
+                        }
+                        self.active_span = span;
+                        self.cursor = cursor;
+                        let pinned_arc = self.pinned_resolver.clone();
+                        let active_res: &dyn SyntaxRuleResolver =
+                            if let Some(ref r) = pinned_arc {
+                                r.as_ref()
+                            } else {
+                                resolver
+                            };
+                        let Some(stub) = self.next_sibling_stub_with_resolver(
+                            policy, active_res,
+                        )?
+                        else {
+                            continue;
+                        };
+                        if stub.head_dc.fills_role_with(
+                            DcRole::StartEncapsulationBinary,
+                            active_res,
+                        ) && matches!(
+                            stub.header_info,
+                            DcFrameHeaderInfo::Binary { .. }
+                        ) {
+                            self.parse_binary_arena_node(
+                                stub.outer_span,
+                                policy,
+                                active_res,
+                            )?;
+                        }
+                        let next_cursor = self.cursor;
+                        ensure!(
+                            next_cursor > cursor,
+                            "Parser made no progress at offset {cursor}"
+                        );
+                        if next_cursor < span.end {
+                            span_stack.push(ValidateWorkItem::Step {
+                                span,
+                                cursor: next_cursor,
+                                depth,
+                            });
+                        }
+                        if let Some(inner) = stub.inner_span {
+                            if !active_res
+                                .is_opaque_container(stub.head_dc.to_u128())
+                            {
+                                if depth >= policy.max_depth {
+                                    self.record_diagnostic(
+                                        policy,
+                                        policy.depth_limit_exceeded,
+                                        stub.outer_span.start,
+                                        format!(
+                                            "Document nesting depth exceeds maximum limit ({}) at offset {}",
+                                            policy.max_depth,
+                                            stub.outer_span.start,
+                                        ),
+                                    )?;
+                                } else if !inner.is_empty() {
+                                    let post_stub_pinned =
+                                        self.pinned_resolver.clone();
+                                    let enter_res: &dyn SyntaxRuleResolver =
+                                        if let Some(ref r) = post_stub_pinned {
+                                            r.as_ref()
+                                        } else {
+                                            resolver
+                                        };
+                                    self.enter_frame_with_policy(
+                                        &stub, policy, enter_res,
+                                    )?;
+                                    span_stack
+                                        .push(ValidateWorkItem::ExitFrame);
+                                    span_stack.push(ValidateWorkItem::Step {
+                                        span: inner,
+                                        cursor: inner.start,
+                                        depth: depth.saturating_add(1),
+                                    });
+                                }
+                            }
+                        }
                     }
                 }
             }
             Ok(())
         })();
 
+        while self.level_stack.len() > base_level_depth {
+            let _ = self.exit_frame();
+        }
         self.active_span = saved_span;
         self.cursor = saved_cursor.min(saved_span.end);
         res
-    }
-
-    pub(super) fn step_validate_construct_with_resolver(
-        &mut self,
-        depth: usize,
-        policy: &DcProjectionPolicy,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<Vec<(DcByteSpan, usize)>> {
-        let Some(stub) =
-            self.next_sibling_stub_with_resolver(policy, resolver)?
-        else {
-            return Ok(Vec::new());
-        };
-        if stub
-            .head_dc
-            .fills_role_with(DcRole::StartEncapsulationBinary, resolver)
-            && matches!(stub.header_info, DcFrameHeaderInfo::Binary { .. })
-        {
-            self.parse_binary_arena_node(stub.outer_span, policy, resolver)?;
-        }
-        if let Some(inner) = stub.inner_span {
-            if !resolver.is_opaque_container(stub.head_dc.to_u128()) {
-                if depth >= policy.max_depth {
-                    self.record_diagnostic(
-                        policy,
-                        policy.depth_limit_exceeded,
-                        stub.outer_span.start,
-                        format!(
-                            "Document nesting depth exceeds maximum limit ({}) at offset {}",
-                            policy.max_depth, stub.outer_span.start,
-                        ),
-                    )?;
-                } else {
-                    return Ok(vec![(inner, depth.saturating_add(1))]);
-                }
-            }
-        }
-        Ok(Vec::new())
     }
 }
 

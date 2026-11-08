@@ -139,6 +139,43 @@ pub(super) struct NavScanCache {
         std::collections::HashMap<(u128, u64), (u64, bool)>,
     pub(super) assignments_scanned_up_to: Option<u64>,
     pub(super) top_level_assignments: Vec<(u64, DcMstring, DcByteSpan)>,
+    pub(super) diagnosed_pin_offsets: std::collections::HashSet<u64>,
+    pub(super) diagnosed_unpinned_spans: std::collections::HashSet<u64>,
+}
+
+/// Provenance of the active System-block snapshot resolution policy for a
+/// [`DcDocumentNavigator`] scope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DcPinProvenance {
+    /// Legacy document omitting `Dc 641`; resolved via the policy's fallback
+    /// baseline snapshot (or bundled System graph `HEAD` when unspecified).
+    UnpinnedLegacyFallback,
+    /// Explicitly pinned via `Dc 641` in the current document or header scope.
+    ExplicitPin,
+    /// Inherited from an enclosing document scope's `Dc 641` pin.
+    InheritedPin,
+    /// Explicitly overridden by the caller via [`DcDocumentNavigator::set_pinned_resolver`].
+    CallerOverride,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct NavLevelState {
+    pub(super) parent_span: DcByteSpan,
+    pub(super) saved_cursor: u64,
+    pub(super) opener_dc: DcChar,
+    pub(super) closer_dc: Option<DcChar>,
+    pub(super) saved_most_recent_node_id: Option<u128>,
+    pub(super) saved_pinned_resolver:
+        Option<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
+    pub(super) saved_pin_provenance: DcPinProvenance,
+    pub(super) propagates_pin_to_parent: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct HeaderPinCandidate {
+    pub(super) tag_offset: u64,
+    pub(super) arg_dc: Option<DcChar>,
+    pub(super) arg_escaped: bool,
 }
 
 impl NavScanCache {
@@ -164,7 +201,7 @@ pub struct DcDocumentNavigator<'a> {
     pub(super) backend: NavBackend<'a>,
     pub(super) cursor: u64,
     pub(super) active_span: DcByteSpan,
-    pub(super) level_stack: Vec<(DcByteSpan, u64, Option<DcChar>)>,
+    pub(super) level_stack: Vec<NavLevelState>,
     pub(super) diagnostics: Vec<SyntaxDiagnostic>,
     pub(super) spliced_buf: Vec<DcChar>,
     pub(super) spliced_head: usize,
@@ -173,6 +210,7 @@ pub struct DcDocumentNavigator<'a> {
     pub(super) document_most_recent_node_id: Option<u128>,
     pub(super) pinned_resolver:
         Option<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
+    pub(super) pin_provenance: DcPinProvenance,
 }
 
 impl DcBinaryResolver for DcDocumentNavigator<'_> {
@@ -218,6 +256,7 @@ impl<'a> DcDocumentNavigator<'a> {
             scan_cache: NavScanCache::default(),
             document_most_recent_node_id: None,
             pinned_resolver: None,
+            pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
         };
         nav.detect_leading_document_most_recent();
         nav
@@ -244,16 +283,23 @@ impl<'a> DcDocumentNavigator<'a> {
             scan_cache: NavScanCache::default(),
             document_most_recent_node_id: None,
             pinned_resolver: None,
+            pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
         };
         nav.detect_leading_document_most_recent();
         nav
     }
 
     /// Returns the System-block most recent node ID (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`)
-    /// declared at the document root, if any.
+    /// active in the current scope, if any.
     #[must_use]
     pub const fn document_most_recent_node_id(&self) -> Option<u128> {
         self.document_most_recent_node_id
+    }
+
+    /// Returns the provenance of the current scope's System-block snapshot resolution policy.
+    #[must_use]
+    pub const fn pin_provenance(&self) -> DcPinProvenance {
+        self.pin_provenance
     }
 
     /// Returns the syntax rule resolver pinned for this document (via `Dc 641` or explicit override),
@@ -274,16 +320,459 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         resolver: Option<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
     ) {
+        self.pin_provenance = if resolver.is_some() {
+            DcPinProvenance::CallerOverride
+        } else {
+            DcPinProvenance::UnpinnedLegacyFallback
+        };
         self.pinned_resolver = resolver;
     }
 
-    pub(super) fn bind_document_most_recent_node_id(&mut self, node_id: u128) {
-        self.document_most_recent_node_id = Some(node_id);
-        if let Ok(resolver) =
-            ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(node_id)
-        {
-            self.pinned_resolver = Some(resolver);
+    pub(super) fn is_most_recent_node_id_tag(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        ch == ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID
+            || ch.fills_role_with(
+                DcRole::GlobalGraphSystemBlockMostRecentNodeId,
+                resolver,
+            )
+    }
+
+    pub(super) fn is_document_or_node_scope_opener(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        let code = ch.to_u128();
+        ch == ctb_formats_dcdata::dc::DC_BEGIN_DOCUMENT
+            || ch == ctb_formats_dcdata::dc::DC_BEGIN_GRAPH_NODE_DEFINITION
+            || resolver.is_equivalent_to(
+                code,
+                ctb_formats_dcdata::dc::DC_BEGIN_DOCUMENT.to_u128(),
+            )
+            || resolver.is_equivalent_to(
+                code,
+                ctb_formats_dcdata::dc::DC_BEGIN_GRAPH_NODE_DEFINITION
+                    .to_u128(),
+            )
+    }
+
+    pub(super) fn is_graph_node_definition_opener(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        ch == ctb_formats_dcdata::dc::DC_BEGIN_GRAPH_NODE_DEFINITION
+            || resolver.is_equivalent_to(
+                ch.to_u128(),
+                ctb_formats_dcdata::dc::DC_BEGIN_GRAPH_NODE_DEFINITION
+                    .to_u128(),
+            )
+    }
+
+    pub(super) fn is_environment_description_opener(
+        ch: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        ch == ctb_formats_dcdata::dc::DC_BEGIN_ENVIRONMENT_DESCRIPTION
+            || resolver.is_equivalent_to(
+                ch.to_u128(),
+                ctb_formats_dcdata::dc::DC_BEGIN_ENVIRONMENT_DESCRIPTION
+                    .to_u128(),
+            )
+    }
+
+    pub(super) fn is_header_position_for_pin(
+        &self,
+        offset: u64,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        if offset == self.active_span.start {
+            return true;
         }
+        if let Some(top) = self.level_stack.last() {
+            if Self::is_environment_description_opener(top.opener_dc, resolver)
+            {
+                return true;
+            }
+            if Self::is_graph_node_definition_opener(top.opener_dc, resolver) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub(super) fn pin_syntax_issue(
+        &mut self,
+        policy: &DcProjectionPolicy,
+        offset: u64,
+        message: String,
+    ) -> Result<()> {
+        if policy.syntax_error == DiagnosticAction::Error {
+            return self.syntax_issue(policy, offset, message);
+        }
+        if self.scan_cache.diagnosed_pin_offsets.insert(offset) {
+            return self.syntax_issue(policy, offset, message);
+        }
+        Ok(())
+    }
+
+    pub(super) fn bind_document_most_recent_node_id_with_policy(
+        &mut self,
+        offset: u64,
+        node_id: u128,
+        policy: &DcProjectionPolicy,
+    ) -> Result<()> {
+        if let Some(block_desc) =
+            ctb_formats_dcdata::global_graph_layout::unsupported_graph_block_description(node_id)
+        {
+            self.pinned_resolver = None;
+            return self.pin_syntax_issue(
+                policy,
+                offset,
+                format!(
+                    "Unsupported graph block pin in Dc 641 at offset {offset}: node ID l{node_id} targets {block_desc}"
+                ),
+            );
+        }
+        if !(ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START
+            ..=ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END)
+            .contains(&node_id)
+        {
+            self.pinned_resolver = None;
+            return self.pin_syntax_issue(
+                policy,
+                offset,
+                format!(
+                    "Invalid System-block most recent node ID {node_id} for Dc 641 at offset {offset}: expected System block range {}..={}",
+                    ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START,
+                    ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END,
+                ),
+            );
+        }
+        self.document_most_recent_node_id = Some(node_id);
+        match ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(node_id)
+        {
+            Ok(resolver) => {
+                self.pinned_resolver = Some(resolver);
+                self.pin_provenance = DcPinProvenance::ExplicitPin;
+                Ok(())
+            }
+            Err(err) => {
+                self.pinned_resolver = None;
+                self.pin_syntax_issue(
+                    policy,
+                    offset,
+                    format!(
+                        "Failed to resolve System-block snapshot pin l{node_id} at offset {offset}: {err}"
+                    ),
+                )
+            }
+        }
+    }
+
+    pub(super) fn bind_document_most_recent_node_id(&mut self, node_id: u128) {
+        if (ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START
+            ..=ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END)
+            .contains(&node_id)
+        {
+            self.document_most_recent_node_id = Some(node_id);
+            if let Ok(resolver) =
+                ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
+                    node_id,
+                )
+            {
+                self.pinned_resolver = Some(resolver);
+                self.pin_provenance = DcPinProvenance::ExplicitPin;
+            } else {
+                self.pinned_resolver = None;
+            }
+        }
+    }
+
+    pub(super) fn read_pin_candidate_after_tag(
+        &mut self,
+        tag_offset: u64,
+        after_tag: u64,
+        limit: u64,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> HeaderPinCandidate {
+        if after_tag >= limit {
+            return HeaderPinCandidate {
+                tag_offset,
+                arg_dc: None,
+                arg_escaped: false,
+            };
+        }
+        let Ok(Some((arg_tok, after_arg))) =
+            self.read_token_or_binary_at(after_tag)
+        else {
+            return HeaderPinCandidate {
+                tag_offset,
+                arg_dc: None,
+                arg_escaped: false,
+            };
+        };
+        if arg_tok.fills_role_with(DcRole::Escape, resolver) {
+            let escaped = if after_arg < limit {
+                self.read_token_or_binary_at(after_arg)
+                    .ok()
+                    .flatten()
+                    .map(|(ch, _)| ch)
+            } else {
+                None
+            };
+            return HeaderPinCandidate {
+                tag_offset,
+                arg_dc: escaped,
+                arg_escaped: true,
+            };
+        }
+        HeaderPinCandidate {
+            tag_offset,
+            arg_dc: Some(arg_tok),
+            arg_escaped: false,
+        }
+    }
+
+    pub(super) fn find_pin_in_environment_span(
+        &mut self,
+        span_start: u64,
+        span_end: u64,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Option<HeaderPinCandidate> {
+        let env_closer =
+            ctb_formats_dcdata::dc::DC_END_ENVIRONMENT_DESCRIPTION.to_u128();
+        let mut pos = span_start;
+        while pos < span_end {
+            let Ok(Some((tok, after_tok))) = self.read_token_or_binary_at(pos)
+            else {
+                break;
+            };
+            if tok.fills_role_with(DcRole::Escape, resolver) {
+                if let Ok(Some((_, after_esc))) =
+                    self.read_token_or_binary_at(after_tok)
+                {
+                    pos = after_esc;
+                    continue;
+                }
+                break;
+            }
+            if tok.fills_role_with(DcRole::StartEncapsulationBinary, resolver) {
+                if let Ok((after_bin, DcFrameHeaderInfo::Binary { .. })) = self
+                    .scan_binary_at(
+                        pos,
+                        &DcProjectionPolicy::forgiving_quiet(),
+                        resolver,
+                    )
+                {
+                    pos = after_bin;
+                    continue;
+                }
+            }
+            if tok.to_u128() == env_closer
+                || resolver.is_equivalent_to(tok.to_u128(), env_closer)
+            {
+                break;
+            }
+            if Self::is_most_recent_node_id_tag(tok, resolver) {
+                return Some(self.read_pin_candidate_after_tag(
+                    pos, after_tok, span_end, resolver,
+                ));
+            }
+            pos = after_tok;
+        }
+        None
+    }
+
+    pub(super) fn find_header_pin_at_offset(
+        &mut self,
+        offset: u64,
+        limit: u64,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Option<HeaderPinCandidate> {
+        if offset >= limit {
+            return None;
+        }
+        let Ok(Some((tok, after_tok))) = self.read_token_or_binary_at(offset)
+        else {
+            return None;
+        };
+        if Self::is_most_recent_node_id_tag(tok, resolver) {
+            return Some(
+                self.read_pin_candidate_after_tag(
+                    offset, after_tok, limit, resolver,
+                ),
+            );
+        }
+        if Self::is_environment_description_opener(tok, resolver) {
+            let env_end = if let Ok((_, closer_end, _)) = self
+                .scan_balanced_container(
+                    after_tok,
+                    tok,
+                    ctb_formats_dcdata::dc::DC_END_ENVIRONMENT_DESCRIPTION,
+                    &DcProjectionPolicy::forgiving_quiet(),
+                    resolver,
+                ) {
+                closer_end.min(limit)
+            } else {
+                limit
+            };
+            return self
+                .find_pin_in_environment_span(after_tok, env_end, resolver);
+        }
+        None
+    }
+
+    pub(super) fn find_header_pin_in_span(
+        &mut self,
+        span: DcByteSpan,
+        opener_dc: Option<DcChar>,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Option<HeaderPinCandidate> {
+        if span.start >= span.end {
+            return None;
+        }
+        if let Some(op) = opener_dc {
+            if Self::is_environment_description_opener(op, resolver) {
+                return self.find_pin_in_environment_span(
+                    span.start, span.end, resolver,
+                );
+            }
+            if let Some(cand) =
+                self.find_header_pin_at_offset(span.start, span.end, resolver)
+            {
+                return Some(cand);
+            }
+            if Self::is_graph_node_definition_opener(op, resolver) {
+                if let Ok(Some((first_tok, after_first))) =
+                    self.read_token_or_binary_at(span.start)
+                {
+                    let next_pos =
+                        if first_tok.fills_role_with(DcRole::Escape, resolver) {
+                            self.read_token_or_binary_at(after_first)
+                                .ok()
+                                .flatten()
+                                .map_or(after_first, |(_, after_esc)| after_esc)
+                        } else {
+                            after_first
+                        };
+                    return self.find_header_pin_at_offset(
+                        next_pos, span.end, resolver,
+                    );
+                }
+            }
+            return None;
+        }
+        if let Some(cand) =
+            self.find_header_pin_at_offset(span.start, span.end, resolver)
+        {
+            return Some(cand);
+        }
+        // Check if the entire stream is wrapped in a single Dc 235 or Dc 617 container
+        if let Ok(Some((first_tok, after_first))) =
+            self.read_token_or_binary_at(span.start)
+            && Self::is_document_or_node_scope_opener(first_tok, resolver)
+            && let Some(target) = CharTarget::from_u128(first_tok.to_u128())
+            && let Some(closer_u128) = resolver.closer_for_opener(&target)
+            && let Ok((closer_start, after_closer, _)) = self
+                .scan_balanced_container(
+                    after_first,
+                    first_tok,
+                    DcChar::from_u128(closer_u128),
+                    &DcProjectionPolicy::forgiving_quiet(),
+                    resolver,
+                )
+            && closer_start < after_closer
+            && after_closer == span.end
+        {
+            return self.find_header_pin_in_span(
+                DcByteSpan::new(after_first, closer_start),
+                Some(first_tok),
+                resolver,
+            );
+        }
+        None
+    }
+
+    pub(super) fn apply_header_pin_candidate(
+        &mut self,
+        candidate: HeaderPinCandidate,
+        policy: &DcProjectionPolicy,
+    ) -> Result<()> {
+        if candidate.arg_escaped {
+            self.pinned_resolver = None;
+            return self.pin_syntax_issue(
+                policy,
+                candidate.tag_offset,
+                format!(
+                    "Invalid escaped operand for header Dc 641 pin at offset {}: expected unescaped System-block node ID",
+                    candidate.tag_offset
+                ),
+            );
+        }
+        if let Some(arg_dc) = candidate.arg_dc {
+            return self.bind_document_most_recent_node_id_with_policy(
+                candidate.tag_offset,
+                arg_dc.to_u128(),
+                policy,
+            );
+        }
+        Ok(())
+    }
+
+    pub(super) fn apply_unpinned_fallback_policy(
+        &mut self,
+        span_start: u64,
+        policy: &DcProjectionPolicy,
+    ) -> Result<()> {
+        if self.pin_provenance != DcPinProvenance::UnpinnedLegacyFallback {
+            return Ok(());
+        }
+        if let Some(fallback_id) = policy.unpinned_fallback_most_recent_node_id
+        {
+            if self.document_most_recent_node_id != Some(fallback_id)
+                || self.pinned_resolver.is_none()
+            {
+                match ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
+                    fallback_id,
+                ) {
+                    Ok(resolver) => {
+                        self.document_most_recent_node_id = Some(fallback_id);
+                        self.pinned_resolver = Some(resolver);
+                        self.pin_provenance =
+                            DcPinProvenance::UnpinnedLegacyFallback;
+                    }
+                    Err(err) => {
+                        return self.pin_syntax_issue(
+                            policy,
+                            span_start,
+                            format!(
+                                "Failed to resolve unpinned fallback System-block snapshot l{fallback_id} at offset {span_start}: {err}"
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+        if let Some(action) = policy.missing_system_graph_pin {
+            if action == DiagnosticAction::Error
+                || self.scan_cache.diagnosed_unpinned_spans.insert(span_start)
+            {
+                let msg = if let Some(fallback_id) =
+                    policy.unpinned_fallback_most_recent_node_id
+                {
+                    format!(
+                        "Document omits Dc 641 System-block snapshot pin at offset {span_start}; resolving against designated baseline snapshot l{fallback_id} (UnpinnedLegacyFallback)"
+                    )
+                } else {
+                    format!(
+                        "Document omits Dc 641 System-block snapshot pin at offset {span_start}; resolving against System graph HEAD (UnpinnedLegacyFallback)"
+                    )
+                };
+                self.record_diagnostic(policy, action, span_start, msg)?;
+            }
+        }
+        Ok(())
     }
 
     pub(super) fn detect_leading_document_most_recent(&mut self) {
@@ -292,21 +781,14 @@ impl<'a> DcDocumentNavigator<'a> {
         {
             return;
         }
-        let start = self.active_span.start;
-        if let Ok(Some((first_dc, after_first))) =
-            self.read_token_or_binary_at(start)
-            && first_dc
-                == ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID
-            && let Ok(Some((arg_dc, _))) =
-                self.read_token_or_binary_at(after_first)
+        let default_res = Arc::clone(default_syntax_resolver());
+        let span = self.active_span;
+        if let Some(candidate) =
+            self.find_header_pin_in_span(span, None, default_res.as_ref())
+            && !candidate.arg_escaped
+            && let Some(arg_dc) = candidate.arg_dc
         {
-            let node_id = arg_dc.to_u128();
-            if (ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START
-                ..=ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END)
-                .contains(&node_id)
-            {
-                self.bind_document_most_recent_node_id(node_id);
-            }
+            self.bind_document_most_recent_node_id(arg_dc.to_u128());
         }
         if let NavBackend::SeekableFile {
             reader, reader_pos, ..
@@ -547,6 +1029,7 @@ impl<'a> DcDocumentNavigator<'a> {
             scan_cache: NavScanCache::default(),
             document_most_recent_node_id: None,
             pinned_resolver: None,
+            pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
         };
         nav.detect_leading_document_most_recent();
         Ok(nav)
@@ -599,13 +1082,147 @@ impl<'a> DcDocumentNavigator<'a> {
         let inner = stub
             .inner_span
             .context("Cannot enter a non-container DcFrameStub")?;
-        self.level_stack.push((
-            self.active_span,
-            stub.outer_span.end,
-            stub.closer_dc,
-        ));
+        let resolver = self.effective_resolver();
+        let is_env_header = stub.closer_dc.is_some()
+            && Self::is_environment_description_opener(
+                stub.head_dc,
+                resolver.as_ref(),
+            )
+            && self.is_header_position_for_pin(
+                stub.outer_span.start,
+                resolver.as_ref(),
+            );
+        let is_full_root_doc = stub.closer_dc.is_some()
+            && self.level_stack.is_empty()
+            && stub.outer_span == self.active_span
+            && Self::is_document_or_node_scope_opener(
+                stub.head_dc,
+                resolver.as_ref(),
+            );
+        self.level_stack.push(NavLevelState {
+            parent_span: self.active_span,
+            saved_cursor: stub.outer_span.end,
+            opener_dc: stub.head_dc,
+            closer_dc: stub.closer_dc,
+            saved_most_recent_node_id: self.document_most_recent_node_id,
+            saved_pinned_resolver: self.pinned_resolver.clone(),
+            saved_pin_provenance: self.pin_provenance,
+            propagates_pin_to_parent: is_env_header || is_full_root_doc,
+        });
         self.active_span = inner;
         self.cursor = inner.start;
+        if stub.closer_dc.is_some() {
+            if Self::is_document_or_node_scope_opener(
+                stub.head_dc,
+                resolver.as_ref(),
+            ) {
+                if self.document_most_recent_node_id.is_some()
+                    || matches!(
+                        self.pin_provenance,
+                        DcPinProvenance::ExplicitPin
+                            | DcPinProvenance::InheritedPin
+                            | DcPinProvenance::CallerOverride
+                    )
+                {
+                    self.pin_provenance = DcPinProvenance::InheritedPin;
+                }
+                if let Some(cand) = self.find_header_pin_in_span(
+                    inner,
+                    Some(stub.head_dc),
+                    resolver.as_ref(),
+                ) && !cand.arg_escaped
+                    && let Some(arg_dc) = cand.arg_dc
+                {
+                    self.bind_document_most_recent_node_id(arg_dc.to_u128());
+                }
+            } else if Self::is_environment_description_opener(
+                stub.head_dc,
+                resolver.as_ref(),
+            ) && let Some(cand) = self.find_header_pin_in_span(
+                inner,
+                Some(stub.head_dc),
+                resolver.as_ref(),
+            ) && !cand.arg_escaped
+                && let Some(arg_dc) = cand.arg_dc
+            {
+                self.bind_document_most_recent_node_id(arg_dc.to_u128());
+            }
+        }
+        if let NavBackend::SeekableFile {
+            reader, reader_pos, ..
+        } = &mut self.backend
+        {
+            seek_buffered_file(reader, reader_pos, inner.start)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn enter_frame_with_policy(
+        &mut self,
+        stub: &DcFrameStub,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<()> {
+        let inner = stub
+            .inner_span
+            .context("Cannot enter a non-container DcFrameStub")?;
+        let is_env_header = stub.closer_dc.is_some()
+            && Self::is_environment_description_opener(stub.head_dc, resolver)
+            && self
+                .is_header_position_for_pin(stub.outer_span.start, resolver);
+        let is_full_root_doc = stub.closer_dc.is_some()
+            && self.level_stack.is_empty()
+            && stub.outer_span == self.active_span
+            && Self::is_document_or_node_scope_opener(stub.head_dc, resolver);
+        self.level_stack.push(NavLevelState {
+            parent_span: self.active_span,
+            saved_cursor: stub.outer_span.end,
+            opener_dc: stub.head_dc,
+            closer_dc: stub.closer_dc,
+            saved_most_recent_node_id: self.document_most_recent_node_id,
+            saved_pinned_resolver: self.pinned_resolver.clone(),
+            saved_pin_provenance: self.pin_provenance,
+            propagates_pin_to_parent: is_env_header || is_full_root_doc,
+        });
+        self.active_span = inner;
+        self.cursor = inner.start;
+        if stub.closer_dc.is_some() {
+            if Self::is_document_or_node_scope_opener(stub.head_dc, resolver) {
+                if self.document_most_recent_node_id.is_some()
+                    || matches!(
+                        self.pin_provenance,
+                        DcPinProvenance::ExplicitPin
+                            | DcPinProvenance::InheritedPin
+                            | DcPinProvenance::CallerOverride
+                    )
+                {
+                    self.pin_provenance = DcPinProvenance::InheritedPin;
+                }
+                if let Some(cand) = self.find_header_pin_in_span(
+                    inner,
+                    Some(stub.head_dc),
+                    resolver,
+                ) {
+                    self.apply_header_pin_candidate(cand, policy)?;
+                } else if self.pin_provenance
+                    == DcPinProvenance::UnpinnedLegacyFallback
+                {
+                    self.apply_unpinned_fallback_policy(
+                        stub.outer_span.start,
+                        policy,
+                    )?;
+                }
+            } else if Self::is_environment_description_opener(
+                stub.head_dc,
+                resolver,
+            ) && let Some(cand) = self.find_header_pin_in_span(
+                inner,
+                Some(stub.head_dc),
+                resolver,
+            ) {
+                self.apply_header_pin_candidate(cand, policy)?;
+            }
+        }
         if let NavBackend::SeekableFile {
             reader, reader_pos, ..
         } = &mut self.backend
@@ -618,12 +1235,17 @@ impl<'a> DcDocumentNavigator<'a> {
     /// Exits the current container level and restores the enclosing level's bounds,
     /// positioning the cursor at the end of the exited container.
     pub fn exit_frame(&mut self) -> Result<()> {
-        let (parent_span, saved_cursor, _) = self
+        let state = self
             .level_stack
             .pop()
             .context("Already at root level of DcDocumentNavigator")?;
-        self.active_span = parent_span;
-        let next_pos = saved_cursor.min(parent_span.end);
+        if !state.propagates_pin_to_parent {
+            self.document_most_recent_node_id = state.saved_most_recent_node_id;
+            self.pinned_resolver = state.saved_pinned_resolver;
+            self.pin_provenance = state.saved_pin_provenance;
+        }
+        self.active_span = state.parent_span;
+        let next_pos = state.saved_cursor.min(state.parent_span.end);
         self.seek_to_offset(next_pos)
     }
 
@@ -876,7 +1498,10 @@ impl<'a> DcDocumentNavigator<'a> {
             }));
         }
 
-        if let Some((_, _, Some(expected_closer))) = self.level_stack.last()
+        if let Some(NavLevelState {
+            closer_dc: Some(expected_closer),
+            ..
+        }) = self.level_stack.last()
             && (*expected_closer == head_dc
                 || resolver.is_equivalent_to(
                     head_dc.to_u128(),
@@ -1128,18 +1753,56 @@ impl<'a> DcDocumentNavigator<'a> {
         };
 
         if self.level_stack.is_empty()
-            && first_dc
-                == ctb_formats_dcdata::dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID
-            && let Ok(Some((arg_dc, _))) =
-                self.read_token_or_binary_at(after_first)
+            && start_offset == self.active_span.start
+            && !Self::is_document_or_node_scope_opener(first_dc, resolver)
         {
-            let node_id = arg_dc.to_u128();
-            if (ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START
-                ..=ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_END)
-                .contains(&node_id)
-                && self.document_most_recent_node_id != Some(node_id)
+            let has_header_pin = self
+                .find_header_pin_at_offset(
+                    start_offset,
+                    self.active_span.end,
+                    resolver,
+                )
+                .is_some();
+            if let NavBackend::SeekableFile {
+                reader, reader_pos, ..
+            } = &mut self.backend
             {
-                self.bind_document_most_recent_node_id(node_id);
+                let _ = seek_buffered_file(reader, reader_pos, start_offset);
+            }
+            if !has_header_pin
+                && self.pin_provenance
+                    == DcPinProvenance::UnpinnedLegacyFallback
+            {
+                self.apply_unpinned_fallback_policy(start_offset, policy)?;
+            }
+        }
+
+        if let Some(block_desc) =
+            ctb_formats_dcdata::global_graph_layout::unsupported_graph_block_description(
+                first_dc.to_u128(),
+            )
+        {
+            self.syntax_issue(
+                policy,
+                start_offset,
+                format!(
+                    "Reference to unsupported graph block at offset {start_offset}: token l{} targets {block_desc}",
+                    first_dc.to_u128()
+                ),
+            )?;
+        }
+
+        if Self::is_most_recent_node_id_tag(first_dc, resolver) {
+            let in_header =
+                self.is_header_position_for_pin(start_offset, resolver);
+            let cand = self.read_pin_candidate_after_tag(
+                start_offset,
+                after_first,
+                self.active_span.end,
+                resolver,
+            );
+            if in_header || !cand.arg_escaped {
+                self.apply_header_pin_candidate(cand, policy)?;
             }
         }
 
@@ -1299,13 +1962,86 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
 
                 if is_closed {
-                    self.check_container_grammar_with_resolver(
-                        &target,
-                        DcByteSpan::new(start_offset, outer_end),
-                        inner_span,
-                        policy,
-                        resolver,
-                    )?;
+                    if Self::is_environment_description_opener(
+                        first_dc, resolver,
+                    ) && self
+                        .is_header_position_for_pin(start_offset, resolver)
+                    {
+                        if let Some(cand) = self.find_header_pin_in_span(
+                            inner_span,
+                            Some(first_dc),
+                            resolver,
+                        ) {
+                            self.apply_header_pin_candidate(cand, policy)?;
+                        }
+                    }
+                    if Self::is_document_or_node_scope_opener(
+                        first_dc, resolver,
+                    ) {
+                        let saved_id = self.document_most_recent_node_id;
+                        let saved_res = self.pinned_resolver.clone();
+                        let saved_prov = self.pin_provenance;
+                        if self.document_most_recent_node_id.is_some()
+                            || matches!(
+                                self.pin_provenance,
+                                DcPinProvenance::ExplicitPin
+                                    | DcPinProvenance::InheritedPin
+                                    | DcPinProvenance::CallerOverride
+                            )
+                        {
+                            self.pin_provenance = DcPinProvenance::InheritedPin;
+                        }
+                        let pin_res = if let Some(cand) = self
+                            .find_header_pin_in_span(
+                                inner_span,
+                                Some(first_dc),
+                                resolver,
+                            ) {
+                            self.apply_header_pin_candidate(cand, policy)
+                        } else if self.pin_provenance
+                            == DcPinProvenance::UnpinnedLegacyFallback
+                        {
+                            self.apply_unpinned_fallback_policy(
+                                start_offset,
+                                policy,
+                            )
+                        } else {
+                            Ok(())
+                        };
+                        let scoped_res = self.pinned_resolver.clone();
+                        let active_res: &dyn SyntaxRuleResolver =
+                            if let Some(ref r) = scoped_res {
+                                r.as_ref()
+                            } else {
+                                resolver
+                            };
+                        let check_res = pin_res.and_then(|()| {
+                            self.check_container_grammar_with_resolver(
+                                &target,
+                                DcByteSpan::new(start_offset, outer_end),
+                                inner_span,
+                                policy,
+                                active_res,
+                            )
+                        });
+                        let is_full_root_doc = self.level_stack.is_empty()
+                            && start_offset == self.active_span.start
+                            && outer_end == self.active_span.end;
+                        if !is_full_root_doc {
+                            self.document_most_recent_node_id = saved_id;
+                            self.pinned_resolver = saved_res;
+                            self.pin_provenance = saved_prov;
+                        }
+                        check_res?;
+                    } else {
+                        self.check_container_grammar_with_resolver(
+                            &target,
+                            DcByteSpan::new(start_offset, outer_end),
+                            inner_span,
+                            policy,
+                            resolver,
+                        )?;
+                    }
                 }
                 self.cursor = outer_end;
                 return Ok(Some(DcFrameStub {
@@ -1429,6 +2165,13 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                         self.cursor = last_end;
                         return Ok(Some(prefix_stub(last_end)));
+                    }
+                    for diag in ctx.diagnostics {
+                        self.syntax_issue(
+                            policy,
+                            diag.token_offset,
+                            diag.message,
+                        )?;
                     }
                     self.syntax_issue(
                         policy,

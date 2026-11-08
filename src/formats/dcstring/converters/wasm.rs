@@ -1905,6 +1905,77 @@ pub fn run_dc_wasm_pure_conversion_with_resolver(
     )
 }
 
+fn expand_graph_wasm_shorthands(
+    shorthands: &[ctb_storage_minimal::shorthand::DcShorthand],
+    resolver: &dyn SyntaxRuleResolver,
+    visited_nodes: &mut Vec<u128>,
+    out_doc: &mut DcMstring,
+) -> Result<()> {
+    let mut iter = shorthands.iter().copied();
+    while let Some(sh) = iter.next() {
+        let gid = sh
+            .to_global_id()
+            .map_err(|e| anyhow!("Invalid graph WASM shorthand {sh}: {e}"))?;
+        if resolver.token_fills_role(gid, DcRole::Escape) {
+            out_doc.push_char(DcChar::from_u128(gid));
+            if let Some(escaped_sh) = iter.next() {
+                let escaped_gid = escaped_sh.to_global_id().map_err(|e| {
+                    anyhow!(
+                        "Invalid escaped graph WASM shorthand {escaped_sh}: {e}"
+                    )
+                })?;
+                out_doc.push_char(DcChar::from_u128(escaped_gid));
+            }
+            continue;
+        }
+        if let ctb_storage_minimal::shorthand::DcShorthand::Long(node_id) = sh {
+            if let Some(block_desc) = ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(node_id) {
+                bail!(
+                    "Graph WASM helper or value reference l{node_id} targets unsupported graph block ({block_desc})"
+                );
+            }
+            let Some(sg) = resolver.seed_graph() else {
+                bail!(
+                    "Graph WASM helper or value reference l{node_id} requires a seed graph snapshot on the active SyntaxRuleResolver"
+                );
+            };
+            if let Some(pin_id) = sg.system_block_most_recent_node_id()
+                && node_id > pin_id
+            {
+                bail!(
+                    "Graph WASM helper or value reference l{node_id} exceeds pinned System graph snapshot l{pin_id}"
+                );
+            }
+            let Some(node) = sg.get_active_node(node_id) else {
+                if sg.retracted_by(node_id).is_some() {
+                    bail!(
+                        "Graph WASM helper or value node l{node_id} was retracted in the active System graph snapshot"
+                    );
+                }
+                bail!(
+                    "Graph WASM helper or value node l{node_id} is not present or active in the System graph snapshot"
+                );
+            };
+            ensure!(
+                !visited_nodes.contains(&node.id),
+                "Cycle detected while expanding graph WASM helper node l{}",
+                node.id
+            );
+            visited_nodes.push(node.id);
+            expand_graph_wasm_shorthands(
+                &node.tokens,
+                resolver,
+                visited_nodes,
+                out_doc,
+            )?;
+            visited_nodes.pop();
+            continue;
+        }
+        out_doc.push_char(DcChar::from_u128(gid));
+    }
+    Ok(())
+}
+
 /// Runs a pure-compute Dc-WASM conversion from a slice of [`ctb_storage_minimal::shorthand::DcShorthand`]
 /// tokens (such as a `.WASM` definition stored in the system graph) over `input_tokens`.
 ///
@@ -1916,24 +1987,13 @@ pub fn run_graph_wasm_tokens_on_dc_slice(
     resolver: &dyn SyntaxRuleResolver,
 ) -> Result<DcMstring> {
     let mut wasm_doc = DcMstring::new();
-    for &sh in wasm_shorthands {
-        let gid = sh
-            .to_global_id()
-            .map_err(|e| anyhow!("Invalid graph WASM shorthand {sh}: {e}"))?;
-        if let Some(sg) = resolver.seed_graph()
-            && let ctb_storage_minimal::shorthand::DcShorthand::Long(node_id) = sh
-            && let Some(node) = sg.get_node(node_id)
-        {
-            for &sub_sh in &node.tokens {
-                let sub_gid = sub_sh.to_global_id().map_err(|e| {
-                    anyhow!("Invalid sub-node shorthand {sub_sh}: {e}")
-                })?;
-                wasm_doc.push_char(DcChar::from_u128(sub_gid));
-            }
-            continue;
-        }
-        wasm_doc.push_char(DcChar::from_u128(gid));
-    }
+    let mut visited_nodes = Vec::new();
+    expand_graph_wasm_shorthands(
+        wasm_shorthands,
+        resolver,
+        &mut visited_nodes,
+        &mut wasm_doc,
+    )?;
 
     let mut input_doc = DcMstring::new();
     for &tok in input_tokens {

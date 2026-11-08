@@ -95,6 +95,15 @@ pub struct DcProjectionPolicy {
     /// encapsulation into memory. Exceeding this resource budget is an error
     /// under every diagnostic policy.
     pub max_encapsulation_payload_bytes: u64,
+    /// Optional diagnostic action when a document or nested document omits an
+    /// explicit `Dc 641` System-block most-recent node ID pin and does not
+    /// inherit one from an enclosing document or caller override.
+    pub missing_system_graph_pin: Option<DiagnosticAction>,
+    /// Optional designated baseline System-block snapshot node ID used when
+    /// resolving legacy documents that omit `Dc 641`. When `None`, unpinned
+    /// legacy documents resolve against the bundled System graph `HEAD` with
+    /// explicit [`super::DcPinProvenance::UnpinnedLegacyFallback`] provenance.
+    pub unpinned_fallback_most_recent_node_id: Option<u128>,
 }
 
 impl DcProjectionPolicy {
@@ -116,6 +125,8 @@ impl DcProjectionPolicy {
                 DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
             max_encapsulation_payload_bytes:
                 DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+            missing_system_graph_pin: None,
+            unpinned_fallback_most_recent_node_id: None,
         }
     }
 
@@ -137,6 +148,8 @@ impl DcProjectionPolicy {
                 DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
             max_encapsulation_payload_bytes:
                 DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+            missing_system_graph_pin: None,
+            unpinned_fallback_most_recent_node_id: None,
         }
     }
 
@@ -157,6 +170,8 @@ impl DcProjectionPolicy {
                 DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
             max_encapsulation_payload_bytes:
                 DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
+            missing_system_graph_pin: None,
+            unpinned_fallback_most_recent_node_id: None,
         }
     }
 
@@ -201,6 +216,29 @@ impl DcProjectionPolicy {
         max_bytes: u64,
     ) -> Self {
         self.max_encapsulation_payload_bytes = max_bytes;
+        self
+    }
+
+    /// Configures the diagnostic action taken when a document omits an explicit
+    /// `Dc 641` System-block most-recent node ID pin and does not inherit one
+    /// from an enclosing scope or caller override.
+    #[must_use]
+    pub const fn with_missing_system_graph_pin(
+        mut self,
+        action: DiagnosticAction,
+    ) -> Self {
+        self.missing_system_graph_pin = Some(action);
+        self
+    }
+
+    /// Configures the designated baseline System-block snapshot node ID used
+    /// when resolving legacy documents that omit `Dc 641`.
+    #[must_use]
+    pub const fn with_unpinned_fallback_most_recent_node_id(
+        mut self,
+        node_id: u128,
+    ) -> Self {
+        self.unpinned_fallback_most_recent_node_id = Some(node_id);
         self
     }
 
