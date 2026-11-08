@@ -265,9 +265,9 @@ pub enum WasmTraceEvent {
         /// Response/mock document written back to the module's input mailbox (empty if broke out early).
         response: DcMstring,
     },
-    /// External resource interruption raised by physical VM budgets (`Instructioncompute_quotaExhausted`,
-    /// `MemoryLimitExceeded`, `StepOutputSliceTooLarge`, `SessionOutputBudgetExceeded`) or
-    /// host step budget exhaustion.
+    /// External resource interruption raised by VM budgets (`ComputeQuotaExhausted`,
+    /// `MemoryLimitExceeded`, `TableLimitExceeded`, `StepOutputSliceTooLarge`,
+    /// `SessionOutputBudgetExceeded`) or host step budget exhaustion.
     ResourceInterruption {
         /// Number of completed logical steps before the interruption occurred.
         after_logical_steps: usize,
@@ -1805,6 +1805,104 @@ mod tests {
             &start_trace,
         )?;
         assert_eq!(replayed_start, start_trace);
+
+        // 4. Granting additional compute quota (`PermissionDecision::Allow` on `Privilege::ExcessiveCompute`
+        //    with `with_compute_quota_grant`) resumes a paused multi-step module without repeating
+        //    earlier yielded frames, and replays identically.
+        let mut bounded_doc = DcMstring::new();
+        bounded_doc.push_char(DcChar::from_short(260));
+        bounded_doc.push_char(DcChar::from_short(262));
+        bounded_doc.push_char(DcChar::from_short(280));
+        bounded_doc.push_char(i32_dc);
+        bounded_doc.push_char(DcChar::from_short(263));
+        // Echo input mailbox (0..8) to output mailbox (8..16)
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&2, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&2, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&2, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&2, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        // Check phase at mem[64]: if 0 -> set mem[64]=1 and return 1 (YieldFrame); else -> return 0 (Complete)
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&2, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(716)); // i32.eqz
+        bounded_doc.push_char(DcChar::from_short(651)); // if (result i32)
+        bounded_doc.push_char(i32_dc);
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&2, &mut bounded_doc)?;
+        u32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(652)); // else
+        bounded_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut bounded_doc)?;
+        bounded_doc.push_char(DcChar::from_short(658)); // end if
+        bounded_doc.push_char(DcChar::from_short(261));
+
+        // Step 0 consumes ~21 instructions; step 1 consumes ~16 instructions (~37 total).
+        // Start with quota 25 so step 0 succeeds (`YieldFrame`), step 1 triggers `ComputeQuotaExhausted`,
+        // and granting +50 via `PermissionDecision::Allow` resumes step 1 to completion.
+        let tight_limits =
+            DcWasmResourceLimits::default().with_max_instructions_per_step(25);
+        let mut resumable_session =
+            DcWasmSession::from_dc_wasm(&bounded_doc, &input, None)?
+                .with_resource_limits(tight_limits);
+        let mut allow_ctx = ExecutionContext::new(false)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Allow,
+            )
+            .with_compute_quota_grant(50);
+        let resumed_trace = allow_ctx
+            .execute_wasm_session_default_with_trace(&mut resumable_session, &input)?;
+        assert!(!resumed_trace.result.broke_out_early);
+        assert_eq!(resumed_trace.result.frames, vec![input.clone()]);
+        assert_eq!(resumed_trace.result.output, input);
+        assert!(resumed_trace.events.iter().any(|e| matches!(
+            e,
+            WasmTraceEvent::ResourceInterruption {
+                after_logical_steps: 1,
+                interruption: Some(WasmResourceInterruption::ComputeQuotaExhausted { limit: 25 }),
+                decision: PermissionDecision::Allow,
+            }
+        )));
+
+        let mut replay_resumed_session =
+            DcWasmSession::from_dc_wasm(&bounded_doc, &input, None)?
+                .with_resource_limits(tight_limits);
+        let replayed_resumed = replay_ctx.replay_wasm_session_trace(
+            &mut replay_resumed_session,
+            &input,
+            &resumed_trace,
+        )?;
+        assert_eq!(replayed_resumed, resumed_trace);
         Ok(())
     }
 }
