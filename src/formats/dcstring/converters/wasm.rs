@@ -1786,7 +1786,7 @@ pub struct DcWasmSession {
 }
 
 fn align_up_8(val: usize) -> Result<usize> {
-    let rem = val.checked_rem(8).unwrap_or(0);
+    let rem = val & 7;
     if rem == 0 {
         Ok(val)
     } else {
@@ -1827,6 +1827,8 @@ fn read_store_global_i32(store: &Store, addr: u32) -> i32 {
     match store.get_global_val(addr) {
         TinyWasmValue::Value32(v) => i32::from_le_bytes(v.to_le_bytes()),
         TinyWasmValue::Value64(v) => {
+            // Reason for fallback: callers reading i32 globals only pass i32-typed global addresses;
+            // out-of-range i64 values cannot arise for valid i32 globals and safely saturate to 0.
             i32::try_from(i64::from_le_bytes(v.to_le_bytes())).unwrap_or(0)
         }
         _ => 0,
@@ -1849,26 +1851,24 @@ fn configure_store_limits(
     addrs: &CtbGlobalAddrs,
     limits: &DcWasmResourceLimits,
 ) {
-    write_store_global_u64(
-        store,
-        addrs.max_mem_pages,
-        u64::try_from(limits.max_memory_pages).unwrap_or(u64::MAX),
-    );
-    write_store_global_u64(
-        store,
-        addrs.phys_max_mem_pages,
-        u64::try_from(limits.physical_max_memory_pages).unwrap_or(u64::MAX),
-    );
-    write_store_global_u64(
-        store,
-        addrs.max_table_elems,
-        u64::try_from(limits.max_table_elements).unwrap_or(u64::MAX),
-    );
-    write_store_global_u64(
-        store,
-        addrs.phys_max_table_elems,
-        u64::try_from(limits.physical_max_table_elements).unwrap_or(u64::MAX),
-    );
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit WASM quota global.
+    let max_mem = u64::try_from(limits.max_memory_pages).unwrap_or(u64::MAX);
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit WASM quota global.
+    let phys_max_mem =
+        u64::try_from(limits.physical_max_memory_pages).unwrap_or(u64::MAX);
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit WASM quota global.
+    let max_tbl = u64::try_from(limits.max_table_elements).unwrap_or(u64::MAX);
+    // Reason for fallback: on hypothetical >64-bit usize platforms, values above u64::MAX
+    // saturate to u64::MAX in the 64-bit WASM quota global.
+    let phys_max_tbl =
+        u64::try_from(limits.physical_max_table_elements).unwrap_or(u64::MAX);
+    write_store_global_u64(store, addrs.max_mem_pages, max_mem);
+    write_store_global_u64(store, addrs.phys_max_mem_pages, phys_max_mem);
+    write_store_global_u64(store, addrs.max_table_elems, max_tbl);
+    write_store_global_u64(store, addrs.phys_max_table_elems, phys_max_tbl);
 }
 
 impl DcWasmSession {
@@ -1977,23 +1977,25 @@ impl DcWasmSession {
                         ));
                     }
                     2 => {
+                        // Reason for fallback: on 32-bit hosts, a 64-bit requested page count
+                        // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
+                        let requested_pages =
+                            usize::try_from(interrupted_op).unwrap_or(usize::MAX);
                         return Err(anyhow::Error::new(
                             WasmResourceInterruption::MemoryLimitExceeded {
-                                requested_pages: usize::try_from(
-                                    interrupted_op,
-                                )
-                                .unwrap_or(usize::MAX),
+                                requested_pages,
                                 max_pages: effective_max_mem,
                             },
                         ));
                     }
                     3 => {
+                        // Reason for fallback: on 32-bit hosts, a 64-bit requested element count
+                        // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
+                        let requested_elements =
+                            usize::try_from(interrupted_op).unwrap_or(usize::MAX);
                         return Err(anyhow::Error::new(
                             WasmResourceInterruption::TableLimitExceeded {
-                                requested_elements: usize::try_from(
-                                    interrupted_op,
-                                )
-                                .unwrap_or(usize::MAX),
+                                requested_elements,
                                 max_elements: effective_max_tbl,
                             },
                         ));
@@ -2023,6 +2025,8 @@ impl DcWasmSession {
         // Determine the highest byte owned by static data segments, optional exported
         // `__heap_base` / `__data_end` globals, or nonzero bytes written during instantiation
         // so host I/O buffers never overwrite zero-filled or trailing-zero static data segments.
+        // Reason for fallback: modules that do not export `__heap_base` or `__data_end` contribute
+        // 0 to the reserved static data high-water mark.
         let exported_heap_bound = ["__heap_base", "__data_end"]
             .into_iter()
             .filter_map(|name| {
@@ -2049,6 +2053,7 @@ impl DcWasmSession {
             let slice = mem.load(0, total_len).map_err(|e| {
                 anyhow!("Failed to inspect initial WASM linear memory: {e:?}")
             })?;
+            // Reason for fallback: an all-zero initial memory has 0 nonzero bytes written.
             let last_nonzero_end = slice
                 .iter()
                 .rposition(|&b| b != 0)
@@ -2376,7 +2381,7 @@ impl DcWasmSession {
             &self.store,
             self.global_addrs.total_mem_pages,
         );
-        Ok(usize::try_from(total).unwrap_or(usize::MAX))
+        Ok(usize::try_from(total)?)
     }
 
     /// Returns the total number of table elements currently allocated across the session store.
@@ -2386,6 +2391,8 @@ impl DcWasmSession {
             &self.store,
             self.global_addrs.total_table_elems,
         );
+        // Reason for fallback: on 32-bit hosts, a 64-bit table count exceeding usize::MAX
+        // saturates to usize::MAX.
         usize::try_from(total).unwrap_or(usize::MAX)
     }
 
@@ -2534,7 +2541,7 @@ impl DcWasmSession {
         write_store_global_u64(
             &mut self.store,
             self.global_addrs.total_mem_pages,
-            u64::try_from(new_total_store_pages).unwrap_or(u64::MAX),
+            u64::try_from(new_total_store_pages)?,
         );
 
         self.current_input_ptr = input_ptr_u32;
@@ -2879,12 +2886,13 @@ impl DcWasmSession {
                         return Err(anyhow::Error::new(interruption));
                     }
                     2 => {
+                        // Reason for fallback: on 32-bit hosts, a 64-bit requested page count
+                        // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
+                        let requested_pages =
+                            usize::try_from(interrupted_op).unwrap_or(usize::MAX);
                         let interruption =
                             WasmResourceInterruption::MemoryLimitExceeded {
-                                requested_pages: usize::try_from(
-                                    interrupted_op,
-                                )
-                                .unwrap_or(usize::MAX),
+                                requested_pages,
                                 max_pages: effective_max_pages,
                             };
                         self.last_resource_interruption =
@@ -2898,12 +2906,13 @@ impl DcWasmSession {
                         return Err(anyhow::Error::new(interruption));
                     }
                     3 => {
+                        // Reason for fallback: on 32-bit hosts, a 64-bit requested element count
+                        // exceeding usize::MAX saturates to usize::MAX in the diagnostic report.
+                        let requested_elements =
+                            usize::try_from(interrupted_op).unwrap_or(usize::MAX);
                         let interruption =
                             WasmResourceInterruption::TableLimitExceeded {
-                                requested_elements: usize::try_from(
-                                    interrupted_op,
-                                )
-                                .unwrap_or(usize::MAX),
+                                requested_elements,
                                 max_elements: effective_max_elems,
                             };
                         self.last_resource_interruption =

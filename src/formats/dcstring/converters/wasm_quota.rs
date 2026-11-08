@@ -210,7 +210,12 @@ impl SharedWasmTaskQuota {
 
 fn push_uleb_u32(mut val: u32, out: &mut Vec<u8>) {
     loop {
-        let mut byte = u8::try_from(val & 0x7F).unwrap_or(0);
+        #[allow(
+            clippy::expect_used,
+            reason = "Bitmask `val & 0x7F` restricts value to `0..=127`, which always fits in `u8`"
+        )]
+        let mut byte = u8::try_from(val & 0x7F)
+            .expect("7-bit masked u32 always fits in u8");
         val >>= 7;
         if val != 0 {
             byte |= 0x80;
@@ -224,7 +229,12 @@ fn push_uleb_u32(mut val: u32, out: &mut Vec<u8>) {
 
 fn push_sleb_i32(mut val: i32, out: &mut Vec<u8>) {
     loop {
-        let byte = u8::try_from(val & 0x7F).unwrap_or(0);
+        #[allow(
+            clippy::expect_used,
+            reason = "Bitmask `val & 0x7F` restricts value to `0..=127`, which always fits in `u8`"
+        )]
+        let byte = u8::try_from(val & 0x7F)
+            .expect("7-bit masked i32 always fits in u8");
         val >>= 7;
         let done = (val == 0 && (byte & 0x40) == 0)
             || (val == -1 && (byte & 0x40) != 0);
@@ -238,7 +248,12 @@ fn push_sleb_i32(mut val: i32, out: &mut Vec<u8>) {
 
 fn push_sleb_i64(mut val: i64, out: &mut Vec<u8>) {
     loop {
-        let byte = u8::try_from(val & 0x7F).unwrap_or(0);
+        #[allow(
+            clippy::expect_used,
+            reason = "Bitmask `val & 0x7F` restricts value to `0..=127`, which always fits in `u8`"
+        )]
+        let byte = u8::try_from(val & 0x7F)
+            .expect("7-bit masked i64 always fits in u8");
         val >>= 7;
         let done = (val == 0 && (byte & 0x40) == 0)
             || (val == -1 && (byte & 0x40) != 0);
@@ -264,7 +279,10 @@ fn read_uleb_u32(bytes: &[u8], pos: &mut usize) -> Result<u32> {
     loop {
         let byte = read_byte(bytes, pos)?;
         let low = u32::from(byte & 0x7F);
-        result |= low.checked_shl(shift).unwrap_or(0);
+        let shifted = low
+            .checked_shl(shift)
+            .context("ULEB128 shift overflow in WASM binary")?;
+        result |= shifted;
         if (byte & 0x80) == 0 {
             return Ok(result);
         }
@@ -756,10 +774,11 @@ fn instrument_function_body(
         // `memory.grow $mem_idx` (0x40)
         if opcode == 0x40 {
             let mem_idx = read_uleb_u32(body_bytes, &mut pos)?;
-            let declared_max = mem_declared_max
-                .get(usize::try_from(mem_idx).unwrap_or(0))
-                .copied()
-                .unwrap_or(65_536);
+            let declared_max = *mem_declared_max
+                .get(usize::try_from(mem_idx)?)
+                .context(
+                    "WASM memory.grow references out-of-bounds memory index",
+                )?;
             emit_memory_grow_sequence(
                 mem_idx,
                 declared_max,
@@ -809,12 +828,9 @@ fn instrument_function_body(
                 15 => {
                     // `table.grow $table_idx`
                     let table_idx = read_uleb_u32(body_bytes, &mut pos)?;
-                    let declared_max = table_declared_max
-                        .get(usize::try_from(table_idx).unwrap_or(0))
-                        .copied()
-                        .unwrap_or(i64::from(
-                            MAX_CLAMPED_DECLARED_TABLE_ELEMENTS,
-                        ));
+                    let declared_max = *table_declared_max
+                        .get(usize::try_from(table_idx)?)
+                        .context("WASM table.grow references out-of-bounds table index")?;
                     emit_table_grow_sequence(
                         table_idx,
                         declared_max,
@@ -1053,12 +1069,20 @@ pub fn instrument_wasm_module_bytes(
     let mem_declared_max: Vec<i64> = parsed_uninstrumented
         .memory_types
         .iter()
-        .map(|m| i64::try_from(m.page_count_max.unwrap_or(65_536)).unwrap_or(65_536))
-        .collect();
+        .map(|m| -> Result<i64> {
+            // Reason for fallback: in the WebAssembly specification, a 32-bit memory without an
+            // explicit maximum (`None`) has an architectural maximum of 65,536 pages (4 GiB).
+            let max_pages = m.page_count_max.unwrap_or(65_536);
+            Ok(i64::try_from(max_pages)?)
+        })
+        .collect::<Result<Vec<i64>>>()?;
     let table_declared_max: Vec<i64> = parsed_uninstrumented
         .table_types
         .iter()
         .map(|t| {
+            // Reason for fallback: an unbounded table (`size_max == None`) is clamped to
+            // MAX_CLAMPED_DECLARED_TABLE_ELEMENTS so the logical-denial sentinel delta
+            // (`TABLE_GROW_DENIAL_SENTINEL_DELTA`) always exceeds the declared table limit.
             let clamped = t
                 .size_max
                 .unwrap_or(MAX_CLAMPED_DECLARED_TABLE_ELEMENTS)
@@ -1117,7 +1141,10 @@ pub fn instrument_wasm_module_bytes(
     let (num_guest_types, raw_types_tail) = if let Some(payload) = sec_type {
         let mut p = 0usize;
         let count = read_uleb_u32(payload, &mut p)?;
-        (count, payload.get(p..).unwrap_or(&[]))
+        let tail = payload
+            .get(p..)
+            .context("Truncated WASM Type section payload")?;
+        (count, tail)
     } else {
         (0u32, &[][..])
     };
@@ -1132,7 +1159,9 @@ pub fn instrument_wasm_module_bytes(
         for _ in 0..count {
             guest_func_type_indices.push(read_uleb_u32(payload, &mut p)?);
         }
-        payload.get(tail_start..).unwrap_or(&[])
+        payload
+            .get(tail_start..)
+            .context("Truncated WASM Function section payload")?
     } else {
         &[][..]
     };
@@ -1144,7 +1173,10 @@ pub fn instrument_wasm_module_bytes(
         if let Some(payload) = sec_global {
             let mut p = 0usize;
             let count = read_uleb_u32(payload, &mut p)?;
-            (count, payload.get(p..).unwrap_or(&[]))
+            let tail = payload
+                .get(p..)
+                .context("Truncated WASM Global section payload")?;
+            (count, tail)
         } else {
             (0u32, &[][..])
         };
@@ -1212,6 +1244,9 @@ pub fn instrument_wasm_module_bytes(
                 ctb_formats_dcdata::tinywasm::types::ValType::RefExtern => 0x6F,
                 other => bail!("Unsupported WASM table element type {other:?}"),
             };
+            // Reason for fallback: an unbounded table (`size_max == None`) is clamped to
+            // MAX_CLAMPED_DECLARED_TABLE_ELEMENTS so the logical-denial sentinel delta
+            // (`TABLE_GROW_DENIAL_SENTINEL_DELTA`) always exceeds the declared table limit.
             let max_clamped = t
                 .size_max
                 .unwrap_or(MAX_CLAMPED_DECLARED_TABLE_ELEMENTS)
@@ -1238,9 +1273,8 @@ pub fn instrument_wasm_module_bytes(
         push_uleb_u32(num_guest_globals_u32.saturating_add(12), &mut sec);
         sec.extend_from_slice(raw_globals_tail);
 
-        let initial_mem_i64 = i64::try_from(initial_memory_pages).unwrap_or(0);
-        let initial_tbl_i64 =
-            i64::try_from(initial_table_elements).unwrap_or(0);
+        let initial_mem_i64 = i64::try_from(initial_memory_pages)?;
+        let initial_tbl_i64 = i64::try_from(initial_table_elements)?;
         let appended_globals: [(u8, i64); 12] = [
             (VALTYPE_I64, i64::MAX),        // __ctb_quota_remaining
             (VALTYPE_I64, 0),               // __ctb_quota_consumed
@@ -1263,7 +1297,7 @@ pub fn instrument_wasm_module_bytes(
                 push_sleb_i64(init_val, &mut sec);
             } else {
                 sec.push(0x41); // i32.const
-                push_sleb_i32(i32::try_from(init_val).unwrap_or(0), &mut sec);
+                push_sleb_i32(i32::try_from(init_val)?, &mut sec);
             }
             sec.push(0x0B); // end
         }
@@ -1276,7 +1310,10 @@ pub fn instrument_wasm_module_bytes(
             if let Some(payload) = sec_export {
                 let mut p = 0usize;
                 let count = read_uleb_u32(payload, &mut p)?;
-                (count, payload.get(p..).unwrap_or(&[]))
+                let tail = payload
+                    .get(p..)
+                    .context("Truncated WASM Export section payload")?;
+                (count, tail)
             } else {
                 (0u32, &[][..])
             };
@@ -1349,16 +1386,18 @@ pub fn instrument_wasm_module_bytes(
                     .get(p..body_end)
                     .context("Truncated WASM function body")?;
                 p = body_end;
-                let type_idx = guest_func_type_indices
+                let type_idx = *guest_func_type_indices
                     .get(usize::try_from(func_i)?)
-                    .copied()
-                    .unwrap_or(0);
-                let num_params = parsed_uninstrumented
+                    .context(
+                        "WASM function index out of bounds of Function section",
+                    )?;
+                let ft = parsed_uninstrumented
                     .func_types
                     .get(usize::try_from(type_idx)?)
-                    .map_or(0u32, |ft| {
-                        u32::try_from(ft.params.len()).unwrap_or(0)
-                    });
+                    .context(
+                        "WASM function type index out of bounds of Type section",
+                    )?;
+                let num_params = u32::try_from(ft.params.len())?;
                 let rewritten = instrument_function_body(
                     body_slice,
                     num_params,
