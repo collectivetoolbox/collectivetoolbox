@@ -1349,10 +1349,12 @@ impl SeedGraphIndex {
         self.seed_entity_ids.get(key).copied()
     }
 
-    /// Looks up the `SeedEntityKey` for a seed entity node ID (`u128`).
+    /// Looks up the `SeedEntityKey` for a seed entity node ID (`u128`),
+    /// resolving through any active `Dc 591` (`Supersedes`) chain in the snapshot.
     #[must_use]
     pub fn get_seed_entity(&self, id: u128) -> Option<&SeedEntityKey> {
-        self.seed_entity_by_id.get(&id)
+        let resolved_id = self.resolve_latest_node_id(id)?;
+        self.seed_entity_by_id.get(&resolved_id)
     }
 
     /// Returns the active value token for a single-valued property `(subj, prop)`.

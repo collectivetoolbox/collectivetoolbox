@@ -64,6 +64,10 @@ pub enum DcRole {
     ReplacementUnavailUnicode,
     /// Used to replace an incoming character whose value is not mapped to a Dc (document component) (`207`).
     ReplacementUnavailDc,
+    /// Beginning of a document (`235`).
+    BeginDocument,
+    /// Terminates a document begun by Dc 235. (`236`).
+    EndDocument,
     /// Begins a comment that, when represented in EM (Ember Language source) format, should be displayed as a “#”-style comment. All characters except 248 and 255 will be ignored. Use 255 248 to represent 248 within the comment, and 255 255 to represent 255 within the comment. (`246`).
     BeginSingleLineComment,
     /// As with 247, but starting on a new line in the source form. (`247`).
@@ -435,6 +439,8 @@ match self {
             Self::EndEncapsulationBinary => Some(204),
             Self::ReplacementUnavailUnicode => Some(206),
             Self::ReplacementUnavailDc => Some(207),
+            Self::BeginDocument => Some(235),
+            Self::EndDocument => Some(236),
             Self::BeginSingleLineComment => Some(246),
             Self::BeginSingleLineCommentNewLine => Some(247),
             Self::EndSingleLineComment => Some(248),
@@ -637,6 +643,8 @@ match self {
             Self::EndEncapsulationBinary => short == Some(204),
             Self::ReplacementUnavailUnicode => short == Some(206),
             Self::ReplacementUnavailDc => short == Some(207),
+            Self::BeginDocument => short == Some(235),
+            Self::EndDocument => short == Some(236),
             Self::BeginSingleLineComment => short == Some(246),
             Self::BeginSingleLineCommentNewLine => short == Some(247),
             Self::EndSingleLineComment => short == Some(248),

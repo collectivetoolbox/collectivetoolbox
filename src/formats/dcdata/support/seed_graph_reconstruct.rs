@@ -1464,7 +1464,33 @@ impl SeedGraphIndex {
                                 next_idx,
                             ));
                         }
-                        _ => {}
+                        _ => {
+                            ensure!(
+                                inner.len() == 2,
+                                "Unexpected extra tokens in Long SubpatternMatch: {inner:?}"
+                            );
+                            let resolved_id = self
+                                .resolve_latest_node_id(seed_id)
+                                .with_context(|| {
+                                    format!(
+                                        "Referenced subpattern node l{seed_id} not found or inactive in pinned seed graph"
+                                    )
+                                })?;
+                            let sub_pat = if let Some(DcShorthand::Long(
+                                rule_pat_id,
+                            )) = self.get_single_property(
+                                DcShorthand::Long(resolved_id),
+                                sh(DC_SYNTAX_RULE),
+                            ) {
+                                self.decode_pattern_node(rule_pat_id)?
+                            } else {
+                                self.decode_pattern_node(resolved_id)?
+                            };
+                            return Ok((
+                                SyntaxTerm::Group(sub_pat.pattern),
+                                next_idx,
+                            ));
+                        }
                     }
                 }
                 let mut r_idx = 1usize;

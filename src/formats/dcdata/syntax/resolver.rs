@@ -2104,6 +2104,11 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
     }
 
     fn is_plain_atom_dc(&self, token: u128) -> bool {
+        if ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(token)
+            .is_some()
+        {
+            return false;
+        }
         if !self.excluded_atom_dc_tokens.is_empty() {
             return !self.excluded_atom_dc_tokens.contains(&token);
         }

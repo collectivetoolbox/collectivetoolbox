@@ -62,6 +62,10 @@ pub const DC_END_ENCAPSULATION_BINARY: DcChar = DcChar::from_short(204);
 pub const DC_REPLACEMENT_UNAVAIL_UNICODE: DcChar = DcChar::from_short(206);
 /// Used to replace an incoming character whose value is not mapped to a Dc (document component) (Dc 207).
 pub const DC_REPLACEMENT_UNAVAIL_DC: DcChar = DcChar::from_short(207);
+/// Beginning of a document (Dc 235).
+pub const DC_BEGIN_DOCUMENT: DcChar = DcChar::from_short(235);
+/// Terminates a document begun by Dc 235. (Dc 236).
+pub const DC_END_DOCUMENT: DcChar = DcChar::from_short(236);
 /// Begins a comment that, when represented in EM (Ember Language source) format, should be displayed as a “#”-style comment. All characters except 248 and 255 will be ignored. Use 255 248 to represent 248 within the comment, and 255 255 to represent 255 within the comment. (Dc 246).
 pub const DC_BEGIN_SINGLE_LINE_COMMENT: DcChar = DcChar::from_short(246);
 /// As with 247, but starting on a new line in the source form. (Dc 247).

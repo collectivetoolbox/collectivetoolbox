@@ -11,8 +11,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114123,11,Negative,0,BN,,!Cx,.Semantic,"@ident(""Negative"")",Negative (syntactical representation — This is not the − character)
 1114226,114,Begin unbounded content,0,BN,,!Cx,.Semantic,,"This denotes content that is not ""bound"" (given a context of a page, etc. to be within) — in other words it is what a plain text file is to a word processing file with page formatting — content with no context given for presenting it"
 1114227,115,End unbounded content,0,BN,,!Cx,.Semantic,,
-1114347,235,Begin document,0,BN,,!Cx,.Semantic,,Beginning of a document
-1114348,236,End document,0,BN,,!Cx,.Semantic,,
+1114347,235,Begin document,0,BN,,!Cx,.Semantic,"@ident(""BeginDocument""), :~ [^236]* 236",Beginning of a document
+1114348,236,End document,0,BN,,!Cx,.Semantic,"@ident(""EndDocument""), @closes(235)",Terminates a document begun by Dc 235.
 1114410,298,Begin associativity group,0,BN,,!Cx,.Semantic,"@ident(""BeginAssociativityGroup"")",Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
 1114411,299,End associativity group,0,BN,,!Cx,.Semantic,"@ident(""EndAssociativityGroup""), @closes(298)",Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
 1114412,300,Type union,0,BN,,!Cx,.Semantic,"@ident(""TypeUnion""), :~ (([type] [type]) | [list:type])","Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
