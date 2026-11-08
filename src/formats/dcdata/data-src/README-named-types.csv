@@ -34,7 +34,6 @@ Atom Dc,:[atom_dc],
 wasm_index,:[number:>=0 & <(2^32)],One unsigned WebAssembly index.
 wasm_blocktype,:([type] | [wasm_index] | 316),An empty block type or a value type or a function-type index.
 wasm_instr,:([script:.WASM Instructions] | [script:.WASM GC Instructions] | [script:.WASM Extended Instructions] | [script:.WASM SIMD Instructions] | [script:.WASM Relaxed SIMD Instructions]),One defined WebAssembly instruction including its declared immediate operands. Reserved opcodes and control delimiters are not instructions.
-wasm_arg,:([number] | [type] | [list]),One static immediate argument of a WebAssembly instruction.
 wasm_catch,:310 [number $length]? ([type] | 275) (([number:>=0 & <2] [312]? [wasm_index] [312]? [wasm_index]) | ([number:>=2 & <4] [312]? [wasm_index])) 311,A catch record: kind 0 or 1 followed by tag and label indices or kind 2 or 3 followed by a label index.
 wasm_routine,:260 262 [280:] 263 [list:type $locals]? [wasm_instr]* 261,One WebAssembly routine literal with optional local variable types and zero or more WebAssembly instructions.
 wasm_member,:([wasm_routine] | [number] | [data]),One WebAssembly program member (routine global number or data segment).
