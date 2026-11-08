@@ -157,10 +157,12 @@ Every WebAssembly instruction in a `.WASM` program (`Dc 1927` `"Begin WASM progr
    - Prefix byte `0xFD` followed by `u32` LEB128 opcode `256 + (short_id - 1671)` (`256..=511`).
 
 ### 4.2 `.WASM` Module Envelope (`Dc 1927`..`Dc 1928`)
-A `.WASM` program is enclosed in `Dc 1927` (`"Begin WASM program"`) .. `Dc 1928` (`"End WASM program"`) and contains:
-- Optional global variable declarations (`Dc 260` `"Begin literal value"`, `Dc 262` `"Begin type definition"`, `<valtype>`, `Dc 263` `"End type definition"`, `Dc 270` `"Begin identifier"` .. `Dc 271` `"End identifier"`, `<init_expr>`, `Dc 261` `"End literal value"`).
-- Optional static linear-memory data segments (`Dc 260` `"Begin literal value"`, `Dc 6` `"Begin number"` .. `Dc 7` `"End number"`, `Dc 203` `"Begin encapsulated binary data"` .. `Dc 204` `"End encapsulated binary data"`, `Dc 261` `"End literal value"`).
-- One or more `wasm_routine` definitions (`Dc 260` `"Begin literal value"`, `Dc 262` `"Begin type definition"`, `Dc 280` `"Built-in type identifier: Routine"`, ..., `Dc 261` `"End literal value"`), exporting `"step"` or `"main"` and default 1-page exported `"memory"`.
+A `.WASM` program is enclosed in `Dc 1927` (`"Begin WASM program"`) .. `Dc 1928` (`"End WASM program"`) and takes one of two forms (`: ~ ([key_value] | [wasm_instr]*) 1928`):
+- **Ordered key-value map** (`Dc 559` `"Begin key-value array (ordered)"` .. `Dc 560` `"End key-value array"`): after the optional entry count (`Dc 6` `"Begin number"` .. `Dc 7` `"End number"`) and key/value type headers (`Dc 262` `"Begin type definition"` .. `Dc 263` `"End type definition"`), each member is a `Dc 514` `"Key-value pair (tuple)"` .. `Dc 515` `"End key-value pair"` containing a `Dc 270` `"Begin identifier"` .. `Dc 271` `"End identifier"` key (with an optional inline `Dc 262` `"Begin type definition"` .. `Dc 263` `"End type definition"` signature or value type), `Dc 312` `"List element separator"`, and one of:
+  1. A `wasm_routine` literal (`Dc 260` `"Begin literal value"`, optional `Dc 262` `"Begin type definition"`, `Dc 280` `"Built-in type identifier: Routine"`, ..., `Dc 263` `"End type definition"`, body `[wasm_instr]*`, `Dc 261` `"End literal value"`),
+  2. A mutable numeric global initializer (`Dc 6` `"Begin number"` .. `Dc 7` `"End number"`), or
+  3. An active static linear-memory data segment (`Dc 203` `"Begin encapsulated binary data"` .. `Dc 204` `"End encapsulated binary data"`), packed sequentially starting at byte offset `32` (`DC_WASM_MAILBOX_HEADER_LEN`).
+- **Direct instruction sequence** (`[wasm_instr]*`): lowered directly into an exported `"step"` (and `"main"`) routine (`() -> i32`) with a default 1-page exported `"memory"`.
 
 ### 4.3 32-Byte Linear-Memory Mailbox ABI (`0..32`)
 The host communicates with the instantiated WebAssembly module exclusively through linear memory `"memory"` and the exported `"step"` (or `"main"`) function without host FFI imports ([`DcWasmSession`](../src/formats/dcstring/converters/wasm.rs)):
@@ -205,6 +207,9 @@ Live host capabilities default to denial unless explicitly granted; parse errors
 
 **Remaining Gaps / Pending Work Before Freezing**:
 - Allocating the production Short Dc for the System supervisor base document (requires operator approval) and authoring the self-hosted System supervisor Dc-WASM document and graph-backed user compute-quota configuration schema in `.ctbnodes` / `.ctbnbdl` (retiring the transitional host Rust resource scaffolding in `wasm.rs` / `wasm_quota.rs`) remain pending.
+- `ExecutionContext::replay_wasm_session_trace` and `replay_wasm_bytes_trace` currently intercept recorded `WasmTraceEvent::ResourceInterruption` events before invoking `session.step()`, bypassing actual WASM execution of the interrupted step and copying `last_interrupted_op_ordinal` / `last_interrupted_op_required_cost` from the recorded trace rather than verifying that the module traps at that exact operation ordinal and cost.
+- Intra-step continuation resumption (`DcWasmSession::restore_pre_step_state_for_resume`) currently re-instantiates the module, replays completed step inputs, and re-runs the interrupted `step()` from the start of that `step()` under the expanded quota rather than preserving an intra-step continuation or child-helper state across a mid-step pause.
+- `instrument_function_body` (`src/formats/dcstring/converters/wasm_quota.rs`) and `tinywasm 0.8.0` do not yet support the `0xFB` GC opcode page (`Dc 903` `"WASM struct.new"` .. `Dc 1158` `"WASM Reserved 0xFB 0xFF 0x01"`), exception-handling opcodes (`Dc 655` `"WASM throw"`, `Dc 657` `"WASM throw_ref"`, `Dc 678` `"WASM try_table"`), or `0xFD` Relaxed SIMD (`Dc 1671` `"WASM i8x16.relaxed_swizzle"` .. `Dc 1926` `"WASM Reserved 0xFD 0xFF 0x03"`).
 - Non-resource traps during module `start` (prior to `step()`) return `Err` at construction time rather than a structured trap event in `WasmExecutionTrace`.
 - Gates 3 and 4 of [the language plan](../issues/language.md) (eliminating remaining procedural syntax rule synthesis and completing self-hosted `.WASM` definitions) must land before `BootstrapKernelVersion::V1` is frozen.
 
