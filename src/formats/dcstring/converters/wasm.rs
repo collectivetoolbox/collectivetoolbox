@@ -1276,8 +1276,73 @@ pub fn dcstring_to_wasm_with_resolver(
     doc: &DcStr,
     resolver: &dyn SyntaxRuleResolver,
 ) -> Result<Vec<u8>> {
-    let tokens: Vec<DcChar> = doc.chars().collect();
-    let mut cursor = TokenCursor::new(&tokens, resolver);
+    let raw_tokens: Vec<DcChar> = doc.chars().collect();
+    let first_raw = raw_tokens
+        .first()
+        .copied()
+        .context("Empty Dc-WASM document")?;
+
+    let (pinned_resolver, body_raw_tokens) = if resolver.token_fills_role(
+        first_raw.to_u128(),
+        DcRole::GlobalGraphSystemBlockMostRecentNodeId,
+    ) {
+        let pin_dc = raw_tokens.get(1).copied().context(
+            "Missing System-block node ID operand after Dc 641 in Dc-WASM document",
+        )?;
+        ensure!(
+            !resolver.token_fills_role(pin_dc.to_u128(), DcRole::Escape),
+            "Escaped operand after Dc 641 is not a valid System-block snapshot pin in Dc-WASM document"
+        );
+        let pinned = ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
+            pin_dc.to_u128(),
+        )?;
+        // Reason for fallback: an exhausted slice after the 2-token pin header yields an empty slice that fails validation below.
+        let rest = raw_tokens.get(2..).unwrap_or(&[]);
+        (Some(pinned), rest)
+    } else {
+        (None, raw_tokens.as_slice())
+    };
+    let active_resolver: &dyn SyntaxRuleResolver =
+        if let Some(pinned) = &pinned_resolver {
+            pinned.as_ref()
+        } else {
+            resolver
+        };
+
+    let mut raw_shorthands = Vec::with_capacity(body_raw_tokens.len());
+    for &ch in body_raw_tokens {
+        let sh = ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+            ch.to_u128(),
+        );
+        raw_shorthands.push(sh);
+    }
+    let mut expanded_mstr = DcMstring::new();
+    expand_graph_wasm_shorthands(
+        &raw_shorthands,
+        active_resolver,
+        &mut expanded_mstr,
+    )?;
+    let expanded_doc = expanded_mstr.to_dc_string_with_policy_and_resolver(
+        &DcProjectionPolicy::strict(),
+        active_resolver,
+    )?;
+
+    let tokens: Vec<DcChar> = expanded_doc.chars().collect();
+    let unwrapped_tokens = if let (Some(&first_tok), Some(&second_tok), Some(&last_tok)) =
+        (tokens.first(), tokens.get(1), tokens.last())
+        && active_resolver
+            .token_fills_role(first_tok.to_u128(), DcRole::BeginWasmProgram)
+        && active_resolver
+            .token_fills_role(second_tok.to_u128(), DcRole::BeginLiteral)
+        && active_resolver
+            .token_fills_role(last_tok.to_u128(), DcRole::EndWasmProgram)
+        && let Some(inner) = tokens.get(1..tokens.len().saturating_sub(1))
+    {
+        inner
+    } else {
+        tokens.as_slice()
+    };
+    let mut cursor = TokenCursor::new(unwrapped_tokens, active_resolver);
 
     let first = cursor.peek().context("Empty Dc-WASM document")?;
 
@@ -1293,8 +1358,11 @@ pub fn dcstring_to_wasm_with_resolver(
     }
 
     // Validate top-level `Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"` document
-    let mut nav = DcDocumentNavigator::from_dc_str(doc);
-    nav.validate_document_with_resolver(&DcProjectionPolicy::strict(), resolver)?;
+    let mut nav = DcDocumentNavigator::from_dc_str(&expanded_doc);
+    nav.validate_document_with_resolver(
+        &DcProjectionPolicy::strict(),
+        active_resolver,
+    )?;
 
     let prog_open = cursor.next()?;
     ensure!(
@@ -3461,17 +3529,55 @@ pub fn run_dc_wasm_pure_conversion_with_resolver_and_quota(
     )
 }
 
+fn strip_nested_wasm_program_delimiters<'a>(
+    tokens: &'a [ctb_storage_minimal::shorthand::DcShorthand],
+    wasm_prog_depth: usize,
+    resolver: &dyn SyntaxRuleResolver,
+) -> &'a [ctb_storage_minimal::shorthand::DcShorthand] {
+    if wasm_prog_depth > 0
+        && tokens.len() >= 2
+        && let (Some(first), Some(last)) = (tokens.first(), tokens.last())
+        && let (Ok(first_gid), Ok(last_gid)) =
+            (first.to_global_id(), last.to_global_id())
+        && resolver.token_fills_role(first_gid, DcRole::BeginWasmProgram)
+        && resolver.token_fills_role(last_gid, DcRole::EndWasmProgram)
+        && let Some(inner) = tokens.get(1..tokens.len().saturating_sub(1))
+    {
+        return inner;
+    }
+    tokens
+}
+
 fn expand_graph_wasm_shorthands(
     shorthands: &[ctb_storage_minimal::shorthand::DcShorthand],
     resolver: &dyn SyntaxRuleResolver,
     out_doc: &mut DcMstring,
 ) -> Result<()> {
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    struct WasmExpansionFrame<'a> {
+        iter: std::slice::Iter<'a, DcShorthand>,
+        node_id: Option<u128>,
+        shorthand: Option<DcShorthand>,
+    }
+
     let mut visited_nodes = std::collections::HashSet::new();
-    let mut frames = vec![(shorthands.iter().copied(), None)];
-    while let Some((iter, _)) = frames.last_mut() {
-        let Some(sh) = iter.next() else {
-            if let Some((_, Some(node_id))) = frames.pop() {
-                visited_nodes.remove(&node_id);
+    let mut visited_shorthands = std::collections::HashSet::new();
+    let mut wasm_prog_depth = 0usize;
+    let mut frames = vec![WasmExpansionFrame {
+        iter: shorthands.iter(),
+        node_id: None,
+        shorthand: None,
+    }];
+    while let Some(frame) = frames.last_mut() {
+        let Some(&sh) = frame.iter.next() else {
+            if let Some(popped) = frames.pop() {
+                if let Some(node_id) = popped.node_id {
+                    visited_nodes.remove(&node_id);
+                }
+                if let Some(short_tok) = popped.shorthand {
+                    visited_shorthands.remove(&short_tok);
+                }
             }
             continue;
         };
@@ -3480,8 +3586,10 @@ fn expand_graph_wasm_shorthands(
             .map_err(|e| anyhow!("Invalid graph WASM shorthand {sh}: {e}"))?;
         if resolver.token_fills_role(gid, DcRole::Escape) {
             out_doc.push_char(DcChar::from_u128(gid));
-            let escaped_sh = iter
+            let escaped_sh = frame
+                .iter
                 .next()
+                .copied()
                 .context("Dangling escape in graph WASM definition")?;
             let escaped_gid = escaped_sh.to_global_id().map_err(|e| {
                 anyhow!(
@@ -3491,7 +3599,7 @@ fn expand_graph_wasm_shorthands(
             out_doc.push_char(DcChar::from_u128(escaped_gid));
             continue;
         }
-        if let ctb_storage_minimal::shorthand::DcShorthand::Long(node_id) = sh {
+        if let DcShorthand::Long(node_id) = sh {
             if let Some(block_desc) = ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(node_id) {
                 bail!(
                     "Graph WASM helper or value reference l{node_id} targets unsupported graph block ({block_desc})"
@@ -3519,13 +3627,88 @@ fn expand_graph_wasm_shorthands(
                     "Graph WASM helper or value node l{node_id} is not present or active in the System graph snapshot"
                 );
             };
+            if let Some(pin_id) = sg.system_block_most_recent_node_id()
+                && node.id > pin_id
+            {
+                bail!(
+                    "Graph WASM helper or value reference l{} exceeds pinned System graph snapshot l{pin_id}",
+                    node.id
+                );
+            }
             ensure!(
                 visited_nodes.insert(node.id),
                 "Cycle detected while expanding graph WASM helper node l{}",
                 node.id
             );
-            frames.push((node.tokens.iter().copied(), Some(node.id)));
+            let child_tokens = strip_nested_wasm_program_delimiters(
+                &node.tokens,
+                wasm_prog_depth,
+                resolver,
+            );
+            frames.push(WasmExpansionFrame {
+                iter: child_tokens.iter(),
+                node_id: Some(node.id),
+                shorthand: None,
+            });
             continue;
+        }
+        if matches!(sh, DcShorthand::Short(_) | DcShorthand::Format(_))
+            && !matches!(sh, DcShorthand::Short(647..=1928))
+        {
+            if let Some(sg) = resolver.seed_graph() {
+                if let Some((opt_node_id, helper_tokens)) =
+                    sg.resolve_wasm_helper_shorthand(sh)?
+                {
+                    ensure!(
+                        visited_shorthands.insert(sh),
+                        "Cycle detected while expanding graph WASM helper shorthand {sh}"
+                    );
+                    if let Some(nid) = opt_node_id {
+                        ensure!(
+                            visited_nodes.insert(nid),
+                            "Cycle detected while expanding graph WASM helper node l{nid}"
+                        );
+                    }
+                    let child_tokens = strip_nested_wasm_program_delimiters(
+                        helper_tokens,
+                        wasm_prog_depth,
+                        resolver,
+                    );
+                    frames.push(WasmExpansionFrame {
+                        iter: child_tokens.iter(),
+                        node_id: opt_node_id,
+                        shorthand: Some(sh),
+                    });
+                    continue;
+                }
+            } else if let Some(def_tokens) =
+                resolver.resolve_wasm_definition_tokens(gid)
+            {
+                ensure!(
+                    visited_shorthands.insert(sh),
+                    "Cycle detected while expanding graph WASM helper shorthand {sh}"
+                );
+                let child_tokens = strip_nested_wasm_program_delimiters(
+                    def_tokens,
+                    wasm_prog_depth,
+                    resolver,
+                );
+                frames.push(WasmExpansionFrame {
+                    iter: child_tokens.iter(),
+                    node_id: None,
+                    shorthand: Some(sh),
+                });
+                continue;
+            }
+        }
+        if resolver.token_fills_role(gid, DcRole::BeginWasmProgram)
+            || resolver.token_fills_role(gid, DcRole::BeginLiteral)
+        {
+            wasm_prog_depth = wasm_prog_depth.saturating_add(1);
+        } else if resolver.token_fills_role(gid, DcRole::EndWasmProgram)
+            || resolver.token_fills_role(gid, DcRole::EndLiteral)
+        {
+            wasm_prog_depth = wasm_prog_depth.saturating_sub(1);
         }
         out_doc.push_char(DcChar::from_u128(gid));
     }
@@ -5840,6 +6023,244 @@ mod tests {
         assert_eq!(parent_snap.total_instructions_executed, 60);
         assert_eq!(parent_snap.cumulative_output_bytes, 12);
         assert_eq!(child_quota.snapshot()?.remaining_compute_quota, 0);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate1_transitive_short_and_long_wasm_helper_expansion_and_direct_lowering()
+    -> Result<()> {
+        use ctb_formats_dcdata::ctbnbdl::LedgerNode;
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        let i32_dc = i32_type_dc();
+        let pin_id: u128 = 8_589_999_950;
+
+        // Build a leaf WASM routine node `l<leaf_node_id>` that writes 'Z' (90) at linear memory 64,
+        // sets out_ptr = 64, out_len = 1, and returns 0 (Complete).
+        let mut leaf_mstr = DcMstring::new();
+        leaf_mstr.push_char(DcChar::from_short(260));
+        leaf_mstr.push_char(DcChar::from_short(262));
+        leaf_mstr.push_char(DcChar::from_short(280));
+        leaf_mstr.push_char(i32_dc);
+        leaf_mstr.push_char(DcChar::from_short(263));
+        leaf_mstr.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&90, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(705)); // i32.store8
+        u32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        u32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        u32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(701)); // i32.store
+        u32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        u32::encode_dc_mixed(&2, &mut leaf_mstr)?;
+        u32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(701)); // i32.store
+        u32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        u32::encode_dc_mixed(&2, &mut leaf_mstr)?;
+        u32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut leaf_mstr)?;
+        leaf_mstr.push_char(DcChar::from_short(261));
+
+        let leaf_tokens: Vec<DcShorthand> = leaf_mstr
+            .to_dc_string()?
+            .chars()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+
+        let leaf_node_id = 8_589_999_941_u128;
+        let mid_node_id = 8_589_999_944_u128;
+        let retracted_node_id = 8_589_999_947_u128;
+
+        let mut nodes =
+            ctb_formats_dcdata::seed_graph::SeedGraphIndex::shared()?
+                .nodes()
+                .to_vec();
+        // 1. Leaf node `l<leaf_node_id>` (wasm_routine literal)
+        nodes.push(LedgerNode {
+            id: leaf_node_id,
+            tokens: leaf_tokens.clone(),
+            comment: String::new(),
+        });
+        // 2. Short(3930) has Dc 611 "Canonical decomposition" -> l<leaf_node_id>
+        nodes.push(LedgerNode {
+            id: 8_589_999_942,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(3930),
+                DcShorthand::Short(611),
+            ],
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: 8_589_999_943,
+            tokens: vec![
+                DcShorthand::Short(610),
+                DcShorthand::Long(8_589_999_942),
+                DcShorthand::Long(leaf_node_id),
+            ],
+            comment: String::new(),
+        });
+        // 3. Mid node `l<mid_node_id>` wraps `1927 Short(3930) 1928`, and Short(3931) has Dc 611 -> l<mid_node_id>
+        nodes.push(LedgerNode {
+            id: mid_node_id,
+            tokens: vec![
+                DcShorthand::Short(1927),
+                DcShorthand::Short(3930),
+                DcShorthand::Short(1928),
+            ],
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: 8_589_999_945,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(3931),
+                DcShorthand::Short(611),
+            ],
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: 8_589_999_946,
+            tokens: vec![
+                DcShorthand::Short(610),
+                DcShorthand::Long(8_589_999_945),
+                DcShorthand::Long(mid_node_id),
+            ],
+            comment: String::new(),
+        });
+        // 4. Short(3932) had Dc 611 -> l<retracted_node_id>, which was retracted via Dc 592 "Retracts"
+        nodes.push(LedgerNode {
+            id: retracted_node_id,
+            tokens: leaf_tokens,
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: 8_589_999_948,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(3932),
+                DcShorthand::Short(611),
+            ],
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: 8_589_999_949,
+            tokens: vec![
+                DcShorthand::Short(610),
+                DcShorthand::Long(8_589_999_948),
+                DcShorthand::Long(retracted_node_id),
+            ],
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: pin_id,
+            tokens: vec![
+                DcShorthand::Short(592),
+                DcShorthand::Short(615),
+                DcShorthand::Long(retracted_node_id),
+            ],
+            comment: String::new(),
+        });
+
+        let sg = std::sync::Arc::new(
+            ctb_formats_dcdata::seed_graph::SeedGraphIndex::from_nodes(nodes),
+        );
+        let mut resolver = (**default_syntax_resolver()).clone();
+        resolver.set_seed_graph(sg);
+        let resolver_arc = std::sync::Arc::new(resolver);
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            pin_id,
+            std::sync::Arc::clone(&resolver_arc),
+        );
+
+        // A. Transitive expansion via `run_graph_wasm_tokens_on_dc_slice_with_quota`:
+        // `Short(3931)` -> `l<mid_node_id>` (`1927 Short(3930) 1928`) -> `Short(3930)` -> `l<leaf_node_id>`!
+        let out_mstr = run_graph_wasm_tokens_on_dc_slice_with_quota(
+            &[DcShorthand::Short(3931)],
+            &[],
+            resolver_arc.as_ref(),
+            None,
+        )?;
+        assert_eq!(
+            out_mstr.to_dc_string()?.chars().collect::<Vec<_>>(),
+            vec![DcChar::from_u128(90)]
+        );
+
+        // B. Calling `dcmstring_to_wasm_with_resolver` directly on a Dc-WASM document referencing
+        //    both `Long(leaf_node_id)` and transitive `Short(3931)` (with and without leading `641 l<pin_id>`):
+        let mut direct_long_doc = DcMstring::new();
+        direct_long_doc.push_char(DcChar::from_short(1927));
+        direct_long_doc.push_char(DcChar::from_long(leaf_node_id));
+        direct_long_doc.push_char(DcChar::from_short(1928));
+        let wasm_bytes_long = dcmstring_to_wasm_with_resolver(
+            &direct_long_doc,
+            resolver_arc.as_ref(),
+        )?;
+        let WasmStepOutcome::Complete(out_long) =
+            DcWasmSession::from_wasm_bytes(
+                &wasm_bytes_long,
+                &DcMstring::new(),
+                None,
+            )?
+            .step()?
+        else {
+            bail!("Expected Complete outcome from wasm_bytes_long");
+        };
+        assert_eq!(
+            out_long.to_dc_string()?.chars().collect::<Vec<_>>(),
+            vec![DcChar::from_u128(90)]
+        );
+
+        let mut pinned_short_doc = DcMstring::new();
+        pinned_short_doc.push_char(DcChar::from_short(641));
+        pinned_short_doc.push_char(DcChar::from_long(pin_id));
+        pinned_short_doc.push_char(DcChar::from_short(1927));
+        pinned_short_doc.push_char(DcChar::from_short(3931));
+        pinned_short_doc.push_char(DcChar::from_short(1928));
+        let wasm_bytes_short = dcmstring_to_wasm_with_resolver(
+            &pinned_short_doc,
+            default_syntax_resolver().as_ref(),
+        )?;
+        let WasmStepOutcome::Complete(out_short) =
+            DcWasmSession::from_wasm_bytes(
+                &wasm_bytes_short,
+                &DcMstring::new(),
+                None,
+            )?
+            .step()?
+        else {
+            bail!("Expected Complete outcome from wasm_bytes_short");
+        };
+        assert_eq!(
+            out_short.to_dc_string()?.chars().collect::<Vec<_>>(),
+            vec![DcChar::from_u128(90)]
+        );
+
+        // C. Retracted Short-Dc WASM helper `Short(3932)` must fail expansion with a retraction error:
+        let mut retracted_doc = DcMstring::new();
+        retracted_doc.push_char(DcChar::from_short(1927));
+        retracted_doc.push_char(DcChar::from_short(3932));
+        retracted_doc.push_char(DcChar::from_short(1928));
+        let retracted_err = dcmstring_to_wasm_with_resolver(
+            &retracted_doc,
+            resolver_arc.as_ref(),
+        )
+        .expect_err("Retracted Short-Dc WASM helper must be rejected");
+        assert!(
+            retracted_err.to_string().contains("retracted"),
+            "Unexpected error for retracted Short-Dc WASM helper: {retracted_err}"
+        );
 
         Ok(())
     }

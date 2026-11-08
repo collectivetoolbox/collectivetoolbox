@@ -499,7 +499,7 @@ impl<'r> SyntaxEvalContext<'r> {
             validate_interiors: false,
             diagnostics: Vec::new(),
             has_errors: false,
-            evaluator: Some(Arc::new(SharedQuotaDcExpressionEvaluator::new())),
+            evaluator: None,
             captured_numbers: std::collections::HashMap::new(),
             unescaped_literal_payload: false,
             policy: DcProjectionPolicy::strict(),
@@ -611,6 +611,10 @@ impl DcDocumentNavigator<'_> {
     ) -> Result<bool> {
         use ctb_formats_dcdata::syntax::PatternTokenStep;
         use ctb_storage_minimal::shorthand::DcShorthand;
+
+        if ctx.evaluator.is_none() {
+            ctx.evaluator = Some(Arc::new(self.default_expression_evaluator()));
+        }
 
         #[derive(Clone)]
         enum EvalStep<'p> {
@@ -730,6 +734,9 @@ impl DcDocumentNavigator<'_> {
                                 && token.is_some_and(|ch| {
                                     ctx.resolver
                                         .is_special_wrapper_token(ch.to_u128())
+                                        || ctx
+                                            .resolver
+                                            .is_splice_trigger_token(ch.to_u128())
                                 });
                             if constructor {
                                 let target_opt = token.and_then(|ch| {
@@ -1082,6 +1089,9 @@ impl DcDocumentNavigator<'_> {
         term: &SyntaxTerm,
         ctx: &mut SyntaxEvalContext<'_>,
     ) -> Result<bool> {
+        if ctx.evaluator.is_none() {
+            ctx.evaluator = Some(Arc::new(self.default_expression_evaluator()));
+        }
         let term_checkpoint = self.save_checkpoint();
         let mut pre_read = if !self.has_spliced_tokens()
             && self.cursor < self.active_span.end
@@ -1095,23 +1105,34 @@ impl DcDocumentNavigator<'_> {
             && let Some((ch, _)) = pre_read
             && ctx.resolver.is_splice_trigger_token(ch.to_u128())
         {
-            let term_targets_say = match term {
-                SyntaxTerm::SelfChar => ctx
-                    .self_dc
-                    .is_some_and(|t| ctx.token_fills_role(t, DcRole::LangSay)),
-                SyntaxTerm::CharRef(target)
-                | SyntaxTerm::RuleRef { target } => {
+            let ch_id = ch.to_u128();
+            let term_targets_splice_self = match term {
+                SyntaxTerm::SelfChar => ctx.self_dc.is_some_and(|t| {
+                    t == ch_id
+                        || ctx.resolver.is_equivalent_to(t, ch_id)
+                        || ctx.token_fills_role(t, DcRole::LangSay)
+                }),
+                SyntaxTerm::CharRef(target) => {
+                    let tid = target.to_u128();
+                    tid == ch_id
+                        || ctx.resolver.is_equivalent_to(tid, ch_id)
+                        || ctx.token_fills_role(tid, DcRole::LangSay)
+                }
+                SyntaxTerm::RuleRef { target } => {
                     ctx.token_fills_role(target.to_u128(), DcRole::LangSay)
                 }
                 SyntaxTerm::CharSet {
                     negated: false,
                     members,
                 } => members.iter().any(|target| {
-                    ctx.token_fills_role(target.to_u128(), DcRole::LangSay)
+                    let tid = target.to_u128();
+                    tid == ch_id
+                        || ctx.resolver.is_equivalent_to(tid, ch_id)
+                        || ctx.token_fills_role(tid, DcRole::LangSay)
                 }),
                 _ => false,
             };
-            if !term_targets_say {
+            if !term_targets_splice_self {
                 let spliced = if let Some(evaluator) = &ctx.evaluator {
                     self.splice_stream_invocation(
                         evaluator.as_ref(),
@@ -1119,8 +1140,9 @@ impl DcDocumentNavigator<'_> {
                         &ctx.policy,
                     )?
                 } else {
+                    let evaluator = self.default_expression_evaluator();
                     self.splice_stream_invocation(
-                        &DefaultDcExpressionEvaluator,
+                        &evaluator,
                         ctx.resolver,
                         &ctx.policy,
                     )?
@@ -2746,7 +2768,7 @@ impl DcDocumentNavigator<'_> {
         &mut self,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
-        self.detect_leading_document_most_recent();
+        self.ensure_root_pin_or_fallback(policy, None)?;
         let resolver = self.effective_resolver();
         self.validate_document_with_resolver(policy, resolver.as_ref())
     }
@@ -2758,6 +2780,7 @@ impl DcDocumentNavigator<'_> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
+        self.ensure_root_pin_or_fallback(policy, Some(resolver))?;
         self.validate_span_with_resolver(self.active_span, 0, policy, resolver)
     }
 
@@ -3115,11 +3138,12 @@ impl DcDocumentNavigator<'_> {
                         cursor,
                         depth,
                     } => {
-                        if cursor >= span.end {
+                        if cursor >= span.end && !self.has_spliced_tokens() {
                             continue;
                         }
                         self.active_span = span;
                         self.cursor = cursor;
+                        let spliced_before = self.spliced_len();
                         let pinned_arc = self.pinned_resolver.clone();
                         let active_res: &dyn SyntaxRuleResolver =
                             if let Some(ref r) = pinned_arc {
@@ -3148,10 +3172,11 @@ impl DcDocumentNavigator<'_> {
                         }
                         let next_cursor = self.cursor;
                         ensure!(
-                            next_cursor > cursor,
+                            next_cursor > cursor
+                                || self.spliced_len() < spliced_before,
                             "Parser made no progress at offset {cursor}"
                         );
-                        if next_cursor < span.end {
+                        if next_cursor < span.end || self.has_spliced_tokens() {
                             span_stack.push(ValidateWorkItem::Step {
                                 span,
                                 cursor: next_cursor,

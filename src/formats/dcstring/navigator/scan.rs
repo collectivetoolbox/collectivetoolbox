@@ -837,6 +837,99 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(after_param_close)
     }
 
+    pub(super) fn scan_splice_invocation_at(
+        &mut self,
+        start_offset: u64,
+        policy: &DcProjectionPolicy,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<u64>> {
+        let Some((first_dc, after_first)) =
+            self.read_token_or_binary_at(start_offset)?
+        else {
+            return Ok(None);
+        };
+        if first_dc.fills_role_with(DcRole::LangSay, resolver)
+            && let Ok(end) =
+                self.scan_say_frame_at(start_offset, policy, resolver)
+        {
+            return Ok(Some(end));
+        }
+        if resolver
+            .resolve_wasm_definition_tokens(first_dc.to_u128())
+            .is_none()
+        {
+            return Ok(None);
+        }
+        if let Some(target) = CharTarget::from_u128(first_dc.to_u128()) {
+            if let Some(closer_u128) = resolver.closer_for_opener(&target) {
+                if let Ok((closer_start, after_closer, is_spliced)) = self
+                    .scan_balanced_container(
+                        after_first,
+                        first_dc,
+                        DcChar::from_u128(closer_u128),
+                        policy,
+                        resolver,
+                    )
+                    && (closer_start < after_closer || is_spliced)
+                {
+                    return Ok(Some(after_closer));
+                }
+                return Ok(None);
+            }
+            if resolver.resolve_rule_tokens(&target).is_some()
+                || resolver.resolve_rule(&target).is_some()
+            {
+                let saved = self.save_checkpoint();
+                let saved_diag_len = self.diagnostics.len();
+                self.cursor = start_offset;
+                self.clear_spliced_tokens();
+                let mut ctx = super::eval::SyntaxEvalContext::new(
+                    resolver,
+                    Some(first_dc.to_u128()),
+                );
+                ctx.policy.clone_from(policy);
+                let matched = if let Some(raw_tokens) =
+                    resolver.resolve_rule_tokens(&target)
+                {
+                    self.eval_pattern_tokens(raw_tokens, &mut ctx)?
+                } else if let Some(rule) = resolver.resolve_rule(&target) {
+                    self.eval_pattern(&rule.pattern, &mut ctx)?
+                } else {
+                    false
+                };
+                let end = if matched
+                    && !ctx.has_errors
+                    && resolver
+                        .matches_script(".EL Routines", first_dc.to_u128())
+                {
+                    // Reason for fallback: if optional trailing parameter scan fails, fall back to the matched rule end.
+                    self.scan_trailing_parameter_frames_with_resolver(
+                        self.cursor,
+                        policy,
+                        resolver,
+                    )
+                    .unwrap_or(self.cursor)
+                } else {
+                    self.cursor
+                };
+                self.restore_checkpoint(saved);
+                self.diagnostics.truncate(saved_diag_len);
+                if matched && !ctx.has_errors && end >= after_first {
+                    return Ok(Some(end));
+                }
+            }
+        }
+        if let Ok(end) = self.scan_trailing_parameter_frames_with_resolver(
+            after_first,
+            policy,
+            resolver,
+        ) && end > after_first
+        {
+            return Ok(Some(end));
+        }
+        Ok(Some(after_first))
+    }
+
     pub(super) fn scan_balanced_container(
         &mut self,
         after_opener: u64,
@@ -962,10 +1055,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 offset = next_offset;
                 continue;
             }
-            if ch.fills_role_with(DcRole::LangSay, resolver) {
+            if ch.fills_role_with(DcRole::LangSay, resolver)
+                || resolver.is_splice_trigger_token(ch.to_u128())
+            {
                 let diag_before_say = self.diagnostics.len();
-                if let Ok(after_say) =
-                    self.scan_say_frame_at(token_start, policy, resolver)
+                if let Ok(Some(after_say)) =
+                    self.scan_splice_invocation_at(token_start, policy, resolver)
                 {
                     if self.diagnostics.len() > diag_before_say
                         && let Some(top) = closer_stack.last_mut()

@@ -1768,26 +1768,143 @@ impl SeedGraphIndex {
             && tokens.get(2) == Some(&sh(DC_TYPE_ROUTINE))
     }
 
-    /// Resolves any active `.WASM` program (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`)
-    /// or `wasm_routine` definition attached to `subj` via `Dc 611 "Canonical decomposition"`,
-    /// `Dc 571 "Decomposition"`, `Dc 614 "Semantic decomposition"`, or a trailing
-    /// `Dc 607 "Pattern replacement"` action inside `subj`'s `Dc 594 "Syntax rule"`.
+    /// Returns `true` if `tokens` represents a Dc-WASM program, `wasm_routine` literal,
+    /// WASM instruction/member helper fragment, or transitive reference to one in this snapshot.
+    #[must_use]
+    pub fn tokens_are_wasm_helper_or_definition(
+        &self,
+        tokens: &[DcShorthand],
+    ) -> bool {
+        let mut visited_nodes = HashSet::new();
+        let mut visited_shorthands = HashSet::new();
+        self.tokens_are_wasm_helper_or_definition_inner(
+            tokens,
+            &mut visited_nodes,
+            &mut visited_shorthands,
+        )
+    }
+
+    fn tokens_are_wasm_helper_or_definition_inner(
+        &self,
+        tokens: &[DcShorthand],
+        visited_nodes: &mut HashSet<u128>,
+        visited_shorthands: &mut HashSet<DcShorthand>,
+    ) -> bool {
+        if Self::tokens_start_wasm_definition(tokens) {
+            return true;
+        }
+        if tokens
+            .iter()
+            .any(|&tok| matches!(tok, DcShorthand::Short(647..=1928)))
+        {
+            return true;
+        }
+        for &tok in tokens {
+            match tok {
+                DcShorthand::Long(node_id) => {
+                    if !visited_nodes.insert(node_id) {
+                        continue;
+                    }
+                    let node_opt = self
+                        .get_active_node(node_id)
+                        .or_else(|| self.get_node(node_id));
+                    if let Some(node) = node_opt
+                        && self.tokens_are_wasm_helper_or_definition_inner(
+                            &node.tokens,
+                            visited_nodes,
+                            visited_shorthands,
+                        )
+                    {
+                        return true;
+                    }
+                }
+                DcShorthand::Short(_) => {
+                    if !visited_shorthands.insert(tok) {
+                        continue;
+                    }
+                    for prop_dc in [
+                        DC_CANONICAL_DECOMPOSITION,
+                        DC_DECOMPOSITION,
+                        DC_SEMANTIC_DECOMPOSITION,
+                    ] {
+                        for entry in self.get_multi_properties(tok, sh(prop_dc))
+                        {
+                            if let DcShorthand::Long(node_id) = entry.value {
+                                if !visited_nodes.insert(node_id) {
+                                    continue;
+                                }
+                                let node_opt = self
+                                    .get_active_node(node_id)
+                                    .or_else(|| self.get_node(node_id));
+                                if let Some(node) = node_opt
+                                    && self
+                                        .tokens_are_wasm_helper_or_definition_inner(
+                                            &node.tokens,
+                                            visited_nodes,
+                                            visited_shorthands,
+                                        )
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Resolves any active `.WASM` program (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`),
+    /// `wasm_routine` definition, or transitive WASM helper attached to `subj` via
+    /// `Dc 611 "Canonical decomposition"`, `Dc 571 "Decomposition"`,
+    /// `Dc 614 "Semantic decomposition"`, or a trailing `Dc 607 "Pattern replacement"`
+    /// action inside `subj`'s `Dc 594 "Syntax rule"`.
     #[must_use]
     pub fn get_wasm_definition_tokens(
         &self,
         subj: DcShorthand,
     ) -> Option<&[DcShorthand]> {
+        let mut visited = HashSet::new();
+        self.get_wasm_definition_tokens_inner(subj, &mut visited)
+    }
+
+    fn get_wasm_definition_tokens_inner(
+        &self,
+        subj: DcShorthand,
+        visited: &mut HashSet<DcShorthand>,
+    ) -> Option<&[DcShorthand]> {
+        if !visited.insert(subj) {
+            return None;
+        }
         for prop_dc in [
             DC_CANONICAL_DECOMPOSITION,
             DC_DECOMPOSITION,
             DC_SEMANTIC_DECOMPOSITION,
         ] {
             for entry in self.get_multi_properties(subj, sh(prop_dc)) {
-                if let DcShorthand::Long(node_id) = entry.value
-                    && let Some(node) = self.get_active_node(node_id)
-                    && Self::tokens_start_wasm_definition(&node.tokens)
-                {
-                    return Some(node.tokens.as_slice());
+                match entry.value {
+                    DcShorthand::Long(node_id) => {
+                        if let Some(node) = self.get_active_node(node_id)
+                            && self.tokens_are_wasm_helper_or_definition(
+                                &node.tokens,
+                            )
+                        {
+                            return Some(node.tokens.as_slice());
+                        }
+                    }
+                    DcShorthand::Short(_) | DcShorthand::Format(_) => {
+                        if let Some(tokens) = self
+                            .get_wasm_definition_tokens_inner(
+                                entry.value,
+                                visited,
+                            )
+                        {
+                            return Some(tokens);
+                        }
+                    }
+                    DcShorthand::Unicode(_) | DcShorthand::Local(_) => {}
                 }
             }
         }
@@ -1818,17 +1935,129 @@ impl SeedGraphIndex {
             return None;
         }
         let inner = group_slice.get(2..group_slice.len().saturating_sub(1))?;
-        if Self::tokens_start_wasm_definition(inner) {
+        if self.tokens_are_wasm_helper_or_definition(inner) {
+            if inner.len() == 1
+                && let Some(&DcShorthand::Long(node_id)) = inner.first()
+                && let Some(node) = self.get_active_node(node_id)
+            {
+                return Some(node.tokens.as_slice());
+            }
             return Some(inner);
         }
-        if inner.len() == 1
-            && let Some(&DcShorthand::Long(node_id)) = inner.first()
-            && let Some(node) = self.get_active_node(node_id)
-            && Self::tokens_start_wasm_definition(&node.tokens)
-        {
-            return Some(node.tokens.as_slice());
-        }
         None
+    }
+
+    /// Resolves `subj` (`DcShorthand::Short` or `DcShorthand::Format`) as a WASM helper or
+    /// definition in this snapshot via `Dc 611 "Canonical decomposition"`,
+    /// `Dc 571 "Decomposition"`, `Dc 614 "Semantic decomposition"`, or a trailing
+    /// `Dc 607 "Pattern replacement"` action inside `subj`'s `Dc 594 "Syntax rule"`.
+    ///
+    /// # Errors
+    /// Returns an error if `subj`'s WASM decomposition or target node was retracted in this
+    /// snapshot, targets an unsupported graph block, or exceeds the pinned System graph snapshot.
+    pub fn resolve_wasm_helper_shorthand(
+        &self,
+        subj: DcShorthand,
+    ) -> Result<Option<(Option<u128>, &[DcShorthand])>> {
+        for prop_dc in [
+            DC_CANONICAL_DECOMPOSITION,
+            DC_DECOMPOSITION,
+            DC_SEMANTIC_DECOMPOSITION,
+        ] {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                if let DcShorthand::Long(node_id) = entry.value {
+                    if let Some(block_desc) =
+                        ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(
+                            node_id,
+                        )
+                    {
+                        bail!(
+                            "Graph WASM helper {subj} target l{node_id} references unsupported graph block ({block_desc})"
+                        );
+                    }
+                    if let Some(pin_id) = self.system_block_most_recent_node_id
+                        && node_id > pin_id
+                    {
+                        bail!(
+                            "Graph WASM helper {subj} target l{node_id} exceeds pinned System graph snapshot l{pin_id}"
+                        );
+                    }
+                    if let Some(node) = self.get_active_node(node_id) {
+                        if let Some(pin_id) =
+                            self.system_block_most_recent_node_id
+                            && node.id > pin_id
+                        {
+                            bail!(
+                                "Graph WASM helper {subj} target l{} exceeds pinned System graph snapshot l{pin_id}",
+                                node.id
+                            );
+                        }
+                        if self
+                            .tokens_are_wasm_helper_or_definition(&node.tokens)
+                        {
+                            return Ok(Some((
+                                Some(node.id),
+                                node.tokens.as_slice(),
+                            )));
+                        }
+                    } else if self.retracted_by(node_id).is_some() {
+                        bail!(
+                            "Graph WASM helper {subj} target node l{node_id} was retracted in the active System graph snapshot"
+                        );
+                    }
+                }
+            }
+        }
+
+        if let Some(tokens) = self.get_wasm_definition_tokens(subj) {
+            return Ok(Some((None, tokens)));
+        }
+
+        if let Some(stmt_ids) = self.subject_all_stmt_ids.get(&subj) {
+            for &stmt_id in stmt_ids {
+                let Some(stmt_node) = self.get_node(stmt_id) else {
+                    continue;
+                };
+                let Some((verb, _, obj)) =
+                    parse_statement_tokens(&stmt_node.tokens)
+                else {
+                    continue;
+                };
+                if verb == sh(DC_HAS_A)
+                    && (obj == sh(DC_CANONICAL_DECOMPOSITION)
+                        || obj == sh(DC_DECOMPOSITION)
+                        || obj == sh(DC_SEMANTIC_DECOMPOSITION))
+                    && let Some(has_vals) =
+                        self.has_val_stmt_ids_by_has_a.get(&stmt_id)
+                {
+                    for &(has_val_id, val_tok) in has_vals {
+                        if let DcShorthand::Long(target_id) = val_tok {
+                            let is_wasm_target = self
+                                .get_node(target_id)
+                                .is_some_and(|n| {
+                                    self.tokens_are_wasm_helper_or_definition(
+                                        &n.tokens,
+                                    )
+                                });
+                            if is_wasm_target
+                                && (self.retracted_by(stmt_id).is_some()
+                                    || self.retracted_by(has_val_id).is_some()
+                                    || self.retracted_by(target_id).is_some()
+                                    || self.inactive_ids.contains(&stmt_id)
+                                    || self.inactive_ids.contains(&has_val_id)
+                                    || self.inactive_ids.contains(&target_id))
+                            {
+                                bail!(
+                                    "Graph WASM helper {subj} (or target node l{target_id}) was retracted in the active System graph snapshot"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     /// Returns `true` if `source` is a trusted Collective Toolbox seed graph provenance source:
@@ -2023,7 +2252,7 @@ impl SeedGraphIndex {
                     && let Some(resolved_def_id) =
                         self.resolve_latest_node_id(def_id)
                     && let Some(node) = self.get_node(resolved_def_id)
-                    && Self::tokens_start_wasm_definition(&node.tokens)
+                    && self.tokens_are_wasm_helper_or_definition(&node.tokens)
                 {
                     return Some((
                         entry.has_a_id,
@@ -2068,26 +2297,25 @@ impl SeedGraphIndex {
             return None;
         }
         let inner = group_slice.get(2..group_slice.len().saturating_sub(1))?;
-        if Self::tokens_start_wasm_definition(inner) {
+        if self.tokens_are_wasm_helper_or_definition(inner) {
+            if inner.len() == 1
+                && let Some(&DcShorthand::Long(target_id)) = inner.first()
+                && let Some(resolved_target_id) =
+                    self.resolve_latest_node_id(target_id)
+                && let Some(node) = self.get_node(resolved_target_id)
+            {
+                return Some((
+                    rule_entry.has_a_id,
+                    rule_entry.has_val_id,
+                    resolved_target_id,
+                    node.tokens.clone(),
+                ));
+            }
             return Some((
                 rule_entry.has_a_id,
                 rule_entry.has_val_id,
                 resolved_rule_node_id,
                 inner.to_vec(),
-            ));
-        }
-        if inner.len() == 1
-            && let Some(&DcShorthand::Long(target_id)) = inner.first()
-            && let Some(resolved_target_id) =
-                self.resolve_latest_node_id(target_id)
-            && let Some(node) = self.get_node(resolved_target_id)
-            && Self::tokens_start_wasm_definition(&node.tokens)
-        {
-            return Some((
-                rule_entry.has_a_id,
-                rule_entry.has_val_id,
-                resolved_target_id,
-                node.tokens.clone(),
             ));
         }
         None

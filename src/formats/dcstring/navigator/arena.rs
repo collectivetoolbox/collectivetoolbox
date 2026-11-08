@@ -944,9 +944,15 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
     ) -> Result<Self> {
         if bytes.starts_with(&DCMM_MAGIC) {
-            Ok(Self::from_mstr(DcMstr::from_bytes_with_policy(bytes, policy)?))
+            Ok(Self::from_mstr_with_policy(
+                DcMstr::from_bytes_with_policy(bytes, policy)?,
+                policy,
+            ))
         } else {
-            Ok(Self::from_dc_str(DcStr::from_bytes(bytes)?))
+            Ok(Self::from_dc_str_with_policy(
+                DcStr::from_bytes(bytes)?,
+                policy,
+            ))
         }
     }
 
@@ -1015,9 +1021,9 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
-        self.detect_leading_document_most_recent();
         let mut raw_roots = Vec::new();
         let res = (|| -> Result<()> {
+            self.ensure_root_pin_or_fallback(policy, None)?;
             while let Some(stub) = self.next_sibling_stub(policy)? {
                 let resolver = self.effective_resolver();
                 let id = self.build_arena_node_from_stub_with_resolver(
@@ -1056,9 +1062,9 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<()> {
-        self.detect_leading_document_most_recent();
         let mut raw_roots = Vec::new();
         let res = (|| -> Result<()> {
+            self.ensure_root_pin_or_fallback(policy, Some(resolver))?;
             loop {
                 let pinned_arc = self.pinned_resolver.clone();
                 let active_res: &dyn SyntaxRuleResolver =

@@ -137,6 +137,8 @@ pub(super) struct NavScanCache {
     pub(super) validated_containers: std::collections::HashSet<(u64, u64)>,
     pub(super) validated_rule_spans:
         std::collections::HashMap<(u128, u64), (u64, bool)>,
+    pub(super) spliced_spans:
+        std::collections::HashMap<u64, (u64, Vec<DcChar>)>,
     pub(super) assignments_scanned_up_to: Option<u64>,
     pub(super) top_level_assignments: Vec<(u64, DcMstring, DcByteSpan)>,
     pub(super) diagnosed_pin_offsets: std::collections::HashSet<u64>,
@@ -190,6 +192,7 @@ impl NavScanCache {
             self.balanced_containers.clear();
             self.validated_containers.clear();
             self.validated_rule_spans.clear();
+            self.spliced_spans.clear();
             self.assignments_scanned_up_to = None;
             self.top_level_assignments.clear();
         }
@@ -212,6 +215,10 @@ pub struct DcDocumentNavigator<'a> {
         Option<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
     pub(super) pin_provenance: DcPinProvenance,
     pub(super) kernel_version: BootstrapKernelVersion,
+    pub(super) root_pin_scan_fallback_id: Option<Option<u128>>,
+    pub(super) root_header_pin_candidate: Option<HeaderPinCandidate>,
+    pub(super) configured_policy: Option<DcProjectionPolicy>,
+    pub(super) shared_wasm_quota: crate::converters::wasm::SharedWasmTaskQuota,
 }
 
 impl DcBinaryResolver for DcDocumentNavigator<'_> {
@@ -269,6 +276,13 @@ impl<'a> DcDocumentNavigator<'a> {
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
             kernel_version,
+            root_pin_scan_fallback_id: None,
+            root_header_pin_candidate: None,
+            configured_policy: None,
+            shared_wasm_quota:
+                crate::converters::wasm::SharedWasmTaskQuota::new(
+                    crate::DcWasmResourceLimits::default(),
+                ),
         };
         nav.detect_leading_document_most_recent();
         nav
@@ -289,13 +303,45 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     /// Creates a navigator over an in-memory [`DcMstr`] using `policy.kernel_version`
-    /// before any leading header/pin inspection (`Dc 641`) or token decoding occurs.
+    /// and `policy.unpinned_fallback_most_recent_node_id` before any leading header/pin
+    /// inspection (`Dc 641`) or token decoding occurs.
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "DCMM_HEADER_LEN and in-memory DcMstr byte lengths fit within u64 on all supported platforms"
+    )]
     pub fn from_mstr_with_policy(
         mstr: &'a DcMstr,
         policy: &DcProjectionPolicy,
     ) -> Self {
-        Self::from_mstr_with_kernel_version(mstr, policy.kernel_version)
+        let start = u64::try_from(DCMM_HEADER_LEN)
+            .expect("DCMM_HEADER_LEN fits in u64");
+        let end =
+            u64::try_from(mstr.len()).expect("DcMstr byte length fits in u64");
+        let mut nav = Self {
+            backend: NavBackend::MemoryMstr(mstr),
+            cursor: start,
+            active_span: DcByteSpan::new(start, end),
+            level_stack: Vec::new(),
+            diagnostics: Vec::new(),
+            spliced_buf: Vec::new(),
+            spliced_head: 0,
+            spliced_end: 0,
+            scan_cache: NavScanCache::default(),
+            document_most_recent_node_id: None,
+            pinned_resolver: None,
+            pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
+            kernel_version: policy.kernel_version,
+            root_pin_scan_fallback_id: None,
+            root_header_pin_candidate: None,
+            configured_policy: Some(policy.clone()),
+            shared_wasm_quota:
+                crate::converters::wasm::SharedWasmTaskQuota::new(
+                    crate::DcWasmResourceLimits::default(),
+                ),
+        };
+        nav.init_root_pin_with_policy(policy);
+        nav
     }
 
     /// Creates a navigator over an in-memory [`DcStr`].
@@ -334,6 +380,13 @@ impl<'a> DcDocumentNavigator<'a> {
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
             kernel_version,
+            root_pin_scan_fallback_id: None,
+            root_header_pin_candidate: None,
+            configured_policy: None,
+            shared_wasm_quota:
+                crate::converters::wasm::SharedWasmTaskQuota::new(
+                    crate::DcWasmResourceLimits::default(),
+                ),
         };
         nav.detect_leading_document_most_recent();
         nav
@@ -354,13 +407,79 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     /// Creates a navigator over an in-memory [`DcStr`] using `policy.kernel_version`
-    /// before any leading header/pin inspection (`Dc 641`) or token decoding occurs.
+    /// and `policy.unpinned_fallback_most_recent_node_id` before any leading header/pin
+    /// inspection (`Dc 641`) or token decoding occurs.
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "In-memory DcStr byte lengths fit within u64 on all supported platforms"
+    )]
     pub fn from_dc_str_with_policy(
         text: &'a DcStr,
         policy: &DcProjectionPolicy,
     ) -> Self {
-        Self::from_dc_str_with_kernel_version(text, policy.kernel_version)
+        let end =
+            u64::try_from(text.len()).expect("DcStr byte length fits in u64");
+        let mut nav = Self {
+            backend: NavBackend::MemoryText(text),
+            cursor: 0,
+            active_span: DcByteSpan::new(0, end),
+            level_stack: Vec::new(),
+            diagnostics: Vec::new(),
+            spliced_buf: Vec::new(),
+            spliced_head: 0,
+            spliced_end: 0,
+            scan_cache: NavScanCache::default(),
+            document_most_recent_node_id: None,
+            pinned_resolver: None,
+            pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
+            kernel_version: policy.kernel_version,
+            root_pin_scan_fallback_id: None,
+            root_header_pin_candidate: None,
+            configured_policy: Some(policy.clone()),
+            shared_wasm_quota:
+                crate::converters::wasm::SharedWasmTaskQuota::new(
+                    crate::DcWasmResourceLimits::default(),
+                ),
+        };
+        nav.init_root_pin_with_policy(policy);
+        nav
+    }
+
+    /// Returns the shared [`crate::converters::wasm::SharedWasmTaskQuota`] debited across
+    /// WASM stream splices and helper evaluations on this navigator.
+    #[must_use]
+    pub const fn shared_wasm_task_quota(
+        &self,
+    ) -> &crate::converters::wasm::SharedWasmTaskQuota {
+        &self.shared_wasm_quota
+    }
+
+    /// Replaces the shared [`crate::converters::wasm::SharedWasmTaskQuota`] used for
+    /// WASM stream splices and helper evaluations on this navigator.
+    pub fn set_shared_wasm_task_quota(
+        &mut self,
+        shared_quota: crate::converters::wasm::SharedWasmTaskQuota,
+    ) {
+        self.shared_wasm_quota = shared_quota;
+    }
+
+    /// Builder-style method attaching a shared [`crate::converters::wasm::SharedWasmTaskQuota`].
+    #[must_use]
+    pub fn with_shared_wasm_task_quota(
+        mut self,
+        shared_quota: crate::converters::wasm::SharedWasmTaskQuota,
+    ) -> Self {
+        self.shared_wasm_quota = shared_quota;
+        self
+    }
+
+    pub(super) fn default_expression_evaluator(
+        &self,
+    ) -> SharedQuotaDcExpressionEvaluator {
+        SharedQuotaDcExpressionEvaluator::with_shared_task_quota(
+            self.shared_wasm_quota.clone(),
+        )
     }
 
     /// Returns the active [`BootstrapKernelVersion`] governing physical codecs,
@@ -917,10 +1036,13 @@ impl<'a> DcDocumentNavigator<'a> {
         }
         let default_res = Arc::clone(default_syntax_resolver());
         let span = self.active_span;
-        if let Some(candidate) =
-            self.find_header_pin_in_span(span, None, default_res.as_ref())
-            && !candidate.arg_escaped
-            && let Some(arg_dc) = candidate.arg_dc
+        let candidate =
+            self.find_header_pin_in_span(span, None, default_res.as_ref());
+        self.root_pin_scan_fallback_id = Some(None);
+        self.root_header_pin_candidate = candidate;
+        if let Some(cand) = candidate
+            && !cand.arg_escaped
+            && let Some(arg_dc) = cand.arg_dc
         {
             self.bind_document_most_recent_node_id(arg_dc.to_u128());
         }
@@ -930,6 +1052,165 @@ impl<'a> DcDocumentNavigator<'a> {
         {
             let _ = seek_buffered_file(reader, reader_pos, self.cursor);
         }
+    }
+
+    pub(super) fn init_root_pin_with_policy(
+        &mut self,
+        policy: &DcProjectionPolicy,
+    ) {
+        if !self.level_stack.is_empty()
+            || self.pin_provenance == DcPinProvenance::CallerOverride
+        {
+            return;
+        }
+        let span = self.active_span;
+        if let Some(fallback_id) = policy.unpinned_fallback_most_recent_node_id
+        {
+            if let Ok(fallback_res) =
+                ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
+                    fallback_id,
+                )
+            {
+                let candidate = self.find_header_pin_in_span(
+                    span,
+                    None,
+                    fallback_res.as_ref(),
+                );
+                self.root_pin_scan_fallback_id = Some(Some(fallback_id));
+                self.root_header_pin_candidate = candidate;
+                if let Some(cand) = candidate {
+                    if !cand.arg_escaped
+                        && let Some(arg_dc) = cand.arg_dc
+                    {
+                        self.bind_document_most_recent_node_id(
+                            arg_dc.to_u128(),
+                        );
+                    }
+                } else {
+                    self.document_most_recent_node_id = Some(fallback_id);
+                    self.pinned_resolver = Some(fallback_res);
+                    self.pin_provenance =
+                        DcPinProvenance::UnpinnedLegacyFallback;
+                }
+            } else {
+                let default_res = Arc::clone(default_syntax_resolver());
+                let candidate = self.find_header_pin_in_span(
+                    span,
+                    None,
+                    default_res.as_ref(),
+                );
+                self.root_pin_scan_fallback_id = Some(Some(fallback_id));
+                self.root_header_pin_candidate = candidate;
+                if let Some(cand) = candidate
+                    && !cand.arg_escaped
+                    && let Some(arg_dc) = cand.arg_dc
+                {
+                    self.bind_document_most_recent_node_id(arg_dc.to_u128());
+                }
+            }
+        } else {
+            self.detect_leading_document_most_recent();
+        }
+        if let NavBackend::SeekableFile {
+            reader, reader_pos, ..
+        } = &mut self.backend
+        {
+            let _ = seek_buffered_file(reader, reader_pos, self.cursor);
+        }
+    }
+
+    pub(super) fn ensure_root_pin_or_fallback(
+        &mut self,
+        policy: &DcProjectionPolicy,
+        caller_resolver: Option<&dyn SyntaxRuleResolver>,
+    ) -> Result<()> {
+        if !self.level_stack.is_empty()
+            || self.cursor != self.active_span.start
+            || self.pin_provenance == DcPinProvenance::CallerOverride
+        {
+            return Ok(());
+        }
+        if self.root_pin_scan_fallback_id
+            != Some(policy.unpinned_fallback_most_recent_node_id)
+        {
+            self.document_most_recent_node_id = None;
+            self.pinned_resolver = None;
+            self.pin_provenance = DcPinProvenance::UnpinnedLegacyFallback;
+            let span = self.active_span;
+            if let Some(fallback_id) =
+                policy.unpinned_fallback_most_recent_node_id
+            {
+                if let Ok(fallback_res) =
+                    ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
+                        fallback_id,
+                    )
+                {
+                    let candidate = self.find_header_pin_in_span(
+                        span,
+                        None,
+                        fallback_res.as_ref(),
+                    );
+                    self.root_pin_scan_fallback_id = Some(Some(fallback_id));
+                    self.root_header_pin_candidate = candidate;
+                    if let Some(cand) = candidate {
+                        if !cand.arg_escaped
+                            && let Some(arg_dc) = cand.arg_dc
+                        {
+                            self.bind_document_most_recent_node_id(
+                                arg_dc.to_u128(),
+                            );
+                        }
+                    } else {
+                        self.document_most_recent_node_id = Some(fallback_id);
+                        self.pinned_resolver = Some(fallback_res);
+                        self.pin_provenance =
+                            DcPinProvenance::UnpinnedLegacyFallback;
+                    }
+                } else {
+                    let default_res = Arc::clone(default_syntax_resolver());
+                    let scan_res: &dyn SyntaxRuleResolver =
+                        caller_resolver.unwrap_or(default_res.as_ref());
+                    let candidate =
+                        self.find_header_pin_in_span(span, None, scan_res);
+                    self.root_pin_scan_fallback_id = Some(Some(fallback_id));
+                    self.root_header_pin_candidate = candidate;
+                    if let Some(cand) = candidate
+                        && !cand.arg_escaped
+                        && let Some(arg_dc) = cand.arg_dc
+                    {
+                        self.bind_document_most_recent_node_id(
+                            arg_dc.to_u128(),
+                        );
+                    }
+                }
+            } else {
+                let default_res = Arc::clone(default_syntax_resolver());
+                let scan_res: &dyn SyntaxRuleResolver =
+                    caller_resolver.unwrap_or(default_res.as_ref());
+                let candidate =
+                    self.find_header_pin_in_span(span, None, scan_res);
+                self.root_pin_scan_fallback_id = Some(None);
+                self.root_header_pin_candidate = candidate;
+                if let Some(cand) = candidate
+                    && !cand.arg_escaped
+                    && let Some(arg_dc) = cand.arg_dc
+                {
+                    self.bind_document_most_recent_node_id(arg_dc.to_u128());
+                }
+            }
+            if let NavBackend::SeekableFile {
+                reader, reader_pos, ..
+            } = &mut self.backend
+            {
+                seek_buffered_file(reader, reader_pos, self.cursor)?;
+            }
+        }
+        if self.root_header_pin_candidate.is_none()
+            && self.pin_provenance == DcPinProvenance::UnpinnedLegacyFallback
+        {
+            self.apply_unpinned_fallback_policy(self.cursor, policy)?;
+        }
+        Ok(())
     }
 
     /// Returns the current stream byte offset.
@@ -972,6 +1253,12 @@ impl<'a> DcDocumentNavigator<'a> {
         if let Some(ch) = self.peek_spliced_token() {
             return Ok(Some((ch, None)));
         }
+        if self.level_stack.is_empty()
+            && self.cursor == self.active_span.start
+            && let Some(policy) = self.configured_policy.clone()
+        {
+            self.ensure_root_pin_or_fallback(&policy, None)?;
+        }
         if self.cursor >= self.active_span.end {
             return Ok(None);
         }
@@ -980,21 +1267,28 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(None);
         };
+        // Reason for fallback: when no policy was configured on the navigator, token peeking/reading uses forgiving_quiet().
+        let active_policy = self
+            .configured_policy
+            .clone()
+            .unwrap_or_else(DcProjectionPolicy::forgiving_quiet);
         let resolver = self.effective_resolver();
-        if (ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || resolver.is_splice_trigger_token(ch.to_u128()))
-            && self.splice_stream_invocation(
-                &DefaultDcExpressionEvaluator,
-                &*resolver,
-                &DcProjectionPolicy::forgiving_quiet(),
-            )?
+        if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
+            || resolver.is_splice_trigger_token(ch.to_u128())
         {
-            if let Some(spliced) = self.peek_spliced_token() {
-                return Ok(Some((spliced, None)));
+            let evaluator = self.default_expression_evaluator();
+            if self.splice_stream_invocation(
+                &evaluator,
+                &*resolver,
+                &active_policy,
+            )? {
+                if let Some(spliced) = self.peek_spliced_token() {
+                    return Ok(Some((spliced, None)));
+                }
+                return Ok(self
+                    .read_token_or_binary_at(self.cursor)?
+                    .map(|(next_ch, after_next)| (next_ch, Some(after_next))));
             }
-            return Ok(self
-                .read_token_or_binary_at(self.cursor)?
-                .map(|(next_ch, after_next)| (next_ch, Some(after_next))));
         }
         Ok(Some((ch, Some(next_offset))))
     }
@@ -1068,30 +1362,51 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
         _policy: &DcProjectionPolicy,
     ) -> Result<bool> {
-        let Some((ch, _)) = self.read_token_or_binary_at(self.cursor)? else {
+        if self.has_spliced_tokens() {
             return Ok(false);
-        };
-        if ch.fills_role_with(DcRole::LangSay, resolver) {
-            let Ok(end_offset) = self.scan_say_frame_at(
-                self.cursor,
-                &DcProjectionPolicy::forgiving_quiet(),
-                resolver,
-            ) else {
-                return Ok(false);
-            };
-            let call_tokens = self.read_tokens_in_span(DcByteSpan::new(
-                self.cursor,
-                end_offset,
-            ))?;
-            let call_dcs: Vec<DcChar> =
-                call_tokens.into_iter().map(DcChar::from_u128).collect();
-            if let Some(spliced) =
-                evaluator.eval_stream_splice(&call_dcs, resolver)?
-            {
+        }
+        let start_offset = self.cursor;
+        if let Some((end_offset, cached_tokens)) =
+            self.scan_cache.spliced_spans.get(&start_offset).cloned()
+        {
+            if end_offset <= self.active_span.end {
                 self.cursor = end_offset;
-                self.push_spliced_tokens(spliced);
+                self.push_spliced_tokens(cached_tokens);
                 return Ok(true);
             }
+        }
+        let Some((ch, _)) = self.read_token_or_binary_at(start_offset)? else {
+            return Ok(false);
+        };
+        if !ch.fills_role_with(DcRole::LangSay, resolver)
+            && !resolver.is_splice_trigger_token(ch.to_u128())
+        {
+            return Ok(false);
+        }
+        let Some(end_offset) = self.scan_splice_invocation_at(
+            start_offset,
+            &DcProjectionPolicy::forgiving_quiet(),
+            resolver,
+        )?
+        else {
+            return Ok(false);
+        };
+        let call_tokens = self
+            .read_tokens_in_span(DcByteSpan::new(start_offset, end_offset))?;
+        let call_dcs: Vec<DcChar> =
+            call_tokens.into_iter().map(DcChar::from_u128).collect();
+        if let Some(spliced) =
+            evaluator.eval_stream_splice(&call_dcs, resolver)?
+        {
+            if self.scan_cache.spliced_spans.len() >= MAX_NAV_CACHE_ENTRIES {
+                self.scan_cache.spliced_spans.clear();
+            }
+            self.scan_cache
+                .spliced_spans
+                .insert(start_offset, (end_offset, spliced.clone()));
+            self.cursor = end_offset;
+            self.push_spliced_tokens(spliced);
+            return Ok(true);
         }
         Ok(false)
     }
@@ -1121,7 +1436,22 @@ impl<'a> DcDocumentNavigator<'a> {
     ///
     /// Validates the 21-byte `.dcmm` magic/UUID header once at `base_offset`
     /// without reading the rest of the file into memory.
-    pub fn from_dcmm_file(mut file: File, base_offset: u64) -> Result<Self> {
+    pub fn from_dcmm_file(file: File, base_offset: u64) -> Result<Self> {
+        Self::from_dcmm_file_with_kernel_version(
+            file,
+            base_offset,
+            BootstrapKernelVersion::CURRENT,
+        )
+    }
+
+    /// Creates a streaming and seeking navigator over an on-disk `.dcmm` file
+    /// starting at `base_offset`, installing `kernel_version` before any leading
+    /// header/pin inspection (`Dc 641`) or token decoding occurs.
+    pub fn from_dcmm_file_with_kernel_version(
+        mut file: File,
+        base_offset: u64,
+        kernel_version: BootstrapKernelVersion,
+    ) -> Result<Self> {
         let file_len =
             file.metadata().context("Failed to stat .dcmm file")?.len();
         let header_end = base_offset
@@ -1164,9 +1494,96 @@ impl<'a> DcDocumentNavigator<'a> {
             document_most_recent_node_id: None,
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
-            kernel_version: BootstrapKernelVersion::CURRENT,
+            kernel_version,
+            root_pin_scan_fallback_id: None,
+            root_header_pin_candidate: None,
+            configured_policy: None,
+            shared_wasm_quota:
+                crate::converters::wasm::SharedWasmTaskQuota::new(
+                    crate::DcWasmResourceLimits::default(),
+                ),
         };
         nav.detect_leading_document_most_recent();
+        Ok(nav)
+    }
+
+    /// Validates an explicit bootstrap kernel version number (`1` for `V1`) and creates
+    /// a navigator over an on-disk `.dcmm` file starting at `base_offset` with that version
+    /// active before any pin detection or token decoding runs.
+    ///
+    /// # Errors
+    /// Returns an error immediately if `version` is not a supported bootstrap kernel version
+    /// or if the `.dcmm` file header is invalid.
+    pub fn try_from_dcmm_file_with_kernel_version_number(
+        file: File,
+        base_offset: u64,
+        version: u32,
+    ) -> Result<Self> {
+        let selected = BootstrapKernelVersion::try_from_u32(version)?;
+        Self::from_dcmm_file_with_kernel_version(file, base_offset, selected)
+    }
+
+    /// Creates a streaming and seeking navigator over an on-disk `.dcmm` file
+    /// starting at `base_offset` using `policy.kernel_version` and
+    /// `policy.unpinned_fallback_most_recent_node_id` before any leading header/pin
+    /// inspection (`Dc 641`) or token decoding occurs.
+    pub fn from_dcmm_file_with_policy(
+        mut file: File,
+        base_offset: u64,
+        policy: &DcProjectionPolicy,
+    ) -> Result<Self> {
+        let file_len =
+            file.metadata().context("Failed to stat .dcmm file")?.len();
+        let header_end = base_offset
+            .checked_add(u64::try_from(DCMM_HEADER_LEN)?)
+            .context("dcmm base_offset overflow")?;
+        ensure!(
+            file_len >= header_end,
+            "File is too short ({file_len} bytes) to contain a valid 21-byte DcMixed header at offset {base_offset}"
+        );
+        file.seek(SeekFrom::Start(base_offset))
+            .context("Failed to seek to DcMixed header")?;
+        let mut header = [0_u8; DCMM_HEADER_LEN];
+        file.read_exact(&mut header)
+            .context("Failed to read DcMixed header")?;
+        ensure!(
+            header.get(..5) == Some(DCMM_MAGIC.as_slice())
+                && (header.get(5..21) == Some(DCMM_UUID.as_slice())
+                    || header.get(5..21)
+                        == Some(crate::DCMM_UUID_V1.as_slice())),
+            "Invalid DcMixed (.dcmm) header magic or UUID"
+        );
+        let is_v1 = header.get(5..21) == Some(crate::DCMM_UUID_V1.as_slice());
+        let reader = BufReader::with_capacity(64 * 1024, file);
+        let mut nav = Self {
+            backend: NavBackend::SeekableFile {
+                reader,
+                reader_pos: Some(header_end),
+                base_offset,
+                end_offset: file_len,
+                is_v1,
+            },
+            cursor: header_end,
+            active_span: DcByteSpan::new(header_end, file_len),
+            level_stack: Vec::new(),
+            diagnostics: Vec::new(),
+            spliced_buf: Vec::new(),
+            spliced_head: 0,
+            spliced_end: 0,
+            scan_cache: NavScanCache::default(),
+            document_most_recent_node_id: None,
+            pinned_resolver: None,
+            pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
+            kernel_version: policy.kernel_version,
+            root_pin_scan_fallback_id: None,
+            root_header_pin_candidate: None,
+            configured_policy: Some(policy.clone()),
+            shared_wasm_quota:
+                crate::converters::wasm::SharedWasmTaskQuota::new(
+                    crate::DcWasmResourceLimits::default(),
+                ),
+        };
+        nav.init_root_pin_with_policy(policy);
         Ok(nav)
     }
 
@@ -1251,7 +1668,8 @@ impl<'a> DcDocumentNavigator<'a> {
                 stub.head_dc,
                 resolver.as_ref(),
             ) {
-                if self.document_most_recent_node_id.is_some()
+                if (!is_full_root_doc
+                    && self.document_most_recent_node_id.is_some())
                     || matches!(
                         self.pin_provenance,
                         DcPinProvenance::ExplicitPin
@@ -1323,7 +1741,8 @@ impl<'a> DcDocumentNavigator<'a> {
         self.cursor = inner.start;
         if stub.closer_dc.is_some() {
             if Self::is_document_or_node_scope_opener(stub.head_dc, resolver) {
-                if self.document_most_recent_node_id.is_some()
+                if (!is_full_root_doc
+                    && self.document_most_recent_node_id.is_some())
                     || matches!(
                         self.pin_provenance,
                         DcPinProvenance::ExplicitPin
@@ -1451,6 +1870,7 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         policy: &DcProjectionPolicy,
     ) -> Result<Option<DcFrameStub>> {
+        self.ensure_root_pin_or_fallback(policy, None)?;
         let resolver = self.effective_resolver();
         self.next_sibling_stub_with_resolver(policy, resolver.as_ref())
     }
@@ -1462,15 +1882,7 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcFrameStub>> {
-        if self.level_stack.is_empty()
-            && self.cursor == self.active_span.start
-            && self.pin_provenance == DcPinProvenance::UnpinnedLegacyFallback
-            && self
-                .find_header_pin_in_span(self.active_span, None, resolver)
-                .is_none()
-        {
-            self.apply_unpinned_fallback_policy(self.cursor, policy)?;
-        }
+        self.ensure_root_pin_or_fallback(policy, Some(resolver))?;
         let pinned_resolver = self.pinned_resolver.clone();
         let resolver: &dyn SyntaxRuleResolver =
             if let Some(ref pinned) = pinned_resolver {
@@ -1858,6 +2270,7 @@ impl<'a> DcDocumentNavigator<'a> {
             && let Some((arg_tok, after_arg)) =
                 self.read_token_or_binary_at(after_first)?
             && !resolver.is_special_wrapper_token(arg_tok.to_u128())
+            && !resolver.is_splice_trigger_token(arg_tok.to_u128())
             && !arg_tok
                 .fills_role_with(DcRole::EvaluableExpressionStarter, resolver)
             && resolver.token_satisfies_type(
@@ -1987,16 +2400,14 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(Some(prefix_stub(after_first)));
         }
 
-        // 1.5. Stream say invocation (Dc 256)
-        if first_dc.fills_role_with(DcRole::LangSay, resolver)
+        // 1.5. Stream splice invocation (Dc 256 or WASM-backed splice routine)
+        if resolver.is_splice_trigger_token(first_dc.to_u128())
             && !self.level_stack.is_empty()
-            && self.splice_stream_invocation(
-                &DefaultDcExpressionEvaluator,
-                resolver,
-                policy,
-            )?
         {
-            return self.scan_sibling_stub_with_resolver(policy, resolver);
+            let evaluator = self.default_expression_evaluator();
+            if self.splice_stream_invocation(&evaluator, resolver, policy)? {
+                return self.scan_sibling_stub_with_resolver(policy, resolver);
+            }
         }
 
         // Reject dangling closing delimiters
@@ -2107,7 +2518,11 @@ impl<'a> DcDocumentNavigator<'a> {
                         let saved_id = self.document_most_recent_node_id;
                         let saved_res = self.pinned_resolver.clone();
                         let saved_prov = self.pin_provenance;
-                        if self.document_most_recent_node_id.is_some()
+                        let is_full_root_doc = self.level_stack.is_empty()
+                            && start_offset == self.active_span.start
+                            && outer_end == self.active_span.end;
+                        if (!is_full_root_doc
+                            && self.document_most_recent_node_id.is_some())
                             || matches!(
                                 self.pin_provenance,
                                 DcPinProvenance::ExplicitPin
@@ -2150,9 +2565,6 @@ impl<'a> DcDocumentNavigator<'a> {
                                 active_res,
                             )
                         });
-                        let is_full_root_doc = self.level_stack.is_empty()
-                            && start_offset == self.active_span.start
-                            && outer_end == self.active_span.end;
                         if !is_full_root_doc {
                             self.document_most_recent_node_id = saved_id;
                             self.pinned_resolver = saved_res;
@@ -5371,6 +5783,438 @@ mod tests {
                 .any(|d| d.message.contains("omits Dc 641")),
             "Expected missing-pin diagnostic, got: {:?}",
             baseline_nav.diagnostics()
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate1_unpinned_fallback_before_root_pin_discovery_and_non_stub_paths()
+    -> Result<()> {
+        use ctb_formats_dcdata::ctbnbdl::LedgerNode;
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        let fb_id: u128 = 8_589_999_921;
+        let explicit_id: u128 = 8_589_999_922;
+        let i32_dc = FormatId::from_shorthand("f206")
+            .and_then(|f| f.dc_id())
+            .map(DcChar::from_u128)
+            .context("Missing f206")?;
+
+        // Build a WASM definition node in `fb_id`'s seed graph that emits `u65` ('A') for Short Dc 3923.
+        let mut wasm_prog_mstr = DcMstring::new();
+        wasm_prog_mstr.push_char(DcChar::from_short(1927));
+        wasm_prog_mstr.push_char(DcChar::from_short(260));
+        wasm_prog_mstr.push_char(DcChar::from_short(262));
+        wasm_prog_mstr.push_char(DcChar::from_short(280));
+        wasm_prog_mstr.push_char(i32_dc);
+        wasm_prog_mstr.push_char(DcChar::from_short(263));
+        // Store byte 65 ('A') at linear memory address 64:
+        wasm_prog_mstr.push_char(DcChar::from_short(712)); // i32.const 64
+        crate::DcMixedEncode::encode_dc_mixed(&64i32, &mut wasm_prog_mstr)?;
+        wasm_prog_mstr.push_char(DcChar::from_short(712)); // i32.const 65
+        crate::DcMixedEncode::encode_dc_mixed(&65i32, &mut wasm_prog_mstr)?;
+        wasm_prog_mstr.push_char(DcChar::from_short(705)); // i32.store8 (flags=0, align=0, offset=0)
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut wasm_prog_mstr)?;
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut wasm_prog_mstr)?;
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut wasm_prog_mstr)?;
+        // Store out_ptr = 64 at mailbox offset 8:
+        wasm_prog_mstr.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&8i32, &mut wasm_prog_mstr)?;
+        wasm_prog_mstr.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&64i32, &mut wasm_prog_mstr)?;
+        wasm_prog_mstr.push_char(DcChar::from_short(701)); // i32.store
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut wasm_prog_mstr)?;
+        crate::DcMixedEncode::encode_dc_mixed(&2u32, &mut wasm_prog_mstr)?;
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut wasm_prog_mstr)?;
+        // Store out_len = 1 at mailbox offset 12:
+        wasm_prog_mstr.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&12i32, &mut wasm_prog_mstr)?;
+        wasm_prog_mstr.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&1i32, &mut wasm_prog_mstr)?;
+        wasm_prog_mstr.push_char(DcChar::from_short(701)); // i32.store
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut wasm_prog_mstr)?;
+        crate::DcMixedEncode::encode_dc_mixed(&2u32, &mut wasm_prog_mstr)?;
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut wasm_prog_mstr)?;
+        // Return 0 (Complete)
+        wasm_prog_mstr.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&0i32, &mut wasm_prog_mstr)?;
+        wasm_prog_mstr.push_char(DcChar::from_short(261));
+        wasm_prog_mstr.push_char(DcChar::from_short(1928));
+
+        let wasm_prog_shorthands: Vec<DcShorthand> = wasm_prog_mstr
+            .to_dc_string()?
+            .chars()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+
+        let mut base_nodes =
+            ctb_formats_dcdata::seed_graph::SeedGraphIndex::shared()?
+                .nodes()
+                .to_vec();
+        let def_node_id = 8_589_999_918_u128;
+        let has_a_id = 8_589_999_919_u128;
+        let has_val_id = fb_id;
+        base_nodes.push(LedgerNode {
+            id: def_node_id,
+            tokens: wasm_prog_shorthands,
+            comment: String::new(),
+        });
+        base_nodes.push(LedgerNode {
+            id: has_a_id,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(3923),
+                DcShorthand::Short(611),
+            ],
+            comment: String::new(),
+        });
+        base_nodes.push(LedgerNode {
+            id: has_val_id,
+            tokens: vec![
+                DcShorthand::Short(610),
+                DcShorthand::Long(has_a_id),
+                DcShorthand::Long(def_node_id),
+            ],
+            comment: String::new(),
+        });
+        let fb_sg = Arc::new(
+            ctb_formats_dcdata::seed_graph::SeedGraphIndex::from_nodes(
+                base_nodes,
+            ),
+        );
+
+        // Under `fb_id`:
+        // - Short Dc 3921 is equivalent to Dc 235 (Begin document), closed by Short Dc 3922 (equiv to Dc 236).
+        // - Short Dc 3920 is unary `:~ [atom_dc]`.
+        // - Short Dc 3923 is a 0-arg WASM-backed splice routine emitting `u65`.
+        let mut res_fb = (**default_syntax_resolver()).clone();
+        res_fb.add_rule(
+            CharTarget::Dc(3920),
+            parse_dc_syntax(":~ [atom_dc]")?,
+        );
+        res_fb.add_rule(
+            CharTarget::Dc(3921),
+            parse_dc_syntax(":~ [any]* 3922")?,
+        );
+        res_fb.add_rule(CharTarget::Dc(3923), parse_dc_syntax(":~")?);
+        res_fb.register_equivalence(
+            DcChar::from_short(3921).to_u128(),
+            DcChar::from_short(235).to_u128(),
+        );
+        res_fb.register_equivalence(
+            DcChar::from_short(3922).to_u128(),
+            DcChar::from_short(236).to_u128(),
+        );
+        res_fb.register_closing_delimiter(
+            DcChar::from_short(3922).to_u128(),
+            CharTarget::Dc(3921),
+        );
+        res_fb.rebuild_framing_and_wrapper_tables();
+        res_fb.set_seed_graph(fb_sg);
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            fb_id,
+            Arc::new(res_fb),
+        );
+
+        // Under `explicit_id`, Short Dc 3920 is binary `:~ [atom_dc] [atom_dc]` (and 3921..3922 is also valid).
+        let mut res_explicit = (**default_syntax_resolver()).clone();
+        res_explicit.add_rule(
+            CharTarget::Dc(3920),
+            parse_dc_syntax(":~ [atom_dc] [atom_dc]")?,
+        );
+        res_explicit.add_rule(
+            CharTarget::Dc(3921),
+            parse_dc_syntax(":~ [any]* 3922")?,
+        );
+        res_explicit.register_equivalence(
+            DcChar::from_short(3921).to_u128(),
+            DcChar::from_short(235).to_u128(),
+        );
+        res_explicit.register_equivalence(
+            DcChar::from_short(3922).to_u128(),
+            DcChar::from_short(236).to_u128(),
+        );
+        res_explicit.register_closing_delimiter(
+            DcChar::from_short(3922).to_u128(),
+            CharTarget::Dc(3921),
+        );
+        res_explicit.rebuild_framing_and_wrapper_tables();
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            explicit_id,
+            Arc::new(res_explicit),
+        );
+
+        let policy = DcProjectionPolicy::strict()
+            .with_unpinned_fallback_most_recent_node_id(fb_id);
+
+        // 1. Root header pin discovery uses `fb_id` (not HEAD):
+        // `3921` is only recognized as a document scope opener under `fb_id` (not HEAD).
+        // Inside `3921..3922`, header pin `641 l<explicit_id>` is discovered and overrides `fb_id`.
+        let mut pinned_in_custom_doc = DcMstring::new();
+        for tok in [
+            DcChar::from_short(3921),
+            DcChar::from_short(641),
+            DcChar::from_long(explicit_id),
+            DcChar::from_short(3920),
+            DcChar::from_u128(65),
+            DcChar::from_u128(66),
+            DcChar::from_short(3922),
+        ] {
+            pinned_in_custom_doc.push_char(tok);
+        }
+        let mut nav_mstr_pinned = DcDocumentNavigator::from_mstr_with_policy(
+            &pinned_in_custom_doc,
+            &policy,
+        );
+        assert_eq!(
+            nav_mstr_pinned.document_most_recent_node_id(),
+            Some(explicit_id)
+        );
+        assert_eq!(
+            nav_mstr_pinned.pin_provenance(),
+            DcPinProvenance::ExplicitPin
+        );
+        nav_mstr_pinned.validate_document(&policy)?;
+
+        // Also when constructed via `from_mstr` (without policy) and then validated/stepped with `policy`:
+        let mut nav_mstr_late =
+            DcDocumentNavigator::from_mstr(&pinned_in_custom_doc);
+        nav_mstr_late.validate_document(&policy)?;
+        assert_eq!(
+            nav_mstr_late.document_most_recent_node_id(),
+            Some(explicit_id)
+        );
+
+        // 2. Non-stub navigation paths (`effective_resolver()`, `peek_token()`, `read_next_token()`)
+        // on an unpinned document using `from_mstr_with_policy`, `from_dc_str_with_policy`, and
+        // `from_dcmm_file_with_policy`:
+        let mut unpinned_splice_doc = DcMstring::new();
+        unpinned_splice_doc.push_char(DcChar::from_short(3923));
+        unpinned_splice_doc.push_char(DcChar::from_short(517));
+        let unpinned_dc_str = unpinned_splice_doc.to_dc_string()?;
+
+        let mut nav_from_mstr = DcDocumentNavigator::from_mstr_with_policy(
+            &unpinned_splice_doc,
+            &policy,
+        );
+        assert_eq!(nav_from_mstr.document_most_recent_node_id(), Some(fb_id));
+        assert_eq!(
+            nav_from_mstr.pin_provenance(),
+            DcPinProvenance::UnpinnedLegacyFallback
+        );
+        assert!(
+            nav_from_mstr
+                .effective_resolver()
+                .is_splice_trigger_token(DcChar::from_short(3923).to_u128())
+        );
+        assert_eq!(nav_from_mstr.peek_token()?, Some(DcChar::from_u128(65)));
+        assert_eq!(
+            nav_from_mstr.read_next_token()?,
+            Some(DcChar::from_u128(65))
+        );
+        assert_eq!(
+            nav_from_mstr.read_next_token()?,
+            Some(DcChar::from_short(517))
+        );
+        assert_eq!(nav_from_mstr.read_next_token()?, None);
+
+        let mut nav_from_dc_str = DcDocumentNavigator::from_dc_str_with_policy(
+            &unpinned_dc_str,
+            &policy,
+        );
+        assert_eq!(nav_from_dc_str.document_most_recent_node_id(), Some(fb_id));
+        assert_eq!(
+            nav_from_dc_str.read_next_token()?,
+            Some(DcChar::from_u128(65))
+        );
+        assert_eq!(
+            nav_from_dc_str.read_next_token()?,
+            Some(DcChar::from_short(517))
+        );
+
+        let mut tmp_file = tempfile::tempfile()?;
+        std::io::Write::write_all(&mut tmp_file, unpinned_splice_doc.as_bytes())?;
+        let mut nav_from_file = DcDocumentNavigator::from_dcmm_file_with_policy(
+            tmp_file.try_clone()?,
+            0,
+            &policy,
+        )?;
+        assert_eq!(nav_from_file.document_most_recent_node_id(), Some(fb_id));
+        assert_eq!(
+            nav_from_file.read_next_token()?,
+            Some(DcChar::from_u128(65))
+        );
+        assert_eq!(
+            nav_from_file.read_next_token()?,
+            Some(DcChar::from_short(517))
+        );
+
+        let nav_file_kv =
+            DcDocumentNavigator::try_from_dcmm_file_with_kernel_version_number(
+                tmp_file.try_clone()?,
+                0,
+                1,
+            )?;
+        assert_eq!(nav_file_kv.kernel_version(), BootstrapKernelVersion::V1);
+        assert!(
+            DcDocumentNavigator::try_from_dcmm_file_with_kernel_version_number(
+                tmp_file,
+                0,
+                99,
+            )
+            .is_err()
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate1_general_wasm_stream_splicing_and_shared_task_quota()
+    -> Result<()> {
+        use ctb_formats_dcdata::ctbnbdl::LedgerNode;
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        let snap_id: u128 = 8_589_999_935;
+        let i32_dc = FormatId::from_shorthand("f206")
+            .and_then(|f| f.dc_id())
+            .map(DcChar::from_u128)
+            .context("Missing f206")?;
+
+        // Build a WASM definition for Short Dc 3924 that emits two tokens `u65` ('A') and `u66` ('B').
+        let mut pair_wasm = DcMstring::new();
+        pair_wasm.push_char(DcChar::from_short(1927));
+        pair_wasm.push_char(DcChar::from_short(260));
+        pair_wasm.push_char(DcChar::from_short(262));
+        pair_wasm.push_char(DcChar::from_short(280));
+        pair_wasm.push_char(i32_dc);
+        pair_wasm.push_char(DcChar::from_short(263));
+        // Store 0x4241 ("AB") at linear memory address 64:
+        pair_wasm.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&64i32, &mut pair_wasm)?;
+        pair_wasm.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&0x4241i32, &mut pair_wasm)?;
+        pair_wasm.push_char(DcChar::from_short(701)); // i32.store
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut pair_wasm)?;
+        crate::DcMixedEncode::encode_dc_mixed(&2u32, &mut pair_wasm)?;
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut pair_wasm)?;
+        // Store out_ptr = 64 at offset 8:
+        pair_wasm.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&8i32, &mut pair_wasm)?;
+        pair_wasm.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&64i32, &mut pair_wasm)?;
+        pair_wasm.push_char(DcChar::from_short(701));
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut pair_wasm)?;
+        crate::DcMixedEncode::encode_dc_mixed(&2u32, &mut pair_wasm)?;
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut pair_wasm)?;
+        // Store out_len = 2 at offset 12:
+        pair_wasm.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&12i32, &mut pair_wasm)?;
+        pair_wasm.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&2i32, &mut pair_wasm)?;
+        pair_wasm.push_char(DcChar::from_short(701));
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut pair_wasm)?;
+        crate::DcMixedEncode::encode_dc_mixed(&2u32, &mut pair_wasm)?;
+        crate::DcMixedEncode::encode_dc_mixed(&0u32, &mut pair_wasm)?;
+        // Return 0 (Complete)
+        pair_wasm.push_char(DcChar::from_short(712));
+        crate::DcMixedEncode::encode_dc_mixed(&0i32, &mut pair_wasm)?;
+        pair_wasm.push_char(DcChar::from_short(261));
+        pair_wasm.push_char(DcChar::from_short(1928));
+
+        let pair_shorthands: Vec<DcShorthand> = pair_wasm
+            .to_dc_string()?
+            .chars()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+
+        let mut nodes =
+            ctb_formats_dcdata::seed_graph::SeedGraphIndex::shared()?
+                .nodes()
+                .to_vec();
+        nodes.push(LedgerNode {
+            id: 8_589_999_933,
+            tokens: pair_shorthands,
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: 8_589_999_934,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(3994),
+                DcShorthand::Short(611),
+            ],
+            comment: String::new(),
+        });
+        nodes.push(LedgerNode {
+            id: snap_id,
+            tokens: vec![
+                DcShorthand::Short(610),
+                DcShorthand::Long(8_589_999_934),
+                DcShorthand::Long(8_589_999_933),
+            ],
+            comment: String::new(),
+        });
+        let sg = Arc::new(
+            ctb_formats_dcdata::seed_graph::SeedGraphIndex::from_nodes(nodes),
+        );
+
+        let mut res = (**default_syntax_resolver()).clone();
+        // Short Dc 3990 is binary `:~ [atom_dc] [atom_dc]`.
+        res.add_rule(
+            CharTarget::Dc(3990),
+            parse_dc_syntax(":~ [atom_dc] [atom_dc]")?,
+        );
+        res.add_rule(CharTarget::Dc(3994), parse_dc_syntax(":~")?);
+        res.rebuild_framing_and_wrapper_tables();
+        res.set_seed_graph(sg);
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            snap_id,
+            Arc::new(res),
+        );
+
+        let strict = DcProjectionPolicy::strict();
+
+        // 1. `3994` splices two tokens (`u65 u66`) into the operand stream of binary `3990`,
+        //    followed by a second `3990 3994` invocation, debiting the navigator's shared task quota.
+        let mut doc = DcMstring::new();
+        for tok in [
+            DcChar::from_short(641),
+            DcChar::from_long(snap_id),
+            DcChar::from_short(3990),
+            DcChar::from_short(3994),
+            DcChar::from_short(3990),
+            DcChar::from_short(3994),
+        ] {
+            doc.push_char(tok);
+        }
+
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        nav.validate_document(&strict)?;
+        let snap_after_two = nav.shared_wasm_task_quota().snapshot()?;
+        assert!(
+            snap_after_two.total_instructions_executed >= 20,
+            "Expected shared task quota to record instructions from both splice invocations, got {}",
+            snap_after_two.total_instructions_executed
+        );
+        assert_eq!(snap_after_two.cumulative_output_bytes, 4);
+
+        // 2. With a shared task quota of 15 instructions (enough for 1 invocation = 11 instructions,
+        //    not enough for 2 invocations = 22 instructions), the second splice invocation fails with
+        //    `ComputeQuotaExhausted`!
+        let tight_quota = crate::converters::wasm::SharedWasmTaskQuota::new(
+            crate::DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(15),
+        );
+        let mut tight_nav = DcDocumentNavigator::from_mstr(&doc)
+            .with_shared_wasm_task_quota(tight_quota);
+        let err = tight_nav
+            .validate_document(&strict)
+            .expect_err("Second WASM splice invocation must exhaust shared task quota");
+        assert!(
+            err.to_string().contains("compute quota exhausted")
+                || err.to_string().contains("ComputeQuotaExhausted"),
+            "Unexpected error: {err}"
         );
 
         Ok(())

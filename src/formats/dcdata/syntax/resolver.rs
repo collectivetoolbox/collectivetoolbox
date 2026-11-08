@@ -327,10 +327,11 @@ pub trait SyntaxRuleResolver {
             || self.token_fills_role(token, DcRole::OptionalAbsent)
             || self.is_representation_set(token)
     }
-    /// Returns true if `token` is a stream-splicing trigger (`Dc 256 "void lang.say([string] text)"`
-    /// or an equivalent character).
+    /// Returns true if `token` is a stream-splicing trigger (`Dc 256 "void lang.say([string] text)"`,
+    /// an equivalent character, or a WASM-backed splice routine in the active snapshot).
     fn is_splice_trigger_token(&self, token: u128) -> bool {
         self.token_fills_role(token, DcRole::LangSay)
+            || self.resolve_wasm_definition_tokens(token).is_some()
     }
     /// Returns true if `token` matches the single-token branch of `[atom_dc]`
     /// (i.e. is not in the negated delimiter/operator exclusion set of `atom_dc`).
@@ -959,6 +960,48 @@ impl DatasetRuleResolver {
         seed_graph: std::sync::Arc<crate::seed_graph::SeedGraphIndex>,
     ) {
         self.seed_graph = Some(seed_graph);
+        self.populate_seed_graph_splice_triggers();
+    }
+
+    fn populate_seed_graph_splice_triggers(&mut self) {
+        use ctb_storage_minimal::shorthand::DcShorthand;
+
+        let Some(sg) = self.seed_graph.as_deref() else {
+            return;
+        };
+        let mut wasm_triggers = Vec::new();
+        for &(subj, prop, _) in sg.active_multi_props().keys() {
+            if matches!(prop, DcShorthand::Short(611 | 571 | 614))
+                && sg.get_wasm_definition_tokens(subj).is_some()
+                && let Ok(gid) = subj.to_global_id()
+            {
+                wasm_triggers.push(gid);
+            }
+        }
+        for &(subj, prop) in sg.active_single_props().keys() {
+            if prop == DcShorthand::Short(594)
+                && sg.get_wasm_definition_tokens(subj).is_some()
+                && let Ok(gid) = subj.to_global_id()
+            {
+                wasm_triggers.push(gid);
+            }
+        }
+        for tok in wasm_triggers {
+            self.splice_trigger_tokens.insert(tok);
+            let canon = self.canonical_token(tok);
+            self.splice_trigger_tokens.insert(canon);
+            if let Some(equivs) = self.semantic_equivalents.get(&canon) {
+                self.splice_trigger_tokens.extend(equivs.iter().copied());
+            }
+            if let Some(equivs) = self.semantic_equivalents.get(&tok) {
+                self.splice_trigger_tokens.extend(equivs.iter().copied());
+            }
+        }
+        for (&alias, &canon) in &self.canonical_map {
+            if self.splice_trigger_tokens.contains(&canon) {
+                self.splice_trigger_tokens.insert(alias);
+            }
+        }
     }
 
     pub(crate) fn build_unicode_text_mappings(
@@ -1059,6 +1102,27 @@ impl DatasetRuleResolver {
     ) {
         self.opener_to_closer.insert(opener.clone(), closer_token);
         self.closing_delimiters.insert(closer_token, opener);
+    }
+
+    /// Registers a semantic equivalence mapping `alias_token` to `canonical_token`.
+    pub fn register_equivalence(
+        &mut self,
+        alias_token: u128,
+        canonical_token: u128,
+    ) {
+        self.canonical_map.insert(alias_token, canonical_token);
+        self.canonical_map
+            .entry(canonical_token)
+            .or_insert(canonical_token);
+        let mut group = self
+            .semantic_equivalents
+            .get(&canonical_token)
+            .cloned()
+            .unwrap_or_else(|| HashSet::from([canonical_token]));
+        group.insert(alias_token);
+        for &member in &group {
+            self.semantic_equivalents.insert(member, group.clone());
+        }
     }
 
     /// Registers a deprecated target and its optional preferred replacement.
@@ -1390,6 +1454,7 @@ impl DatasetRuleResolver {
                 self.splice_trigger_tokens.insert(alias);
             }
         }
+        self.populate_seed_graph_splice_triggers();
 
         if let Some(SyntaxPattern::Alternation(branches)) =
             self.named_types.get("atom_dc")
@@ -1528,7 +1593,7 @@ impl DatasetRuleResolver {
             &format_defns,
             named_types,
         )?;
-        resolver.seed_graph = Some(std::sync::Arc::new(index.clone()));
+        resolver.set_seed_graph(std::sync::Arc::new(index.clone()));
         Ok(resolver)
     }
 
@@ -2102,13 +2167,18 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
     }
 
     fn is_splice_trigger_token(&self, token: u128) -> bool {
-        if self.splice_trigger_tokens.len() == 1 {
-            return token == crate::dc::DC_LANG_SAY.to_u128();
+        if self.splice_trigger_tokens.len() == 1
+            && token == crate::dc::DC_LANG_SAY.to_u128()
+        {
+            return true;
         }
-        if !self.splice_trigger_tokens.is_empty() {
-            return self.splice_trigger_tokens.contains(&token);
+        if !self.splice_trigger_tokens.is_empty()
+            && self.splice_trigger_tokens.contains(&token)
+        {
+            return true;
         }
         self.token_fills_role(token, DcRole::LangSay)
+            || self.resolve_wasm_definition_tokens(token).is_some()
     }
 
     fn is_plain_atom_dc(&self, token: u128) -> bool {
@@ -2158,6 +2228,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         {
             return self.evaluable_expression_starters.contains(&token)
                 || self.matches_script(".EL Routines", token)
+                || self.is_splice_trigger_token(token)
                 || role.matches_canonical(self.canonical_token(token));
         }
         if role.matches_canonical(token) {
@@ -2174,7 +2245,8 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             return true;
         }
         if role == DcRole::EvaluableExpressionStarter
-            && self.matches_script(".EL Routines", token)
+            && (self.matches_script(".EL Routines", token)
+                || self.is_splice_trigger_token(token))
         {
             return true;
         }
