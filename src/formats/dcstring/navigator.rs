@@ -1361,16 +1361,19 @@ impl<'a> DcDocumentNavigator<'a> {
         if self.level_stack.is_empty()
             && self.cursor == self.active_span.start
             && self.pin_provenance == DcPinProvenance::UnpinnedLegacyFallback
-            && self.find_header_pin_in_span(self.active_span, None, resolver).is_none()
+            && self
+                .find_header_pin_in_span(self.active_span, None, resolver)
+                .is_none()
         {
             self.apply_unpinned_fallback_policy(self.cursor, policy)?;
         }
         let pinned_resolver = self.pinned_resolver.clone();
-        let resolver: &dyn SyntaxRuleResolver = if let Some(ref pinned) = pinned_resolver {
-            pinned.as_ref()
-        } else {
-            resolver
-        };
+        let resolver: &dyn SyntaxRuleResolver =
+            if let Some(ref pinned) = pinned_resolver {
+                pinned.as_ref()
+            } else {
+                resolver
+            };
         let mut assignment = None;
         let mut rhs_rule = None;
         loop {
@@ -4948,7 +4951,10 @@ mod tests {
     #[crate::ctb_test]
     fn test_gate1_pin_resolution_errors_and_newer_pin_rejection() -> Result<()> {
         let missing_operand_doc = DcMstring::new();
-        for policy in [DcProjectionPolicy::strict(), DcProjectionPolicy::forgiving()] {
+        for policy in [
+            DcProjectionPolicy::strict(),
+            DcProjectionPolicy::forgiving(),
+        ] {
             let mut nav = DcDocumentNavigator::from_mstr(&missing_operand_doc);
             let result = nav.apply_header_pin_candidate(
                 HeaderPinCandidate {
@@ -4963,7 +4969,9 @@ mod tests {
             } else {
                 result?;
                 assert!(nav.diagnostics().iter().any(|diagnostic| {
-                    diagnostic.message.contains("Missing System-block node ID operand")
+                    diagnostic
+                        .message
+                        .contains("Missing System-block node ID operand")
                 }));
             }
         }
@@ -5229,13 +5237,18 @@ mod tests {
         let baseline_policy = DcProjectionPolicy::strict()
             .with_missing_system_graph_pin(DiagnosticAction::Warn)
             .with_unpinned_fallback_most_recent_node_id(t1);
-        let mut first_baseline_nav = DcDocumentNavigator::from_mstr(&unpinned_doc);
+        let mut first_baseline_nav =
+            DcDocumentNavigator::from_mstr(&unpinned_doc);
         let first_baseline_stub = first_baseline_nav
             .next_sibling_stub(&baseline_policy)?
             .expect("Baseline document has a first construct");
         assert_eq!(
-            first_baseline_nav.read_tokens_in_span(first_baseline_stub.outer_span)?,
-            vec![DcChar::from_short(3916).to_u128(), DcChar::from_u128(65).to_u128()],
+            first_baseline_nav
+                .read_tokens_in_span(first_baseline_stub.outer_span)?,
+            vec![
+                DcChar::from_short(3916).to_u128(),
+                DcChar::from_u128(65).to_u128(),
+            ],
         );
         let mut baseline_nav = DcDocumentNavigator::from_mstr(&unpinned_doc);
         baseline_nav.validate_document(&baseline_policy)?;

@@ -101,6 +101,27 @@ With the compatibility and replay contract defined in **Core Architectural Guara
   - Reject references or pins targeting not-yet-implemented graph blocks (the reserved Data block beginning at `4294967296` and blocks above System) with an explicit unsupported-block diagnostic/error rather than ignoring them or substituting `HEAD`.
   - Define and enforce the explicit fallback policy for legacy documents that omit `Dc 641 "Global graph system block most recent node ID at time of document creation"` (`DcPinProvenance::UnpinnedLegacyFallback`, `DcProjectionPolicy::with_missing_system_graph_pin`, and `DcProjectionPolicy::with_unpinned_fallback_most_recent_node_id`).
 
+#### Gate 1 Review (2026-11-08)
+
+- Corrected missing pin-operand diagnostics, environment header discovery that
+  selected pins from literals or nested document scopes, and legacy baseline
+  selection that used HEAD to frame the first construct before installing the
+  designated snapshot.
+- Replaced recursive WASM helper expansion with an explicit work stack and
+  retained snapshot/supersession/cycle checks. Added long-chain coverage and
+  explicit rejection of dangling escapes.
+- Historical completeness is checked only through the requested pin. Missing
+  newer history must not reject an available older prefix; available graph
+  bounds account for both supplied node lists as well as bundle metadata.
+- Linux musl validation: all 192 Dc-string library tests and the focused
+  historical snapshot/resolver test passed, with no ignored tests. Production
+  Clippy for the two affected crates completed with baseline warnings.
+
+**Remaining Gaps / Verification Limits**: Other platforms and the full Dc-data
+suite were not run in this review. Kernel/VM budget work in Gate 2 and the real
+cross-revision execution, event, and pixel replay suite in Gate 3 remain pending;
+these parser/resolver tests do not establish the full compatibility guarantee.
+
 ### Gate 2: Document the Minimal Trusted Kernel & Enforce VM Budgets
 - [ ] **Freeze and document the minimal trusted bootstrap kernel**:
   - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version. Identical graph bytes under different kernel interpretations are not sufficient. Version selection must be available during bootstrap, before interpretation that depends on it.

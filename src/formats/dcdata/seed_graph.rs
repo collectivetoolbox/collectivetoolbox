@@ -392,7 +392,13 @@ impl SeedGraphIndex {
         );
         let head_id = active_most_recent
             .max(history_most_recent)
-            .max(active_nodes.iter().chain(&history_nodes).map(|node| node.id).max())
+            .max(
+                active_nodes
+                    .iter()
+                    .chain(&history_nodes)
+                    .map(|node| node.id)
+                    .max(),
+            )
             .context("Cannot resolve Dc 641 pin against an empty System graph")?;
         if most_recent_node_id > head_id {
             bail!(
@@ -2471,14 +2477,18 @@ mod tests {
                 comment: String::new(),
             },
         ];
-        let prefix_index = SeedGraphIndex::from_active_and_history_nodes_at_most_recent(
-            Some(prefix_id.saturating_add(2)),
-            prefix_nodes,
-            None,
-            Vec::new(),
-            prefix_id,
-        )?;
-        assert_eq!(prefix_index.system_block_most_recent_node_id(), Some(prefix_id));
+        let prefix_index =
+            SeedGraphIndex::from_active_and_history_nodes_at_most_recent(
+                Some(prefix_id.saturating_add(2)),
+                prefix_nodes,
+                None,
+                Vec::new(),
+                prefix_id,
+            )?;
+        assert_eq!(
+            prefix_index.system_block_most_recent_node_id(),
+            Some(prefix_id),
+        );
 
         let full_hist = SeedGraphIndex::load_with_history_from_asset_bundle()?;
         let (part_active, part_history) =

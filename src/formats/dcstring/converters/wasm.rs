@@ -1924,7 +1924,9 @@ fn expand_graph_wasm_shorthands(
             .map_err(|e| anyhow!("Invalid graph WASM shorthand {sh}: {e}"))?;
         if resolver.token_fills_role(gid, DcRole::Escape) {
             out_doc.push_char(DcChar::from_u128(gid));
-            let escaped_sh = iter.next().context("Dangling escape in graph WASM definition")?;
+            let escaped_sh = iter
+                .next()
+                .context("Dangling escape in graph WASM definition")?;
             let escaped_gid = escaped_sh.to_global_id().map_err(|e| {
                 anyhow!(
                     "Invalid escaped graph WASM shorthand {escaped_sh}: {e}"
@@ -2795,7 +2797,8 @@ mod tests {
             );
         }
 
-        let chain_start = ctb_storage_minimal::global_graph_layout::SYSTEM_REGION_START;
+        let chain_start =
+            ctb_storage_minimal::global_graph_layout::SYSTEM_REGION_START;
         let mut chain_nodes = Vec::new();
         for index in 0..4096_u128 {
             chain_nodes.push(LedgerNode {
@@ -2803,25 +2806,35 @@ mod tests {
                 tokens: if index == 4095 {
                     vec![DcShorthand::Unicode(65)]
                 } else {
-                    vec![DcShorthand::Long(chain_start.saturating_add(index).saturating_add(1))]
+                    vec![DcShorthand::Long(
+                        chain_start.saturating_add(index).saturating_add(1),
+                    )]
                 },
                 comment: String::new(),
             });
         }
         let mut chain_resolver = res_pinned.clone();
-        chain_resolver.set_seed_graph(Arc::new(SeedGraphIndex::from_nodes(chain_nodes)));
+        chain_resolver.set_seed_graph(Arc::new(SeedGraphIndex::from_nodes(
+            chain_nodes,
+        )));
         let mut chain_output = DcMstring::new();
         expand_graph_wasm_shorthands(
             &[DcShorthand::Long(chain_start)],
             &chain_resolver,
             &mut chain_output,
         )?;
-        assert_eq!(chain_output.to_dc_string()?.chars().collect::<Vec<_>>(), vec![DcChar::from_u128(65)]);
-        assert!(expand_graph_wasm_shorthands(
-            &[DcShorthand::Short(255)],
-            &chain_resolver,
-            &mut DcMstring::new(),
-        ).is_err());
+        assert_eq!(
+            chain_output.to_dc_string()?.chars().collect::<Vec<_>>(),
+            vec![DcChar::from_u128(65)],
+        );
+        assert!(
+            expand_graph_wasm_shorthands(
+                &[DcShorthand::Short(255)],
+                &chain_resolver,
+                &mut DcMstring::new(),
+            )
+            .is_err()
+        );
 
         Ok(())
     }
