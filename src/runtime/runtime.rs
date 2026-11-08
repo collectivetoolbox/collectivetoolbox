@@ -146,10 +146,110 @@ pub async fn test_prepend(document: String, prepend: String) -> String {
 }
 
 use ctb_formats_dcstring::{
-    DcMstr, DcMstring, DcString, DcWasmSession, WasmResourceInterruption,
+    DcChar, DcMstr, DcMstring, DcShorthand, DcString, DcWasmResourceLimits,
+    DcWasmSession, DcWasmWatchdogLimits, SeedGraphIndex,
+    WASM_RESOURCE_ACCOUNTING_VERSION, WasmResourceInterruption,
     WasmStepOutcome, dc,
 };
 use std::collections::HashMap;
+
+/// Authenticated System supervisor bootstrap admission and compiled local resource counters.
+///
+/// The runtime supervisor is not an ordinary user document: it is instantiated only by the host
+/// bootstrap entrypoint from an unpinned single-Short-Dc document whose active definition and
+/// transitive dependency subgraph carry authenticated bundled System provenance. User quota
+/// configuration is validated and compiled once at admission (or at an explicit task/step
+/// boundary) into compact local integer counters (`compiled_limits`) so execution never reads
+/// mutable graph state per instruction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SystemSupervisorAdmission {
+    /// Short Dc entry point of the System supervisor base document.
+    pub entry_dc: DcChar,
+    /// Active System-block graph node ID holding the supervisor's canonical decomposition.
+    pub supervisor_revision_node_id: u128,
+    /// Sorted, deduplicated System-block node IDs in the supervisor's transitive dependency snapshot.
+    pub dependency_snapshot_node_ids: Vec<u128>,
+    /// Deterministic resource-accounting rule version (`WASM_RESOURCE_ACCOUNTING_VERSION`).
+    pub accounting_version: u32,
+    /// Compiled local integer resource counters (clamped by emergency host watchdog bounds).
+    pub compiled_limits: DcWasmResourceLimits,
+    /// Canonical 76-byte serialized snapshot of `compiled_limits` recorded in execution traces.
+    pub effective_config_bytes: Vec<u8>,
+}
+
+impl SystemSupervisorAdmission {
+    /// Resolves and authenticates the unpinned 1-Short-Dc System supervisor bootstrap document
+    /// from `seed_graph`, validates `user_limits`, clamps emergency host `watchdog` bounds,
+    /// and compiles the local integer counters and canonical config snapshot.
+    ///
+    /// # Errors
+    /// Returns an error if `bootstrap_tokens` is pinned with `Dc 641`, contains multiple tokens
+    /// or a non-Short Dc, lacks authenticated bundled System provenance, or specifies an invalid
+    /// `user_limits` configuration.
+    pub fn admit_from_bootstrap_tokens(
+        seed_graph: &SeedGraphIndex,
+        bootstrap_tokens: &[DcShorthand],
+        user_limits: DcWasmResourceLimits,
+        watchdog: DcWasmWatchdogLimits,
+    ) -> Result<Self> {
+        let resolved = seed_graph
+            .resolve_trusted_system_supervisor_bootstrap_tokens(
+                bootstrap_tokens,
+            )?;
+        ensure!(
+            user_limits.accounting_version == WASM_RESOURCE_ACCOUNTING_VERSION,
+            "Unsupported WASM resource accounting version {} in user quota configuration (expected {})",
+            user_limits.accounting_version,
+            WASM_RESOURCE_ACCOUNTING_VERSION
+        );
+        ensure!(
+            user_limits.max_instructions_per_step > 0,
+            "Supervisor compute_quota (max_instructions_per_step) must be > 0"
+        );
+        ensure!(
+            user_limits.max_memory_pages > 0,
+            "Supervisor memory_quota_pages (max_memory_pages) must be > 0"
+        );
+        let compiled_limits = user_limits.apply_watchdog_bounds(watchdog);
+        let effective_config_bytes =
+            compiled_limits.encode_canonical_config_bytes();
+        Ok(Self {
+            entry_dc: resolved.entry_dc,
+            supervisor_revision_node_id: resolved.supervisor_revision_node_id,
+            dependency_snapshot_node_ids: resolved.dependency_snapshot_node_ids,
+            accounting_version: compiled_limits.accounting_version,
+            compiled_limits,
+            effective_config_bytes,
+        })
+    }
+
+    /// Verifies that an ordinary user document cannot elevate itself to System supervisor
+    /// authority by declaring privilege, choosing a historical `Dc 641` pin, or referencing
+    /// the supervisor entry Dc inside a multi-token document.
+    ///
+    /// # Errors
+    /// Returns an error if `ordinary_doc_tokens` attempts to claim supervisor authority.
+    pub fn verify_ordinary_document_cannot_elevate(
+        ordinary_doc_tokens: &[DcShorthand],
+        supervisor_entry_dc: DcChar,
+    ) -> Result<()> {
+        let dc_641 = DcShorthand::from_global_id(
+            dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID.to_u128(),
+        );
+        let sup_sh = DcShorthand::from_global_id(supervisor_entry_dc.to_u128());
+        if ordinary_doc_tokens.contains(&dc_641) {
+            bail!(
+                "Ordinary document pinned with Dc 641 cannot claim unpinned System supervisor authority"
+            );
+        }
+        if ordinary_doc_tokens.contains(&sup_sh) {
+            bail!(
+                "Ordinary user document cannot elevate privilege by referencing System supervisor entry {sup_sh}"
+            );
+        }
+        Ok(())
+    }
+}
 
 /// Native Document Character runtime value.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -267,7 +367,8 @@ pub enum WasmTraceEvent {
     },
     /// External resource interruption raised by VM budgets (`ComputeQuotaExhausted`,
     /// `MemoryLimitExceeded`, `TableLimitExceeded`, `StepOutputSliceTooLarge`,
-    /// `SessionOutputBudgetExceeded`) or host step budget exhaustion.
+    /// `SessionOutputBudgetExceeded`, `CapabilityPayloadTooLarge`,
+    /// `TraceBufferBudgetExceeded`) or host step budget exhaustion.
     ResourceInterruption {
         /// Number of completed logical steps before the interruption occurred.
         after_logical_steps: usize,
@@ -275,6 +376,15 @@ pub enum WasmTraceEvent {
         interruption: Option<WasmResourceInterruption>,
         /// Host decision for `Privilege::ExcessiveCompute`.
         decision: PermissionDecision,
+    },
+    /// Non-resource guest WebAssembly trap (e.g., `unreachable`, integer divide by zero,
+    /// out-of-bounds memory access) captured after `after_logical_steps` completed logical steps
+    /// while preserving all prior yielded frames and capability events in the trace.
+    NonResourceTrap {
+        /// Number of completed logical steps before the trap occurred.
+        after_logical_steps: usize,
+        /// Diagnostic trap message captured from the WebAssembly runtime.
+        trap_message: String,
     },
     /// Completed execution (`WasmStepStatus::Complete`) with the final output document.
     Complete {
@@ -285,13 +395,53 @@ pub enum WasmTraceEvent {
     },
 }
 
-/// Complete observable execution trace and result of a [`DcWasmSession`] run.
+impl WasmTraceEvent {
+    /// Deterministic byte size of this trace event for `max_trace_bytes` accounting.
+    #[must_use]
+    pub fn estimated_trace_bytes(&self) -> usize {
+        match self {
+            Self::YieldFrame { frame, .. } => {
+                16usize.saturating_add(frame.as_bytes().len())
+            }
+            Self::CapabilityInteraction {
+                request, response, ..
+            } => 24usize
+                .saturating_add(request.as_bytes().len())
+                .saturating_add(response.as_bytes().len()),
+            Self::ResourceInterruption { .. } => 32usize,
+            Self::NonResourceTrap { trap_message, .. } => {
+                24usize.saturating_add(trap_message.len())
+            }
+            Self::Complete { output, .. } => {
+                16usize.saturating_add(output.as_bytes().len())
+            }
+        }
+    }
+}
+
+/// Complete observable execution trace and result of a [`DcWasmSession`] run,
+/// including the active System supervisor revision, dependency snapshot, accounting version,
+/// and canonical resource configuration snapshot required for deterministic replay.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WasmExecutionTrace {
     /// Final execution result (`output`, `frames`, `broke_out_early`).
     pub result: WasmExecutionResult,
-    /// Ordered sequence of logical trace events and external resource interruptions.
+    /// Ordered sequence of logical trace events, resource interruptions, and non-resource traps.
     pub events: Vec<WasmTraceEvent>,
+    /// Active System-block graph node ID of the System supervisor base document (if admitted).
+    pub supervisor_revision_node_id: Option<u128>,
+    /// Sorted, deduplicated System-block node IDs in the supervisor's transitive dependency snapshot.
+    pub dependency_snapshot_node_ids: Vec<u128>,
+    /// Deterministic resource-accounting rule version (`WASM_RESOURCE_ACCOUNTING_VERSION`).
+    pub accounting_version: u32,
+    /// Canonical 76-byte serialized snapshot of effective [`DcWasmResourceLimits`].
+    pub effective_config_bytes: Vec<u8>,
+    /// 1-based ordinal of the last operation interrupted by `ComputeQuotaExhausted` (if any).
+    pub last_interrupted_op_ordinal: Option<u64>,
+    /// Required cost of the last operation interrupted by `ComputeQuotaExhausted` (if any).
+    pub last_interrupted_op_required_cost: Option<u64>,
+    /// Cumulative trace buffer bytes consumed across `events`.
+    pub cumulative_trace_bytes: usize,
 }
 
 impl WasmExecutionTrace {
@@ -320,11 +470,26 @@ impl WasmExecutionTrace {
         None
     }
 
-    /// Returns `Err` if the trace terminated due to a denied resource interruption, or `Ok(())`
-    /// if the trace completed or broke out via `PermissionDecision::BreakOutResumeNext`.
+    /// Returns the terminal `NonResourceTrap` event if execution terminated due to a non-resource
+    /// guest WebAssembly trap.
+    #[must_use]
+    pub fn non_resource_trap(&self) -> Option<(usize, &str)> {
+        if let Some(WasmTraceEvent::NonResourceTrap {
+            after_logical_steps,
+            trap_message,
+        }) = self.events.last()
+        {
+            return Some((*after_logical_steps, trap_message.as_str()));
+        }
+        None
+    }
+
+    /// Returns `Err` if the trace terminated due to a denied resource interruption or a
+    /// non-resource guest WebAssembly trap, or `Ok(())` if the trace completed or broke out
+    /// via `PermissionDecision::BreakOutResumeNext`.
     ///
     /// # Errors
-    /// Returns an error describing the denied resource interruption.
+    /// Returns an error describing the denied resource interruption or non-resource trap.
     pub fn ensure_not_denied(&self) -> Result<()> {
         if let Some((steps, interruption, decision)) =
             self.denied_resource_interruption()
@@ -336,6 +501,11 @@ impl WasmExecutionTrace {
             }
             bail!(
                 "Execution denied by capability policy after {steps} logical steps ({decision:?})"
+            );
+        }
+        if let Some((steps, trap_message)) = self.non_resource_trap() {
+            bail!(
+                "Execution terminated after {steps} logical steps on non-resource WebAssembly trap: {trap_message}"
             );
         }
         Ok(())
@@ -363,6 +533,8 @@ pub struct ExecutionContext {
     pub compute_quota_grant: u64,
     /// Host-configured per-privilege authorization overrides.
     privilege_overrides: HashMap<Privilege, PermissionDecision>,
+    /// Optional authenticated System supervisor admission metadata recorded in execution traces.
+    pub supervisor_admission: Option<SystemSupervisorAdmission>,
 }
 
 impl ExecutionContext {
@@ -377,7 +549,45 @@ impl ExecutionContext {
             compute_quota_grant:
                 ctb_formats_dcstring::DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP,
             privilege_overrides: HashMap::new(),
+            supervisor_admission: None,
         }
+    }
+
+    /// Builder-style method attaching an authenticated [`SystemSupervisorAdmission`] to this
+    /// execution context so all execution traces record the supervisor revision, dependency
+    /// snapshot, accounting version, and canonical configuration snapshot.
+    #[must_use]
+    pub fn with_system_supervisor_admission(
+        mut self,
+        admission: SystemSupervisorAdmission,
+    ) -> Self {
+        self.supervisor_admission = Some(admission);
+        self
+    }
+
+    /// Authenticates and admits the unpinned 1-Short-Dc System supervisor bootstrap document
+    /// from `seed_graph` and attaches it to this execution context.
+    ///
+    /// # Errors
+    /// Returns an error if `bootstrap_tokens` is pinned, multi-token, non-Short-Dc, lacks
+    /// authenticated bundled System provenance, or specifies invalid resource limits.
+    pub fn admit_system_supervisor(
+        &mut self,
+        seed_graph: &SeedGraphIndex,
+        bootstrap_tokens: &[DcShorthand],
+        user_limits: DcWasmResourceLimits,
+        watchdog: DcWasmWatchdogLimits,
+    ) -> Result<&SystemSupervisorAdmission> {
+        let admission = SystemSupervisorAdmission::admit_from_bootstrap_tokens(
+            seed_graph,
+            bootstrap_tokens,
+            user_limits,
+            watchdog,
+        )?;
+        self.supervisor_admission = Some(admission);
+        self.supervisor_admission
+            .as_ref()
+            .context("supervisor_admission was just populated")
     }
 
     /// Builder-style method configuring the portable compute quota grant added when
@@ -486,46 +696,169 @@ impl ExecutionContext {
         resp
     }
 
-    fn handle_resource_interruption(
+    fn build_trace(
         &self,
+        session: Option<&DcWasmSession>,
+        fallback_limits: DcWasmResourceLimits,
+        result: WasmExecutionResult,
+        events: Vec<WasmTraceEvent>,
+        cumulative_trace_bytes: usize,
+        interrupted_op_info: Option<(u64, u64)>,
+    ) -> WasmExecutionTrace {
+        let effective_limits = self
+            .supervisor_admission
+            .as_ref()
+            .map_or(fallback_limits, |adm| adm.compiled_limits);
+        let (
+            supervisor_revision_node_id,
+            dependency_snapshot_node_ids,
+            accounting_version,
+            effective_config_bytes,
+        ) = if let Some(adm) = &self.supervisor_admission {
+            (
+                Some(adm.supervisor_revision_node_id),
+                adm.dependency_snapshot_node_ids.clone(),
+                adm.accounting_version,
+                adm.effective_config_bytes.clone(),
+            )
+        } else {
+            (
+                None,
+                Vec::new(),
+                effective_limits.accounting_version,
+                effective_limits.encode_canonical_config_bytes(),
+            )
+        };
+        let (last_interrupted_op_ordinal, last_interrupted_op_required_cost) =
+            if let Some((ord, cost)) = interrupted_op_info {
+                (Some(ord), Some(cost))
+            } else if let Some(s) = session
+                && s.last_interrupted_op_ordinal().is_some()
+            {
+                (
+                    s.last_interrupted_op_ordinal(),
+                    s.last_interrupted_op_required_cost(),
+                )
+            } else {
+                (None, None)
+            };
+        WasmExecutionTrace {
+            result,
+            events,
+            supervisor_revision_node_id,
+            dependency_snapshot_node_ids,
+            accounting_version,
+            effective_config_bytes,
+            last_interrupted_op_ordinal,
+            last_interrupted_op_required_cost,
+            cumulative_trace_bytes,
+        }
+    }
+
+    /// Appends `event` to `events` if within `max_trace_bytes`; otherwise records a
+    /// `WasmResourceInterruption::TraceBufferBudgetExceeded` event and returns `Err(())`.
+    fn push_trace_event_bounded(
+        &self,
+        events: &mut Vec<WasmTraceEvent>,
+        cumulative_trace_bytes: &mut usize,
+        max_trace_bytes: usize,
+        after_logical_steps: usize,
+        event: WasmTraceEvent,
+    ) -> std::result::Result<(), ()> {
+        let event_bytes = event.estimated_trace_bytes();
+        let next_bytes = cumulative_trace_bytes.saturating_add(event_bytes);
+        if next_bytes > max_trace_bytes {
+            let decision =
+                self.request_permission(&Privilege::ExcessiveCompute);
+            let intr_event = WasmTraceEvent::ResourceInterruption {
+                after_logical_steps,
+                interruption: Some(
+                    WasmResourceInterruption::TraceBufferBudgetExceeded {
+                        cumulative_trace_bytes: next_bytes,
+                        max_trace_bytes,
+                    },
+                ),
+                decision,
+            };
+            *cumulative_trace_bytes = cumulative_trace_bytes
+                .saturating_add(intr_event.estimated_trace_bytes());
+            events.push(intr_event);
+            return Err(());
+        }
+        *cumulative_trace_bytes = next_bytes;
+        events.push(event);
+        Ok(())
+    }
+
+    fn handle_session_error_into_trace(
+        &self,
+        session: Option<&DcWasmSession>,
+        fallback_limits: DcWasmResourceLimits,
         err: anyhow::Error,
         after_logical_steps: usize,
         frames: Vec<DcMstring>,
         mut events: Vec<WasmTraceEvent>,
-    ) -> Result<WasmExecutionTrace> {
+        mut cumulative_trace_bytes: usize,
+        interrupted_op_info: Option<(u64, u64)>,
+    ) -> WasmExecutionTrace {
+        let max_trace_bytes =
+            session.map_or(fallback_limits.max_trace_bytes, |s| {
+                s.resource_limits().max_trace_bytes
+            });
         if let Some(interruption) =
             err.downcast_ref::<WasmResourceInterruption>().cloned()
         {
             let decision =
                 self.request_permission(&Privilege::ExcessiveCompute);
-            events.push(WasmTraceEvent::ResourceInterruption {
+            let _ = self.push_trace_event_bounded(
+                &mut events,
+                &mut cumulative_trace_bytes,
+                max_trace_bytes,
                 after_logical_steps,
-                interruption: Some(interruption),
-                decision,
-            });
-            return Ok(WasmExecutionTrace {
-                result: WasmExecutionResult {
-                    output: DcMstring::new(),
-                    frames,
-                    broke_out_early: true,
+                WasmTraceEvent::ResourceInterruption {
+                    after_logical_steps,
+                    interruption: Some(interruption),
+                    decision,
                 },
-                events,
-            });
+            );
+        } else {
+            let _ = self.push_trace_event_bounded(
+                &mut events,
+                &mut cumulative_trace_bytes,
+                max_trace_bytes,
+                after_logical_steps,
+                WasmTraceEvent::NonResourceTrap {
+                    after_logical_steps,
+                    trap_message: format!("{err:#}"),
+                },
+            );
         }
-        Err(err)
+        self.build_trace(
+            session,
+            fallback_limits,
+            WasmExecutionResult {
+                output: DcMstring::new(),
+                frames,
+                broke_out_early: true,
+            },
+            events,
+            cumulative_trace_bytes,
+            interrupted_op_info,
+        )
     }
 
     /// Drives a [`DcWasmSession`] over `input` and records the full [`WasmExecutionTrace`]
-    /// (distinguishing logical document progress from physical VM resource interruptions).
+    /// (distinguishing logical document progress from physical VM resource interruptions and
+    /// non-resource guest traps).
     ///
-    /// Physical VM resource interruptions (including denied interruptions where
-    /// `Privilege::ExcessiveCompute` resolves to `PermissionDecision::Deny`) preserve all
+    /// Both physical VM resource interruptions and non-resource guest traps preserve all
     /// accumulated `frames` and `events` in the returned [`WasmExecutionTrace`] so the finite
-    /// prefix can be inspected and deterministically replayed.
+    /// prefix can be inspected and deterministically replayed. Call
+    /// [`WasmExecutionTrace::ensure_not_denied`] to convert denied resource interruptions or
+    /// non-resource traps into `Err`.
     ///
     /// # Errors
-    /// Returns an error if the WASM module traps with a non-resource error or if
-    /// `capability_handler` fails.
+    /// Returns an error if `capability_handler` fails.
     pub fn execute_wasm_session_with_trace<F>(
         &mut self,
         session: &mut DcWasmSession,
@@ -535,10 +868,27 @@ impl ExecutionContext {
     where
         F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
     {
+        if let Some(adm) = &self.supervisor_admission {
+            session.set_resource_limits(adm.compiled_limits);
+        }
+        let fallback_limits = session.resource_limits();
+        let max_trace_bytes = fallback_limits.max_trace_bytes;
         let mut frames = Vec::new();
         let mut events = Vec::new();
+        let mut cumulative_trace_bytes = 0usize;
+        let mut last_interrupted_op: Option<(u64, u64)> = None;
+
         if let Err(err) = session.provide_input(input) {
-            return self.handle_resource_interruption(err, 0, frames, events);
+            return Ok(self.handle_session_error_into_trace(
+                Some(session),
+                fallback_limits,
+                err,
+                0,
+                frames,
+                events,
+                cumulative_trace_bytes,
+                last_interrupted_op,
+            ));
         }
 
         let mut logical_step = 0usize;
@@ -548,50 +898,57 @@ impl ExecutionContext {
                 Err(_err) => {
                     let decision =
                         self.request_permission(&Privilege::ExcessiveCompute);
-                    events.push(WasmTraceEvent::ResourceInterruption {
-                        after_logical_steps: logical_step,
-                        interruption: None,
-                        decision,
-                    });
-                    return Ok(WasmExecutionTrace {
-                        result: WasmExecutionResult {
+                    let _ = self.push_trace_event_bounded(
+                        &mut events,
+                        &mut cumulative_trace_bytes,
+                        max_trace_bytes,
+                        logical_step,
+                        WasmTraceEvent::ResourceInterruption {
+                            after_logical_steps: logical_step,
+                            interruption: None,
+                            decision,
+                        },
+                    );
+                    return Ok(self.build_trace(
+                        Some(session),
+                        fallback_limits,
+                        WasmExecutionResult {
                             output: DcMstring::new(),
                             frames,
                             broke_out_early: true,
                         },
                         events,
-                    });
+                        cumulative_trace_bytes,
+                        last_interrupted_op,
+                    ));
                 }
             };
-            if budget_decision == PermissionDecision::BreakOutResumeNext {
-                events.push(WasmTraceEvent::ResourceInterruption {
-                    after_logical_steps: logical_step,
-                    interruption: None,
-                    decision: PermissionDecision::BreakOutResumeNext,
-                });
-                return Ok(WasmExecutionTrace {
-                    result: WasmExecutionResult {
+            if budget_decision == PermissionDecision::BreakOutResumeNext
+                || budget_decision == PermissionDecision::Deny
+            {
+                let _ = self.push_trace_event_bounded(
+                    &mut events,
+                    &mut cumulative_trace_bytes,
+                    max_trace_bytes,
+                    logical_step,
+                    WasmTraceEvent::ResourceInterruption {
+                        after_logical_steps: logical_step,
+                        interruption: None,
+                        decision: budget_decision,
+                    },
+                );
+                return Ok(self.build_trace(
+                    Some(session),
+                    fallback_limits,
+                    WasmExecutionResult {
                         output: DcMstring::new(),
                         frames,
                         broke_out_early: true,
                     },
                     events,
-                });
-            }
-            if budget_decision == PermissionDecision::Deny {
-                events.push(WasmTraceEvent::ResourceInterruption {
-                    after_logical_steps: logical_step,
-                    interruption: None,
-                    decision: PermissionDecision::Deny,
-                });
-                return Ok(WasmExecutionTrace {
-                    result: WasmExecutionResult {
-                        output: DcMstring::new(),
-                        frames,
-                        broke_out_early: true,
-                    },
-                    events,
-                });
+                    cumulative_trace_bytes,
+                    last_interrupted_op,
+                ));
             }
 
             let step_outcome = match session.step() {
@@ -603,61 +960,145 @@ impl ExecutionContext {
                         },
                     ) = err.downcast_ref::<WasmResourceInterruption>().cloned()
                     {
+                        if let (Some(ord), Some(cost)) = (
+                            session.last_interrupted_op_ordinal(),
+                            session.last_interrupted_op_required_cost(),
+                        ) {
+                            last_interrupted_op = Some((ord, cost));
+                        }
                         let decision = self
                             .request_permission(&Privilege::ExcessiveCompute);
-                        events.push(WasmTraceEvent::ResourceInterruption {
-                            after_logical_steps: logical_step,
-                            interruption: Some(
-                                WasmResourceInterruption::ComputeQuotaExhausted {
-                                    limit,
+                        if self
+                            .push_trace_event_bounded(
+                                &mut events,
+                                &mut cumulative_trace_bytes,
+                                max_trace_bytes,
+                                logical_step,
+                                WasmTraceEvent::ResourceInterruption {
+                                    after_logical_steps: logical_step,
+                                    interruption: Some(
+                                        WasmResourceInterruption::ComputeQuotaExhausted {
+                                            limit,
+                                        },
+                                    ),
+                                    decision,
                                 },
-                            ),
-                            decision,
-                        });
+                            )
+                            .is_err()
+                        {
+                            return Ok(self.build_trace(
+                                Some(session),
+                                fallback_limits,
+                                WasmExecutionResult {
+                                    output: DcMstring::new(),
+                                    frames,
+                                    broke_out_early: true,
+                                },
+                                events,
+                                cumulative_trace_bytes,
+                                last_interrupted_op,
+                            ));
+                        }
                         if decision == PermissionDecision::Allow {
                             session.increase_compute_quota(
                                 self.compute_quota_grant.max(1),
                             );
                             continue;
                         }
-                        return Ok(WasmExecutionTrace {
-                            result: WasmExecutionResult {
+                        return Ok(self.build_trace(
+                            Some(session),
+                            fallback_limits,
+                            WasmExecutionResult {
                                 output: DcMstring::new(),
                                 frames,
                                 broke_out_early: true,
                             },
                             events,
-                        });
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        ));
                     }
-                    return self.handle_resource_interruption(
+                    return Ok(self.handle_session_error_into_trace(
+                        Some(session),
+                        fallback_limits,
                         err,
                         logical_step,
                         frames,
                         events,
-                    );
+                        cumulative_trace_bytes,
+                        last_interrupted_op,
+                    ));
                 }
             };
 
             match step_outcome {
                 WasmStepOutcome::Complete(output) => {
-                    events.push(WasmTraceEvent::Complete {
-                        logical_step,
-                        output: output.clone(),
-                    });
-                    return Ok(WasmExecutionTrace {
-                        result: WasmExecutionResult {
+                    if self
+                        .push_trace_event_bounded(
+                            &mut events,
+                            &mut cumulative_trace_bytes,
+                            max_trace_bytes,
+                            logical_step,
+                            WasmTraceEvent::Complete {
+                                logical_step,
+                                output: output.clone(),
+                            },
+                        )
+                        .is_err()
+                    {
+                        return Ok(self.build_trace(
+                            Some(session),
+                            fallback_limits,
+                            WasmExecutionResult {
+                                output: DcMstring::new(),
+                                frames,
+                                broke_out_early: true,
+                            },
+                            events,
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        ));
+                    }
+                    return Ok(self.build_trace(
+                        Some(session),
+                        fallback_limits,
+                        WasmExecutionResult {
                             output,
                             frames,
                             broke_out_early: false,
                         },
                         events,
-                    });
+                        cumulative_trace_bytes,
+                        last_interrupted_op,
+                    ));
                 }
                 WasmStepOutcome::YieldFrame(frame) => {
-                    events.push(WasmTraceEvent::YieldFrame {
-                        logical_step,
-                        frame: frame.clone(),
-                    });
+                    if self
+                        .push_trace_event_bounded(
+                            &mut events,
+                            &mut cumulative_trace_bytes,
+                            max_trace_bytes,
+                            logical_step,
+                            WasmTraceEvent::YieldFrame {
+                                logical_step,
+                                frame: frame.clone(),
+                            },
+                        )
+                        .is_err()
+                    {
+                        return Ok(self.build_trace(
+                            Some(session),
+                            fallback_limits,
+                            WasmExecutionResult {
+                                output: DcMstring::new(),
+                                frames,
+                                broke_out_early: true,
+                            },
+                            events,
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        ));
+                    }
                     frames.push(frame);
                     logical_step = logical_step.saturating_add(1);
                 }
@@ -665,39 +1106,77 @@ impl ExecutionContext {
                     let privilege = Privilege::from_request_dc(&req_dc);
                     let decision = self.request_permission(&privilege);
                     if decision == PermissionDecision::BreakOutResumeNext {
-                        events.push(WasmTraceEvent::CapabilityInteraction {
+                        let _ = self.push_trace_event_bounded(
+                            &mut events,
+                            &mut cumulative_trace_bytes,
+                            max_trace_bytes,
                             logical_step,
-                            privilege,
-                            request: req_dc,
-                            decision,
-                            response: DcMstring::new(),
-                        });
-                        return Ok(WasmExecutionTrace {
-                            result: WasmExecutionResult {
+                            WasmTraceEvent::CapabilityInteraction {
+                                logical_step,
+                                privilege,
+                                request: req_dc,
+                                decision,
+                                response: DcMstring::new(),
+                            },
+                        );
+                        return Ok(self.build_trace(
+                            Some(session),
+                            fallback_limits,
+                            WasmExecutionResult {
                                 output: DcMstring::new(),
                                 frames,
                                 broke_out_early: true,
                             },
                             events,
-                        });
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        ));
                     }
                     let response =
                         capability_handler(&privilege, decision, &req_dc)?;
-                    events.push(WasmTraceEvent::CapabilityInteraction {
-                        logical_step,
-                        privilege,
-                        request: req_dc,
-                        decision,
-                        response: response.clone(),
-                    });
+                    if self
+                        .push_trace_event_bounded(
+                            &mut events,
+                            &mut cumulative_trace_bytes,
+                            max_trace_bytes,
+                            logical_step,
+                            WasmTraceEvent::CapabilityInteraction {
+                                logical_step,
+                                privilege,
+                                request: req_dc,
+                                decision,
+                                response: response.clone(),
+                            },
+                        )
+                        .is_err()
+                    {
+                        return Ok(self.build_trace(
+                            Some(session),
+                            fallback_limits,
+                            WasmExecutionResult {
+                                output: DcMstring::new(),
+                                frames,
+                                broke_out_early: true,
+                            },
+                            events,
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        ));
+                    }
                     logical_step = logical_step.saturating_add(1);
-                    if let Err(err) = session.provide_input(&response) {
-                        return self.handle_resource_interruption(
+                    if let Err(err) =
+                        session.provide_capability_response(&response)
+                    {
+                        return Ok(self.handle_session_error_into_trace(
+                            Some(session),
+                            fallback_limits,
                             err,
                             logical_step,
                             frames,
                             events,
-                        );
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        ));
                     }
                 }
             }
@@ -708,7 +1187,7 @@ impl ExecutionContext {
     /// the full [`WasmExecutionTrace`].
     ///
     /// # Errors
-    /// Returns an error if the session traps or is denied by capability policy.
+    /// Returns an error if the capability handler fails.
     pub fn execute_wasm_session_default_with_trace(
         &mut self,
         session: &mut DcWasmSession,
@@ -724,30 +1203,65 @@ impl ExecutionContext {
     }
 
     /// Replays a [`DcWasmSession`] against a previously recorded [`WasmExecutionTrace`]:
+    /// - Verifies that the active accounting version and canonical resource configuration match.
     /// - Compares every capability request (`Privilege` and `DcMstring` request payload) emitted by
     ///   the document at each logical step, then supplies the recorded allow/deny/mock response.
     /// - Delivers recorded external resource interruptions at their recorded logical step boundary
     ///   (`after_logical_steps`) rather than relying on physical compiler instruction counts.
     ///
     /// # Errors
-    /// Returns an error if the document's capability requests, yielded frames, or completion
-    /// output diverge from `recorded_trace`, or if a recorded resource interruption decision was `Deny`.
+    /// Returns an error if the document's capability requests, yielded frames, completion
+    /// output, or trap/interruption behavior diverge from `recorded_trace`.
     pub fn replay_wasm_session_trace(
         &mut self,
         session: &mut DcWasmSession,
         input: &DcMstr,
         recorded_trace: &WasmExecutionTrace,
     ) -> Result<WasmExecutionTrace> {
+        ensure!(
+            recorded_trace.accounting_version
+                == WASM_RESOURCE_ACCOUNTING_VERSION,
+            "Replay accounting_version mismatch: recorded {}, runtime {}",
+            recorded_trace.accounting_version,
+            WASM_RESOURCE_ACCOUNTING_VERSION
+        );
+        if let Some(adm) = &self.supervisor_admission {
+            session.set_resource_limits(adm.compiled_limits);
+        }
+        let fallback_limits = DcWasmResourceLimits::decode_canonical_config_bytes(
+            &recorded_trace.effective_config_bytes,
+        )
+        .unwrap_or_else(|_| session.resource_limits()); // Reason: fallback to session's active limits only if a legacy/synthetic trace omitted canonical config bytes.
+        let max_trace_bytes = fallback_limits.max_trace_bytes;
         let mut frames = Vec::new();
         let mut events = Vec::new();
+        let mut cumulative_trace_bytes = 0usize;
+        let mut last_interrupted_op: Option<(u64, u64)> = None;
         let mut event_idx = 0usize;
-        let checked_trace = |trace: WasmExecutionTrace| -> Result<WasmExecutionTrace> {
-            ensure!(
-                &trace == recorded_trace,
-                "Replay terminated without matching the complete recorded trace and result"
-            );
-            Ok(trace)
-        };
+        let finalize_checked_trace =
+            |mut trace: WasmExecutionTrace| -> Result<WasmExecutionTrace> {
+                if trace.supervisor_revision_node_id.is_none()
+                    && recorded_trace.supervisor_revision_node_id.is_some()
+                {
+                    trace.supervisor_revision_node_id =
+                        recorded_trace.supervisor_revision_node_id;
+                    trace.dependency_snapshot_node_ids =
+                        recorded_trace.dependency_snapshot_node_ids.clone();
+                }
+                if trace.last_interrupted_op_ordinal.is_none()
+                    && recorded_trace.last_interrupted_op_ordinal.is_some()
+                {
+                    trace.last_interrupted_op_ordinal =
+                        recorded_trace.last_interrupted_op_ordinal;
+                    trace.last_interrupted_op_required_cost =
+                        recorded_trace.last_interrupted_op_required_cost;
+                }
+                ensure!(
+                    &trace == recorded_trace,
+                    "Replay terminated without matching the complete recorded trace and result"
+                );
+                Ok(trace)
+            };
 
         if let Some(WasmTraceEvent::ResourceInterruption {
             after_logical_steps: 0,
@@ -757,22 +1271,41 @@ impl ExecutionContext {
             && interruption.is_some()
             && *decision != PermissionDecision::Allow
         {
-            events.push(WasmTraceEvent::ResourceInterruption {
+            let ev = WasmTraceEvent::ResourceInterruption {
                 after_logical_steps: 0,
                 interruption: interruption.clone(),
                 decision: *decision,
-            });
-            return checked_trace(WasmExecutionTrace {
-                result: WasmExecutionResult {
+            };
+            cumulative_trace_bytes = cumulative_trace_bytes
+                .saturating_add(ev.estimated_trace_bytes());
+            events.push(ev);
+            return finalize_checked_trace(self.build_trace(
+                Some(session),
+                fallback_limits,
+                WasmExecutionResult {
                     output: DcMstring::new(),
                     frames,
                     broke_out_early: true,
                 },
                 events,
-            });
+                cumulative_trace_bytes,
+                last_interrupted_op,
+            ));
         }
 
-        session.provide_input(input)?;
+        if let Err(err) = session.provide_input(input) {
+            let trace = self.handle_session_error_into_trace(
+                Some(session),
+                fallback_limits,
+                err,
+                0,
+                frames,
+                events,
+                cumulative_trace_bytes,
+                last_interrupted_op,
+            );
+            return finalize_checked_trace(trace);
+        }
         let mut logical_step = 0usize;
 
         loop {
@@ -783,12 +1316,14 @@ impl ExecutionContext {
             }) = recorded_trace.events.get(event_idx)
                 && *after_logical_steps == logical_step
             {
-                // Deliver the recorded interruption at its recorded logical step boundary.
-                events.push(WasmTraceEvent::ResourceInterruption {
+                let ev = WasmTraceEvent::ResourceInterruption {
                     after_logical_steps: *after_logical_steps,
                     interruption: interruption.clone(),
                     decision: *decision,
-                });
+                };
+                cumulative_trace_bytes = cumulative_trace_bytes
+                    .saturating_add(ev.estimated_trace_bytes());
+                events.push(ev);
                 if *decision == PermissionDecision::Allow {
                     session.increase_compute_quota(
                         self.compute_quota_grant.max(1),
@@ -796,14 +1331,18 @@ impl ExecutionContext {
                     event_idx = event_idx.saturating_add(1);
                     continue;
                 }
-                return checked_trace(WasmExecutionTrace {
-                    result: WasmExecutionResult {
+                return finalize_checked_trace(self.build_trace(
+                    Some(session),
+                    fallback_limits,
+                    WasmExecutionResult {
                         output: DcMstring::new(),
                         frames,
                         broke_out_early: true,
                     },
                     events,
-                });
+                    cumulative_trace_bytes,
+                    last_interrupted_op,
+                ));
             }
 
             let expected_event =
@@ -814,11 +1353,28 @@ impl ExecutionContext {
                     )
                 })?;
 
-            let step_outcome = session.step().with_context(|| {
-                format!(
-                    "Replay failed during WASM step at logical step {logical_step}"
-                )
-            })?;
+            let step_outcome = match session.step() {
+                Ok(outcome) => outcome,
+                Err(err) => {
+                    if let (Some(ord), Some(cost)) = (
+                        session.last_interrupted_op_ordinal(),
+                        session.last_interrupted_op_required_cost(),
+                    ) {
+                        last_interrupted_op = Some((ord, cost));
+                    }
+                    let trace = self.handle_session_error_into_trace(
+                        Some(session),
+                        fallback_limits,
+                        err,
+                        logical_step,
+                        frames,
+                        events,
+                        cumulative_trace_bytes,
+                        last_interrupted_op,
+                    );
+                    return finalize_checked_trace(trace);
+                }
+            };
 
             match (step_outcome, expected_event) {
                 (
@@ -832,10 +1388,16 @@ impl ExecutionContext {
                         logical_step == *exp_step && &frame == exp_frame,
                         "Replay YieldFrame mismatch at logical step {logical_step}: expected frame {exp_frame:?}, got {frame:?}"
                     );
-                    events.push(WasmTraceEvent::YieldFrame {
+                    let _ = self.push_trace_event_bounded(
+                        &mut events,
+                        &mut cumulative_trace_bytes,
+                        max_trace_bytes,
                         logical_step,
-                        frame: frame.clone(),
-                    });
+                        WasmTraceEvent::YieldFrame {
+                            logical_step,
+                            frame: frame.clone(),
+                        },
+                    );
                     frames.push(frame);
                     logical_step = logical_step.saturating_add(1);
                     event_idx = event_idx.saturating_add(1);
@@ -857,26 +1419,50 @@ impl ExecutionContext {
                             && &req_dc == exp_req,
                         "Replay capability request mismatch at logical step {logical_step}: expected ({exp_priv:?}, {exp_req:?}), got ({privilege:?}, {req_dc:?})"
                     );
-                    events.push(WasmTraceEvent::CapabilityInteraction {
+                    let _ = self.push_trace_event_bounded(
+                        &mut events,
+                        &mut cumulative_trace_bytes,
+                        max_trace_bytes,
                         logical_step,
-                        privilege,
-                        request: req_dc,
-                        decision: *rec_decision,
-                        response: rec_response.clone(),
-                    });
+                        WasmTraceEvent::CapabilityInteraction {
+                            logical_step,
+                            privilege,
+                            request: req_dc,
+                            decision: *rec_decision,
+                            response: rec_response.clone(),
+                        },
+                    );
                     if *rec_decision == PermissionDecision::BreakOutResumeNext {
-                        return checked_trace(WasmExecutionTrace {
-                            result: WasmExecutionResult {
+                        return finalize_checked_trace(self.build_trace(
+                            Some(session),
+                            fallback_limits,
+                            WasmExecutionResult {
                                 output: DcMstring::new(),
                                 frames,
                                 broke_out_early: true,
                             },
                             events,
-                        });
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        ));
                     }
                     logical_step = logical_step.saturating_add(1);
                     event_idx = event_idx.saturating_add(1);
-                    session.provide_input(rec_response)?;
+                    if let Err(err) =
+                        session.provide_capability_response(rec_response)
+                    {
+                        let trace = self.handle_session_error_into_trace(
+                            Some(session),
+                            fallback_limits,
+                            err,
+                            logical_step,
+                            frames,
+                            events,
+                            cumulative_trace_bytes,
+                            last_interrupted_op,
+                        );
+                        return finalize_checked_trace(trace);
+                    }
                 }
                 (
                     WasmStepOutcome::Complete(output),
@@ -889,18 +1475,28 @@ impl ExecutionContext {
                         logical_step == *exp_step && &output == exp_output,
                         "Replay Complete output mismatch at logical step {logical_step}: expected {exp_output:?}, got {output:?}"
                     );
-                    events.push(WasmTraceEvent::Complete {
+                    let _ = self.push_trace_event_bounded(
+                        &mut events,
+                        &mut cumulative_trace_bytes,
+                        max_trace_bytes,
                         logical_step,
-                        output: output.clone(),
-                    });
-                    return checked_trace(WasmExecutionTrace {
-                        result: WasmExecutionResult {
+                        WasmTraceEvent::Complete {
+                            logical_step,
+                            output: output.clone(),
+                        },
+                    );
+                    return finalize_checked_trace(self.build_trace(
+                        Some(session),
+                        fallback_limits,
+                        WasmExecutionResult {
                             output,
                             frames,
                             broke_out_early: false,
                         },
                         events,
-                    });
+                        cumulative_trace_bytes,
+                        last_interrupted_op,
+                    ));
                 }
                 (actual, expected) => {
                     bail!(
@@ -960,7 +1556,7 @@ impl ExecutionContext {
     /// [`WasmExecutionTrace`].
     ///
     /// # Errors
-    /// Returns an error if the module fails to parse or traps with a non-resource error.
+    /// Returns an error if the module fails to parse or if `capability_handler` fails.
     pub fn execute_wasm_bytes_with_trace<F>(
         &mut self,
         wasm_bytes: &[u8],
@@ -972,7 +1568,9 @@ impl ExecutionContext {
     where
         F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
     {
+        let initial_limits = resource_limits;
         let mut pre_events = Vec::new();
+        let mut pre_bytes = 0usize;
         let mut session = loop {
             match DcWasmSession::from_wasm_bytes_with_limits(
                 wasm_bytes,
@@ -990,7 +1588,7 @@ impl ExecutionContext {
                     {
                         let decision = self
                             .request_permission(&Privilege::ExcessiveCompute);
-                        pre_events.push(WasmTraceEvent::ResourceInterruption {
+                        let ev = WasmTraceEvent::ResourceInterruption {
                             after_logical_steps: 0,
                             interruption: Some(
                                 WasmResourceInterruption::ComputeQuotaExhausted {
@@ -998,7 +1596,10 @@ impl ExecutionContext {
                                 },
                             ),
                             decision,
-                        });
+                        };
+                        pre_bytes = pre_bytes
+                            .saturating_add(ev.estimated_trace_bytes());
+                        pre_events.push(ev);
                         if decision == PermissionDecision::Allow {
                             resource_limits.max_instructions_per_step =
                                 resource_limits
@@ -1008,21 +1609,33 @@ impl ExecutionContext {
                                     );
                             continue;
                         }
-                        return Ok(WasmExecutionTrace {
-                            result: WasmExecutionResult {
+                        return Ok(self.build_trace(
+                            None,
+                            initial_limits,
+                            WasmExecutionResult {
                                 output: DcMstring::new(),
                                 frames: Vec::new(),
                                 broke_out_early: true,
                             },
-                            events: pre_events,
-                        });
+                            pre_events,
+                            pre_bytes,
+                            None,
+                        ));
                     }
-                    return self.handle_resource_interruption(
-                        err,
-                        0,
-                        Vec::new(),
-                        pre_events,
-                    );
+                    if err.downcast_ref::<WasmResourceInterruption>().is_some()
+                    {
+                        return Ok(self.handle_session_error_into_trace(
+                            None,
+                            initial_limits,
+                            err,
+                            0,
+                            Vec::new(),
+                            pre_events,
+                            pre_bytes,
+                            None,
+                        ));
+                    }
+                    return Err(err);
                 }
             }
         };
@@ -1032,8 +1645,12 @@ impl ExecutionContext {
             capability_handler,
         )?;
         if !pre_events.is_empty() {
+            trace.cumulative_trace_bytes =
+                pre_bytes.saturating_add(trace.cumulative_trace_bytes);
             pre_events.extend(trace.events);
             trace.events = pre_events;
+            trace.effective_config_bytes =
+                initial_limits.encode_canonical_config_bytes();
         }
         Ok(trace)
     }
@@ -1051,6 +1668,7 @@ impl ExecutionContext {
         mut resource_limits: ctb_formats_dcstring::DcWasmResourceLimits,
         recorded_trace: &WasmExecutionTrace,
     ) -> Result<WasmExecutionTrace> {
+        let initial_limits = resource_limits;
         if let Some(WasmTraceEvent::ResourceInterruption {
             after_logical_steps: 0,
             interruption,
@@ -1058,18 +1676,32 @@ impl ExecutionContext {
         }) = recorded_trace.events.first()
             && recorded_trace.events.len() == 1
         {
-            let trace = WasmExecutionTrace {
-                result: WasmExecutionResult {
+            let ev = WasmTraceEvent::ResourceInterruption {
+                after_logical_steps: 0,
+                interruption: interruption.clone(),
+                decision: *decision,
+            };
+            let ev_bytes = ev.estimated_trace_bytes();
+            let mut trace = self.build_trace(
+                None,
+                initial_limits,
+                WasmExecutionResult {
                     output: DcMstring::new(),
                     frames: Vec::new(),
                     broke_out_early: true,
                 },
-                events: vec![WasmTraceEvent::ResourceInterruption {
-                    after_logical_steps: 0,
-                    interruption: interruption.clone(),
-                    decision: *decision,
-                }],
-            };
+                vec![ev],
+                ev_bytes,
+                None,
+            );
+            if trace.last_interrupted_op_ordinal.is_none()
+                && recorded_trace.last_interrupted_op_ordinal.is_some()
+            {
+                trace.last_interrupted_op_ordinal =
+                    recorded_trace.last_interrupted_op_ordinal;
+                trace.last_interrupted_op_required_cost =
+                    recorded_trace.last_interrupted_op_required_cost;
+            }
             ensure!(
                 &trace == recorded_trace,
                 "Replay terminated without matching the complete recorded trace and result"
@@ -1903,6 +2535,245 @@ mod tests {
             &resumed_trace,
         )?;
         assert_eq!(replayed_resumed, resumed_trace);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_supervisor_admission_trace_metadata_non_resource_trap_and_budgets()
+    -> Result<()> {
+        use ctb_formats_dcstring::{DcMixedEncode, LedgerNode};
+
+        let sup_dc = DcChar::from_short(999);
+        let sh_sup = DcShorthand::from_global_id(sup_dc.to_u128());
+        let base_id: u128 = 8_589_934_592;
+        let sup_def_id = base_id;
+        let sup_has_a_id = base_id + 1;
+        let sup_has_val_id = base_id + 2;
+        let prov_has_a_id = base_id + 3;
+        let prov_has_val_id = base_id + 4;
+        let bundled_nodes = vec![
+            LedgerNode {
+                id: sup_def_id,
+                tokens: vec![
+                    DcShorthand::Short(1927),
+                    DcShorthand::Short(1928),
+                ],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_has_a_id,
+                tokens: vec![
+                    DcShorthand::Short(584),
+                    sh_sup,
+                    DcShorthand::Short(611),
+                ],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_has_val_id,
+                tokens: vec![
+                    DcShorthand::Short(610),
+                    DcShorthand::Long(sup_has_a_id),
+                    DcShorthand::Long(sup_def_id),
+                ],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: prov_has_a_id,
+                tokens: vec![
+                    DcShorthand::Short(638),
+                    DcShorthand::Short(584),
+                    DcShorthand::Short(639),
+                    DcShorthand::Short(635),
+                    DcShorthand::Short(310),
+                    DcShorthand::Short(640),
+                    DcShorthand::Long(sup_def_id),
+                    DcShorthand::Short(312),
+                    DcShorthand::Long(sup_has_a_id),
+                    DcShorthand::Short(312),
+                    DcShorthand::Long(sup_has_val_id),
+                    DcShorthand::Short(311),
+                ],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: prov_has_val_id,
+                tokens: vec![
+                    DcShorthand::Short(610),
+                    DcShorthand::Long(prov_has_a_id),
+                    DcShorthand::Short(636),
+                ],
+                comment: String::new(),
+            },
+        ];
+        let seed_graph = SeedGraphIndex::from_bundled_nodes(bundled_nodes);
+
+        // 1. Ordinary user document cannot elevate to System supervisor authority.
+        assert!(
+            SystemSupervisorAdmission::verify_ordinary_document_cannot_elevate(
+                &[
+                    DcShorthand::from_global_id(
+                        dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID
+                            .to_u128()
+                    ),
+                    DcShorthand::Long(prov_has_val_id),
+                    sh_sup,
+                ],
+                sup_dc,
+            )
+            .is_err()
+        );
+        assert!(
+            SystemSupervisorAdmission::verify_ordinary_document_cannot_elevate(
+                &[sh_sup, DcShorthand::Short(517)],
+                sup_dc,
+            )
+            .is_err()
+        );
+
+        // 2. Trusted System supervisor admission compiles local limits clamped by watchdog bounds
+        //    and records supervisor revision + dependency snapshot + canonical config in traces.
+        let user_limits = DcWasmResourceLimits::default()
+            .with_max_instructions_per_step(5_000)
+            .with_max_capability_payload_bytes(8)
+            .with_max_trace_bytes(512);
+        let watchdog = DcWasmWatchdogLimits {
+            hard_max_instructions_per_step: 1_000,
+            ..DcWasmWatchdogLimits::default()
+        };
+        let mut ctx = ExecutionContext::new(false);
+        let adm = ctx
+            .admit_system_supervisor(
+                &seed_graph,
+                &[sh_sup],
+                user_limits,
+                watchdog,
+            )?
+            .clone();
+        assert_eq!(adm.supervisor_revision_node_id, sup_def_id);
+        assert_eq!(adm.dependency_snapshot_node_ids, vec![sup_def_id]);
+        assert_eq!(adm.compiled_limits.max_instructions_per_step, 1_000);
+
+        // Build a module that yields a frame on step 0, then traps with `unreachable` (Dc 648) on step 1.
+        let i32_dc =
+            DcChar::from_u128(crate::FormatId::I32.dc_id().unwrap());
+        let mut trap_after_frame_doc = DcMstring::new();
+        trap_after_frame_doc.push_char(DcChar::from_short(260));
+        trap_after_frame_doc.push_char(DcChar::from_short(262));
+        trap_after_frame_doc.push_char(DcChar::from_short(280));
+        trap_after_frame_doc.push_char(i32_dc);
+        trap_after_frame_doc.push_char(DcChar::from_short(263));
+        // Copy input (0..8) to output (8..16)
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&2, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&2, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&2, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&2, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        // Check mem[64]: if 0 -> set mem[64]=1 and return 1 (YieldFrame); else -> unreachable (Dc 648)
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&2, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(716)); // i32.eqz
+        trap_after_frame_doc.push_char(DcChar::from_short(651)); // if (result i32)
+        trap_after_frame_doc.push_char(i32_dc);
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&2, &mut trap_after_frame_doc)?;
+        u32::encode_dc_mixed(&0, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut trap_after_frame_doc)?;
+        trap_after_frame_doc.push_char(DcChar::from_short(652)); // else
+        trap_after_frame_doc.push_char(DcChar::from_short(647)); // unreachable (Dc 647 = 0x00)
+        trap_after_frame_doc.push_char(DcChar::from_short(658)); // end if
+        trap_after_frame_doc.push_char(DcChar::from_short(261));
+
+        let mut input = DcMstring::new();
+        input.push_char(dc::DC_BOOLEAN_TRUE);
+
+        // 3. NonResourceTrap preserves the yielded frame at step 0 in `WasmExecutionTrace`,
+        //    fails `ensure_not_denied()`, and replays deterministically.
+        let mut trap_session =
+            DcWasmSession::from_dc_wasm(&trap_after_frame_doc, &input, None)?;
+        let trap_trace = ctx
+            .execute_wasm_session_default_with_trace(&mut trap_session, &input)?;
+        assert_eq!(trap_trace.supervisor_revision_node_id, Some(sup_def_id));
+        assert_eq!(trap_trace.dependency_snapshot_node_ids, vec![sup_def_id]);
+        assert_eq!(
+            trap_trace.accounting_version,
+            WASM_RESOURCE_ACCOUNTING_VERSION
+        );
+        assert_eq!(
+            trap_trace.effective_config_bytes,
+            adm.effective_config_bytes
+        );
+        assert_eq!(trap_trace.result.frames, vec![input.clone()]);
+        assert!(trap_trace.non_resource_trap().is_some());
+        assert!(trap_trace.ensure_not_denied().is_err());
+
+        let mut replay_trap_session =
+            DcWasmSession::from_dc_wasm(&trap_after_frame_doc, &input, None)?;
+        let mut replay_ctx =
+            ExecutionContext::new(false).with_system_supervisor_admission(adm);
+        let replayed_trap = replay_ctx.replay_wasm_session_trace(
+            &mut replay_trap_session,
+            &input,
+            &trap_trace,
+        )?;
+        assert_eq!(replayed_trap, trap_trace);
+
+        // 4. TraceBufferBudgetExceeded triggers when `max_trace_bytes` is smaller than the first YieldFrame event.
+        let tiny_trace_limits =
+            DcWasmResourceLimits::default().with_max_trace_bytes(8);
+        let mut tiny_trace_session =
+            DcWasmSession::from_dc_wasm(&trap_after_frame_doc, &input, None)?
+                .with_resource_limits(tiny_trace_limits);
+        let mut tiny_ctx = ExecutionContext::new(false).with_privilege_decision(
+            Privilege::ExcessiveCompute,
+            PermissionDecision::Deny,
+        );
+        let tiny_trace = tiny_ctx.execute_wasm_session_default_with_trace(
+            &mut tiny_trace_session,
+            &input,
+        )?;
+        assert!(matches!(
+            tiny_trace.events.last(),
+            Some(WasmTraceEvent::ResourceInterruption {
+                after_logical_steps: 0,
+                interruption: Some(
+                    WasmResourceInterruption::TraceBufferBudgetExceeded {
+                        max_trace_bytes: 8,
+                        ..
+                    }
+                ),
+                decision: PermissionDecision::Deny,
+            })
+        ));
         Ok(())
     }
 }
