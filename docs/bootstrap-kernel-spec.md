@@ -239,8 +239,22 @@ or `TableLimitExceeded` rather than returning a guest-visible `-1`). Output quot
 likewise follow a specified deduction and delivery order.
 
 The intended owner of logical budget policy is the privileged System document.
-The workspace hardcodes its bootstrap entry document: exactly one short Dc,
-with no graph pin. On workspace startup, that entry resolves to the latest
+Two unpinned 1-Short-Dc bootstrap entry documents are allocated in the
+`.Semantic` script block (`0x110790..0x11088F` in
+[README.dc-blocks.csv](../src/formats/dcdata/data-src/README.dc-blocks.csv)):
+- **`Dc 1936` (`"Dc document execution kernel"`, `DC_DC_DOCUMENT_EXECUTION_KERNEL`)**:
+  the standalone 1-Short-Dc execution supervisor for evaluating, converting, and
+  metering Dc documents without starting the full workspace
+  (`SystemSupervisorAdmission::admit_execution_kernel*` and
+  `ExecutionContext::new_execution_kernel`).
+- **`Dc 1937` (`"Collective Toolbox Workspace"`, `DC_COLLECTIVE_TOOLBOX_WORKSPACE`)**:
+  the top-level 1-Short-Dc workspace bootstrap entry document for the full
+  Collective Toolbox workspace application, declaring `Dc 588` (`"Is based on"`)
+  `Dc 1936` (`"Dc document execution kernel"`)
+  (`SystemSupervisorAdmission::admit_workspace_supervisor*` and
+  `ExecutionContext::new_workspace_supervisor`).
+
+On startup, that unpinned 1-Short-Dc entry resolves to the latest
 trusted System-block definition associated with the short Dc and runs it as
 the top-level supervisor. The application-bundled System graph is the trusted
 base; Wikidata and other additional data resources are not bootstrap authority.
@@ -308,7 +322,9 @@ capture. Optional `scripts/test-wasm-compat` compares instrumented quota
 boundaries, traps (`i32.div_s` divide-by-zero and overflow), table growth and
 `call_indirect`, numeric edge cases (`i64.rotl`, `i32.trunc_sat_f64_s`), and
 resumed completion with V8/Node `WebAssembly`; it is not part of normal tests or
-CI. Remaining work for the full supervisor architecture is allocating the
-production Short Dc for the top-level 1-Short-Dc System supervisor document and
-authoring its self-hosted Dc-WASM supervisor definition and graph-backed user
-configuration schema in the System graph.
+CI. The production Short Dc entries (`Dc 1936` `"Dc document execution kernel"`
+and `Dc 1937` `"Collective Toolbox Workspace"`) and their bundled `.WASM`
+supervisor validation definitions are emitted in the System graph and wired into
+[`SystemSupervisorAdmission`](../src/runtime/runtime.rs); migrating the full
+`__ctb_*` bytecode transformation pass and operation cost table out of host Rust
+(`wasm_quota.rs`) into self-hosted `.WASM` remains future work.

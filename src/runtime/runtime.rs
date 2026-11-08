@@ -178,6 +178,130 @@ pub struct SystemSupervisorAdmission {
 }
 
 impl SystemSupervisorAdmission {
+    /// Canonical unpinned 1-Short-Dc bootstrap entry for the standalone Dc document execution
+    /// kernel (`Dc 1936` `"Dc document execution kernel"`).
+    pub const EXECUTION_KERNEL_ENTRY_DC: DcChar =
+        dc::DC_DC_DOCUMENT_EXECUTION_KERNEL;
+
+    /// Canonical unpinned 1-Short-Dc bootstrap entry for the full Collective Toolbox workspace
+    /// supervisor (`Dc 1937` `"Collective Toolbox Workspace"`).
+    pub const WORKSPACE_SUPERVISOR_ENTRY_DC: DcChar =
+        dc::DC_COLLECTIVE_TOOLBOX_WORKSPACE;
+
+    /// Resolves and authenticates the standalone execution kernel (`Dc 1936`
+    /// `"Dc document execution kernel"`) from the application-bundled System graph
+    /// (`SeedGraphIndex::shared()`), validates `user_limits` through the supervisor Dc-WASM
+    /// definition, and clamps emergency host `watchdog` bounds.
+    ///
+    /// # Errors
+    /// Returns an error if loading the bundled System graph fails or `user_limits` is rejected.
+    pub fn admit_execution_kernel(
+        user_limits: DcWasmResourceLimits,
+        watchdog: DcWasmWatchdogLimits,
+    ) -> Result<Self> {
+        let seed_graph = SeedGraphIndex::shared()?;
+        let entry = DcShorthand::from_global_id(
+            Self::EXECUTION_KERNEL_ENTRY_DC.to_u128(),
+        );
+        Self::admit_from_bootstrap_tokens(
+            seed_graph,
+            &[entry],
+            user_limits,
+            watchdog,
+        )
+    }
+
+    /// Resolves and authenticates the standalone execution kernel (`Dc 1936`
+    /// `"Dc document execution kernel"`) from the application-bundled System graph with default
+    /// resource and watchdog limits.
+    ///
+    /// # Errors
+    /// Returns an error if loading or authenticating the bundled System supervisor fails.
+    pub fn admit_execution_kernel_default() -> Result<Self> {
+        Self::admit_execution_kernel(
+            DcWasmResourceLimits::default(),
+            DcWasmWatchdogLimits::default(),
+        )
+    }
+
+    /// Resolves and validates a graph-backed user quota configuration node (`user_config_node_id`)
+    /// through the standalone execution kernel (`Dc 1936` `"Dc document execution kernel"`).
+    ///
+    /// # Errors
+    /// Returns an error if the supervisor or configuration node cannot be resolved or validated.
+    pub fn admit_execution_kernel_from_graph_config(
+        seed_graph: &SeedGraphIndex,
+        user_config_node_id: u128,
+        watchdog: DcWasmWatchdogLimits,
+    ) -> Result<Self> {
+        let entry = DcShorthand::from_global_id(
+            Self::EXECUTION_KERNEL_ENTRY_DC.to_u128(),
+        );
+        Self::admit_from_graph_config_node(
+            seed_graph,
+            &[entry],
+            user_config_node_id,
+            watchdog,
+        )
+    }
+
+    /// Resolves and authenticates the full workspace supervisor (`Dc 1937`
+    /// `"Collective Toolbox Workspace"`) from the application-bundled System graph
+    /// (`SeedGraphIndex::shared()`), validates `user_limits` through the supervisor Dc-WASM
+    /// definition, and clamps emergency host `watchdog` bounds.
+    ///
+    /// # Errors
+    /// Returns an error if loading the bundled System graph fails or `user_limits` is rejected.
+    pub fn admit_workspace_supervisor(
+        user_limits: DcWasmResourceLimits,
+        watchdog: DcWasmWatchdogLimits,
+    ) -> Result<Self> {
+        let seed_graph = SeedGraphIndex::shared()?;
+        let entry = DcShorthand::from_global_id(
+            Self::WORKSPACE_SUPERVISOR_ENTRY_DC.to_u128(),
+        );
+        Self::admit_from_bootstrap_tokens(
+            seed_graph,
+            &[entry],
+            user_limits,
+            watchdog,
+        )
+    }
+
+    /// Resolves and authenticates the full workspace supervisor (`Dc 1937`
+    /// `"Collective Toolbox Workspace"`) from the application-bundled System graph with default
+    /// resource and watchdog limits.
+    ///
+    /// # Errors
+    /// Returns an error if loading or authenticating the bundled System supervisor fails.
+    pub fn admit_workspace_supervisor_default() -> Result<Self> {
+        Self::admit_workspace_supervisor(
+            DcWasmResourceLimits::default(),
+            DcWasmWatchdogLimits::default(),
+        )
+    }
+
+    /// Resolves and validates a graph-backed user quota configuration node (`user_config_node_id`)
+    /// through the full workspace supervisor (`Dc 1937` `"Collective Toolbox Workspace"`).
+    ///
+    /// # Errors
+    /// Returns an error if the supervisor or configuration node cannot be resolved or validated.
+    pub fn admit_workspace_supervisor_from_graph_config(
+        seed_graph: &SeedGraphIndex,
+        user_config_node_id: u128,
+        watchdog: DcWasmWatchdogLimits,
+    ) -> Result<Self> {
+        let entry = DcShorthand::from_global_id(
+            Self::WORKSPACE_SUPERVISOR_ENTRY_DC.to_u128(),
+        );
+        Self::admit_from_graph_config_node(
+            seed_graph,
+            &[entry],
+            user_config_node_id,
+            watchdog,
+        )
+    }
+
     /// Resolves and authenticates the unpinned 1-Short-Dc System supervisor bootstrap document
     /// from `seed_graph`, validates `user_limits` (executing the System supervisor Dc-WASM
     /// definition when non-empty), clamps emergency host `watchdog` bounds,
@@ -723,6 +847,28 @@ impl ExecutionContext {
             privilege_overrides: HashMap::new(),
             supervisor_admission: None,
         }
+    }
+
+    /// Creates a new execution context authenticated against the bundled standalone execution
+    /// kernel (`Dc 1936` `"Dc document execution kernel"`).
+    ///
+    /// # Errors
+    /// Returns an error if loading or authenticating the bundled System execution kernel fails.
+    pub fn new_execution_kernel(has_errors: bool) -> Result<Self> {
+        let admission =
+            SystemSupervisorAdmission::admit_execution_kernel_default()?;
+        Ok(Self::new(has_errors).with_system_supervisor_admission(admission))
+    }
+
+    /// Creates a new execution context authenticated against the bundled workspace supervisor
+    /// (`Dc 1937` `"Collective Toolbox Workspace"`).
+    ///
+    /// # Errors
+    /// Returns an error if loading or authenticating the bundled workspace supervisor fails.
+    pub fn new_workspace_supervisor(has_errors: bool) -> Result<Self> {
+        let admission =
+            SystemSupervisorAdmission::admit_workspace_supervisor_default()?;
+        Ok(Self::new(has_errors).with_system_supervisor_admission(admission))
     }
 
     /// Builder-style method attaching an authenticated [`SystemSupervisorAdmission`] to this
@@ -3488,6 +3634,38 @@ mod tests {
                     sup_dc,
                 )
                 .is_err()
+        );
+
+        // 6. Production bundled System supervisor entries `Dc 1936 "Dc document execution kernel"`
+        //    and `Dc 1937 "Collective Toolbox Workspace"` resolve directly from `SeedGraphIndex::shared()`,
+        //    execute their bundled `.WASM` supervisor definitions, and record `Dc 1937`'s dependency
+        //    on `Dc 1936` in `dependency_snapshot_node_ids`.
+        let prod_kernel_adm =
+            SystemSupervisorAdmission::admit_execution_kernel_default()?;
+        assert_eq!(
+            prod_kernel_adm.entry_dc,
+            dc::DC_DC_DOCUMENT_EXECUTION_KERNEL
+        );
+        let prod_workspace_adm =
+            SystemSupervisorAdmission::admit_workspace_supervisor_default()?;
+        assert_eq!(
+            prod_workspace_adm.entry_dc,
+            dc::DC_COLLECTIVE_TOOLBOX_WORKSPACE
+        );
+        assert_eq!(
+            prod_kernel_adm.supervisor_revision_node_id,
+            prod_workspace_adm.supervisor_revision_node_id
+        );
+        let mut kernel_ctx = ExecutionContext::new_execution_kernel(false)?;
+        let mut prod_session =
+            DcWasmSession::from_dc_wasm(&trap_after_frame_doc, &input, None)?;
+        let prod_trace = kernel_ctx.execute_wasm_session_default_with_trace(
+            &mut prod_session,
+            &input,
+        )?;
+        assert_eq!(
+            prod_trace.supervisor_revision_node_id,
+            Some(prod_kernel_adm.supervisor_revision_node_id)
         );
         Ok(())
     }
