@@ -164,6 +164,13 @@ these parser/resolver tests do not establish the full compatibility guarantee.
   completed with baseline warnings; documentation links and whitespace passed.
 - **Verification Limits**: other platforms and the end-to-end event/pixel
   replay guarantee remain unverified.
+- **Failed Broader Check**: the prescribed development-binary character-name
+  lookup triggered a release build, blocked by six unrelated `E0277` slice/array
+  `Option` comparisons in
+  [container.rs](../src/formats/detection/container.rs) and
+  [droid.rs](../src/formats/detection/droid.rs). Consequently that CLI lookup
+  did not run. The historical delimiter names/pairing below were verified from
+  the archived CSV and actual converter usage; no detection code was changed.
 
 #### Existing Dc Semantics: Evidence and Regression Requirements
 
