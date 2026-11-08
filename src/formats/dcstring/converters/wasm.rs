@@ -1754,14 +1754,61 @@ impl DcWasmSession {
         most_recent_node_id: Option<u128>,
         resource_limits: DcWasmResourceLimits,
     ) -> Result<Self> {
-        let module = Module::parse_bytes(wasm_bytes).map_err(|e| {
-            anyhow!("Failed to parse WebAssembly module in tinywasm: {e:?}")
-        })?;
+        let parsed = ctb_formats_dcdata::tinywasm::parser::Parser::new()
+            .parse_module_bytes(wasm_bytes)
+            .map_err(|error| {
+                anyhow!("Failed to parse WebAssembly module in tinywasm: {error:?}")
+            })?;
+        ensure!(
+            parsed.imports.is_empty(),
+            "WebAssembly host imports are not supported"
+        );
+        ensure!(
+            parsed.memory_types.iter().all(|memory| {
+                memory.arch == ctb_formats_dcdata::tinywasm::types::MemoryArch::I32
+            }),
+            "WebAssembly memory64 is not supported"
+        );
+        let requested_pages = parsed.memory_types.iter().try_fold(
+            0usize,
+            |total, memory| -> Result<usize> {
+                total.checked_add(usize::try_from(memory.page_count_initial)?)
+                    .context("Initial WASM memory page count overflow")
+            },
+        )?;
+        if requested_pages > resource_limits.max_memory_pages {
+            return Err(anyhow::Error::new(
+                WasmResourceInterruption::MemoryLimitExceeded {
+                    requested_pages,
+                    max_pages: resource_limits.max_memory_pages,
+                },
+            ));
+        }
+        let requested_elements = parsed.table_types.iter().try_fold(
+            0usize,
+            |total, table| -> Result<usize> {
+                total.checked_add(usize::try_from(table.size_initial)?)
+                    .context("Initial WASM table element count overflow")
+            },
+        )?;
+        if requested_elements > resource_limits.max_table_elements {
+            return Err(anyhow::Error::new(
+                WasmResourceInterruption::TableLimitExceeded {
+                    requested_elements,
+                    max_elements: resource_limits.max_table_elements,
+                },
+            ));
+        }
+        let module = Module::from(parsed);
         let mut store = Store::default();
         store.set_max_memory_pages(Some(resource_limits.max_memory_pages));
         store.set_max_table_elements(Some(resource_limits.max_table_elements));
         store.set_fuel(Some(resource_limits.max_instructions_per_step));
-        let instance = match module.instantiate(&mut store, None) {
+        let instance = match ctb_formats_dcdata::tinywasm::ModuleInstance::instantiate(
+            &mut store,
+            module,
+            None,
+        ) {
             Ok(inst) => inst,
             Err(ctb_formats_dcdata::tinywasm::Error::Trap(
                 ctb_formats_dcdata::tinywasm::Trap::InstructionFuelExhausted,
@@ -1769,30 +1816,6 @@ impl DcWasmSession {
                 return Err(anyhow::Error::new(
                     WasmResourceInterruption::InstructionFuelExhausted {
                         limit: resource_limits.max_instructions_per_step,
-                    },
-                ));
-            }
-            Err(ctb_formats_dcdata::tinywasm::Error::Other(msg))
-                if msg.contains("initial memory page count") =>
-            {
-                return Err(anyhow::Error::new(
-                    WasmResourceInterruption::MemoryLimitExceeded {
-                        requested_pages: resource_limits
-                            .max_memory_pages
-                            .saturating_add(1),
-                        max_pages: resource_limits.max_memory_pages,
-                    },
-                ));
-            }
-            Err(ctb_formats_dcdata::tinywasm::Error::Other(msg))
-                if msg.contains("initial table element count") =>
-            {
-                return Err(anyhow::Error::new(
-                    WasmResourceInterruption::TableLimitExceeded {
-                        requested_elements: resource_limits
-                            .max_table_elements
-                            .saturating_add(1),
-                        max_elements: resource_limits.max_table_elements,
                     },
                 ));
             }
@@ -3438,6 +3461,41 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_gate2_wasm_start_section_runs_once_without_export_conventions()
+    -> Result<()> {
+        for has_start in [false, true] {
+            let mut wasm = vec![
+                0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+                0x01, 0x08, 0x02, 0x60, 0x00, 0x00, 0x60, 0x00, 0x01, 0x7f,
+                0x03, 0x03, 0x02, 0x00, 0x01,
+                0x05, 0x03, 0x01, 0x00, 0x01,
+                0x06, 0x06, 0x01, 0x7f, 0x01, 0x41, 0x00, 0x0b,
+                0x07, 0x1a, 0x03,
+                0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+                0x04, b'm', b'a', b'i', b'n', 0x00, 0x01,
+                0x06, b'_', b's', b't', b'a', b'r', b't', 0x00, 0x00,
+            ];
+            if has_start {
+                wasm.extend_from_slice(&[0x08, 0x01, 0x00]);
+            }
+            wasm.extend_from_slice(&[
+                0x0a, 0x19, 0x02,
+                0x09, 0x00, 0x23, 0x00, 0x41, 0x01, 0x6a, 0x24, 0x00, 0x0b,
+                0x0d, 0x00, 0x23, 0x00, 0x41,
+            ]);
+            wasm.push(u8::from(has_start));
+            wasm.extend_from_slice(&[
+                0x47, 0x04, 0x40, 0x00, 0x0b, 0x41, 0x00, 0x0b,
+            ]);
+            let mut session = DcWasmSession::from_wasm_bytes(
+                &wasm, &DcMstring::new(), None,
+            )?;
+            assert!(matches!(session.step()?, WasmStepOutcome::Complete(_)));
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_gate2_wasm_memory_page_cap_on_provide_input_and_memory_grow()
     -> Result<()> {
         let i32_dc = i32_type_dc();
@@ -3815,7 +3873,7 @@ mod tests {
         assert_eq!(
             init_err.downcast_ref::<WasmResourceInterruption>(),
             Some(&WasmResourceInterruption::TableLimitExceeded {
-                requested_elements: 5,
+                requested_elements: 8,
                 max_elements: 4,
             })
         );
@@ -3856,13 +3914,13 @@ mod tests {
             DcWasmResourceLimits::default().with_max_memory_pages(1),
         )
         .expect_err("2 memories of 1 page each must exceed store cap of 1 page");
-        assert!(matches!(
+        assert_eq!(
             mem_init_err.downcast_ref::<WasmResourceInterruption>(),
-            Some(WasmResourceInterruption::MemoryLimitExceeded {
+            Some(&WasmResourceInterruption::MemoryLimitExceeded {
+                requested_pages: 2,
                 max_pages: 1,
-                ..
             })
-        ));
+        );
 
         let mut two_mem_session = DcWasmSession::from_wasm_bytes_with_limits(
             &wasm_two_memories,
