@@ -746,7 +746,7 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
             {
                 // Special check for WebP: offset 8..12 must be b"WEBP"
                 if sig.mime == "image/webp" {
-                    if bof_sample.get(8..12) != Some(b"WEBP") {
+                    if bof_sample.get(8..12) != Some(b"WEBP".as_slice()) {
                         offset = offset.saturating_add(1);
                         continue;
                     }
@@ -1850,7 +1850,7 @@ pub fn parse_zip_central_directory<S: DetectionSource + ?Sized>(
     let len = eof_buf.len();
     let mut i = len.saturating_sub(22);
     loop {
-        if eof_buf.get(i..i.saturating_add(4)) == Some(&ZIP_EOCD_MAGIC) {
+        if eof_buf.get(i..i.saturating_add(4)) == Some(ZIP_EOCD_MAGIC.as_slice()) {
             eocd_pos = Some(i);
             break;
         }
@@ -1908,7 +1908,7 @@ pub fn parse_zip_central_directory<S: DetectionSource + ?Sized>(
         && entries.len() < max_entries
     {
         if cd_sample.get(cd_pos..cd_pos.saturating_add(4))
-            != Some(&ZIP_CENTRAL_HEADER_MAGIC)
+            != Some(ZIP_CENTRAL_HEADER_MAGIC.as_slice())
         {
             break;
         }
@@ -1990,7 +1990,7 @@ pub fn scan_zip_local_headers<S: DetectionSource + ?Sized>(
             Some(h) => h,
             None => break,
         };
-        if header.get(..4) == Some(&ZIP_LOCAL_HEADER_MAGIC) {
+        if header.get(..4) == Some(ZIP_LOCAL_HEADER_MAGIC.as_slice()) {
             let method = match header.get(8..10) {
                 Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
                 _ => break,
@@ -2046,7 +2046,7 @@ pub fn read_zip_entry_payload<S: DetectionSource + ?Sized>(
     let local_off = u64::from(entry.local_header_offset);
     let mut header = [0u8; 30];
     let n = source.read_at(local_off, &mut header)?;
-    if n < 30 || header.get(..4) != Some(&ZIP_LOCAL_HEADER_MAGIC) {
+    if n < 30 || header.get(..4) != Some(ZIP_LOCAL_HEADER_MAGIC.as_slice()) {
         return Ok(None);
     }
     let flen = match header.get(26..28) {

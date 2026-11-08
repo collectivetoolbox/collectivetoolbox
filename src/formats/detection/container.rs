@@ -1398,7 +1398,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
     let mut pos: usize = 0;
     while pos.saturating_add(30) <= sample.len() {
         if sample.get(pos..pos.saturating_add(4))
-            == Some(&ZIP_LOCAL_HEADER_MAGIC)
+            == Some(ZIP_LOCAL_HEADER_MAGIC.as_slice())
         {
             let Some(&[f0, f1, e0, e1]) = sample
                 .get(pos.saturating_add(26)..pos.saturating_add(30))
