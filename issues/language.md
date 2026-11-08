@@ -147,6 +147,9 @@ emergency host interruptions remain distinct external events. See
     resolution, `.Semantic:Pattern` operators and historical encodings, Dc-WASM
     lowering, and the 32-byte mailbox ABI. Cover choice and backtracking,
     capture scope, recursive references, malformed patterns, and range arity.
+    The legacy DcMixed1 conversion fixture covers overlapping codec bytes,
+    binary payload preservation, and selected malformed-token recovery cases;
+    the complete codec and recovery contract still needs broader coverage.
   - Keep the specification `Partially Implemented` and draft until these gaps
     and the Gate 3 and 4 migrations are resolved; then freeze or explicitly
     version the resulting kernel contract.

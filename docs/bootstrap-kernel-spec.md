@@ -50,8 +50,24 @@ The authoritative layout is [global-graph-layout.csv](../src/storage/minimal/dat
 3. Each graph ID is encoded directly as one integer. There is no separate
    long-Dc escape token in DcTF. This differs from the legacy UTF-8e-128 codec.
 
-Canonical-length rejection, malformed-input recovery, and legacy conversion
-need explicit conformance vectors before this codec contract can be frozen.
+The strict decoder rejects non-canonical and malformed token encodings. The
+lossy token decoder replaces each maximal invalid subpart with U+FFFD; an
+incomplete valid prefix at end of input becomes one replacement. The error-length
+helper distinguishes an incomplete prefix from an invalid prefix for streaming
+callers.
+See the boundary and recovery vectors in
+[`dctf.rs`](../src/formats/dctf/dctf.rs).
+
+Legacy DcMixed1 uses UTF-8e-128 rather than DcTF; the UUID selects the codec,
+including when the same bytes are valid in both encodings with different
+values. Strict conversion rejects malformed legacy tokens; best-effort
+conversion replaces invalid subparts and records warnings. The byte-level
+conversion fixture in [`dc_mixed.rs`](../src/formats/dcstring/dc_mixed.rs)
+also checks that raw binary payload bytes are preserved while a raw frame is
+normalized to a type-2 frame with empty metadata.
+
+These vectors do not yet cover the full codec and recovery contract; further
+independent conformance fixtures are required before it can be frozen.
 
 ### 1.2 `.dcmm` (`DcMixed2`, `f643`) File Header
 Every binary `.dcmm` document ([`src/formats/dcstring/dc_mixed.rs`](../src/formats/dcstring/dc_mixed.rs)) begins with a fixed 21-byte header (`DCMM_HEADER_LEN = 21`):

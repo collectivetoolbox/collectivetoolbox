@@ -4333,6 +4333,52 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_legacy_codec_conversion_fixture() -> Result<()> {
+        let mut legacy = vec![
+            0x44, 0x63, 0x4d, 0x4d, 0x00, 0xd5, 0xab, 0x81, 0x9e, 0x9b, 0x8e,
+            0x4d, 0x61, 0xad, 0xbc, 0x93, 0x3e, 0x88, 0x51, 0xe7, 0x9a, 0x41,
+            0xff, 0x87, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xff, 0x84,
+            0x84, 0x90, 0x83, 0x8b, 0x00,
+        ];
+        legacy.extend_from_slice(&3u128.to_be_bytes());
+        legacy.extend_from_slice(&[0xff, 0x80, 0x41, 0x42]);
+
+        let mut expected = vec![
+            0x44, 0x63, 0x4d, 0x4d, 0x00, 0xb0, 0x32, 0x7a, 0x84, 0xb7, 0x45,
+            0x49, 0x2c, 0xb3, 0x9d, 0x77, 0xc2, 0x82, 0x7e, 0x3a, 0x6f, 0x41,
+            0xff, 0x81, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xf4, 0x90, 0x83,
+            0x8b, 0x02,
+        ];
+        expected.extend_from_slice(&3u128.to_be_bytes());
+        expected.extend_from_slice(&0u128.to_be_bytes());
+        expected.extend_from_slice(&[0xff, 0x80, 0x41, 0x42]);
+
+        let (converted, _) = dcmm1_to_dcmstring(&legacy)?;
+        assert_eq!(converted.as_bytes(), expected);
+
+        let mut malformed = legacy[..21].to_vec();
+        malformed.extend_from_slice(&[0xe1, 0x80, 0x41]);
+        let error = dcmm1_to_dcmstring(&malformed).unwrap_err();
+        assert!(matches!(
+            error.downcast_ref::<DcMixedError>(),
+            Some(DcMixedError::InvalidUtf8e128 { offset: 21, .. })
+        ));
+
+        let options = DcmmStreamOptions { best_effort: true };
+        let (recovered, log) =
+            dcmm1_to_dcmstring_with_options(&malformed, &options)?;
+        assert_eq!(recovered.payload_bytes(), &[0xef, 0xbf, 0xbd, 0x41]);
+        assert!(log.has_warnings());
+
+        malformed.pop();
+        let (recovered, log) =
+            dcmm1_to_dcmstring_with_options(&malformed, &options)?;
+        assert_eq!(recovered.payload_bytes(), &[0xef, 0xbf, 0xbd]);
+        assert!(log.has_warnings());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_push_and_chunks_mixed() {
         let mut mst = DcMstring::new();
         mst.push_str("ArchiveHeader\n");
