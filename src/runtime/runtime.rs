@@ -358,6 +358,9 @@ pub struct ExecutionContext {
     pub compute_steps: usize,
     /// Maximum allowed compute steps before raising a budget interruption.
     pub max_compute_steps: usize,
+    /// Portable compute quota units granted each time `Privilege::ExcessiveCompute`
+    /// is approved with [`PermissionDecision::Allow`].
+    pub compute_quota_grant: u64,
     /// Host-configured per-privilege authorization overrides.
     privilege_overrides: HashMap<Privilege, PermissionDecision>,
 }
@@ -371,8 +374,18 @@ impl ExecutionContext {
             has_errors,
             compute_steps: 0,
             max_compute_steps: 1_000_000,
+            compute_quota_grant:
+                ctb_formats_dcstring::DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP,
             privilege_overrides: HashMap::new(),
         }
+    }
+
+    /// Builder-style method configuring the portable compute quota grant added when
+    /// `Privilege::ExcessiveCompute` is approved with [`PermissionDecision::Allow`].
+    #[must_use]
+    pub const fn with_compute_quota_grant(mut self, grant: u64) -> Self {
+        self.compute_quota_grant = grant;
+        self
     }
 
     /// Configures a host capability policy override for `privilege`.
@@ -440,6 +453,10 @@ impl ExecutionContext {
         if self.compute_steps > self.max_compute_steps {
             let decision =
                 self.request_permission(&Privilege::ExcessiveCompute);
+            if decision == PermissionDecision::Allow {
+                self.max_compute_steps = self.compute_steps;
+                return Ok(PermissionDecision::Allow);
+            }
             if decision == PermissionDecision::BreakOutResumeNext {
                 // Reset or allow caller to break out and resume at the next Dc
                 return Ok(PermissionDecision::BreakOutResumeNext);
@@ -580,6 +597,38 @@ impl ExecutionContext {
             let step_outcome = match session.step() {
                 Ok(outcome) => outcome,
                 Err(err) => {
+                    if let Some(
+                        WasmResourceInterruption::ComputeQuotaExhausted {
+                            limit,
+                        },
+                    ) = err.downcast_ref::<WasmResourceInterruption>().cloned()
+                    {
+                        let decision = self
+                            .request_permission(&Privilege::ExcessiveCompute);
+                        events.push(WasmTraceEvent::ResourceInterruption {
+                            after_logical_steps: logical_step,
+                            interruption: Some(
+                                WasmResourceInterruption::ComputeQuotaExhausted {
+                                    limit,
+                                },
+                            ),
+                            decision,
+                        });
+                        if decision == PermissionDecision::Allow {
+                            session.increase_compute_quota(
+                                self.compute_quota_grant.max(1),
+                            );
+                            continue;
+                        }
+                        return Ok(WasmExecutionTrace {
+                            result: WasmExecutionResult {
+                                output: DcMstring::new(),
+                                frames,
+                                broke_out_early: true,
+                            },
+                            events,
+                        });
+                    }
                     return self.handle_resource_interruption(
                         err,
                         logical_step,
@@ -706,6 +755,7 @@ impl ExecutionContext {
             decision,
         }) = recorded_trace.events.first()
             && interruption.is_some()
+            && *decision != PermissionDecision::Allow
         {
             events.push(WasmTraceEvent::ResourceInterruption {
                 after_logical_steps: 0,
@@ -726,20 +776,26 @@ impl ExecutionContext {
         let mut logical_step = 0usize;
 
         loop {
-            if let Some(WasmTraceEvent::ResourceInterruption {
+            while let Some(WasmTraceEvent::ResourceInterruption {
                 after_logical_steps,
                 interruption,
                 decision,
             }) = recorded_trace.events.get(event_idx)
                 && *after_logical_steps == logical_step
             {
-                // Deliver the recorded interruption before executing more guest code;
-                // physical instruction counts do not determine the replay boundary.
+                // Deliver the recorded interruption at its recorded logical step boundary.
                 events.push(WasmTraceEvent::ResourceInterruption {
                     after_logical_steps: *after_logical_steps,
                     interruption: interruption.clone(),
                     decision: *decision,
                 });
+                if *decision == PermissionDecision::Allow {
+                    session.increase_compute_quota(
+                        self.compute_quota_grant.max(1),
+                    );
+                    event_idx = event_idx.saturating_add(1);
+                    continue;
+                }
                 return checked_trace(WasmExecutionTrace {
                     result: WasmExecutionResult {
                         output: DcMstring::new(),
@@ -910,33 +966,76 @@ impl ExecutionContext {
         wasm_bytes: &[u8],
         input: &DcMstr,
         most_recent_node_id: Option<u128>,
-        resource_limits: ctb_formats_dcstring::DcWasmResourceLimits,
+        mut resource_limits: ctb_formats_dcstring::DcWasmResourceLimits,
         capability_handler: F,
     ) -> Result<WasmExecutionTrace>
     where
         F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
     {
-        let mut session = match DcWasmSession::from_wasm_bytes_with_limits(
-            wasm_bytes,
-            input,
-            most_recent_node_id,
-            resource_limits,
-        ) {
-            Ok(s) => s,
-            Err(err) => {
-                return self.handle_resource_interruption(
-                    err,
-                    0,
-                    Vec::new(),
-                    Vec::new(),
-                );
+        let mut pre_events = Vec::new();
+        let mut session = loop {
+            match DcWasmSession::from_wasm_bytes_with_limits(
+                wasm_bytes,
+                input,
+                most_recent_node_id,
+                resource_limits,
+            ) {
+                Ok(s) => break s,
+                Err(err) => {
+                    if let Some(
+                        WasmResourceInterruption::ComputeQuotaExhausted {
+                            limit,
+                        },
+                    ) = err.downcast_ref::<WasmResourceInterruption>().cloned()
+                    {
+                        let decision = self
+                            .request_permission(&Privilege::ExcessiveCompute);
+                        pre_events.push(WasmTraceEvent::ResourceInterruption {
+                            after_logical_steps: 0,
+                            interruption: Some(
+                                WasmResourceInterruption::ComputeQuotaExhausted {
+                                    limit,
+                                },
+                            ),
+                            decision,
+                        });
+                        if decision == PermissionDecision::Allow {
+                            resource_limits.max_instructions_per_step =
+                                resource_limits
+                                    .max_instructions_per_step
+                                    .saturating_add(
+                                        self.compute_quota_grant.max(1),
+                                    );
+                            continue;
+                        }
+                        return Ok(WasmExecutionTrace {
+                            result: WasmExecutionResult {
+                                output: DcMstring::new(),
+                                frames: Vec::new(),
+                                broke_out_early: true,
+                            },
+                            events: pre_events,
+                        });
+                    }
+                    return self.handle_resource_interruption(
+                        err,
+                        0,
+                        Vec::new(),
+                        pre_events,
+                    );
+                }
             }
         };
-        self.execute_wasm_session_with_trace(
+        let mut trace = self.execute_wasm_session_with_trace(
             &mut session,
             input,
             capability_handler,
-        )
+        )?;
+        if !pre_events.is_empty() {
+            pre_events.extend(trace.events);
+            trace.events = pre_events;
+        }
+        Ok(trace)
     }
 
     /// Replays compiled `.wasm` module bytes against a recorded [`WasmExecutionTrace`],
@@ -949,7 +1048,7 @@ impl ExecutionContext {
         wasm_bytes: &[u8],
         input: &DcMstr,
         most_recent_node_id: Option<u128>,
-        resource_limits: ctb_formats_dcstring::DcWasmResourceLimits,
+        mut resource_limits: ctb_formats_dcstring::DcWasmResourceLimits,
         recorded_trace: &WasmExecutionTrace,
     ) -> Result<WasmExecutionTrace> {
         if let Some(WasmTraceEvent::ResourceInterruption {
@@ -977,12 +1076,29 @@ impl ExecutionContext {
             );
             return Ok(trace);
         }
-        let mut session = DcWasmSession::from_wasm_bytes_with_limits(
-            wasm_bytes,
-            input,
-            most_recent_node_id,
-            resource_limits,
-        )?;
+        let mut session = loop {
+            match DcWasmSession::from_wasm_bytes_with_limits(
+                wasm_bytes,
+                input,
+                most_recent_node_id,
+                resource_limits,
+            ) {
+                Ok(s) => break s,
+                Err(err) => {
+                    if matches!(
+                        err.downcast_ref::<WasmResourceInterruption>(),
+                        Some(WasmResourceInterruption::ComputeQuotaExhausted { .. })
+                    ) {
+                        resource_limits.max_instructions_per_step =
+                            resource_limits
+                                .max_instructions_per_step
+                                .saturating_add(self.compute_quota_grant.max(1));
+                        continue;
+                    }
+                    return Err(err);
+                }
+            }
+        };
         self.replay_wasm_session_trace(&mut session, input, recorded_trace)
     }
 }
@@ -1202,7 +1318,7 @@ mod tests {
             DcWasmResourceLimits::default().with_max_instructions_per_step(250);
 
         // 1. Default policy (`BreakOutResumeNext` on `ExcessiveCompute`) breaks out cleanly
-        //    and records `WasmTraceEvent::ResourceInterruption` with `Instructioncompute_quotaExhausted`.
+        //    and records `WasmTraceEvent::ResourceInterruption` with `ComputeQuotaExhausted`.
         let mut session = DcWasmSession::from_dc_wasm(&loop_doc, &input, None)?
             .with_resource_limits(limits);
         let mut ctx = ExecutionContext::new(false);
@@ -1213,7 +1329,7 @@ mod tests {
             vec![WasmTraceEvent::ResourceInterruption {
                 after_logical_steps: 0,
                 interruption: Some(
-                    WasmResourceInterruption::Instructioncompute_quotaExhausted {
+                    WasmResourceInterruption::ComputeQuotaExhausted {
                         limit: 250
                     }
                 ),
@@ -1633,7 +1749,7 @@ mod tests {
             denied_trace.denied_resource_interruption(),
             Some((
                 2,
-                Some(&WasmResourceInterruption::Instructioncompute_quotaExhausted {
+                Some(&WasmResourceInterruption::ComputeQuotaExhausted {
                     limit: 200
                 }),
                 PermissionDecision::Deny,
@@ -1675,7 +1791,7 @@ mod tests {
             start_trace.denied_resource_interruption(),
             Some((
                 0,
-                Some(&WasmResourceInterruption::Instructioncompute_quotaExhausted {
+                Some(&WasmResourceInterruption::ComputeQuotaExhausted {
                     limit: 200
                 }),
                 PermissionDecision::Deny,

@@ -167,7 +167,7 @@ The host communicates with the instantiated WebAssembly module exclusively throu
 
 | Byte Offset | Constant | Type | Description |
 |---|---|---|---|
-| `0..4` | `DC_WASM_MAILBOX_INPUT_PTR` (`0`) | `u32` LE | Byte offset of the input DcTF payload slice in linear memory (`base_io_offset`, minimum `256`, 8-byte aligned past the maximum of `MemoryInstance::static_data_end()`, optional exported `__heap_base`/`__data_end` globals, and any nonzero byte written during `start`). |
+| `0..4` | `DC_WASM_MAILBOX_INPUT_PTR` (`0`) | `u32` LE | Byte offset of the input DcTF payload slice in linear memory (`base_io_offset`, minimum `256`, 8-byte aligned past the maximum of active static data segments (`static_data_end`), optional exported `__heap_base`/`__data_end` globals, and any nonzero byte written during `start`). |
 | `4..8` | `DC_WASM_MAILBOX_INPUT_LEN` (`4`) | `u32` LE | Byte length of the input DcTF payload slice (with the 21-byte `.dcmm` header stripped). |
 | `8..12` | `DC_WASM_MAILBOX_OUTPUT_PTR` (`8`) | `u32` LE | Byte offset of the output DcTF/DcMixed slice in linear memory (pre-initialized by the host before each `step()` to an 8-byte-aligned scratch region after the input buffer; may be updated by the guest). |
 | `12..16` | `DC_WASM_MAILBOX_OUTPUT_LEN` (`12`) | `u32` LE | Byte length of the output slice written by the guest during `step()` (reset to `0` by the host before each `step()`). |
@@ -183,49 +183,54 @@ Each invocation of `"step"` returns an `i32` [`WasmStepStatus`](../src/formats/d
 - Supported value types: `i32` (`0x7F`), `i64` (`0x7E`), `f32` (`0x7D`), `f64` (`0x7C`), `v128` (`0x7B`), `funcref` (`0x70`), `externref` (`0x6F`). 64-bit linear memories (`memory64`) are rejected at instantiation (`Error::UnsupportedFeature`).
 - Integer division by zero (`i32.div_s`, `i32.div_u`, `i64.div_s`, `i64.div_u`, `rem_s`, `rem_u`), signed division overflow (`i32::MIN / -1`, `i64::MIN / -1`), out-of-bounds linear memory or table accesses, `unreachable` (`0x00`), and indirect call signature mismatches trap deterministically (`tinywasm::Trap`).
 
-The current host enforces backend resource limits
-([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) across the
-session store. These are not yet a runtime-independent language resource model:
-1. **Instruction compute_quota** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop during module instantiation, the WebAssembly `start` section (`run_wasm_start_section`), and every exported `step()` call (`Trap::Instructioncompute_quotaExhausted` -> `WasmResourceInterruption::Instructioncompute_quotaExhausted`).
-2. **Store-wide and per-memory linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` total across all `MemoryInstance`s in `Store`): enforced during module instantiation, `provide_input`, and WASM `memory.grow` (`Store::total_memory_pages()`). Guest `memory.grow` failure returns standard WASM `-1`; host allocation or cap-lowering violations raise `WasmResourceInterruption::MemoryLimitExceeded`.
-3. **Store-wide and per-table element cap** (`max_table_elements`, default `65_536` elements total across all `TableInstance`s in `Store`): enforced during module instantiation, `table.grow`, and before each `step()` (`WasmResourceInterruption::TableLimitExceeded`; guest `table.grow` failure returns standard WASM `-1`).
+The host enforces portable, runtime-independent WebAssembly resource limits
+([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) by instrumenting
+standard `.wasm` bytecode before instantiation via [`instrument_wasm_module_bytes`](../src/formats/dcstring/converters/wasm_quota.rs)
+and running on unmodified `tinywasm 0.8.0` (with no forked WASM runtime required):
+1. **Portable compute quota** (`max_instructions_per_step`, default `1_000_000` compute units): metered in standard WebAssembly bytecode (`deduct-before-effect`) across the hoisted `start` section (`__ctb_wasm_start`), every `step()` call, and shared task helper evaluations ([`SharedWasmTaskQuota`](../src/formats/dcstring/converters/wasm_quota.rs)):
+   - Function entry, `loop` body entry, and each standard instruction (excluding structural `else` / `end` delimiters): `1` compute unit.
+   - Bulk memory/table operations (`memory.copy`, `memory.fill`, `memory.init`, `table.copy`, `table.fill`, `table.init`): `1 + u64(n)` compute units.
+   - `memory.grow`: `1` unit when logically denied (`delta < 0` or exceeding `max_memory_pages` or declared maximum, returning `-1`); `1 + 64 * u64(delta)` units when logically allowed.
+   - `table.grow`: `1` unit when logically denied (`delta < 0` or exceeding `max_table_elements` or declared maximum, returning `-1`); `1 + u64(delta)` units when logically allowed.
+   - Exhausting the remaining allowance pauses before the next operation takes effect, records the 1-based interrupted operation ordinal (`__ctb_interrupted_op`) and required cost (`__ctb_required_cost`), and raises `WasmResourceInterruption::ComputeQuotaExhausted` (`Privilege::ExcessiveCompute`). Granting additional compute quota via `DcWasmSession::increase_compute_quota` (`PermissionDecision::Allow`) resumes execution from the paused logical step without repeating earlier side effects.
+2. **Store-wide and per-memory linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` total across all module memories, plus `physical_max_memory_pages`): enforced during module instantiation, `provide_input`, and instrumented `memory.grow` (`__ctb_total_mem_pages`). Logical growth denial returns standard WASM `-1`; physical allocation failure below the logical quota or host cap-lowering violations raise `WasmResourceInterruption::MemoryLimitExceeded`.
+3. **Store-wide and per-table element cap** (`max_table_elements`, default `65_536` elements total across all module tables, plus `physical_max_table_elements`): enforced during module instantiation, instrumented `table.grow` (`__ctb_total_table_elems`), and before each `step()`. Logical growth denial returns standard WASM `-1`; physical allocation failure below the logical quota raises `WasmResourceInterruption::TableLimitExceeded`.
 4. **Single-step output slice cap** (`max_step_output_bytes`, default `4 MiB`): checked before allocating/copying `out_len` bytes from linear memory (`WasmResourceInterruption::StepOutputSliceTooLarge`).
-5. **Cumulative session output cap** (`max_session_output_bytes`, default `16 MiB`): accumulated across all `YieldFrame`, `RequestCapability`, and `Complete` outputs in a session (`WasmResourceInterruption::SessionOutputBudgetExceeded`).
+5. **Cumulative session/task output cap** (`max_session_output_bytes`, default `16 MiB`): accumulated across all `YieldFrame`, `RequestCapability`, and `Complete` outputs in a session or shared task (`WasmResourceInterruption::SessionOutputBudgetExceeded`).
 
 **Trace Preservation & Deterministic Replay**:
-Live host capabilities default to denial unless explicitly granted; parse errors steer requests toward mocks. Historical graph pins cannot grant host permissions. `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::execute_wasm_bytes_with_trace` preserve all accumulated `frames` and `events` in the returned [`WasmExecutionTrace`](../src/runtime/runtime.rs) even when a resource interruption is denied (`PermissionDecision::Deny`, queryable via `WasmExecutionTrace::denied_resource_interruption` / `ensure_not_denied`) or occurs during module construction/start (`after_logical_steps == 0`), and `replay_wasm_session_trace` / `replay_wasm_bytes_trace` deterministically replay those finite prefixes.
+Live host capabilities default to denial unless explicitly granted; parse errors steer requests toward mocks. Historical graph pins cannot grant host permissions. `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::execute_wasm_bytes_with_trace` preserve all accumulated `frames` and `events` in the returned [`WasmExecutionTrace`](../src/runtime/runtime.rs) when a resource interruption is denied (`PermissionDecision::Deny`), breaks out (`BreakOutResumeNext`), or is granted additional compute quota (`PermissionDecision::Allow` via `increase_compute_quota`), and `replay_wasm_session_trace` / `replay_wasm_bytes_trace` deterministically replay those traces.
 
 **Remaining Gaps / Pending Work Before Freezing**:
-- compute_quota meters executed VM instructions, not initial module parsing/validation or per-byte cost inside a single bulk memory/table instruction (`memory.copy`, `memory.fill`, `table.copy`).
+- The top-level 1-Short-Dc System supervisor document and graph-backed user compute-quota configuration properties in the System graph are not yet authored.
 - Non-resource traps during module `start` or `step()` return `Err` rather than a structured trap event in `WasmExecutionTrace`.
 - Gates 3 and 4 of [the language plan](../issues/language.md) (eliminating remaining procedural syntax rule synthesis and completing self-hosted `.WASM` definitions) must land before `BootstrapKernelVersion::V1` is frozen.
 
 ### 4.5 Portable Resource Semantics Versus Host Watchdogs
 
 **Terminology**: A compute quota is an allowance of logical work, measured using
-the selected System supervisor's versioned operation costs. Resource accounting
-deducts those costs from the remaining allowance before the operation takes
-effect. "compute_quota" is the existing backend API's name for an instruction allowance;
-its runtime-specific watchdog counts are not portable compute quota units.
+versioned operation costs. Resource accounting deducts those costs from the
+remaining allowance before the operation takes effect (`deduct-before-effect`),
+and granting additional compute (`increase_compute_quota`) expands the allowance.
+Runtime-specific interpreter or JIT instruction counts are host watchdogs, not
+portable compute quota units.
 
-`max_instructions_per_step` currently counts `tinywasm` internal interpreter
-dispatches, including lowered control-flow instructions. It does not count a
-specified sequence of original WASM instructions. Neither another interpreter's
-compute_quota nor a JIT's compute_quota may be substituted as an equivalent semantic budget.
-Recording an interruption as an external event permits replay of the same
-finite prefix; it does not prove that fresh runs on different engines interrupt
-at the same point. Timeouts, allocator exhaustion and physical watchdog compute_quota
-are host safety events, not language-level resource measurements.
+Because [`instrument_wasm_module_bytes`](../src/formats/dcstring/converters/wasm_quota.rs)
+injects `deduct-before-effect` accounting directly into standard WebAssembly
+bytecode before engine-specific lowering or compilation, any compliant
+WebAssembly runtime (`tinywasm 0.8.0`, V8/Node `WebAssembly`, Wasmtime, etc.)
+executes the exact same compute-quota deductions and interrupts at the exact
+same 1-based logical operation ordinal (`__ctb_interrupted_op`) with identical
+prior linear-memory, global, and table state. Timeouts and OS allocator
+exhaustion remain host safety events distinct from language-level compute quotas.
 
-Memory/table growth is different: its result is directly observable by guest
-code. WASM permits allocation failure to return `-1` even below a declared
-maximum. Portable document semantics therefore need explicit logical quotas
-and allocation accounting defined by the selected trusted supervisor revision
-and its effective configuration, including the host mailbox allocation. A
-physical allocation failure below the logical quota must terminate with a host
-resource event, not silently become a different guest-visible growth result.
-Output quotas likewise need specified charging and delivery order. Current
-page/table limits and output checks provide local enforcement, not this proof.
+Memory/table growth is directly observable by guest code. WASM permits allocation
+failure to return `-1` even below a declared maximum. Portable document semantics
+therefore separate logical growth denial (which deducts `1` unit and returns `-1`)
+from physical allocation failure below the approved logical quota (which deducts
+the growth cost and terminates with `WasmResourceInterruption::MemoryLimitExceeded`
+or `TableLimitExceeded` rather than returning a guest-visible `-1`). Output quotas
+likewise follow a specified deduction and delivery order.
 
 The intended owner of logical budget policy is the privileged System document.
 The workspace hardcodes its bootstrap entry document: exactly one short Dc,
@@ -287,14 +292,10 @@ and mediates external
 capabilities. Independent emergency host watchdogs protect the process, but
 are not a separate source of logical document budget policy.
 
-This portable supervisor/metering path is **not implemented**. Required proof
-includes running the same pinned module, budget policy and ordered external
-events under independent WASM engines, comparing growth results, interruptions,
-requests and output bytes. Fresh executions must request additional compute
-before the same logical operation and resume identically after the same
-authorization response. Tests must cover exact-quota boundaries, start
-sections, loops, branches, calls, bulk operations, batching, and repeated helper
-evaluations. Existing same-engine tests and replay against a
-NOP-padded recompilation do not establish that property. The `tinywasm` fork is
-currently a backend safety mechanism, not the canonical definition of resource
-use.
+The portable standard-WASM bytecode instrumentation path (`instrument_wasm_module_bytes`),
+resumable compute-quota continuation (`increase_compute_quota`), task-level quota
+sharing (`SharedWasmTaskQuota`), and cross-engine verification against V8/Node
+`WebAssembly` are implemented on unmodified `tinywasm 0.8.0`. Remaining work
+for the full supervisor architecture is authoring the top-level 1-Short-Dc
+System supervisor document and its graph-backed user configuration schema in the
+System graph.

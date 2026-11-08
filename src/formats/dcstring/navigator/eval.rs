@@ -94,9 +94,79 @@ pub trait DcExpressionEvaluator: Send + Sync {
     ) -> Result<Option<Vec<DcChar>>>;
 }
 
-/// Default built-in expression evaluator supporting `256 lang.say` and equivalent representations.
+/// Default built-in expression evaluator supporting `256 lang.say`, equivalent representations,
+/// and Dc-WASM helper routines.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DefaultDcExpressionEvaluator;
+
+impl DefaultDcExpressionEvaluator {
+    /// Creates a [`SharedQuotaDcExpressionEvaluator`] initialized with explicit [`crate::DcWasmResourceLimits`].
+    #[must_use]
+    pub fn with_resource_limits(
+        limits: crate::DcWasmResourceLimits,
+    ) -> SharedQuotaDcExpressionEvaluator {
+        SharedQuotaDcExpressionEvaluator::with_resource_limits(limits)
+    }
+
+    /// Creates a [`SharedQuotaDcExpressionEvaluator`] backed by an existing [`crate::converters::wasm::SharedWasmTaskQuota`].
+    #[must_use]
+    pub const fn with_shared_task_quota(
+        shared_quota: crate::converters::wasm::SharedWasmTaskQuota,
+    ) -> SharedQuotaDcExpressionEvaluator {
+        SharedQuotaDcExpressionEvaluator::with_shared_task_quota(shared_quota)
+    }
+}
+
+/// Expression evaluator sharing a task-level [`crate::converters::wasm::SharedWasmTaskQuota`]
+/// across all helper evaluations and nested syntax contexts.
+#[derive(Debug, Clone)]
+pub struct SharedQuotaDcExpressionEvaluator {
+    shared_quota: crate::converters::wasm::SharedWasmTaskQuota,
+}
+
+impl Default for SharedQuotaDcExpressionEvaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SharedQuotaDcExpressionEvaluator {
+    /// Creates a [`SharedQuotaDcExpressionEvaluator`] with default [`crate::DcWasmResourceLimits`].
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            shared_quota: crate::converters::wasm::SharedWasmTaskQuota::new(
+                crate::DcWasmResourceLimits::default(),
+            ),
+        }
+    }
+
+    /// Creates a [`SharedQuotaDcExpressionEvaluator`] initialized with explicit [`crate::DcWasmResourceLimits`].
+    #[must_use]
+    pub fn with_resource_limits(limits: crate::DcWasmResourceLimits) -> Self {
+        Self {
+            shared_quota: crate::converters::wasm::SharedWasmTaskQuota::new(
+                limits,
+            ),
+        }
+    }
+
+    /// Creates a [`SharedQuotaDcExpressionEvaluator`] backed by an existing [`crate::converters::wasm::SharedWasmTaskQuota`].
+    #[must_use]
+    pub const fn with_shared_task_quota(
+        shared_quota: crate::converters::wasm::SharedWasmTaskQuota,
+    ) -> Self {
+        Self { shared_quota }
+    }
+
+    /// Returns the shared [`crate::converters::wasm::SharedWasmTaskQuota`] for this evaluator.
+    #[must_use]
+    pub const fn shared_task_quota(
+        &self,
+    ) -> &crate::converters::wasm::SharedWasmTaskQuota {
+        &self.shared_quota
+    }
+}
 
 impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
     fn eval_expression_for_requirement(
@@ -105,6 +175,57 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
         requirement: &ValueRequirement<'_>,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcEvaluatedValue>> {
+        eval_expression_for_requirement_impl(
+            expr_tokens,
+            requirement,
+            resolver,
+            None,
+        )
+    }
+
+    fn eval_stream_splice(
+        &self,
+        call_tokens: &[DcChar],
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<Vec<DcChar>>> {
+        eval_stream_splice_impl(call_tokens, resolver, None)
+    }
+}
+
+impl DcExpressionEvaluator for SharedQuotaDcExpressionEvaluator {
+    fn eval_expression_for_requirement(
+        &self,
+        expr_tokens: &[DcChar],
+        requirement: &ValueRequirement<'_>,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<DcEvaluatedValue>> {
+        eval_expression_for_requirement_impl(
+            expr_tokens,
+            requirement,
+            resolver,
+            Some(self.shared_quota.clone()),
+        )
+    }
+
+    fn eval_stream_splice(
+        &self,
+        call_tokens: &[DcChar],
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<Vec<DcChar>>> {
+        eval_stream_splice_impl(
+            call_tokens,
+            resolver,
+            Some(self.shared_quota.clone()),
+        )
+    }
+}
+
+fn eval_expression_for_requirement_impl(
+    expr_tokens: &[DcChar],
+    requirement: &ValueRequirement<'_>,
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<crate::converters::wasm::SharedWasmTaskQuota>,
+) -> Result<Option<DcEvaluatedValue>> {
         let Some(first) = expr_tokens.first() else {
             return Ok(None);
         };
@@ -112,10 +233,11 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             resolver.resolve_wasm_definition_tokens(first.to_u128())
         {
             let doc =
-                crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice(
+                crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
                     wasm_shorthands,
                     expr_tokens,
                     resolver,
+                    shared_quota,
                 )?;
             return Ok(Some(DcEvaluatedValue::Document(doc)));
         }
@@ -135,10 +257,11 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             }
             let empty_input = DcMstring::new();
             let doc =
-                crate::converters::wasm::run_dc_wasm_pure_conversion_with_resolver(
+                crate::converters::wasm::run_dc_wasm_pure_conversion_with_resolver_and_quota(
                     &prog_mstr,
                     &empty_input,
                     resolver,
+                    shared_quota,
                 )?;
             return Ok(Some(DcEvaluatedValue::Document(doc)));
         }
@@ -149,6 +272,13 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             }
             let mut nav = DcDocumentNavigator::from_mstr(&mstr);
             let mut ctx = SyntaxEvalContext::new(resolver, None);
+            if let Some(shared) = shared_quota {
+                ctx.evaluator = Some(Arc::new(
+                    SharedQuotaDcExpressionEvaluator::with_shared_task_quota(
+                        shared,
+                    ),
+                ));
+            }
             let target_term = match requirement {
                 ValueRequirement::NamedConstruct { name, subtype } => {
                     SyntaxTerm::NamedConstruct {
@@ -239,11 +369,11 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
         Ok(None)
     }
 
-    fn eval_stream_splice(
-        &self,
-        call_tokens: &[DcChar],
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<Option<Vec<DcChar>>> {
+fn eval_stream_splice_impl(
+    call_tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<crate::converters::wasm::SharedWasmTaskQuota>,
+) -> Result<Option<Vec<DcChar>>> {
         let Some(first) = call_tokens.first() else {
             return Ok(None);
         };
@@ -251,10 +381,11 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             resolver.resolve_wasm_definition_tokens(first.to_u128())
         {
             let doc =
-                crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice(
+                crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
                     wasm_shorthands,
                     call_tokens,
                     resolver,
+                    shared_quota,
                 )?;
             let dc_str = doc.to_dc_string()?;
             return Ok(Some(dc_str.chars().collect()));
@@ -301,7 +432,6 @@ impl DcExpressionEvaluator for DefaultDcExpressionEvaluator {
             return Ok(Some(chars));
         }
         Ok(None)
-    }
 }
 
 /// Checkpoint holding cursor and spliced token slice state for backtracking in [`DcDocumentNavigator`].
@@ -369,11 +499,24 @@ impl<'r> SyntaxEvalContext<'r> {
             validate_interiors: false,
             diagnostics: Vec::new(),
             has_errors: false,
-            evaluator: Some(Arc::new(DefaultDcExpressionEvaluator)),
+            evaluator: Some(Arc::new(SharedQuotaDcExpressionEvaluator::new())),
             captured_numbers: std::collections::HashMap::new(),
             unescaped_literal_payload: false,
             policy: DcProjectionPolicy::strict(),
         }
+    }
+
+    /// Configures the context's [`SharedQuotaDcExpressionEvaluator`] with explicit
+    /// [`crate::DcWasmResourceLimits`] shared across all WASM helper evaluations in this context.
+    #[must_use]
+    pub fn with_wasm_resource_limits(
+        mut self,
+        limits: crate::DcWasmResourceLimits,
+    ) -> Self {
+        self.evaluator = Some(Arc::new(
+            SharedQuotaDcExpressionEvaluator::with_resource_limits(limits),
+        ));
+        self
     }
 
     /// Returns true if `token` fills `role` under the context resolver.

@@ -34,6 +34,7 @@ pub mod eite;
 pub mod transform;
 pub mod utf8;
 pub mod wasm;
+pub mod wasm_quota;
 
 /// Produces DcUtf while retaining binary payload types and checksums.
 ///
@@ -80,9 +81,12 @@ pub use wasm::{
     DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP, DEFAULT_MAX_WASM_MEMORY_PAGES,
     DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES, DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES,
     DEFAULT_MAX_WASM_TABLE_ELEMENTS, DcWasmResourceLimits, DcWasmSession,
+    InstrumentedWasmModule, SharedWasmTaskQuota, SharedWasmTaskQuotaState,
     WasmResourceInterruption, WasmStepOutcome, WasmStepStatus,
     assemble_wasm_instructions, dcmstring_to_wasm,
     dcmstring_to_wasm_with_resolver, dcstring_to_wasm,
-    dcstring_to_wasm_with_resolver, run_dc_wasm_pure_conversion,
-    run_dc_wasm_pure_conversion_with_resolver, run_graph_wasm_tokens_on_dc_slice,
+    dcstring_to_wasm_with_resolver, instrument_wasm_module_bytes,
+    run_dc_wasm_pure_conversion, run_dc_wasm_pure_conversion_with_resolver,
+    run_graph_wasm_tokens_on_dc_slice,
+    run_graph_wasm_tokens_on_dc_slice_with_quota,
 };
