@@ -37,8 +37,11 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
 use ctb_formats_dcdata::tinywasm::types::{
-    ConstInstruction, DataKind, Global, MemoryArch, TinyWasmModule,
+    ConstInstruction, DataKind, ElementItem, ExternalKind, FuncType, Global,
+    Import, ImportKind, Instruction, MemoryArch, TinyWasmModule,
 };
+
+use crate::BootstrapKernelVersion;
 
 use super::wasm::{DcWasmResourceLimits, WasmResourceInterruption};
 
@@ -68,9 +71,18 @@ pub const CTB_TOTAL_TABLE_ELEMS_EXPORT: &str = "__ctb_total_table_elems";
 pub const CTB_MAX_TABLE_ELEMS_EXPORT: &str = "__ctb_max_table_elems";
 /// Exported `i64` global holding the physical host allocation cap in table elements.
 pub const CTB_PHYS_MAX_TABLE_ELEMS_EXPORT: &str = "__ctb_phys_max_table_elems";
+/// Exported `i64` global specifying the 1-based operation ordinal at which portable
+/// single-threaded continuation replay begins charging quota (`0` = charge from op 1).
+pub const CTB_RESUME_TARGET_OP_EXPORT: &str = "__ctb_resume_target_op";
 /// Exported function name used when a module's `Start` section (`section 8`) is hoisted
 /// for explicit metered execution.
 pub const CTB_WASM_START_EXPORT: &str = "__ctb_wasm_start";
+/// Internal host import module name used by [`DcWasmSession`](super::wasm::DcWasmSession)
+/// to suspend and resume live intra-step continuations on compute-quota exhaustion.
+pub const CTB_HOST_IMPORT_MODULE: &str = "__ctb_host";
+/// Internal host import function name used by [`DcWasmSession`](super::wasm::DcWasmSession)
+/// to suspend and resume live intra-step continuations on compute-quota exhaustion.
+pub const CTB_HOST_SUSPEND_IMPORT_NAME: &str = "__ctb_suspend_on_quota";
 
 const WASM_HEADER: [u8; 8] = [0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
 
@@ -108,6 +120,9 @@ pub struct InstrumentedWasmModule {
     pub wasm_bytes: Vec<u8>,
     /// Validated `TinyWasmModule` parsed from [`Self::wasm_bytes`].
     pub parsed_instrumented: TinyWasmModule,
+    /// `TinyWasmModule` with `$__ctb_deduct` patched to invoke
+    /// [`CTB_HOST_SUSPEND_IMPORT_NAME`] for live intra-step continuation suspension.
+    pub parsed_suspendable: TinyWasmModule,
     /// Whether the original module contained a `Start` section (hoisted to
     /// [`CTB_WASM_START_EXPORT`]).
     pub has_start_func: bool,
@@ -117,7 +132,7 @@ pub struct InstrumentedWasmModule {
     pub initial_table_elements: usize,
     /// Highest byte offset covered by active data segments on memory 0.
     pub static_data_end: usize,
-    /// Number of guest-defined globals (before the 12 appended `__ctb_*` globals).
+    /// Number of guest-defined globals (before the 13 appended `__ctb_*` globals).
     pub num_guest_globals: usize,
     /// Number of linear memories declared in the module.
     pub num_memories: usize,
@@ -525,6 +540,7 @@ struct QuotaIndices {
     g_total_table_elems: u32,
     g_max_table_elems: u32,
     g_phys_max_table_elems: u32,
+    g_resume_target_op: u32,
 }
 
 fn emit_const_deduct(cost: i64, indices: &QuotaIndices, out: &mut Vec<u8>) {
@@ -1097,9 +1113,18 @@ fn instrument_function_body(
             continue;
         }
 
+        // `0xFB` GC prefix instructions (gated in BootstrapKernelVersion::V1)
+        if opcode == 0xFB {
+            let subop = read_uleb_u32(body_bytes, &mut pos)?;
+            BootstrapKernelVersion::V1
+                .ensure_wasm_opcode_supported(Some(0xFB), subop)?;
+        }
+
         // `0xFD` SIMD prefix instructions
         if opcode == 0xFD {
             let subop = read_uleb_u32(body_bytes, &mut pos)?;
+            BootstrapKernelVersion::V1
+                .ensure_wasm_opcode_supported(Some(0xFD), subop)?;
             let is_simd_mem_op = matches!(subop, 0..=11 | 84..=93);
             match subop {
                 0..=11 | 92..=93 => {
@@ -1140,6 +1165,9 @@ fn instrument_function_body(
             }
             continue;
         }
+
+        BootstrapKernelVersion::V1
+            .ensure_wasm_opcode_supported(None, u32::from(opcode))?;
 
         // Standard single-byte instructions (cost = 1 before effect)
         match opcode {
@@ -1230,7 +1258,7 @@ fn instrument_function_body(
 }
 
 fn encode_deduct_helper_body(indices: &QuotaIndices) -> Vec<u8> {
-    let mut body = Vec::with_capacity(64);
+    let mut body = Vec::with_capacity(96);
     body.push(0x00); // 0 local runs (1 param: `$cost: i64` at local 0)
 
     // `__ctb_op_ordinal = __ctb_op_ordinal + 1`
@@ -1242,6 +1270,22 @@ fn encode_deduct_helper_body(indices: &QuotaIndices) -> Vec<u8> {
     body.push(0x24); // global.set $g_op_ordinal
     push_uleb_u32(indices.g_op_ordinal, &mut body);
 
+    // If `__ctb_op_ordinal < __ctb_resume_target_op`, this operation was already
+    // executed and paid for prior to the continuation checkpoint; return without
+    // deducting from `__ctb_quota_remaining` or adding to `__ctb_quota_consumed`.
+    body.push(0x23); // global.get $g_op_ordinal
+    push_uleb_u32(indices.g_op_ordinal, &mut body);
+    body.push(0x23); // global.get $g_resume_target_op
+    push_uleb_u32(indices.g_resume_target_op, &mut body);
+    body.push(0x54); // i64.lt_u
+    body.push(0x04); // if (empty)
+    body.push(0x40);
+    body.push(0x0F); // return
+    body.push(0x0B); // end if
+
+    // `loop $wait_for_quota`
+    body.push(0x03); // loop (empty)
+    body.push(0x40);
     // `if (i64.lt_u(global.get $g_quota_rem, local.get 0))`
     body.push(0x23); // global.get $g_quota_rem
     push_uleb_u32(indices.g_quota_rem, &mut body);
@@ -1262,8 +1306,11 @@ fn encode_deduct_helper_body(indices: &QuotaIndices) -> Vec<u8> {
     push_uleb_u32(0, &mut body);
     body.push(0x24); // global.set $g_required_cost
     push_uleb_u32(indices.g_required_cost, &mut body);
-    body.push(0x00); // unreachable
+    body.push(0x00); // unreachable (replaced by `call $__ctb_suspend_on_quota` in `parsed_suspendable`)
+    body.push(0x0C); // br 1 (re-evaluates `$wait_for_quota` loop after suspension resumes)
+    push_uleb_u32(1, &mut body);
     body.push(0x0B); // end if
+    body.push(0x0B); // end loop
 
     // `__ctb_quota_remaining -= $cost`
     body.push(0x23); // global.get $g_quota_rem
@@ -1289,70 +1336,58 @@ fn encode_deduct_helper_body(indices: &QuotaIndices) -> Vec<u8> {
 
 /// Encodes `$__ctb_deduct_batch(count: i64)` for a contiguous basic-block run of `count`
 /// pure, trap-free, fixed-cost (`cost = 1`) instructions:
-/// - When `__ctb_quota_remaining >= count`, deducts `count` in a single batch.
-/// - Near exhaustion (`__ctb_quota_remaining < count`), falls back to exact per-operation
-///   deduction: the first `R = __ctb_quota_remaining` instructions each consume `1` unit,
-///   and the `(R + 1)`-th instruction traps with `ComputeQuotaExhausted` and `required_cost = 1`.
+/// - When `__ctb_quota_remaining >= count` and `__ctb_op_ordinal >= __ctb_resume_target_op`,
+///   deducts `count` in a single batch.
+/// - Near exhaustion (`__ctb_quota_remaining < count`) or during continuation fast-forward
+///   (`__ctb_op_ordinal < __ctb_resume_target_op`), falls back to exact per-operation
+///   deduction by invoking `$__ctb_deduct(1)` `count` times so mid-batch suspension and
+///   resumption resume at the exact interrupted instruction.
 fn encode_deduct_batch_helper_body(indices: &QuotaIndices) -> Vec<u8> {
     let mut body = Vec::with_capacity(96);
     body.push(0x00); // 0 local runs (1 param: `$count: i64` at local 0)
 
-    // `if (i64.lt_u(global.get $g_quota_rem, local.get 0))`
+    // `if (i64.lt_u($g_quota_rem, $count) | i64.lt_u($g_op_ordinal, $g_resume_target_op))`
     body.push(0x23); // global.get $g_quota_rem
     push_uleb_u32(indices.g_quota_rem, &mut body);
     body.push(0x20); // local.get 0 ($count)
     push_uleb_u32(0, &mut body);
     body.push(0x54); // i64.lt_u
+    body.push(0x23); // global.get $g_op_ordinal
+    push_uleb_u32(indices.g_op_ordinal, &mut body);
+    body.push(0x23); // global.get $g_resume_target_op
+    push_uleb_u32(indices.g_resume_target_op, &mut body);
+    body.push(0x54); // i64.lt_u
+    body.push(0x72); // i32.or
     body.push(0x04); // if (empty)
     body.push(0x40);
 
-    // `__ctb_op_ordinal = __ctb_op_ordinal + __ctb_quota_remaining + 1`
-    body.push(0x23); // global.get $g_op_ordinal
-    push_uleb_u32(indices.g_op_ordinal, &mut body);
-    body.push(0x23); // global.get $g_quota_rem
-    push_uleb_u32(indices.g_quota_rem, &mut body);
-    body.push(0x7C); // i64.add
-    body.push(0x42); // i64.const 1
-    push_sleb_i64(1, &mut body);
-    body.push(0x7C); // i64.add
-    body.push(0x24); // global.set $g_op_ordinal
-    push_uleb_u32(indices.g_op_ordinal, &mut body);
-
-    // `__ctb_quota_consumed = __ctb_quota_consumed + __ctb_quota_remaining`
-    body.push(0x23); // global.get $g_quota_consumed
-    push_uleb_u32(indices.g_quota_consumed, &mut body);
-    body.push(0x23); // global.get $g_quota_rem
-    push_uleb_u32(indices.g_quota_rem, &mut body);
-    body.push(0x7C); // i64.add
-    body.push(0x24); // global.set $g_quota_consumed
-    push_uleb_u32(indices.g_quota_consumed, &mut body);
-
-    // `__ctb_quota_remaining = 0`
+    // Per-operation loop: `while $count > 0 { call $__ctb_deduct(1); $count -= 1; }`
+    body.push(0x03); // loop (empty)
+    body.push(0x40);
+    body.push(0x20); // local.get 0 ($count)
+    push_uleb_u32(0, &mut body);
     body.push(0x42); // i64.const 0
     push_sleb_i64(0, &mut body);
-    body.push(0x24); // global.set $g_quota_rem
-    push_uleb_u32(indices.g_quota_rem, &mut body);
-
-    // `__ctb_exhausted = 1` (ComputeQuotaExhausted)
-    body.push(0x41); // i32.const 1
-    push_sleb_i32(1, &mut body);
-    body.push(0x24); // global.set $g_exhausted
-    push_uleb_u32(indices.g_exhausted, &mut body);
-
-    // `__ctb_interrupted_op = __ctb_op_ordinal`
-    body.push(0x23); // global.get $g_op_ordinal
-    push_uleb_u32(indices.g_op_ordinal, &mut body);
-    body.push(0x24); // global.set $g_interrupted_op
-    push_uleb_u32(indices.g_interrupted_op, &mut body);
-
-    // `__ctb_required_cost = 1`
+    body.push(0x56); // i64.gt_u
+    body.push(0x04); // if (empty)
+    body.push(0x40);
     body.push(0x42); // i64.const 1
     push_sleb_i64(1, &mut body);
-    body.push(0x24); // global.set $g_required_cost
-    push_uleb_u32(indices.g_required_cost, &mut body);
-
-    body.push(0x00); // unreachable
-    body.push(0x0B); // end if
+    body.push(0x10); // call $__ctb_deduct
+    push_uleb_u32(indices.deduct_func_idx, &mut body);
+    body.push(0x20); // local.get 0 ($count)
+    push_uleb_u32(0, &mut body);
+    body.push(0x42); // i64.const 1
+    push_sleb_i64(1, &mut body);
+    body.push(0x7D); // i64.sub
+    body.push(0x21); // local.set 0 ($count)
+    push_uleb_u32(0, &mut body);
+    body.push(0x0C); // br 1 (back to loop)
+    push_uleb_u32(1, &mut body);
+    body.push(0x0B); // end inner if
+    body.push(0x0B); // end loop
+    body.push(0x0F); // return
+    body.push(0x0B); // end outer if
 
     // Fast path: `__ctb_op_ordinal += $count`
     body.push(0x23); // global.get $g_op_ordinal
@@ -1385,6 +1420,172 @@ fn encode_deduct_batch_helper_body(indices: &QuotaIndices) -> Vec<u8> {
     body
 }
 
+fn build_suspendable_tinywasm_module(
+    parsed_instrumented: &TinyWasmModule,
+    deduct_func_idx: u32,
+) -> Result<TinyWasmModule> {
+    let mut module = parsed_instrumented.clone();
+    let mut func_types = module.func_types.into_vec();
+    let suspend_type_idx = u32::try_from(func_types.len())?;
+    func_types.push(FuncType {
+        params: Box::new([]),
+        results: Box::new([]),
+    });
+    module.func_types = func_types.into_boxed_slice();
+
+    let host_suspend_func_idx = 0u32;
+    let mut imports = module.imports.into_vec();
+    imports.push(Import {
+        module: Box::from(CTB_HOST_IMPORT_MODULE),
+        name: Box::from(CTB_HOST_SUSPEND_IMPORT_NAME),
+        kind: ImportKind::Function(suspend_type_idx),
+    });
+    module.imports = imports.into_boxed_slice();
+
+    if let Some(start) = &mut module.start_func {
+        *start = start.saturating_add(1);
+    }
+    let mut exports = module.exports.into_vec();
+    for exp in &mut exports {
+        if exp.kind == ExternalKind::Func {
+            exp.index = exp.index.saturating_add(1);
+        }
+    }
+    module.exports = exports.into_boxed_slice();
+
+    let mut globals = module.globals.into_vec();
+    for glob in &mut globals {
+        if let ConstInstruction::RefFunc(idx) = &mut glob.init {
+            *idx = idx.saturating_add(1);
+        }
+    }
+    module.globals = globals.into_boxed_slice();
+
+    let mut elements = module.elements.into_vec();
+    for elem in &mut elements {
+        let mut items = elem.items.clone().into_vec();
+        for item in &mut items {
+            match item {
+                ElementItem::Func(idx)
+                | ElementItem::Expr(ConstInstruction::RefFunc(idx)) => {
+                    *idx = idx.saturating_add(1);
+                }
+                _ => {}
+            }
+        }
+        elem.items = items.into_boxed_slice();
+    }
+    module.elements = elements.into_boxed_slice();
+
+    let mut funcs = module.funcs.into_vec();
+    for func in &mut funcs {
+        let mut instrs = func.instructions.clone().into_vec();
+        for instr in &mut instrs {
+            match instr {
+                Instruction::Call(idx)
+                | Instruction::ReturnCall(idx)
+                | Instruction::RefFunc(idx) => {
+                    *idx = idx.saturating_add(1);
+                }
+                _ => {}
+            }
+        }
+        func.instructions = instrs.into_boxed_slice();
+    }
+
+    let deduct_def = funcs
+        .get_mut(usize::try_from(deduct_func_idx)?)
+        .context("Missing $__ctb_deduct function in parsed instrumented module")?;
+    let mut deduct_instrs = deduct_def.instructions.clone().into_vec();
+    let mut patched = false;
+    for instr in &mut deduct_instrs {
+        if matches!(instr, Instruction::Unreachable) {
+            *instr = Instruction::Call(host_suspend_func_idx);
+            patched = true;
+            break;
+        }
+    }
+    ensure!(
+        patched,
+        "Failed to locate suspension point in $__ctb_deduct"
+    );
+    deduct_def.instructions = deduct_instrs.into_boxed_slice();
+    module.funcs = funcs.into_boxed_slice();
+
+    Ok(module)
+}
+
+fn precheck_code_section_kernel_v1_opcodes(wasm_bytes: &[u8]) -> Result<()> {
+    if wasm_bytes.get(0..8) != Some(WASM_HEADER.as_slice()) {
+        return Ok(());
+    }
+    let mut pos = 8usize;
+    let dummy_indices = QuotaIndices {
+        deduct_func_idx: 0,
+        deduct_batch_func_idx: 0,
+        g_quota_rem: 0,
+        g_quota_consumed: 0,
+        g_exhausted: 0,
+        g_interrupted_op: 0,
+        g_required_cost: 0,
+        g_op_ordinal: 0,
+        g_total_mem_pages: 0,
+        g_max_mem_pages: 0,
+        g_phys_max_mem_pages: 0,
+        g_total_table_elems: 0,
+        g_max_table_elems: 0,
+        g_phys_max_table_elems: 0,
+        g_resume_target_op: 0,
+    };
+    while pos < wasm_bytes.len() {
+        let Ok(sec_id) = read_byte(wasm_bytes, &mut pos) else {
+            return Ok(());
+        };
+        let Ok(sec_len_u32) = read_uleb_u32(wasm_bytes, &mut pos) else {
+            return Ok(());
+        };
+        let Ok(sec_len) = usize::try_from(sec_len_u32) else {
+            return Ok(());
+        };
+        let Some(sec_end) = pos.checked_add(sec_len) else {
+            return Ok(());
+        };
+        let Some(payload) = wasm_bytes.get(pos..sec_end) else {
+            return Ok(());
+        };
+        pos = sec_end;
+        if sec_id == SEC_CODE {
+            let mut p = 0usize;
+            let Ok(count) = read_uleb_u32(payload, &mut p) else {
+                return Ok(());
+            };
+            for _ in 0..count {
+                let Ok(body_len_u32) = read_uleb_u32(payload, &mut p) else {
+                    return Ok(());
+                };
+                let Ok(body_len) = usize::try_from(body_len_u32) else {
+                    return Ok(());
+                };
+                let Some(body_end) = p.checked_add(body_len) else {
+                    return Ok(());
+                };
+                let Some(body_slice) = payload.get(p..body_end) else {
+                    return Ok(());
+                };
+                p = body_end;
+                let _ = instrument_function_body(
+                    body_slice,
+                    0,
+                    &[65_536],
+                    &[10_000_000],
+                    &dummy_indices,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Validates and instruments a standard WebAssembly module binary with portable
 /// `deduct-before-effect` compute-quota accounting and logical/physical memory
 /// and table growth guards.
@@ -1400,14 +1601,15 @@ fn encode_deduct_batch_helper_body(indices: &QuotaIndices) -> Vec<u8> {
 pub fn instrument_wasm_module_bytes(
     wasm_bytes: &[u8],
 ) -> Result<InstrumentedWasmModule> {
-    let parsed_uninstrumented =
-        ctb_formats_dcdata::tinywasm::parser::Parser::new()
-            .parse_module_bytes(wasm_bytes)
-            .map_err(|error| {
-                anyhow!(
-                    "Failed to parse WebAssembly module in tinywasm: {error:?}"
-                )
-            })?;
+    let parsed_uninstrumented = match ctb_formats_dcdata::tinywasm::parser::Parser::new()
+        .parse_module_bytes(wasm_bytes)
+    {
+        Ok(module) => module,
+        Err(error) => {
+            precheck_code_section_kernel_v1_opcodes(wasm_bytes)?;
+            bail!("Failed to parse WebAssembly module in tinywasm: {error:?}");
+        }
+    };
     ensure!(
         parsed_uninstrumented.imports.is_empty(),
         "WebAssembly host imports are not supported"
@@ -1579,6 +1781,7 @@ pub fn instrument_wasm_module_bytes(
         g_total_table_elems: num_guest_globals_u32.saturating_add(9),
         g_max_table_elems: num_guest_globals_u32.saturating_add(10),
         g_phys_max_table_elems: num_guest_globals_u32.saturating_add(11),
+        g_resume_target_op: num_guest_globals_u32.saturating_add(12),
     };
 
     // 8. Parse Start section if present
@@ -1651,16 +1854,16 @@ pub fn instrument_wasm_module_bytes(
         push_section(SEC_MEMORY, payload, &mut out)?;
     }
 
-    // Emit Section 6 (Global): original globals + 12 `__ctb_*` globals
+    // Emit Section 6 (Global): original globals + 13 `__ctb_*` globals
     {
         let mut sec =
-            Vec::with_capacity(raw_globals_tail.len().saturating_add(96));
-        push_uleb_u32(num_guest_globals_u32.saturating_add(12), &mut sec);
+            Vec::with_capacity(raw_globals_tail.len().saturating_add(104));
+        push_uleb_u32(num_guest_globals_u32.saturating_add(13), &mut sec);
         sec.extend_from_slice(raw_globals_tail);
 
         let initial_mem_i64 = i64::try_from(initial_memory_pages)?;
         let initial_tbl_i64 = i64::try_from(initial_table_elements)?;
-        let appended_globals: [(u8, i64); 12] = [
+        let appended_globals: [(u8, i64); 13] = [
             (VALTYPE_I64, i64::MAX),        // __ctb_quota_remaining
             (VALTYPE_I64, 0),               // __ctb_quota_consumed
             (VALTYPE_I32, 0),               // __ctb_exhausted
@@ -1673,6 +1876,7 @@ pub fn instrument_wasm_module_bytes(
             (VALTYPE_I64, initial_tbl_i64), // __ctb_total_table_elems
             (VALTYPE_I64, 65_536),          // __ctb_max_table_elems
             (VALTYPE_I64, 65_536),          // __ctb_phys_max_table_elems
+            (VALTYPE_I64, 0),               // __ctb_resume_target_op
         ];
         for (vt, init_val) in appended_globals {
             sec.push(vt);
@@ -1689,7 +1893,7 @@ pub fn instrument_wasm_module_bytes(
         push_section(SEC_GLOBAL, &sec, &mut out)?;
     }
 
-    // Emit Section 7 (Export): original exports + 12 `__ctb_*` globals + optional `__ctb_wasm_start`
+    // Emit Section 7 (Export): original exports + 13 `__ctb_*` globals + optional `__ctb_wasm_start`
     {
         let (num_guest_exports, raw_exports_tail) =
             if let Some(payload) = sec_export {
@@ -1702,13 +1906,13 @@ pub fn instrument_wasm_module_bytes(
             } else {
                 (0u32, &[][..])
             };
-        let extra_exports = if start_func_idx.is_some() { 13u32 } else { 12u32 };
+        let extra_exports = if start_func_idx.is_some() { 14u32 } else { 13u32 };
         let mut sec =
-            Vec::with_capacity(raw_exports_tail.len().saturating_add(320));
+            Vec::with_capacity(raw_exports_tail.len().saturating_add(360));
         push_uleb_u32(num_guest_exports.saturating_add(extra_exports), &mut sec);
         sec.extend_from_slice(raw_exports_tail);
 
-        let global_exports: [(&str, u32); 12] = [
+        let global_exports: [(&str, u32); 13] = [
             (CTB_QUOTA_REMAINING_EXPORT, indices.g_quota_rem),
             (CTB_QUOTA_CONSUMED_EXPORT, indices.g_quota_consumed),
             (CTB_EXHAUSTED_EXPORT, indices.g_exhausted),
@@ -1724,6 +1928,7 @@ pub fn instrument_wasm_module_bytes(
                 CTB_PHYS_MAX_TABLE_ELEMS_EXPORT,
                 indices.g_phys_max_table_elems,
             ),
+            (CTB_RESUME_TARGET_OP_EXPORT, indices.g_resume_target_op),
         ];
         for (name, g_idx) in global_exports {
             push_name(name, &mut sec)?;
@@ -1818,10 +2023,13 @@ pub fn instrument_wasm_module_bytes(
                     "Failed to validate instrumented WebAssembly module: {error:?}"
                 )
             })?;
+    let parsed_suspendable =
+        build_suspendable_tinywasm_module(&parsed_instrumented, deduct_func_idx)?;
 
     Ok(InstrumentedWasmModule {
         wasm_bytes: out,
         parsed_instrumented,
+        parsed_suspendable,
         has_start_func: start_func_idx.is_some(),
         initial_memory_pages,
         initial_table_elements,

@@ -108,6 +108,36 @@ impl BootstrapKernelVersion {
             ),
         }
     }
+
+    /// Verifies that the decoded WebAssembly `(prefix_opt, subopcode)` is permitted
+    /// under this bootstrap kernel version.
+    ///
+    /// In [`BootstrapKernelVersion::V1`], the `0xFB` GC opcode page (`Dc 903`..`Dc 1158`),
+    /// exception-handling instructions (`0x08` `throw`, `0x0A` `throw_ref`, `0x1F` `try_table`),
+    /// and `0xFD` Relaxed SIMD (`subopcode >= 256`, `Dc 1671`..`Dc 1926`) are explicitly gated.
+    ///
+    /// # Errors
+    /// Returns an error if the opcode belongs to a gated proposal page in `self`.
+    pub fn ensure_wasm_opcode_supported(
+        self,
+        prefix_opt: Option<u8>,
+        subopcode: u32,
+    ) -> Result<()> {
+        match self {
+            Self::V1 => match (prefix_opt, subopcode) {
+                (Some(0xFB), _) => bail!(
+                    "WASM 0xFB GC opcode page (subopcode {subopcode:#x}) is gated and unsupported in BootstrapKernelVersion::V1"
+                ),
+                (Some(0xFD), sub) if sub >= 256 => bail!(
+                    "WASM 0xFD Relaxed SIMD opcode page (subopcode {sub:#x}) is gated and unsupported in BootstrapKernelVersion::V1"
+                ),
+                (None, 0x08 | 0x0A | 0x1F) => bail!(
+                    "WASM exception-handling opcode {subopcode:#04x} is gated and unsupported in BootstrapKernelVersion::V1"
+                ),
+                _ => Ok(()),
+            },
+        }
+    }
 }
 
 /// Unified caller-specified policy governing how syntax errors, unknown tags,
