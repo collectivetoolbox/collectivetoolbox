@@ -57,13 +57,16 @@ const records = fs.readFileSync(process.argv[2], "utf8").split(/\r?\n/)
 assert.equal(records.length, 1, "Cargo must emit exactly one compatibility record");
 const record = records[0];
 const cases = JSON.parse(record.slice(record.indexOf(prefix) + prefix.length));
-assert.equal(cases.length, 7, "All quota boundaries must be exercised");
-assert.equal(new Set(cases.map(testCase => testCase.quota)).size, cases.length);
+assert.equal(cases.length, 13, "All quota, trap, table, numeric, and resumption cases must be exercised");
 
 for (const testCase of cases) {
   const module = new WebAssembly.Module(Uint8Array.from(testCase.wasm));
   const instance = new WebAssembly.Instance(module);
   const exports = instance.exports;
+  if (exports.__ctb_wasm_start) {
+    exports.__ctb_quota_remaining.value = BigInt(testCase.quota);
+    exports.__ctb_WASM_start?.();
+  }
   exports.__ctb_quota_remaining.value = BigInt(testCase.quota);
   exports.__ctb_quota_consumed.value = 0n;
   exports.__ctb_op_ordinal.value = 0n;
@@ -71,19 +74,32 @@ for (const testCase of cases) {
   exports.__ctb_required_cost.value = 0n;
   exports.__ctb_exhausted.value = 0;
   exports.__ctb_total_mem_pages.value = 1n;
-  exports.__ctb_max_mem_pages.value = 4n;
-  exports.__ctb_phys_max_mem_pages.value = 4n;
+  exports.__ctb_max_mem_pages.value = BigInt(testCase.max_mem_pages ?? 4);
+  exports.__ctb_phys_max_mem_pages.value = BigInt(testCase.max_mem_pages ?? 4);
+  if (exports.__ctb_total_table_elems) {
+    exports.__ctb_total_table_elems.value = BigInt(testCase.init_table_elems ?? 0);
+    exports.__ctb_max_table_elems.value = BigInt(testCase.max_table_elems ?? 1024);
+    exports.__ctb_phys_max_table_elems.value = BigInt(testCase.max_table_elems ?? 1024);
+  }
+  if (exports.__ctb_resume_target_op) {
+    exports.__ctb_resume_target_op.value = 0n;
+  }
   let result = null;
+  let trapped = false;
   try {
     result = exports.main();
     assert.equal(exports.__ctb_exhausted.value, 0);
   } catch (error) {
-    if (!(error instanceof WebAssembly.RuntimeError) || exports.__ctb_exhausted.value !== 1) {
+    if (!(error instanceof WebAssembly.RuntimeError)) {
       throw error;
+    }
+    if (exports.__ctb_exhausted.value !== 1) {
+      trapped = true;
     }
   }
   const exhausted = exports.__ctb_exhausted.value === 1;
   const actual = {
+    trapped,
     exhausted,
     interrupted_op: exhausted ? exports.__ctb_interrupted_op.value.toString() : null,
     required_cost: exhausted ? exports.__ctb_required_cost.value.toString() : null,
@@ -96,10 +112,10 @@ for (const testCase of cases) {
   assert.deepStrictEqual(
     actual,
     testCase.state,
-    `TinyWasm/V8 execution state differs at compute quota ${testCase.quota}`
+    `TinyWasm/V8 execution state differs for ${testCase.kind} at compute quota ${testCase.quota}`
   );
 }
-console.log("TinyWasm/V8 quota, result, and memory checks passed for all seven cases.");
+console.log(`TinyWasm/V8 quota, trap, table, numeric, and resumption checks passed for all ${cases.length} cases.`);
 EOF
 
 echo "WASM portable compute-quota compatibility fixture passed."

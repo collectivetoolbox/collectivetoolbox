@@ -5892,6 +5892,120 @@ mod tests {
                 "i32.div_s({lhs}, {rhs}) must trap deterministically"
             );
         }
+
+        // 5. Active graph `<equiv>` (`Dc 597`) resolution and leading `Dc 641` pin discovery
+        //    under `BootstrapKernelVersion::V1`.
+        let resolver = default_syntax_resolver();
+        // `Dc 296` ("Logical NOT") and Unicode `!` (`U+0021`) or `<equiv>` pairs resolve via `is_equivalent_to`:
+        let canon_517 = resolver.canonical_token(DcChar::from_short(517).to_u128());
+        assert!(
+            resolver.is_equivalent_to(DcChar::from_short(517).to_u128(), canon_517)
+        );
+        let head_pin = SeedGraphIndex::shared()?
+            .system_block_most_recent_node_id()
+            .unwrap();
+        let mut pinned_nav_doc = DcMstring::new();
+        pinned_nav_doc.push_char(DcChar::from_short(641));
+        pinned_nav_doc.push_char(DcChar::from_u128(head_pin));
+        pinned_nav_doc.push_char(DcChar::from_short(517));
+        let nav = crate::DcDocumentNavigator::from_mstr_with_policy(
+            &pinned_nav_doc,
+            &crate::DcProjectionPolicy::strict()
+                .with_kernel_version(crate::BootstrapKernelVersion::V1),
+        );
+        assert_eq!(nav.kernel_version(), crate::BootstrapKernelVersion::V1);
+        assert_eq!(nav.document_most_recent_node_id(), Some(head_pin));
+
+        // 6. `.Semantic:Pattern` operators (`parse_dc_syntax` / `SyntaxPattern`):
+        //    - Choice and backtracking (`|` / `Dc 601 "Pattern alternative"`)
+        //    - Capture scope (`(...)` / `Dc 603`..`Dc 604` + `=>` / `Dc 608`)
+        //    - Recursive references (`[expr]`)
+        //    - Range arity (`{min,max}` / `Dc 605`..`Dc 607` and `a..z` / `Dc 614`)
+        //    - Malformed pattern diagnostics
+        let choice_rule = ctb_formats_dcdata::syntax::parse_dc_syntax(
+            ":~ ([number] 517 | [number] 518)",
+        )
+        .expect("Valid choice pattern must parse");
+        assert!(matches!(
+            choice_rule.pattern,
+            ctb_formats_dcdata::syntax::SyntaxPattern::Sequence(_)
+        ));
+        let range_rule = ctb_formats_dcdata::syntax::parse_dc_syntax(
+            ":~ [u61..u7a]{2,4} [string $x] : lang.say($x)",
+        )
+        .expect("Valid character range + bounded quantifier + capture replacement must parse");
+        assert!(range_rule.action.is_some());
+        if let ctb_formats_dcdata::syntax::SyntaxPattern::Sequence(elems) =
+            &range_rule.pattern
+        {
+            assert_eq!(elems.len(), 3);
+            assert_eq!(
+                elems[1].quantifier,
+                ctb_formats_dcdata::syntax::Quantifier::Range {
+                    min: 2,
+                    max: Some(4),
+                }
+            );
+            assert!(matches!(
+                &elems[2].term,
+                ctb_formats_dcdata::syntax::SyntaxTerm::NamedConstruct {
+                    capture_var: Some(c),
+                    ..
+                } if c == "x"
+            ));
+        } else {
+            bail!("Expected sequence pattern for range_rule");
+        }
+        assert!(
+            ctb_formats_dcdata::syntax::parse_dc_syntax(":~ (517").is_err(),
+            "Unclosed capture group must be rejected as malformed pattern"
+        );
+
+        // 7. `BootstrapKernelVersion::V1` opcode gating:
+        //    Rejects `0xFB` GC (`Dc 903`..`Dc 1158`), exception-handling (`Dc 655` `throw`,
+        //    `Dc 657` `throw_ref`, `Dc 678` `try_table`), and `0xFD` Relaxed SIMD (`Dc 1671`..`Dc 1926`)
+        //    in both Dc-WASM lowering and raw WASM instrumentation.
+        for gated_dc in [
+            DcChar::from_short(655),  // WASM throw (0x08)
+            DcChar::from_short(657),  // WASM throw_ref (0x0A)
+            DcChar::from_short(678),  // WASM try_table (0x1F)
+            DcChar::from_short(903),  // WASM struct.new (0xFB 0x00)
+            DcChar::from_short(1158), // WASM Reserved 0xFB 0xFF 0x01
+            DcChar::from_short(1671), // WASM i8x16.relaxed_swizzle (0xFD 0x100)
+            DcChar::from_short(1926), // WASM Reserved 0xFD 0xFF 0x03
+        ] {
+            let mut gated_doc = DcMstring::new();
+            gated_doc.push_char(DcChar::from_short(260));
+            gated_doc.push_char(DcChar::from_short(262));
+            gated_doc.push_char(DcChar::from_short(280));
+            gated_doc.push_char(i32_dc);
+            gated_doc.push_char(DcChar::from_short(263));
+            gated_doc.push_char(gated_dc);
+            gated_doc.push_char(DcChar::from_short(261));
+            assert!(
+                dcmstring_to_wasm_with_resolver(&gated_doc, resolver.as_ref())
+                    .is_err(),
+                "Gated opcode {gated_dc} must be rejected under BootstrapKernelVersion::V1"
+            );
+        }
+        // Raw WASM binary with `0xFD 0x80 0x02` (`i8x16.relaxed_swizzle`, subopcode 256)
+        // must also be rejected by `instrument_wasm_module_bytes`:
+        let raw_relaxed_simd_wasm = [
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f,
+            0x03, 0x02, 0x01, 0x00,
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            0x07, 0x11, 0x02, 0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x00,
+            0x0a, 0x08, 0x01, 0x06, 0x00, 0xfd, 0x80, 0x02, 0x41, 0x00, 0x0b,
+        ];
+        assert!(
+            super::super::wasm_quota::instrument_wasm_module_bytes(
+                &raw_relaxed_simd_wasm
+            )
+            .is_err(),
+            "Raw 0xFD Relaxed SIMD must be rejected by BootstrapKernelVersion::V1"
+        );
         Ok(())
     }
 
@@ -6005,9 +6119,13 @@ mod tests {
                 "Compute quota {quota} must stop before the expected operation"
             );
             compatibility_cases.push(serde_json::json!({
+                "kind": "quota_boundary",
                 "quota": quota,
                 "wasm": instrumented_bytes,
+                "max_mem_pages": 4,
+                "max_table_elems": 1024,
                 "state": {
+                    "trapped": false,
                     "exhausted": exhausted,
                     "interrupted_op": interrupted_op.map(|value| value.to_string()),
                     "required_cost": required_cost.map(|value| value.to_string()),
@@ -6019,12 +6137,251 @@ mod tests {
                 },
             }));
         }
-        println!(
-            "CTB_WASM_COMPAT {}",
-            serde_json::to_string(&compatibility_cases)?
-        );
 
-        // Verify resumption after `increase_compute_quota` completes cleanly without repeating effects.
+        // 2. Trap fixtures (`i32.div_s` divide-by-zero `10 / 0` and overflow `i32::MIN / -1` after storing `7` at `mem[32]`):
+        for (label, lhs, rhs) in [
+            ("trap_div_zero", 10_i32, 0_i32),
+            ("trap_div_overflow", i32::MIN, -1_i32),
+        ] {
+            let mut trap_doc = DcMstring::new();
+            trap_doc.push_char(DcChar::from_short(260));
+            trap_doc.push_char(DcChar::from_short(262));
+            trap_doc.push_char(DcChar::from_short(280));
+            trap_doc.push_char(i32_type_dc());
+            trap_doc.push_char(DcChar::from_short(263));
+            trap_doc.push_char(DcChar::from_short(712)); // i32.const 32
+            i32::encode_dc_mixed(&32, &mut trap_doc)?;
+            trap_doc.push_char(DcChar::from_short(712)); // i32.const 7
+            i32::encode_dc_mixed(&7, &mut trap_doc)?;
+            trap_doc.push_char(DcChar::from_short(701)); // i32.store
+            u32::encode_dc_mixed(&0, &mut trap_doc)?;
+            u32::encode_dc_mixed(&2, &mut trap_doc)?;
+            u32::encode_dc_mixed(&0, &mut trap_doc)?;
+            trap_doc.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&lhs, &mut trap_doc)?;
+            trap_doc.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&rhs, &mut trap_doc)?;
+            trap_doc.push_char(DcChar::from_short(756)); // i32.div_s
+            trap_doc.push_char(DcChar::from_short(261));
+
+            let limits = DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(20)
+                .with_max_memory_pages(4);
+            let mut trap_session = DcWasmSession::from_dc_wasm(
+                &trap_doc,
+                &DcMstring::new(),
+                None,
+            )?
+            .with_resource_limits(limits);
+            let instrumented_bytes =
+                trap_session.instrumented_wasm_bytes().to_vec();
+            let err = trap_session
+                .step()
+                .expect_err("Division trap fixture must trap");
+            assert!(
+                err.downcast_ref::<WasmResourceInterruption>().is_none(),
+                "Non-resource division trap must not report WasmResourceInterruption"
+            );
+            assert_eq!(trap_session.read_memory(32, 4)?, 7_i32.to_le_bytes());
+            compatibility_cases.push(serde_json::json!({
+                "kind": label,
+                "quota": 20_u64,
+                "wasm": instrumented_bytes,
+                "max_mem_pages": 4,
+                "max_table_elems": 1024,
+                "state": {
+                    "trapped": true,
+                    "exhausted": false,
+                    "interrupted_op": None::<String>,
+                    "required_cost": None::<String>,
+                    "consumed": trap_session.last_step_instructions().to_string(),
+                    "remaining": trap_session.remaining_compute_quota().to_string(),
+                    "result": None::<i32>,
+                    "memory": trap_session.read_memory(32, 32)?,
+                    "pages": trap_session.current_memory_pages()?,
+                },
+            }));
+        }
+
+        // 3. Table growth & `call_indirect` fixture:
+        //    Func 0 (`(i32) -> i32`): returns `local.get 0 + 42`
+        //    Func 1 (`main () -> i32`):
+        //      grows table 0 by 2 with `ref.func 0` (`cost = 1 + 2 * 8 = 17`),
+        //      stores old table size at `mem[36]`,
+        //      calls `call_indirect (type 0)` on table slot 1 with arg `10` -> `52`,
+        //      stores `52` at `mem[32]`, returns `0`.
+        let table_indirect_wasm: Vec<u8> = vec![
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            // Type section: type 0 = (i32) -> i32, type 1 = () -> i32
+            0x01, 0x0a, 0x02,
+            0x60, 0x01, 0x7f, 0x01, 0x7f,
+            0x60, 0x00, 0x01, 0x7f,
+            // Function section: func 0 -> type 0, func 1 -> type 1
+            0x03, 0x03, 0x02, 0x00, 0x01,
+            // Table section: 1 funcref table, min 1
+            0x04, 0x04, 0x01, 0x70, 0x00, 0x01,
+            // Memory section: 1 memory, min 1 page
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            // Export section: "memory" (mem 0), "main" (func 1)
+            0x07, 0x11, 0x02,
+            0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x01,
+            // Element section: active segment on table 0 at offset 0 with [func 0]
+            0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00,
+            // Code section:
+            0x0a, 0x26, 0x02,
+            // Body 0 (7 bytes): local.get 0, i32.const 42, i32.add, end
+            0x07, 0x00, 0x20, 0x00, 0x41, 0x2a, 0x6a, 0x0b,
+            // Body 1 (28 bytes = 0x1c):
+            0x1c, 0x00,
+            0x41, 0x24, // i32.const 36
+            0xd2, 0x00, // ref.func 0
+            0x41, 0x02, // i32.const 2
+            0xfc, 0x0f, 0x00, // table.grow 0
+            0x36, 0x02, 0x00, // i32.store (mem[36] = old table size = 1)
+            0x41, 0x20, // i32.const 32
+            0x41, 0x0a, // i32.const 10 (arg)
+            0x41, 0x01, // i32.const 1 (table index 1, populated by table.grow)
+            0x11, 0x00, 0x00, // call_indirect type 0, table 0
+            0x36, 0x02, 0x00, // i32.store (mem[32] = 52)
+            0x41, 0x00, // i32.const 0
+            0x0b,
+        ];
+        for quota in [5_u64, 100_u64] {
+            let limits = DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(quota)
+                .with_max_memory_pages(4)
+                .with_max_table_elements(16);
+            let mut tbl_s = DcWasmSession::from_wasm_bytes_with_limits(
+                &table_indirect_wasm,
+                &DcMstring::new(),
+                None,
+                limits,
+            )?;
+            let instrumented_bytes = tbl_s.instrumented_wasm_bytes().to_vec();
+            let res = tbl_s.step();
+            let exhausted = res.is_err();
+            if !exhausted {
+                assert_eq!(tbl_s.read_memory(32, 4)?, 52_i32.to_le_bytes());
+                assert_eq!(tbl_s.read_memory(36, 4)?, 1_i32.to_le_bytes());
+            }
+            compatibility_cases.push(serde_json::json!({
+                "kind": "table_indirect",
+                "quota": quota,
+                "wasm": instrumented_bytes,
+                "max_mem_pages": 4,
+                "max_table_elems": 16,
+                "init_table_elems": 1,
+                "state": {
+                    "trapped": false,
+                    "exhausted": exhausted,
+                    "interrupted_op": tbl_s.last_interrupted_op_ordinal().map(|v| v.to_string()),
+                    "required_cost": tbl_s.last_interrupted_op_required_cost().map(|v| v.to_string()),
+                    "consumed": tbl_s.last_step_instructions().to_string(),
+                    "remaining": tbl_s.remaining_compute_quota().to_string(),
+                    "result": if exhausted { None } else { Some(0_i32) },
+                    "memory": tbl_s.read_memory(32, 32)?,
+                    "pages": tbl_s.current_memory_pages()?,
+                },
+            }));
+        }
+
+        // 4. Numeric edge cases (`i64.rotl`, `i32.trunc_sat_f64_s` on NaN / +Inf / -Inf):
+        //    Stores:
+        //      mem[32] = i32.wrap_i64(i64.rotl(0x8000_0000_0000_0001, 1)) == 3
+        //      mem[36] = i32.trunc_sat_f64_s(NaN) == 0
+        //      mem[40] = i32.trunc_sat_f64_s(1e20) == i32::MAX
+        //      mem[44] = i32.trunc_sat_f64_s(-1e20) == i32::MIN
+        let mut num_doc = DcMstring::new();
+        num_doc.push_char(DcChar::from_short(260));
+        num_doc.push_char(DcChar::from_short(262));
+        num_doc.push_char(DcChar::from_short(280));
+        num_doc.push_char(i32_type_dc());
+        num_doc.push_char(DcChar::from_short(263));
+        // mem[32] = i32.wrap_i64(i64.rotl(0x8000_0000_0000_0001_u64 as i64, 1))
+        num_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&32, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(713)); // i64.const
+        i64::encode_dc_mixed(&i64::from_le_bytes(0x8000_0000_0000_0001_u64.to_le_bytes()), &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(713)); // i64.const 1
+        i64::encode_dc_mixed(&1, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(784)); // i64.rotl (647 + 0x89 = 784)
+        num_doc.push_char(DcChar::from_short(814)); // i32.wrap_i64 (647 + 0xA7 = 814)
+        num_doc.push_char(DcChar::from_short(701)); // i32.store
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        u32::encode_dc_mixed(&2, &mut num_doc)?;
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        // mem[36] = i32.trunc_sat_f64_s(f64::NAN) -> 0 (Dc 1161 = 0xFC 0x02)
+        num_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&36, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(715)); // f64.const
+        u64::encode_dc_mixed(&0x7ff8_0000_0000_0000_u64, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(1161)); // i32.trunc_sat_f64_s
+        num_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        u32::encode_dc_mixed(&2, &mut num_doc)?;
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        // mem[40] = i32.trunc_sat_f64_s(1e20) -> i32::MAX
+        num_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&40, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(715));
+        u64::encode_dc_mixed(&(1e20_f64.to_bits()), &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(1161));
+        num_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        u32::encode_dc_mixed(&2, &mut num_doc)?;
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        // mem[44] = i32.trunc_sat_f64_s(-1e20) -> i32::MIN
+        num_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&44, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(715));
+        u64::encode_dc_mixed(&((-1e20_f64).to_bits()), &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(1161));
+        num_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        u32::encode_dc_mixed(&2, &mut num_doc)?;
+        u32::encode_dc_mixed(&0, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut num_doc)?;
+        num_doc.push_char(DcChar::from_short(261));
+
+        let mut num_session = DcWasmSession::from_dc_wasm(
+            &num_doc,
+            &DcMstring::new(),
+            None,
+        )?
+        .with_resource_limits(
+            DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(50)
+                .with_max_memory_pages(4),
+        );
+        let num_instrumented = num_session.instrumented_wasm_bytes().to_vec();
+        assert!(matches!(num_session.step()?, WasmStepOutcome::Complete(_)));
+        assert_eq!(num_session.read_memory(32, 4)?, 3_i32.to_le_bytes());
+        assert_eq!(num_session.read_memory(36, 4)?, 0_i32.to_le_bytes());
+        assert_eq!(num_session.read_memory(40, 4)?, i32::MAX.to_le_bytes());
+        assert_eq!(num_session.read_memory(44, 4)?, i32::MIN.to_le_bytes());
+        compatibility_cases.push(serde_json::json!({
+            "kind": "numeric_edge",
+            "quota": 50_u64,
+            "wasm": num_instrumented,
+            "max_mem_pages": 4,
+            "max_table_elems": 1024,
+            "state": {
+                "trapped": false,
+                "exhausted": false,
+                "interrupted_op": None::<String>,
+                "required_cost": None::<String>,
+                "consumed": num_session.last_step_instructions().to_string(),
+                "remaining": num_session.remaining_compute_quota().to_string(),
+                "result": Some(0_i32),
+                "memory": num_session.read_memory(32, 32)?,
+                "pages": num_session.current_memory_pages()?,
+            },
+        }));
+
+        // 5. Multi-quantum continuation resumption (`35 -> +60 (95) -> +105 (200)`) on a single
+        //    live `DcWasmSession`, verifying every intermediate and final checkpoint matches V8!
         let limits = DcWasmResourceLimits::default()
             .with_max_instructions_per_step(35)
             .with_max_memory_pages(4);
@@ -6034,23 +6391,68 @@ mod tests {
             None,
             limits,
         )?;
-        let err = session
+        let resume_wasm_bytes = session.instrumented_wasm_bytes().to_vec();
+        // Quantum 1 (limit 35): pauses at op 36 (cost 1)
+        let err1 = session
             .step()
             .expect_err("Quota 35 must pause mid-execution");
         assert_eq!(
-            err.downcast_ref::<WasmResourceInterruption>(),
+            err1.downcast_ref::<WasmResourceInterruption>(),
             Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 35 })
         );
-        assert!(
-            session.last_interrupted_op_ordinal().is_some_and(|ordinal| ordinal > 0)
+        assert_eq!(session.last_interrupted_op_ordinal(), Some(36));
+        assert_eq!(session.last_interrupted_op_required_cost(), Some(1));
+        assert_eq!(session.total_instructions_executed(), 35);
+        assert_eq!(session.remaining_compute_quota(), 0);
+
+        // Quantum 2 (+60 => limit 95): resumes in place and pauses right before `memory.fill` at op 90 (cost 17)
+        session.increase_compute_quota(60);
+        let err2 = session
+            .step()
+            .expect_err("Quota 95 must pause before memory.fill (cost 17)");
+        assert_eq!(
+            err2.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 95 })
         );
-        session.increase_compute_quota(200);
+        assert_eq!(session.last_interrupted_op_ordinal(), Some(90));
+        assert_eq!(session.last_interrupted_op_required_cost(), Some(17));
+        assert_eq!(session.total_instructions_executed(), 89);
+        assert_eq!(session.remaining_compute_quota(), 6);
+        assert_eq!(session.read_memory(32, 4)?, 5_i32.to_le_bytes());
+
+        // Quantum 3 (+105 => limit 200): resumes in place at `memory.fill`, runs `memory.grow(1)`, and completes!
+        session.increase_compute_quota(105);
         let outcome = session.step()?;
         assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
+        assert_eq!(session.total_instructions_executed(), 175);
+        assert_eq!(session.remaining_compute_quota(), 25);
         assert_eq!(session.current_memory_pages()?, 2);
         assert_eq!(session.read_memory(32, 4)?, 5_i32.to_le_bytes());
         assert_eq!(session.read_memory(36, 4)?, 1_i32.to_le_bytes());
         assert_eq!(session.read_memory(48, 16)?, vec![0x5a; 16]);
+        compatibility_cases.push(serde_json::json!({
+            "kind": "resumed_completion",
+            "quota": 200_u64,
+            "wasm": resume_wasm_bytes,
+            "max_mem_pages": 4,
+            "max_table_elems": 1024,
+            "state": {
+                "trapped": false,
+                "exhausted": false,
+                "interrupted_op": None::<String>,
+                "required_cost": None::<String>,
+                "consumed": session.total_instructions_executed().to_string(),
+                "remaining": session.remaining_compute_quota().to_string(),
+                "result": Some(0_i32),
+                "memory": session.read_memory(32, 32)?,
+                "pages": session.current_memory_pages()?,
+            },
+        }));
+
+        println!(
+            "CTB_WASM_COMPAT {}",
+            serde_json::to_string(&compatibility_cases)?
+        );
         Ok(())
     }
 
@@ -6624,6 +7026,167 @@ mod tests {
             "Unexpected error for retracted Short-Dc WASM helper: {retracted_err}"
         );
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_mid_step_continuation_preserves_shared_task_quota_and_start_trap()
+    -> Result<()> {
+        // 1. Module with a `start` function (`func 0`) that increments `mem[40]` by 1
+        //    and a `main` function (`func 1`) that increments `mem[32]` 5 times in a loop.
+        //    If mid-step resumption ever re-instantiated the module or re-ran the step prefix,
+        //    `mem[40]` would become > 1 or `mem[32]` would exceed 5!
+        //    Furthermore, while the parent session is paused mid-step on `ComputeQuotaExhausted`,
+        //    we allocate a child `SharedWasmTaskQuota` from the parent task quota, run a child
+        //    session consuming 6 compute units, reclaim the child task quota into the parent,
+        //    grant additional quota to the parent, and resume the parent's mid-step continuation!
+        let wasm_with_start_and_loop: Vec<u8> = vec![
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            // Type section: type 0 = () -> (), type 1 = () -> i32
+            0x01, 0x08, 0x02,
+            0x60, 0x00, 0x00,
+            0x60, 0x00, 0x01, 0x7f,
+            // Function section: func 0 -> type 0 (start), func 1 -> type 1 (main)
+            0x03, 0x03, 0x02, 0x00, 0x01,
+            // Memory section: 1 memory, min 1 page
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            // Export section: "memory" (mem 0), "main" (func 1)
+            0x07, 0x11, 0x02,
+            0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x01,
+            // Start section: func 0
+            0x08, 0x01, 0x00,
+            // Code section: 1 + 16 + 35 = 52 bytes (0x34)
+            0x0a, 0x34, 0x02,
+            // Body 0 (start, 15 bytes = 0x0f): mem[40] = mem[40] + 1
+            0x0f, 0x00,
+            0x41, 0x28, // i32.const 40
+            0x41, 0x28, // i32.const 40
+            0x28, 0x02, 0x00, // i32.load
+            0x41, 0x01, // i32.const 1
+            0x6a, // i32.add
+            0x36, 0x02, 0x00, // i32.store
+            0x0b,
+            // Body 1 (main, 34 bytes = 0x22): 1 local i32 (counter); loop 5x incrementing mem[32]
+            0x22, 0x01, 0x01, 0x7f,
+            0x03, 0x40, // loop
+            0x41, 0x20, // i32.const 32
+            0x41, 0x20, // i32.const 32
+            0x28, 0x02, 0x00, // i32.load
+            0x41, 0x01, // i32.const 1
+            0x6a, // i32.add
+            0x36, 0x02, 0x00, // i32.store
+            0x20, 0x00, // local.get 0
+            0x41, 0x01, // i32.const 1
+            0x6a, // i32.add
+            0x22, 0x00, // local.tee 0
+            0x41, 0x05, // i32.const 5
+            0x49, // i32.lt_u
+            0x0d, 0x00, // br_if 0
+            0x0b, // end loop
+            0x41, 0x00, // i32.const 0
+            0x0b,
+        ];
+
+        // Start with parent shared task quota = 30 units:
+        // - `start` consumes 7 units (`remaining == 23`)
+        // - `main` step 0 runs ~2 loop iterations (`mem[32] == 2`) and pauses mid-step when
+        //   all 30 units are consumed (`remaining == 0`).
+        let parent_limits =
+            DcWasmResourceLimits::default().with_max_instructions_per_step(30);
+        let shared_parent = SharedWasmTaskQuota::new(parent_limits);
+        let mut parent_session = DcWasmSession::from_wasm_bytes_with_limits(
+            &wasm_with_start_and_loop,
+            &DcMstring::new(),
+            None,
+            parent_limits,
+        )?
+        .with_shared_task_quota(shared_parent.clone())?;
+        assert_eq!(parent_session.read_memory(40, 4)?, 1_i32.to_le_bytes());
+
+        let pause_err = parent_session
+            .step()
+            .expect_err("Parent session must pause mid-step at quota 30");
+        assert_eq!(
+            pause_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 30 })
+        );
+        // Verify partial loop progress (`mem[32] == 2`) is live in memory while suspended:
+        assert_eq!(parent_session.read_memory(32, 4)?, 2_i32.to_le_bytes());
+
+        // Grant +100 units to the shared parent quota, then while the parent is STILL paused
+        // mid-step, allocate a 20-unit child task quota, run a small child helper session
+        // (consuming 3 units), and reclaim the unused 17 units back into `shared_parent`!
+        shared_parent.increase_compute_quota(100)?;
+        let (child_quota, _) =
+            shared_parent.allocate_child_task_quota(20, 64)?;
+        let mut child_doc = DcMstring::new();
+        child_doc.push_char(DcChar::from_short(260));
+        child_doc.push_char(DcChar::from_short(262));
+        child_doc.push_char(DcChar::from_short(280));
+        child_doc.push_char(i32_type_dc());
+        child_doc.push_char(DcChar::from_short(263));
+        child_doc.push_char(DcChar::from_short(712)); // i32.const 0
+        i32::encode_dc_mixed(&0, &mut child_doc)?;
+        child_doc.push_char(DcChar::from_short(261));
+        let mut child_session = DcWasmSession::from_dc_wasm(
+            &child_doc,
+            &DcMstring::new(),
+            None,
+        )?
+        .with_shared_task_quota(child_quota.clone())?;
+        assert!(matches!(child_session.step()?, WasmStepOutcome::Complete(_)));
+        let child_used = child_session.total_instructions_executed();
+        assert_eq!(child_used, 2);
+        shared_parent.reclaim_child_task_quota(&child_quota)?;
+        assert_eq!(
+            shared_parent.snapshot()?.total_instructions_executed,
+            30 + child_used
+        );
+
+        // Now resume the paused parent session (`parent_session.step()`):
+        // It must resume its live suspended continuation without re-running `start` (`mem[40] == 1`)
+        // or repeating the first 2 loop iterations (`mem[32] == 5`), and preserve the child's
+        // 3 consumed units in `shared_parent.snapshot()?.total_instructions_executed`!
+        let outcome = parent_session.step()?;
+        assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
+        assert_eq!(
+            parent_session.read_memory(40, 4)?,
+            1_i32.to_le_bytes(),
+            "start section must NOT re-execute on mid-step continuation resume"
+        );
+        assert_eq!(
+            parent_session.read_memory(32, 4)?,
+            5_i32.to_le_bytes(),
+            "loop prefix must NOT re-execute on mid-step continuation resume"
+        );
+        let final_parent_snap = shared_parent.snapshot()?;
+        assert_eq!(
+            final_parent_snap.total_instructions_executed,
+            parent_session.total_instructions_executed() + child_used
+        );
+
+        // 2. Module whose `start` section traps with `unreachable` (`0x00`) returns `WasmStartSectionTrap`:
+        let start_trap_wasm = [
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+            0x03, 0x02, 0x01, 0x00,
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            0x07, 0x11, 0x02, 0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x00,
+            0x08, 0x01, 0x00,
+            0x0a, 0x05, 0x01, 0x03, 0x00, 0x00, 0x0b,
+        ];
+        let start_err = DcWasmSession::from_wasm_bytes(
+            &start_trap_wasm,
+            &DcMstring::new(),
+            None,
+        )
+        .expect_err("Non-resource trap in start section must fail instantiation");
+        assert!(
+            start_err.downcast_ref::<WasmStartSectionTrap>().is_some(),
+            "Expected WasmStartSectionTrap, got {start_err:#}"
+        );
         Ok(())
     }
 }

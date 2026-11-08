@@ -156,6 +156,9 @@ Every WebAssembly instruction in a `.WASM` program (`Dc 1927` `"Begin WASM progr
 5. **`0xFD` SIMD high page** (`Dc 1671`..`Dc 1926`, `256` slots):
    - Prefix byte `0xFD` followed by `u32` LEB128 opcode `256 + (short_id - 1671)` (`256..=511`).
 
+**`BootstrapKernelVersion::V1` Opcode Gate**:
+Both `assemble_instruction_sequence` ([`src/formats/dcstring/converters/wasm.rs`](../src/formats/dcstring/converters/wasm.rs)) and `instrument_function_body` ([`src/formats/dcstring/converters/wasm_quota.rs`](../src/formats/dcstring/converters/wasm_quota.rs)) call [`BootstrapKernelVersion::ensure_wasm_opcode_supported`](../src/formats/dcstring/navigator/policy.rs) to explicitly reject the `0xFB` GC opcode page (`Dc 903` `"WASM struct.new"` .. `Dc 1158` `"WASM Reserved 0xFB 0xFF 0x01"`), exception-handling opcodes (`Dc 655` `"WASM throw"`, `Dc 657` `"WASM throw_ref"`, `Dc 678` `"WASM try_table"`), and the `0xFD` Relaxed SIMD high page (`Dc 1671` `"WASM i8x16.relaxed_swizzle"` .. `Dc 1926` `"WASM Reserved 0xFD 0xFF 0x03"`, subopcodes `256..=511`) under `BootstrapKernelVersion::V1`.
+
 ### 4.2 `.WASM` Module Envelope (`Dc 1927`..`Dc 1928`)
 A `.WASM` program is enclosed in `Dc 1927` (`"Begin WASM program"`) .. `Dc 1928` (`"End WASM program"`) and takes one of two forms (`: ~ ([key_value] | [wasm_instr]*) 1928`):
 - **Ordered key-value map** (`Dc 559` `"Begin key-value array (ordered)"` .. `Dc 560` `"End key-value array"`): after the optional entry count (`Dc 6` `"Begin number"` .. `Dc 7` `"End number"`) and key/value type headers (`Dc 262` `"Begin type definition"` .. `Dc 263` `"End type definition"`), each member is a `Dc 514` `"Key-value pair (tuple)"` .. `Dc 515` `"End key-value pair"` containing a `Dc 270` `"Begin identifier"` .. `Dc 271` `"End identifier"` key (with an optional inline `Dc 262` `"Begin type definition"` .. `Dc 263` `"End type definition"` signature or value type), `Dc 312` `"List element separator"`, and one of:
@@ -203,14 +206,10 @@ and running on unmodified `tinywasm 0.8.0` (with no forked WASM runtime required
 7. **Separate retained trace buffer cap** (`max_trace_bytes`, default `16 MiB`): enforced across accumulated [`WasmTraceEvent`](../src/runtime/runtime.rs) records (`WasmResourceInterruption::TraceBufferBudgetExceeded`).
 
 **Trace Preservation & Deterministic Replay**:
-Live host capabilities default to denial unless explicitly granted; parse errors steer requests toward mocks. Historical graph pins cannot grant host permissions. `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::execute_wasm_bytes_with_trace` record the active `supervisor_revision_node_id`, `dependency_snapshot_node_ids`, `accounting_version` (`WASM_RESOURCE_ACCOUNTING_VERSION`), canonical `effective_config_bytes`, `last_interrupted_op_ordinal`, and `last_interrupted_op_required_cost`, and preserve all accumulated `frames` and `events` in the returned [`WasmExecutionTrace`](../src/runtime/runtime.rs) when a resource interruption is denied (`PermissionDecision::Deny`), breaks out (`BreakOutResumeNext`), is granted additional compute quota (`PermissionDecision::Allow` via `increase_compute_quota`), or traps with a non-resource guest trap (`WasmTraceEvent::NonResourceTrap`), and `replay_wasm_session_trace` / `replay_wasm_bytes_trace` deterministically replay those traces.
+Live host capabilities default to denial unless explicitly granted; parse errors steer requests toward mocks. Historical graph pins cannot grant host permissions. `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::execute_wasm_bytes_with_trace` record the active `supervisor_revision_node_id`, `dependency_snapshot_node_ids`, `accounting_version` (`WASM_RESOURCE_ACCOUNTING_VERSION`), canonical `effective_config_bytes`, `last_interrupted_op_ordinal`, and `last_interrupted_op_required_cost`, and preserve all accumulated `frames` and `events` in the returned [`WasmExecutionTrace`](../src/runtime/runtime.rs) when a resource interruption is denied (`PermissionDecision::Deny`), breaks out (`BreakOutResumeNext`), is granted additional compute quota (`PermissionDecision::Allow` via `increase_compute_quota`), or traps with a non-resource guest trap (`WasmTraceEvent::NonResourceTrap`, including traps during module `start` via `WasmStartSectionTrap`), and `replay_wasm_session_trace` / `replay_wasm_bytes_trace` deterministically execute and verify those interruptions and continuations against the recorded trace.
 
 **Remaining Gaps / Pending Work Before Freezing**:
 - Allocating the production Short Dc for the System supervisor base document (requires operator approval) and authoring the self-hosted System supervisor Dc-WASM document and graph-backed user compute-quota configuration schema in `.ctbnodes` / `.ctbnbdl` (retiring the transitional host Rust resource scaffolding in `wasm.rs` / `wasm_quota.rs`) remain pending.
-- `ExecutionContext::replay_wasm_session_trace` and `replay_wasm_bytes_trace` currently intercept recorded `WasmTraceEvent::ResourceInterruption` events before invoking `session.step()`, bypassing actual WASM execution of the interrupted step and copying `last_interrupted_op_ordinal` / `last_interrupted_op_required_cost` from the recorded trace rather than verifying that the module traps at that exact operation ordinal and cost.
-- Intra-step continuation resumption (`DcWasmSession::restore_pre_step_state_for_resume`) currently re-instantiates the module, replays completed step inputs, and re-runs the interrupted `step()` from the start of that `step()` under the expanded quota rather than preserving an intra-step continuation or child-helper state across a mid-step pause.
-- `instrument_function_body` (`src/formats/dcstring/converters/wasm_quota.rs`) and `tinywasm 0.8.0` do not yet support the `0xFB` GC opcode page (`Dc 903` `"WASM struct.new"` .. `Dc 1158` `"WASM Reserved 0xFB 0xFF 0x01"`), exception-handling opcodes (`Dc 655` `"WASM throw"`, `Dc 657` `"WASM throw_ref"`, `Dc 678` `"WASM try_table"`), or `0xFD` Relaxed SIMD (`Dc 1671` `"WASM i8x16.relaxed_swizzle"` .. `Dc 1926` `"WASM Reserved 0xFD 0xFF 0x03"`).
-- Non-resource traps during module `start` (prior to `step()`) return `Err` at construction time rather than a structured trap event in `WasmExecutionTrace`.
 - Gates 3 and 4 of [the language plan](../issues/language.md) (eliminating remaining procedural syntax rule synthesis and completing self-hosted `.WASM` definitions) must land before `BootstrapKernelVersion::V1` is frozen.
 
 ### 4.5 Portable Resource Semantics Versus Host Watchdogs
@@ -300,13 +299,16 @@ capabilities. Independent emergency host watchdogs protect the process, but
 are not a separate source of logical document budget policy.
 
 The portable standard-WASM bytecode instrumentation path
-(`instrument_wasm_module_bytes`), resumable compute-quota continuation
-(`increase_compute_quota`), and task-level quota sharing (`SharedWasmTaskQuota`)
-use unmodified `tinywasm 0.8.0`. Offline tests check explicit quota boundaries
-and resumed memory effects. Optional `scripts/test-wasm-compat` compares the
-current instrumented loop/call/bulk-memory/growth fixture with V8/Node
-`WebAssembly`; it is not part of normal tests or CI. General cross-runtime
-conformance and cross-runtime continuation coverage remain pending. Remaining
-work for the full supervisor architecture is authoring the top-level 1-Short-Dc
-System supervisor document and its graph-backed user configuration schema in
-the System graph.
+(`instrument_wasm_module_bytes`), live worker-backed resumable compute-quota
+continuation (`increase_compute_quota` with `__ctb_suspend_on_quota`), and
+task-level quota sharing (`SharedWasmTaskQuota`) use unmodified `tinywasm 0.8.0`.
+Offline tests check explicit quota boundaries, mid-step continuation resumption
+preserving `SharedWasmTaskQuota` child-helper state, and `start`-section trap
+capture. Optional `scripts/test-wasm-compat` compares instrumented quota
+boundaries, traps (`i32.div_s` divide-by-zero and overflow), table growth and
+`call_indirect`, numeric edge cases (`i64.rotl`, `i32.trunc_sat_f64_s`), and
+resumed completion with V8/Node `WebAssembly`; it is not part of normal tests or
+CI. Remaining work for the full supervisor architecture is allocating the
+production Short Dc for the top-level 1-Short-Dc System supervisor document and
+authoring its self-hosted Dc-WASM supervisor definition and graph-backed user
+configuration schema in the System graph.
