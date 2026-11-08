@@ -1764,6 +1764,56 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
+    #[crate::ctb_test]
+    fn test_historical_lang_say_splice_without_graph_wasm() -> Result<()> {
+        let revision = 8_589_958_834;
+        let graph = ctb_formats_dcdata::seed_graph::SeedGraphIndex::load_at_most_recent_from_asset_bundle(revision)?;
+        let resolver = DatasetRuleResolver::from_seed_graph(&graph)?;
+        let say = DcChar::from_short(256);
+        ensure!(
+            resolver
+                .resolve_wasm_definition_tokens(say.to_u128())
+                .is_none(),
+            "Historical snapshot unexpectedly contains a graph WASM definition"
+        );
+
+        let mut document = DcMstring::new();
+        for token in [
+            DcChar::from_short(641),
+            DcChar::from_long(revision),
+            say,
+            DcChar::from_short(258),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(264),
+            DcChar::from_short(263),
+            DcChar::from('A'),
+            DcChar::from_short(255),
+            DcChar::from_short(261),
+            DcChar::from('B'),
+            DcChar::from_short(261),
+            DcChar::from_short(259),
+        ] {
+            document.push_char(token);
+        }
+
+        let mut navigator = DcDocumentNavigator::from_mstr_with_policy(
+            &document,
+            &DcProjectionPolicy::strict(),
+        );
+        assert_eq!(navigator.document_most_recent_node_id(), Some(revision));
+        assert_eq!(navigator.read_next_token()?, Some(DcChar::from_short(641)));
+        assert_eq!(
+            navigator.read_next_token()?,
+            Some(DcChar::from_long(revision))
+        );
+        assert_eq!(navigator.read_next_token()?, Some(DcChar::from('A')));
+        assert_eq!(navigator.read_next_token()?, Some(DcChar::from_short(261)));
+        assert_eq!(navigator.read_next_token()?, Some(DcChar::from('B')));
+        assert_eq!(navigator.read_next_token()?, None);
+        Ok(())
+    }
+
     /// Verifies that `lang.say` inside a container where the closer (Dc 287) is outside
     /// the `lang.say` call correctly splices the 13 characters into the container.
     #[crate::ctb_test]

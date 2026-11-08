@@ -232,6 +232,18 @@ interruptions remain external host events rather than logical budget policy.
 ### Gate 3: Prove One End-to-End Vertical Migration with Real Graph History
 - [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:
   - Select a small self-contained behavior currently hardcoded in Rust (for example, `Dc 256 "void lang.say([string] text)"` payload extraction in `DefaultDcExpressionEvaluator::eval_stream_splice` at `src/formats/dcstring/navigator/eval.rs:260-300`, or a specific format/value rule), emit its definition through `src/formats/dcdata/support/graph_ledger.rs` into `.ctbnodes` / `.ctbnbdl`, and delete the corresponding procedural Rust fallback.
+  - Candidate constraint: the real historical snapshot `l8589958834` has no
+    graph WASM definition for `Dc 256 "void lang.say([string] text)"`, but
+    pinned documents currently splice its literal payload, including escaped
+    tokens. `test_historical_lang_say_splice_without_graph_wasm` records this
+    behavior. Appending a definition at HEAD cannot give that earlier snapshot
+    a definition; removing the fallback needs a compatible historical execution
+    strategy, not a HEAD substitution.
+  - Semantic conflict: the current catalog describes `Dc 256 "void lang.say([string] text)"`
+    as outputting a string with a final line feed, while the procedural splice
+    emits tokens without adding one. Resolve this against historical meaning
+    before using it as the graph migration example; alternatively select a
+    different behavior whose semantics and historical execution are established.
 - [ ] **Build the end-to-end historical-behavior and trace-replay regression suite**:
   - Using real generated graph history (`Dc 591 "Supersedes"` / `Dc 592 "Retracts"` across active and historical `.ctbnbdl` bundles):
     1. Author a document pinned to `Dc 641 "Global graph system block most recent node ID at time of document creation"` at revision $R_1$.
