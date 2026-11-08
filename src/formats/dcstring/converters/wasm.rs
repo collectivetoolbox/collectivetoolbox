@@ -1484,7 +1484,7 @@ pub const DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 /// Default maximum cumulative output bytes permitted across a [`DcWasmSession`] (16 MiB).
 pub const DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
-/// Resource budgets enforced on a [`DcWasmSession`] for intra-step instruction fuel,
+/// Resource budgets enforced on a [`DcWasmSession`] for intra-step instruction compute_quota,
 /// linear memory growth, table element capacity, single-step output slice length, and
 /// cumulative session output bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1520,7 +1520,7 @@ impl DcWasmResourceLimits {
         }
     }
 
-    /// Returns a copy with `max_instructions_per_step` set to the given instruction fuel budget.
+    /// Returns a copy with `max_instructions_per_step` set to the given instruction compute_quota budget.
     #[must_use]
     pub const fn with_max_instructions_per_step(
         mut self,
@@ -1579,9 +1579,9 @@ impl DcWasmResourceLimits {
 /// instruction count as logical progress.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WasmResourceInterruption {
-    /// Intra-step instruction fuel budget was exhausted before `step()` returned.
-    InstructionFuelExhausted {
-        /// Per-step instruction fuel limit that was exhausted.
+    /// Intra-step instruction compute_quota budget was exhausted before `step()` returned.
+    Instructioncompute_quotaExhausted {
+        /// Per-step instruction compute_quota limit that was exhausted.
         limit: u64,
     },
     /// Linear memory page allocation or growth exceeded `max_memory_pages`.
@@ -1617,9 +1617,9 @@ pub enum WasmResourceInterruption {
 impl std::fmt::Display for WasmResourceInterruption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InstructionFuelExhausted { limit } => write!(
+            Self::Instructioncompute_quotaExhausted { limit } => write!(
                 f,
-                "WASM intra-step instruction fuel exhausted (limit: {limit} instructions)"
+                "WASM intra-step instruction compute_quota exhausted (limit: {limit} instructions)"
             ),
             Self::MemoryLimitExceeded {
                 requested_pages,
@@ -1803,7 +1803,7 @@ impl DcWasmSession {
         let mut store = Store::default();
         store.set_max_memory_pages(Some(resource_limits.max_memory_pages));
         store.set_max_table_elements(Some(resource_limits.max_table_elements));
-        store.set_fuel(Some(resource_limits.max_instructions_per_step));
+        store.set_compute_quota(Some(resource_limits.max_instructions_per_step));
         let instance = match ctb_formats_dcdata::tinywasm::ModuleInstance::instantiate(
             &mut store,
             module,
@@ -1811,10 +1811,10 @@ impl DcWasmSession {
         ) {
             Ok(inst) => inst,
             Err(ctb_formats_dcdata::tinywasm::Error::Trap(
-                ctb_formats_dcdata::tinywasm::Trap::InstructionFuelExhausted,
+                ctb_formats_dcdata::tinywasm::Trap::Instructioncompute_quotaExhausted,
             )) => {
                 return Err(anyhow::Error::new(
-                    WasmResourceInterruption::InstructionFuelExhausted {
+                    WasmResourceInterruption::Instructioncompute_quotaExhausted {
                         limit: resource_limits.max_instructions_per_step,
                     },
                 ));
@@ -1826,22 +1826,22 @@ impl DcWasmSession {
             }
         };
         if let Err(e) = instance.run_wasm_start_section(&mut store) {
-            store.set_fuel(None);
+            store.set_compute_quota(None);
             if matches!(
                 e,
                 ctb_formats_dcdata::tinywasm::Error::Trap(
-                    ctb_formats_dcdata::tinywasm::Trap::InstructionFuelExhausted
+                    ctb_formats_dcdata::tinywasm::Trap::Instructioncompute_quotaExhausted
                 )
             ) {
                 return Err(anyhow::Error::new(
-                    WasmResourceInterruption::InstructionFuelExhausted {
+                    WasmResourceInterruption::Instructioncompute_quotaExhausted {
                         limit: resource_limits.max_instructions_per_step,
                     },
                 ));
             }
             bail!("Failed to execute WebAssembly start section: {e:?}");
         }
-        store.set_fuel(None);
+        store.set_compute_quota(None);
 
         let entry_func_name = if instance.export_addr("step").is_some() {
             "step".to_owned()
@@ -2173,23 +2173,23 @@ impl DcWasmSession {
         Ok(())
     }
 
-    fn record_step_fuel_and_map_err(
+    fn record_step_compute_quota_and_map_err(
         &mut self,
         call_err: ctb_formats_dcdata::tinywasm::Error,
     ) -> anyhow::Error {
-        let consumed = self.store.fuel_consumed();
+        let consumed = self.store.compute_quota_consumed();
         self.last_step_instructions = consumed;
         self.total_instructions_executed =
             self.total_instructions_executed.saturating_add(consumed);
-        self.store.set_fuel(None);
+        self.store.set_compute_quota(None);
         if matches!(
             call_err,
             ctb_formats_dcdata::tinywasm::Error::Trap(
-                ctb_formats_dcdata::tinywasm::Trap::InstructionFuelExhausted
+                ctb_formats_dcdata::tinywasm::Trap::Instructioncompute_quotaExhausted
             )
         ) {
             let interruption =
-                WasmResourceInterruption::InstructionFuelExhausted {
+                WasmResourceInterruption::Instructioncompute_quotaExhausted {
                     limit: self.resource_limits.max_instructions_per_step,
                 };
             self.last_resource_interruption = Some(interruption.clone());
@@ -2206,7 +2206,7 @@ impl DcWasmSession {
     /// [`WasmStepStatus`].
     ///
     /// # Errors
-    /// Returns an error if the WASM function traps, exhausts its per-step instruction fuel budget,
+    /// Returns an error if the WASM function traps, exhausts its per-step instruction compute_quota budget,
     /// returns an invalid status code, exceeds single-step or cumulative output byte budgets, or
     /// writes an out-of-bounds or malformed Dc output slice.
     pub fn step(&mut self) -> Result<WasmStepOutcome> {
@@ -2260,9 +2260,9 @@ impl DcWasmSession {
         let in_len_i32 =
             i32::from_le_bytes(self.current_input_len.to_le_bytes());
 
-        self.store.reset_fuel_consumed();
+        self.store.reset_compute_quota_consumed();
         self.store
-            .set_fuel(Some(self.resource_limits.max_instructions_per_step));
+            .set_compute_quota(Some(self.resource_limits.max_instructions_per_step));
 
         let call_res: std::result::Result<i32, ctb_formats_dcdata::tinywasm::Error> =
             if let Ok(func) = self
@@ -2294,7 +2294,7 @@ impl DcWasmSession {
                 func.call(&mut self.store, (in_ptr_i32, in_len_i32))
                     .map(|()| WASM_STEP_STATUS_COMPLETE)
             } else {
-                self.store.set_fuel(None);
+                self.store.set_compute_quota(None);
                 bail!(
                     "Exported WASM entry function '{}' must have signature () -> i32, (i32, i32) -> i32, () -> (), or (i32, i32) -> ()",
                     self.entry_func_name
@@ -2303,14 +2303,14 @@ impl DcWasmSession {
 
         let raw_status = match call_res {
             Ok(code) => {
-                let consumed = self.store.fuel_consumed();
+                let consumed = self.store.compute_quota_consumed();
                 self.last_step_instructions = consumed;
                 self.total_instructions_executed =
                     self.total_instructions_executed.saturating_add(consumed);
-                self.store.set_fuel(None);
+                self.store.set_compute_quota(None);
                 code
             }
-            Err(e) => return Err(self.record_step_fuel_and_map_err(e)),
+            Err(e) => return Err(self.record_step_compute_quota_and_map_err(e)),
         };
 
         let status = WasmStepStatus::from_i32(raw_status)?;
@@ -3394,7 +3394,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_gate2_wasm_intra_step_instruction_fuel_stops_tight_loop()
+    fn test_gate2_wasm_intra_step_instruction_compute_quota_stops_tight_loop()
     -> Result<()> {
         let looping_start = [
             0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
@@ -3411,10 +3411,10 @@ mod tests {
             &DcMstring::new(),
             None,
             DcWasmResourceLimits::default().with_max_instructions_per_step(400),
-        ).err().expect("Looping start function must exhaust bootstrap fuel");
+        ).err().expect("Looping start function must exhaust bootstrap compute_quota");
         assert_eq!(
             start_error.downcast_ref::<WasmResourceInterruption>(),
-            Some(&WasmResourceInterruption::InstructionFuelExhausted { limit: 400 }),
+            Some(&WasmResourceInterruption::Instructioncompute_quotaExhausted { limit: 400 }),
         );
         let i32_dc = i32_type_dc();
         // Build a tight infinite loop inside a single `step()` call:
@@ -3442,17 +3442,17 @@ mod tests {
 
         let err = session
             .step()
-            .expect_err("Tight infinite WASM loop must exhaust fuel");
+            .expect_err("Tight infinite WASM loop must exhaust compute_quota");
         let interruption = err
             .downcast_ref::<WasmResourceInterruption>()
             .expect("Error must downcast to WasmResourceInterruption");
         assert_eq!(
             interruption,
-            &WasmResourceInterruption::InstructionFuelExhausted { limit: 400 }
+            &WasmResourceInterruption::Instructioncompute_quotaExhausted { limit: 400 }
         );
         assert_eq!(
             session.last_resource_interruption(),
-            Some(&WasmResourceInterruption::InstructionFuelExhausted {
+            Some(&WasmResourceInterruption::Instructioncompute_quotaExhausted {
                 limit: 400
             })
         );

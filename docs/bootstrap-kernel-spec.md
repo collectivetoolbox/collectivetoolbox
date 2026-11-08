@@ -186,7 +186,7 @@ Each invocation of `"step"` returns an `i32` [`WasmStepStatus`](../src/formats/d
 The current host enforces backend resource limits
 ([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) across the
 session store. These are not yet a runtime-independent language resource model:
-1. **Instruction fuel** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop during module instantiation, the WebAssembly `start` section (`run_wasm_start_section`), and every exported `step()` call (`Trap::InstructionFuelExhausted` -> `WasmResourceInterruption::InstructionFuelExhausted`).
+1. **Instruction compute_quota** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop during module instantiation, the WebAssembly `start` section (`run_wasm_start_section`), and every exported `step()` call (`Trap::Instructioncompute_quotaExhausted` -> `WasmResourceInterruption::Instructioncompute_quotaExhausted`).
 2. **Store-wide and per-memory linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` total across all `MemoryInstance`s in `Store`): enforced during module instantiation, `provide_input`, and WASM `memory.grow` (`Store::total_memory_pages()`). Guest `memory.grow` failure returns standard WASM `-1`; host allocation or cap-lowering violations raise `WasmResourceInterruption::MemoryLimitExceeded`.
 3. **Store-wide and per-table element cap** (`max_table_elements`, default `65_536` elements total across all `TableInstance`s in `Store`): enforced during module instantiation, `table.grow`, and before each `step()` (`WasmResourceInterruption::TableLimitExceeded`; guest `table.grow` failure returns standard WASM `-1`).
 4. **Single-step output slice cap** (`max_step_output_bytes`, default `4 MiB`): checked before allocating/copying `out_len` bytes from linear memory (`WasmResourceInterruption::StepOutputSliceTooLarge`).
@@ -196,7 +196,7 @@ session store. These are not yet a runtime-independent language resource model:
 Live host capabilities default to denial unless explicitly granted; parse errors steer requests toward mocks. Historical graph pins cannot grant host permissions. `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::execute_wasm_bytes_with_trace` preserve all accumulated `frames` and `events` in the returned [`WasmExecutionTrace`](../src/runtime/runtime.rs) even when a resource interruption is denied (`PermissionDecision::Deny`, queryable via `WasmExecutionTrace::denied_resource_interruption` / `ensure_not_denied`) or occurs during module construction/start (`after_logical_steps == 0`), and `replay_wasm_session_trace` / `replay_wasm_bytes_trace` deterministically replay those finite prefixes.
 
 **Remaining Gaps / Pending Work Before Freezing**:
-- Fuel meters executed VM instructions, not initial module parsing/validation or per-byte cost inside a single bulk memory/table instruction (`memory.copy`, `memory.fill`, `table.copy`).
+- compute_quota meters executed VM instructions, not initial module parsing/validation or per-byte cost inside a single bulk memory/table instruction (`memory.copy`, `memory.fill`, `table.copy`).
 - Non-resource traps during module `start` or `step()` return `Err` rather than a structured trap event in `WasmExecutionTrace`.
 - Gates 3 and 4 of [the language plan](../issues/language.md) (eliminating remaining procedural syntax rule synthesis and completing self-hosted `.WASM` definitions) must land before `BootstrapKernelVersion::V1` is frozen.
 
@@ -205,16 +205,16 @@ Live host capabilities default to denial unless explicitly granted; parse errors
 **Terminology**: A compute quota is an allowance of logical work, measured using
 the selected System supervisor's versioned operation costs. Resource accounting
 deducts those costs from the remaining allowance before the operation takes
-effect. "Fuel" is the existing backend API's name for an instruction allowance;
+effect. "compute_quota" is the existing backend API's name for an instruction allowance;
 its runtime-specific watchdog counts are not portable compute quota units.
 
 `max_instructions_per_step` currently counts `tinywasm` internal interpreter
 dispatches, including lowered control-flow instructions. It does not count a
 specified sequence of original WASM instructions. Neither another interpreter's
-fuel nor a JIT's fuel may be substituted as an equivalent semantic budget.
+compute_quota nor a JIT's compute_quota may be substituted as an equivalent semantic budget.
 Recording an interruption as an external event permits replay of the same
 finite prefix; it does not prove that fresh runs on different engines interrupt
-at the same point. Timeouts, allocator exhaustion and physical watchdog fuel
+at the same point. Timeouts, allocator exhaustion and physical watchdog compute_quota
 are host safety events, not language-level resource measurements.
 
 Memory/table growth is different: its result is directly observable by guest

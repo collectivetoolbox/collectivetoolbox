@@ -265,7 +265,7 @@ pub enum WasmTraceEvent {
         /// Response/mock document written back to the module's input mailbox (empty if broke out early).
         response: DcMstring,
     },
-    /// External resource interruption raised by physical VM budgets (`InstructionFuelExhausted`,
+    /// External resource interruption raised by physical VM budgets (`Instructioncompute_quotaExhausted`,
     /// `MemoryLimitExceeded`, `StepOutputSliceTooLarge`, `SessionOutputBudgetExceeded`) or
     /// host step budget exhaustion.
     ResourceInterruption {
@@ -900,7 +900,7 @@ impl ExecutionContext {
 
     /// Instantiates and executes compiled `.wasm` module bytes over `input` with explicit
     /// [`ctb_formats_dcstring::DcWasmResourceLimits`], capturing construction-time resource
-    /// interruptions (initial memory/table limits or `start` fuel exhaustion) in the returned
+    /// interruptions (initial memory/table limits or `start` compute_quota exhaustion) in the returned
     /// [`WasmExecutionTrace`].
     ///
     /// # Errors
@@ -1202,7 +1202,7 @@ mod tests {
             DcWasmResourceLimits::default().with_max_instructions_per_step(250);
 
         // 1. Default policy (`BreakOutResumeNext` on `ExcessiveCompute`) breaks out cleanly
-        //    and records `WasmTraceEvent::ResourceInterruption` with `InstructionFuelExhausted`.
+        //    and records `WasmTraceEvent::ResourceInterruption` with `Instructioncompute_quotaExhausted`.
         let mut session = DcWasmSession::from_dc_wasm(&loop_doc, &input, None)?
             .with_resource_limits(limits);
         let mut ctx = ExecutionContext::new(false);
@@ -1213,7 +1213,7 @@ mod tests {
             vec![WasmTraceEvent::ResourceInterruption {
                 after_logical_steps: 0,
                 interruption: Some(
-                    WasmResourceInterruption::InstructionFuelExhausted {
+                    WasmResourceInterruption::Instructioncompute_quotaExhausted {
                         limit: 250
                     }
                 ),
@@ -1478,14 +1478,14 @@ mod tests {
             "Unexpected error: {mismatch_err}"
         );
 
-        // 3. Record a trace interrupted by fuel exhaustion and verify replay delivers the
+        // 3. Record a trace interrupted by compute_quota exhaustion and verify replay delivers the
         //    recorded external resource interruption at the recorded logical boundary even
-        //    when the replayed module has plenty of fuel.
-        let low_fuel =
+        //    when the replayed module has plenty of compute_quota.
+        let low_compute_quota =
             DcWasmResourceLimits::default().with_max_instructions_per_step(5);
         let mut interrupted_session =
             DcWasmSession::from_dc_wasm(&routine_v1, &file_io_input, None)?
-                .with_resource_limits(low_fuel);
+                .with_resource_limits(low_compute_quota);
         let mut int_ctx = ExecutionContext::new(false);
         let interrupted_trace = int_ctx
             .execute_wasm_session_default_with_trace(
@@ -1520,7 +1520,7 @@ mod tests {
         // Routine that:
         // - Step 0 (mem[64] == 0): sets mem[64] = 1, echoes input to output, returns 1 (YieldFrame)
         // - Step 1 (mem[64] == 1): sets mem[64] = 2, echoes input to output, returns 2 (RequestCapability)
-        // - Step 2 (mem[64] == 2): enters a tight loop that exhausts instruction fuel
+        // - Step 2 (mem[64] == 2): enters a tight loop that exhausts instruction compute_quota
         let mut multi_doc = DcMstring::new();
         multi_doc.push_char(DcChar::from_short(260));
         multi_doc.push_char(DcChar::from_short(262));
@@ -1633,7 +1633,7 @@ mod tests {
             denied_trace.denied_resource_interruption(),
             Some((
                 2,
-                Some(&WasmResourceInterruption::InstructionFuelExhausted {
+                Some(&WasmResourceInterruption::Instructioncompute_quotaExhausted {
                     limit: 200
                 }),
                 PermissionDecision::Deny,
@@ -1675,7 +1675,7 @@ mod tests {
             start_trace.denied_resource_interruption(),
             Some((
                 0,
-                Some(&WasmResourceInterruption::InstructionFuelExhausted {
+                Some(&WasmResourceInterruption::Instructioncompute_quotaExhausted {
                     limit: 200
                 }),
                 PermissionDecision::Deny,
