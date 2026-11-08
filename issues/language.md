@@ -123,7 +123,7 @@ cross-revision execution, event, and pixel replay suite in Gate 3 remain pending
 these parser/resolver tests do not establish the full compatibility guarantee.
 
 ### Gate 2: Document the Minimal Trusted Kernel & Enforce VM Budgets
-- [x] **Freeze and document the minimal trusted bootstrap kernel (`docs/bootstrap-kernel-spec.md`, `src/formats/dcstring/navigator/policy.rs`, `src/formats/dcstring/navigator.rs`)**:
+- [ ] **Freeze and document the minimal trusted bootstrap kernel (`docs/bootstrap-kernel-spec.md`, `src/formats/dcstring/navigator/policy.rs`, `src/formats/dcstring/navigator.rs`)** (Partially Implemented; current document is a draft):
   - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version (`BootstrapKernelVersion::V1 = 1`, `BootstrapKernelVersion::CURRENT`, `DcProjectionPolicy::with_kernel_version` / `try_with_kernel_version_number`, and `DcDocumentNavigator::select_bootstrap_kernel_version`). Identical graph bytes under different kernel interpretations are not sufficient. Version selection must be available during bootstrap, before interpretation that depends on it.
   - Wrote [`docs/bootstrap-kernel-spec.md`](../docs/bootstrap-kernel-spec.md) covering the exact host-implemented primitives that graph nodes rely upon:
     1. Physical token codecs (`DcTF`, `.dcmm` header, `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`).
@@ -135,15 +135,58 @@ these parser/resolver tests do not establish the full compatibility guarantee.
   - Added `Trap::InstructionFuelExhausted` inside `tinywasm::Executor::exec_next` and mapped it to `WasmResourceInterruption::InstructionFuelExhausted` and `Privilege::ExcessiveCompute`.
   - Distinguished physical VM metering from logical document progress via `WasmExecutionTrace` and `WasmTraceEvent::ResourceInterruption`: safety-limit interruptions are exposed and recorded as external resource events in the execution trace, while trace replay (`ExecutionContext::replay_wasm_session_trace`) compares logical capability requests and ignores physical instruction count differences across compilers.
 - [x] **Enforce linear-memory and output-slice resource budgets (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`)**:
-  - Capped maximum linear memory pages (`DcWasmResourceLimits::max_memory_pages`, default `256` pages = `16 MiB`) across module instantiation, `provide_input`, and WASM `memory.grow` instructions (`WasmResourceInterruption::MemoryLimitExceeded`), single-step output slice length (`DcWasmResourceLimits::max_step_output_bytes`, default `4 MiB`, `WasmResourceInterruption::StepOutputSliceTooLarge`), and cumulative yielded output bytes across a session (`DcWasmResourceLimits::max_session_output_bytes`, default `16 MiB`, `WasmResourceInterruption::SessionOutputBudgetExceeded`).
+  - Capped linear memory at `256` pages (`16 MiB`) per memory instance, single-step output at `4 MiB`, and cumulative output at `16 MiB`. Guest `memory.grow` failure returns WASM `-1`, not a host resource event; host input allocation failures return `MemoryLimitExceeded`. A step rejects an exported memory above a subsequently lowered limit. These are not table-allocation or aggregate host-memory caps.
 - [x] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs`)**:
   - Historical graph pinning (`Dc 641 "Global graph system block most recent node ID at time of document creation"`) applies only to language/document semantics and never grants or restores security permissions or capability policies (`ExecutionContext::set_privilege_decision` / `with_privilege_decision`).
   - `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::replay_wasm_session_trace` compare the document's capability requests at each logical step during replay and supply the recorded allow/deny/mock responses while live execution remains governed by the current host policy.
 
 #### Gate 2 Status & Remaining Gaps (2026-11-08)
 
-- All four Gate 2 items are implemented and covered by unit tests in `ctb-formats-dcstring` and `ctb-runtime` on `x86_64-unknown-linux-musl`.
-- **Remaining Gaps**: Overall status of `issues/language.md` remains `Partially Implemented` because Gate 3 (vertical migration of a concrete Rust-defined behavior into `.ctbnodes`/`.ctbnbdl` and the end-to-end cross-revision execution, event, and pixel replay regression suite) and Gate 4 (eliminating implicit Rust rule synthesis in `DatasetRuleResolver::from_seed_graph`, migrating remaining procedural evaluators in `eval.rs`, and enforcing graph WASM source-provenance linting) are not yet implemented.
+- **Partially Implemented**: version APIs, VM instruction/page/output limits,
+  host policy, and bounded trace replay have unit coverage. The kernel document
+  is not yet a complete frozen specification.
+- Review fixes: module start functions now receive fuel before instantiation;
+  live capabilities default to denial unless explicitly granted; replay does
+  not execute/discard an extra step at a recorded interruption and verifies
+  the entire trace/result, rejecting trailing events or inconsistent results;
+  execution rejects an already over-budget exported memory after cap lowering.
+- Corrected the draft's graph-region boundaries, DcTF encoding (no long-token
+  escape), binary encapsulation (type byte and big-endian 128-bit lengths,
+  without a trailing binary closer), retraction lifecycle, and mailbox offset.
+- **Pending Work**: independent conformance fixtures for codecs, lifecycle,
+  pattern choice/captures/ranges, WASM numeric/trap/feature behavior and malformed
+  input; selection before construction if a second kernel is introduced;
+  explicit static/zero-filled guest-memory ownership; table and aggregate-memory
+  budgets; recorded construction failures and denied interruptions rather than
+  loss of their accumulated trace through `Err`. Gates 3 and 4 remain pending.
+- **Validation**: all 196 Dc-string and seven runtime library tests passed on
+  Linux musl, with no ignored tests. Production Clippy for both affected crates
+  completed with baseline warnings; documentation links and whitespace passed.
+- **Verification Limits**: other platforms and the end-to-end event/pixel
+  replay guarantee remain unverified.
+
+#### Existing Dc Semantics: Evidence and Regression Requirements
+
+- Existing Dcs may be reused when their historical meaning fits. Names alone
+  are not sufficient evidence of arity, position, delimiters, or scope.
+- The change in `333fd1f0b` added identifiers and framing for
+  Dc 235 "Begin document" and Dc 236 "End document", not new names or a new
+  semantic assignment. The historical CSV declares their opener/closer pairing
+  ([dcs.csv](../old/eite-older/php/dcs.csv)); the converter actually emits them
+  around converted content ([ember.php](../old/eite-older/php/ember.php)). This
+  supports the pairing, but does not independently establish modern nested pin
+  semantics.
+- Scope recognition now requires a container closer in the selected resolver,
+  so an old snapshot without the newer document framing cannot gain that
+  behavior through a procedural constant check. A real historical-snapshot
+  regression accompanies the existing nested-scope/pin tests.
+- For future existing-Dc grammar changes, record historical declarations and
+  actual usage in the review/commit, explain how proposed semantics agree,
+  and test both an older pin and the new graph definition. If evidence conflicts,
+  resolve that conflict before changing the decoder. Recognition must come from
+  the selected graph, including equivalences, rather than a HEAD-only allowlist.
+  Add graph changes through the append-only generator; never rewrite old IDs
+  or treat accepting an old token under a new grammar as proof of compatibility.
 
 ### Gate 3: Prove One End-to-End Vertical Migration with Real Graph History
 - [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:

@@ -1,28 +1,54 @@
 # Minimal Trusted Bootstrap Kernel Specification (`BootstrapKernelVersion::V1`)
 
-This document specifies the frozen minimal trusted bootstrap kernel (`BootstrapKernelVersion::V1` = `1`) implemented by the host in Rust (`ctb-formats-dctf`, `ctb-formats-dcdata`, `ctb-formats-dcstring`, and `ctb-runtime`).
+Status: **Draft / Partially Implemented**. This document inventories the current
+`BootstrapKernelVersion::V1` host implementation; it is not yet an exhaustive,
+frozen execution specification. The wire-format corrections below describe the
+current implementation, not a new encoding.
 
 ## 0. Version Contract & Bootstrap Selection
 
-The foundational execution contract is explicitly versioned via [`BootstrapKernelVersion`](../src/formats/dcstring/navigator/policy.rs) (`BootstrapKernelVersion::V1 = 1`, `BootstrapKernelVersion::CURRENT = Self::V1`) and is selected on [`DcProjectionPolicy`](../src/formats/dcstring/navigator/policy.rs) (`DcProjectionPolicy::with_kernel_version` / `DcProjectionPolicy::try_with_kernel_version_number`) or [`DcDocumentNavigator::select_bootstrap_kernel_version`](../src/formats/dcstring/navigator.rs) during bootstrap **before** any document or graph interpretation that depends on it. Requesting an unknown kernel version fails immediately at bootstrap before token or graph evaluation begins.
+The host exposes [`BootstrapKernelVersion`](../src/formats/dcstring/navigator/policy.rs)
+and rejects unsupported version numbers. Only V1 currently exists. Navigator
+constructors can already inspect the document's leading graph pin before a
+caller invokes `select_bootstrap_kernel_version`; the setter is therefore not
+proof of version selection before interpretation. A future second kernel needs
+a bootstrap entry point that selects the version before constructing or
+interpreting documents, plus version-specific conformance fixtures.
 
-All higher-level language definitions, syntax rules (`Dc 594` `"Syntax rule"`), format expressions, and conversions live in the append-only System-block seed graph (`data/graph/85899_34592.ctbnbdl`, pinned per document via `Dc 641` `"Global graph system block most recent node ID at time of document creation"`). Those graph-defined rules and `.WASM` programs rely exclusively on the four host-implemented primitive layers specified below.
+Many syntax rules and WASM definitions live in the append-only System graph.
+Procedural evaluators and implicit rule synthesis still exist in Rust; their
+migration is tracked in Gates 3 and 4 of [the language plan](../issues/language.md).
+The four layers below are the intended kernel boundary, not proof that the
+current implementation has already been reduced to that boundary.
 
 ---
 
 ## 1. Physical Token Codecs (`DcTF`, `.dcmm` Header, and Binary Encapsulation)
 
-### 1.1 Global Graph ID Space and `DcTF` (`f549`)
+### 1.1 Global Graph ID Space and `DcTF` (`f641`)
 Every token in a Dc stream is a 128-bit unsigned Global Graph ID (`u128` / [`DcChar`](../src/formats/dcdata/dc_char.rs)):
 - **Unicode region** (`0x0000_0000..=0x0010_FFFF`, `u<hex>`): standard Unicode scalar values and surrogate code points.
-- **Short Dc region** (`0x0011_0000..=0x0021_FFFF` in `DcChar` / `DcTF`, `<decimal>`): compact Document Characters `Dc 1`..`Dc 1114111`, with `Dc 308` (`"Begin long Dc"`, `DC_LONG_DC`) reserved as the `DcTF` escape into the full 128-bit space.
-- **Format region** (`4_294_967_296..=8_589_934_591`, `f<N>`): format identifiers (`FormatId`, where `f<N>` has Global ID `4_294_967_296 + N`).
-- **System graph block** (`8_589_934_592..=1_099_511_627_775`, `l<id>`): immutable/append-only System-block graph nodes.
+- **Short Dc region** (`1_114_112..=2_228_223`, `<decimal>`): the short ID plus `1_114_112`.
+- **Format region** (`2_228_224..=3_342_335`, `f<N>`): strongly typed `FormatId` values, whose graph IDs are `2_228_224 + N`.
+- **Additional reserved Dcs** (`3_342_336..=4_294_967_295`).
+- **Reserved Data block** (`4_294_967_296..=8_589_934_591`): not the format region; per-block pinning support remains pending.
+- **System graph block** (`8_589_934_592..=12_884_901_887`, `l<id>`).
+
+The authoritative layout is [global-graph-layout.csv](../src/storage/minimal/data/global-graph-layout.csv).
 
 `DcTF` (`ctb_formats_dctf`, [`src/formats/dctf/codec.rs`](../src/formats/dctf/codec.rs)) encodes each `u128` token as follows:
-1. Code points in `0..=0x0010_FFFF` encode directly as `UTF-8e-128` (1 to 4 bytes).
-2. Short Dcs `1..=1_114_111` (excluding `Dc 308` `"Begin long Dc"`) encode as `UTF-8e-128(0x0011_0000 + short_id)`.
-3. Any other 128-bit Global ID `gid` (including `Dc 308` `"Begin long Dc"` itself, Format IDs `f<N>`, and System-block node IDs `l<id>`) encodes as the prefix token `Dc 308` `"Begin long Dc"` (`UTF-8e-128(0x0011_0000 + 308)`) immediately followed by `UTF-8e-128(gid)`.
+1. Values through `0x7F`, `0x7FF`, `0xFFFF`, `0x1F_FFFF`, `0x3FF_FFFF`,
+   `0x7FFF_FFFF`, and `0xF_FFFF_FFFF` use respectively 1 through 7 bytes.
+   Their lead-byte prefixes follow extended UTF-8; continuation bytes carry
+   six bits. Surrogate values are permitted.
+2. Larger values use `0xFF`, a second byte `10_kkkk_bb`, and `k + 6`
+   continuation bytes, for a total of `8 + k` bytes (`k = 0..=15`). The
+   second byte carries the high two payload bits and the tier index.
+3. Each graph ID is encoded directly as one integer. There is no separate
+   long-Dc escape token in DcTF. This differs from the legacy UTF-8e-128 codec.
+
+Canonical-length rejection, malformed-input recovery, and legacy conversion
+need explicit conformance vectors before this codec contract can be frozen.
 
 ### 1.2 `.dcmm` (`DcMixed2`, `f643`) File Header
 Every binary `.dcmm` document ([`src/formats/dcstring/dc_mixed.rs`](../src/formats/dcstring/dc_mixed.rs)) begins with a fixed 21-byte header (`DCMM_HEADER_LEN = 21`):
@@ -30,19 +56,21 @@ Every binary `.dcmm` document ([`src/formats/dcstring/dc_mixed.rs`](../src/forma
 - Bytes `5..21`: 16-byte format UUID (`b0327a84-b745-492c-b39d-77c2827e3a6f` for `DcMixed2` `f643`; legacy `d5ab819e-9b8e-4d61-adbc-933e8851e79a` for `DcMixed1` `f642`).
 - Bytes `21..`: `DcTF` token stream interspersed with binary encapsulation frames.
 
-### 1.3 Binary Encapsulation (`Dc 203`..`Dc 204`)
-Raw binary payloads inside `.dcmm` streams are framed by `Dc 203` (`"Begin encapsulated binary data"`) and `Dc 204` (`"End encapsulated binary data"`):
-1. Opener token: `Dc 203` (`"Begin encapsulated binary data"`).
-2. Binary header following `Dc 203` in `DcMixed2`:
-   - 8-byte little-endian `u64` total byte length of `(metadata_slice || raw_payload_bytes)`.
-   - `metadata_slice` (encoded in `DcTF`), containing:
-     - Optional `Dc 543` (`"Begin checksummed section"`) .. `Dc 544` (`"End checksummed section"`) with `Dc 545` (`"Section digest"`) checksum pairs (`FormatId` algorithm token + digest encapsulation).
-     - Optional `Dc 511` (`"Begin format representation"`) .. `Dc 512` (`"End format representation"`) format specifier.
-     - `Dc 260` (`"Begin literal value"`): marks the end of the `DcTF` metadata header and the exact byte offset where raw binary payload bytes begin.
-3. Raw payload bytes (exact length = `total_len - metadata_len`).
-4. Closer token: `Dc 204` (`"End encapsulated binary data"`), immediately following the raw payload bytes.
+### 1.3 Binary Encapsulation
+The current binary DcMixed2 frame uses an opener followed by:
+1. A one-byte type: `0` (raw), `2` (length-delimited metadata), or `3` (SHA-256).
+2. A **16-byte big-endian `u128` raw-payload length**, excluding metadata and
+   checksum bytes.
+3. For type `2`, a 16-byte big-endian metadata length and that many DcTF
+   metadata bytes; for type `3`, a 32-byte SHA-256 digest; for type `0`, neither.
+4. Exactly the declared raw payload bytes. No closer token follows this binary
+   frame, and no literal opener terminates its metadata.
 
-In textual `DcString` / `DcText` streams, `Dc 203`..`Dc 204` encapsulates the payload using Base64 digits (`Dc 127`..`Dc 190`) with `Dc 195` (`"Base64 padding"`).
+The reader rejects unsupported legacy types `1` and `4`, size overflows,
+truncation, invalid metadata, and checksum mismatches. Textual encapsulation
+has a separate delimited representation; it must not be confused with this
+binary header. See [dc_mixed.rs](../src/formats/dcstring/dc_mixed.rs) and
+[encapsulation.rs](../src/formats/dcstring/encapsulation.rs).
 
 ---
 
@@ -55,7 +83,12 @@ When pinned to `most_recent_node_id`, only `LedgerNode`s with `node.id <= most_r
 
 ### 2.2 Lifecycle Resolution (`Dc 591` `"Supersedes"` and `Dc 592` `"Retracts"`)
 1. **Supersession** (`591 <new_id> <old_id>`): Marks `<old_id>` as inactive (`inactive_ids.insert(old_id)`) and records `superseded_by[old_id] = new_id`. `SeedGraphIndex::resolve_latest_node_id(id)` follows `superseded_by` edges deterministically (with cycle detection) to the terminal active node ID.
-2. **Retraction** (`592 <stmt_id> <target_id>`): Marks both `<target_id>` and the retraction statement node itself as inactive (`inactive_ids.insert(target_id)`), and records `retracted_by[target_id] = stmt_id`. If `<target_id>` is a `Dc 584` `"Has a"` statement node, any active `Dc 610` `"Has value"` statement targeting `<target_id>` is also marked inactive.
+2. **Retraction** (`592 <stmt_id> <target_id>`): Marks the target inactive and
+   records its retraction relationship. The retraction statement does not
+   become inactive merely by retracting another node; it can itself be
+   retracted later. Dependent value statements cannot make an inactive property
+   statement effective. Lifecycle resolution must account for retracted
+   retractions and supersessions at the selected snapshot.
 
 ### 2.3 Value Nodes and Property Triples (`Dc 584` `"Has a"` and `Dc 610` `"Has value"`)
 1. **String and Integer Value Nodes**:
@@ -81,6 +114,12 @@ Active `Dc 611` `"Canonical decomposition"` properties on a subject define `<equ
 ## 3. `.Semantic:Pattern` Operators (`Dc 599`..`Dc 607`, `Dc 642`, `Dc 643`, `Dc 644`)
 
 Syntax rules (`Dc 594` `"Syntax rule"`) are stored in the seed graph as token sequences using `.Semantic:Pattern` operators and decoded by [`SeedGraphIndex::decode_syntax_rule_tokens`](../src/formats/dcdata/support/seed_graph_reconstruct.rs):
+
+The following is an implementation inventory, not yet normative semantics.
+Choice/backtracking order, capture scope, recursive references, malformed
+patterns, range arity, and historical operator encodings still need independent
+conformance fixtures. An encoding accepted by the current decoder is not by
+itself evidence that its historical semantic identifier was used correctly.
 
 | Operator Dc | Name | Kernel Semantics in `.Semantic:Pattern` |
 |---|---|---|
@@ -125,7 +164,7 @@ The host communicates with the instantiated WebAssembly module exclusively throu
 
 | Byte Offset | Constant | Type | Description |
 |---|---|---|---|
-| `0..4` | `DC_WASM_MAILBOX_INPUT_PTR` (`0`) | `u32` LE | Byte offset of the input DcTF payload slice in linear memory (`>= 64`, placed after any static data segments). |
+| `0..4` | `DC_WASM_MAILBOX_INPUT_PTR` (`0`) | `u32` LE | Byte offset of the input DcTF payload slice in linear memory (minimum `256`; current placement scans initialized nonzero bytes). |
 | `4..8` | `DC_WASM_MAILBOX_INPUT_LEN` (`4`) | `u32` LE | Byte length of the input DcTF payload slice (with the 21-byte `.dcmm` header stripped). |
 | `8..12` | `DC_WASM_MAILBOX_OUTPUT_PTR` (`8`) | `u32` LE | Byte offset of the output DcTF/DcMixed slice in linear memory (pre-initialized by the host before each `step()` to an 8-byte-aligned scratch region after the input buffer; may be updated by the guest). |
 | `12..16` | `DC_WASM_MAILBOX_OUTPUT_LEN` (`12`) | `u32` LE | Byte length of the output slice written by the guest during `step()` (reset to `0` by the host before each `step()`). |
@@ -138,9 +177,22 @@ Each invocation of `"step"` returns an `i32` [`WasmStepStatus`](../src/formats/d
 - `2` (`WasmStepStatus::RequestCapability`): Execution paused requesting a host capability described by the Dc document in `output_ptr..output_ptr + output_len`. The host evaluates the capability request against the current host [`ExecutionContext`](../src/runtime/runtime.rs), writes any allowed or mocked response into the input mailbox via `provide_input`, and calls `step()` again.
 
 The host enforces deterministic VM resource budgets ([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) on every session:
-1. **Per-step instruction fuel** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop (`Trap::InstructionFuelExhausted` -> `WasmResourceInterruption::InstructionFuelExhausted`).
-2. **Linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB`): enforced during module instantiation, `provide_input`, and WASM `memory.grow` (`WasmResourceInterruption::MemoryLimitExceeded`).
+1. **Instruction fuel** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop during module start as well as every exported step (`Trap::InstructionFuelExhausted` -> `WasmResourceInterruption::InstructionFuelExhausted`). Start exhaustion fails construction before an execution trace exists.
+2. **Linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` per linear-memory instance): enforced during module instantiation, `provide_input`, and WASM `memory.grow`. Guest growth failure returns standard WASM `-1`; host allocation failures use `WasmResourceInterruption::MemoryLimitExceeded`. A step rejects an exported memory already exceeding a subsequently lowered cap.
 3. **Single-step output slice cap** (`max_step_output_bytes`, default `4 MiB`): checked before allocating/copying `out_len` bytes from linear memory (`WasmResourceInterruption::StepOutputSliceTooLarge`).
 4. **Cumulative session output cap** (`max_session_output_bytes`, default `16 MiB`): accumulated across all `YieldFrame`, `RequestCapability`, and `Complete` outputs in a session (`WasmResourceInterruption::SessionOutputBudgetExceeded`).
 
-Physical VM resource interruptions are exposed as [`WasmResourceInterruption`](../src/formats/dcstring/converters/wasm.rs) and recorded as external resource events in the host execution trace (`Privilege::ExcessiveCompute`), keeping physical VM metering distinct from logical document progress.
+Live host capabilities default to denial unless explicitly granted; parse
+errors steer requests toward mocks. Historical graph pins cannot grant host
+permissions. Replay compares requests and outputs, supplies recorded responses
+without live capability I/O, injects recorded interruptions before further
+guest execution at their logical boundary, and verifies the full trace/result.
+
+**Pending Work Before Freezing**: Specify the supported WASM feature subset,
+numeric/trap semantics, rejection/recovery rules, and ABI ownership of static
+and zero-filled guest memory. The current nonzero-byte scan is not a complete
+static-data allocator. Fuel meters VM instructions, not parsing/compilation or
+individual bulk-operation cost. Table allocations and aggregate host/session
+memory are not bounded by the linear-memory page cap. Initial construction
+errors and denied interruptions return errors rather than preserved traces;
+recording/replay of those outcomes remains to be specified and implemented.
