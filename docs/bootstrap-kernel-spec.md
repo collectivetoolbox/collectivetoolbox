@@ -8,12 +8,15 @@ current implementation, not a new encoding.
 ## 0. Version Contract & Bootstrap Selection
 
 The host exposes [`BootstrapKernelVersion`](../src/formats/dcstring/navigator/policy.rs)
-and rejects unsupported version numbers. Only V1 currently exists. Navigator
-constructors can already inspect the document's leading graph pin before a
-caller invokes `select_bootstrap_kernel_version`; the setter is therefore not
-proof of version selection before interpretation. A future second kernel needs
-a bootstrap entry point that selects the version before constructing or
-interpreting documents, plus version-specific conformance fixtures.
+and rejects unsupported version numbers (`BootstrapKernelVersion::try_from_u32`).
+Only `BootstrapKernelVersion::V1` (`1`) currently exists.
+
+To ensure version selection happens before any leading `Dc 641` (`"Global graph system block most recent node ID at time of document creation"`) pin inspection or token decoding runs, [`DcDocumentNavigator`](../src/formats/dcstring/navigator.rs) provides upfront bootstrap constructors:
+- `DcDocumentNavigator::try_from_mstr_with_kernel_version_number(mstr, version)` and `DcDocumentNavigator::from_mstr_with_kernel_version(mstr, kernel_version)`
+- `DcDocumentNavigator::try_from_dc_str_with_kernel_version_number(text, version)` and `DcDocumentNavigator::from_dc_str_with_kernel_version(text, kernel_version)`
+- `DcDocumentNavigator::from_mstr_with_policy(mstr, policy)` and `DcDocumentNavigator::from_dc_str_with_policy(text, policy)`
+
+These constructors validate and install `self.kernel_version` prior to invoking `detect_leading_document_most_recent()`.
 
 Many syntax rules and WASM definitions live in the append-only System graph.
 Procedural evaluators and implicit rule synthesis still exist in Rust; their
@@ -164,35 +167,33 @@ The host communicates with the instantiated WebAssembly module exclusively throu
 
 | Byte Offset | Constant | Type | Description |
 |---|---|---|---|
-| `0..4` | `DC_WASM_MAILBOX_INPUT_PTR` (`0`) | `u32` LE | Byte offset of the input DcTF payload slice in linear memory (minimum `256`; current placement scans initialized nonzero bytes). |
+| `0..4` | `DC_WASM_MAILBOX_INPUT_PTR` (`0`) | `u32` LE | Byte offset of the input DcTF payload slice in linear memory (`base_io_offset`, minimum `256`, 8-byte aligned past the maximum of `MemoryInstance::static_data_end()`, optional exported `__heap_base`/`__data_end` globals, and any nonzero byte written during `start`). |
 | `4..8` | `DC_WASM_MAILBOX_INPUT_LEN` (`4`) | `u32` LE | Byte length of the input DcTF payload slice (with the 21-byte `.dcmm` header stripped). |
 | `8..12` | `DC_WASM_MAILBOX_OUTPUT_PTR` (`8`) | `u32` LE | Byte offset of the output DcTF/DcMixed slice in linear memory (pre-initialized by the host before each `step()` to an 8-byte-aligned scratch region after the input buffer; may be updated by the guest). |
 | `12..16` | `DC_WASM_MAILBOX_OUTPUT_LEN` (`12`) | `u32` LE | Byte length of the output slice written by the guest during `step()` (reset to `0` by the host before each `step()`). |
 | `16..32` | `DC_WASM_MAILBOX_MOST_RECENT_NODE_ID` (`16`) | `u128` LE | Pinned `Dc 641` (`"Global graph system block most recent node ID at time of document creation"`) watermark (`0` when unpinned). |
 
-### 4.4 `step()` Return Status Codes and VM Resource Budgets
+### 4.4 `step()` Return Status Codes, Numeric/Trap Semantics, and VM Resource Budgets
 Each invocation of `"step"` returns an `i32` [`WasmStepStatus`](../src/formats/dcstring/converters/wasm.rs):
 - `0` (`WasmStepStatus::Complete`): Execution finished; the host reads `output_ptr..output_ptr + output_len` as the final output [`DcMstring`].
 - `1` (`WasmStepStatus::YieldFrame`): Emitted an intermediate streaming frame in `output_ptr..output_ptr + output_len`; linear memory and globals remain intact for the next `step()` call.
 - `2` (`WasmStepStatus::RequestCapability`): Execution paused requesting a host capability described by the Dc document in `output_ptr..output_ptr + output_len`. The host evaluates the capability request against the current host [`ExecutionContext`](../src/runtime/runtime.rs), writes any allowed or mocked response into the input mailbox via `provide_input`, and calls `step()` again.
 
-The host enforces deterministic VM resource budgets ([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) on every session:
-1. **Instruction fuel** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop during module start as well as every exported step (`Trap::InstructionFuelExhausted` -> `WasmResourceInterruption::InstructionFuelExhausted`). Start exhaustion fails construction before an execution trace exists.
-2. **Linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` per linear-memory instance): enforced during module instantiation, `provide_input`, and WASM `memory.grow`. Guest growth failure returns standard WASM `-1`; host allocation failures use `WasmResourceInterruption::MemoryLimitExceeded`. A step rejects an exported memory already exceeding a subsequently lowered cap.
-3. **Single-step output slice cap** (`max_step_output_bytes`, default `4 MiB`): checked before allocating/copying `out_len` bytes from linear memory (`WasmResourceInterruption::StepOutputSliceTooLarge`).
-4. **Cumulative session output cap** (`max_session_output_bytes`, default `16 MiB`): accumulated across all `YieldFrame`, `RequestCapability`, and `Complete` outputs in a session (`WasmResourceInterruption::SessionOutputBudgetExceeded`).
+**Supported WebAssembly Feature Subset & Deterministic Numeric/Trap Semantics**:
+- Supported value types: `i32` (`0x7F`), `i64` (`0x7E`), `f32` (`0x7D`), `f64` (`0x7C`), `v128` (`0x7B`), `funcref` (`0x70`), `externref` (`0x6F`). 64-bit linear memories (`memory64`) are rejected at instantiation (`Error::UnsupportedFeature`).
+- Integer division by zero (`i32.div_s`, `i32.div_u`, `i64.div_s`, `i64.div_u`, `rem_s`, `rem_u`), signed division overflow (`i32::MIN / -1`, `i64::MIN / -1`), out-of-bounds linear memory or table accesses, `unreachable` (`0x00`), and indirect call signature mismatches trap deterministically (`tinywasm::Trap`).
 
-Live host capabilities default to denial unless explicitly granted; parse
-errors steer requests toward mocks. Historical graph pins cannot grant host
-permissions. Replay compares requests and outputs, supplies recorded responses
-without live capability I/O, injects recorded interruptions before further
-guest execution at their logical boundary, and verifies the full trace/result.
+The host enforces deterministic VM resource budgets ([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) across the session store:
+1. **Instruction fuel** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop during module instantiation, the WebAssembly `start` section (`run_wasm_start_section`), and every exported `step()` call (`Trap::InstructionFuelExhausted` -> `WasmResourceInterruption::InstructionFuelExhausted`).
+2. **Store-wide and per-memory linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` total across all `MemoryInstance`s in `Store`): enforced during module instantiation, `provide_input`, and WASM `memory.grow` (`Store::total_memory_pages()`). Guest `memory.grow` failure returns standard WASM `-1`; host allocation or cap-lowering violations raise `WasmResourceInterruption::MemoryLimitExceeded`.
+3. **Store-wide and per-table element cap** (`max_table_elements`, default `65_536` elements total across all `TableInstance`s in `Store`): enforced during module instantiation, `table.grow`, and before each `step()` (`WasmResourceInterruption::TableLimitExceeded`; guest `table.grow` failure returns standard WASM `-1`).
+4. **Single-step output slice cap** (`max_step_output_bytes`, default `4 MiB`): checked before allocating/copying `out_len` bytes from linear memory (`WasmResourceInterruption::StepOutputSliceTooLarge`).
+5. **Cumulative session output cap** (`max_session_output_bytes`, default `16 MiB`): accumulated across all `YieldFrame`, `RequestCapability`, and `Complete` outputs in a session (`WasmResourceInterruption::SessionOutputBudgetExceeded`).
 
-**Pending Work Before Freezing**: Specify the supported WASM feature subset,
-numeric/trap semantics, rejection/recovery rules, and ABI ownership of static
-and zero-filled guest memory. The current nonzero-byte scan is not a complete
-static-data allocator. Fuel meters VM instructions, not parsing/compilation or
-individual bulk-operation cost. Table allocations and aggregate host/session
-memory are not bounded by the linear-memory page cap. Initial construction
-errors and denied interruptions return errors rather than preserved traces;
-recording/replay of those outcomes remains to be specified and implemented.
+**Trace Preservation & Deterministic Replay**:
+Live host capabilities default to denial unless explicitly granted; parse errors steer requests toward mocks. Historical graph pins cannot grant host permissions. `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::execute_wasm_bytes_with_trace` preserve all accumulated `frames` and `events` in the returned [`WasmExecutionTrace`](../src/runtime/runtime.rs) even when a resource interruption is denied (`PermissionDecision::Deny`, queryable via `WasmExecutionTrace::denied_resource_interruption` / `ensure_not_denied`) or occurs during module construction/start (`after_logical_steps == 0`), and `replay_wasm_session_trace` / `replay_wasm_bytes_trace` deterministically replay those finite prefixes.
+
+**Remaining Gaps / Pending Work Before Freezing**:
+- Fuel meters executed VM instructions, not initial module parsing/validation or per-byte cost inside a single bulk memory/table instruction (`memory.copy`, `memory.fill`, `table.copy`).
+- Non-resource traps during module `start` or `step()` return `Err` rather than a structured trap event in `WasmExecutionTrace`.
+- Gates 3 and 4 of [the language plan](../issues/language.md) (eliminating remaining procedural syntax rule synthesis and completing self-hosted `.WASM` definitions) must land before `BootstrapKernelVersion::V1` is frozen.

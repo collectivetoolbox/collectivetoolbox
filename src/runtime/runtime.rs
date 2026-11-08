@@ -294,6 +294,54 @@ pub struct WasmExecutionTrace {
     pub events: Vec<WasmTraceEvent>,
 }
 
+impl WasmExecutionTrace {
+    /// Returns the terminal `ResourceInterruption` event if execution was halted by a denied
+    /// resource interruption (`decision != PermissionDecision::BreakOutResumeNext` and
+    /// `decision != PermissionDecision::Allow`).
+    #[must_use]
+    pub fn denied_resource_interruption(
+        &self,
+    ) -> Option<(usize, Option<&WasmResourceInterruption>, PermissionDecision)>
+    {
+        if let Some(WasmTraceEvent::ResourceInterruption {
+            after_logical_steps,
+            interruption,
+            decision,
+        }) = self.events.last()
+            && *decision != PermissionDecision::BreakOutResumeNext
+            && *decision != PermissionDecision::Allow
+        {
+            return Some((
+                *after_logical_steps,
+                interruption.as_ref(),
+                *decision,
+            ));
+        }
+        None
+    }
+
+    /// Returns `Err` if the trace terminated due to a denied resource interruption, or `Ok(())`
+    /// if the trace completed or broke out via `PermissionDecision::BreakOutResumeNext`.
+    ///
+    /// # Errors
+    /// Returns an error describing the denied resource interruption.
+    pub fn ensure_not_denied(&self) -> Result<()> {
+        if let Some((steps, interruption, decision)) =
+            self.denied_resource_interruption()
+        {
+            if let Some(intr) = interruption {
+                return Err(anyhow::Error::new(intr.clone()).context(format!(
+                    "Execution terminated after {steps} logical steps on VM resource interruption ({intr}); Privilege::ExcessiveCompute decision was {decision:?}"
+                )));
+            }
+            bail!(
+                "Execution denied by capability policy after {steps} logical steps ({decision:?})"
+            );
+        }
+        Ok(())
+    }
+}
+
 /// Execution context for document evaluation and capability permission gating.
 ///
 /// Capability authorization lives strictly in the host (`ExecutionContext`). Historical
@@ -435,22 +483,17 @@ impl ExecutionContext {
                 self.request_permission(&Privilege::ExcessiveCompute);
             events.push(WasmTraceEvent::ResourceInterruption {
                 after_logical_steps,
-                interruption: Some(interruption.clone()),
+                interruption: Some(interruption),
                 decision,
             });
-            if decision == PermissionDecision::BreakOutResumeNext {
-                return Ok(WasmExecutionTrace {
-                    result: WasmExecutionResult {
-                        output: DcMstring::new(),
-                        frames,
-                        broke_out_early: true,
-                    },
-                    events,
-                });
-            }
-            return Err(err.context(format!(
-                "Execution terminated after VM resource interruption ({interruption}); Privilege::ExcessiveCompute decision was {decision:?}"
-            )));
+            return Ok(WasmExecutionTrace {
+                result: WasmExecutionResult {
+                    output: DcMstring::new(),
+                    frames,
+                    broke_out_early: true,
+                },
+                events,
+            });
         }
         Err(err)
     }
@@ -458,9 +501,14 @@ impl ExecutionContext {
     /// Drives a [`DcWasmSession`] over `input` and records the full [`WasmExecutionTrace`]
     /// (distinguishing logical document progress from physical VM resource interruptions).
     ///
+    /// Physical VM resource interruptions (including denied interruptions where
+    /// `Privilege::ExcessiveCompute` resolves to `PermissionDecision::Deny`) preserve all
+    /// accumulated `frames` and `events` in the returned [`WasmExecutionTrace`] so the finite
+    /// prefix can be inspected and deterministically replayed.
+    ///
     /// # Errors
-    /// Returns an error if the WASM module traps with a non-resource error, if `capability_handler`
-    /// fails, or if a resource limit is exceeded and `Privilege::ExcessiveCompute` is denied.
+    /// Returns an error if the WASM module traps with a non-resource error or if
+    /// `capability_handler` fails.
     pub fn execute_wasm_session_with_trace<F>(
         &mut self,
         session: &mut DcWasmSession,
@@ -480,7 +528,7 @@ impl ExecutionContext {
         loop {
             let budget_decision = match self.step() {
                 Ok(d) => d,
-                Err(err) => {
+                Err(_err) => {
                     let decision =
                         self.request_permission(&Privilege::ExcessiveCompute);
                     events.push(WasmTraceEvent::ResourceInterruption {
@@ -488,7 +536,14 @@ impl ExecutionContext {
                         interruption: None,
                         decision,
                     });
-                    return Err(err);
+                    return Ok(WasmExecutionTrace {
+                        result: WasmExecutionResult {
+                            output: DcMstring::new(),
+                            frames,
+                            broke_out_early: true,
+                        },
+                        events,
+                    });
                 }
             };
             if budget_decision == PermissionDecision::BreakOutResumeNext {
@@ -512,7 +567,14 @@ impl ExecutionContext {
                     interruption: None,
                     decision: PermissionDecision::Deny,
                 });
-                bail!("Execution denied by capability policy");
+                return Ok(WasmExecutionTrace {
+                    result: WasmExecutionResult {
+                        output: DcMstring::new(),
+                        frames,
+                        broke_out_early: true,
+                    },
+                    events,
+                });
             }
 
             let step_outcome = match session.step() {
@@ -643,29 +705,21 @@ impl ExecutionContext {
             interruption,
             decision,
         }) = recorded_trace.events.first()
-            && matches!(
-                interruption,
-                Some(WasmResourceInterruption::MemoryLimitExceeded { .. })
-            )
+            && interruption.is_some()
         {
             events.push(WasmTraceEvent::ResourceInterruption {
                 after_logical_steps: 0,
                 interruption: interruption.clone(),
                 decision: *decision,
             });
-            if *decision == PermissionDecision::BreakOutResumeNext {
-                return checked_trace(WasmExecutionTrace {
-                    result: WasmExecutionResult {
-                        output: DcMstring::new(),
-                        frames,
-                        broke_out_early: true,
-                    },
-                    events,
-                });
-            }
-            bail!(
-                "Replayed resource interruption at initial input resulted in {decision:?}"
-            );
+            return checked_trace(WasmExecutionTrace {
+                result: WasmExecutionResult {
+                    output: DcMstring::new(),
+                    frames,
+                    broke_out_early: true,
+                },
+                events,
+            });
         }
 
         session.provide_input(input)?;
@@ -686,19 +740,14 @@ impl ExecutionContext {
                     interruption: interruption.clone(),
                     decision: *decision,
                 });
-                if *decision == PermissionDecision::BreakOutResumeNext {
-                    return checked_trace(WasmExecutionTrace {
-                        result: WasmExecutionResult {
-                            output: DcMstring::new(),
-                            frames,
-                            broke_out_early: true,
-                        },
-                        events,
-                    });
-                }
-                bail!(
-                    "Replayed resource interruption after {after_logical_steps} logical steps denied execution ({decision:?})"
-                );
+                return checked_trace(WasmExecutionTrace {
+                    result: WasmExecutionResult {
+                        output: DcMstring::new(),
+                        frames,
+                        broke_out_early: true,
+                    },
+                    events,
+                });
             }
 
             let expected_event =
@@ -825,9 +874,13 @@ impl ExecutionContext {
     where
         F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
     {
-        Ok(self
-            .execute_wasm_session_with_trace(session, input, capability_handler)?
-            .result)
+        let trace = self.execute_wasm_session_with_trace(
+            session,
+            input,
+            capability_handler,
+        )?;
+        trace.ensure_not_denied()?;
+        Ok(trace.result)
     }
 
     /// Drives a [`DcWasmSession`] with a default capability response encoder:
@@ -839,9 +892,98 @@ impl ExecutionContext {
         session: &mut DcWasmSession,
         input: &DcMstr,
     ) -> Result<WasmExecutionResult> {
-        Ok(self
-            .execute_wasm_session_default_with_trace(session, input)?
-            .result)
+        let trace =
+            self.execute_wasm_session_default_with_trace(session, input)?;
+        trace.ensure_not_denied()?;
+        Ok(trace.result)
+    }
+
+    /// Instantiates and executes compiled `.wasm` module bytes over `input` with explicit
+    /// [`ctb_formats_dcstring::DcWasmResourceLimits`], capturing construction-time resource
+    /// interruptions (initial memory/table limits or `start` fuel exhaustion) in the returned
+    /// [`WasmExecutionTrace`].
+    ///
+    /// # Errors
+    /// Returns an error if the module fails to parse or traps with a non-resource error.
+    pub fn execute_wasm_bytes_with_trace<F>(
+        &mut self,
+        wasm_bytes: &[u8],
+        input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+        resource_limits: ctb_formats_dcstring::DcWasmResourceLimits,
+        capability_handler: F,
+    ) -> Result<WasmExecutionTrace>
+    where
+        F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
+    {
+        let mut session = match DcWasmSession::from_wasm_bytes_with_limits(
+            wasm_bytes,
+            input,
+            most_recent_node_id,
+            resource_limits,
+        ) {
+            Ok(s) => s,
+            Err(err) => {
+                return self.handle_resource_interruption(
+                    err,
+                    0,
+                    Vec::new(),
+                    Vec::new(),
+                );
+            }
+        };
+        self.execute_wasm_session_with_trace(
+            &mut session,
+            input,
+            capability_handler,
+        )
+    }
+
+    /// Replays compiled `.wasm` module bytes against a recorded [`WasmExecutionTrace`],
+    /// including traces that terminated during initial module instantiation or `provide_input`.
+    ///
+    /// # Errors
+    /// Returns an error if replay diverges from `recorded_trace`.
+    pub fn replay_wasm_bytes_trace(
+        &mut self,
+        wasm_bytes: &[u8],
+        input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+        resource_limits: ctb_formats_dcstring::DcWasmResourceLimits,
+        recorded_trace: &WasmExecutionTrace,
+    ) -> Result<WasmExecutionTrace> {
+        if let Some(WasmTraceEvent::ResourceInterruption {
+            after_logical_steps: 0,
+            interruption,
+            decision,
+        }) = recorded_trace.events.first()
+            && recorded_trace.events.len() == 1
+        {
+            let trace = WasmExecutionTrace {
+                result: WasmExecutionResult {
+                    output: DcMstring::new(),
+                    frames: Vec::new(),
+                    broke_out_early: true,
+                },
+                events: vec![WasmTraceEvent::ResourceInterruption {
+                    after_logical_steps: 0,
+                    interruption: interruption.clone(),
+                    decision: *decision,
+                }],
+            };
+            ensure!(
+                &trace == recorded_trace,
+                "Replay terminated without matching the complete recorded trace and result"
+            );
+            return Ok(trace);
+        }
+        let mut session = DcWasmSession::from_wasm_bytes_with_limits(
+            wasm_bytes,
+            input,
+            most_recent_node_id,
+            resource_limits,
+        )?;
+        self.replay_wasm_session_trace(&mut session, input, recorded_trace)
     }
 }
 
@@ -1079,7 +1221,9 @@ mod tests {
             }]
         );
 
-        // 2. Host policy overriding `ExcessiveCompute` to `Deny` returns an error on fuel exhaustion.
+        // 2. Host policy overriding `ExcessiveCompute` to `Deny` preserves the denied
+        //    `ResourceInterruption` in `execute_wasm_session_default_with_trace` while
+        //    returning an error from `execute_wasm_session_default` / `ensure_not_denied`.
         let mut deny_session =
             DcWasmSession::from_dc_wasm(&loop_doc, &input, None)?
                 .with_resource_limits(limits);
@@ -1087,12 +1231,12 @@ mod tests {
             Privilege::ExcessiveCompute,
             PermissionDecision::Deny,
         );
+        let denied_trace = deny_ctx
+            .execute_wasm_session_default_with_trace(&mut deny_session, &input)?;
+        assert!(denied_trace.ensure_not_denied().is_err());
         assert!(
             deny_ctx
-                .execute_wasm_session_default_with_trace(
-                    &mut deny_session,
-                    &input
-                )
+                .execute_wasm_session_default(&mut deny_session, &input)
                 .is_err()
         );
         Ok(())
@@ -1359,6 +1503,192 @@ mod tests {
         )?;
         assert_eq!(replayed_int, interrupted_trace);
         assert_eq!(fast_replay_session.total_instructions_executed(), 0);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_denied_and_construction_resource_interruptions_preserve_and_replay_traces()
+    -> Result<()> {
+        use ctb_formats_dcstring::{
+            DcChar, DcMixedEncode, DcWasmResourceLimits,
+            WasmResourceInterruption,
+        };
+
+        let i32_dc =
+            DcChar::from_u128(crate::FormatId::I32.dc_id().unwrap());
+
+        // Routine that:
+        // - Step 0 (mem[64] == 0): sets mem[64] = 1, echoes input to output, returns 1 (YieldFrame)
+        // - Step 1 (mem[64] == 1): sets mem[64] = 2, echoes input to output, returns 2 (RequestCapability)
+        // - Step 2 (mem[64] == 2): enters a tight loop that exhausts instruction fuel
+        let mut multi_doc = DcMstring::new();
+        multi_doc.push_char(DcChar::from_short(260));
+        multi_doc.push_char(DcChar::from_short(262));
+        multi_doc.push_char(DcChar::from_short(280));
+        multi_doc.push_char(i32_dc);
+        multi_doc.push_char(DcChar::from_short(263));
+        // Echo input mailbox (0..8) -> output mailbox (8..16)
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+
+        // Read phase = mem[64]
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(716)); // i32.eqz (phase == 0)
+        multi_doc.push_char(DcChar::from_short(651)); // if (result i32)
+        multi_doc.push_char(i32_dc);
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut multi_doc)?; // return 1 (YieldFrame)
+        multi_doc.push_char(DcChar::from_short(652)); // else
+        // Check if mem[64] == 1
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(717)); // i32.eq
+        multi_doc.push_char(DcChar::from_short(651)); // if (result i32)
+        multi_doc.push_char(i32_dc);
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&64, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&2, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        u32::encode_dc_mixed(&2, &mut multi_doc)?;
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&2, &mut multi_doc)?; // return 2 (RequestCapability)
+        multi_doc.push_char(DcChar::from_short(652)); // else (phase == 2: tight loop)
+        multi_doc.push_char(DcChar::from_short(650)); // loop
+        multi_doc.push_char(DcChar::from_short(316)); // empty blocktype
+        multi_doc.push_char(DcChar::from_short(659)); // br 0
+        u32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(658)); // end loop
+        multi_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut multi_doc)?;
+        multi_doc.push_char(DcChar::from_short(658)); // end inner if
+        multi_doc.push_char(DcChar::from_short(658)); // end outer if
+        multi_doc.push_char(DcChar::from_short(261));
+
+        let mut input = DcMstring::new();
+        input.push_str("FileIo");
+
+        let limits =
+            DcWasmResourceLimits::default().with_max_instructions_per_step(200);
+        let mut session = DcWasmSession::from_dc_wasm(&multi_doc, &input, None)?
+            .with_resource_limits(limits);
+        let mut deny_ctx = ExecutionContext::new(false)
+            .with_privilege_decision(Privilege::FileIo, PermissionDecision::Allow)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Deny,
+            );
+
+        // 1. `execute_wasm_session_default_with_trace` preserves the yielded frame (step 0),
+        //    the capability interaction (step 1), and the denied ResourceInterruption (step 2).
+        let denied_trace = deny_ctx
+            .execute_wasm_session_default_with_trace(&mut session, &input)?;
+        assert!(denied_trace.result.broke_out_early);
+        assert_eq!(denied_trace.result.frames, vec![input.clone()]);
+        assert_eq!(denied_trace.events.len(), 3);
+        assert_eq!(
+            denied_trace.denied_resource_interruption(),
+            Some((
+                2,
+                Some(&WasmResourceInterruption::InstructionFuelExhausted {
+                    limit: 200
+                }),
+                PermissionDecision::Deny,
+            ))
+        );
+        assert!(denied_trace.ensure_not_denied().is_err());
+
+        // 2. Replaying `denied_trace` reproduces the exact finite prefix and denied interruption.
+        let mut replay_session =
+            DcWasmSession::from_dc_wasm(&multi_doc, &input, None)?;
+        let mut replay_ctx = ExecutionContext::new(false);
+        let replayed = replay_ctx.replay_wasm_session_trace(
+            &mut replay_session,
+            &input,
+            &denied_trace,
+        )?;
+        assert_eq!(replayed, denied_trace);
+
+        // 3. Construction-time resource interruption (looping `start` section) is captured in
+        //    `execute_wasm_bytes_with_trace` and replayed via `replay_wasm_bytes_trace`.
+        let looping_start = [
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+            0x03, 0x02, 0x01, 0x00,
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            0x07, 0x11, 0x02, 0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x00,
+            0x08, 0x01, 0x00,
+            0x0a, 0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b,
+        ];
+        let start_trace = deny_ctx.execute_wasm_bytes_with_trace(
+            &looping_start,
+            &input,
+            None,
+            limits,
+            |_p, d, _r| Ok(ExecutionContext::default_capability_response(d)),
+        )?;
+        assert_eq!(
+            start_trace.denied_resource_interruption(),
+            Some((
+                0,
+                Some(&WasmResourceInterruption::InstructionFuelExhausted {
+                    limit: 200
+                }),
+                PermissionDecision::Deny,
+            ))
+        );
+        let replayed_start = replay_ctx.replay_wasm_bytes_trace(
+            &looping_start,
+            &input,
+            None,
+            limits,
+            &start_trace,
+        )?;
+        assert_eq!(replayed_start, start_trace);
         Ok(())
     }
 }

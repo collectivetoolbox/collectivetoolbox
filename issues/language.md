@@ -123,54 +123,33 @@ cross-revision execution, event, and pixel replay suite in Gate 3 remain pending
 these parser/resolver tests do not establish the full compatibility guarantee.
 
 ### Gate 2: Document the Minimal Trusted Kernel & Enforce VM Budgets
-- [ ] **Freeze and document the minimal trusted bootstrap kernel (`docs/bootstrap-kernel-spec.md`, `src/formats/dcstring/navigator/policy.rs`, `src/formats/dcstring/navigator.rs`)** (Partially Implemented; current document is a draft):
-  - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version (`BootstrapKernelVersion::V1 = 1`, `BootstrapKernelVersion::CURRENT`, `DcProjectionPolicy::with_kernel_version` / `try_with_kernel_version_number`, and `DcDocumentNavigator::select_bootstrap_kernel_version`). Identical graph bytes under different kernel interpretations are not sufficient. Version selection must be available during bootstrap, before interpretation that depends on it.
-  - Wrote [`docs/bootstrap-kernel-spec.md`](../docs/bootstrap-kernel-spec.md) covering the exact host-implemented primitives that graph nodes rely upon:
-    1. Physical token codecs (`DcTF`, `.dcmm` header, `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`).
-    2. Active triple resolution in `SeedGraphIndex` (`Dc 584 "Has a"`, `Dc 610 "Has value"`, `Dc 591 "Supersedes"`, `Dc 592 "Retracts"`, `Dc 611 "Canonical decomposition"`).
+- [ ] **Freeze and document the minimal trusted bootstrap kernel (`docs/bootstrap-kernel-spec.md`, `src/formats/dcstring/navigator/policy.rs`, `src/formats/dcstring/navigator.rs`)** (Partially Implemented; specification remains draft until Gates 3–4 freeze the kernel boundary):
+  - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version (`BootstrapKernelVersion::V1 = 1`, `BootstrapKernelVersion::CURRENT`, `DcProjectionPolicy::with_kernel_version` / `try_with_kernel_version_number`, and upfront `DcDocumentNavigator::try_from_mstr_with_kernel_version_number` / `from_mstr_with_kernel_version` / `try_from_dc_str_with_kernel_version_number` / `from_dc_str_with_kernel_version` / `from_mstr_with_policy` / `from_dc_str_with_policy` before leading `Dc 641` pin detection).
+  - Wrote [`docs/bootstrap-kernel-spec.md`](../docs/bootstrap-kernel-spec.md) and conformance tests (`test_gate2_bootstrap_kernel_v1_conformance_suite`, `test_gate2_zero_filled_static_data_segment_not_overwritten_by_mailbox_input`, `test_gate2_table_element_cap_and_multi_memory_aggregate_cap`) covering the host-implemented primitives that graph nodes rely upon:
+    1. Physical token codecs (`DcTF` 1..7-byte and `0xFF` 8..23-byte tiers, `.dcmm` header, `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`).
+    2. Active triple resolution in `SeedGraphIndex` (`Dc 584 "Has a"`, `Dc 610 "Has value"`, `Dc 591 "Supersedes"`, `Dc 592 "Retracts"`, `Dc 611 "Canonical decomposition"`, including retracted retractions and retracted supersessions).
     3. `.Semantic:Pattern` operators (`Dc 599 "Self reference"`, `Dc 600 "Wildcard pattern"`, `Dc 601 "Pattern conjunction"`, `Dc 602 "Pattern alternation"`, `Dc 603 "Pattern repetition"`, `Dc 604 "Negated pattern"`, `Dc 605 "Subpattern match"`, `Dc 606 "Pattern capture"`, `Dc 607 "Pattern replacement"`, `Dc 643 "Range"`, `Dc 644 "Exclusive range endpoint"`, `Dc 642 "Data byte length"`).
-    4. Dc-WASM binary lowering (`Dc 647 "WASM unreachable"`..`Dc 1928 "End WASM program"`) and the 32-byte linear-memory mailbox ABI (`DC_WASM_MAILBOX_*` at bytes `0..32`).
+    4. Dc-WASM binary lowering (`Dc 647 "WASM unreachable"`..`Dc 1928 "End WASM program"`) and the 32-byte linear-memory mailbox ABI (`DC_WASM_MAILBOX_*` at bytes `0..32`, tracking `MemoryInstance::static_data_end()` so zero-filled static data segments are never overwritten).
 - [x] **Enforce intra-step instruction metering (fuel) in `tinywasm` (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`, `src/runtime/runtime.rs`)**:
-  - `DcWasmSession::step` configures per-step instruction fuel (`DcWasmResourceLimits::max_instructions_per_step`, default `1_000_000`) on `tinywasm::Store` before each `func.call(&mut self.store, ...)`, preventing tight loops (`Dc 650 "WASM loop"` .. `Dc 659 "WASM br"` `0`) from hanging inside a single `step()` call.
+  - `DcWasmSession` configures per-step instruction fuel (`DcWasmResourceLimits::max_instructions_per_step`, default `1_000_000`) on `tinywasm::Store` during module instantiation, the WebAssembly `start` section (`run_wasm_start_section`), and each exported `step()` call, preventing tight loops (`Dc 650 "WASM loop"` .. `Dc 659 "WASM br"` `0`) from hanging.
   - Added `Trap::InstructionFuelExhausted` inside `tinywasm::Executor::exec_next` and mapped it to `WasmResourceInterruption::InstructionFuelExhausted` and `Privilege::ExcessiveCompute`.
-  - Distinguished physical VM metering from logical document progress via `WasmExecutionTrace` and `WasmTraceEvent::ResourceInterruption`: safety-limit interruptions are exposed and recorded as external resource events in the execution trace, while trace replay (`ExecutionContext::replay_wasm_session_trace`) compares logical capability requests and ignores physical instruction count differences across compilers.
-- [x] **Enforce linear-memory and output-slice resource budgets (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`)**:
-  - Capped linear memory at `256` pages (`16 MiB`) per memory instance, single-step output at `4 MiB`, and cumulative output at `16 MiB`. Guest `memory.grow` failure returns WASM `-1`, not a host resource event; host input allocation failures return `MemoryLimitExceeded`. A step rejects an exported memory above a subsequently lowered limit. These are not table-allocation or aggregate host-memory caps.
+  - Distinguished physical VM metering from logical document progress via `WasmExecutionTrace` and `WasmTraceEvent::ResourceInterruption`: safety-limit interruptions (including `PermissionDecision::Deny` and construction-time resource interruptions via `execute_wasm_bytes_with_trace` / `replay_wasm_bytes_trace`) preserve all accumulated `frames` and `events` in `WasmExecutionTrace`, while trace replay (`ExecutionContext::replay_wasm_session_trace`) compares logical capability requests and ignores physical instruction count differences across compilers.
+- [x] **Enforce linear-memory, table-element, and output-slice resource budgets (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`)**:
+  - Capped store-wide and per-instance linear memory at `256` pages (`16 MiB` total across `Store::total_memory_pages()`), store-wide and per-table elements at `65_536` (`DEFAULT_MAX_WASM_TABLE_ELEMENTS` / `WasmResourceInterruption::TableLimitExceeded`), single-step output at `4 MiB`, and cumulative output at `16 MiB`. Guest `memory.grow` and `table.grow` failures return WASM `-1`; host input/instantiation allocation failures return `MemoryLimitExceeded` or `TableLimitExceeded`. A step rejects an exported memory or table already above a subsequently lowered limit.
 - [x] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs`)**:
   - Historical graph pinning (`Dc 641 "Global graph system block most recent node ID at time of document creation"`) applies only to language/document semantics and never grants or restores security permissions or capability policies (`ExecutionContext::set_privilege_decision` / `with_privilege_decision`).
   - `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::replay_wasm_session_trace` compare the document's capability requests at each logical step during replay and supply the recorded allow/deny/mock responses while live execution remains governed by the current host policy.
 
-#### Gate 2 Status & Remaining Gaps (2026-11-08)
+#### Gate 2 Status & Remaining Gaps vs Upstream / Plan (2026-11-08)
 
-- **Partially Implemented**: version APIs, VM instruction/page/output limits,
-  host policy, and bounded trace replay have unit coverage. The kernel document
-  is not yet a complete frozen specification.
-- Review fixes: module start functions now receive fuel before instantiation;
-  live capabilities default to denial unless explicitly granted; replay does
-  not execute/discard an extra step at a recorded interruption and verifies
-  the entire trace/result, rejecting trailing events or inconsistent results;
-  execution rejects an already over-budget exported memory after cap lowering.
-- Corrected the draft's graph-region boundaries, DcTF encoding (no long-token
-  escape), binary encapsulation (type byte and big-endian 128-bit lengths,
-  without a trailing binary closer), retraction lifecycle, and mailbox offset.
-- **Pending Work**: independent conformance fixtures for codecs, lifecycle,
-  pattern choice/captures/ranges, WASM numeric/trap/feature behavior and malformed
-  input; selection before construction if a second kernel is introduced;
-  explicit static/zero-filled guest-memory ownership; table and aggregate-memory
-  budgets; recorded construction failures and denied interruptions rather than
-  loss of their accumulated trace through `Err`. Gates 3 and 4 remain pending.
-- **Validation**: all 196 Dc-string and seven runtime library tests passed on
-  Linux musl, with no ignored tests. Production Clippy for both affected crates
-  completed with baseline warnings; documentation links and whitespace passed.
-- **Verification Limits**: other platforms and the end-to-end event/pixel
-  replay guarantee remain unverified.
-- **Failed Broader Check**: the prescribed development-binary character-name
-  lookup triggered a release build, blocked by six unrelated `E0277` slice/array
-  `Option` comparisons in
-  [container.rs](../src/formats/detection/container.rs) and
-  [droid.rs](../src/formats/detection/droid.rs). Consequently that CLI lookup
-  did not run. The historical delimiter names/pairing below were verified from
-  the archived CSV and actual converter usage; no detection code was changed.
+- **Partially Implemented**:
+  - Upfront bootstrap kernel version constructors (`try_from_mstr_with_kernel_version_number`, `from_mstr_with_kernel_version`, `try_from_dc_str_with_kernel_version_number`, `from_dc_str_with_kernel_version`), exact static/zero-filled data segment high-water mark (`MemoryInstance::static_data_end()`), store-wide memory page and table element caps (`max_table_elements`), trace preservation and replay on denied/construction resource interruptions (`execute_wasm_bytes_with_trace`, `replay_wasm_bytes_trace`), and conformance tests for `DcTF`, `.dcmm` binary encapsulation, `SeedGraphIndex` retraction/supersession lifecycles, and WASM numeric traps are implemented and tested.
+  - Resolved the 6 `E0277` slice-to-array `Option` comparison errors in `ctb-formats-detection` (`src/formats/detection/container.rs` and `src/formats/detection/droid.rs`) so `./scripts/run-dev-ctb` builds cleanly.
+- **Remaining Gaps / Pending Work**:
+  - `docs/bootstrap-kernel-spec.md` remains `Partially Implemented` / draft until Gates 3 and 4 eliminate remaining Rust procedural syntax-rule synthesis and complete self-hosted `.WASM` definitions.
+  - Instruction fuel meters VM instructions rather than initial module parsing/validation or per-byte work inside bulk memory/table instructions (`memory.copy`, `memory.fill`, `table.copy`).
+  - Non-resource traps during module `start` or `step()` return `Err` rather than a structured trap event in `WasmExecutionTrace`.
+  - Cross-platform verification and end-to-end UI event/pixel replay remain pending.
 
 #### Existing Dc Semantics: Evidence and Regression Requirements
 

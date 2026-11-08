@@ -1475,6 +1475,9 @@ pub const DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP: u64 = 1_000_000;
 /// Default maximum number of 64 KiB linear memory pages permitted for a [`DcWasmSession`] (16 MiB).
 pub const DEFAULT_MAX_WASM_MEMORY_PAGES: usize = 256;
 
+/// Default maximum number of table elements permitted across a [`DcWasmSession`] store.
+pub const DEFAULT_MAX_WASM_TABLE_ELEMENTS: usize = 65_536;
+
 /// Default maximum byte length permitted for a single step's output mailbox slice (4 MiB).
 pub const DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
@@ -1482,13 +1485,16 @@ pub const DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 pub const DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
 /// Resource budgets enforced on a [`DcWasmSession`] for intra-step instruction fuel,
-/// linear memory growth, single-step output slice length, and cumulative session output bytes.
+/// linear memory growth, table element capacity, single-step output slice length, and
+/// cumulative session output bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DcWasmResourceLimits {
     /// Maximum number of WASM instructions executed during a single [`DcWasmSession::step`] call.
     pub max_instructions_per_step: u64,
-    /// Maximum number of 64 KiB linear memory pages allowed (both during `provide_input` and `memory.grow`).
+    /// Maximum number of 64 KiB linear memory pages allowed across the session store.
     pub max_memory_pages: usize,
+    /// Maximum number of table elements allowed across the session store.
+    pub max_table_elements: usize,
     /// Maximum byte length allowed for a single step's output slice (`out_len` in the mailbox).
     pub max_step_output_bytes: usize,
     /// Maximum cumulative output bytes allowed across all steps in a session.
@@ -1508,6 +1514,7 @@ impl DcWasmResourceLimits {
         Self {
             max_instructions_per_step: DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP,
             max_memory_pages: DEFAULT_MAX_WASM_MEMORY_PAGES,
+            max_table_elements: DEFAULT_MAX_WASM_TABLE_ELEMENTS,
             max_step_output_bytes: DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES,
             max_session_output_bytes: DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES,
         }
@@ -1530,6 +1537,16 @@ impl DcWasmResourceLimits {
         max_memory_pages: usize,
     ) -> Self {
         self.max_memory_pages = max_memory_pages;
+        self
+    }
+
+    /// Returns a copy with `max_table_elements` set to the given table element cap.
+    #[must_use]
+    pub const fn with_max_table_elements(
+        mut self,
+        max_table_elements: usize,
+    ) -> Self {
+        self.max_table_elements = max_table_elements;
         self
     }
 
@@ -1574,6 +1591,13 @@ pub enum WasmResourceInterruption {
         /// Maximum 64 KiB pages permitted by [`DcWasmResourceLimits::max_memory_pages`].
         max_pages: usize,
     },
+    /// Table element allocation or growth exceeded `max_table_elements`.
+    TableLimitExceeded {
+        /// Total table elements requested or required.
+        requested_elements: usize,
+        /// Maximum table elements permitted by [`DcWasmResourceLimits::max_table_elements`].
+        max_elements: usize,
+    },
     /// Single-step output slice (`out_len`) exceeded `max_step_output_bytes`.
     StepOutputSliceTooLarge {
         /// Byte length reported in the step's output mailbox (`out_len`).
@@ -1603,6 +1627,13 @@ impl std::fmt::Display for WasmResourceInterruption {
             } => write!(
                 f,
                 "WASM linear memory limit exceeded: requested {requested_pages} pages (max: {max_pages} pages)"
+            ),
+            Self::TableLimitExceeded {
+                requested_elements,
+                max_elements,
+            } => write!(
+                f,
+                "WASM table element limit exceeded: requested {requested_elements} elements (max: {max_elements} elements)"
             ),
             Self::StepOutputSliceTooLarge {
                 output_bytes,
@@ -1728,6 +1759,7 @@ impl DcWasmSession {
         })?;
         let mut store = Store::default();
         store.set_max_memory_pages(Some(resource_limits.max_memory_pages));
+        store.set_max_table_elements(Some(resource_limits.max_table_elements));
         store.set_fuel(Some(resource_limits.max_instructions_per_step));
         let instance = match module.instantiate(&mut store, None) {
             Ok(inst) => inst,
@@ -1752,12 +1784,40 @@ impl DcWasmSession {
                     },
                 ));
             }
+            Err(ctb_formats_dcdata::tinywasm::Error::Other(msg))
+                if msg.contains("initial table element count") =>
+            {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::TableLimitExceeded {
+                        requested_elements: resource_limits
+                            .max_table_elements
+                            .saturating_add(1),
+                        max_elements: resource_limits.max_table_elements,
+                    },
+                ));
+            }
             Err(e) => {
                 bail!(
                     "Failed to instantiate WebAssembly module in tinywasm: {e:?}"
                 );
             }
         };
+        if let Err(e) = instance.run_wasm_start_section(&mut store) {
+            store.set_fuel(None);
+            if matches!(
+                e,
+                ctb_formats_dcdata::tinywasm::Error::Trap(
+                    ctb_formats_dcdata::tinywasm::Trap::InstructionFuelExhausted
+                )
+            ) {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::InstructionFuelExhausted {
+                        limit: resource_limits.max_instructions_per_step,
+                    },
+                ));
+            }
+            bail!("Failed to execute WebAssembly start section: {e:?}");
+        }
         store.set_fuel(None);
 
         let entry_func_name = if instance.export_addr("step").is_some() {
@@ -1770,8 +1830,15 @@ impl DcWasmSession {
             );
         };
 
-        // Determine the highest byte initialized by active data segments so I/O buffers
-        // never overwrite static data segments in linear memory.
+        // Determine the highest byte owned by static data segments, optional exported
+        // `__heap_base` / `__data_end` globals, or nonzero bytes written during instantiation
+        // so host I/O buffers never overwrite zero-filled or trailing-zero static data segments.
+        let exported_heap_bound = ["__heap_base", "__data_end"]
+            .into_iter()
+            .filter_map(|name| instance.exported_global_i32(&store, name))
+            .filter_map(|v| usize::try_from(v).ok())
+            .max()
+            .unwrap_or(0);
         let base_io_offset = {
             let mut mem = instance
                 .exported_memory_mut(&mut store, "memory")
@@ -1780,6 +1847,7 @@ impl DcWasmSession {
                         "WebAssembly module is missing exported 'memory': {e:?}"
                     )
                 })?;
+            let static_data_end = mem.static_data_end();
             let total_len = mem.page_count().saturating_mul(65_536);
             let slice = mem.load(0, total_len).map_err(|e| {
                 anyhow!("Failed to inspect initial WASM linear memory: {e:?}")
@@ -1788,7 +1856,11 @@ impl DcWasmSession {
                 .iter()
                 .rposition(|&b| b != 0)
                 .map_or(0, |idx| idx.saturating_add(1));
-            align_up_8(last_nonzero_end.max(DC_WASM_MIN_IO_BUFFER_OFFSET))?
+            let reserved_end = static_data_end
+                .max(exported_heap_bound)
+                .max(last_nonzero_end)
+                .max(DC_WASM_MIN_IO_BUFFER_OFFSET);
+            align_up_8(reserved_end)?
         };
 
         let mut session = Self {
@@ -1882,6 +1954,8 @@ impl DcWasmSession {
     pub fn set_resource_limits(&mut self, limits: DcWasmResourceLimits) {
         self.resource_limits = limits;
         self.store.set_max_memory_pages(Some(limits.max_memory_pages));
+        self.store
+            .set_max_table_elements(Some(limits.max_table_elements));
     }
 
     /// Builder-style method returning `self` with updated [`DcWasmResourceLimits`].
@@ -1923,18 +1997,30 @@ impl DcWasmSession {
         &self.current_input_doc
     }
 
-    /// Returns the current number of 64 KiB pages allocated in the module's exported linear memory.
+    /// Returns the current number of 64 KiB pages allocated across the session store's linear memories.
     ///
     /// # Errors
     /// Returns an error if the exported `"memory"` cannot be accessed.
     pub fn current_memory_pages(&mut self) -> Result<usize> {
-        let mem = self
+        let _mem = self
             .instance
             .exported_memory(&mut self.store, "memory")
             .map_err(|e| {
                 anyhow!("Failed to access WASM exported 'memory': {e:?}")
             })?;
-        Ok(mem.page_count())
+        Ok(self.store.total_memory_pages())
+    }
+
+    /// Returns the total number of table elements currently allocated across the session store.
+    #[must_use]
+    pub fn current_table_elements(&self) -> usize {
+        self.store.total_table_elements()
+    }
+
+    /// Returns the byte offset (`input_ptr`) where the host places the input payload in linear memory.
+    #[must_use]
+    pub const fn base_io_offset(&self) -> usize {
+        self.base_io_offset
     }
 
     /// Writes a new input [`DcMstr`] payload into WASM linear memory and updates the
@@ -1968,22 +2054,39 @@ impl DcWasmSession {
             .saturating_add(65_535)
             .checked_div(65_536)
             .unwrap_or(1);
-        if required_pages > self.resource_limits.max_memory_pages {
+        let total_store_pages = self.store.total_memory_pages();
+        let exported_pages = {
+            let mem = self
+                .instance
+                .exported_memory(&mut self.store, "memory")
+                .map_err(|e| {
+                    anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                })?;
+            mem.page_count()
+        };
+        let other_mem_pages = total_store_pages.saturating_sub(exported_pages);
+        let required_total_pages =
+            other_mem_pages.saturating_add(required_pages.max(exported_pages));
+        if required_total_pages > self.resource_limits.max_memory_pages {
             let interruption = WasmResourceInterruption::MemoryLimitExceeded {
-                requested_pages: required_pages,
+                requested_pages: required_total_pages,
                 max_pages: self.resource_limits.max_memory_pages,
             };
             self.last_resource_interruption = Some(interruption.clone());
             return Err(anyhow::Error::new(interruption));
         }
 
+        let remaining_for_exported = self
+            .resource_limits
+            .max_memory_pages
+            .saturating_sub(other_mem_pages);
         let mut mem = self
             .instance
             .exported_memory_mut(&mut self.store, "memory")
             .map_err(|e| {
                 anyhow!("Failed to access WASM exported 'memory': {e:?}")
             })?;
-        mem.set_max_pages(Some(self.resource_limits.max_memory_pages));
+        mem.set_max_pages(Some(remaining_for_exported));
         let current_pages = mem.page_count();
         let current_bytes = current_pages.saturating_mul(65_536);
         if required_mem_bytes > current_bytes {
@@ -1996,11 +2099,13 @@ impl DcWasmSession {
             let delta = i32::try_from(extra_pages)
                 .context("WASM memory page growth exceeds i32")?;
             if mem.grow(delta).is_none() {
-                let effective_max = mem.max_pages();
+                let effective_max =
+                    mem.max_pages().saturating_add(other_mem_pages);
                 drop(mem);
                 let interruption =
                     WasmResourceInterruption::MemoryLimitExceeded {
-                        requested_pages: current_pages
+                        requested_pages: other_mem_pages
+                            .saturating_add(current_pages)
                             .saturating_add(extra_pages),
                         max_pages: effective_max,
                     };
@@ -2008,6 +2113,7 @@ impl DcWasmSession {
                 return Err(anyhow::Error::new(interruption));
             }
         }
+        mem.set_max_pages(Some(self.resource_limits.max_memory_pages));
 
         if !payload_bytes.is_empty() {
             mem.store(input_ptr, input_len, payload_bytes).map_err(|e| {
@@ -2091,8 +2197,20 @@ impl DcWasmSession {
             self.last_resource_interruption = Some(interruption.clone());
             return Err(anyhow::Error::new(interruption));
         }
+        let current_table_elems = self.current_table_elements();
+        if current_table_elems > self.resource_limits.max_table_elements {
+            let interruption = WasmResourceInterruption::TableLimitExceeded {
+                requested_elements: current_table_elems,
+                max_elements: self.resource_limits.max_table_elements,
+            };
+            self.last_resource_interruption = Some(interruption.clone());
+            return Err(anyhow::Error::new(interruption));
+        }
         self.store
             .set_max_memory_pages(Some(self.resource_limits.max_memory_pages));
+        self.store.set_max_table_elements(Some(
+            self.resource_limits.max_table_elements,
+        ));
         {
             let mut mem = self
                 .instance
@@ -3520,13 +3638,473 @@ mod tests {
 
         let mut doc = DcMstring::new();
         doc.push_char(DcChar::from_short(517));
-        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        assert!(
+            DcDocumentNavigator::try_from_mstr_with_kernel_version_number(
+                &doc, 0
+            )
+            .is_err()
+        );
+        assert!(
+            DcDocumentNavigator::try_from_mstr_with_kernel_version_number(
+                &doc, 2
+            )
+            .is_err()
+        );
+        let mut nav =
+            DcDocumentNavigator::try_from_mstr_with_kernel_version_number(
+                &doc, 1,
+            )?;
         assert_eq!(nav.kernel_version(), BootstrapKernelVersion::V1);
         assert_eq!(
             nav.select_bootstrap_kernel_version(1)?,
             BootstrapKernelVersion::V1
         );
         assert!(nav.select_bootstrap_kernel_version(2).is_err());
+
+        let dc_str = doc.to_dc_string()?;
+        assert!(
+            DcDocumentNavigator::try_from_dc_str_with_kernel_version_number(
+                &dc_str, 99
+            )
+            .is_err()
+        );
+        let nav_str =
+            DcDocumentNavigator::try_from_dc_str_with_kernel_version_number(
+                &dc_str, 1,
+            )?;
+        assert_eq!(nav_str.kernel_version(), BootstrapKernelVersion::V1);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_zero_filled_static_data_segment_not_overwritten_by_mailbox_input()
+    -> Result<()> {
+        // Build a Dc-WASM program (`Dc 1927`..`Dc 1928`) with a 512-byte ALL-ZERO static data
+        // segment (`zero_buf`) at offset 32..544, and a `step` routine that verifies
+        // `mem[32]` and `mem[540]` are still `0` before echoing the input mailbox to output.
+        let i32_dc = i32_type_dc();
+        let mut prog = DcMstring::new();
+        prog.push_char(DcChar::from_short(1927)); // Begin WASM program
+        prog.push_char(DcChar::from_short(559)); // Begin key-value map
+        prog.push_char(DcChar::from_short(275)); // keyType = *
+        prog.push_char(DcChar::from_short(275)); // valType = *
+
+        // Pair 1: `zero_buf` -> 512-byte all-zero binary data segment (placed at 32..544)
+        prog.push_char(DcChar::from_short(514));
+        prog.push_char(DcChar::from_short(270));
+        prog.push_str("zero_buf");
+        prog.push_char(DcChar::from_short(271));
+        prog.push_char(DcChar::from_short(312));
+        crate::BinaryPayload(vec![0u8; 512]).encode_dc_mixed(&mut prog)?;
+        prog.push_char(DcChar::from_short(515));
+
+        // Pair 2: `step` -> verifies mem[32] == 0 and mem[540] == 0, then echoes input -> output
+        prog.push_char(DcChar::from_short(514));
+        prog.push_char(DcChar::from_short(270));
+        prog.push_str("step");
+        prog.push_char(DcChar::from_short(271));
+        prog.push_char(DcChar::from_short(312));
+        prog.push_char(DcChar::from_short(260));
+        prog.push_char(DcChar::from_short(262));
+        prog.push_char(DcChar::from_short(280));
+        prog.push_char(i32_dc);
+        prog.push_char(DcChar::from_short(263));
+        // If mem[32] != 0, trap (`unreachable`)
+        prog.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&32, &mut prog)?;
+        prog.push_char(DcChar::from_short(687)); // i32.load
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        u32::encode_dc_mixed(&2, &mut prog)?;
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(651)); // if (empty blocktype Dc 316)
+        prog.push_char(DcChar::from_short(316));
+        prog.push_char(DcChar::from_short(647)); // unreachable
+        prog.push_char(DcChar::from_short(658));
+        // If mem[540] != 0, trap (`unreachable`)
+        prog.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&540, &mut prog)?;
+        prog.push_char(DcChar::from_short(687)); // i32.load
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        u32::encode_dc_mixed(&2, &mut prog)?;
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(651));
+        prog.push_char(DcChar::from_short(316));
+        prog.push_char(DcChar::from_short(647));
+        prog.push_char(DcChar::from_short(658));
+        // Echo input mailbox (0..8) -> output mailbox (8..16)
+        prog.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut prog)?;
+        prog.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        u32::encode_dc_mixed(&2, &mut prog)?;
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        u32::encode_dc_mixed(&2, &mut prog)?;
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut prog)?;
+        prog.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut prog)?;
+        prog.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        u32::encode_dc_mixed(&2, &mut prog)?;
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        u32::encode_dc_mixed(&2, &mut prog)?;
+        u32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut prog)?;
+        prog.push_char(DcChar::from_short(261));
+        prog.push_char(DcChar::from_short(515));
+
+        prog.push_char(DcChar::from_short(560)); // End key-value map
+        prog.push_char(DcChar::from_short(1928)); // End WASM program
+
+        let mut input = DcMstring::new();
+        input.push_str("NONZERO_INPUT_PAYLOAD_KEEP_ZERO_BSS_INTACT");
+
+        let mut session = DcWasmSession::from_dc_wasm(&prog, &input, None)?;
+        assert!(
+            session.base_io_offset() >= 544,
+            "base_io_offset ({}) must place input mailbox above zero-filled static data segment (32..544)",
+            session.base_io_offset()
+        );
+        let outcome = session.step()?;
+        assert_eq!(outcome, WasmStepOutcome::Complete(input));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_table_element_cap_and_multi_memory_aggregate_cap()
+    -> Result<()> {
+        // 1. Module with a funcref table of initial size 8, calling `table.grow(10)` in `main`
+        //    and returning `table.grow` result (which must be -1 when `max_table_elements == 8`).
+        let wasm_with_table_grow = [
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            // Type section: () -> i32
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f,
+            // Function section: 1 func of type 0
+            0x03, 0x02, 0x01, 0x00,
+            // Table section: 1 table (funcref 0x70, initial 8, no max)
+            0x04, 0x04, 0x01, 0x70, 0x00, 0x08,
+            // Memory section: 1 memory of 1 page
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            // Export section: "memory" + "main"
+            0x07, 0x11, 0x02, 0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x00,
+            // Code section: ref.null funcref (0xd0 0x70), i32.const 10 (0x41 0x0a),
+            // table.grow 0 (0xfc 0x0f 0x00), i32.const -1 (0x41 0x7f), i32.ne (0x47),
+            // if (0x04 0x40) unreachable (0x00) end (0x0b), i32.const 0 (0x41 0x00), end (0x0b)
+            0x0a, 0x14, 0x01, 0x12, 0x00, 0xd0, 0x70, 0x41, 0x0a, 0xfc, 0x0f, 0x00,
+            0x41, 0x7f, 0x47, 0x04, 0x40, 0x00, 0x0b, 0x41, 0x00, 0x0b,
+        ];
+        let input = DcMstring::new();
+
+        // Initial table size 8 > max_table_elements 4 -> fails with TableLimitExceeded
+        let init_err = DcWasmSession::from_wasm_bytes_with_limits(
+            &wasm_with_table_grow,
+            &input,
+            None,
+            DcWasmResourceLimits::default().with_max_table_elements(4),
+        )
+        .expect_err("Initial table size 8 must exceed max_table_elements = 4");
+        assert_eq!(
+            init_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::TableLimitExceeded {
+                requested_elements: 5,
+                max_elements: 4,
+            })
+        );
+
+        // With max_table_elements = 12, initial table (8) succeeds, and `table.grow(10)`
+        // is denied (`-1`) so `current_table_elements()` remains 8.
+        let mut tbl_session = DcWasmSession::from_wasm_bytes_with_limits(
+            &wasm_with_table_grow,
+            &input,
+            None,
+            DcWasmResourceLimits::default().with_max_table_elements(12),
+        )?;
+        assert_eq!(tbl_session.current_table_elements(), 8);
+        let outcome = tbl_session.step()?;
+        assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
+        assert_eq!(tbl_session.current_table_elements(), 8);
+
+        // 2. Module with two linear memories (1 page each = 2 pages total in store):
+        //    - Rejected when `max_memory_pages == 1`
+        //    - Accepted when `max_memory_pages == 2`, and `memory.grow(1)` on memory 0 returns `-1`
+        let wasm_two_memories = [
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7f,
+            0x03, 0x02, 0x01, 0x00,
+            // Memory section: 2 memories, each 1 initial page
+            0x05, 0x05, 0x02, 0x00, 0x01, 0x00, 0x01,
+            0x07, 0x11, 0x02, 0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x00,
+            // Code section: i32.const 1, memory.grow 0 (0x40 0x00), i32.const -1, i32.ne,
+            // if unreachable end, i32.const 0, end
+            0x0a, 0x11, 0x01, 0x0f, 0x00, 0x41, 0x01, 0x40, 0x00, 0x41, 0x7f, 0x47,
+            0x04, 0x40, 0x00, 0x0b, 0x41, 0x00, 0x0b,
+        ];
+        let mem_init_err = DcWasmSession::from_wasm_bytes_with_limits(
+            &wasm_two_memories,
+            &input,
+            None,
+            DcWasmResourceLimits::default().with_max_memory_pages(1),
+        )
+        .expect_err("2 memories of 1 page each must exceed store cap of 1 page");
+        assert!(matches!(
+            mem_init_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(WasmResourceInterruption::MemoryLimitExceeded {
+                max_pages: 1,
+                ..
+            })
+        ));
+
+        let mut two_mem_session = DcWasmSession::from_wasm_bytes_with_limits(
+            &wasm_two_memories,
+            &input,
+            None,
+            DcWasmResourceLimits::default().with_max_memory_pages(2),
+        )?;
+        assert_eq!(two_mem_session.current_memory_pages()?, 2);
+        let outcome = two_mem_session.step()?;
+        assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
+        assert_eq!(two_mem_session.current_memory_pages()?, 2);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_bootstrap_kernel_v1_conformance_suite() -> Result<()> {
+        use ctb_formats_dcdata::graph_ledger::LedgerNode;
+        use ctb_formats_dcdata::seed_graph::{
+            SeedGraphIndex, compute_effective_inactive_ids,
+        };
+        use ctb_formats_dcdata::shorthand::DcShorthand;
+
+        // 1. DcTF (`f641`) 1..7-byte and `0xFF` 8..23-byte (`k = 0..=15`) canonical boundaries
+        //    plus overlong/truncated rejection.
+        let boundary_cases: &[(u128, usize)] = &[
+            (0x0, 1),
+            (0x7F, 1),
+            (0x80, 2),
+            (0x7FF, 2),
+            (0x800, 3),
+            (0xFFFF, 3),
+            (0x1_0000, 4),
+            (0x1F_FFFF, 4),
+            (0x20_0000, 5),
+            (0x3FF_FFFF, 5),
+            (0x400_0000, 6),
+            (0x7FFF_FFFF, 6),
+            (0x8000_0000, 7),
+            (0xF_FFFF_FFFF, 7),
+            (0x10_0000_0000, 8), // 0xFF tier k = 0 (8 bytes total)
+            (u128::MAX, 23),     // 0xFF tier k = 15 (23 bytes total)
+        ];
+        for &(val, expected_len) in boundary_cases {
+            let mut buf = [0u8; ctb_formats_dctf::MAX_DCTF_LEN];
+            let written = ctb_formats_dctf::encode_dctf_buf(&mut buf, val);
+            assert_eq!(
+                written, expected_len,
+                "Canonical DcTF byte length mismatch for {val:#x}"
+            );
+            crate::validate_dctf(&buf[..written])?;
+            let (decoded, consumed) =
+                ctb_formats_dctf::decode_dctf_buf(&buf[..written]).with_context(
+                    || format!("decode_dctf_buf failed for {val:#x}"),
+                )?;
+            assert_eq!(decoded, val);
+            assert_eq!(consumed, written);
+            // Truncating the last byte must fail decoding
+            assert!(
+                ctb_formats_dctf::decode_dctf_buf(&buf[..written - 1])
+                    .is_none(),
+                "Truncated DcTF sequence for {val:#x} must be rejected"
+            );
+            if written > 1 {
+                assert!(
+                    crate::validate_dctf(&buf[..written - 1]).is_err(),
+                    "Truncated multi-byte DcTF sequence for {val:#x} must fail validate_dctf"
+                );
+            }
+        }
+        // Overlong encodings must be rejected:
+        // - `0x7F` encoded in 2 bytes (`[0xC1, 0xBF]`)
+        assert!(ctb_formats_dctf::decode_dctf_buf(&[0xC1, 0xBF]).is_none());
+        assert!(crate::validate_dctf(&[0xC1, 0xBF]).is_err());
+        // - `0xFF` tier `k = 0` carrying all-zero payload bits (`<= 0xF_FFFF_FFFF`)
+        assert!(
+            ctb_formats_dctf::decode_dctf_buf(&[
+                0xFF, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x81
+            ])
+            .is_none()
+        );
+        assert!(
+            crate::validate_dctf(&[
+                0xFF, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x81
+            ])
+            .is_err()
+        );
+
+        // 2. `.dcmm` (`DcMixed2` `f643`) binary encapsulation (`type 0`, `type 2`, `type 3`)
+        let mut doc_inline = DcMstring::new();
+        crate::BinaryPayload(vec![0xAA; 16]).encode_dc_mixed(&mut doc_inline)?;
+        crate::validate_dcmst(doc_inline.as_bytes())?;
+
+        let mut doc_type3 = DcMstring::new();
+        crate::BinaryPayload(vec![0x55; 64]).encode_dc_mixed(&mut doc_type3)?;
+        crate::validate_dcmst(doc_type3.as_bytes())?;
+        // Corrupting the digest of a type 3 frame must fail validation
+        let mut corrupted_type3 = doc_type3.as_bytes().to_vec();
+        let last_idx = corrupted_type3.len() - 1;
+        corrupted_type3[last_idx] ^= 0xFF;
+        assert!(
+            crate::validate_dcmst(&corrupted_type3).is_err(),
+            "Corrupted digest in .dcmm type 3 binary frame must fail"
+        );
+
+        // 3. `SeedGraphIndex` active triple lifecycle (`Dc 584`, `Dc 610`, `Dc 591`, `Dc 592`)
+        //    including retracted retractions and retracted supersessions.
+        let base_id = 8_589_934_592_u128;
+        let n0 = LedgerNode {
+            id: base_id,
+            tokens: vec![
+                DcShorthand::Short(584),
+                DcShorthand::Short(517),
+                DcShorthand::Short(572),
+            ],
+            comment: String::new(),
+        };
+        let n1_old_val = LedgerNode {
+            id: base_id + 1,
+            tokens: vec![
+                DcShorthand::Short(610),
+                DcShorthand::Long(base_id),
+                DcShorthand::Short(518),
+            ],
+            comment: String::new(),
+        };
+        let n2_new_val = LedgerNode {
+            id: base_id + 2,
+            tokens: vec![
+                DcShorthand::Short(610),
+                DcShorthand::Long(base_id),
+                DcShorthand::Short(517),
+            ],
+            comment: String::new(),
+        };
+        let n3_supersede = LedgerNode {
+            id: base_id + 3,
+            tokens: vec![
+                DcShorthand::Short(591),
+                DcShorthand::Long(base_id + 2),
+                DcShorthand::Long(base_id + 1),
+            ],
+            comment: String::new(),
+        };
+        let n4_retract_supersede = LedgerNode {
+            id: base_id + 4,
+            tokens: vec![
+                DcShorthand::Short(592),
+                DcShorthand::Short(615),
+                DcShorthand::Long(base_id + 3),
+            ],
+            comment: String::new(),
+        };
+        let n5_retract_n0 = LedgerNode {
+            id: base_id + 5,
+            tokens: vec![
+                DcShorthand::Short(592),
+                DcShorthand::Short(615),
+                DcShorthand::Long(base_id),
+            ],
+            comment: String::new(),
+        };
+        let n6_retract_n5 = LedgerNode {
+            id: base_id + 6,
+            tokens: vec![
+                DcShorthand::Short(592),
+                DcShorthand::Short(615),
+                DcShorthand::Long(base_id + 5),
+            ],
+            comment: String::new(),
+        };
+
+        // Snapshot at n3: n1 is superseded by n2
+        let (inactive_at_n3, sup_at_n3, _) = compute_effective_inactive_ids(&[
+            n0.clone(),
+            n1_old_val.clone(),
+            n2_new_val.clone(),
+            n3_supersede.clone(),
+        ]);
+        assert!(inactive_at_n3.contains(&(base_id + 1)));
+        assert_eq!(sup_at_n3.get(&(base_id + 1)), Some(&(base_id + 2)));
+
+        // Snapshot at n4: n3 (supersession) is retracted by n4 -> n1 is active again!
+        let (inactive_at_n4, sup_at_n4, _) = compute_effective_inactive_ids(&[
+            n0.clone(),
+            n1_old_val.clone(),
+            n2_new_val.clone(),
+            n3_supersede.clone(),
+            n4_retract_supersede.clone(),
+        ]);
+        assert!(
+            !inactive_at_n4.contains(&(base_id + 1)),
+            "Retracting a Supersedes statement must restore the superseded statement"
+        );
+        assert!(!sup_at_n4.contains_key(&(base_id + 1)));
+
+        // Snapshot at n6: n5 retracted n0, and n6 retracted n5 -> n0 is active again!
+        let (inactive_at_n6, _, _) = compute_effective_inactive_ids(&[
+            n0.clone(),
+            n1_old_val.clone(),
+            n2_new_val.clone(),
+            n3_supersede.clone(),
+            n4_retract_supersede.clone(),
+            n5_retract_n0.clone(),
+            n6_retract_n5.clone(),
+        ]);
+        assert!(
+            !inactive_at_n6.contains(&base_id),
+            "Retracting a Retracts statement must restore the retracted statement"
+        );
+        let index_at_n6 = SeedGraphIndex::from_nodes(vec![
+            n0,
+            n1_old_val,
+            n2_new_val,
+            n3_supersede,
+            n4_retract_supersede,
+            n5_retract_n0,
+            n6_retract_n5,
+        ]);
+        assert_eq!(index_at_n6.resolve_latest_node_id(base_id), Some(base_id));
+
+        // 4. Dc-WASM numeric/trap semantics (`i32.div_s` divide-by-zero and `i32::MIN / -1` overflow)
+        let i32_dc = i32_type_dc();
+        for (lhs, rhs) in [(10_i32, 0_i32), (i32::MIN, -1_i32)] {
+            let mut trap_doc = DcMstring::new();
+            trap_doc.push_char(DcChar::from_short(260));
+            trap_doc.push_char(DcChar::from_short(262));
+            trap_doc.push_char(DcChar::from_short(280));
+            trap_doc.push_char(i32_dc);
+            trap_doc.push_char(DcChar::from_short(263));
+            trap_doc.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&lhs, &mut trap_doc)?;
+            trap_doc.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&rhs, &mut trap_doc)?;
+            trap_doc.push_char(DcChar::from_short(756)); // i32.div_s (647 + 0x6D)
+            trap_doc.push_char(DcChar::from_short(261));
+            let mut trap_session =
+                DcWasmSession::from_dc_wasm(&trap_doc, &DcMstring::new(), None)?;
+            assert!(
+                trap_session.step().is_err(),
+                "i32.div_s({lhs}, {rhs}) must trap deterministically"
+            );
+        }
         Ok(())
     }
 }

@@ -236,11 +236,21 @@ impl DcBinaryResolver for DcDocumentNavigator<'_> {
 impl<'a> DcDocumentNavigator<'a> {
     /// Creates a navigator over an in-memory [`DcMstr`].
     #[must_use]
+    pub fn from_mstr(mstr: &'a DcMstr) -> Self {
+        Self::from_mstr_with_kernel_version(mstr, BootstrapKernelVersion::CURRENT)
+    }
+
+    /// Creates a navigator over an in-memory [`DcMstr`], installing `kernel_version`
+    /// before any leading header/pin inspection (`Dc 641`) or token decoding occurs.
+    #[must_use]
     #[expect(
         clippy::expect_used,
         reason = "DCMM_HEADER_LEN and in-memory DcMstr byte lengths fit within u64 on all supported platforms"
     )]
-    pub fn from_mstr(mstr: &'a DcMstr) -> Self {
+    pub fn from_mstr_with_kernel_version(
+        mstr: &'a DcMstr,
+        kernel_version: BootstrapKernelVersion,
+    ) -> Self {
         let start = u64::try_from(DCMM_HEADER_LEN)
             .expect("DCMM_HEADER_LEN fits in u64");
         let end =
@@ -258,19 +268,56 @@ impl<'a> DcDocumentNavigator<'a> {
             document_most_recent_node_id: None,
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
-            kernel_version: BootstrapKernelVersion::CURRENT,
+            kernel_version,
         };
         nav.detect_leading_document_most_recent();
         nav
     }
 
+    /// Validates an explicit bootstrap kernel version number (`1` for `V1`) and creates
+    /// a navigator over `mstr` with that version active before any pin detection or token
+    /// decoding runs.
+    ///
+    /// # Errors
+    /// Returns an error immediately if `version` is not a supported bootstrap kernel version.
+    pub fn try_from_mstr_with_kernel_version_number(
+        mstr: &'a DcMstr,
+        version: u32,
+    ) -> Result<Self> {
+        let selected = BootstrapKernelVersion::try_from_u32(version)?;
+        Ok(Self::from_mstr_with_kernel_version(mstr, selected))
+    }
+
+    /// Creates a navigator over an in-memory [`DcMstr`] using `policy.kernel_version`
+    /// before any leading header/pin inspection (`Dc 641`) or token decoding occurs.
+    #[must_use]
+    pub fn from_mstr_with_policy(
+        mstr: &'a DcMstr,
+        policy: &DcProjectionPolicy,
+    ) -> Self {
+        Self::from_mstr_with_kernel_version(mstr, policy.kernel_version)
+    }
+
     /// Creates a navigator over an in-memory [`DcStr`].
+    #[must_use]
+    pub fn from_dc_str(text: &'a DcStr) -> Self {
+        Self::from_dc_str_with_kernel_version(
+            text,
+            BootstrapKernelVersion::CURRENT,
+        )
+    }
+
+    /// Creates a navigator over an in-memory [`DcStr`], installing `kernel_version`
+    /// before any leading header/pin inspection (`Dc 641`) or token decoding occurs.
     #[must_use]
     #[expect(
         clippy::expect_used,
         reason = "In-memory DcStr byte lengths fit within u64 on all supported platforms"
     )]
-    pub fn from_dc_str(text: &'a DcStr) -> Self {
+    pub fn from_dc_str_with_kernel_version(
+        text: &'a DcStr,
+        kernel_version: BootstrapKernelVersion,
+    ) -> Self {
         let end =
             u64::try_from(text.len()).expect("DcStr byte length fits in u64");
         let mut nav = Self {
@@ -286,10 +333,34 @@ impl<'a> DcDocumentNavigator<'a> {
             document_most_recent_node_id: None,
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
-            kernel_version: BootstrapKernelVersion::CURRENT,
+            kernel_version,
         };
         nav.detect_leading_document_most_recent();
         nav
+    }
+
+    /// Validates an explicit bootstrap kernel version number (`1` for `V1`) and creates
+    /// a navigator over `text` with that version active before any pin detection or token
+    /// decoding runs.
+    ///
+    /// # Errors
+    /// Returns an error immediately if `version` is not a supported bootstrap kernel version.
+    pub fn try_from_dc_str_with_kernel_version_number(
+        text: &'a DcStr,
+        version: u32,
+    ) -> Result<Self> {
+        let selected = BootstrapKernelVersion::try_from_u32(version)?;
+        Ok(Self::from_dc_str_with_kernel_version(text, selected))
+    }
+
+    /// Creates a navigator over an in-memory [`DcStr`] using `policy.kernel_version`
+    /// before any leading header/pin inspection (`Dc 641`) or token decoding occurs.
+    #[must_use]
+    pub fn from_dc_str_with_policy(
+        text: &'a DcStr,
+        policy: &DcProjectionPolicy,
+    ) -> Self {
+        Self::from_dc_str_with_kernel_version(text, policy.kernel_version)
     }
 
     /// Returns the active [`BootstrapKernelVersion`] governing physical codecs,
