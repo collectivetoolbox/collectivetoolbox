@@ -272,3 +272,41 @@ these parser/resolver tests do not establish the full compatibility guarantee.
 ### 2. Wholesale CST (`DcSyntaxKind`) Rewrite
 - **Status**: `Deferred`.
 - Replacing `DcSyntaxKind` variants in `src/formats/dcstring/navigator/arena.rs` or removing compiled lookup caches in `DatasetRuleResolver` is not required for backwards compatibility; compiled Rust tables and AST caches are acceptable wherever they faithfully and deterministically reflect the document's pinned graph snapshot.
+I’ll read Gate 2 and the nearby execution and workspace configuration code, then assess how graph-backed budgets could stay runtime-independent without adding costly lookups during execution.
+
+
+**Remaining Gaps**
+Gate 2’s direction is sound, but portable accounting, graph-backed configuration, and supervisor execution remain unimplemented. This was a read-only review; no tests or performance benchmarks were run.
+
+**Findings**
+1. **High: session budgets can be bypassed through repeated evaluations.** `wasm.rs:2427` create fresh sessions with default limits, including calls from `eval.rs:115`. A document can repeatedly obtain new compute and output allowances. Budgets must belong to the supervised document/task tree, not individual VM sessions.
+
+2. **High: resumable exhaustion needs a new execution contract.** `wasm.rs:2267` is a synchronous function call; the exposed API has no portable continuation. Injecting a trap can stop execution, but cannot safely resume its lost call stack and locals. Budget extensions require either explicit continuations or a supervisor-owned interpreter.
+
+3. **High: physical allocation failures are not safely separated from logical quotas.** `executor.rs:527` returns `-1` for denied growth, while `memory.rs:177` and `table.rs:161` use infallible vector allocation. Allocator exhaustion can abort the process instead of producing a recorded external interruption.
+
+4. **Medium: existing traces cannot identify an intra-step logical boundary.** `runtime.rs:281` record only completed mailbox steps. That supports terminal-prefix replay, but not exact interrupted-operation verification or continuation.
+
+5. **Medium: bootstrap trust needs stronger evidence than graph declarations.** The `seed_graph.rs:164` records declared provenance. Bootstrap authority must come from authenticated bundled-origin information, including supersession and dependency statements, not merely a statement claiming trusted provenance.
+
+**Recommended Design**
+Use **supervisor-selected, validated standard-WASM instrumentation** for the performance path. A supervisor-owned interpreter remains the simpler correctness reference.
+
+- **Graph-backed policy:** The workspace System document defines the accounting model, defaults, configuration validation, inheritance, and exhaustion behavior. Store user settings as a typed graph document referenced by that supervisor. Resolve and validate it once at task admission into compact execution data; never query the graph per instruction. Property names and semantic identifiers still need design and approval.
+
+- **Separate accounting from scheduling:** Use lifetime compute/output counters, live memory/table quotas, and a scheduling quantum. Yielding or requesting a capability must not replenish lifetime budgets. Child tasks and graph helpers debit the parent allowance; creating another session cannot create resources.
+
+- **Portable charging:** Instrument the pinned source WASM before backend optimization. Specify costs for executed operations, calls, branches, start sections, bulk-operation lengths, and allocation initialization. Exclude injected bookkeeping from charges. Define checked fixed-width arithmetic, charge-before-effect, and precedence between budget exhaustion and ordinary traps.
+
+- **Fast execution:** Batch fixed-cost instructions where safe. When enough budget remains, execute the batch with one check; near exhaustion, use exact operation-level charging. Do not precharge an entire block if an earlier trap or effect would change the observable prefix. Dynamic bulk operations need separate checks.
+
+- **Non-bypassable suspension:** Transform execution into explicit continuations that can return to the supervisor at accounting checkpoints. Protect accounting state from guest memory writes and validate every entry, call target, growth operation, and start-section path. The current import-free mailbox ABI cannot invoke the supervisor halfway through an ordinary synchronous call without such a transformation.
+
+- **Memory and output:** Account for guest-visible mailbox/scratch allocations deterministically. Logical growth denial may return `-1`; physical failure within an approved quota must externally interrupt. Charge output before publication, specifying whether capability payloads, responses, and retained trace buffers consume separate allowances. Physical backend overhead remains watchdog territory.
+
+- **Configuration and replay:** Record the actual supervisor revision, dependency snapshots, accounting version, effective configuration bytes, and logical interruption checkpoint. Apply configuration changes at explicit ordered boundaries, not through mutable graph reads during execution. Concurrent children need specified grant ordering if they share quotas.
+
+**Verification**
+Gate closure should require independent-engine comparisons at exact budget boundaries, including start sections, loops, traps, bulk operations, growth, and repeated graph-helper calls. Add adversarial tests for accounting-state tampering and continuation resumption, plus mocked physical allocation failures.
+
+Benchmark cached startup, steady-state instrumented execution, near-exhaustion fallback, and bulk operations separately. The performance target should be **local integer accounting with infrequent supervisor transitions**, not runtime-specific fuel equivalence.
