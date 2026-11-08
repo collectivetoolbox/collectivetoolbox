@@ -213,25 +213,50 @@ are host safety events, not language-level resource measurements.
 
 Memory/table growth is different: its result is directly observable by guest
 code. WASM permits allocation failure to return `-1` even below a declared
-maximum. Portable document semantics therefore need explicit, pinned logical
-quotas and allocation accounting, including the host mailbox allocation. A
+maximum. Portable document semantics therefore need explicit logical quotas
+and allocation accounting defined by the selected trusted supervisor revision
+and its effective configuration, including the host mailbox allocation. A
 physical allocation failure below the logical quota must terminate with a host
 resource event, not silently become a different guest-visible growth result.
 Output quotas likewise need specified charging and delivery order. Current
 page/table limits and output checks provide local enforcement, not this proof.
 
-The intended owner of logical budget policy is a privileged, pinned top-level
-document. Privilege comes from current host authorization, never from a graph
-pin or an untrusted document's own declaration. Running that supervisor beside
-arbitrary native WASM cannot meter or preempt the child by itself. The child
+The intended owner of logical budget policy is the privileged System document.
+The workspace hardcodes its bootstrap entry document: exactly one short Dc,
+with no graph pin. On workspace startup, that entry resolves to the latest
+trusted System-block definition associated with the short Dc and runs it as
+the top-level supervisor. The application-bundled System graph is the trusted
+base; Wikidata and other additional data resources are not bootstrap authority.
+Resolution must check trusted statement provenance, not merely whether an ID
+falls numerically inside the System block.
+
+The selected System document defines resource limits, accounting and exhaustion
+policy, including how user configuration is obtained and applied. These policy
+decisions belong in that document, not in a second hardcoded host policy. The
+host supplies the minimal bootstrap/execution primitives, isolation and external
+capability mediation needed to run it and protect its state. This fixed
+bootstrap choice grants the selected trusted document its supervisor role;
+an arbitrary document's pin, declaration, or reference to the same short Dc
+does not make that document privileged or let it replace the running supervisor.
+
+Startup deliberately follows the latest trusted definition rather than an
+older pinned revision. For reproducible replay, record the trusted supervisor
+revision that actually ran, its dependencies and effective user configuration,
+together with external responses/events. That execution record does not add a
+pin to the one-Dc startup document or let an ordinary document's historical pin
+restore an older supervisor policy.
+
+Running that supervisor beside arbitrary native WASM cannot meter or preempt
+the child by itself. The child
 must either run through a supervisor-owned interpreter, or undergo a validated
 transformation that inserts non-bypassable, standard-WASM metering and growth
 checks. Instrumentation must be derived from the pinned source module before
 engine-specific lowering/optimization, with a versioned cost model specifying
 charge-before-effect, branches/calls/start, bulk-operation costs, overflow,
 resets, and interruption delivery points. The supervisor decides exhaustion
-policy; a minimal host boundary protects supervisor state, mediates external
-capabilities, and retains an independent emergency watchdog.
+policy; a minimal host boundary protects supervisor state and mediates external
+capabilities. Independent emergency host watchdogs protect the process, but
+are not a separate source of logical document budget policy.
 
 This portable supervisor/metering path is **not implemented**. Required proof
 includes running the same pinned module, budget policy and ordered external

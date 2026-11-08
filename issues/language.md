@@ -139,26 +139,37 @@ these parser/resolver tests do not establish the full compatibility guarantee.
 - [x] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs`)**:
   - Historical graph pinning (`Dc 641 "Global graph system block most recent node ID at time of document creation"`) applies only to language/document semantics and never grants or restores security permissions or capability policies (`ExecutionContext::set_privilege_decision` / `with_privilege_decision`).
   - `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::replay_wasm_session_trace` compare the document's capability requests at each logical step during replay and supply the recorded allow/deny/mock responses while live execution remains governed by the current host policy.
-- [ ] **Define and implement portable resource accounting under a privileged pinned supervisor**:
+- [ ] **Define and implement portable resource accounting under the trusted System supervisor**:
   - Distinguish logical budget policy from emergency host watchdogs. Current fuel
     counts optimized/lowered `tinywasm` interpreter dispatches, not a versioned
     sequence of source WASM operations; replaying a recorded interruption does
     not make fresh executions on independent runtimes equivalent.
-  - Put logical budget policy in a trusted top-level graph document, with
-    privilege granted by current host policy. Untrusted documents must not
-    bypass the supervisor or mutate its accounting state. Retain an independent
-    host watchdog to protect against faulty/untrusted guest execution.
+  - Hardcode only the workspace bootstrap entry document: one short Dc, with
+    no graph pin. On startup, resolve its latest trusted System-block definition
+    from the application-bundled trusted base and run that System document as
+    the privileged top-level supervisor. Wikidata and other extra resources
+    cannot supply bootstrap authority; check statement provenance, not just
+    System-block numeric membership. No particular short Dc is assigned here.
+  - Define logical limits, accounting, exhaustion policy and user configuration
+    in the selected System document, not in duplicate host policy. The host
+    provides minimal bootstrap/execution primitives, isolation and external
+    capability mediation. Ordinary documents cannot elevate themselves by
+    declaring privilege, choosing a historical pin or referencing the entry Dc.
+    Independent host watchdogs are process safeguards, not logical budget policy.
   - Choose a supervisor-owned interpreter or a validated, non-bypassable
     standard-WASM instrumentation path. A supervisor merely running beside
     uninstrumented native WASM cannot count/preempt its instructions. Specify
     source-before-optimization charging, start/call/branch/bulk costs,
     charge-before-effect, overflow, budget resets and interruption delivery.
-  - Make memory/table quotas explicit pinned policy or explicit input, including
-    host mailbox/scratch allocations. A physical allocation failure below a
+  - Make memory/table quotas explicit supervisor policy and configuration,
+    including host mailbox/scratch allocations. A physical allocation failure below a
     logical quota must be an external interruption, not a guest-visible `-1`
     that changes document branching. Define output charging/delivery similarly.
-  - Compare the same pinned source, supervisor, budget configuration and ordered
-    external events under independent engines. Same-engine tests and replay
+  - Record the actual trusted supervisor revision, dependencies and effective
+    configuration for replay; do not pin the startup entry or let ordinary
+    document pins select an older supervisor. Compare the same pinned child
+    source, recorded supervisor revision/configuration and ordered external
+    events under independent engines. Same-engine tests and replay
     against NOP-padded recompilations are not sufficient. See
     [the resource contract](../docs/bootstrap-kernel-spec.md#45-portable-resource-semantics-versus-host-watchdogs).
 
