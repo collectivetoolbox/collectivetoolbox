@@ -403,16 +403,53 @@ impl<'a> TokenCursor<'a> {
     }
 
     fn read_number_list(&mut self) -> Result<Vec<Integer>> {
+        self.read_list(Self::read_number)
+    }
+
+    fn read_type_list(&mut self) -> Result<Vec<u8>> {
+        self.read_list(Self::read_valtype)
+    }
+
+    fn read_catch(&mut self) -> Result<Vec<u8>> {
+        let fields = self.read_number_list()?;
+        let kind = u8::try_from(fields.first().context("Missing WASM catch kind")?)
+            .map_err(|error| anyhow!("WASM catch kind out of u8 range: {error:?}"))?;
+        let expected_len = match kind {
+            0 | 1 => 3,
+            2 | 3 => 2,
+            _ => bail!("Invalid WASM catch kind {kind}"),
+        };
+        ensure!(
+            fields.len() == expected_len,
+            "WASM catch kind {kind} requires {expected_len} fields, found {}",
+            fields.len()
+        );
+        let mut encoded = vec![kind];
+        for field in fields.iter().skip(1) {
+            let index = u32::try_from(field)
+                .map_err(|error| anyhow!("WASM catch index out of u32 range: {error:?}"))?;
+            push_uleb128_u32(index, &mut encoded);
+        }
+        Ok(encoded)
+    }
+
+    fn read_list<T>(
+        &mut self,
+        mut read_item: impl FnMut(&mut Self) -> Result<T>,
+    ) -> Result<Vec<T>> {
         let open = self.next()?;
         ensure!(
             self.token_fills_role(open, DcRole::BeginList),
             "Expected Dc 310 (Begin list), found {open}"
         );
-        if let Some(peek) = self.peek()
+        let declared_len = if let Some(peek) = self.peek()
             && self.token_fills_role(peek, DcRole::BeginNumber)
         {
-            let _ = self.read_number()?;
-        }
+            Some(usize::try_from(&self.read_number()?)
+                .map_err(|error| anyhow!("WASM list length out of usize range: {error:?}"))?)
+        } else {
+            None
+        };
         // Consume element type header (`*` or `[type]`)
         let elem_hdr = self.next()?;
         if self.token_fills_role(elem_hdr, DcRole::BeginTypeDef) {
@@ -430,53 +467,18 @@ impl<'a> TokenCursor<'a> {
         while let Some(peek) = self.peek() {
             if self.token_fills_role(peek, DcRole::EndList) {
                 let _ = self.next()?;
+                if let Some(length) = declared_len {
+                    ensure!(length == items.len(), "WASM list declares {length} items, found {}", items.len());
+                }
                 return Ok(items);
             }
             if self.token_fills_role(peek, DcRole::ListElementSeparator) {
                 let _ = self.next()?;
                 continue;
             }
-            items.push(self.read_number()?);
+            items.push(read_item(self)?);
         }
         bail!("Unclosed Dc 310 (Begin list) in WASM immediate operand")
-    }
-
-    fn read_type_list(&mut self) -> Result<Vec<u8>> {
-        let open = self.next()?;
-        ensure!(
-            self.token_fills_role(open, DcRole::BeginList),
-            "Expected Dc 310 (Begin list), found {open}"
-        );
-        if let Some(peek) = self.peek()
-            && self.token_fills_role(peek, DcRole::BeginNumber)
-        {
-            let _ = self.read_number()?;
-        }
-        let elem_hdr = self.next()?;
-        if self.token_fills_role(elem_hdr, DcRole::BeginTypeDef) {
-            let mut depth = 1usize;
-            while depth > 0 {
-                let t = self.next()?;
-                if self.token_fills_role(t, DcRole::BeginTypeDef) {
-                    depth = depth.saturating_add(1);
-                } else if self.token_fills_role(t, DcRole::EndTypeDef) {
-                    depth = depth.saturating_sub(1);
-                }
-            }
-        }
-        let mut types = Vec::new();
-        while let Some(peek) = self.peek() {
-            if self.token_fills_role(peek, DcRole::EndList) {
-                let _ = self.next()?;
-                return Ok(types);
-            }
-            if self.token_fills_role(peek, DcRole::ListElementSeparator) {
-                let _ = self.next()?;
-                continue;
-            }
-            types.push(self.read_valtype()?);
-        }
-        bail!("Unclosed Dc 310 (Begin list) in WASM local variable type list")
     }
 
     fn read_encapsulated_data(&mut self) -> Result<Vec<u8>> {
@@ -660,6 +662,7 @@ fn assemble_instruction_sequence(
     allow_else: bool,
     out: &mut Vec<u8>,
 ) -> Result<DcChar> {
+    let mut seen_else = false;
     while let Some(peek) = cursor.peek() {
         if stop_predicate(cursor, peek) {
             return cursor.next();
@@ -680,12 +683,21 @@ fn assemble_instruction_sequence(
         }
         if prefix_opt.is_none() && subopcode == WASM_OPCODE_ELSE {
             ensure!(
-                allow_else,
-                "Unexpected WASM else (Dc 652) outside of WASM if (Dc 651) block"
+                allow_else && !seen_else,
+                "Unexpected or repeated WASM else (Dc 652) in instruction sequence"
             );
+            seen_else = true;
             out.push(0x05);
             continue;
         }
+
+        ensure!(
+            cursor.resolver.matches_named_type_starter(
+                "wasm_instr",
+                cursor.resolver.canonical_token(instr_dc.to_u128()),
+            ),
+            "Token {instr_dc} is not a defined WebAssembly instruction"
+        );
 
         // Emit opcode byte(s)
         if let Some(prefix) = prefix_opt {
@@ -711,14 +723,11 @@ fn assemble_instruction_sequence(
             cursor.emit_blocktype(out)?;
 
             if subopcode == WASM_OPCODE_TRY_TABLE {
-                let catches = cursor.read_number_list()?;
+                let catches = cursor.read_list(TokenCursor::read_catch)?;
                 let catch_len = u32::try_from(catches.len())?;
                 push_uleb128_u32(catch_len, out);
-                for c in &catches {
-                    let v = u32::try_from(c).map_err(|e| {
-                        anyhow!("WASM try_table catch value out of u32 range: {e:?}")
-                    })?;
-                    push_uleb128_u32(v, out);
+                for catch in &catches {
+                    out.extend_from_slice(catch);
                 }
             }
 
@@ -1175,7 +1184,7 @@ fn encode_wasm_module(
     Ok(out)
 }
 
-/// Assembles a raw sequence of Dc-WASM instructions (`([wasm_instr] [wasm_arg]*)+`)
+/// Assembles a raw sequence of Dc-WASM instructions (`[wasm_instr]*`)
 /// into WebAssembly instruction bytes (without a module header or trailing function `0x0B`).
 ///
 /// # Errors
@@ -1488,6 +1497,9 @@ impl WasmStepStatus {
     }
 }
 
+/// Version identifier for the portable WebAssembly resource-accounting rule set.
+pub const WASM_RESOURCE_ACCOUNTING_VERSION: u32 = 1;
+
 /// Default maximum number of portable WASM compute quota units permitted in a [`DcWasmSession`].
 pub const DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP: u64 = 1_000_000;
 
@@ -1503,11 +1515,92 @@ pub const DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 /// Default maximum cumulative output bytes permitted across a [`DcWasmSession`] (16 MiB).
 pub const DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
+/// Default maximum byte length permitted for a single capability request or response payload (1 MiB).
+pub const DEFAULT_MAX_WASM_CAPABILITY_PAYLOAD_BYTES: usize = 1024 * 1024;
+
+/// Default maximum cumulative byte length permitted for a retained execution trace buffer (16 MiB).
+pub const DEFAULT_MAX_WASM_TRACE_BYTES: usize = 16 * 1024 * 1024;
+
+/// Emergency host watchdog bounds that protect the host process from runaway execution
+/// or supervisor faults, distinct from the System supervisor's logical resource policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DcWasmWatchdogLimits {
+    /// Physical host cap on 64 KiB linear memory pages across the store.
+    pub physical_max_memory_pages: usize,
+    /// Physical host cap on table elements across the store.
+    pub physical_max_table_elements: usize,
+    /// Emergency upper bound on portable compute units per step.
+    pub hard_max_instructions_per_step: u64,
+    /// Emergency upper bound on cumulative session output bytes.
+    pub hard_max_session_output_bytes: usize,
+}
+
+impl Default for DcWasmWatchdogLimits {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DcWasmWatchdogLimits {
+    /// Returns the default emergency host watchdog bounds.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            physical_max_memory_pages: 4096, // 256 MiB host emergency ceiling
+            physical_max_table_elements: 1_048_576,
+            hard_max_instructions_per_step: 100_000_000,
+            hard_max_session_output_bytes: 64 * 1024 * 1024,
+        }
+    }
+
+    /// Returns a copy with `physical_max_memory_pages` set to the given emergency page ceiling.
+    #[must_use]
+    pub const fn with_physical_max_memory_pages(
+        mut self,
+        physical_max_memory_pages: usize,
+    ) -> Self {
+        self.physical_max_memory_pages = physical_max_memory_pages;
+        self
+    }
+
+    /// Returns a copy with `physical_max_table_elements` set to the given emergency table ceiling.
+    #[must_use]
+    pub const fn with_physical_max_table_elements(
+        mut self,
+        physical_max_table_elements: usize,
+    ) -> Self {
+        self.physical_max_table_elements = physical_max_table_elements;
+        self
+    }
+
+    /// Returns a copy with `hard_max_instructions_per_step` set to the given emergency compute ceiling.
+    #[must_use]
+    pub const fn with_hard_max_instructions_per_step(
+        mut self,
+        hard_max_instructions_per_step: u64,
+    ) -> Self {
+        self.hard_max_instructions_per_step = hard_max_instructions_per_step;
+        self
+    }
+
+    /// Returns a copy with `hard_max_session_output_bytes` set to the given emergency output ceiling.
+    #[must_use]
+    pub const fn with_hard_max_session_output_bytes(
+        mut self,
+        hard_max_session_output_bytes: usize,
+    ) -> Self {
+        self.hard_max_session_output_bytes = hard_max_session_output_bytes;
+        self
+    }
+}
+
 /// Resource budgets enforced on a [`DcWasmSession`] for portable compute quota,
-/// linear memory growth, table element capacity, single-step output slice length, and
-/// cumulative session output bytes.
+/// linear memory growth, table element capacity, single-step output slice length,
+/// cumulative session output bytes, capability request/response payloads, and trace retention.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DcWasmResourceLimits {
+    /// Deterministic resource-accounting rule version (`WASM_RESOURCE_ACCOUNTING_VERSION`).
+    pub accounting_version: u32,
     /// Maximum portable WASM compute quota units allowed before raising [`WasmResourceInterruption::ComputeQuotaExhausted`].
     pub max_instructions_per_step: u64,
     /// Logical maximum number of 64 KiB linear memory pages allowed across the session store.
@@ -1522,6 +1615,12 @@ pub struct DcWasmResourceLimits {
     pub max_step_output_bytes: usize,
     /// Maximum cumulative output bytes allowed across all steps in a session.
     pub max_session_output_bytes: usize,
+    /// Maximum byte length allowed for a single capability request or response payload
+    /// (separate from `max_session_output_bytes`).
+    pub max_capability_payload_bytes: usize,
+    /// Maximum cumulative byte length allowed for a retained execution trace buffer
+    /// (separate from `max_session_output_bytes`).
+    pub max_trace_bytes: usize,
 }
 
 impl Default for DcWasmResourceLimits {
@@ -1535,6 +1634,7 @@ impl DcWasmResourceLimits {
     #[must_use]
     pub const fn new() -> Self {
         Self {
+            accounting_version: WASM_RESOURCE_ACCOUNTING_VERSION,
             max_instructions_per_step: DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP,
             max_memory_pages: DEFAULT_MAX_WASM_MEMORY_PAGES,
             physical_max_memory_pages: usize::MAX,
@@ -1542,7 +1642,20 @@ impl DcWasmResourceLimits {
             physical_max_table_elements: usize::MAX,
             max_step_output_bytes: DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES,
             max_session_output_bytes: DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES,
+            max_capability_payload_bytes:
+                DEFAULT_MAX_WASM_CAPABILITY_PAYLOAD_BYTES,
+            max_trace_bytes: DEFAULT_MAX_WASM_TRACE_BYTES,
         }
+    }
+
+    /// Returns a copy with `accounting_version` set to the given accounting version.
+    #[must_use]
+    pub const fn with_accounting_version(
+        mut self,
+        accounting_version: u32,
+    ) -> Self {
+        self.accounting_version = accounting_version;
+        self
     }
 
     /// Returns a copy with `max_instructions_per_step` set to the given compute quota allowance.
@@ -1614,6 +1727,136 @@ impl DcWasmResourceLimits {
         self.max_session_output_bytes = max_session_output_bytes;
         self
     }
+
+    /// Returns a copy with `max_capability_payload_bytes` set to the given capability payload cap.
+    #[must_use]
+    pub const fn with_max_capability_payload_bytes(
+        mut self,
+        max_capability_payload_bytes: usize,
+    ) -> Self {
+        self.max_capability_payload_bytes = max_capability_payload_bytes;
+        self
+    }
+
+    /// Returns a copy with `max_trace_bytes` set to the given retained trace buffer cap.
+    #[must_use]
+    pub const fn with_max_trace_bytes(mut self, max_trace_bytes: usize) -> Self {
+        self.max_trace_bytes = max_trace_bytes;
+        self
+    }
+
+    /// Applies emergency host [`DcWasmWatchdogLimits`] on top of this logical supervisor policy.
+    ///
+    /// Physical memory and table ceilings are clamped to the watchdog's physical bounds
+    /// (while preserving `max_memory_pages` and `max_table_elements` so physical exhaustion
+    /// below logical quota interrupts externally rather than returning a normal `-1`).
+    #[must_use]
+    pub const fn apply_watchdog_bounds(
+        mut self,
+        watchdog: DcWasmWatchdogLimits,
+    ) -> Self {
+        if watchdog.physical_max_memory_pages < self.physical_max_memory_pages {
+            self.physical_max_memory_pages = watchdog.physical_max_memory_pages;
+        }
+        if watchdog.physical_max_table_elements
+            < self.physical_max_table_elements
+        {
+            self.physical_max_table_elements =
+                watchdog.physical_max_table_elements;
+        }
+        if watchdog.hard_max_instructions_per_step
+            < self.max_instructions_per_step
+        {
+            self.max_instructions_per_step =
+                watchdog.hard_max_instructions_per_step;
+        }
+        if watchdog.hard_max_session_output_bytes
+            < self.max_session_output_bytes
+        {
+            self.max_session_output_bytes =
+                watchdog.hard_max_session_output_bytes;
+        }
+        self
+    }
+
+    /// Serializes these compiled resource limits into a canonical 76-byte little-endian
+    /// configuration snapshot for deterministic execution trace recording and replay.
+    #[must_use]
+    pub fn encode_canonical_config_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(76);
+        out.extend_from_slice(&self.accounting_version.to_le_bytes());
+        out.extend_from_slice(&self.max_instructions_per_step.to_le_bytes());
+        // Reason for fallback: on hypothetical >64-bit platforms, usize caps saturate to u64::MAX.
+        let u64_of = |v: usize| u64::try_from(v).unwrap_or(u64::MAX);
+        out.extend_from_slice(&u64_of(self.max_memory_pages).to_le_bytes());
+        out.extend_from_slice(
+            &u64_of(self.physical_max_memory_pages).to_le_bytes(),
+        );
+        out.extend_from_slice(&u64_of(self.max_table_elements).to_le_bytes());
+        out.extend_from_slice(
+            &u64_of(self.physical_max_table_elements).to_le_bytes(),
+        );
+        out.extend_from_slice(
+            &u64_of(self.max_step_output_bytes).to_le_bytes(),
+        );
+        out.extend_from_slice(
+            &u64_of(self.max_session_output_bytes).to_le_bytes(),
+        );
+        out.extend_from_slice(
+            &u64_of(self.max_capability_payload_bytes).to_le_bytes(),
+        );
+        out.extend_from_slice(&u64_of(self.max_trace_bytes).to_le_bytes());
+        out
+    }
+
+    /// Decodes a canonical 76-byte configuration snapshot produced by
+    /// [`Self::encode_canonical_config_bytes`].
+    ///
+    /// # Errors
+    /// Returns an error if `bytes.len() != 76` or if `accounting_version` is unsupported.
+    pub fn decode_canonical_config_bytes(bytes: &[u8]) -> Result<Self> {
+        ensure!(
+            bytes.len() == 76,
+            "Invalid canonical resource config byte length: expected 76 bytes, found {}",
+            bytes.len()
+        );
+        let read_u32 = |offset: usize| -> Result<u32> {
+            let slice = bytes
+                .get(offset..offset.saturating_add(4))
+                .context("Out-of-bounds u32 read in canonical config")?;
+            let arr: [u8; 4] = slice.try_into()?;
+            Ok(u32::from_le_bytes(arr))
+        };
+        let read_u64 = |offset: usize| -> Result<u64> {
+            let slice = bytes
+                .get(offset..offset.saturating_add(8))
+                .context("Out-of-bounds u64 read in canonical config")?;
+            let arr: [u8; 8] = slice.try_into()?;
+            Ok(u64::from_le_bytes(arr))
+        };
+        let read_usize = |offset: usize| -> Result<usize> {
+            let v = read_u64(offset)?;
+            // Reason for fallback: u64::MAX represents an unbounded usize::MAX cap on 32/64-bit targets.
+            Ok(usize::try_from(v).unwrap_or(usize::MAX))
+        };
+        let accounting_version = read_u32(0)?;
+        ensure!(
+            accounting_version == WASM_RESOURCE_ACCOUNTING_VERSION,
+            "Unsupported WASM resource accounting version {accounting_version} (expected {WASM_RESOURCE_ACCOUNTING_VERSION})"
+        );
+        Ok(Self {
+            accounting_version,
+            max_instructions_per_step: read_u64(4)?,
+            max_memory_pages: read_usize(12)?,
+            physical_max_memory_pages: read_usize(20)?,
+            max_table_elements: read_usize(28)?,
+            physical_max_table_elements: read_usize(36)?,
+            max_step_output_bytes: read_usize(44)?,
+            max_session_output_bytes: read_usize(52)?,
+            max_capability_payload_bytes: read_usize(60)?,
+            max_trace_bytes: read_usize(68)?,
+        })
+    }
 }
 
 /// External resource interruption raised when a [`DcWasmSession`] exceeds a compute or memory/output budget.
@@ -1656,6 +1899,20 @@ pub enum WasmResourceInterruption {
         /// Maximum cumulative session output byte length permitted.
         max_session_output_bytes: usize,
     },
+    /// Capability request or response payload exceeded `max_capability_payload_bytes`.
+    CapabilityPayloadTooLarge {
+        /// Byte length of the capability request or response payload.
+        payload_bytes: usize,
+        /// Maximum capability payload byte length permitted.
+        max_capability_payload_bytes: usize,
+    },
+    /// Retained execution trace buffer exceeded `max_trace_bytes`.
+    TraceBufferBudgetExceeded {
+        /// Cumulative trace buffer byte length including the attempted event.
+        cumulative_trace_bytes: usize,
+        /// Maximum retained trace buffer byte length permitted.
+        max_trace_bytes: usize,
+    },
 }
 
 impl std::fmt::Display for WasmResourceInterruption {
@@ -1692,6 +1949,20 @@ impl std::fmt::Display for WasmResourceInterruption {
             } => write!(
                 f,
                 "WASM cumulative session output {cumulative_output_bytes} bytes exceeds budget ({max_session_output_bytes} bytes)"
+            ),
+            Self::CapabilityPayloadTooLarge {
+                payload_bytes,
+                max_capability_payload_bytes,
+            } => write!(
+                f,
+                "WASM capability payload length {payload_bytes} bytes exceeds limit ({max_capability_payload_bytes} bytes)"
+            ),
+            Self::TraceBufferBudgetExceeded {
+                cumulative_trace_bytes,
+                max_trace_bytes,
+            } => write!(
+                f,
+                "WASM execution trace buffer {cumulative_trace_bytes} bytes exceeds budget ({max_trace_bytes} bytes)"
             ),
         }
     }
@@ -2557,6 +2828,44 @@ impl DcWasmSession {
         Ok(())
     }
 
+    /// Validates and writes a capability response [`DcMstr`] into WASM linear memory,
+    /// enforcing [`DcWasmResourceLimits::max_capability_payload_bytes`] **before**
+    /// writing the response into the guest mailbox.
+    ///
+    /// # Errors
+    /// Returns [`WasmResourceInterruption::CapabilityPayloadTooLarge`] if the capability
+    /// response payload exceeds `max_capability_payload_bytes`, or an error if writing
+    /// the payload into linear memory fails.
+    pub fn provide_capability_response(
+        &mut self,
+        response: &DcMstr,
+    ) -> Result<()> {
+        let raw_bytes = response.as_bytes();
+        // Reason for fallback: slices shorter than DCMM_HEADER_LEN are already raw payload slices.
+        let payload_bytes =
+            raw_bytes.get(DCMM_HEADER_LEN..).unwrap_or(raw_bytes);
+        if payload_bytes.len()
+            > self.resource_limits.max_capability_payload_bytes
+        {
+            let interruption =
+                WasmResourceInterruption::CapabilityPayloadTooLarge {
+                    payload_bytes: payload_bytes.len(),
+                    max_capability_payload_bytes: self
+                        .resource_limits
+                        .max_capability_payload_bytes,
+                };
+            self.last_resource_interruption = Some(interruption.clone());
+            if let Some(shared) = &self.shared_task_quota {
+                let _ = shared.with_lock(|state| {
+                    state.last_resource_interruption =
+                        Some(interruption.clone());
+                });
+            }
+            return Err(anyhow::Error::new(interruption));
+        }
+        self.provide_input(response)
+    }
+
     fn call_entry_once(
         store: &mut Store,
         instance: &ModuleInstance,
@@ -2732,7 +3041,9 @@ impl DcWasmSession {
         }
 
         if let Some(shared) = &self.shared_task_quota {
+            let _ = shared.apply_staged_boundary_limits()?;
             let snap = shared.snapshot()?;
+            self.resource_limits = snap.active_limits;
             self.remaining_compute_quota = snap.remaining_compute_quota;
             self.current_compute_quota_limit = snap.current_compute_quota_limit;
             self.cumulative_output_bytes = snap.cumulative_output_bytes;
@@ -2967,42 +3278,62 @@ impl DcWasmSession {
             (out_ptr, out_len)
         };
 
-        if out_len > self.resource_limits.max_step_output_bytes {
-            let interruption =
-                WasmResourceInterruption::StepOutputSliceTooLarge {
-                    output_bytes: out_len,
-                    max_step_output_bytes: self
-                        .resource_limits
-                        .max_step_output_bytes,
-                };
-            self.last_resource_interruption = Some(interruption.clone());
-            if let Some(shared) = &self.shared_task_quota {
-                let _ = shared.with_lock(|state| {
-                    state.last_resource_interruption =
-                        Some(interruption.clone());
-                });
+        if status == WasmStepStatus::RequestCapability {
+            if out_len > self.resource_limits.max_capability_payload_bytes {
+                let interruption =
+                    WasmResourceInterruption::CapabilityPayloadTooLarge {
+                        payload_bytes: out_len,
+                        max_capability_payload_bytes: self
+                            .resource_limits
+                            .max_capability_payload_bytes,
+                    };
+                self.last_resource_interruption = Some(interruption.clone());
+                if let Some(shared) = &self.shared_task_quota {
+                    let _ = shared.with_lock(|state| {
+                        state.last_resource_interruption =
+                            Some(interruption.clone());
+                    });
+                }
+                return Err(anyhow::Error::new(interruption));
             }
-            return Err(anyhow::Error::new(interruption));
-        }
+        } else {
+            if out_len > self.resource_limits.max_step_output_bytes {
+                let interruption =
+                    WasmResourceInterruption::StepOutputSliceTooLarge {
+                        output_bytes: out_len,
+                        max_step_output_bytes: self
+                            .resource_limits
+                            .max_step_output_bytes,
+                    };
+                self.last_resource_interruption = Some(interruption.clone());
+                if let Some(shared) = &self.shared_task_quota {
+                    let _ = shared.with_lock(|state| {
+                        state.last_resource_interruption =
+                            Some(interruption.clone());
+                    });
+                }
+                return Err(anyhow::Error::new(interruption));
+            }
 
-        let new_cumulative =
-            self.cumulative_output_bytes.saturating_add(out_len);
-        if new_cumulative > self.resource_limits.max_session_output_bytes {
-            let interruption =
-                WasmResourceInterruption::SessionOutputBudgetExceeded {
-                    cumulative_output_bytes: new_cumulative,
-                    max_session_output_bytes: self
-                        .resource_limits
-                        .max_session_output_bytes,
-                };
-            self.last_resource_interruption = Some(interruption.clone());
-            if let Some(shared) = &self.shared_task_quota {
-                let _ = shared.with_lock(|state| {
-                    state.last_resource_interruption =
-                        Some(interruption.clone());
-                });
+            let new_cumulative =
+                self.cumulative_output_bytes.saturating_add(out_len);
+            if new_cumulative > self.resource_limits.max_session_output_bytes {
+                let interruption =
+                    WasmResourceInterruption::SessionOutputBudgetExceeded {
+                        cumulative_output_bytes: new_cumulative,
+                        max_session_output_bytes: self
+                            .resource_limits
+                            .max_session_output_bytes,
+                    };
+                self.last_resource_interruption = Some(interruption.clone());
+                if let Some(shared) = &self.shared_task_quota {
+                    let _ = shared.with_lock(|state| {
+                        state.last_resource_interruption =
+                            Some(interruption.clone());
+                    });
+                }
+                return Err(anyhow::Error::new(interruption));
             }
-            return Err(anyhow::Error::new(interruption));
         }
 
         let out_bytes = {
@@ -3021,11 +3352,15 @@ impl DcWasmSession {
         };
 
         let out_doc = decode_output_bytes_to_dcmstring(&out_bytes)?;
-        self.cumulative_output_bytes = new_cumulative;
-        if let Some(shared) = &self.shared_task_quota {
-            shared.with_lock(|state| {
-                state.cumulative_output_bytes = new_cumulative;
-            })?;
+        if status != WasmStepStatus::RequestCapability {
+            let new_cumulative =
+                self.cumulative_output_bytes.saturating_add(out_len);
+            self.cumulative_output_bytes = new_cumulative;
+            if let Some(shared) = &self.shared_task_quota {
+                shared.with_lock(|state| {
+                    state.cumulative_output_bytes = new_cumulative;
+                })?;
+            }
         }
         self.completed_step_inputs
             .push(self.current_input_doc.clone());
@@ -3266,6 +3601,116 @@ mod tests {
         DcChar::from_u128(FormatId::I32.dc_id().unwrap())
     }
 
+    fn wasm_try_table_doc(catches: &[Vec<i64>]) -> Result<DcMstring> {
+        let mut doc = DcMstring::new();
+        for token in [678, 316, 310, 275] {
+            doc.push_char(DcChar::from_short(token));
+        }
+        for (position, fields) in catches.iter().enumerate() {
+            if position != 0 {
+                doc.push_char(DcChar::from_short(312));
+            }
+            doc.push_char(DcChar::from_short(310));
+            doc.push_char(DcChar::from_short(275));
+            for (field_position, field) in fields.iter().enumerate() {
+                if field_position != 0 {
+                    doc.push_char(DcChar::from_short(312));
+                }
+                field.encode_dc_mixed(&mut doc)?;
+            }
+            doc.push_char(DcChar::from_short(311));
+        }
+        for token in [311, 648, 658] {
+            doc.push_char(DcChar::from_short(token));
+        }
+        Ok(doc)
+    }
+
+    #[crate::ctb_test]
+    fn test_wasm_try_table_catch_records() -> Result<()> {
+        let resolver = default_syntax_resolver();
+        let doc = wasm_try_table_doc(&[
+            vec![0, 128, 300],
+            vec![1, 2, 3],
+            vec![2, 4],
+            vec![3, 5],
+        ])?;
+        DcDocumentNavigator::from_mstr(&doc).validate_document_strict()?;
+        assert_eq!(
+            assemble_wasm_instructions(&doc, resolver.as_ref())?,
+            vec![0x1f, 0x40, 4, 0, 0x80, 1, 0xac, 2, 1, 2, 3, 2, 4, 3, 5, 1, 0x0b]
+        );
+        assert_eq!(
+            assemble_wasm_instructions(&wasm_try_table_doc(&[])?, resolver.as_ref())?,
+            vec![0x1f, 0x40, 0, 1, 0x0b]
+        );
+        for fields in [
+            vec![],
+            vec![4, 0],
+            vec![0, 1],
+            vec![1, 1, 2, 3],
+            vec![2, 1, 2],
+            vec![3],
+            vec![0, -1, 0],
+            vec![2, 4_294_967_296],
+        ] {
+            let malformed = wasm_try_table_doc(&[fields])?;
+            assert!(DcDocumentNavigator::from_mstr(&malformed)
+                .validate_document_strict().is_err());
+            assert!(assemble_wasm_instructions(&malformed, resolver.as_ref()).is_err());
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_wasm_instruction_operand_grammar() -> Result<()> {
+        let resolver = default_syntax_resolver();
+        for opener in [649, 650, 651, 1927] {
+            for operand_count in 0..=2 {
+                let mut doc = DcMstring::new();
+                doc.push_char(DcChar::from_short(opener));
+                if opener != 1927 {
+                    doc.push_char(DcChar::from_short(316));
+                }
+                doc.push_char(DcChar::from_short(679));
+                for _ in 0..operand_count {
+                    0u32.encode_dc_mixed(&mut doc)?;
+                }
+                let closer = if opener == 1927 { 1928 } else { 658 };
+                doc.push_char(DcChar::from_short(closer));
+                assert_eq!(
+                    DcDocumentNavigator::from_mstr(&doc)
+                        .validate_document_strict().is_ok(),
+                    operand_count == 1,
+                    "opener {opener}, operand count {operand_count}"
+                );
+            }
+        }
+        for sequence in [
+            vec![653],
+            vec![1158],
+            vec![652],
+            vec![649, 316, 652, 658],
+            vec![650, 316, 652, 658],
+            vec![651, 316, 652, 652, 658],
+        ] {
+            let mut doc = DcMstring::new();
+            for token in sequence {
+                doc.push_char(DcChar::from_short(token));
+            }
+            assert!(assemble_wasm_instructions(&doc, resolver.as_ref()).is_err());
+        }
+        let mut valid_if = DcMstring::new();
+        for token in [651, 316, 648, 652, 648, 658] {
+            valid_if.push_char(DcChar::from_short(token));
+        }
+        DcDocumentNavigator::from_mstr(&valid_if).validate_document_strict()?;
+        assert_eq!(assemble_wasm_instructions(&valid_if, resolver.as_ref())?,
+            vec![4, 0x40, 1, 5, 1, 0x0b]);
+        assert!(resolver.matches_script(".WASM GC", DcChar::from_short(903).to_u128()));
+        Ok(())
+    }
+
     #[crate::ctb_test]
     fn test_wasm_blocktype_indices() -> Result<()> {
         let resolver = default_syntax_resolver();
@@ -3288,6 +3733,17 @@ mod tests {
             cursor.emit_blocktype(&mut encoded)?;
             assert_eq!(encoded, expected);
             assert!(cursor.is_eof());
+            for (opener, opcode) in [(649, 2), (650, 3), (651, 4)] {
+                let mut block = DcMstring::new();
+                block.push_char(DcChar::from_short(opener));
+                index.encode_dc_mixed(&mut block)?;
+                block.push_char(DcChar::from_short(658));
+                DcDocumentNavigator::from_mstr(&block).validate_document_strict()?;
+                let mut expected_block = vec![opcode];
+                expected_block.extend_from_slice(&expected);
+                expected_block.push(0x0b);
+                assert_eq!(assemble_wasm_instructions(&block, resolver.as_ref())?, expected_block);
+            }
         }
         for index in [-1i64, 4_294_967_296] {
             let mut doc = DcMstring::new();
@@ -5146,6 +5602,245 @@ mod tests {
             .is_err(),
             "Module exporting reserved __ctb_* symbol must be rejected"
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_basic_block_batching_watchdog_capability_and_child_task_quotas()
+    -> Result<()> {
+        let i32_dc = i32_type_dc();
+
+        // 1. Safe basic-block batching with near-exhaustion fallback and mid-block trap flush:
+        // Build a routine that executes a contiguous basic block of 5 pure trap-free instructions
+        // (`i32.const 10`, `i32.const 20`, `i32.add`, `i32.const 5`, `i32.sub` -> 25),
+        // followed by a potentially-trapping `i32.div_s` (`25 / 0` -> traps!) and a trailing
+        // pure run (`i32.const 99`, `i32.add`, `drop`, `i32.const 0`).
+        // Total ops before `i32.div_s` traps:
+        //   op 1: function entry
+        //   ops 2..=6: batched 5-op pure run (`$__ctb_deduct_batch(5)`)
+        //   op 7: `i32.const 0` (divisor pushed right before `i32.div_s`, so batch size is 6: ops 2..=7!)
+        //   op 8: `i32.div_s` (unbatched `$__ctb_deduct(1)` right before trap!)
+        //   ops 9..=12: trailing ops AFTER `i32.div_s` (must NEVER be pre-deducted when `i32.div_s` traps!).
+        let mut div_trap_doc = DcMstring::new();
+        div_trap_doc.push_char(DcChar::from_short(260));
+        div_trap_doc.push_char(DcChar::from_short(262));
+        div_trap_doc.push_char(DcChar::from_short(280));
+        div_trap_doc.push_char(i32_dc);
+        div_trap_doc.push_char(DcChar::from_short(263));
+        div_trap_doc.push_char(DcChar::from_short(712)); // op 2: i32.const 10
+        i32::encode_dc_mixed(&10, &mut div_trap_doc)?;
+        div_trap_doc.push_char(DcChar::from_short(712)); // op 3: i32.const 20
+        i32::encode_dc_mixed(&20, &mut div_trap_doc)?;
+        div_trap_doc.push_char(DcChar::from_short(753)); // op 4: i32.add
+        div_trap_doc.push_char(DcChar::from_short(712)); // op 5: i32.const 5
+        i32::encode_dc_mixed(&5, &mut div_trap_doc)?;
+        div_trap_doc.push_char(DcChar::from_short(754)); // op 6: i32.sub
+        div_trap_doc.push_char(DcChar::from_short(712)); // op 7: i32.const 0
+        i32::encode_dc_mixed(&0, &mut div_trap_doc)?;
+        div_trap_doc.push_char(DcChar::from_short(756)); // op 8: i32.div_s (traps on / 0!)
+        div_trap_doc.push_char(DcChar::from_short(712)); // op 9: i32.const 99
+        i32::encode_dc_mixed(&99, &mut div_trap_doc)?;
+        div_trap_doc.push_char(DcChar::from_short(753)); // op 10: i32.add
+        div_trap_doc.push_char(DcChar::from_short(673)); // op 11: drop
+        div_trap_doc.push_char(DcChar::from_short(712)); // op 12: i32.const 0
+        i32::encode_dc_mixed(&0, &mut div_trap_doc)?;
+        div_trap_doc.push_char(DcChar::from_short(261));
+
+        // Verify near-exhaustion fallback for every quota 0..=7 inside the batched 6-instruction run:
+        for quota in 0..=7_u64 {
+            let mut s = DcWasmSession::from_dc_wasm(
+                &div_trap_doc,
+                &DcMstring::new(),
+                None,
+            )?
+            .with_resource_limits(
+                DcWasmResourceLimits::default()
+                    .with_max_instructions_per_step(quota),
+            );
+            let err = s
+                .step()
+                .expect_err("Quota <= 7 must exhaust before i32.div_s");
+            assert_eq!(
+                err.downcast_ref::<WasmResourceInterruption>(),
+                Some(&WasmResourceInterruption::ComputeQuotaExhausted {
+                    limit: quota
+                })
+            );
+            assert_eq!(s.last_interrupted_op_ordinal(), Some(quota + 1));
+            assert_eq!(s.last_interrupted_op_required_cost(), Some(1));
+            assert_eq!(s.last_step_instructions(), quota);
+            assert_eq!(s.remaining_compute_quota(), 0);
+        }
+
+        // With quota = 20, `i32.div_s` at op 8 traps with division by zero, and ONLY 8 units
+        // (ops 1..=8) are consumed—trailing ops 9..=12 are never pre-deducted across `i32.div_s`!
+        let mut trap_s = DcWasmSession::from_dc_wasm(
+            &div_trap_doc,
+            &DcMstring::new(),
+            None,
+        )?
+        .with_resource_limits(
+            DcWasmResourceLimits::default().with_max_instructions_per_step(20),
+        );
+        let trap_err = trap_s.step().expect_err("i32.div_s by zero must trap");
+        assert!(
+            trap_err
+                .downcast_ref::<WasmResourceInterruption>()
+                .is_none()
+        );
+        assert_eq!(trap_s.last_step_instructions(), 8);
+        assert_eq!(trap_s.remaining_compute_quota(), 12);
+
+        // 2. Canonical config byte round-trip and watchdog bounds clamping:
+        let watchdog = DcWasmWatchdogLimits::default()
+            .with_physical_max_memory_pages(4)
+            .with_physical_max_table_elements(32)
+            .with_hard_max_instructions_per_step(50_000)
+            .with_hard_max_session_output_bytes(8192);
+        let logical = DcWasmResourceLimits::default()
+            .with_max_memory_pages(16)
+            .with_max_table_elements(128)
+            .with_max_instructions_per_step(100_000)
+            .with_max_session_output_bytes(65_536)
+            .with_max_capability_payload_bytes(64)
+            .with_max_trace_bytes(2048);
+        let effective = logical.apply_watchdog_bounds(watchdog);
+        assert_eq!(effective.max_memory_pages, 16);
+        assert_eq!(effective.physical_max_memory_pages, 4);
+        assert_eq!(effective.max_table_elements, 128);
+        assert_eq!(effective.physical_max_table_elements, 32);
+        assert_eq!(effective.max_instructions_per_step, 50_000);
+        assert_eq!(effective.max_session_output_bytes, 8192);
+        let encoded_cfg = effective.encode_canonical_config_bytes();
+        let decoded_cfg =
+            DcWasmResourceLimits::decode_canonical_config_bytes(&encoded_cfg)?;
+        assert_eq!(decoded_cfg, effective);
+
+        // 3. Separate capability request/response payload allowance (`max_capability_payload_bytes`):
+        // Routine that copies input mailbox (0..8) -> output mailbox (8..16) and returns 2 (`RequestCapability`).
+        let mut cap_echo_doc = DcMstring::new();
+        cap_echo_doc.push_char(DcChar::from_short(260));
+        cap_echo_doc.push_char(DcChar::from_short(262));
+        cap_echo_doc.push_char(DcChar::from_short(280));
+        cap_echo_doc.push_char(i32_dc);
+        cap_echo_doc.push_char(DcChar::from_short(263));
+        cap_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&2, &mut cap_echo_doc)?;
+        u32::encode_dc_mixed(&0, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&2, &mut cap_echo_doc)?;
+        cap_echo_doc.push_char(DcChar::from_short(261));
+
+        let mut ten_byte_payload = DcMstring::new();
+        ten_byte_payload.push_str("0123456789");
+
+        // When `max_capability_payload_bytes == 5`, the 10-byte capability request is rejected
+        // before publication with `CapabilityPayloadTooLarge`.
+        let mut cap_fail_session =
+            DcWasmSession::from_dc_wasm(&cap_echo_doc, &ten_byte_payload, None)?
+                .with_resource_limits(
+                    DcWasmResourceLimits::default()
+                        .with_max_capability_payload_bytes(5),
+                );
+        let cap_req_err = cap_fail_session
+            .step()
+            .expect_err("Oversized capability request must fail");
+        assert_eq!(
+            cap_req_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::CapabilityPayloadTooLarge {
+                payload_bytes: 10,
+                max_capability_payload_bytes: 5,
+            })
+        );
+
+        // When `max_capability_payload_bytes == 12`, the 10-byte capability request succeeds and
+        // does NOT consume `cumulative_output_bytes` (which remains 0), while a 20-byte capability
+        // response is rejected by `provide_capability_response`.
+        let mut cap_ok_session =
+            DcWasmSession::from_dc_wasm(&cap_echo_doc, &ten_byte_payload, None)?
+                .with_resource_limits(
+                    DcWasmResourceLimits::default()
+                        .with_max_capability_payload_bytes(12),
+                );
+        assert!(matches!(
+            cap_ok_session.step()?,
+            WasmStepOutcome::RequestCapability(_)
+        ));
+        assert_eq!(cap_ok_session.cumulative_output_bytes(), 0);
+        let mut twenty_byte_resp = DcMstring::new();
+        twenty_byte_resp.push_str("01234567890123456789");
+        let resp_err = cap_ok_session
+            .provide_capability_response(&twenty_byte_resp)
+            .expect_err("Oversized capability response must fail");
+        assert_eq!(
+            resp_err.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::CapabilityPayloadTooLarge {
+                payload_bytes: 20,
+                max_capability_payload_bytes: 12,
+            })
+        );
+
+        // 4. Staged boundary limit updates and deterministic child-task quota allocation/reclamation:
+        let parent_quota = SharedWasmTaskQuota::new(
+            DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(500)
+                .with_max_session_output_bytes(100),
+        );
+        parent_quota.stage_boundary_limits(
+            DcWasmResourceLimits::default()
+                .with_max_instructions_per_step(400)
+                .with_max_session_output_bytes(80),
+        )?;
+        // Staged limits do not alter `remaining_compute_quota` until `apply_staged_boundary_limits`
+        assert_eq!(parent_quota.snapshot()?.remaining_compute_quota, 500);
+        let (_, epoch_after_stage) = parent_quota
+            .apply_staged_boundary_limits()?
+            .expect("Expected staged limits");
+        assert_eq!(epoch_after_stage, 1);
+        assert_eq!(parent_quota.snapshot()?.remaining_compute_quota, 400);
+
+        let (child_quota, epoch_alloc) =
+            parent_quota.allocate_child_task_quota(150, 30)?;
+        assert_eq!(epoch_alloc, 2);
+        assert_eq!(parent_quota.snapshot()?.remaining_compute_quota, 250);
+        assert_eq!(child_quota.snapshot()?.remaining_compute_quota, 150);
+
+        // Simulate child consuming 60 compute units and 12 output bytes:
+        child_quota.with_lock(|st| {
+            st.remaining_compute_quota = 90;
+            st.total_instructions_executed = 60;
+            st.cumulative_output_bytes = 12;
+        })?;
+        let epoch_reclaim =
+            parent_quota.reclaim_child_task_quota(&child_quota)?;
+        assert_eq!(epoch_reclaim, 3);
+        let parent_snap = parent_quota.snapshot()?;
+        assert_eq!(parent_snap.remaining_compute_quota, 340); // 250 + 90 unused returned
+        assert_eq!(parent_snap.total_instructions_executed, 60);
+        assert_eq!(parent_snap.cumulative_output_bytes, 12);
+        assert_eq!(child_quota.snapshot()?.remaining_compute_quota, 0);
+
         Ok(())
     }
 }

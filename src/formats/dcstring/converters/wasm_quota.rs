@@ -128,6 +128,14 @@ pub struct InstrumentedWasmModule {
 /// Mutable state inside a [`SharedWasmTaskQuota`].
 #[derive(Debug, Clone)]
 pub struct SharedWasmTaskQuotaState {
+    /// Active compiled supervisor resource limits for the current task boundary.
+    pub active_limits: DcWasmResourceLimits,
+    /// Staged supervisor resource limits waiting to take effect at the next explicit
+    /// task or step boundary (never applied mid-execution).
+    pub staged_boundary_limits: Option<DcWasmResourceLimits>,
+    /// Monotonically increasing epoch ordering quota grants, boundary updates,
+    /// and child-task quota allocations/reclamations.
+    pub grant_epoch: u64,
     /// Remaining compute quota units available across the shared task.
     pub remaining_compute_quota: u64,
     /// Active compute quota limit (initial limit plus any granted increases).
@@ -156,6 +164,9 @@ impl SharedWasmTaskQuota {
     pub fn new(limits: DcWasmResourceLimits) -> Self {
         Self {
             inner: Arc::new(Mutex::new(SharedWasmTaskQuotaState {
+                active_limits: limits,
+                staged_boundary_limits: None,
+                grant_epoch: 0,
                 remaining_compute_quota: limits.max_instructions_per_step,
                 current_compute_quota_limit: limits.max_instructions_per_step,
                 total_instructions_executed: 0,
@@ -166,11 +177,11 @@ impl SharedWasmTaskQuota {
         }
     }
 
-    /// Increases the shared compute quota by `additional_units`.
+    /// Increases the shared compute quota by `additional_units` and advances `grant_epoch`.
     ///
     /// # Errors
     /// Returns an error if the shared quota mutex is poisoned.
-    pub fn increase_compute_quota(&self, additional_units: u64) -> Result<()> {
+    pub fn increase_compute_quota(&self, additional_units: u64) -> Result<u64> {
         let mut guard = self
             .inner
             .lock()
@@ -181,7 +192,129 @@ impl SharedWasmTaskQuota {
         guard.current_compute_quota_limit = guard
             .current_compute_quota_limit
             .saturating_add(additional_units);
+        guard.active_limits.max_instructions_per_step =
+            guard.current_compute_quota_limit;
+        guard.grant_epoch = guard.grant_epoch.saturating_add(1);
+        Ok(guard.grant_epoch)
+    }
+
+    /// Stages updated [`DcWasmResourceLimits`] to be applied at the next explicit
+    /// task or step boundary via [`Self::apply_staged_boundary_limits`], ensuring
+    /// mutable configuration changes never alter limits mid-instruction.
+    ///
+    /// # Errors
+    /// Returns an error if the shared quota mutex is poisoned.
+    pub fn stage_boundary_limits(
+        &self,
+        next_limits: DcWasmResourceLimits,
+    ) -> Result<()> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow!("SharedWasmTaskQuota mutex poisoned"))?;
+        guard.staged_boundary_limits = Some(next_limits);
         Ok(())
+    }
+
+    /// Applies any staged [`DcWasmResourceLimits`] at an explicit task or step boundary,
+    /// updating active integer counters and advancing `grant_epoch`.
+    ///
+    /// # Errors
+    /// Returns an error if the shared quota mutex is poisoned.
+    pub fn apply_staged_boundary_limits(
+        &self,
+    ) -> Result<Option<(DcWasmResourceLimits, u64)>> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow!("SharedWasmTaskQuota mutex poisoned"))?;
+        let Some(next_limits) = guard.staged_boundary_limits.take() else {
+            return Ok(None);
+        };
+        guard.active_limits = next_limits;
+        guard.current_compute_quota_limit =
+            next_limits.max_instructions_per_step;
+        guard.remaining_compute_quota = next_limits
+            .max_instructions_per_step
+            .saturating_sub(guard.total_instructions_executed);
+        guard.max_session_output_bytes = next_limits.max_session_output_bytes;
+        guard.grant_epoch = guard.grant_epoch.saturating_add(1);
+        Ok(Some((next_limits, guard.grant_epoch)))
+    }
+
+    /// Deterministically carves out a child [`SharedWasmTaskQuota`] from this parent task's
+    /// remaining compute and output allowance at a task boundary, advancing `grant_epoch`.
+    ///
+    /// When the child task finishes or interrupts, call [`Self::reclaim_child_task_quota`]
+    /// to return any unconsumed compute quota and record the child's output usage.
+    ///
+    /// # Errors
+    /// Returns an error if the shared quota mutex is poisoned.
+    pub fn allocate_child_task_quota(
+        &self,
+        requested_compute_quota: u64,
+        requested_output_bytes: usize,
+    ) -> Result<(Self, u64)> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow!("SharedWasmTaskQuota mutex poisoned"))?;
+        let granted_compute =
+            requested_compute_quota.min(guard.remaining_compute_quota);
+        let remaining_output_budget = guard
+            .max_session_output_bytes
+            .saturating_sub(guard.cumulative_output_bytes);
+        let granted_output = requested_output_bytes.min(remaining_output_budget);
+
+        guard.remaining_compute_quota = guard
+            .remaining_compute_quota
+            .saturating_sub(granted_compute);
+        guard.grant_epoch = guard.grant_epoch.saturating_add(1);
+        let epoch = guard.grant_epoch;
+
+        let child_limits = guard
+            .active_limits
+            .with_max_instructions_per_step(granted_compute)
+            .with_max_session_output_bytes(granted_output);
+        Ok((Self::new(child_limits), epoch))
+    }
+
+    /// Reclaims unconsumed compute quota from a completed or interrupted child task
+    /// back into this parent task and advances `grant_epoch`.
+    ///
+    /// # Errors
+    /// Returns an error if either shared quota mutex is poisoned.
+    pub fn reclaim_child_task_quota(&self, child: &Self) -> Result<u64> {
+        let (child_remaining, child_executed, child_output, child_interruption) = {
+            let mut child_guard = child
+                .inner
+                .lock()
+                .map_err(|_| anyhow!("Child SharedWasmTaskQuota mutex poisoned"))?;
+            let rem = child_guard.remaining_compute_quota;
+            let exec = child_guard.total_instructions_executed;
+            let out = child_guard.cumulative_output_bytes;
+            let intr = child_guard.last_resource_interruption.clone();
+            child_guard.remaining_compute_quota = 0;
+            (rem, exec, out, intr)
+        };
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow!("Parent SharedWasmTaskQuota mutex poisoned"))?;
+        guard.remaining_compute_quota = guard
+            .remaining_compute_quota
+            .saturating_add(child_remaining);
+        guard.total_instructions_executed = guard
+            .total_instructions_executed
+            .saturating_add(child_executed);
+        guard.cumulative_output_bytes = guard
+            .cumulative_output_bytes
+            .saturating_add(child_output);
+        if let Some(intr) = child_interruption {
+            guard.last_resource_interruption = Some(intr);
+        }
+        guard.grant_epoch = guard.grant_epoch.saturating_add(1);
+        Ok(guard.grant_epoch)
     }
 
     /// Returns a snapshot of the current [`SharedWasmTaskQuotaState`].
