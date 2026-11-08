@@ -336,6 +336,7 @@ xkbcommon-rs = { path = "vendor/xkbcommon-rs" }
 yaxi = { path = "vendor/yaxi" }
 warcat = { path = "vendor/warcat" }
 voprf = { path = "vendor/voprf" }
+tinywasm = { path = "vendor/tinywasm" }
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 ctb-nopersonality = { path = "src/nopersonality" }
