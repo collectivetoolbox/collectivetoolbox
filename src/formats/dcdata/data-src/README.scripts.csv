@@ -27,9 +27,14 @@ Script,Block increment size
 .Variant selectors,TBD
 .WASM,256
 .WASM Extended,256
+.WASM Extended Instructions,TBD
 .WASM GC,256
+.WASM GC Instructions,TBD
+.WASM Instructions,TBD
 .WASM Relaxed SIMD,256
+.WASM Relaxed SIMD Instructions,TBD
 .WASM SIMD,256
+.WASM SIMD Instructions,TBD
 Latin,TBD
 .Formats:arch,128
 .Formats:armor,256

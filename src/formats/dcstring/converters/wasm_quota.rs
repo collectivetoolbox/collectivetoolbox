@@ -379,6 +379,7 @@ fn compute_static_data_end(parsed: &TinyWasmModule) -> usize {
 #[derive(Clone, Copy)]
 struct QuotaIndices {
     deduct_func_idx: u32,
+    deduct_batch_func_idx: u32,
     g_quota_rem: u32,
     g_quota_consumed: u32,
     g_exhausted: u32,
@@ -398,6 +399,62 @@ fn emit_const_deduct(cost: i64, indices: &QuotaIndices, out: &mut Vec<u8>) {
     push_sleb_i64(cost, out);
     out.push(0x10); // call $__ctb_deduct
     push_uleb_u32(indices.deduct_func_idx, out);
+}
+
+fn emit_batch_deduct(count: i64, indices: &QuotaIndices, out: &mut Vec<u8>) {
+    out.push(0x42); // i64.const
+    push_sleb_i64(count, out);
+    out.push(0x10); // call $__ctb_deduct_batch
+    push_uleb_u32(indices.deduct_batch_func_idx, out);
+}
+
+fn flush_pending_batch(
+    pending_batch_count: &mut i64,
+    pending_batch_bytes: &mut Vec<u8>,
+    indices: &QuotaIndices,
+    out: &mut Vec<u8>,
+) {
+    if *pending_batch_count == 1 {
+        emit_const_deduct(1, indices, out);
+        out.extend_from_slice(pending_batch_bytes);
+        *pending_batch_count = 0;
+        pending_batch_bytes.clear();
+    } else if *pending_batch_count > 1 {
+        emit_batch_deduct(*pending_batch_count, indices, out);
+        out.extend_from_slice(pending_batch_bytes);
+        *pending_batch_count = 0;
+        pending_batch_bytes.clear();
+    }
+}
+
+/// Returns `true` if `opcode` is a single-byte, fixed-cost (`cost = 1`) instruction
+/// that can never trap, never transfers control flow, and never mutates globals,
+/// linear memories, or tables.
+///
+/// Only instructions satisfying this predicate may be coalesced into a basic-block
+/// batch: if compute quota is exhausted mid-batch, any preceding instructions in the
+/// batch only touched the operand stack and function-local variables (which are
+/// unobservable once the trap unwinds), and no instruction in the batch can raise a
+/// non-resource trap before a later instruction's deduction.
+const fn is_batchable_single_byte_opcode(opcode: u8) -> bool {
+    matches!(
+        opcode,
+        0x01 // nop
+        | 0x1A // drop
+        | 0x1B // select
+        | 0x1C // select t*
+        | 0x20 // local.get
+        | 0x21 // local.set
+        | 0x22 // local.tee
+        | 0x23 // global.get (read-only; global.set is 0x24 and excluded)
+        | 0x3F // memory.size (read-only)
+        | 0x41..=0x44 // i32/i64/f32/f64.const
+        | 0x45..=0x6C // comparisons + i32.clz/ctz/popcnt/add/sub/mul (excludes 0x6D..=0x70 i32.div/rem)
+        | 0x71..=0x80 // i32 bitwise/shifts + i64.clz/ctz/popcnt/add/sub/mul (excludes 0x81..=0x84 i64.div/rem)
+        | 0x85..=0xA7 // i64 bitwise/shifts + f32/f64 arithmetic + i32.wrap_i64 (excludes 0xA8..=0xB1 trapping trunc)
+        | 0xB2..=0xC4 // extend/convert/demote/promote/reinterpret
+        | 0xD0..=0xD3 // ref.null, ref.is_null, ref.func, ref.eq (excludes 0xD4 ref.as_non_null)
+    )
 }
 
 fn emit_bulk_deduct(
@@ -745,24 +802,45 @@ fn instrument_function_body(
     // Deduct 1 compute unit on function entry
     emit_const_deduct(1, indices, &mut out);
 
+    let mut pending_batch_count = 0i64;
+    let mut pending_batch_bytes: Vec<u8> = Vec::new();
+
     while pos < body_bytes.len() {
         let instr_start = pos;
         let opcode = read_byte(body_bytes, &mut pos)?;
 
         // Final `end` of the function body
         if opcode == 0x0B && pos == body_bytes.len() {
+            flush_pending_batch(
+                &mut pending_batch_count,
+                &mut pending_batch_bytes,
+                indices,
+                &mut out,
+            );
             out.push(0x0B);
             break;
         }
 
         // Structural delimiters `else` (0x05) and `end` (0x0B)
         if opcode == 0x05 || opcode == 0x0B {
+            flush_pending_batch(
+                &mut pending_batch_count,
+                &mut pending_batch_bytes,
+                indices,
+                &mut out,
+            );
             out.push(opcode);
             continue;
         }
 
         // `loop <blocktype>` (0x03): emit loop header, then deduct 1 unit at loop body entry
         if opcode == 0x03 {
+            flush_pending_batch(
+                &mut pending_batch_count,
+                &mut pending_batch_bytes,
+                indices,
+                &mut out,
+            );
             skip_blocktype(body_bytes, &mut pos)?;
             if let Some(slice) = body_bytes.get(instr_start..pos) {
                 out.extend_from_slice(slice);
@@ -773,6 +851,12 @@ fn instrument_function_body(
 
         // `memory.grow $mem_idx` (0x40)
         if opcode == 0x40 {
+            flush_pending_batch(
+                &mut pending_batch_count,
+                &mut pending_batch_bytes,
+                indices,
+                &mut out,
+            );
             let mem_idx = read_uleb_u32(body_bytes, &mut pos)?;
             let declared_max = *mem_declared_max
                 .get(usize::try_from(mem_idx)?)
@@ -795,13 +879,20 @@ fn instrument_function_body(
             let subop = read_uleb_u32(body_bytes, &mut pos)?;
             match subop {
                 0..=7 => {
-                    emit_const_deduct(1, indices, &mut out);
+                    // Saturating float-to-int truncations never trap and only touch stack
+                    pending_batch_count = pending_batch_count.saturating_add(1);
                     if let Some(slice) = body_bytes.get(instr_start..pos) {
-                        out.extend_from_slice(slice);
+                        pending_batch_bytes.extend_from_slice(slice);
                     }
                 }
                 8 | 10 | 12 | 14 => {
                     // `memory.init` (8), `memory.copy` (10), `table.init` (12), `table.copy` (14)
+                    flush_pending_batch(
+                        &mut pending_batch_count,
+                        &mut pending_batch_bytes,
+                        indices,
+                        &mut out,
+                    );
                     let _idx1 = read_uleb_u32(body_bytes, &mut pos)?;
                     let _idx2 = read_uleb_u32(body_bytes, &mut pos)?;
                     emit_bulk_deduct(scratch_delta_local, indices, &mut out);
@@ -811,14 +902,34 @@ fn instrument_function_body(
                 }
                 11 | 17 => {
                     // `memory.fill` (11), `table.fill` (17)
+                    flush_pending_batch(
+                        &mut pending_batch_count,
+                        &mut pending_batch_bytes,
+                        indices,
+                        &mut out,
+                    );
                     let _idx = read_uleb_u32(body_bytes, &mut pos)?;
                     emit_bulk_deduct(scratch_delta_local, indices, &mut out);
                     if let Some(slice) = body_bytes.get(instr_start..pos) {
                         out.extend_from_slice(slice);
                     }
                 }
-                9 | 13 | 16 => {
-                    // `data.drop` (9), `elem.drop` (13), `table.size` (16)
+                16 => {
+                    // `table.size` (16) is read-only and never traps
+                    let _idx = read_uleb_u32(body_bytes, &mut pos)?;
+                    pending_batch_count = pending_batch_count.saturating_add(1);
+                    if let Some(slice) = body_bytes.get(instr_start..pos) {
+                        pending_batch_bytes.extend_from_slice(slice);
+                    }
+                }
+                9 | 13 => {
+                    // `data.drop` (9), `elem.drop` (13) mutate segment state
+                    flush_pending_batch(
+                        &mut pending_batch_count,
+                        &mut pending_batch_bytes,
+                        indices,
+                        &mut out,
+                    );
                     let _idx = read_uleb_u32(body_bytes, &mut pos)?;
                     emit_const_deduct(1, indices, &mut out);
                     if let Some(slice) = body_bytes.get(instr_start..pos) {
@@ -827,6 +938,12 @@ fn instrument_function_body(
                 }
                 15 => {
                     // `table.grow $table_idx`
+                    flush_pending_batch(
+                        &mut pending_batch_count,
+                        &mut pending_batch_bytes,
+                        indices,
+                        &mut out,
+                    );
                     let table_idx = read_uleb_u32(body_bytes, &mut pos)?;
                     let declared_max = *table_declared_max
                         .get(usize::try_from(table_idx)?)
@@ -850,6 +967,7 @@ fn instrument_function_body(
         // `0xFD` SIMD prefix instructions
         if opcode == 0xFD {
             let subop = read_uleb_u32(body_bytes, &mut pos)?;
+            let is_simd_mem_op = matches!(subop, 0..=11 | 84..=93);
             match subop {
                 0..=11 | 92..=93 => {
                     skip_memarg(body_bytes, &mut pos)?;
@@ -870,9 +988,22 @@ fn instrument_function_body(
                 }
                 _ => {}
             }
-            emit_const_deduct(1, indices, &mut out);
-            if let Some(slice) = body_bytes.get(instr_start..pos) {
-                out.extend_from_slice(slice);
+            if is_simd_mem_op {
+                flush_pending_batch(
+                    &mut pending_batch_count,
+                    &mut pending_batch_bytes,
+                    indices,
+                    &mut out,
+                );
+                emit_const_deduct(1, indices, &mut out);
+                if let Some(slice) = body_bytes.get(instr_start..pos) {
+                    out.extend_from_slice(slice);
+                }
+            } else {
+                pending_batch_count = pending_batch_count.saturating_add(1);
+                if let Some(slice) = body_bytes.get(instr_start..pos) {
+                    pending_batch_bytes.extend_from_slice(slice);
+                }
             }
             continue;
         }
@@ -936,11 +1067,31 @@ fn instrument_function_body(
             }
         }
 
-        emit_const_deduct(1, indices, &mut out);
-        if let Some(slice) = body_bytes.get(instr_start..pos) {
-            out.extend_from_slice(slice);
+        if is_batchable_single_byte_opcode(opcode) {
+            pending_batch_count = pending_batch_count.saturating_add(1);
+            if let Some(slice) = body_bytes.get(instr_start..pos) {
+                pending_batch_bytes.extend_from_slice(slice);
+            }
+        } else {
+            flush_pending_batch(
+                &mut pending_batch_count,
+                &mut pending_batch_bytes,
+                indices,
+                &mut out,
+            );
+            emit_const_deduct(1, indices, &mut out);
+            if let Some(slice) = body_bytes.get(instr_start..pos) {
+                out.extend_from_slice(slice);
+            }
         }
     }
+
+    flush_pending_batch(
+        &mut pending_batch_count,
+        &mut pending_batch_bytes,
+        indices,
+        &mut out,
+    );
 
     Ok(out)
 }
@@ -994,6 +1145,104 @@ fn encode_deduct_helper_body(indices: &QuotaIndices) -> Vec<u8> {
     body.push(0x23); // global.get $g_quota_consumed
     push_uleb_u32(indices.g_quota_consumed, &mut body);
     body.push(0x20); // local.get 0 ($cost)
+    push_uleb_u32(0, &mut body);
+    body.push(0x7C); // i64.add
+    body.push(0x24); // global.set $g_quota_consumed
+    push_uleb_u32(indices.g_quota_consumed, &mut body);
+
+    body.push(0x0B); // end function
+    body
+}
+
+/// Encodes `$__ctb_deduct_batch(count: i64)` for a contiguous basic-block run of `count`
+/// pure, trap-free, fixed-cost (`cost = 1`) instructions:
+/// - When `__ctb_quota_remaining >= count`, deducts `count` in a single batch.
+/// - Near exhaustion (`__ctb_quota_remaining < count`), falls back to exact per-operation
+///   deduction: the first `R = __ctb_quota_remaining` instructions each consume `1` unit,
+///   and the `(R + 1)`-th instruction traps with `ComputeQuotaExhausted` and `required_cost = 1`.
+fn encode_deduct_batch_helper_body(indices: &QuotaIndices) -> Vec<u8> {
+    let mut body = Vec::with_capacity(96);
+    body.push(0x00); // 0 local runs (1 param: `$count: i64` at local 0)
+
+    // `if (i64.lt_u(global.get $g_quota_rem, local.get 0))`
+    body.push(0x23); // global.get $g_quota_rem
+    push_uleb_u32(indices.g_quota_rem, &mut body);
+    body.push(0x20); // local.get 0 ($count)
+    push_uleb_u32(0, &mut body);
+    body.push(0x54); // i64.lt_u
+    body.push(0x04); // if (empty)
+    body.push(0x40);
+
+    // `__ctb_op_ordinal = __ctb_op_ordinal + __ctb_quota_remaining + 1`
+    body.push(0x23); // global.get $g_op_ordinal
+    push_uleb_u32(indices.g_op_ordinal, &mut body);
+    body.push(0x23); // global.get $g_quota_rem
+    push_uleb_u32(indices.g_quota_rem, &mut body);
+    body.push(0x7C); // i64.add
+    body.push(0x42); // i64.const 1
+    push_sleb_i64(1, &mut body);
+    body.push(0x7C); // i64.add
+    body.push(0x24); // global.set $g_op_ordinal
+    push_uleb_u32(indices.g_op_ordinal, &mut body);
+
+    // `__ctb_quota_consumed = __ctb_quota_consumed + __ctb_quota_remaining`
+    body.push(0x23); // global.get $g_quota_consumed
+    push_uleb_u32(indices.g_quota_consumed, &mut body);
+    body.push(0x23); // global.get $g_quota_rem
+    push_uleb_u32(indices.g_quota_rem, &mut body);
+    body.push(0x7C); // i64.add
+    body.push(0x24); // global.set $g_quota_consumed
+    push_uleb_u32(indices.g_quota_consumed, &mut body);
+
+    // `__ctb_quota_remaining = 0`
+    body.push(0x42); // i64.const 0
+    push_sleb_i64(0, &mut body);
+    body.push(0x24); // global.set $g_quota_rem
+    push_uleb_u32(indices.g_quota_rem, &mut body);
+
+    // `__ctb_exhausted = 1` (ComputeQuotaExhausted)
+    body.push(0x41); // i32.const 1
+    push_sleb_i32(1, &mut body);
+    body.push(0x24); // global.set $g_exhausted
+    push_uleb_u32(indices.g_exhausted, &mut body);
+
+    // `__ctb_interrupted_op = __ctb_op_ordinal`
+    body.push(0x23); // global.get $g_op_ordinal
+    push_uleb_u32(indices.g_op_ordinal, &mut body);
+    body.push(0x24); // global.set $g_interrupted_op
+    push_uleb_u32(indices.g_interrupted_op, &mut body);
+
+    // `__ctb_required_cost = 1`
+    body.push(0x42); // i64.const 1
+    push_sleb_i64(1, &mut body);
+    body.push(0x24); // global.set $g_required_cost
+    push_uleb_u32(indices.g_required_cost, &mut body);
+
+    body.push(0x00); // unreachable
+    body.push(0x0B); // end if
+
+    // Fast path: `__ctb_op_ordinal += $count`
+    body.push(0x23); // global.get $g_op_ordinal
+    push_uleb_u32(indices.g_op_ordinal, &mut body);
+    body.push(0x20); // local.get 0 ($count)
+    push_uleb_u32(0, &mut body);
+    body.push(0x7C); // i64.add
+    body.push(0x24); // global.set $g_op_ordinal
+    push_uleb_u32(indices.g_op_ordinal, &mut body);
+
+    // `__ctb_quota_remaining -= $count`
+    body.push(0x23); // global.get $g_quota_rem
+    push_uleb_u32(indices.g_quota_rem, &mut body);
+    body.push(0x20); // local.get 0 ($count)
+    push_uleb_u32(0, &mut body);
+    body.push(0x7D); // i64.sub
+    body.push(0x24); // global.set $g_quota_rem
+    push_uleb_u32(indices.g_quota_rem, &mut body);
+
+    // `__ctb_quota_consumed += $count`
+    body.push(0x23); // global.get $g_quota_consumed
+    push_uleb_u32(indices.g_quota_consumed, &mut body);
+    body.push(0x20); // local.get 0 ($count)
     push_uleb_u32(0, &mut body);
     body.push(0x7C); // i64.add
     body.push(0x24); // global.set $g_quota_consumed
@@ -1167,6 +1416,7 @@ pub fn instrument_wasm_module_bytes(
     };
     let num_guest_funcs = u32::try_from(guest_func_type_indices.len())?;
     let deduct_func_idx = num_guest_funcs;
+    let deduct_batch_func_idx = num_guest_funcs.saturating_add(1);
 
     // 6. Parse Global section count
     let (num_guest_globals_u32, raw_globals_tail) =
@@ -1183,6 +1433,7 @@ pub fn instrument_wasm_module_bytes(
 
     let indices = QuotaIndices {
         deduct_func_idx,
+        deduct_batch_func_idx,
         g_quota_rem: num_guest_globals_u32,
         g_quota_consumed: num_guest_globals_u32.saturating_add(1),
         g_exhausted: num_guest_globals_u32.saturating_add(2),
@@ -1222,11 +1473,12 @@ pub fn instrument_wasm_module_bytes(
         push_section(SEC_IMPORT, payload, &mut out)?;
     }
 
-    // Emit Section 3 (Function): original functions + `$__ctb_deduct`
+    // Emit Section 3 (Function): original functions + `$__ctb_deduct` + `$__ctb_deduct_batch`
     {
         let mut sec = Vec::with_capacity(raw_funcs_tail.len().saturating_add(8));
-        push_uleb_u32(num_guest_funcs.saturating_add(1), &mut sec);
+        push_uleb_u32(num_guest_funcs.saturating_add(2), &mut sec);
         sec.extend_from_slice(raw_funcs_tail);
+        push_uleb_u32(deduct_type_idx, &mut sec);
         push_uleb_u32(deduct_type_idx, &mut sec);
         push_section(SEC_FUNCTION, &sec, &mut out)?;
     }
@@ -1366,10 +1618,10 @@ pub fn instrument_wasm_module_bytes(
         push_section(SEC_DATA_COUNT, payload, &mut out)?;
     }
 
-    // Emit Section 10 (Code): instrumented guest function bodies + `$__ctb_deduct`
+    // Emit Section 10 (Code): instrumented guest function bodies + `$__ctb_deduct` + `$__ctb_deduct_batch`
     {
         let mut instrumented_bodies: Vec<Vec<u8>> =
-            Vec::with_capacity(usize::try_from(num_guest_funcs)?.saturating_add(1));
+            Vec::with_capacity(usize::try_from(num_guest_funcs)?.saturating_add(2));
         if let Some(payload) = sec_code {
             let mut p = 0usize;
             let count = read_uleb_u32(payload, &mut p)?;
@@ -1409,6 +1661,7 @@ pub fn instrument_wasm_module_bytes(
             }
         }
         instrumented_bodies.push(encode_deduct_helper_body(&indices));
+        instrumented_bodies.push(encode_deduct_batch_helper_body(&indices));
 
         let mut sec = Vec::new();
         push_uleb_u32(u32::try_from(instrumented_bodies.len())?, &mut sec);

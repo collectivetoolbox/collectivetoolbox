@@ -1,9 +1,9 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
 1114759,647,WASM unreachable,0,BN,,!Cx,.WASM,"@ident(""WasmStart"")","WebAssembly instruction `unreachable` (opcode 0x00, stack type `[t* 1]->[t* 2]`)."
 1114760,648,WASM nop,0,BN,,!Cx,.WASM,,"WebAssembly instruction `nop` (opcode 0x01, stack type `[]->[]`)."
-1114761,649,WASM block,0,BN,,!Cx,.WASM,: ~ ([type] | 316) ([wasm_instr] [wasm_arg]*)* 658,"WebAssembly instruction `block bt` (opcode 0x02, stack type `[t* 1]->[t* 2]`)."
-1114762,650,WASM loop,0,BN,,!Cx,.WASM,: ~ ([type] | 316) ([wasm_instr] [wasm_arg]*)* 658,"WebAssembly instruction `loop bt` (opcode 0x03, stack type `[t* 1]->[t* 2]`)."
-1114763,651,WASM if,0,BN,,!Cx,.WASM,: ~ ([type] | 316) ([wasm_instr] [wasm_arg]*)* 658,"WebAssembly instruction `if bt` (opcode 0x04, stack type `[t* 1 i32]->[t* 2]`)."
+1114761,649,WASM block,0,BN,,!Cx,.WASM,: ~ [wasm_blocktype] [wasm_instr]* 658,"WebAssembly instruction `block bt` (opcode 0x02, stack type `[t* 1]->[t* 2]`)."
+1114762,650,WASM loop,0,BN,,!Cx,.WASM,: ~ [wasm_blocktype] [wasm_instr]* 658,"WebAssembly instruction `loop bt` (opcode 0x03, stack type `[t* 1]->[t* 2]`)."
+1114763,651,WASM if,0,BN,,!Cx,.WASM,: ~ [wasm_blocktype] [wasm_instr]* (652 [wasm_instr]*)? 658,"WebAssembly instruction `if bt` (opcode 0x04, stack type `[t* 1 i32]->[t* 2]`)."
 1114764,652,WASM else,0,BN,,!Cx,.WASM,,WebAssembly instruction `else` (opcode 0x05).
 1114765,653,WASM Reserved 0x06,0,BN,,!Cx,.WASM,,Reserved WebAssembly opcode 0x06.
 1114766,654,WASM Reserved 0x07,0,BN,,!Cx,.WASM,,Reserved WebAssembly opcode 0x07.
@@ -30,7 +30,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114787,675,WASM select t,0,BN,,!Cx,.WASM,: ~ [type],"WebAssembly instruction `select t` (opcode 0x1C, stack type `[t t i32]->[t]`)."
 1114788,676,WASM Reserved 0x1D,0,BN,,!Cx,.WASM,,Reserved WebAssembly opcode 0x1D.
 1114789,677,WASM Reserved 0x1E,0,BN,,!Cx,.WASM,,Reserved WebAssembly opcode 0x1E.
-1114790,678,WASM try_table,0,BN,,!Cx,.WASM,: ~ ([type] | 316) [list] ([wasm_instr] [wasm_arg]*)* 658,"WebAssembly instruction `try_table bt catch*` (opcode 0x1F, stack type `[t* 1]->[t* 2]`)."
+1114790,678,WASM try_table,0,BN,,!Cx,.WASM,: ~ [wasm_blocktype] [list:wasm_catch] [wasm_instr]* 658,"WebAssembly instruction `try_table bt catch*` (opcode 0x1F, stack type `[t* 1]->[t* 2]`)."
 1114791,679,WASM local.get,0,BN,,!Cx,.WASM,: ~ [number],"WebAssembly instruction `local.get x` (opcode 0x20, stack type `[]->[t]`)."
 1114792,680,WASM local.set,0,BN,,!Cx,.WASM,: ~ [number],"WebAssembly instruction `local.set x` (opcode 0x21, stack type `[t]->[]`)."
 1114793,681,WASM local.tee,0,BN,,!Cx,.WASM,: ~ [number],"WebAssembly instruction `local.tee x` (opcode 0x22, stack type `[t]->[t]`)."
@@ -1279,5 +1279,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1116036,1924,WASM Reserved 0xFD 0xFD 0x03,0,BN,,!Cx,.WASM Relaxed SIMD,,Reserved WebAssembly SIMD opcode 0xFD 0xFD 0x03.
 1116037,1925,WASM Reserved 0xFD 0xFE 0x03,0,BN,,!Cx,.WASM Relaxed SIMD,,Reserved WebAssembly SIMD opcode 0xFD 0xFE 0x03.
 1116038,1926,WASM Reserved 0xFD 0xFF 0x03,0,BN,,!Cx,.WASM Relaxed SIMD,,Reserved WebAssembly SIMD opcode 0xFD 0xFF 0x03.
-1116039,1927,Begin WASM program,0,BN,,!Cx,.WASM,"@ident(""BeginWasmProgram""), : ~ ([key_value] | ([wasm_instr] [wasm_arg]*)+) 1928",Begins a WebAssembly program consisting of either an ordered key-value array of program members or a direct sequence of WebAssembly instructions.
+1116039,1927,Begin WASM program,0,BN,,!Cx,.WASM,"@ident(""BeginWasmProgram""), : ~ ([key_value] | [wasm_instr]*) 1928",Begins a WebAssembly program consisting of either an ordered key-value array of program members or a direct sequence of WebAssembly instructions.
 1116040,1928,End WASM program,0,BN,,!Cx,.WASM,"@ident(""EndWasmProgram""), @closes(1927)",Terminates a WebAssembly program begun by Dc 1927.

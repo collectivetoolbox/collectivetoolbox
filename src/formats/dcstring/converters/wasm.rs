@@ -208,6 +208,21 @@ impl<'a> TokenCursor<'a> {
         read_dc_number_from_reader_with_resolver(|| self.next(), resolver)
     }
 
+    fn emit_blocktype(&mut self, out: &mut Vec<u8>) -> Result<()> {
+        let token = self.peek().context("Missing WASM block type")?;
+        if self.token_fills_role(token, DcRole::OptionalAbsent) {
+            let _ = self.next()?;
+            out.push(WASM_BLOCKTYPE_EMPTY);
+        } else if self.token_fills_role(token, DcRole::BeginNumber) {
+            let index = u32::try_from(&self.read_number()?)
+                .map_err(|error| anyhow!("WASM block type index out of u32 range: {error:?}"))?;
+            push_sleb128_i64(i64::from(index), out);
+        } else {
+            out.push(self.read_valtype()?);
+        }
+        Ok(())
+    }
+
     fn read_valtype(&mut self) -> Result<u8> {
         let tok = self.next()?;
         if self.token_fills_role(tok, DcRole::BeginTypeDef) {
@@ -693,16 +708,7 @@ fn assemble_instruction_sequence(
                     | WASM_OPCODE_TRY_TABLE
             )
         {
-            let bt_peek = cursor
-                .peek()
-                .context("Missing blocktype after WASM block/loop/if/try_table")?;
-            if cursor.token_fills_role(bt_peek, DcRole::OptionalAbsent) {
-                let _ = cursor.next()?;
-                out.push(WASM_BLOCKTYPE_EMPTY);
-            } else {
-                let vt = cursor.read_valtype()?;
-                out.push(vt);
-            }
+            cursor.emit_blocktype(out)?;
 
             if subopcode == WASM_OPCODE_TRY_TABLE {
                 let catches = cursor.read_number_list()?;
@@ -3258,6 +3264,43 @@ mod tests {
 
     fn i32_type_dc() -> DcChar {
         DcChar::from_u128(FormatId::I32.dc_id().unwrap())
+    }
+
+    #[crate::ctb_test]
+    fn test_wasm_blocktype_indices() -> Result<()> {
+        let resolver = default_syntax_resolver();
+        for (index, expected) in [
+            (0u32, vec![0x00]),
+            (63, vec![0x3f]),
+            (64, vec![0xc0, 0x00]),
+            (127, vec![0xff, 0x00]),
+            (u32::MAX, vec![0xff, 0xff, 0xff, 0xff, 0x0f]),
+        ] {
+            let mut doc = DcMstring::new();
+            index.encode_dc_mixed(&mut doc)?;
+            let dc_string = doc.to_dc_string_with_policy_and_resolver(
+                &DcProjectionPolicy::strict(),
+                resolver.as_ref(),
+            )?;
+            let tokens: Vec<_> = dc_string.chars().collect();
+            let mut cursor = TokenCursor::new(&tokens, resolver.as_ref());
+            let mut encoded = Vec::new();
+            cursor.emit_blocktype(&mut encoded)?;
+            assert_eq!(encoded, expected);
+            assert!(cursor.is_eof());
+        }
+        for index in [-1i64, 4_294_967_296] {
+            let mut doc = DcMstring::new();
+            index.encode_dc_mixed(&mut doc)?;
+            let dc_string = doc.to_dc_string_with_policy_and_resolver(
+                &DcProjectionPolicy::strict(),
+                resolver.as_ref(),
+            )?;
+            let tokens: Vec<_> = dc_string.chars().collect();
+            let mut cursor = TokenCursor::new(&tokens, resolver.as_ref());
+            assert!(cursor.emit_blocktype(&mut Vec::new()).is_err());
+        }
+        Ok(())
     }
 
     #[crate::ctb_test]
