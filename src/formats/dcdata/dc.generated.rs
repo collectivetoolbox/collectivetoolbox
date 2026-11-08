@@ -410,6 +410,10 @@ pub const DC_WASM_FD_PAGE1_START: DcChar = DcChar::from_short(1671);
 pub const DC_BEGIN_WASM_PROGRAM: DcChar = DcChar::from_short(1927);
 /// Terminates a WebAssembly program begun by Dc 1927. (Dc 1928).
 pub const DC_END_WASM_PROGRAM: DcChar = DcChar::from_short(1928);
+/// Standalone 1-Short-Dc execution supervisor for evaluating, converting, and metering Dc documents without starting the full workspace. (Dc 1936).
+pub const DC_DC_DOCUMENT_EXECUTION_KERNEL: DcChar = DcChar::from_short(1936);
+/// Top-level 1-Short-Dc workspace bootstrap entry document for the full Collective Toolbox workspace application, delegating document execution and resource accounting to Dc 1936 (Dc document execution kernel). (Dc 1937).
+pub const DC_COLLECTIVE_TOOLBOX_WORKSPACE: DcChar = DcChar::from_short(1937);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

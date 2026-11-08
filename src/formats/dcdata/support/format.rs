@@ -613,12 +613,17 @@ where
         }
     }
 
-    // Validate that Short Format IDs form a contiguous sequence starting from 0 with no gaps/holes
+    // Validate that Short Format IDs in the legacy contiguous region form a contiguous sequence starting from 0 with no gaps/holes
     let known_fmt_ids: HashSet<usize> =
         all_rows.iter().filter_map(|r| r.short_id).collect();
     if let Some(&max_id) = known_fmt_ids.iter().max() {
+        // Reason for fallback: PREEXISTING_CONTIGUOUS_FORMAT_MAX is a small u32 constant that always fits in usize.
+        let legacy_limit = max_id.min(
+            usize::try_from(crate::updater::PREEXISTING_CONTIGUOUS_FORMAT_MAX)
+                .unwrap_or(0),
+        );
         let mut missing_ids = Vec::new();
-        for id in 0..=max_id {
+        for id in 0..=legacy_limit {
             if !known_fmt_ids.contains(&id) {
                 missing_ids.push(id);
             }
@@ -647,7 +652,7 @@ where
                 None,
                 Some("Short"),
                 format!(
-                    "Format Short IDs have gaps/holes. Missing {} ID(s): [{missing_str}] in range 0..={max_id}",
+                    "Format Short IDs have gaps/holes. Missing {} ID(s): [{missing_str}] in range 0..={legacy_limit}",
                     missing_ids.len()
                 ),
                 Some("Ensure Format Short IDs are contiguous with no missing numbers"),

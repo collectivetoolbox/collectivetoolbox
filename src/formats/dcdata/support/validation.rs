@@ -1739,10 +1739,11 @@ where
         }
     }
 
-    // Validate that Short Dc IDs form a contiguous sequence starting from 0 with no gaps/holes
+    // Validate that Short Dc IDs in the legacy contiguous region form a contiguous sequence starting from 0 with no gaps/holes
     if let Some(&max_id) = known_dc_ids.iter().max() {
+        let legacy_limit = max_id.min(crate::updater::PREEXISTING_CONTIGUOUS_DC_MAX);
         let mut missing_ids = Vec::new();
-        for id in 0..=max_id {
+        for id in 0..=legacy_limit {
             if !known_dc_ids.contains(&id) {
                 missing_ids.push(id);
             }
@@ -1771,7 +1772,7 @@ where
                 None,
                 Some("Short"),
                 format!(
-                    "Document Character Short IDs have gaps/holes. Missing {} ID(s): [{missing_str}] in range 0..={max_id}",
+                    "Document Character Short IDs have gaps/holes. Missing {} ID(s): [{missing_str}] in range 0..={legacy_limit}",
                     missing_ids.len()
                 ),
                 Some("Ensure Short Dc IDs are contiguous with no missing numbers"),

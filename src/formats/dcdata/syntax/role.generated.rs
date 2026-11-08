@@ -412,6 +412,10 @@ pub enum DcRole {
     BeginWasmProgram,
     /// Terminates a WebAssembly program begun by Dc 1927. (`1928`).
     EndWasmProgram,
+    /// Standalone 1-Short-Dc execution supervisor for evaluating, converting, and metering Dc documents without starting the full workspace. (`1936`).
+    DcDocumentExecutionKernel,
+    /// Top-level 1-Short-Dc workspace bootstrap entry document for the full Collective Toolbox workspace application, delegating document execution and resource accounting to Dc 1936 (Dc document execution kernel). (`1937`).
+    CollectiveToolboxWorkspace,
     /// Base64 encapsulation digit character (0..=63).
 Base64Digit,
 /// Built-in type token, format token, or type operator.
@@ -613,6 +617,8 @@ match self {
             Self::WasmFdPage1Start => Some(1671),
             Self::BeginWasmProgram => Some(1927),
             Self::EndWasmProgram => Some(1928),
+            Self::DcDocumentExecutionKernel => Some(1936),
+            Self::CollectiveToolboxWorkspace => Some(1937),
             _ => None,
 }
 }
@@ -817,6 +823,8 @@ match self {
             Self::WasmFdPage1Start => short == Some(1671),
             Self::BeginWasmProgram => short == Some(1927),
             Self::EndWasmProgram => short == Some(1928),
+            Self::DcDocumentExecutionKernel => short == Some(1936),
+            Self::CollectiveToolboxWorkspace => short == Some(1937),
             Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
