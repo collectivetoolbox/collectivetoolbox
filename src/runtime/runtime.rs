@@ -380,7 +380,7 @@ impl ExecutionContext {
             // Strongly steer away from Allow when document has errors
             PermissionDecision::AutoMock
         } else {
-            PermissionDecision::Allow
+            PermissionDecision::Deny
         }
     }
 
@@ -630,6 +630,13 @@ impl ExecutionContext {
         let mut frames = Vec::new();
         let mut events = Vec::new();
         let mut event_idx = 0usize;
+        let checked_trace = |trace: WasmExecutionTrace| -> Result<WasmExecutionTrace> {
+            ensure!(
+                &trace == recorded_trace,
+                "Replay terminated without matching the complete recorded trace and result"
+            );
+            Ok(trace)
+        };
 
         if let Some(WasmTraceEvent::ResourceInterruption {
             after_logical_steps: 0,
@@ -641,14 +648,13 @@ impl ExecutionContext {
                 Some(WasmResourceInterruption::MemoryLimitExceeded { .. })
             )
         {
-            let _ = session.provide_input(input);
             events.push(WasmTraceEvent::ResourceInterruption {
                 after_logical_steps: 0,
                 interruption: interruption.clone(),
                 decision: *decision,
             });
             if *decision == PermissionDecision::BreakOutResumeNext {
-                return Ok(WasmExecutionTrace {
+                return checked_trace(WasmExecutionTrace {
                     result: WasmExecutionResult {
                         output: DcMstring::new(),
                         frames,
@@ -673,17 +679,15 @@ impl ExecutionContext {
             }) = recorded_trace.events.get(event_idx)
                 && *after_logical_steps == logical_step
             {
-                // Execute the step up to the current session fuel/budget if needed, but the
-                // logical replay boundary is governed by the recorded external resource event,
-                // not by whether a recompiled module used fewer or more physical instructions.
-                let _ = session.step();
+                // Deliver the recorded interruption before executing more guest code;
+                // physical instruction counts do not determine the replay boundary.
                 events.push(WasmTraceEvent::ResourceInterruption {
                     after_logical_steps: *after_logical_steps,
                     interruption: interruption.clone(),
                     decision: *decision,
                 });
                 if *decision == PermissionDecision::BreakOutResumeNext {
-                    return Ok(WasmExecutionTrace {
+                    return checked_trace(WasmExecutionTrace {
                         result: WasmExecutionResult {
                             output: DcMstring::new(),
                             frames,
@@ -756,7 +760,7 @@ impl ExecutionContext {
                         response: rec_response.clone(),
                     });
                     if *rec_decision == PermissionDecision::BreakOutResumeNext {
-                        return Ok(WasmExecutionTrace {
+                        return checked_trace(WasmExecutionTrace {
                             result: WasmExecutionResult {
                                 output: DcMstring::new(),
                                 frames,
@@ -784,7 +788,7 @@ impl ExecutionContext {
                         logical_step,
                         output: output.clone(),
                     });
-                    return Ok(WasmExecutionTrace {
+                    return checked_trace(WasmExecutionTrace {
                         result: WasmExecutionResult {
                             output,
                             frames,
@@ -866,8 +870,15 @@ mod tests {
         let valid_ctx = ExecutionContext::new(false);
         assert_eq!(
             valid_ctx.request_permission(&Privilege::FileIo),
-            PermissionDecision::Allow
+            PermissionDecision::Deny
         );
+        assert_eq!(
+            valid_ctx.request_permission(&Privilege::Network),
+            PermissionDecision::Deny
+        );
+        let allowed_ctx = valid_ctx
+            .with_privilege_decision(Privilege::FileIo, PermissionDecision::Allow);
+        assert_eq!(allowed_ctx.request_permission(&Privilege::FileIo), PermissionDecision::Allow);
 
         let error_ctx = ExecutionContext::new(true);
         assert_eq!(
@@ -987,9 +998,10 @@ mod tests {
         let mut input = DcMstring::new();
         input.push_str("FileIo");
 
-        // 1. Valid document (`has_errors = false`): capability is Allowed -> response is `Dc 517 "Boolean true"`
+        // 1. Explicit FileIo grant: response is `Dc 517 "Boolean true"`
         let mut session_ok = DcWasmSession::from_dc_wasm(&routine_doc, &input, None)?;
-        let mut valid_ctx = ExecutionContext::new(false);
+        let mut valid_ctx = ExecutionContext::new(false)
+            .with_privilege_decision(Privilege::FileIo, PermissionDecision::Allow);
         let res_ok = valid_ctx.execute_wasm_session_default(&mut session_ok, &input)?;
         assert!(!res_ok.broke_out_early);
         assert_eq!(res_ok.frames.len(), 1);
@@ -1258,7 +1270,8 @@ mod tests {
         // Record trace under `Allow` policy
         let mut rec_session =
             DcWasmSession::from_dc_wasm(&routine_v1, &file_io_input, None)?;
-        let mut rec_ctx = ExecutionContext::new(false);
+        let mut rec_ctx = ExecutionContext::new(false)
+            .with_privilege_decision(Privilege::FileIo, PermissionDecision::Allow);
         let recorded_trace = rec_ctx
             .execute_wasm_session_default_with_trace(
                 &mut rec_session,
@@ -1283,6 +1296,20 @@ mod tests {
             &recorded_trace,
         )?;
         assert_eq!(replayed, recorded_trace);
+        let mut trailing_trace = recorded_trace.clone();
+        trailing_trace.events.push(recorded_trace.events.last().unwrap().clone());
+        let mut trailing_session =
+            DcWasmSession::from_dc_wasm(&routine_v1, &file_io_input, None)?;
+        assert!(replay_ctx.replay_wasm_session_trace(
+            &mut trailing_session, &file_io_input, &trailing_trace,
+        ).is_err());
+        let mut wrong_result_trace = recorded_trace.clone();
+        wrong_result_trace.result.broke_out_early = true;
+        let mut wrong_result_session =
+            DcWasmSession::from_dc_wasm(&routine_v1, &file_io_input, None)?;
+        assert!(replay_ctx.replay_wasm_session_trace(
+            &mut wrong_result_session, &file_io_input, &wrong_result_trace,
+        ).is_err());
         assert_ne!(
             rec_session.total_instructions_executed(),
             replay_session.total_instructions_executed()
@@ -1331,6 +1358,7 @@ mod tests {
             &interrupted_trace,
         )?;
         assert_eq!(replayed_int, interrupted_trace);
+        assert_eq!(fast_replay_session.total_instructions_executed(), 0);
         Ok(())
     }
 }

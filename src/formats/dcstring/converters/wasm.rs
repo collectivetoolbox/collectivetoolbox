@@ -1728,8 +1728,18 @@ impl DcWasmSession {
         })?;
         let mut store = Store::default();
         store.set_max_memory_pages(Some(resource_limits.max_memory_pages));
+        store.set_fuel(Some(resource_limits.max_instructions_per_step));
         let instance = match module.instantiate(&mut store, None) {
             Ok(inst) => inst,
+            Err(ctb_formats_dcdata::tinywasm::Error::Trap(
+                ctb_formats_dcdata::tinywasm::Trap::InstructionFuelExhausted,
+            )) => {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::InstructionFuelExhausted {
+                        limit: resource_limits.max_instructions_per_step,
+                    },
+                ));
+            }
             Err(ctb_formats_dcdata::tinywasm::Error::Other(msg))
                 if msg.contains("initial memory page count") =>
             {
@@ -1748,6 +1758,7 @@ impl DcWasmSession {
                 );
             }
         };
+        store.set_fuel(None);
 
         let entry_func_name = if instance.export_addr("step").is_some() {
             "step".to_owned()
@@ -2071,6 +2082,15 @@ impl DcWasmSession {
     /// writes an out-of-bounds or malformed Dc output slice.
     pub fn step(&mut self) -> Result<WasmStepOutcome> {
         self.last_resource_interruption = None;
+        let current_pages = self.current_memory_pages()?;
+        if current_pages > self.resource_limits.max_memory_pages {
+            let interruption = WasmResourceInterruption::MemoryLimitExceeded {
+                requested_pages: current_pages,
+                max_pages: self.resource_limits.max_memory_pages,
+            };
+            self.last_resource_interruption = Some(interruption.clone());
+            return Err(anyhow::Error::new(interruption));
+        }
         self.store
             .set_max_memory_pages(Some(self.resource_limits.max_memory_pages));
         {
@@ -3235,6 +3255,26 @@ mod tests {
     #[crate::ctb_test]
     fn test_gate2_wasm_intra_step_instruction_fuel_stops_tight_loop()
     -> Result<()> {
+        let looping_start = [
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x04, 0x01, 0x60, 0x00, 0x00,
+            0x03, 0x02, 0x01, 0x00,
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            0x07, 0x11, 0x02, 0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x00,
+            0x08, 0x01, 0x00,
+            0x0a, 0x09, 0x01, 0x07, 0x00, 0x03, 0x40, 0x0c, 0x00, 0x0b, 0x0b,
+        ];
+        let start_error = DcWasmSession::from_wasm_bytes_with_limits(
+            &looping_start,
+            &DcMstring::new(),
+            None,
+            DcWasmResourceLimits::default().with_max_instructions_per_step(400),
+        ).err().expect("Looping start function must exhaust bootstrap fuel");
+        assert_eq!(
+            start_error.downcast_ref::<WasmResourceInterruption>(),
+            Some(&WasmResourceInterruption::InstructionFuelExhausted { limit: 400 }),
+        );
         let i32_dc = i32_type_dc();
         // Build a tight infinite loop inside a single `step()` call:
         // `loop (empty blocktype: Dc 316 = 0x40) br 0 end i32.const 0`
@@ -3346,6 +3386,14 @@ mod tests {
         assert!(matches!(
             interruption,
             WasmResourceInterruption::MemoryLimitExceeded { max_pages: 2, .. }
+        ));
+        session.set_resource_limits(limits.with_max_memory_pages(0));
+        let err = session.step().expect_err("Lowering the cap must reject existing over-budget memory");
+        assert!(matches!(
+            err.downcast_ref::<WasmResourceInterruption>(),
+            Some(WasmResourceInterruption::MemoryLimitExceeded {
+                requested_pages: 1, max_pages: 0,
+            })
         ));
         Ok(())
     }

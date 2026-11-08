@@ -379,7 +379,7 @@ impl<'a> DcDocumentNavigator<'a> {
         resolver: &dyn SyntaxRuleResolver,
     ) -> bool {
         let code = ch.to_u128();
-        ch == ctb_formats_dcdata::dc::DC_BEGIN_DOCUMENT
+        (ch == ctb_formats_dcdata::dc::DC_BEGIN_DOCUMENT
             || ch == ctb_formats_dcdata::dc::DC_BEGIN_GRAPH_NODE_DEFINITION
             || resolver.is_equivalent_to(
                 code,
@@ -389,7 +389,10 @@ impl<'a> DcDocumentNavigator<'a> {
                 code,
                 ctb_formats_dcdata::dc::DC_BEGIN_GRAPH_NODE_DEFINITION
                     .to_u128(),
-            )
+            ))
+            && CharTarget::from_u128(code)
+                .and_then(|target| resolver.closer_for_opener(&target))
+                .is_some()
     }
 
     pub(super) fn is_graph_node_definition_opener(
@@ -5081,6 +5084,13 @@ mod tests {
     #[crate::ctb_test]
     fn test_gate1_header_pin_placement_nested_inheritance_and_unsupported_blocks()
     -> Result<()> {
+        let historical_resolver = ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
+            8_589_974_665,
+        )?;
+        assert!(!DcDocumentNavigator::is_document_or_node_scope_opener(
+            ctb_formats_dcdata::dc::DC_BEGIN_DOCUMENT,
+            historical_resolver.as_ref(),
+        ));
         let t1: u128 = 8_589_999_911;
         let t2: u128 = 8_589_999_912;
 
