@@ -292,10 +292,14 @@ and mediates external
 capabilities. Independent emergency host watchdogs protect the process, but
 are not a separate source of logical document budget policy.
 
-The portable standard-WASM bytecode instrumentation path (`instrument_wasm_module_bytes`),
-resumable compute-quota continuation (`increase_compute_quota`), task-level quota
-sharing (`SharedWasmTaskQuota`), and cross-engine verification against V8/Node
-`WebAssembly` are implemented on unmodified `tinywasm 0.8.0`. Remaining work
-for the full supervisor architecture is authoring the top-level 1-Short-Dc
-System supervisor document and its graph-backed user configuration schema in the
-System graph.
+The portable standard-WASM bytecode instrumentation path
+(`instrument_wasm_module_bytes`), resumable compute-quota continuation
+(`increase_compute_quota`), and task-level quota sharing (`SharedWasmTaskQuota`)
+use unmodified `tinywasm 0.8.0`. Offline tests check explicit quota boundaries
+and resumed memory effects. Optional `scripts/test-wasm-compat` compares the
+current instrumented loop/call/bulk-memory/growth fixture with V8/Node
+`WebAssembly`; it is not part of normal tests or CI. General cross-runtime
+conformance and cross-runtime continuation coverage remain pending. Remaining
+work for the full supervisor architecture is authoring the top-level 1-Short-Dc
+System supervisor document and its graph-backed user configuration schema in
+the System graph.

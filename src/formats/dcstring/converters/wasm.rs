@@ -4843,19 +4843,19 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_gate2_portable_compute_quota_cross_engine_tinywasm_vs_v8_and_resumption()
+    fn test_gate2_portable_compute_quota_boundaries_and_resumption()
     -> Result<()> {
         // Hand-crafted standard WASM module exercising:
         // - helper function calls (`call 0`)
         // - loops and conditional branches (`loop`, `br_if`)
-        // - linear-memory side effects (`i32.load`, `i32.store` at mem[64])
-        // - bulk memory (`memory.fill` of 16 bytes at mem[128..144])
+        // - linear-memory side effects (`i32.load`, `i32.store` at mem[32])
+        // - bulk memory (`memory.fill` of 16 bytes at mem[48..64])
         // - `memory.grow(1)`
         // Func 0 (`helper(x: i32) -> i32`): returns `x + 1`
         // Func 1 (`main() -> i32`):
-        //   loops 5 times incrementing `mem[64]` via `helper(mem[64])`,
-        //   then runs `memory.fill(128, 0x5A, 16)`,
-        //   then runs `memory.grow(1)` and stores old pages at `mem[68]`,
+        //   loops 5 times incrementing `mem[32]` via `helper(mem[32])`,
+        //   then runs `memory.fill(48, 0x5A, 16)`,
+        //   then runs `memory.grow(1)` and stores old pages at `mem[36]`,
         //   then returns `0` (`Complete`).
         let wasm: Vec<u8> = vec![
             0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
@@ -4871,12 +4871,12 @@ mod tests {
             0x07, 0x11, 0x02,
             0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
             0x04, b'm', b'a', b'i', b'n', 0x00, 0x01,
-            // Code section: 1 + 8 + 52 = 61 bytes (0x3d)
-            0x0a, 0x3d, 0x02,
+            // Code section: 1 + 8 + 53 = 62 bytes (0x3e)
+            0x0a, 0x3e, 0x02,
             // Body 0 (helper): local.get 0, i32.const 1, i32.add, end (7 bytes)
             0x07, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x0b,
-            // Body 1 (main): 1 local i32 (counter) (51 bytes = 0x33)
-            0x33, 0x01, 0x01, 0x7f,
+            // Body 1 (main): 1 local i32 (counter) (52 bytes = 0x34)
+            0x34, 0x01, 0x01, 0x7f,
             0x03, 0x40, // loop
             0x41, 0x20, // i32.const 32
             0x41, 0x20, // i32.const 32
@@ -4893,7 +4893,7 @@ mod tests {
             0x0b, // end loop
             // memory.fill(48, 0x5A, 16) (cost = 1 + 16 = 17)
             0x41, 0x30, // i32.const 48
-            0x41, 0x5a, // i32.const 0x5A
+            0x41, 0xda, 0x00, // i32.const 0x5A
             0x41, 0x10, // i32.const 16
             0xfc, 0x0b, 0x00, // memory.fill 0
             // mem[36] = memory.grow(1) (cost = 1 + 64 = 65)
@@ -4905,8 +4905,16 @@ mod tests {
             0x0b, // end
         ];
 
-        // Compare exact interruption state across multiple quotas on both `tinywasm` and Node V8.
-        for quota in [1_u64, 5, 12, 35, 65, 95, 200] {
+        let mut compatibility_cases = Vec::new();
+        for (quota, interrupted_op, required_cost, consumed, remaining) in [
+            (1_u64, Some(2_u64), Some(1_u64), 1_u64, 0_u64),
+            (5, Some(6), Some(1), 5, 0),
+            (12, Some(13), Some(1), 12, 0),
+            (35, Some(36), Some(1), 35, 0),
+            (65, Some(66), Some(1), 65, 0),
+            (95, Some(90), Some(17), 89, 6),
+            (200, None, None, 175, 25),
+        ] {
             let limits = DcWasmResourceLimits::default()
                 .with_max_instructions_per_step(quota)
                 .with_max_memory_pages(4);
@@ -4916,83 +4924,52 @@ mod tests {
                 None,
                 limits,
             )?;
-            let instrumented_hex: String = session
-                .instrumented_wasm_bytes()
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect();
-
-            let tiny_res = session.step();
-            let tiny_exhausted = u64::from(tiny_res.is_err());
-            let tiny_interrupted_op =
-                session.last_interrupted_op_ordinal().unwrap_or(0);
-            let tiny_interrupted_cost =
-                session.last_interrupted_op_required_cost().unwrap_or(0);
-            let tiny_consumed = session.last_step_instructions();
-            let tiny_remaining = session.remaining_compute_quota();
-
-            // Execute the exact same instrumented `.wasm` bytes inside Node.js V8 WebAssembly.
-            let js = format!(
-                r#"
-                const bytes = Buffer.from("{instrumented_hex}", "hex");
-                const mod = new WebAssembly.Module(bytes);
-                const inst = new WebAssembly.Instance(mod);
-                const e = inst.exports;
-                e.__ctb_quota_remaining.value = {quota}n;
-                e.__ctb_quota_consumed.value = 0n;
-                e.__ctb_op_ordinal.value = 0n;
-                e.__ctb_interrupted_op.value = 0n;
-                e.__ctb_required_cost.value = 0n;
-                e.__ctb_exhausted.value = 0;
-                e.__ctb_total_mem_pages.value = 1n;
-                e.__ctb_max_mem_pages.value = 4n;
-                e.__ctb_phys_max_mem_pages.value = 4n;
-                try {{ e.main(); }} catch (_) {{}}
-                console.log([
-                    e.__ctb_exhausted.value,
-                    e.__ctb_interrupted_op.value.toString(),
-                    e.__ctb_required_cost.value.toString(),
-                    e.__ctb_quota_consumed.value.toString(),
-                    e.__ctb_quota_remaining.value.toString()
-                ].join(","));
-                "#
-            );
-            let node_out = std::process::Command::new("node")
-                .arg("-e")
-                .arg(&js)
-                .output()?;
-            ensure!(
-                node_out.status.success(),
-                "node V8 execution failed: {}",
-                String::from_utf8_lossy(&node_out.stderr)
-            );
-            let stdout = String::from_utf8(node_out.stdout)?;
-            let parts: Vec<&str> = stdout.trim().split(',').collect();
-            assert_eq!(parts.len(), 5);
-            let v8_exhausted: u64 = parts[0].parse()?;
-            let v8_interrupted_op: u64 = parts[1].parse()?;
-            let v8_interrupted_cost: u64 = parts[2].parse()?;
-            let v8_consumed: u64 = parts[3].parse()?;
-            let v8_remaining: u64 = parts[4].parse()?;
-
+            let instrumented_bytes = session.instrumented_wasm_bytes().to_vec();
+            let result = session.step();
+            let exhausted = interrupted_op.is_some();
+            if exhausted {
+                let err = result.expect_err("Quota must interrupt this step");
+                assert_eq!(
+                    err.downcast_ref::<WasmResourceInterruption>(),
+                    Some(&WasmResourceInterruption::ComputeQuotaExhausted {
+                        limit: quota,
+                    })
+                );
+            } else {
+                assert!(matches!(result?, WasmStepOutcome::Complete(_)));
+                assert_eq!(session.read_memory(32, 4)?, 5_i32.to_le_bytes());
+                assert_eq!(session.read_memory(36, 4)?, 1_i32.to_le_bytes());
+                assert_eq!(session.read_memory(48, 16)?, vec![0x5a; 16]);
+            }
             assert_eq!(
                 (
-                    tiny_exhausted,
-                    tiny_interrupted_op,
-                    tiny_interrupted_cost,
-                    tiny_consumed,
-                    tiny_remaining,
+                    session.last_interrupted_op_ordinal(),
+                    session.last_interrupted_op_required_cost(),
+                    session.last_step_instructions(),
+                    session.remaining_compute_quota(),
                 ),
-                (
-                    v8_exhausted,
-                    v8_interrupted_op,
-                    v8_interrupted_cost,
-                    v8_consumed,
-                    v8_remaining,
-                ),
-                "Compute quota {quota} must produce the exact same logical interruption state on tinywasm and V8"
+                (interrupted_op, required_cost, consumed, remaining),
+                "Compute quota {quota} must stop before the expected operation"
             );
+            compatibility_cases.push(serde_json::json!({
+                "quota": quota,
+                "wasm": instrumented_bytes,
+                "state": {
+                    "exhausted": exhausted,
+                    "interrupted_op": interrupted_op.map(|value| value.to_string()),
+                    "required_cost": required_cost.map(|value| value.to_string()),
+                    "consumed": consumed.to_string(),
+                    "remaining": remaining.to_string(),
+                    "result": if exhausted { None } else { Some(0_i32) },
+                    "memory": session.read_memory(32, 32)?,
+                    "pages": session.current_memory_pages()?,
+                },
+            }));
         }
+        println!(
+            "CTB_WASM_COMPAT {}",
+            serde_json::to_string(&compatibility_cases)?
+        );
 
         // Verify resumption after `increase_compute_quota` completes cleanly without repeating effects.
         let limits = DcWasmResourceLimits::default()
@@ -5011,11 +4988,16 @@ mod tests {
             err.downcast_ref::<WasmResourceInterruption>(),
             Some(&WasmResourceInterruption::ComputeQuotaExhausted { limit: 35 })
         );
-        assert!(session.last_interrupted_op_ordinal().unwrap_or(0) > 0);
+        assert!(
+            session.last_interrupted_op_ordinal().is_some_and(|ordinal| ordinal > 0)
+        );
         session.increase_compute_quota(200);
         let outcome = session.step()?;
         assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
         assert_eq!(session.current_memory_pages()?, 2);
+        assert_eq!(session.read_memory(32, 4)?, 5_i32.to_le_bytes());
+        assert_eq!(session.read_memory(36, 4)?, 1_i32.to_le_bytes());
+        assert_eq!(session.read_memory(48, 16)?, vec![0x5a; 16]);
         Ok(())
     }
 

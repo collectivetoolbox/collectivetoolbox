@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+# Standalone cross-engine WebAssembly compute-quota compatibility test (Node.js V8).
+# Like `scripts/test-compression-cli`, this script is separate from the offline `ci-build-inner`
+# unit test run (where `node` is prohibited and replaced with a stub) and can be executed
+# on demand by developers. Cargo emits the current instrumented bytes and TinyWasm state.
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+echo "=== Running WASM Portable Compute-Quota V8 Compatibility Tests ==="
+
+if ! command -v node >/dev/null 2>&1 || ! node -e "process.exit(0)" >/dev/null 2>&1; then
+    echo "Error: A working Node.js (V8) binary is required for scripts/test-wasm-compat." >&2
+    exit 1
+fi
+
+if [[ "$#" != "0" ]]; then
+    echo "Usage: scripts/test-wasm-compat" >&2
+    exit 1
+fi
+
+test_output="$(mktemp "${TMPDIR:-/tmp}/ctb-wasm-compat.XXXXXX")"
+trap 'rm "$test_output"' EXIT
+
+if ! cargo test -p ctb-formats-dcstring --lib --target x86_64-unknown-linux-musl \
+    converters::wasm::tests::test_gate2_portable_compute_quota_boundaries_and_resumption \
+  -- --exact --nocapture --test-threads=1 > "$test_output"; then
+  cat "$test_output"
+  exit 1
+fi
+
+node - "$test_output" <<'EOF'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+
+const prefix = "CTB_WASM_COMPAT ";
+const records = fs.readFileSync(process.argv[2], "utf8").split(/\r?\n/)
+  .filter(line => line.includes(prefix));
+assert.equal(records.length, 1, "Cargo must emit exactly one compatibility record");
+const record = records[0];
+const cases = JSON.parse(record.slice(record.indexOf(prefix) + prefix.length));
+assert.equal(cases.length, 7, "All quota boundaries must be exercised");
+assert.equal(new Set(cases.map(testCase => testCase.quota)).size, cases.length);
+
+for (const testCase of cases) {
+  const module = new WebAssembly.Module(Uint8Array.from(testCase.wasm));
+  const instance = new WebAssembly.Instance(module);
+  const exports = instance.exports;
+  exports.__ctb_quota_remaining.value = BigInt(testCase.quota);
+  exports.__ctb_quota_consumed.value = 0n;
+  exports.__ctb_op_ordinal.value = 0n;
+  exports.__ctb_interrupted_op.value = 0n;
+  exports.__ctb_required_cost.value = 0n;
+  exports.__ctb_exhausted.value = 0;
+  exports.__ctb_total_mem_pages.value = 1n;
+  exports.__ctb_max_mem_pages.value = 4n;
+  exports.__ctb_phys_max_mem_pages.value = 4n;
+  let result = null;
+  try {
+    result = exports.main();
+    assert.equal(exports.__ctb_exhausted.value, 0);
+  } catch (error) {
+    if (!(error instanceof WebAssembly.RuntimeError) || exports.__ctb_exhausted.value !== 1) {
+      throw error;
+    }
+  }
+  const exhausted = exports.__ctb_exhausted.value === 1;
+  const actual = {
+    exhausted,
+    interrupted_op: exhausted ? exports.__ctb_interrupted_op.value.toString() : null,
+    required_cost: exhausted ? exports.__ctb_required_cost.value.toString() : null,
+    consumed: exports.__ctb_quota_consumed.value.toString(),
+    remaining: exports.__ctb_quota_remaining.value.toString(),
+    result,
+    memory: Array.from(new Uint8Array(exports.memory.buffer, 32, 32)),
+    pages: exports.memory.buffer.byteLength / 65536,
+  };
+  assert.deepStrictEqual(
+    actual,
+    testCase.state,
+    `TinyWasm/V8 execution state differs at compute quota ${testCase.quota}`
+  );
+}
+console.log("TinyWasm/V8 quota, result, and memory checks passed for all seven cases.");
+EOF
+
+echo "WASM portable compute-quota compatibility fixture passed."
