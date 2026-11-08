@@ -140,6 +140,7 @@ pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
 pub use seed_graph::{
     ActivePropertyValue, PRIMARY_SEED_GRAPH_ASSET_KEY, ReconstructedNamedType,
     SEED_GRAPH_ASSET_GLOB, SYSTEM_GRAPH_HISTORY_ASSET_GLOB, SeedGraphIndex,
+    TrustedSystemSupervisorResolution,
 };
 pub use shared::{
     BidiClass, GeneralCategory, SupportLevel, validate_bidi_class,

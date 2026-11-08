@@ -42,17 +42,20 @@ use ctb_storage_minimal::shorthand::DcShorthand;
 use ctb_utilities::format_id::DC_COLLECTIVE_TOOLBOX;
 
 use crate::dc::{
-    DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BEGIN_LIST, DC_BEGIN_LITERAL,
-    DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM, DC_BIDIRECTIONAL_CLASS,
-    DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION, DC_CANONICAL_NAME,
-    DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_APPROXIMATE_DECOMPOSITION, DC_BEGIN_ASSOCIATIVITY_GROUP, DC_BEGIN_LIST,
+    DC_BEGIN_LITERAL, DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
+    DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION,
+    DC_CANONICAL_NAME, DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
+    DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DC_GENERAL_CATEGORY,
     DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
-    DC_END_LIST, DC_ENTITY_TYPE, DC_HAS_A, DC_HAS_VALUE, DC_IN_CONTEXT_OF,
-    DC_IS_INSTANCE_OF, DC_IS_STABLE, DC_PATTERN_REPLACEMENT, DC_PREFERRED,
-    DC_PROGRAMMATIC_IDENTIFIER, DC_REPLACEMENT, DC_RETRACTS,
-    DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES, DC_SYNTAX_RULE, DC_THIS_ELEMENT,
-    DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT, DcChar,
+    DC_END_LIST, DC_ENTITY_TYPE,
+    DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
+    DC_IN_CONTEXT_OF, DC_IS_INSTANCE_OF, DC_IS_STABLE, DC_MANUAL_ENTRY,
+    DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER,
+    DC_REPLACEMENT, DC_RETRACTS, DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT,
+    DcChar,
 };
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
@@ -167,9 +170,49 @@ pub struct SeedGraphIndex {
     /// Active statement node IDs (`Dc 638` `"For each"`, `Dc 584` `"Has a"`, and `Dc 610` `"Has value"`)
     /// that assert `Dc 635` `"Collective Toolbox seed graph data source"`.
     pub(crate) provenance_stmt_ids: HashSet<u128>,
+    /// Set of node IDs loaded from the host-authenticated bundled asset (`ctoolbox.rsrc` /
+    /// `system_graph_history.rsrc`), distinguishing bundled System authority from extra or
+    /// unbundled resources (such as Wikidata).
+    pub(crate) bundled_origin_node_ids: HashSet<u128>,
+    /// Maps a superseded node ID (`old_id`) to the statement node ID (`supersede_stmt_id`)
+    /// of the `Dc 591` `"Supersedes"` statement itself.
+    pub(crate) superseding_stmt_by_old_id: HashMap<u128, u128>,
+    /// All active `Dc 635` `"Collective Toolbox seed graph data source"` assertions targeting
+    /// a node ID (`target_node_id -> Vec<(has_a_stmt_id, has_val_stmt_id, data_source_tok)>`).
+    pub(crate) node_provenance_assertions:
+        HashMap<u128, Vec<(u128, u128, DcShorthand)>>,
+    /// All statement node IDs (active or inactive) whose subject is `subj`.
+    pub(crate) subject_all_stmt_ids: HashMap<DcShorthand, Vec<u128>>,
+    /// All `Dc 610` `"Has value"` statement nodes (`(has_val_id, val_tok)`, active or inactive)
+    /// targeting a `Dc 584` / `Dc 638` statement node ID (`has_a_id`).
+    pub(crate) has_val_stmt_ids_by_has_a:
+        HashMap<u128, Vec<(u128, DcShorthand)>>,
     /// Highest allocated node ID in the System block at the time the graph bundle was created
     /// (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`).
     pub(crate) system_block_most_recent_node_id: Option<u128>,
+}
+
+/// Verified resolution of an unpinned 1-Short-Dc System supervisor entry document
+/// against the application-bundled System-block seed graph (`ctoolbox.rsrc`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrustedSystemSupervisorResolution {
+    /// Unpinned Short Dc entry character that was resolved.
+    pub entry_dc: DcChar,
+    /// Active System-block statement node ID (`Dc 584` `"Has a"` or `Dc 594` `"Syntax rule"`)
+    /// binding `entry_dc` to its active definition.
+    pub statement_node_id: u128,
+    /// Active `Dc 610` `"Has value"` statement node ID assigning the definition node to `statement_node_id`.
+    pub value_statement_node_id: u128,
+    /// Active System-block definition node ID (`Dc 1927` `"Begin WASM program"` or routine node)
+    /// representing the resolved supervisor revision.
+    pub supervisor_revision_node_id: u128,
+    /// Highest allocated System-block node ID (`HEAD` watermark) of the trusted graph.
+    pub system_head_node_id: u128,
+    /// Deterministically sorted list of all transitive System-block dependency node IDs
+    /// reachable from the supervisor definition (including `supervisor_revision_node_id`).
+    pub dependency_snapshot_node_ids: Vec<u128>,
+    /// Raw `.WASM` / supervisor definition tokens from `supervisor_revision_node_id`.
+    pub definition_tokens: Vec<DcShorthand>,
 }
 
 /// Parses a `Dc 348 "Ambiguous values"` list node (`348 310 275 l<cand_1> 312 l<cand_2> ... 311`)
@@ -285,7 +328,7 @@ impl SeedGraphIndex {
                 first.id
             );
         }
-        let mut index = Self::from_nodes(active_nodes);
+        let mut index = Self::from_bundled_nodes(active_nodes);
         if let Some(wm) = active_most_recent {
             index.system_block_most_recent_node_id = Some(
                 index
@@ -303,7 +346,7 @@ impl SeedGraphIndex {
     pub fn load_with_history_from_asset_bundle() -> Result<Self> {
         let (bundle_most_recent, merged) =
             Self::load_merged_nodes_with_history()?;
-        let mut index = Self::from_nodes(merged);
+        let mut index = Self::from_bundled_nodes(merged);
         if let Some(wm) = bundle_most_recent {
             index.system_block_most_recent_node_id = Some(
                 index
@@ -428,10 +471,13 @@ impl SeedGraphIndex {
                 "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is incomplete: missing node l{expected_id}..=l{most_recent_node_id} for historical pin l{most_recent_node_id}"
             );
         }
-        Ok(Self::from_nodes_at_most_recent(
+        let mut index = Self::from_nodes_at_most_recent(
             merged,
             most_recent_node_id,
-        ))
+        );
+        index.bundled_origin_node_ids =
+            index.nodes.iter().map(|node| node.id).collect();
+        Ok(index)
     }
 
     fn load_merged_nodes_with_history() -> Result<(Option<u128>, Vec<LedgerNode>)>
@@ -620,6 +666,60 @@ impl SeedGraphIndex {
         Self::from_nodes_with_single_props(nodes, &single_props)
     }
 
+    /// Builds a `SeedGraphIndex` from an ordered list of host-authenticated bundled `LedgerNode`s
+    /// (loaded from `ctoolbox.rsrc` / `system_graph_history.rsrc`), marking all supplied System-region
+    /// nodes as having authenticated bundled origin.
+    #[must_use]
+    pub fn from_bundled_nodes(nodes: Vec<LedgerNode>) -> Self {
+        let bundled_ids: HashSet<u128> = nodes
+            .iter()
+            .filter(|n| (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&n.id))
+            .map(|n| n.id)
+            .collect();
+        let mut index = Self::from_nodes(nodes);
+        index.bundled_origin_node_ids = bundled_ids;
+        index
+    }
+
+    /// Builds a `SeedGraphIndex` combining host-authenticated bundled System nodes (`bundled_nodes`)
+    /// with extra/unbundled nodes (`extra_nodes`, such as Wikidata or external resource bundles).
+    ///
+    /// Only nodes originating from `bundled_nodes` are recorded in `bundled_origin_node_ids`;
+    /// `extra_nodes` cannot supply bootstrap authority even if their numeric node IDs or
+    /// self-asserted `Dc 635` provenance claims mimic bundled System nodes.
+    pub fn from_bundled_and_extra_nodes(
+        bundled_nodes: Vec<LedgerNode>,
+        extra_nodes: Vec<LedgerNode>,
+    ) -> Result<Self> {
+        let mut bundled_ids = HashSet::with_capacity(bundled_nodes.len());
+        let bundled_most_recent = bundled_nodes.iter().map(|n| n.id).max();
+        for node in &bundled_nodes {
+            ensure!(
+                (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&node.id),
+                "Bundled System node l{} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})",
+                node.id
+            );
+            bundled_ids.insert(node.id);
+        }
+        for extra in &extra_nodes {
+            ensure!(
+                !bundled_ids.contains(&extra.id),
+                "Extra unbundled node ID l{} collides with an existing bundled System node ID",
+                extra.id
+            );
+        }
+        let mut combined = Vec::with_capacity(
+            bundled_nodes.len().saturating_add(extra_nodes.len()),
+        );
+        combined.extend(bundled_nodes);
+        combined.extend(extra_nodes);
+        combined.sort_by_key(|n| n.id);
+        let mut index = Self::from_nodes(combined);
+        index.bundled_origin_node_ids = bundled_ids;
+        index.system_block_most_recent_node_id = bundled_most_recent;
+        Ok(index)
+    }
+
     /// Builds a `SeedGraphIndex` reflecting the System-block graph state as of `most_recent_node_id`
     /// (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`),
     /// ignoring any statements, supersessions (`Dc 591`), or retractions (`Dc 592`) allocated
@@ -670,6 +770,74 @@ impl SeedGraphIndex {
 
         let (mut inactive_ids, superseded_by, retracted_by) =
             compute_effective_inactive_ids(&nodes);
+
+        let mut superseding_stmt_by_old_id: HashMap<u128, u128> =
+            HashMap::new();
+        let mut subject_all_stmt_ids: HashMap<DcShorthand, Vec<u128>> =
+            HashMap::new();
+        let mut has_val_stmt_ids_by_has_a: HashMap<
+            u128,
+            Vec<(u128, DcShorthand)>,
+        > = HashMap::new();
+        let mut node_provenance_assertions: HashMap<
+            u128,
+            Vec<(u128, u128, DcShorthand)>,
+        > = HashMap::new();
+
+        for node in &nodes {
+            if let Some((verb, subj, obj)) =
+                parse_statement_tokens(&node.tokens)
+            {
+                if verb == sh_supersedes {
+                    if let DcShorthand::Long(old_id) = obj
+                        && !inactive_ids.contains(&node.id)
+                    {
+                        superseding_stmt_by_old_id.insert(old_id, node.id);
+                    }
+                } else if verb == sh_has_value {
+                    if let DcShorthand::Long(has_a_id) = subj {
+                        has_val_stmt_ids_by_has_a
+                            .entry(has_a_id)
+                            .or_default()
+                            .push((node.id, obj));
+                    }
+                } else if verb != sh_retracts {
+                    let eff_subj = if subj == sh_enclosing_doc {
+                        DcShorthand::Long(node.id)
+                    } else {
+                        subj
+                    };
+                    subject_all_stmt_ids
+                        .entry(eff_subj)
+                        .or_default()
+                        .push(node.id);
+                }
+            } else if let Some((
+                inner_verb,
+                inner_subj,
+                _inner_obj,
+                _list_type,
+                targets,
+            )) = parse_for_each_statement_tokens(&node.tokens)
+                && inner_verb != sh_has_value
+                && inner_verb != sh_supersedes
+                && inner_verb != sh_retracts
+            {
+                for &elem in &targets {
+                    let eff_subj = if inner_subj == sh_this_element {
+                        elem
+                    } else if inner_subj == sh_enclosing_doc {
+                        DcShorthand::Long(node.id)
+                    } else {
+                        inner_subj
+                    };
+                    subject_all_stmt_ids
+                        .entry(eff_subj)
+                        .or_default()
+                        .push(node.id);
+                }
+            }
+        }
 
         // First pass: index active value nodes and find active `610` (`Has value`) and `584 <s1> 570` (`Preferred`) nodes.
         let mut value_node_by_tokens = HashMap::new();
@@ -846,6 +1014,14 @@ impl SeedGraphIndex {
                                     if let DcShorthand::Long(target_node_id) =
                                         subj
                                     {
+                                        node_provenance_assertions
+                                            .entry(target_node_id)
+                                            .or_default()
+                                            .push((
+                                                node.id,
+                                                has_val_id,
+                                                val_tok,
+                                            ));
                                         node_data_source
                                             .insert(target_node_id, val_tok);
                                     }
@@ -975,6 +1151,10 @@ impl SeedGraphIndex {
                             provenance_stmt_ids.insert(node.id);
                             for &(has_val_id, val_tok) in has_vals {
                                 provenance_stmt_ids.insert(has_val_id);
+                                node_provenance_assertions
+                                    .entry(target_node_id)
+                                    .or_default()
+                                    .push((node.id, has_val_id, val_tok));
                                 node_data_source
                                     .insert(target_node_id, val_tok);
                             }
@@ -1171,6 +1351,11 @@ impl SeedGraphIndex {
             orphaned_stmt_ids,
             node_data_source,
             provenance_stmt_ids,
+            bundled_origin_node_ids: HashSet::new(),
+            superseding_stmt_by_old_id,
+            node_provenance_assertions,
+            subject_all_stmt_ids,
+            has_val_stmt_ids_by_has_a,
             system_block_most_recent_node_id,
         }
     }
@@ -1644,6 +1829,425 @@ impl SeedGraphIndex {
             return Some(node.tokens.as_slice());
         }
         None
+    }
+
+    /// Returns `true` if `source` is a trusted Collective Toolbox seed graph provenance source:
+    /// `Dc 636 "Collective Toolbox Dc CSV seed database"` or `Dc 637 "Manual entry"`.
+    #[must_use]
+    pub fn is_trusted_seed_graph_data_source(source: DcShorthand) -> bool {
+        source == sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE)
+            || source == sh(DC_MANUAL_ENTRY)
+    }
+
+    /// Returns `true` if `node_id` originated from the host-authenticated bundled asset
+    /// (`ctoolbox.rsrc` / `system_graph_history.rsrc`).
+    #[must_use]
+    pub fn is_bundled_origin_node(&self, node_id: u128) -> bool {
+        self.bundled_origin_node_ids.contains(&node_id)
+    }
+
+    /// Verifies that `node_id` resides in the System block (`8_589_934_592..=17_179_869_183`),
+    /// originated from the host-authenticated bundled asset (`ctoolbox.rsrc` /
+    /// `system_graph_history.rsrc`), and carries verified `Dc 635`
+    /// (`"Collective Toolbox seed graph data source"`) provenance (`Dc 636` or `Dc 637`)
+    /// asserted by bundled System-block provenance statements.
+    ///
+    /// # Errors
+    /// Returns an error if `node_id` is outside the System block, missing from the index,
+    /// from an extra/unbundled resource, missing `Dc 635` provenance, or associated with an
+    /// untrusted or unbundled `Dc 635` provenance statement.
+    pub fn verify_authenticated_bundled_system_provenance(
+        &self,
+        node_id: u128,
+    ) -> Result<()> {
+        ensure!(
+            (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&node_id),
+            "Node l{node_id} is outside the System block ({SYSTEM_REGION_START}..={SYSTEM_REGION_END}) and cannot supply bootstrap or supervisor authority"
+        );
+        ensure!(
+            self.node_index_by_id.contains_key(&node_id),
+            "System node l{node_id} is not present in the loaded seed graph"
+        );
+        ensure!(
+            self.bundled_origin_node_ids.contains(&node_id),
+            "Node l{node_id} did not originate from the authenticated bundled System asset (ctoolbox.rsrc); extra or unbundled resources cannot supply bootstrap authority"
+        );
+
+        if self.provenance_stmt_ids.contains(&node_id) {
+            if let Some(assertions) = self.node_provenance_assertions.get(&node_id)
+            {
+                for &(has_a_id, has_val_id, source_tok) in assertions {
+                    ensure!(
+                        (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                            .contains(&has_a_id)
+                            && (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                                .contains(&has_val_id),
+                        "Provenance statement for l{node_id} (l{has_a_id} / l{has_val_id}) is outside the System block"
+                    );
+                    ensure!(
+                        self.bundled_origin_node_ids.contains(&has_a_id)
+                            && self.bundled_origin_node_ids.contains(&has_val_id),
+                        "Provenance statement for l{node_id} (l{has_a_id} / l{has_val_id}) did not originate from the authenticated bundled asset"
+                    );
+                    ensure!(
+                        Self::is_trusted_seed_graph_data_source(source_tok),
+                        "Provenance statement for l{node_id} declares untrusted data source {source_tok} (expected Dc 636 or Dc 637)"
+                    );
+                }
+            }
+            return Ok(());
+        }
+
+        let Some(assertions) = self.node_provenance_assertions.get(&node_id)
+        else {
+            bail!(
+                "System node l{node_id} has no active Dc 635 (Collective Toolbox seed graph data source) provenance assertion"
+            );
+        };
+        ensure!(
+            !assertions.is_empty(),
+            "System node l{node_id} has no active Dc 635 (Collective Toolbox seed graph data source) provenance assertion"
+        );
+        for &(has_a_id, has_val_id, source_tok) in assertions {
+            ensure!(
+                (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&has_a_id)
+                    && (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                        .contains(&has_val_id),
+                "Provenance statement for System node l{node_id} (l{has_a_id} / l{has_val_id}) is outside the System block"
+            );
+            ensure!(
+                self.bundled_origin_node_ids.contains(&has_a_id)
+                    && self.bundled_origin_node_ids.contains(&has_val_id),
+                "Provenance statement for System node l{node_id} (l{has_a_id} / l{has_val_id}) did not originate from the authenticated bundled asset"
+            );
+            ensure!(
+                Self::is_trusted_seed_graph_data_source(source_tok),
+                "System node l{node_id} has untrusted Dc 635 data source {source_tok} (expected Dc 636 or Dc 637)"
+            );
+        }
+        Ok(())
+    }
+
+    /// Verifies that `node_id` and every `Dc 591 "Supersedes"` / `Dc 592 "Retracts"` statement
+    /// along its revision chain satisfy [`Self::verify_authenticated_bundled_system_provenance`].
+    pub fn verify_node_supersession_and_retraction_chain(
+        &self,
+        node_id: u128,
+    ) -> Result<()> {
+        let mut current = node_id;
+        let mut visited = HashSet::new();
+        loop {
+            if !visited.insert(current) {
+                bail!(
+                    "Detected supersession cycle while verifying provenance chain starting at l{node_id}"
+                );
+            }
+            self.verify_authenticated_bundled_system_provenance(current)?;
+            if let Some(&retract_stmt_id) = self.retracted_by.get(&current) {
+                self.verify_authenticated_bundled_system_provenance(
+                    retract_stmt_id,
+                )
+                .with_context(|| {
+                    format!(
+                        "Untrusted or unbundled Dc 592 retraction statement l{retract_stmt_id} targeting l{current}"
+                    )
+                })?;
+            }
+            if let Some(&sup_stmt_id) =
+                self.superseding_stmt_by_old_id.get(&current)
+            {
+                self.verify_authenticated_bundled_system_provenance(
+                    sup_stmt_id,
+                )
+                .with_context(|| {
+                    format!(
+                        "Untrusted or unbundled Dc 591 supersession statement l{sup_stmt_id} targeting l{current}"
+                    )
+                })?;
+            }
+            if let Some(&next_id) = self.superseded_by.get(&current) {
+                current = next_id;
+            } else {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    /// Verifies that every statement (active or historical) touching `subj`, together with all
+    /// `Dc 610 "Has value"` value statements and `Dc 591 "Supersedes"` / `Dc 592 "Retracts"`
+    /// statements on those chains, satisfies [`Self::verify_authenticated_bundled_system_provenance`].
+    pub fn verify_subject_provenance_and_history(
+        &self,
+        subj: DcShorthand,
+    ) -> Result<()> {
+        if let Some(stmt_ids) = self.subject_all_stmt_ids.get(&subj) {
+            for &stmt_id in stmt_ids {
+                self.verify_node_supersession_and_retraction_chain(stmt_id)
+                    .with_context(|| {
+                        format!(
+                            "Statement l{stmt_id} on subject {subj} failed bundled System provenance verification"
+                        )
+                    })?;
+                if let Some(has_vals) =
+                    self.has_val_stmt_ids_by_has_a.get(&stmt_id)
+                {
+                    for &(has_val_id, _) in has_vals {
+                        self.verify_node_supersession_and_retraction_chain(
+                            has_val_id,
+                        )
+                        .with_context(|| {
+                            format!(
+                                "Value statement l{has_val_id} on statement l{stmt_id} (subject {subj}) failed bundled System provenance verification"
+                            )
+                        })?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_active_wasm_definition_entry(
+        &self,
+        subj: DcShorthand,
+    ) -> Option<(u128, u128, u128, Vec<DcShorthand>)> {
+        for prop_dc in [
+            DC_CANONICAL_DECOMPOSITION,
+            DC_DECOMPOSITION,
+            DC_SEMANTIC_DECOMPOSITION,
+            DC_APPROXIMATE_DECOMPOSITION,
+        ] {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                if let DcShorthand::Long(def_id) = entry.value
+                    && let Some(resolved_def_id) =
+                        self.resolve_latest_node_id(def_id)
+                    && let Some(node) = self.get_node(resolved_def_id)
+                    && Self::tokens_start_wasm_definition(&node.tokens)
+                {
+                    return Some((
+                        entry.has_a_id,
+                        entry.has_val_id,
+                        resolved_def_id,
+                        node.tokens.clone(),
+                    ));
+                }
+            }
+        }
+
+        let rule_entry =
+            self.get_single_property_entry(subj, sh(DC_SYNTAX_RULE))?;
+        let DcShorthand::Long(rule_node_id) = rule_entry.value else {
+            return None;
+        };
+        let resolved_rule_node_id = self.resolve_latest_node_id(rule_node_id)?;
+        let rule_node = self.get_node(resolved_rule_node_id)?;
+        let rule_tokens = rule_node.tokens.as_slice();
+        let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
+        let sh_close = sh(DC_END_ASSOCIATIVITY_GROUP);
+        let sh_repl = sh(DC_PATTERN_REPLACEMENT);
+        if rule_tokens.last() != Some(&sh_close) {
+            return None;
+        }
+        let mut depth = 0usize;
+        let mut open_idx = None;
+        for (idx, &tok) in rule_tokens.iter().enumerate().rev() {
+            if tok == sh_close {
+                depth = depth.saturating_add(1);
+            } else if tok == sh_open {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    open_idx = Some(idx);
+                    break;
+                }
+            }
+        }
+        let start = open_idx?;
+        let group_slice = rule_tokens.get(start..)?;
+        if group_slice.get(1) != Some(&sh_repl) {
+            return None;
+        }
+        let inner = group_slice.get(2..group_slice.len().saturating_sub(1))?;
+        if Self::tokens_start_wasm_definition(inner) {
+            return Some((
+                rule_entry.has_a_id,
+                rule_entry.has_val_id,
+                resolved_rule_node_id,
+                inner.to_vec(),
+            ));
+        }
+        if inner.len() == 1
+            && let Some(&DcShorthand::Long(target_id)) = inner.first()
+            && let Some(resolved_target_id) =
+                self.resolve_latest_node_id(target_id)
+            && let Some(node) = self.get_node(resolved_target_id)
+            && Self::tokens_start_wasm_definition(&node.tokens)
+        {
+            return Some((
+                rule_entry.has_a_id,
+                rule_entry.has_val_id,
+                resolved_target_id,
+                node.tokens.clone(),
+            ));
+        }
+        None
+    }
+
+    /// Resolves an unpinned 1-Short-Dc bootstrap entry document (`bootstrap_tokens`) to its
+    /// latest trusted System-block definition from the application-bundled trusted base (`ctoolbox.rsrc`).
+    ///
+    /// # Errors
+    /// Returns an error if `bootstrap_tokens` is empty, begins with a `Dc 641` pin, contains
+    /// multiple tokens or a non-Short Dc, or if any statement, supersession/retraction chain,
+    /// or transitive dependency fails authenticated bundled System provenance verification.
+    pub fn resolve_trusted_system_supervisor_bootstrap_tokens(
+        &self,
+        bootstrap_tokens: &[DcShorthand],
+    ) -> Result<TrustedSystemSupervisorResolution> {
+        let Some(&first) = bootstrap_tokens.first() else {
+            bail!(
+                "System supervisor bootstrap entry document cannot be empty (expected 1 unpinned Short Dc)"
+            );
+        };
+        if first
+            == sh(DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID)
+        {
+            bail!(
+                "System supervisor bootstrap entry document must be unpinned; Dc 641 (Global graph system block most recent node ID at time of document creation) pin is not permitted"
+            );
+        }
+        ensure!(
+            bootstrap_tokens.len() == 1,
+            "System supervisor bootstrap entry document must consist of exactly 1 unpinned Short Dc, found {} tokens",
+            bootstrap_tokens.len()
+        );
+        let DcShorthand::Short(short_id) = first else {
+            bail!(
+                "System supervisor bootstrap entry document must be a Short Dc, found {first}"
+            );
+        };
+        self.resolve_trusted_system_supervisor_dc(DcChar::from_short(short_id))
+    }
+
+    /// Resolves the unpinned Short Dc `entry_dc` to its latest active System-block supervisor
+    /// definition, verifying authenticated bundled-origin statement provenance (`ctoolbox.rsrc` +
+    /// trusted `Dc 635` = `Dc 636` or `Dc 637`) across the entry character's statements,
+    /// supersession (`Dc 591`) and retraction (`Dc 592`) chains, and all transitive dependencies.
+    pub fn resolve_trusted_system_supervisor_dc(
+        &self,
+        entry_dc: DcChar,
+    ) -> Result<TrustedSystemSupervisorResolution> {
+        ensure!(
+            matches!(sh(entry_dc), DcShorthand::Short(_)),
+            "System supervisor entry Dc must be a Short Dc, found {entry_dc}"
+        );
+        ensure!(
+            entry_dc != DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+            "Dc 641 (Global graph system block most recent node ID at time of document creation) cannot be used as the System supervisor entry Dc"
+        );
+        let system_head_node_id = self
+            .system_block_most_recent_node_id()
+            .context("System seed graph has no allocated System-block HEAD node ID")?;
+        ensure!(
+            (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                .contains(&system_head_node_id),
+            "System seed graph HEAD l{system_head_node_id} is outside the System block"
+        );
+
+        let subj = sh(entry_dc);
+        self.verify_subject_provenance_and_history(subj)?;
+
+        let (
+            statement_node_id,
+            value_statement_node_id,
+            supervisor_revision_node_id,
+            definition_tokens,
+        ) = self
+            .resolve_active_wasm_definition_entry(subj)
+            .with_context(|| {
+                format!(
+                    "No active System-block WASM supervisor definition found for {entry_dc}"
+                )
+            })?;
+
+        self.verify_node_supersession_and_retraction_chain(statement_node_id)?;
+        self.verify_node_supersession_and_retraction_chain(
+            value_statement_node_id,
+        )?;
+        self.verify_node_supersession_and_retraction_chain(
+            supervisor_revision_node_id,
+        )?;
+
+        // Traverse and verify all transitive dependencies reachable from the supervisor definition.
+        let mut dependency_set = std::collections::BTreeSet::new();
+        let mut queue = std::collections::VecDeque::new();
+        let mut visited_subjects = HashSet::new();
+        visited_subjects.insert(subj);
+        queue.push_back(supervisor_revision_node_id);
+
+        while let Some(node_id) = queue.pop_front() {
+            if !dependency_set.insert(node_id) {
+                continue;
+            }
+            self.verify_node_supersession_and_retraction_chain(node_id)
+                .with_context(|| {
+                    format!(
+                        "Transitive supervisor dependency node l{node_id} failed bundled System provenance verification"
+                    )
+                })?;
+            let resolved_id = self
+                .resolve_latest_node_id(node_id)
+                .with_context(|| {
+                    format!(
+                        "Transitive supervisor dependency node l{node_id} is retracted or unresolvable"
+                    )
+                })?;
+            if resolved_id != node_id && dependency_set.insert(resolved_id) {
+                self.verify_node_supersession_and_retraction_chain(resolved_id)?;
+            }
+            let node = self.get_node(resolved_id).with_context(|| {
+                format!(
+                    "Transitive supervisor dependency node l{resolved_id} is missing from seed graph"
+                )
+            })?;
+            for &tok in &node.tokens {
+                if let DcShorthand::Long(dep_id) = tok {
+                    ensure!(
+                        (SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                            .contains(&dep_id),
+                        "Supervisor definition node l{resolved_id} references non-System node l{dep_id}"
+                    );
+                    if !dependency_set.contains(&dep_id) {
+                        queue.push_back(dep_id);
+                    }
+                }
+                if visited_subjects.insert(tok)
+                    && let Some((dep_stmt_id, dep_val_id, dep_def_id, _)) =
+                        self.resolve_active_wasm_definition_entry(tok)
+                {
+                    self.verify_subject_provenance_and_history(tok)?;
+                    self.verify_node_supersession_and_retraction_chain(
+                        dep_stmt_id,
+                    )?;
+                    self.verify_node_supersession_and_retraction_chain(
+                        dep_val_id,
+                    )?;
+                    if !dependency_set.contains(&dep_def_id) {
+                        queue.push_back(dep_def_id);
+                    }
+                }
+            }
+        }
+
+        Ok(TrustedSystemSupervisorResolution {
+            entry_dc,
+            statement_node_id,
+            value_statement_node_id,
+            supervisor_revision_node_id,
+            system_head_node_id,
+            dependency_snapshot_node_ids: dependency_set.into_iter().collect(),
+            definition_tokens,
+        })
     }
 }
 
@@ -2570,6 +3174,304 @@ mod tests {
                 .resolve_named_type("asciiprintable")
                 .is_some(),
             "Historical asciiprintable construct with legacy Dc 4 range should decode at l8589958931"
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_trusted_system_supervisor_resolution_and_bundled_provenance()
+    -> Result<()> {
+        let base_id = SYSTEM_REGION_START;
+        let entry_dc = DcChar::from_short(527);
+        let helper_dc = DcChar::from_short(528);
+        let sh_entry = sh(entry_dc);
+        let sh_helper = sh(helper_dc);
+
+        // Helper WASM routine node `l(base_id)`
+        let helper_def_id = base_id;
+        let helper_tokens = vec![
+            sh(DC_BEGIN_WASM_PROGRAM),
+            DcShorthand::Short(712),
+            sh(crate::dc::DC_BEGIN_NUMBER),
+            DcShorthand::Format(199),
+            sh(crate::dc::DC_END_NUMBER),
+            DcShorthand::Short(1928),
+        ];
+        // Helper statements `584 528 611` (`l(base_id + 1)`) and `610 l(base_id + 1) l(base_id)` (`l(base_id + 2)`)
+        let helper_has_a_id = base_id + 1;
+        let helper_has_val_id = base_id + 2;
+
+        // Supervisor revision 1 (`l(base_id + 3)`), superseded by revision 2 (`l(base_id + 6)`)
+        let sup_v1_def_id = base_id + 3;
+        let sup_v1_has_a_id = base_id + 4;
+        let sup_v1_has_val_id = base_id + 5;
+
+        // Supervisor revision 2 (`l(base_id + 6)`) referencing `helper_dc` (`528`) and `l(helper_def_id)`
+        let sup_v2_def_id = base_id + 6;
+        let sup_v2_tokens = vec![
+            sh(DC_BEGIN_WASM_PROGRAM),
+            sh_helper,
+            DcShorthand::Long(helper_def_id),
+            DcShorthand::Short(1928),
+        ];
+        let sup_v2_has_a_id = base_id + 7;
+        let sup_v2_has_val_id = base_id + 8;
+        let sup_stmt_id = base_id + 9; // `591 l(sup_v2_has_a_id) l(sup_v1_has_a_id)`
+
+        // Bundled `Dc 635` provenance (`Dc 636`) covering all bundled nodes `base_id..=sup_stmt_id`
+        let prov_has_a_id = base_id + 10;
+        let prov_has_val_id = base_id + 11;
+        let mut prov_for_each_tokens = vec![
+            sh(crate::dc::DC_FOR_EACH),
+            sh(DC_HAS_A),
+            sh(DC_THIS_ELEMENT),
+            sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE),
+            sh(DC_BEGIN_LIST),
+            sh(crate::dc::DC_TYPE_ATOM_DC),
+        ];
+        for id in base_id..=sup_stmt_id {
+            if id > base_id {
+                prov_for_each_tokens.push(DcShorthand::Short(312));
+            }
+            prov_for_each_tokens.push(DcShorthand::Long(id));
+        }
+        prov_for_each_tokens.push(sh(DC_END_LIST));
+
+        let bundled_nodes = vec![
+            LedgerNode {
+                id: helper_def_id,
+                tokens: helper_tokens.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: helper_has_a_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    sh_helper,
+                    sh(DC_CANONICAL_DECOMPOSITION),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: helper_has_val_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(helper_has_a_id),
+                    DcShorthand::Long(helper_def_id),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_v1_def_id,
+                tokens: helper_tokens.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_v1_has_a_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    sh_entry,
+                    sh(DC_CANONICAL_DECOMPOSITION),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_v1_has_val_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(sup_v1_has_a_id),
+                    DcShorthand::Long(sup_v1_def_id),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_v2_def_id,
+                tokens: sup_v2_tokens.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_v2_has_a_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    sh_entry,
+                    sh(DC_CANONICAL_DECOMPOSITION),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_v2_has_val_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(sup_v2_has_a_id),
+                    DcShorthand::Long(sup_v2_def_id),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: sup_stmt_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(sup_v2_has_a_id),
+                    DcShorthand::Long(sup_v1_has_a_id),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: prov_has_a_id,
+                tokens: prov_for_each_tokens,
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: prov_has_val_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(prov_has_a_id),
+                    sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE),
+                ),
+                comment: String::new(),
+            },
+        ];
+
+        let trusted_idx =
+            SeedGraphIndex::from_bundled_nodes(bundled_nodes.clone());
+        let resolved = trusted_idx
+            .resolve_trusted_system_supervisor_bootstrap_tokens(&[sh_entry])?;
+        assert_eq!(resolved.entry_dc, entry_dc);
+        assert_eq!(resolved.statement_node_id, sup_v2_has_a_id);
+        assert_eq!(resolved.value_statement_node_id, sup_v2_has_val_id);
+        assert_eq!(resolved.supervisor_revision_node_id, sup_v2_def_id);
+        assert_eq!(resolved.system_head_node_id, prov_has_val_id);
+        assert_eq!(
+            resolved.dependency_snapshot_node_ids,
+            vec![helper_def_id, sup_v2_def_id]
+        );
+        assert_eq!(resolved.definition_tokens, sup_v2_tokens);
+
+        // 1. Reject `Dc 641` pinned or multi-token bootstrap documents.
+        let pinned_err = trusted_idx
+            .resolve_trusted_system_supervisor_bootstrap_tokens(&[
+                sh(DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID),
+                DcShorthand::Long(prov_has_val_id),
+                sh_entry,
+            ])
+            .expect_err("Pinned bootstrap document must be rejected");
+        assert!(pinned_err.to_string().contains("unpinned"));
+        assert!(
+            trusted_idx
+                .resolve_trusted_system_supervisor_bootstrap_tokens(&[
+                    sh_entry, sh_helper
+                ])
+                .is_err()
+        );
+        assert!(
+            trusted_idx
+                .resolve_trusted_system_supervisor_bootstrap_tokens(&[
+                    DcShorthand::Long(sup_v2_def_id)
+                ])
+                .is_err()
+        );
+
+        // 2. Reject unbundled nodes even if they have System-block IDs and forged `Dc 635 = Dc 636` claims.
+        let unbundled_idx = SeedGraphIndex::from_nodes(bundled_nodes.clone());
+        let unbundled_err = unbundled_idx
+            .resolve_trusted_system_supervisor_dc(entry_dc)
+            .expect_err("Unbundled nodes must not supply bootstrap authority");
+        assert!(
+            format!("{unbundled_err:#}")
+                .contains("authenticated bundled System asset"),
+            "Unexpected error: {unbundled_err:#}"
+        );
+
+        // 3. Reject extra/unbundled nodes attempting to supersede (`Dc 591`) the bundled supervisor definition.
+        let extra_def_id = base_id + 20;
+        let extra_has_a_id = base_id + 21;
+        let extra_has_val_id = base_id + 22;
+        let extra_sup_id = base_id + 23;
+        let extra_prov_a = base_id + 24;
+        let extra_prov_v = base_id + 25;
+        let extra_nodes = vec![
+            LedgerNode {
+                id: extra_def_id,
+                tokens: helper_tokens.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: extra_has_a_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    sh_entry,
+                    sh(DC_CANONICAL_DECOMPOSITION),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: extra_has_val_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(extra_has_a_id),
+                    DcShorthand::Long(extra_def_id),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: extra_sup_id,
+                tokens: encode_statement_tokens(
+                    sh(DC_SUPERSEDES),
+                    DcShorthand::Long(extra_has_a_id),
+                    DcShorthand::Long(sup_v2_has_a_id),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: extra_prov_a,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_A),
+                    DcShorthand::Long(extra_sup_id),
+                    sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE),
+                ),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: extra_prov_v,
+                tokens: encode_statement_tokens(
+                    sh(DC_HAS_VALUE),
+                    DcShorthand::Long(extra_prov_a),
+                    sh(DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE),
+                ),
+                comment: String::new(),
+            },
+        ];
+        let mixed_idx = SeedGraphIndex::from_bundled_and_extra_nodes(
+            bundled_nodes.clone(),
+            extra_nodes,
+        )?;
+        let poison_err = mixed_idx
+            .resolve_trusted_system_supervisor_dc(entry_dc)
+            .expect_err("Extra unbundled supersession must fail provenance check");
+        assert!(
+            format!("{poison_err:#}")
+                .contains("authenticated bundled System asset"),
+            "Unexpected error: {poison_err:#}"
+        );
+
+        // 4. Reject bundled nodes whose `Dc 635` provenance is an untrusted source (e.g. Wikidata / Format(999)).
+        let mut untrusted_source_nodes = bundled_nodes;
+        untrusted_source_nodes.last_mut().unwrap().tokens =
+            encode_statement_tokens(
+                sh(DC_HAS_VALUE),
+                DcShorthand::Long(prov_has_a_id),
+                DcShorthand::Format(999),
+            );
+        let untrusted_idx =
+            SeedGraphIndex::from_bundled_nodes(untrusted_source_nodes);
+        let untrusted_err = untrusted_idx
+            .resolve_trusted_system_supervisor_dc(entry_dc)
+            .expect_err("Untrusted Dc 635 data source must be rejected");
+        assert!(
+            format!("{untrusted_err:#}")
+                .contains("untrusted Dc 635 data source"),
+            "Unexpected error: {untrusted_err:#}"
         );
 
         Ok(())
