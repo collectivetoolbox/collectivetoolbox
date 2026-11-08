@@ -1469,6 +1469,161 @@ impl WasmStepStatus {
     }
 }
 
+/// Default maximum number of WASM instructions permitted in a single [`DcWasmSession::step`] call.
+pub const DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP: u64 = 1_000_000;
+
+/// Default maximum number of 64 KiB linear memory pages permitted for a [`DcWasmSession`] (16 MiB).
+pub const DEFAULT_MAX_WASM_MEMORY_PAGES: usize = 256;
+
+/// Default maximum byte length permitted for a single step's output mailbox slice (4 MiB).
+pub const DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
+
+/// Default maximum cumulative output bytes permitted across a [`DcWasmSession`] (16 MiB).
+pub const DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
+
+/// Resource budgets enforced on a [`DcWasmSession`] for intra-step instruction fuel,
+/// linear memory growth, single-step output slice length, and cumulative session output bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DcWasmResourceLimits {
+    /// Maximum number of WASM instructions executed during a single [`DcWasmSession::step`] call.
+    pub max_instructions_per_step: u64,
+    /// Maximum number of 64 KiB linear memory pages allowed (both during `provide_input` and `memory.grow`).
+    pub max_memory_pages: usize,
+    /// Maximum byte length allowed for a single step's output slice (`out_len` in the mailbox).
+    pub max_step_output_bytes: usize,
+    /// Maximum cumulative output bytes allowed across all steps in a session.
+    pub max_session_output_bytes: usize,
+}
+
+impl Default for DcWasmResourceLimits {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DcWasmResourceLimits {
+    /// Returns the default resource budgets for a [`DcWasmSession`].
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            max_instructions_per_step: DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP,
+            max_memory_pages: DEFAULT_MAX_WASM_MEMORY_PAGES,
+            max_step_output_bytes: DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES,
+            max_session_output_bytes: DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES,
+        }
+    }
+
+    /// Returns a copy with `max_instructions_per_step` set to the given instruction fuel budget.
+    #[must_use]
+    pub const fn with_max_instructions_per_step(
+        mut self,
+        max_instructions_per_step: u64,
+    ) -> Self {
+        self.max_instructions_per_step = max_instructions_per_step;
+        self
+    }
+
+    /// Returns a copy with `max_memory_pages` set to the given 64 KiB page cap.
+    #[must_use]
+    pub const fn with_max_memory_pages(
+        mut self,
+        max_memory_pages: usize,
+    ) -> Self {
+        self.max_memory_pages = max_memory_pages;
+        self
+    }
+
+    /// Returns a copy with `max_step_output_bytes` set to the given single-step output cap.
+    #[must_use]
+    pub const fn with_max_step_output_bytes(
+        mut self,
+        max_step_output_bytes: usize,
+    ) -> Self {
+        self.max_step_output_bytes = max_step_output_bytes;
+        self
+    }
+
+    /// Returns a copy with `max_session_output_bytes` set to the given cumulative session output cap.
+    #[must_use]
+    pub const fn with_max_session_output_bytes(
+        mut self,
+        max_session_output_bytes: usize,
+    ) -> Self {
+        self.max_session_output_bytes = max_session_output_bytes;
+        self
+    }
+}
+
+/// External resource interruption raised when a [`DcWasmSession`] exceeds a physical VM budget.
+///
+/// Physical VM metering is distinct from logical document progress: when a safety limit interrupts
+/// execution, the host exposes and records this interruption as an external resource event in the
+/// execution trace (`Privilege::ExcessiveCompute`), rather than treating a compiler-dependent
+/// instruction count as logical progress.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WasmResourceInterruption {
+    /// Intra-step instruction fuel budget was exhausted before `step()` returned.
+    InstructionFuelExhausted {
+        /// Per-step instruction fuel limit that was exhausted.
+        limit: u64,
+    },
+    /// Linear memory page allocation or growth exceeded `max_memory_pages`.
+    MemoryLimitExceeded {
+        /// Total 64 KiB pages requested or required.
+        requested_pages: usize,
+        /// Maximum 64 KiB pages permitted by [`DcWasmResourceLimits::max_memory_pages`].
+        max_pages: usize,
+    },
+    /// Single-step output slice (`out_len`) exceeded `max_step_output_bytes`.
+    StepOutputSliceTooLarge {
+        /// Byte length reported in the step's output mailbox (`out_len`).
+        output_bytes: usize,
+        /// Maximum single-step output byte length permitted.
+        max_step_output_bytes: usize,
+    },
+    /// Cumulative output bytes across the session exceeded `max_session_output_bytes`.
+    SessionOutputBudgetExceeded {
+        /// Cumulative output bytes including the attempted step output.
+        cumulative_output_bytes: usize,
+        /// Maximum cumulative session output byte length permitted.
+        max_session_output_bytes: usize,
+    },
+}
+
+impl std::fmt::Display for WasmResourceInterruption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InstructionFuelExhausted { limit } => write!(
+                f,
+                "WASM intra-step instruction fuel exhausted (limit: {limit} instructions)"
+            ),
+            Self::MemoryLimitExceeded {
+                requested_pages,
+                max_pages,
+            } => write!(
+                f,
+                "WASM linear memory limit exceeded: requested {requested_pages} pages (max: {max_pages} pages)"
+            ),
+            Self::StepOutputSliceTooLarge {
+                output_bytes,
+                max_step_output_bytes,
+            } => write!(
+                f,
+                "WASM single-step output slice length {output_bytes} bytes exceeds limit ({max_step_output_bytes} bytes)"
+            ),
+            Self::SessionOutputBudgetExceeded {
+                cumulative_output_bytes,
+                max_session_output_bytes,
+            } => write!(
+                f,
+                "WASM cumulative session output {cumulative_output_bytes} bytes exceeds budget ({max_session_output_bytes} bytes)"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for WasmResourceInterruption {}
+
 /// Outcome of a single [`DcWasmSession::step`] invocation, pairing the [`WasmStepStatus`]
 /// with the [`DcMstring`] decoded from the WASM instance's output slice in linear memory.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1496,6 +1651,12 @@ pub struct DcWasmSession {
     current_input_len: u32,
     default_output_ptr: u32,
     most_recent_node_id: Option<u128>,
+    resource_limits: DcWasmResourceLimits,
+    cumulative_output_bytes: usize,
+    last_step_instructions: u64,
+    total_instructions_executed: u64,
+    last_resource_interruption: Option<WasmResourceInterruption>,
+    current_input_doc: DcMstring,
 }
 
 fn align_up_8(val: usize) -> Result<usize> {
@@ -1530,7 +1691,8 @@ fn decode_output_bytes_to_dcmstring(out_bytes: &[u8]) -> Result<DcMstring> {
 
 impl DcWasmSession {
     /// Instantiates a pure-compute [`DcWasmSession`] from compiled `.wasm` module bytes,
-    /// loading `initial_input` and `most_recent_node_id` (`Dc 641`) into linear memory.
+    /// loading `initial_input` and `most_recent_node_id` (`Dc 641`) into linear memory
+    /// using [`DcWasmResourceLimits::default()`].
     ///
     /// # Errors
     /// Returns an error if parsing or instantiating the module fails, if the module exports
@@ -1540,16 +1702,52 @@ impl DcWasmSession {
         initial_input: &DcMstr,
         most_recent_node_id: Option<u128>,
     ) -> Result<Self> {
+        Self::from_wasm_bytes_with_limits(
+            wasm_bytes,
+            initial_input,
+            most_recent_node_id,
+            DcWasmResourceLimits::default(),
+        )
+    }
+
+    /// Instantiates a pure-compute [`DcWasmSession`] from compiled `.wasm` module bytes
+    /// with explicit [`DcWasmResourceLimits`].
+    ///
+    /// # Errors
+    /// Returns an error if parsing or instantiating the module fails, if initial memory
+    /// exceeds `resource_limits.max_memory_pages`, if the module exports neither `"step"`
+    /// nor `"main"`, or if writing the initial input into linear memory fails.
+    pub fn from_wasm_bytes_with_limits(
+        wasm_bytes: &[u8],
+        initial_input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+        resource_limits: DcWasmResourceLimits,
+    ) -> Result<Self> {
         let module = Module::parse_bytes(wasm_bytes).map_err(|e| {
             anyhow!("Failed to parse WebAssembly module in tinywasm: {e:?}")
         })?;
         let mut store = Store::default();
-        let instance =
-            module.instantiate(&mut store, None).map_err(|e| {
-                anyhow!(
+        store.set_max_memory_pages(Some(resource_limits.max_memory_pages));
+        let instance = match module.instantiate(&mut store, None) {
+            Ok(inst) => inst,
+            Err(ctb_formats_dcdata::tinywasm::Error::Other(msg))
+                if msg.contains("initial memory page count") =>
+            {
+                return Err(anyhow::Error::new(
+                    WasmResourceInterruption::MemoryLimitExceeded {
+                        requested_pages: resource_limits
+                            .max_memory_pages
+                            .saturating_add(1),
+                        max_pages: resource_limits.max_memory_pages,
+                    },
+                ));
+            }
+            Err(e) => {
+                bail!(
                     "Failed to instantiate WebAssembly module in tinywasm: {e:?}"
-                )
-            })?;
+                );
+            }
+        };
 
         let entry_func_name = if instance.export_addr("step").is_some() {
             "step".to_owned()
@@ -1591,6 +1789,12 @@ impl DcWasmSession {
             current_input_len: 0,
             default_output_ptr: 0,
             most_recent_node_id,
+            resource_limits,
+            cumulative_output_bytes: 0,
+            last_step_instructions: 0,
+            total_instructions_executed: 0,
+            last_resource_interruption: None,
+            current_input_doc: initial_input.to_owned(),
         };
         session.provide_input(initial_input)?;
         Ok(session)
@@ -1626,8 +1830,100 @@ impl DcWasmSession {
         most_recent_node_id: Option<u128>,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Self> {
+        Self::from_dc_wasm_with_limits(
+            wasm_doc,
+            initial_input,
+            most_recent_node_id,
+            resolver,
+            DcWasmResourceLimits::default(),
+        )
+    }
+
+    /// Assembles a Dc-WASM document (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`
+    /// or `wasm_routine`) using `resolver` and instantiates a [`DcWasmSession`] with explicit
+    /// [`DcWasmResourceLimits`].
+    ///
+    /// # Errors
+    /// Returns an error if assembling or instantiating the Dc-WASM program fails.
+    pub fn from_dc_wasm_with_limits(
+        wasm_doc: &DcMstr,
+        initial_input: &DcMstr,
+        most_recent_node_id: Option<u128>,
+        resolver: &dyn SyntaxRuleResolver,
+        resource_limits: DcWasmResourceLimits,
+    ) -> Result<Self> {
         let wasm_bytes = dcmstring_to_wasm_with_resolver(wasm_doc, resolver)?;
-        Self::from_wasm_bytes(&wasm_bytes, initial_input, most_recent_node_id)
+        Self::from_wasm_bytes_with_limits(
+            &wasm_bytes,
+            initial_input,
+            most_recent_node_id,
+            resource_limits,
+        )
+    }
+
+    /// Returns the active [`DcWasmResourceLimits`] for this session.
+    #[must_use]
+    pub const fn resource_limits(&self) -> DcWasmResourceLimits {
+        self.resource_limits
+    }
+
+    /// Updates the [`DcWasmResourceLimits`] enforced by this session.
+    pub fn set_resource_limits(&mut self, limits: DcWasmResourceLimits) {
+        self.resource_limits = limits;
+        self.store.set_max_memory_pages(Some(limits.max_memory_pages));
+    }
+
+    /// Builder-style method returning `self` with updated [`DcWasmResourceLimits`].
+    #[must_use]
+    pub fn with_resource_limits(mut self, limits: DcWasmResourceLimits) -> Self {
+        self.set_resource_limits(limits);
+        self
+    }
+
+    /// Returns the number of WASM instructions executed during the most recent `step()` call.
+    #[must_use]
+    pub const fn last_step_instructions(&self) -> u64 {
+        self.last_step_instructions
+    }
+
+    /// Returns the cumulative number of WASM instructions executed across all `step()` calls in this session.
+    #[must_use]
+    pub const fn total_instructions_executed(&self) -> u64 {
+        self.total_instructions_executed
+    }
+
+    /// Returns the cumulative number of output bytes decoded across all `step()` calls in this session.
+    #[must_use]
+    pub const fn cumulative_output_bytes(&self) -> usize {
+        self.cumulative_output_bytes
+    }
+
+    /// Returns the most recent [`WasmResourceInterruption`] raised by this session, if any.
+    #[must_use]
+    pub const fn last_resource_interruption(
+        &self,
+    ) -> Option<&WasmResourceInterruption> {
+        self.last_resource_interruption.as_ref()
+    }
+
+    /// Returns the most recent input document provided to [`Self::provide_input`].
+    #[must_use]
+    pub fn current_input(&self) -> &DcMstr {
+        &self.current_input_doc
+    }
+
+    /// Returns the current number of 64 KiB pages allocated in the module's exported linear memory.
+    ///
+    /// # Errors
+    /// Returns an error if the exported `"memory"` cannot be accessed.
+    pub fn current_memory_pages(&mut self) -> Result<usize> {
+        let mem = self
+            .instance
+            .exported_memory(&mut self.store, "memory")
+            .map_err(|e| {
+                anyhow!("Failed to access WASM exported 'memory': {e:?}")
+            })?;
+        Ok(mem.page_count())
     }
 
     /// Writes a new input [`DcMstr`] payload into WASM linear memory and updates the
@@ -1637,7 +1933,8 @@ impl DcWasmSession {
     /// before resuming after [`WasmStepOutcome::RequestCapability`].
     ///
     /// # Errors
-    /// Returns an error if linear memory cannot grow to accommodate the input and output buffers.
+    /// Returns an error if linear memory cannot grow to accommodate the input and output buffers
+    /// within [`DcWasmResourceLimits::max_memory_pages`].
     pub fn provide_input(&mut self, input: &DcMstr) -> Result<()> {
         let raw_bytes = input.as_bytes();
         // Strip the 21-byte `DcMM\0` + UUID file header so `input_ptr` points directly
@@ -1655,6 +1952,19 @@ impl DcWasmSession {
         let required_mem_bytes = default_output_ptr
             .checked_add(min_output_reserve)
             .context("WASM required linear memory size overflow")?;
+        // Reason for fallback: 65_536 is a non-zero constant divisor.
+        let required_pages = required_mem_bytes
+            .saturating_add(65_535)
+            .checked_div(65_536)
+            .unwrap_or(1);
+        if required_pages > self.resource_limits.max_memory_pages {
+            let interruption = WasmResourceInterruption::MemoryLimitExceeded {
+                requested_pages: required_pages,
+                max_pages: self.resource_limits.max_memory_pages,
+            };
+            self.last_resource_interruption = Some(interruption.clone());
+            return Err(anyhow::Error::new(interruption));
+        }
 
         let mut mem = self
             .instance
@@ -1662,6 +1972,7 @@ impl DcWasmSession {
             .map_err(|e| {
                 anyhow!("Failed to access WASM exported 'memory': {e:?}")
             })?;
+        mem.set_max_pages(Some(self.resource_limits.max_memory_pages));
         let current_pages = mem.page_count();
         let current_bytes = current_pages.saturating_mul(65_536);
         if required_mem_bytes > current_bytes {
@@ -1674,7 +1985,16 @@ impl DcWasmSession {
             let delta = i32::try_from(extra_pages)
                 .context("WASM memory page growth exceeds i32")?;
             if mem.grow(delta).is_none() {
-                bail!("Failed to grow WASM linear memory by {delta} pages");
+                let effective_max = mem.max_pages();
+                drop(mem);
+                let interruption =
+                    WasmResourceInterruption::MemoryLimitExceeded {
+                        requested_pages: current_pages
+                            .saturating_add(extra_pages),
+                        max_pages: effective_max,
+                    };
+                self.last_resource_interruption = Some(interruption.clone());
+                return Err(anyhow::Error::new(interruption));
             }
         }
 
@@ -1704,11 +2024,41 @@ impl DcWasmSession {
         mem.store(0, header.len(), &header).map_err(|e| {
             anyhow!("Failed to write WASM mailbox header at 0..32: {e:?}")
         })?;
+        drop(mem);
 
         self.current_input_ptr = input_ptr_u32;
         self.current_input_len = input_len_u32;
         self.default_output_ptr = output_ptr_u32;
+        self.current_input_doc = input.to_owned();
         Ok(())
+    }
+
+    fn record_step_fuel_and_map_err(
+        &mut self,
+        call_err: ctb_formats_dcdata::tinywasm::Error,
+    ) -> anyhow::Error {
+        let consumed = self.store.fuel_consumed();
+        self.last_step_instructions = consumed;
+        self.total_instructions_executed =
+            self.total_instructions_executed.saturating_add(consumed);
+        self.store.set_fuel(None);
+        if matches!(
+            call_err,
+            ctb_formats_dcdata::tinywasm::Error::Trap(
+                ctb_formats_dcdata::tinywasm::Trap::InstructionFuelExhausted
+            )
+        ) {
+            let interruption =
+                WasmResourceInterruption::InstructionFuelExhausted {
+                    limit: self.resource_limits.max_instructions_per_step,
+                };
+            self.last_resource_interruption = Some(interruption.clone());
+            return anyhow::Error::new(interruption);
+        }
+        anyhow!(
+            "WASM execution trapped in '{}': {call_err:?}",
+            self.entry_func_name
+        )
     }
 
     /// Executes one pure-compute quantum by calling the module's exported `"step"` (or `"main"`)
@@ -1716,9 +2066,13 @@ impl DcWasmSession {
     /// [`WasmStepStatus`].
     ///
     /// # Errors
-    /// Returns an error if the WASM function traps, returns an invalid status code, or writes
-    /// an out-of-bounds or malformed Dc output slice.
+    /// Returns an error if the WASM function traps, exhausts its per-step instruction fuel budget,
+    /// returns an invalid status code, exceeds single-step or cumulative output byte budgets, or
+    /// writes an out-of-bounds or malformed Dc output slice.
     pub fn step(&mut self) -> Result<WasmStepOutcome> {
+        self.last_resource_interruption = None;
+        self.store
+            .set_max_memory_pages(Some(self.resource_limits.max_memory_pages));
         {
             let mut mem = self
                 .instance
@@ -1745,60 +2099,62 @@ impl DcWasmSession {
         let in_len_i32 =
             i32::from_le_bytes(self.current_input_len.to_le_bytes());
 
-        let raw_status = if let Ok(func) = self
-            .instance
-            .exported_func::<(), i32>(&self.store, &self.entry_func_name)
-        {
-            func.call(&mut self.store, ()).map_err(|e| {
-                anyhow!(
-                    "WASM execution trapped in '{}': {e:?}",
-                    self.entry_func_name
+        self.store.reset_fuel_consumed();
+        self.store
+            .set_fuel(Some(self.resource_limits.max_instructions_per_step));
+
+        let call_res: std::result::Result<i32, ctb_formats_dcdata::tinywasm::Error> =
+            if let Ok(func) = self
+                .instance
+                .exported_func::<(), i32>(&self.store, &self.entry_func_name)
+            {
+                func.call(&mut self.store, ())
+            } else if let Ok(func) = self
+                .instance
+                .exported_func::<(i32, i32), i32>(
+                    &self.store,
+                    &self.entry_func_name,
                 )
-            })?
-        } else if let Ok(func) = self.instance.exported_func::<(i32, i32), i32>(
-            &self.store,
-            &self.entry_func_name,
-        ) {
-            func.call(&mut self.store, (in_ptr_i32, in_len_i32))
-                .map_err(|e| {
-                    anyhow!(
-                        "WASM execution trapped in '{}': {e:?}",
-                        self.entry_func_name
-                    )
-                })?
-        } else if let Ok(func) = self
-            .instance
-            .exported_func::<(), ()>(&self.store, &self.entry_func_name)
-        {
-            func.call(&mut self.store, ()).map_err(|e| {
-                anyhow!(
-                    "WASM execution trapped in '{}': {e:?}",
-                    self.entry_func_name
+            {
+                func.call(&mut self.store, (in_ptr_i32, in_len_i32))
+            } else if let Ok(func) = self
+                .instance
+                .exported_func::<(), ()>(&self.store, &self.entry_func_name)
+            {
+                func.call(&mut self.store, ())
+                    .map(|()| WASM_STEP_STATUS_COMPLETE)
+            } else if let Ok(func) = self
+                .instance
+                .exported_func::<(i32, i32), ()>(
+                    &self.store,
+                    &self.entry_func_name,
                 )
-            })?;
-            WASM_STEP_STATUS_COMPLETE
-        } else if let Ok(func) = self.instance.exported_func::<(i32, i32), ()>(
-            &self.store,
-            &self.entry_func_name,
-        ) {
-            func.call(&mut self.store, (in_ptr_i32, in_len_i32))
-                .map_err(|e| {
-                    anyhow!(
-                        "WASM execution trapped in '{}': {e:?}",
-                        self.entry_func_name
-                    )
-                })?;
-            WASM_STEP_STATUS_COMPLETE
-        } else {
-            bail!(
-                "Exported WASM entry function '{}' must have signature () -> i32, (i32, i32) -> i32, () -> (), or (i32, i32) -> ()",
-                self.entry_func_name
-            );
+            {
+                func.call(&mut self.store, (in_ptr_i32, in_len_i32))
+                    .map(|()| WASM_STEP_STATUS_COMPLETE)
+            } else {
+                self.store.set_fuel(None);
+                bail!(
+                    "Exported WASM entry function '{}' must have signature () -> i32, (i32, i32) -> i32, () -> (), or (i32, i32) -> ()",
+                    self.entry_func_name
+                );
+            };
+
+        let raw_status = match call_res {
+            Ok(code) => {
+                let consumed = self.store.fuel_consumed();
+                self.last_step_instructions = consumed;
+                self.total_instructions_executed =
+                    self.total_instructions_executed.saturating_add(consumed);
+                self.store.set_fuel(None);
+                code
+            }
+            Err(e) => return Err(self.record_step_fuel_and_map_err(e)),
         };
 
         let status = WasmStepStatus::from_i32(raw_status)?;
 
-        let out_bytes = {
+        let (out_ptr, out_len) = {
             let mem = self
                 .instance
                 .exported_memory(&mut self.store, "memory")
@@ -1819,6 +2175,42 @@ impl DcWasmSession {
             let out_len = usize::try_from(u32::from_le_bytes([
                 hdr_arr[4], hdr_arr[5], hdr_arr[6], hdr_arr[7],
             ]))?;
+            (out_ptr, out_len)
+        };
+
+        if out_len > self.resource_limits.max_step_output_bytes {
+            let interruption =
+                WasmResourceInterruption::StepOutputSliceTooLarge {
+                    output_bytes: out_len,
+                    max_step_output_bytes: self
+                        .resource_limits
+                        .max_step_output_bytes,
+                };
+            self.last_resource_interruption = Some(interruption.clone());
+            return Err(anyhow::Error::new(interruption));
+        }
+
+        let new_cumulative =
+            self.cumulative_output_bytes.saturating_add(out_len);
+        if new_cumulative > self.resource_limits.max_session_output_bytes {
+            let interruption =
+                WasmResourceInterruption::SessionOutputBudgetExceeded {
+                    cumulative_output_bytes: new_cumulative,
+                    max_session_output_bytes: self
+                        .resource_limits
+                        .max_session_output_bytes,
+                };
+            self.last_resource_interruption = Some(interruption.clone());
+            return Err(anyhow::Error::new(interruption));
+        }
+
+        let out_bytes = {
+            let mem = self
+                .instance
+                .exported_memory(&mut self.store, "memory")
+                .map_err(|e| {
+                    anyhow!("Failed to access WASM exported 'memory': {e:?}")
+                })?;
             mem.load_vec(out_ptr, out_len).map_err(|e| {
                 anyhow!(
                     "WASM output slice ({out_ptr}..{}) is out of linear memory bounds: {e:?}",
@@ -1828,6 +2220,7 @@ impl DcWasmSession {
         };
 
         let out_doc = decode_output_bytes_to_dcmstring(&out_bytes)?;
+        self.cumulative_output_bytes = new_cumulative;
         Ok(match status {
             WasmStepStatus::Complete => WasmStepOutcome::Complete(out_doc),
             WasmStepStatus::YieldFrame => WasmStepOutcome::YieldFrame(out_doc),

@@ -76,7 +76,10 @@ pub use utf8::{
 pub use wasm::{
     DC_WASM_MAILBOX_HEADER_LEN, DC_WASM_MAILBOX_INPUT_LEN,
     DC_WASM_MAILBOX_INPUT_PTR, DC_WASM_MAILBOX_MOST_RECENT_NODE_ID,
-    DC_WASM_MAILBOX_OUTPUT_LEN, DC_WASM_MAILBOX_OUTPUT_PTR, DcWasmSession,
+    DC_WASM_MAILBOX_OUTPUT_LEN, DC_WASM_MAILBOX_OUTPUT_PTR,
+    DEFAULT_MAX_WASM_INSTRUCTIONS_PER_STEP, DEFAULT_MAX_WASM_MEMORY_PAGES,
+    DEFAULT_MAX_WASM_SESSION_OUTPUT_BYTES, DEFAULT_MAX_WASM_STEP_OUTPUT_BYTES,
+    DcWasmResourceLimits, DcWasmSession, WasmResourceInterruption,
     WasmStepOutcome, WasmStepStatus, assemble_wasm_instructions,
     dcmstring_to_wasm, dcmstring_to_wasm_with_resolver, dcstring_to_wasm,
     dcstring_to_wasm_with_resolver, run_dc_wasm_pure_conversion,

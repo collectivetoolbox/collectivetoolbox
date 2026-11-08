@@ -211,6 +211,7 @@ pub struct DcDocumentNavigator<'a> {
     pub(super) pinned_resolver:
         Option<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>>,
     pub(super) pin_provenance: DcPinProvenance,
+    pub(super) kernel_version: BootstrapKernelVersion,
 }
 
 impl DcBinaryResolver for DcDocumentNavigator<'_> {
@@ -257,6 +258,7 @@ impl<'a> DcDocumentNavigator<'a> {
             document_most_recent_node_id: None,
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
+            kernel_version: BootstrapKernelVersion::CURRENT,
         };
         nav.detect_leading_document_most_recent();
         nav
@@ -284,9 +286,36 @@ impl<'a> DcDocumentNavigator<'a> {
             document_most_recent_node_id: None,
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
+            kernel_version: BootstrapKernelVersion::CURRENT,
         };
         nav.detect_leading_document_most_recent();
         nav
+    }
+
+    /// Returns the active [`BootstrapKernelVersion`] governing physical codecs,
+    /// `SeedGraphIndex` triple resolution, `.Semantic:Pattern` operators, and Dc-WASM lowering.
+    #[must_use]
+    pub const fn kernel_version(&self) -> BootstrapKernelVersion {
+        self.kernel_version
+    }
+
+    /// Sets the [`BootstrapKernelVersion`] for this navigator before document interpretation.
+    pub fn set_kernel_version(&mut self, version: BootstrapKernelVersion) {
+        self.kernel_version = version;
+    }
+
+    /// Selects and validates an explicit bootstrap kernel version number (`1` for `V1`)
+    /// during bootstrap before any document or graph interpretation that depends on it.
+    ///
+    /// # Errors
+    /// Returns an error if `version` is not a supported bootstrap kernel version.
+    pub fn select_bootstrap_kernel_version(
+        &mut self,
+        version: u32,
+    ) -> Result<BootstrapKernelVersion> {
+        let selected = BootstrapKernelVersion::try_from_u32(version)?;
+        self.kernel_version = selected;
+        Ok(selected)
     }
 
     /// Returns the System-block most recent node ID (`Dc 641` `"Global graph system block most recent node ID at time of document creation"`)
@@ -1061,6 +1090,7 @@ impl<'a> DcDocumentNavigator<'a> {
             document_most_recent_node_id: None,
             pinned_resolver: None,
             pin_provenance: DcPinProvenance::UnpinnedLegacyFallback,
+            kernel_version: BootstrapKernelVersion::CURRENT,
         };
         nav.detect_leading_document_most_recent();
         Ok(nav)

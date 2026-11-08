@@ -62,6 +62,54 @@ pub enum DiagnosticAction {
     Ignore,
 }
 
+/// Version of the minimal trusted bootstrap kernel contract governing physical token
+/// codecs (`DcTF`, `.dcmm` header, `Dc 203`..`Dc 204`), `SeedGraphIndex` active triple
+/// resolution (`Dc 584`, `Dc 610`, `Dc 591`, `Dc 592`, `Dc 611`), `.Semantic:Pattern`
+/// operators (`Dc 599`..`Dc 607`, `Dc 642`..`Dc 644`), and Dc-WASM binary lowering
+/// (`Dc 647`..`Dc 1928`) + 32-byte mailbox ABI (`0..32`).
+///
+/// The foundational execution contract is explicitly specified and selectable by version
+/// during bootstrap before any document or graph interpretation that depends on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BootstrapKernelVersion {
+    /// Initial frozen minimal trusted bootstrap kernel specification (v1).
+    V1 = 1,
+}
+
+impl Default for BootstrapKernelVersion {
+    fn default() -> Self {
+        Self::CURRENT
+    }
+}
+
+impl BootstrapKernelVersion {
+    /// The current supported bootstrap kernel version (`V1`).
+    pub const CURRENT: Self = Self::V1;
+
+    /// Returns the numeric version identifier (`1` for `V1`).
+    #[must_use]
+    pub const fn as_u32(self) -> u32 {
+        match self {
+            Self::V1 => 1,
+        }
+    }
+
+    /// Selects a [`BootstrapKernelVersion`] from an explicit numeric version identifier
+    /// during bootstrap before interpretation that depends on it.
+    ///
+    /// # Errors
+    /// Returns an error if `version` is not a supported bootstrap kernel version.
+    pub fn try_from_u32(version: u32) -> Result<Self> {
+        match version {
+            1 => Ok(Self::V1),
+            other => bail!(
+                "Unsupported bootstrap kernel version {other}: only version {} (V1) is supported by this host",
+                Self::CURRENT.as_u32()
+            ),
+        }
+    }
+}
+
 /// Unified caller-specified policy governing how syntax errors, unknown tags,
 /// deprecated constructs, malformed or missing fields, and resource budgets
 /// are handled across Dc document parsing, validation, inspection, and typed
@@ -104,6 +152,9 @@ pub struct DcProjectionPolicy {
     /// legacy documents resolve against the bundled System graph `HEAD` with
     /// explicit [`super::DcPinProvenance::UnpinnedLegacyFallback`] provenance.
     pub unpinned_fallback_most_recent_node_id: Option<u128>,
+    /// Foundational bootstrap kernel contract version governing physical codecs,
+    /// seed graph triple resolution, `.Semantic:Pattern` operators, and Dc-WASM lowering.
+    pub kernel_version: BootstrapKernelVersion,
 }
 
 impl DcProjectionPolicy {
@@ -127,6 +178,7 @@ impl DcProjectionPolicy {
                 DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
             missing_system_graph_pin: None,
             unpinned_fallback_most_recent_node_id: None,
+            kernel_version: BootstrapKernelVersion::CURRENT,
         }
     }
 
@@ -150,6 +202,7 @@ impl DcProjectionPolicy {
                 DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
             missing_system_graph_pin: None,
             unpinned_fallback_most_recent_node_id: None,
+            kernel_version: BootstrapKernelVersion::CURRENT,
         }
     }
 
@@ -172,6 +225,7 @@ impl DcProjectionPolicy {
                 DEFAULT_MAX_ENCAPSULATION_PAYLOAD_BYTES,
             missing_system_graph_pin: None,
             unpinned_fallback_most_recent_node_id: None,
+            kernel_version: BootstrapKernelVersion::CURRENT,
         }
     }
 
@@ -240,6 +294,29 @@ impl DcProjectionPolicy {
     ) -> Self {
         self.unpinned_fallback_most_recent_node_id = Some(node_id);
         self
+    }
+
+    /// Selects the explicit [`BootstrapKernelVersion`] for this projection policy.
+    #[must_use]
+    pub const fn with_kernel_version(
+        mut self,
+        kernel_version: BootstrapKernelVersion,
+    ) -> Self {
+        self.kernel_version = kernel_version;
+        self
+    }
+
+    /// Validates and selects a [`BootstrapKernelVersion`] by numeric identifier (`1` for `V1`)
+    /// during bootstrap before any document or graph interpretation that depends on it.
+    ///
+    /// # Errors
+    /// Returns an error if `version` is not a supported bootstrap kernel version.
+    pub fn try_with_kernel_version_number(
+        mut self,
+        version: u32,
+    ) -> Result<Self> {
+        self.kernel_version = BootstrapKernelVersion::try_from_u32(version)?;
+        Ok(self)
     }
 
     /// Returns true if all structural and projection anomalies are set to `Error`.
