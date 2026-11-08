@@ -585,6 +585,24 @@ impl<'a> DcDocumentNavigator<'a> {
                     pos, after_tok, span_end, resolver,
                 ));
             }
+            if let Some(target) = CharTarget::from_u128(tok.to_u128())
+                && let Some(closer) = resolver.closer_for_opener(&target)
+            {
+                let Ok((_, after_closer, _)) = self.scan_balanced_container(
+                    after_tok,
+                    tok,
+                    DcChar::from_u128(closer),
+                    &DcProjectionPolicy::forgiving_quiet(),
+                    resolver,
+                ) else {
+                    break;
+                };
+                if after_closer <= pos || after_closer > span_end {
+                    break;
+                }
+                pos = after_closer;
+                continue;
+            }
             pos = after_tok;
         }
         None
@@ -723,7 +741,14 @@ impl<'a> DcDocumentNavigator<'a> {
                 policy,
             );
         }
-        Ok(())
+        self.pin_syntax_issue(
+            policy,
+            candidate.tag_offset,
+            format!(
+                "Missing System-block node ID operand for header snapshot pin at offset {}",
+                candidate.tag_offset
+            ),
+        )
     }
 
     pub(super) fn apply_unpinned_fallback_policy(
@@ -1333,6 +1358,19 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcFrameStub>> {
+        if self.level_stack.is_empty()
+            && self.cursor == self.active_span.start
+            && self.pin_provenance == DcPinProvenance::UnpinnedLegacyFallback
+            && self.find_header_pin_in_span(self.active_span, None, resolver).is_none()
+        {
+            self.apply_unpinned_fallback_policy(self.cursor, policy)?;
+        }
+        let pinned_resolver = self.pinned_resolver.clone();
+        let resolver: &dyn SyntaxRuleResolver = if let Some(ref pinned) = pinned_resolver {
+            pinned.as_ref()
+        } else {
+            resolver
+        };
         let mut assignment = None;
         let mut rhs_rule = None;
         loop {
@@ -1757,31 +1795,6 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(None);
         };
-
-        if self.level_stack.is_empty()
-            && start_offset == self.active_span.start
-            && !Self::is_document_or_node_scope_opener(first_dc, resolver)
-        {
-            let has_header_pin = self
-                .find_header_pin_at_offset(
-                    start_offset,
-                    self.active_span.end,
-                    resolver,
-                )
-                .is_some();
-            if let NavBackend::SeekableFile {
-                reader, reader_pos, ..
-            } = &mut self.backend
-            {
-                let _ = seek_buffered_file(reader, reader_pos, start_offset);
-            }
-            if !has_header_pin
-                && self.pin_provenance
-                    == DcPinProvenance::UnpinnedLegacyFallback
-            {
-                self.apply_unpinned_fallback_policy(start_offset, policy)?;
-            }
-        }
 
         if let Some(block_desc) =
             ctb_formats_dcdata::global_graph_layout::unsupported_graph_block_description(
@@ -4934,6 +4947,26 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_gate1_pin_resolution_errors_and_newer_pin_rejection() -> Result<()> {
+        let missing_operand_doc = DcMstring::new();
+        for policy in [DcProjectionPolicy::strict(), DcProjectionPolicy::forgiving()] {
+            let mut nav = DcDocumentNavigator::from_mstr(&missing_operand_doc);
+            let result = nav.apply_header_pin_candidate(
+                HeaderPinCandidate {
+                    tag_offset: 0,
+                    arg_dc: None,
+                    arg_escaped: false,
+                },
+                &policy,
+            );
+            if policy.syntax_error == DiagnosticAction::Error {
+                assert!(result.is_err());
+            } else {
+                result?;
+                assert!(nav.diagnostics().iter().any(|diagnostic| {
+                    diagnostic.message.contains("Missing System-block node ID operand")
+                }));
+            }
+        }
         let head_id: u128 = ctb_formats_dcdata::seed_graph::SeedGraphIndex::shared()
             .ok()
             .and_then(|sg| sg.system_block_most_recent_node_id())
@@ -5098,6 +5131,35 @@ mod tests {
         assert_eq!(nav_env.document_most_recent_node_id(), Some(t1));
         nav_env.validate_document(&strict)?;
 
+        for nested_tokens in [
+            vec![
+                ctb_formats_dcdata::dc::DC_BEGIN_LITERAL,
+                DcChar::from_short(262),
+                DcChar::from_short(264),
+                DcChar::from_short(263),
+                DcChar::from_short(641),
+                DcChar::from_long(t2),
+                ctb_formats_dcdata::dc::DC_END_LITERAL,
+            ],
+            vec![
+                DcChar::from_short(235),
+                DcChar::from_short(641),
+                DcChar::from_long(t2),
+                DcChar::from_short(236),
+            ],
+        ] {
+            let mut scoped_env = DcMstring::new();
+            scoped_env.push_char(DcChar::from_short(340));
+            for token in nested_tokens {
+                scoped_env.push_char(token);
+            }
+            scoped_env.push_char(DcChar::from_short(641));
+            scoped_env.push_char(DcChar::from_long(t1));
+            scoped_env.push_char(DcChar::from_short(341));
+            let nav = DcDocumentNavigator::from_mstr(&scoped_env);
+            assert_eq!(nav.document_most_recent_node_id(), Some(t1));
+        }
+
         // 3. Header pin inside `Dc 617 "Begin graph node definition"`..`Dc 618` after its `[atom_dc]` node ID header token.
         let mut node_doc = DcMstring::new();
         for tok in [
@@ -5167,6 +5229,14 @@ mod tests {
         let baseline_policy = DcProjectionPolicy::strict()
             .with_missing_system_graph_pin(DiagnosticAction::Warn)
             .with_unpinned_fallback_most_recent_node_id(t1);
+        let mut first_baseline_nav = DcDocumentNavigator::from_mstr(&unpinned_doc);
+        let first_baseline_stub = first_baseline_nav
+            .next_sibling_stub(&baseline_policy)?
+            .expect("Baseline document has a first construct");
+        assert_eq!(
+            first_baseline_nav.read_tokens_in_span(first_baseline_stub.outer_span)?,
+            vec![DcChar::from_short(3916).to_u128(), DcChar::from_u128(65).to_u128()],
+        );
         let mut baseline_nav = DcDocumentNavigator::from_mstr(&unpinned_doc);
         baseline_nav.validate_document(&baseline_policy)?;
         assert_eq!(baseline_nav.document_most_recent_node_id(), Some(t1));

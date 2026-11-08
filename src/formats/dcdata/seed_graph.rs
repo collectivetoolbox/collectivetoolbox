@@ -392,39 +392,12 @@ impl SeedGraphIndex {
         );
         let head_id = active_most_recent
             .max(history_most_recent)
-            .or_else(|| active_nodes.last().map(|n| n.id))
-            .or_else(|| history_nodes.last().map(|n| n.id))
+            .max(active_nodes.iter().chain(&history_nodes).map(|node| node.id).max())
             .context("Cannot resolve Dc 641 pin against an empty System graph")?;
         if most_recent_node_id > head_id {
             bail!(
                 "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{most_recent_node_id} > l{head_id})"
             );
-        }
-        if most_recent_node_id < head_id {
-            let active_has_revisions_or_gaps = active_nodes.iter().any(|n| {
-                matches!(
-                    n.tokens.first().copied(),
-                    Some(tok) if tok == sh(DC_SUPERSEDES) || tok == sh(DC_RETRACTS)
-                )
-            }) || active_nodes
-                .first()
-                .is_none_or(|first| first.id > SYSTEM_REGION_START)
-                || active_nodes
-                    .windows(2)
-                    .any(|w| {
-                        let Some(first) = w.first() else {
-                            return false;
-                        };
-                        let Some(second) = w.get(1) else {
-                            return false;
-                        };
-                        first.id.saturating_add(1) != second.id
-                    });
-            if active_has_revisions_or_gaps && history_nodes.is_empty() {
-                bail!(
-                    "Historical graph bundle system_graph_history.rsrc (data/graph/system/*.ctbnbdl) is absent; cannot reconstruct historical System graph pin l{most_recent_node_id} (< HEAD l{head_id})"
-                );
-            }
         }
         let (_, merged) = Self::merge_active_and_history_nodes(
             active_most_recent,
@@ -2485,6 +2458,28 @@ mod tests {
         }
 
         // Gate 1: Require complete historical graph bundles when resolving historical pins.
+        let prefix_id = SYSTEM_REGION_START;
+        let prefix_nodes = vec![
+            LedgerNode {
+                id: prefix_id,
+                tokens: Vec::new(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: prefix_id.saturating_add(2),
+                tokens: Vec::new(),
+                comment: String::new(),
+            },
+        ];
+        let prefix_index = SeedGraphIndex::from_active_and_history_nodes_at_most_recent(
+            Some(prefix_id.saturating_add(2)),
+            prefix_nodes,
+            None,
+            Vec::new(),
+            prefix_id,
+        )?;
+        assert_eq!(prefix_index.system_block_most_recent_node_id(), Some(prefix_id));
+
         let full_hist = SeedGraphIndex::load_with_history_from_asset_bundle()?;
         let (part_active, part_history) =
             crate::ctbnbdl::partition_active_and_inactive_nodes_with(
