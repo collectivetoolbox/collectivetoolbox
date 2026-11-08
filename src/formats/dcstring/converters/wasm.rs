@@ -2562,4 +2562,243 @@ mod tests {
         assert!(run_dc_wasm_pure_conversion(&cap_routine, &input).is_err());
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_gate1_wasm_transitive_snapshot_isolation_and_supersedence()
+    -> Result<()> {
+        use ctb_formats_dcdata::ctbnbdl::LedgerNode;
+        use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
+        use ctb_storage_minimal::shorthand::DcShorthand;
+        use std::sync::Arc;
+
+        let i32_dc = i32_type_dc();
+        // Build two WASM routines for `run_graph_wasm_tokens_on_dc_slice`:
+        // - `routine_v1` sets `output_ptr = mem[0]` and `output_len = 0` (emits empty output), returning 0 (`Complete`).
+        // - `routine_v2_doc` copies `input_ptr (mem[0]) -> output_ptr (mem[8])` and `input_len (mem[4]) -> output_len (mem[12])`
+        //   (echoing the input slice `[518]`), returning 0 (`Complete`).
+        let mut routine_v1 = DcMstring::new();
+        routine_v1.push_char(DcChar::from_short(260));
+        routine_v1.push_char(DcChar::from_short(262));
+        routine_v1.push_char(DcChar::from_short(280));
+        routine_v1.push_char(i32_dc);
+        routine_v1.push_char(DcChar::from_short(263));
+        // mem[8] = mem[0]
+        routine_v1.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut routine_v1)?;
+        routine_v1.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut routine_v1)?;
+        routine_v1.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut routine_v1)?;
+        u32::encode_dc_mixed(&2, &mut routine_v1)?;
+        u32::encode_dc_mixed(&0, &mut routine_v1)?;
+        routine_v1.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut routine_v1)?;
+        u32::encode_dc_mixed(&2, &mut routine_v1)?;
+        u32::encode_dc_mixed(&0, &mut routine_v1)?;
+        // mem[12] = 0
+        routine_v1.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut routine_v1)?;
+        routine_v1.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut routine_v1)?;
+        routine_v1.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut routine_v1)?;
+        u32::encode_dc_mixed(&2, &mut routine_v1)?;
+        u32::encode_dc_mixed(&0, &mut routine_v1)?;
+        // return 0 (Complete)
+        routine_v1.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut routine_v1)?;
+        routine_v1.push_char(DcChar::from_short(261));
+
+        let v1_shorthands: Vec<DcShorthand> = routine_v1
+            .to_dc_string()?
+            .chars()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+
+        let mut routine_v2_doc = DcMstring::new();
+        routine_v2_doc.push_char(DcChar::from_short(260));
+        routine_v2_doc.push_char(DcChar::from_short(262));
+        routine_v2_doc.push_char(DcChar::from_short(280));
+        routine_v2_doc.push_char(i32_dc);
+        routine_v2_doc.push_char(DcChar::from_short(263));
+        // mem[8] = mem[0]
+        routine_v2_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&8, &mut routine_v2_doc)?;
+        routine_v2_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        routine_v2_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        routine_v2_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        // mem[12] = mem[4]
+        routine_v2_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&12, &mut routine_v2_doc)?;
+        routine_v2_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&4, &mut routine_v2_doc)?;
+        routine_v2_doc.push_char(DcChar::from_short(687));
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        routine_v2_doc.push_char(DcChar::from_short(701));
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&2, &mut routine_v2_doc)?;
+        u32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        // return 0 (Complete)
+        routine_v2_doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut routine_v2_doc)?;
+        routine_v2_doc.push_char(DcChar::from_short(261));
+
+        let v2_shorthands: Vec<DcShorthand> = routine_v2_doc
+            .to_dc_string()?
+            .chars()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+
+        // System node IDs:
+        // - `node_c_v1` (8_589_934_600): routine v1 (emits 517)
+        // - `node_b` (8_589_934_601): transitive wrapper pointing to `Long(node_c_v1)`
+        // - `node_a` (8_589_934_602): outer wrapper pointing to `Long(node_b)`
+        // - `node_c_v2` (8_589_934_603): routine v2 (emits 518)
+        // - `node_supersede_v1` (8_589_934_604): `591 l<node_c_v2> l<node_c_v1>` (`Supersedes`)
+        // - `node_retracted` (8_589_934_605): routine v1
+        // - `pin_id` (8_589_934_606): `592 615 l<node_retracted>` (`Retracts`)
+        // - `node_c_v3` (8_589_934_607): routine v1 AFTER `pin_id`
+        // - `node_supersede_v2` (8_589_934_608): `591 l<node_c_v3> l<node_c_v2>` AFTER `pin_id`
+        let node_c_v1 = 8_589_934_600_u128;
+        let node_b = 8_589_934_601_u128;
+        let node_a = 8_589_934_602_u128;
+        let node_c_v2 = 8_589_934_603_u128;
+        let node_supersede_v1 = 8_589_934_604_u128;
+        let node_retracted = 8_589_934_605_u128;
+        let pin_id = 8_589_934_606_u128;
+        let node_c_v3 = 8_589_934_607_u128;
+        let node_supersede_v2 = 8_589_934_608_u128;
+
+        let nodes = vec![
+            LedgerNode {
+                id: node_c_v1,
+                tokens: v1_shorthands.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: node_b,
+                tokens: vec![DcShorthand::Long(node_c_v1)],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: node_a,
+                tokens: vec![DcShorthand::Long(node_b)],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: node_c_v2,
+                tokens: v2_shorthands,
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: node_supersede_v1,
+                tokens: vec![
+                    DcShorthand::Short(591),
+                    DcShorthand::Long(node_c_v2),
+                    DcShorthand::Long(node_c_v1),
+                ],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: node_retracted,
+                tokens: v1_shorthands.clone(),
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: pin_id,
+                tokens: vec![
+                    DcShorthand::Short(592),
+                    DcShorthand::Short(615),
+                    DcShorthand::Long(node_retracted),
+                ],
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: node_c_v3,
+                tokens: v1_shorthands,
+                comment: String::new(),
+            },
+            LedgerNode {
+                id: node_supersede_v2,
+                tokens: vec![
+                    DcShorthand::Short(591),
+                    DcShorthand::Long(node_c_v3),
+                    DcShorthand::Long(node_c_v2),
+                ],
+                comment: String::new(),
+            },
+        ];
+
+        let sg_pinned = Arc::new(SeedGraphIndex::from_nodes_at_most_recent(
+            nodes,
+            pin_id,
+        ));
+        let mut res_pinned =
+            (**ctb_formats_dcdata::syntax::default_syntax_resolver()).clone();
+        res_pinned.set_seed_graph(sg_pinned);
+
+        // 1. Transitive expansion `node_a -> node_b -> node_c_v1` resolves `node_c_v1`
+        //    through `Dc 591 "Supersedes"` to `node_c_v2` (emitting 518) while ignoring
+        //    `node_c_v3 > pin_id`.
+        let input_slice = [DcChar::from_short(518)];
+        let out = run_graph_wasm_tokens_on_dc_slice(
+            &[DcShorthand::Long(node_a)],
+            &input_slice,
+            &res_pinned,
+        )?;
+        let out_chars: Vec<DcChar> = out.to_dc_string()?.chars().collect();
+        assert_eq!(out_chars, vec![DcChar::from_short(518)]);
+
+        // 2. Referencing `node_c_v3` (`> pin_id`) fails with an explicit snapshot error.
+        let err_future = run_graph_wasm_tokens_on_dc_slice(
+            &[DcShorthand::Long(node_c_v3)],
+            &[],
+            &res_pinned,
+        )
+        .expect_err("Reference to node newer than pin must fail");
+        assert!(
+            err_future.to_string().contains(&format!("l{node_c_v3}"))
+                && err_future.to_string().contains(&format!("l{pin_id}")),
+            "Unexpected error for out-of-snapshot node: {err_future}"
+        );
+
+        // 3. Referencing `node_retracted` (retracted at `pin_id`) fails with an explicit error.
+        let err_retracted = run_graph_wasm_tokens_on_dc_slice(
+            &[DcShorthand::Long(node_retracted)],
+            &[],
+            &res_pinned,
+        )
+        .expect_err("Reference to retracted node must fail");
+        assert!(
+            err_retracted
+                .to_string()
+                .contains(&format!("l{node_retracted}")),
+            "Unexpected error for retracted node: {err_retracted}"
+        );
+
+        // 4. Referencing unsupported graph blocks fails with an explicit unsupported-block error.
+        for bad_block_id in [4_294_967_296_u128, 12_884_901_888_u128] {
+            let err_block = run_graph_wasm_tokens_on_dc_slice(
+                &[DcShorthand::Long(bad_block_id)],
+                &[],
+                &res_pinned,
+            )
+            .expect_err("Reference to unsupported block must fail");
+            assert!(
+                err_block.to_string().contains("unsupported graph block"),
+                "Unexpected error for unsupported block {bad_block_id}: {err_block}"
+            );
+        }
+
+        Ok(())
+    }
 }

@@ -953,6 +953,14 @@ impl DatasetRuleResolver {
         Self::default()
     }
 
+    /// Binds a [`crate::seed_graph::SeedGraphIndex`] snapshot to this resolver.
+    pub fn set_seed_graph(
+        &mut self,
+        seed_graph: std::sync::Arc<crate::seed_graph::SeedGraphIndex>,
+    ) {
+        self.seed_graph = Some(seed_graph);
+    }
+
     pub(crate) fn build_unicode_text_mappings(
         &mut self,
         decompositions: &[(u128, Vec<u128>, bool)],

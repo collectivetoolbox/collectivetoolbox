@@ -302,6 +302,12 @@ impl<'a> DcDocumentNavigator<'a> {
         self.pin_provenance
     }
 
+    /// Returns parse and validation diagnostics recorded on this navigator.
+    #[must_use]
+    pub fn diagnostics(&self) -> &[SyntaxDiagnostic] {
+        &self.diagnostics
+    }
+
     /// Returns the syntax rule resolver pinned for this document (via `Dc 641` or explicit override),
     /// or the process-wide [`default_syntax_resolver()`] when unpinned.
     #[must_use]
@@ -4922,6 +4928,256 @@ mod tests {
         bad_prog.push_char(DcChar::from_short(1928));
         let mut bad_prog_nav = DcDocumentNavigator::from_mstr(&bad_prog);
         assert!(bad_prog_nav.validate_document(&strict).is_err());
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate1_pin_resolution_errors_and_newer_pin_rejection() -> Result<()> {
+        let head_id: u128 = ctb_formats_dcdata::seed_graph::SeedGraphIndex::shared()
+            .ok()
+            .and_then(|sg| sg.system_block_most_recent_node_id())
+            .unwrap_or(8_589_999_999);
+        let future_id = head_id.saturating_add(500_000);
+
+        let mut doc = DcMstring::new();
+        for tok in [
+            DcChar::from_short(641),
+            DcChar::from_long(future_id),
+            DcChar::from_short(517),
+        ] {
+            doc.push_char(tok);
+        }
+
+        // Strict policy rejects a pin newer than local HEAD instead of substituting HEAD.
+        let strict = DcProjectionPolicy::strict();
+        let mut strict_nav = DcDocumentNavigator::from_mstr(&doc);
+        assert_eq!(strict_nav.document_most_recent_node_id(), Some(future_id));
+        let err = strict_nav
+            .validate_document(&strict)
+            .expect_err("Pin newer than local graph must fail strict validation");
+        assert!(
+            err.to_string().contains("newer System graph")
+                || err.to_string().contains(&format!("l{future_id}")),
+            "Unexpected error message: {err}"
+        );
+
+        let mut strict_arena_nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut strict_arena = DcSyntaxArena::new();
+        assert!(
+            strict_arena_nav
+                .parse_document_into_arena(&mut strict_arena, &strict)
+                .is_err()
+        );
+
+        // Forgiving policy records the pin resolution diagnostic while still permitting
+        // forgiving recovery and raw token inspection.
+        let forgiving = DcProjectionPolicy::forgiving();
+        let mut forg_nav = DcDocumentNavigator::from_mstr(&doc);
+        forg_nav.validate_document(&forgiving)?;
+        assert!(
+            forg_nav
+                .diagnostics()
+                .iter()
+                .any(|d| d.message.contains(&format!("l{future_id}"))),
+            "Expected diagnostic for future pin, got: {:?}",
+            forg_nav.diagnostics()
+        );
+
+        let mut forg_arena_nav = DcDocumentNavigator::from_mstr(&doc);
+        let mut forg_arena = DcSyntaxArena::new();
+        forg_arena_nav.parse_document_into_arena(&mut forg_arena, &forgiving)?;
+        assert!(!forg_arena.diagnostics().is_empty());
+
+        let mut raw_nav = DcDocumentNavigator::from_mstr(&doc);
+        assert_eq!(
+            raw_nav.pop_next_token()?,
+            Some(DcChar::from_short(641))
+        );
+        assert_eq!(
+            raw_nav.pop_next_token()?,
+            Some(DcChar::from_long(future_id))
+        );
+        assert_eq!(
+            raw_nav.pop_next_token()?,
+            Some(DcChar::from_short(517))
+        );
+        assert_eq!(raw_nav.pop_next_token()?, None);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate1_header_pin_placement_nested_inheritance_and_unsupported_blocks()
+    -> Result<()> {
+        let t1: u128 = 8_589_999_911;
+        let t2: u128 = 8_589_999_912;
+
+        // Under `t1`, unassigned short Dc 3916 is unary `:~ [atom_dc]`.
+        let mut res_t1 = (**default_syntax_resolver()).clone();
+        res_t1.add_rule(
+            CharTarget::Dc(3916),
+            parse_dc_syntax(":~ [atom_dc]")?,
+        );
+        res_t1.rebuild_framing_and_wrapper_tables();
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            t1,
+            Arc::new(res_t1),
+        );
+
+        // Under `t2`, unassigned short Dc 3916 is binary `:~ [atom_dc] [atom_dc]`.
+        let mut res_t2 = (**default_syntax_resolver()).clone();
+        res_t2.add_rule(
+            CharTarget::Dc(3916),
+            parse_dc_syntax(":~ [atom_dc] [atom_dc]")?,
+        );
+        res_t2.rebuild_framing_and_wrapper_tables();
+        ctb_formats_dcdata::syntax::register_historical_syntax_resolver(
+            t2,
+            Arc::new(res_t2),
+        );
+
+        let strict = DcProjectionPolicy::strict();
+
+        // 1. Header pin inside `Dc 235 "Begin document"`..`Dc 236 "End document"`,
+        //    with nested `Dc 235` inheriting `t1`, a second nested `Dc 235` overriding
+        //    with `t2`, and outer scope restoring `t1` after the second nested `Dc 236`.
+        let mut nested_doc = DcMstring::new();
+        for tok in [
+            // Outer document header pins `t1`
+            DcChar::from_short(235),
+            DcChar::from_short(641),
+            DcChar::from_long(t1),
+            // Nested document 1 omits `Dc 641` -> inherits `t1` (unary `3916 u65`, then `517`)
+            DcChar::from_short(235),
+            DcChar::from_short(3916),
+            DcChar::from_u128(65),
+            DcChar::from_short(517),
+            DcChar::from_short(236),
+            // Nested document 2 declares `Dc 641 l<t2>` -> overrides with `t2` (binary `3916 u65 u66`)
+            DcChar::from_short(235),
+            DcChar::from_short(641),
+            DcChar::from_long(t2),
+            DcChar::from_short(3916),
+            DcChar::from_u128(65),
+            DcChar::from_u128(66),
+            DcChar::from_short(236),
+            // Outer document after nested document 2 restores `t1` (unary `3916 u65`, then `517`)
+            DcChar::from_short(3916),
+            DcChar::from_u128(65),
+            DcChar::from_short(517),
+            DcChar::from_short(236),
+        ] {
+            nested_doc.push_char(tok);
+        }
+
+        let mut nav_nested = DcDocumentNavigator::from_mstr(&nested_doc);
+        assert_eq!(nav_nested.document_most_recent_node_id(), Some(t1));
+        assert_eq!(nav_nested.pin_provenance(), DcPinProvenance::ExplicitPin);
+        nav_nested.validate_document(&strict)?;
+
+        let mut arena_nav = DcDocumentNavigator::from_mstr(&nested_doc);
+        let mut arena = DcSyntaxArena::new();
+        arena_nav.parse_document_into_arena(&mut arena, &strict)?;
+        assert_eq!(arena.roots().len(), 1);
+
+        // 2. Header pin inside `Dc 340 "Begin execution environment description"`..`Dc 341`.
+        let mut env_doc = DcMstring::new();
+        for tok in [
+            DcChar::from_short(340),
+            DcChar::from_short(641),
+            DcChar::from_long(t1),
+            DcChar::from_short(3916),
+            DcChar::from_u128(65),
+            DcChar::from_short(517),
+            DcChar::from_short(341),
+        ] {
+            env_doc.push_char(tok);
+        }
+        let mut nav_env = DcDocumentNavigator::from_mstr(&env_doc);
+        assert_eq!(nav_env.document_most_recent_node_id(), Some(t1));
+        nav_env.validate_document(&strict)?;
+
+        // 3. Header pin inside `Dc 617 "Begin graph node definition"`..`Dc 618` after its `[atom_dc]` node ID header token.
+        let mut node_doc = DcMstring::new();
+        for tok in [
+            DcChar::from_short(617),
+            DcChar::from_long(t1),
+            DcChar::from_short(641),
+            DcChar::from_long(t1),
+            DcChar::from_short(3916),
+            DcChar::from_u128(65),
+            DcChar::from_short(517),
+            DcChar::from_short(618),
+        ] {
+            node_doc.push_char(tok);
+        }
+        let mut nav_node = DcDocumentNavigator::from_mstr(&node_doc);
+        assert_eq!(nav_node.document_most_recent_node_id(), Some(t1));
+        nav_node.validate_document(&strict)?;
+
+        // 4. Unsupported block pins and references (Data block `4294967296` and > System `12884901888`)
+        for bad_block_id in [4_294_967_296_u128, 12_884_901_888_u128] {
+            let mut bad_pin_doc = DcMstring::new();
+            bad_pin_doc.push_char(DcChar::from_short(641));
+            bad_pin_doc.push_char(DcChar::from_long(bad_block_id));
+            bad_pin_doc.push_char(DcChar::from_short(517));
+
+            let mut bad_pin_nav = DcDocumentNavigator::from_mstr(&bad_pin_doc);
+            let err = bad_pin_nav
+                .validate_document(&strict)
+                .expect_err("Unsupported block pin must fail strict validation");
+            assert!(
+                err.to_string().contains("not-yet-implemented")
+                    || err.to_string().contains("reserved Data block")
+                    || err.to_string().contains("above System"),
+                "Unexpected error for bad pin {bad_block_id}: {err}"
+            );
+
+            let mut bad_ref_doc = DcMstring::new();
+            bad_ref_doc.push_char(DcChar::from_short(641));
+            bad_ref_doc.push_char(DcChar::from_long(t1));
+            bad_ref_doc.push_char(DcChar::from_long(bad_block_id));
+            let mut bad_ref_nav = DcDocumentNavigator::from_mstr(&bad_ref_doc);
+            assert!(
+                bad_ref_nav.validate_document(&strict).is_err(),
+                "Reference to unsupported block {bad_block_id} must fail strict validation"
+            );
+        }
+
+        // 5. Legacy unpinned document fallback policy
+        let mut unpinned_doc = DcMstring::new();
+        unpinned_doc.push_char(DcChar::from_short(3916));
+        unpinned_doc.push_char(DcChar::from_u128(65));
+        unpinned_doc.push_char(DcChar::from_short(517));
+
+        let mut unpinned_nav = DcDocumentNavigator::from_mstr(&unpinned_doc);
+        assert_eq!(
+            unpinned_nav.pin_provenance(),
+            DcPinProvenance::UnpinnedLegacyFallback
+        );
+        let require_pin_policy = DcProjectionPolicy::strict()
+            .with_missing_system_graph_pin(DiagnosticAction::Error);
+        let missing_err = unpinned_nav
+            .validate_document(&require_pin_policy)
+            .expect_err("Policy requiring Dc 641 must reject unpinned document");
+        assert!(missing_err.to_string().contains("omits Dc 641"));
+
+        // Configured baseline fallback snapshot `t1` with diagnostic recording
+        let baseline_policy = DcProjectionPolicy::strict()
+            .with_missing_system_graph_pin(DiagnosticAction::Warn)
+            .with_unpinned_fallback_most_recent_node_id(t1);
+        let mut baseline_nav = DcDocumentNavigator::from_mstr(&unpinned_doc);
+        baseline_nav.validate_document(&baseline_policy)?;
+        assert_eq!(baseline_nav.document_most_recent_node_id(), Some(t1));
+        assert!(
+            baseline_nav
+                .diagnostics()
+                .iter()
+                .any(|d| d.message.contains("omits Dc 641")),
+            "Expected missing-pin diagnostic, got: {:?}",
+            baseline_nav.diagnostics()
+        );
 
         Ok(())
     }
