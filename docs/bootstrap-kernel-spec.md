@@ -183,7 +183,9 @@ Each invocation of `"step"` returns an `i32` [`WasmStepStatus`](../src/formats/d
 - Supported value types: `i32` (`0x7F`), `i64` (`0x7E`), `f32` (`0x7D`), `f64` (`0x7C`), `v128` (`0x7B`), `funcref` (`0x70`), `externref` (`0x6F`). 64-bit linear memories (`memory64`) are rejected at instantiation (`Error::UnsupportedFeature`).
 - Integer division by zero (`i32.div_s`, `i32.div_u`, `i64.div_s`, `i64.div_u`, `rem_s`, `rem_u`), signed division overflow (`i32::MIN / -1`, `i64::MIN / -1`), out-of-bounds linear memory or table accesses, `unreachable` (`0x00`), and indirect call signature mismatches trap deterministically (`tinywasm::Trap`).
 
-The host enforces deterministic VM resource budgets ([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) across the session store:
+The current host enforces backend resource limits
+([`DcWasmResourceLimits`](../src/formats/dcstring/converters/wasm.rs)) across the
+session store. These are not yet a runtime-independent language resource model:
 1. **Instruction fuel** (`max_instructions_per_step`, default `1_000_000` instructions): metered inside the `tinywasm` instruction loop during module instantiation, the WebAssembly `start` section (`run_wasm_start_section`), and every exported `step()` call (`Trap::InstructionFuelExhausted` -> `WasmResourceInterruption::InstructionFuelExhausted`).
 2. **Store-wide and per-memory linear memory page cap** (`max_memory_pages`, default `256` pages = `16 MiB` total across all `MemoryInstance`s in `Store`): enforced during module instantiation, `provide_input`, and WASM `memory.grow` (`Store::total_memory_pages()`). Guest `memory.grow` failure returns standard WASM `-1`; host allocation or cap-lowering violations raise `WasmResourceInterruption::MemoryLimitExceeded`.
 3. **Store-wide and per-table element cap** (`max_table_elements`, default `65_536` elements total across all `TableInstance`s in `Store`): enforced during module instantiation, `table.grow`, and before each `step()` (`WasmResourceInterruption::TableLimitExceeded`; guest `table.grow` failure returns standard WASM `-1`).
@@ -197,3 +199,44 @@ Live host capabilities default to denial unless explicitly granted; parse errors
 - Fuel meters executed VM instructions, not initial module parsing/validation or per-byte cost inside a single bulk memory/table instruction (`memory.copy`, `memory.fill`, `table.copy`).
 - Non-resource traps during module `start` or `step()` return `Err` rather than a structured trap event in `WasmExecutionTrace`.
 - Gates 3 and 4 of [the language plan](../issues/language.md) (eliminating remaining procedural syntax rule synthesis and completing self-hosted `.WASM` definitions) must land before `BootstrapKernelVersion::V1` is frozen.
+
+### 4.5 Portable Resource Semantics Versus Host Watchdogs
+
+`max_instructions_per_step` currently counts `tinywasm` internal interpreter
+dispatches, including lowered control-flow instructions. It does not count a
+specified sequence of original WASM instructions. Neither another interpreter's
+fuel nor a JIT's fuel may be substituted as an equivalent semantic budget.
+Recording an interruption as an external event permits replay of the same
+finite prefix; it does not prove that fresh runs on different engines interrupt
+at the same point. Timeouts, allocator exhaustion and physical watchdog fuel
+are host safety events, not language-level resource measurements.
+
+Memory/table growth is different: its result is directly observable by guest
+code. WASM permits allocation failure to return `-1` even below a declared
+maximum. Portable document semantics therefore need explicit, pinned logical
+quotas and allocation accounting, including the host mailbox allocation. A
+physical allocation failure below the logical quota must terminate with a host
+resource event, not silently become a different guest-visible growth result.
+Output quotas likewise need specified charging and delivery order. Current
+page/table limits and output checks provide local enforcement, not this proof.
+
+The intended owner of logical budget policy is a privileged, pinned top-level
+document. Privilege comes from current host authorization, never from a graph
+pin or an untrusted document's own declaration. Running that supervisor beside
+arbitrary native WASM cannot meter or preempt the child by itself. The child
+must either run through a supervisor-owned interpreter, or undergo a validated
+transformation that inserts non-bypassable, standard-WASM metering and growth
+checks. Instrumentation must be derived from the pinned source module before
+engine-specific lowering/optimization, with a versioned cost model specifying
+charge-before-effect, branches/calls/start, bulk-operation costs, overflow,
+resets, and interruption delivery points. The supervisor decides exhaustion
+policy; a minimal host boundary protects supervisor state, mediates external
+capabilities, and retains an independent emergency watchdog.
+
+This portable supervisor/metering path is **not implemented**. Required proof
+includes running the same pinned module, budget policy and ordered external
+events under independent WASM engines, comparing growth results, interruptions,
+requests and output bytes. Existing same-engine tests and replay against a
+NOP-padded recompilation do not establish that property. The `tinywasm` fork is
+currently a backend safety mechanism, not the canonical definition of resource
+use.

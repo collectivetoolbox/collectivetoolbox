@@ -130,7 +130,7 @@ these parser/resolver tests do not establish the full compatibility guarantee.
     2. Active triple resolution in `SeedGraphIndex` (`Dc 584 "Has a"`, `Dc 610 "Has value"`, `Dc 591 "Supersedes"`, `Dc 592 "Retracts"`, `Dc 611 "Canonical decomposition"`, including retracted retractions and retracted supersessions).
     3. `.Semantic:Pattern` operators (`Dc 599 "Self reference"`, `Dc 600 "Wildcard pattern"`, `Dc 601 "Pattern conjunction"`, `Dc 602 "Pattern alternation"`, `Dc 603 "Pattern repetition"`, `Dc 604 "Negated pattern"`, `Dc 605 "Subpattern match"`, `Dc 606 "Pattern capture"`, `Dc 607 "Pattern replacement"`, `Dc 643 "Range"`, `Dc 644 "Exclusive range endpoint"`, `Dc 642 "Data byte length"`).
     4. Dc-WASM binary lowering (`Dc 647 "WASM unreachable"`..`Dc 1928 "End WASM program"`) and the 32-byte linear-memory mailbox ABI (`DC_WASM_MAILBOX_*` at bytes `0..32`, tracking `MemoryInstance::static_data_end()` so zero-filled static data segments are never overwritten).
-- [x] **Enforce intra-step instruction metering (fuel) in `tinywasm` (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`, `src/runtime/runtime.rs`)**:
+- [x] **Enforce a backend intra-step safety watchdog in `tinywasm` (`vendor/tinywasm/`, `src/formats/dcstring/converters/wasm.rs`, `src/runtime/runtime.rs`)** (not portable semantic metering):
   - `DcWasmSession` configures per-step instruction fuel (`DcWasmResourceLimits::max_instructions_per_step`, default `1_000_000`) on `tinywasm::Store` during module instantiation, the WebAssembly `start` section (`run_wasm_start_section`), and each exported `step()` call, preventing tight loops (`Dc 650 "WASM loop"` .. `Dc 659 "WASM br"` `0`) from hanging.
   - Added `Trap::InstructionFuelExhausted` inside `tinywasm::Executor::exec_next` and mapped it to `WasmResourceInterruption::InstructionFuelExhausted` and `Privilege::ExcessiveCompute`.
   - Distinguished physical VM metering from logical document progress via `WasmExecutionTrace` and `WasmTraceEvent::ResourceInterruption`: safety-limit interruptions (including `PermissionDecision::Deny` and construction-time resource interruptions via `execute_wasm_bytes_with_trace` / `replay_wasm_bytes_trace`) preserve all accumulated `frames` and `events` in `WasmExecutionTrace`, while trace replay (`ExecutionContext::replay_wasm_session_trace`) compares logical capability requests and ignores physical instruction count differences across compilers.
@@ -139,6 +139,28 @@ these parser/resolver tests do not establish the full compatibility guarantee.
 - [x] **Keep capability authorization strictly in the host (`src/runtime/runtime.rs`)**:
   - Historical graph pinning (`Dc 641 "Global graph system block most recent node ID at time of document creation"`) applies only to language/document semantics and never grants or restores security permissions or capability policies (`ExecutionContext::set_privilege_decision` / `with_privilege_decision`).
   - `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::replay_wasm_session_trace` compare the document's capability requests at each logical step during replay and supply the recorded allow/deny/mock responses while live execution remains governed by the current host policy.
+- [ ] **Define and implement portable resource accounting under a privileged pinned supervisor**:
+  - Distinguish logical budget policy from emergency host watchdogs. Current fuel
+    counts optimized/lowered `tinywasm` interpreter dispatches, not a versioned
+    sequence of source WASM operations; replaying a recorded interruption does
+    not make fresh executions on independent runtimes equivalent.
+  - Put logical budget policy in a trusted top-level graph document, with
+    privilege granted by current host policy. Untrusted documents must not
+    bypass the supervisor or mutate its accounting state. Retain an independent
+    host watchdog to protect against faulty/untrusted guest execution.
+  - Choose a supervisor-owned interpreter or a validated, non-bypassable
+    standard-WASM instrumentation path. A supervisor merely running beside
+    uninstrumented native WASM cannot count/preempt its instructions. Specify
+    source-before-optimization charging, start/call/branch/bulk costs,
+    charge-before-effect, overflow, budget resets and interruption delivery.
+  - Make memory/table quotas explicit pinned policy or explicit input, including
+    host mailbox/scratch allocations. A physical allocation failure below a
+    logical quota must be an external interruption, not a guest-visible `-1`
+    that changes document branching. Define output charging/delivery similarly.
+  - Compare the same pinned source, supervisor, budget configuration and ordered
+    external events under independent engines. Same-engine tests and replay
+    against NOP-padded recompilations are not sufficient. See
+    [the resource contract](../docs/bootstrap-kernel-spec.md#45-portable-resource-semantics-versus-host-watchdogs).
 
 #### Gate 2 Status & Remaining Gaps vs Upstream / Plan (2026-11-08)
 
@@ -146,10 +168,29 @@ these parser/resolver tests do not establish the full compatibility guarantee.
   - Upfront bootstrap kernel version constructors (`try_from_mstr_with_kernel_version_number`, `from_mstr_with_kernel_version`, `try_from_dc_str_with_kernel_version_number`, `from_dc_str_with_kernel_version`), exact static/zero-filled data segment high-water mark (`MemoryInstance::static_data_end()`), store-wide memory page and table element caps (`max_table_elements`), trace preservation and replay on denied/construction resource interruptions (`execute_wasm_bytes_with_trace`, `replay_wasm_bytes_trace`), and conformance tests for `DcTF`, `.dcmm` binary encapsulation, `SeedGraphIndex` retraction/supersession lifecycles, and WASM numeric traps are implemented and tested.
   - Resolved the 6 `E0277` slice-to-array `Option` comparison errors in `ctb-formats-detection` (`src/formats/detection/container.rs` and `src/formats/detection/droid.rs`) so `./scripts/run-dev-ctb` builds cleanly.
 - **Remaining Gaps / Pending Work**:
+  - Portable resource accounting and the privileged supervisor path above are
+    not implemented. The fork remains a host backend, not a language definition.
   - `docs/bootstrap-kernel-spec.md` remains `Partially Implemented` / draft until Gates 3 and 4 eliminate remaining Rust procedural syntax-rule synthesis and complete self-hosted `.WASM` definitions.
   - Instruction fuel meters VM instructions rather than initial module parsing/validation or per-byte work inside bulk memory/table instructions (`memory.copy`, `memory.fill`, `table.copy`).
   - Non-resource traps during module `start` or `step()` return `Err` rather than a structured trap event in `WasmExecutionTrace`.
   - Cross-platform verification and end-to-end UI event/pixel replay remain pending.
+
+#### Revised Gate 2 Review (2026-11-08)
+
+- Fixed double execution of the WASM start section and implicit invocation of
+  an exported `_start` without a start section. Explicit instantiation now
+  precedes exactly one core-WASM start-section call under the watchdog.
+- Preflight initial memory/table declarations using the existing validated
+  parser. Report their actual total requested counts before allocation, instead
+  of interpreting backend error text and inventing `limit + 1` counts.
+- **Pending Work**: portable supervisor/metering implementation and independent
+  resource-boundary conformance remain unresolved. The new start-section fixture
+  also passes V8, but that narrow check does not establish resource portability.
+- **Validation**: all 200 Dc-string and eight runtime library tests passed on
+  Linux musl, with no ignored tests. Production Clippy completed with baseline
+  warnings. Documentation links and whitespace passed. No additional runtime
+  fork changes were needed for these fixes; other platforms and portable budget
+  enforcement remain unverified.
 
 #### Existing Dc Semantics: Evidence and Regression Requirements
 
