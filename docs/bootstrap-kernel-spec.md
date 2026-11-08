@@ -202,6 +202,12 @@ Live host capabilities default to denial unless explicitly granted; parse errors
 
 ### 4.5 Portable Resource Semantics Versus Host Watchdogs
 
+**Terminology**: A compute quota is an allowance of logical work, measured using
+the selected System supervisor's versioned operation costs. Resource accounting
+deducts those costs from the remaining allowance before the operation takes
+effect. "Fuel" is the existing backend API's name for an instruction allowance;
+its runtime-specific watchdog counts are not portable compute quota units.
+
 `max_instructions_per_step` currently counts `tinywasm` internal interpreter
 dispatches, including lowered control-flow instructions. It does not count a
 specified sequence of original WASM instructions. Neither another interpreter's
@@ -250,18 +256,45 @@ Running that supervisor beside arbitrary native WASM cannot meter or preempt
 the child by itself. The child
 must either run through a supervisor-owned interpreter, or undergo a validated
 transformation that inserts non-bypassable, standard-WASM metering and growth
-checks. Instrumentation must be derived from the pinned source module before
-engine-specific lowering/optimization, with a versioned cost model specifying
-charge-before-effect, branches/calls/start, bulk-operation costs, overflow,
-resets, and interruption delivery points. The supervisor decides exhaustion
-policy; a minimal host boundary protects supervisor state and mediates external
+checks. Instrumentation transforms the standard WASM bytecode produced by
+transpiling the pinned Dc definitions, before engine-specific lowering or
+optimization. It does not instrument the WASM runtime implementation. A
+versioned accounting model specifies deduct-before-effect, branches/calls/start,
+bulk-operation costs, overflow, quota replenishment, and permission-request
+delivery points.
+
+With identical document input, pinned definitions, supervisor revision,
+effective workspace configuration and ordered external events, the same compute
+quota must pause execution and trigger a user-facing permission request for
+additional compute at exactly the same logical point on every runtime: before
+the next operation whose cost exceeds the remaining allowance, with no effect
+from that operation. An authorized additional allowance must resume a preserved
+continuation without repeating earlier effects. Record the logical operation
+checkpoint, not merely the number of completed mailbox steps. A backend trap
+alone does not provide a portable resumable continuation.
+
+The System document resolves and validates graph-backed user configuration at
+task admission. Execution uses local integer counters, not per-operation graph
+lookups. Child tasks and helper sessions debit the parent allowance rather than
+creating fresh quotas; yields and capability requests do not replenish it.
+Batch accounting is permitted only when it preserves operation-level exhaustion,
+trap and effect ordering, with exact accounting near exhaustion. Configuration
+changes take effect at explicitly ordered logical boundaries and are recorded.
+
+The supervisor controls quota policy and requests additional compute through
+host capability mediation; a minimal host boundary protects supervisor state
+and mediates external
 capabilities. Independent emergency host watchdogs protect the process, but
 are not a separate source of logical document budget policy.
 
 This portable supervisor/metering path is **not implemented**. Required proof
 includes running the same pinned module, budget policy and ordered external
 events under independent WASM engines, comparing growth results, interruptions,
-requests and output bytes. Existing same-engine tests and replay against a
+requests and output bytes. Fresh executions must request additional compute
+before the same logical operation and resume identically after the same
+authorization response. Tests must cover exact-quota boundaries, start
+sections, loops, branches, calls, bulk operations, batching, and repeated helper
+evaluations. Existing same-engine tests and replay against a
 NOP-padded recompilation do not establish that property. The `tinywasm` fork is
 currently a backend safety mechanism, not the canonical definition of resource
 use.

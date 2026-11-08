@@ -123,6 +123,24 @@ cross-revision execution, event, and pixel replay suite in Gate 3 remain pending
 these parser/resolver tests do not establish the full compatibility guarantee.
 
 ### Gate 2: Document the Minimal Trusted Kernel & Enforce VM Budgets
+
+**Resource terminology and required behavior**: A **compute quota** is the
+document's allowance of logical work under the selected System supervisor's
+versioned accounting rules. **Accounting** means deducting each operation's
+specified cost from that allowance. Existing code calls its backend instruction
+allowance **fuel**; that runtime-specific safety watchdog is not the portable
+compute quota. Technical fuel names below describe existing APIs, not the
+planned user-facing terminology.
+
+Given identical document input, pinned definitions, supervisor revision,
+effective graph-backed workspace configuration, and ordered external events,
+the same compute quota must produce a user-facing permission request for
+additional compute at exactly the same logical execution point on every WASM
+runtime. Pause before the next operation whose cost exceeds the remaining
+quota, before that operation has any effect. Runtime speed, optimization and
+instruction dispatch counts must not move this boundary. Independent emergency
+host interruptions remain distinct external events.
+
 - [ ] **Freeze and document the minimal trusted bootstrap kernel (`docs/bootstrap-kernel-spec.md`, `src/formats/dcstring/navigator/policy.rs`, `src/formats/dcstring/navigator.rs`)** (Partially Implemented; specification remains draft until Gates 3–4 freeze the kernel boundary):
   - The replay guarantee assumes one explicitly specified foundational execution contract, immutable or selected by an explicit version (`BootstrapKernelVersion::V1 = 1`, `BootstrapKernelVersion::CURRENT`, `DcProjectionPolicy::with_kernel_version` / `try_with_kernel_version_number`, and upfront `DcDocumentNavigator::try_from_mstr_with_kernel_version_number` / `from_mstr_with_kernel_version` / `try_from_dc_str_with_kernel_version_number` / `from_dc_str_with_kernel_version` / `from_mstr_with_policy` / `from_dc_str_with_policy` before leading `Dc 641` pin detection).
   - Wrote [`docs/bootstrap-kernel-spec.md`](../docs/bootstrap-kernel-spec.md) and conformance tests (`test_gate2_bootstrap_kernel_v1_conformance_suite`, `test_gate2_zero_filled_static_data_segment_not_overwritten_by_mailbox_input`, `test_gate2_table_element_cap_and_multi_memory_aggregate_cap`) covering the host-implemented primitives that graph nodes rely upon:
@@ -158,9 +176,21 @@ these parser/resolver tests do not establish the full compatibility guarantee.
     Independent host watchdogs are process safeguards, not logical budget policy.
   - Choose a supervisor-owned interpreter or a validated, non-bypassable
     standard-WASM instrumentation path. A supervisor merely running beside
-    uninstrumented native WASM cannot count/preempt its instructions. Specify
-    source-before-optimization charging, start/call/branch/bulk costs,
-    charge-before-effect, overflow, budget resets and interruption delivery.
+    uninstrumented native WASM cannot count/preempt its instructions. Instrument
+    the standard WASM bytecode produced by transpiling the pinned Dc definitions,
+    before any runtime-specific lowering or optimization; do not instrument the
+    runtime implementation or use its instruction counts as logical costs.
+    Specify start/call/branch/bulk-operation costs, deduct-before-effect,
+    overflow, quota replenishment and exact permission-request delivery points.
+    Preserve a continuation so an authorized additional allowance resumes the
+    paused operation exactly once without repeating earlier effects.
+  - Resolve and validate workspace graph configuration through the selected
+    System document once at task admission, then use local integer counters
+    rather than graph lookups per operation. Nested evaluations and newly
+    created sessions must share or debit the supervising task's allowance;
+    yields and capability requests must not silently replenish it. Batch
+    accounting only when it preserves the exact operation-level exhaustion,
+    trap and effect boundary; use exact accounting near quota exhaustion.
   - Make memory/table quotas explicit supervisor policy and configuration,
     including host mailbox/scratch allocations. A physical allocation failure below a
     logical quota must be an external interruption, not a guest-visible `-1`
@@ -169,7 +199,11 @@ these parser/resolver tests do not establish the full compatibility guarantee.
     configuration for replay; do not pin the startup entry or let ordinary
     document pins select an older supervisor. Compare the same pinned child
     source, recorded supervisor revision/configuration and ordered external
-    events under independent engines. Same-engine tests and replay
+    events under independent engines. Verify that fresh executions request
+    additional compute before the same logical operation, with identical prior
+    effects, and resume identically after the same authorization response.
+    Include exact-quota boundaries, start sections, loops, branches, calls,
+    bulk operations, batching and repeated helper evaluations. Same-engine tests and replay
     against NOP-padded recompilations are not sufficient. See
     [the resource contract](../docs/bootstrap-kernel-spec.md#45-portable-resource-semantics-versus-host-watchdogs).
 
