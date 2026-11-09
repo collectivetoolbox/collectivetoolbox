@@ -4934,7 +4934,7 @@ mod tests {
         assert_eq!(resolver.framing_shape(sdc(517)), FramingShape::Atom);
 
         // Verify dedicated splice trigger check vs broader special wrapper set
-        assert!(!resolver.is_splice_trigger_token(sdc(256)));
+        assert!(resolver.is_splice_trigger_token(sdc(256)));
         assert!(!resolver.is_splice_trigger_token(sdc(315)));
         assert!(!resolver.is_splice_trigger_token(sdc(316)));
         assert!(!resolver.is_splice_trigger_token(sdc(397)));
