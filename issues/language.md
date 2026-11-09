@@ -266,7 +266,7 @@ interruptions remain external host events rather than logical budget policy.
     integration tests passed, with none ignored. Production-only dcstring
     Clippy passed. Clippy including the syntax integration target remains
     blocked by pre-existing `panic_in_result_fn` errors in
-    `test_known_hello_world_invocation_shape_not_dropped_or_over_consumed` and
+    `test_lang_say_quoted_closer_does_not_close_container` and
     `test_historical_lang_say_is_not_stream_splicing`; the new regression uses
     an item-scoped test-assertion expectation.
   - The historical catalog and hello-world fixture establish that
