@@ -751,92 +751,6 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(offset)
     }
 
-    pub(super) fn scan_say_frame_at(
-        &mut self,
-        start_offset: u64,
-        policy: &DcProjectionPolicy,
-        resolver: &dyn SyntaxRuleResolver,
-    ) -> Result<u64> {
-        let Some((say_dc, after_say)) =
-            self.read_token_or_binary_at(start_offset)?
-        else {
-            bail!("Unexpected end of stream at say invocation");
-        };
-        ensure!(
-            say_dc.fills_role_with(DcRole::LangSay, resolver),
-            "Expected LangSay (Dc 256), found {say_dc}"
-        );
-        let Some((param_open, after_open)) =
-            self.read_token_or_binary_at(after_say)?
-        else {
-            bail!(
-                "Unexpected end of stream after Dc 256: expected parameter opener"
-            );
-        };
-        ensure!(
-            param_open.fills_role_with(DcRole::BeginParameter, resolver),
-            "Expected parameter opener (Dc 258) after Dc 256, found {param_open}"
-        );
-        let Some((lit_open, after_lit_open)) =
-            self.read_token_or_binary_at(after_open)?
-        else {
-            bail!(
-                "Unexpected end of stream: expected literal opener after parameter opener"
-            );
-        };
-        ensure!(
-            lit_open.fills_role_with(DcRole::BeginLiteral, resolver),
-            "Expected literal opener (Dc 260), found {lit_open}"
-        );
-        let Some((hdr_open, after_262)) =
-            self.read_token_or_binary_at(after_lit_open)?
-        else {
-            bail!("Unexpected end of stream: expected Dc 262 after Dc 260");
-        };
-        ensure!(
-            hdr_open.fills_role_with(DcRole::BeginTypeDef, resolver),
-            "Expected Dc 262 after Dc 260 in lang.say"
-        );
-        let Some((type_dc, after_type)) =
-            self.read_token_or_binary_at(after_262)?
-        else {
-            bail!("Unexpected end of stream: expected type after Dc 262");
-        };
-        ensure!(
-            type_dc.fills_role_with(DcRole::TypeString, resolver)
-                || type_dc.fills_role_with(DcRole::TypeAny, resolver),
-            "Expected String type (Dc 264) in lang.say literal, found {type_dc}"
-        );
-        let Some((hdr_close, _)) = self.read_token_or_binary_at(after_type)?
-        else {
-            bail!("Unexpected end of stream: expected Dc 263 after type");
-        };
-        ensure!(
-            hdr_close.fills_role_with(DcRole::EndTypeDef, resolver),
-            "Expected Dc 263 after type in lang.say"
-        );
-        let (_, lit_end, _) = self.scan_balanced_container(
-            after_lit_open,
-            lit_open,
-            ctb_formats_dcdata::dc::DC_END_LITERAL,
-            policy,
-            resolver,
-        )?;
-        let Some((param_close, after_param_close)) =
-            self.read_token_or_binary_at(lit_end)?
-        else {
-            bail!(
-                "Unexpected end of stream: expected parameter closer after literal"
-            );
-        };
-        ensure!(
-            param_close.fills_role_with(DcRole::EndParameter, resolver),
-            "Expected parameter closer (Dc 259), found {param_close}"
-        );
-
-        Ok(after_param_close)
-    }
-
     pub(super) fn scan_splice_invocation_at(
         &mut self,
         start_offset: u64,
@@ -848,12 +762,6 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(None);
         };
-        if first_dc.fills_role_with(DcRole::LangSay, resolver)
-            && let Ok(end) =
-                self.scan_say_frame_at(start_offset, policy, resolver)
-        {
-            return Ok(Some(end));
-        }
         if resolver
             .resolve_wasm_definition_tokens(first_dc.to_u128())
             .is_none()
@@ -1055,9 +963,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 offset = next_offset;
                 continue;
             }
-            if ch.fills_role_with(DcRole::LangSay, resolver)
-                || resolver.is_splice_trigger_token(ch.to_u128())
-            {
+            if resolver.is_splice_trigger_token(ch.to_u128()) {
                 let diag_before_say = self.diagnostics.len();
                 if let Ok(Some(after_say)) =
                     self.scan_splice_invocation_at(token_start, policy, resolver)

@@ -1273,9 +1273,7 @@ impl<'a> DcDocumentNavigator<'a> {
             .clone()
             .unwrap_or_else(DcProjectionPolicy::forgiving_quiet);
         let resolver = self.effective_resolver();
-        if ch == ctb_formats_dcdata::dc::DC_LANG_SAY
-            || resolver.is_splice_trigger_token(ch.to_u128())
-        {
+        if resolver.is_splice_trigger_token(ch.to_u128()) {
             let evaluator = self.default_expression_evaluator();
             if self.splice_stream_invocation(
                 &evaluator,
@@ -1378,8 +1376,8 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((ch, _)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if !ch.fills_role_with(DcRole::LangSay, resolver)
-            && !resolver.is_splice_trigger_token(ch.to_u128())
+        if ch.fills_role_with(DcRole::LangSay, resolver)
+            || !resolver.is_splice_trigger_token(ch.to_u128())
         {
             return Ok(false);
         }
@@ -4582,9 +4580,8 @@ mod tests {
             resolver.as_ref()
         ));
 
-        // 5. Evaluated input (Dc 256 stream-spliced expression) across all backends:
-        // Splicing 7 (digit 134) satisfies Dc 405 ([number:Natural0&<8]); splicing 8 (digit 135) fails.
-        for (digit, expected_ok) in [(sdc(134), true), (sdc(135), false)] {
+        // Output invocations cannot supply numeric input across any backend.
+        for digit in [sdc(134), sdc(135)] {
             let spliced_label = vec![
                 sdc(405),
                 sdc(256),
@@ -4600,11 +4597,9 @@ mod tests {
                 sdc(261),
                 sdc(259),
             ];
-            check_all_backends(&spliced_label, expected_ok)?;
+            check_all_backends(&spliced_label, false)?;
         }
 
-        // Splicing $dimensions = 2 via Dc 256 into Format f504 ([number $dimensions] [list($dimensions):number])
-        // succeeds for a 2-element list and fails for a 1-element list.
         let mut spliced_dim_ok = vec![
             sdc(511),
             fmt(504),
@@ -4621,7 +4616,7 @@ mod tests {
         spliced_dim_ok.push(sdc(312));
         spliced_dim_ok.extend_from_slice(&num_20);
         spliced_dim_ok.extend([sdc(311), sdc(512)]);
-        check_all_backends(&spliced_dim_ok, true)?;
+        check_all_backends(&spliced_dim_ok, false)?;
 
         let mut spliced_dim_bad = vec![
             sdc(511),
@@ -4941,7 +4936,7 @@ mod tests {
         assert_eq!(resolver.framing_shape(sdc(517)), FramingShape::Atom);
 
         // Verify dedicated splice trigger check vs broader special wrapper set
-        assert!(resolver.is_splice_trigger_token(sdc(256)));
+        assert!(!resolver.is_splice_trigger_token(sdc(256)));
         assert!(!resolver.is_splice_trigger_token(sdc(315)));
         assert!(!resolver.is_splice_trigger_token(sdc(316)));
         assert!(!resolver.is_splice_trigger_token(sdc(397)));

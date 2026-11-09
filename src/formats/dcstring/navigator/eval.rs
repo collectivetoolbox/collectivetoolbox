@@ -82,7 +82,7 @@ pub trait DcExpressionEvaluator: Send + Sync {
         resolver: &dyn SyntaxRuleResolver,
     ) -> Result<Option<DcEvaluatedValue>>;
 
-    /// Evaluates a stream-splicing invocation (such as `256 lang.say(String)`) and returns
+    /// Evaluates a stream-splicing invocation and returns
     /// the `DcChar` tokens to splice into the navigator's active stream.
     ///
     /// # Errors
@@ -94,8 +94,8 @@ pub trait DcExpressionEvaluator: Send + Sync {
     ) -> Result<Option<Vec<DcChar>>>;
 }
 
-/// Default built-in expression evaluator supporting `256 lang.say`, equivalent representations,
-/// and Dc-WASM helper routines.
+/// Default expression evaluator supporting equivalent representations and
+/// Dc-WASM helper routines.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DefaultDcExpressionEvaluator;
 
@@ -229,6 +229,9 @@ fn eval_expression_for_requirement_impl(
         let Some(first) = expr_tokens.first() else {
             return Ok(None);
         };
+        if first.fills_role_with(DcRole::LangSay, resolver) {
+            return Ok(None);
+        }
         if let Some(wasm_shorthands) =
             resolver.resolve_wasm_definition_tokens(first.to_u128())
         {
@@ -377,6 +380,9 @@ fn eval_stream_splice_impl(
         let Some(first) = call_tokens.first() else {
             return Ok(None);
         };
+        if first.fills_role_with(DcRole::LangSay, resolver) {
+            return Ok(None);
+        }
         if let Some(wasm_shorthands) =
             resolver.resolve_wasm_definition_tokens(first.to_u128())
         {
@@ -389,47 +395,6 @@ fn eval_stream_splice_impl(
                 )?;
             let dc_str = doc.to_dc_string()?;
             return Ok(Some(dc_str.chars().collect()));
-        }
-        if first.fills_role_with(DcRole::LangSay, resolver) {
-            let mut in_str = false;
-            let mut expect_hdr = false;
-            let mut in_hdr = false;
-            let mut chars = Vec::new();
-            let mut iter = call_tokens.iter().skip(1).peekable();
-            while let Some(&tok) = iter.next() {
-                if !in_str {
-                    if tok.fills_role_with(DcRole::BeginLiteral, resolver) {
-                        in_str = true;
-                        expect_hdr = true;
-                    }
-                    continue;
-                }
-                if expect_hdr {
-                    expect_hdr = false;
-                    if tok.fills_role_with(DcRole::BeginTypeDef, resolver) {
-                        in_hdr = true;
-                        continue;
-                    }
-                }
-                if in_hdr {
-                    if tok.fills_role_with(DcRole::EndTypeDef, resolver) {
-                        in_hdr = false;
-                    }
-                    continue;
-                }
-                if tok.fills_role_with(DcRole::Escape, resolver) {
-                    if let Some(&escaped) = iter.next() {
-                        chars.push(escaped);
-                        continue;
-                    }
-                }
-                if tok.fills_role_with(DcRole::EndLiteral, resolver) {
-                    in_str = false;
-                    continue;
-                }
-                chars.push(tok);
-            }
-            return Ok(Some(chars));
         }
         Ok(None)
 }
@@ -1110,16 +1075,14 @@ impl DcDocumentNavigator<'_> {
                 SyntaxTerm::SelfChar => ctx.self_dc.is_some_and(|t| {
                     t == ch_id
                         || ctx.resolver.is_equivalent_to(t, ch_id)
-                        || ctx.token_fills_role(t, DcRole::LangSay)
                 }),
                 SyntaxTerm::CharRef(target) => {
                     let tid = target.to_u128();
                     tid == ch_id
                         || ctx.resolver.is_equivalent_to(tid, ch_id)
-                        || ctx.token_fills_role(tid, DcRole::LangSay)
                 }
                 SyntaxTerm::RuleRef { target } => {
-                    ctx.token_fills_role(target.to_u128(), DcRole::LangSay)
+                    ctx.resolver.is_equivalent_to(target.to_u128(), ch_id)
                 }
                 SyntaxTerm::CharSet {
                     negated: false,
@@ -1128,7 +1091,6 @@ impl DcDocumentNavigator<'_> {
                     let tid = target.to_u128();
                     tid == ch_id
                         || ctx.resolver.is_equivalent_to(tid, ch_id)
-                        || ctx.token_fills_role(tid, DcRole::LangSay)
                 }),
                 _ => false,
             };

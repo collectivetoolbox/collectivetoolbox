@@ -319,19 +319,17 @@ pub trait SyntaxRuleResolver {
         )
         .unwrap_or(FramingShape::Atom)
     }
-    /// Returns true if `token` is a wrapper construct (`LangSay`, `OptionalPresent`,
+    /// Returns true if `token` is a wrapper construct (`OptionalPresent`,
     /// `OptionalAbsent`, or `is_representation_set`) handled transparently by pattern evaluation.
     fn is_special_wrapper_token(&self, token: u128) -> bool {
-        self.token_fills_role(token, DcRole::LangSay)
-            || self.token_fills_role(token, DcRole::OptionalPresent)
+        self.token_fills_role(token, DcRole::OptionalPresent)
             || self.token_fills_role(token, DcRole::OptionalAbsent)
             || self.is_representation_set(token)
     }
-    /// Returns true if `token` is a stream-splicing trigger (`Dc 256 "void lang.say([string] text)"`,
-    /// an equivalent character, or a WASM-backed splice routine in the active snapshot).
+    /// Returns true if `token` is a WASM-backed splice routine in the active snapshot.
     fn is_splice_trigger_token(&self, token: u128) -> bool {
-        self.token_fills_role(token, DcRole::LangSay)
-            || self.resolve_wasm_definition_tokens(token).is_some()
+        !self.token_fills_role(token, DcRole::LangSay)
+            && self.resolve_wasm_definition_tokens(token).is_some()
     }
     /// Returns true if `token` matches the single-token branch of `[atom_dc]`
     /// (i.e. is not in the negated delimiter/operator exclusion set of `atom_dc`).
@@ -1426,7 +1424,6 @@ impl DatasetRuleResolver {
         }
 
         let base_wrappers = [
-            crate::dc::DC_LANG_SAY.to_u128(),
             DC_OPTIONAL_PRESENT.to_u128(),
             DC_OPTIONAL_ABSENT.to_u128(),
             DC_EQUIVALENT_REPRESENTATIONS.to_u128(),
@@ -1444,16 +1441,6 @@ impl DatasetRuleResolver {
             }
         }
 
-        let say_base = crate::dc::DC_LANG_SAY.to_u128();
-        self.splice_trigger_tokens.insert(say_base);
-        if let Some(equivs) = self.semantic_equivalents.get(&say_base) {
-            self.splice_trigger_tokens.extend(equivs.iter().copied());
-        }
-        for (&alias, &canon) in &self.canonical_map {
-            if self.splice_trigger_tokens.contains(&canon) {
-                self.splice_trigger_tokens.insert(alias);
-            }
-        }
         self.populate_seed_graph_splice_triggers();
 
         if let Some(SyntaxPattern::Alternation(branches)) =
@@ -2160,25 +2147,21 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         if !self.special_wrapper_tokens.is_empty() {
             return self.special_wrapper_tokens.contains(&token);
         }
-        self.token_fills_role(token, DcRole::LangSay)
-            || self.token_fills_role(token, DcRole::OptionalPresent)
+        self.token_fills_role(token, DcRole::OptionalPresent)
             || self.token_fills_role(token, DcRole::OptionalAbsent)
             || self.is_representation_set(token)
     }
 
     fn is_splice_trigger_token(&self, token: u128) -> bool {
-        if self.splice_trigger_tokens.len() == 1
-            && token == crate::dc::DC_LANG_SAY.to_u128()
-        {
-            return true;
+        if self.token_fills_role(token, DcRole::LangSay) {
+            return false;
         }
         if !self.splice_trigger_tokens.is_empty()
             && self.splice_trigger_tokens.contains(&token)
         {
             return true;
         }
-        self.token_fills_role(token, DcRole::LangSay)
-            || self.resolve_wasm_definition_tokens(token).is_some()
+        self.resolve_wasm_definition_tokens(token).is_some()
     }
 
     fn is_plain_atom_dc(&self, token: u128) -> bool {

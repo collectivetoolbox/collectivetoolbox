@@ -881,7 +881,7 @@ pub enum DcFrameHeaderInfo {
     /// Standard frame or statement without specialized header metadata.
     #[default]
     None,
-    /// Container whose closer delimiter was produced by stream splicing (e.g. `lang.say`).
+    /// Container whose closer delimiter was produced by stream splicing.
     SplicedCloser,
     /// Binary encapsulation (`203..204`) with payload byte span and optional data type.
     Binary {

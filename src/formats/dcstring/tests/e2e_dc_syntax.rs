@@ -1612,14 +1612,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Verifies end-to-end stream splicing of `lang.say` (Dc 256):
-    /// `286 256 258 260 262 264 263 57 86 93 93 96 30 18 72 96 99 93 85 19 287 261 259`
-    ///
-    /// 1. Splicing execution: evaluates `lang.say`, splices `"Hello, World!"` + `287` into `spliced_tokens`,
-    ///    and cleanly closes the outer `286..287` italicized text span.
-    /// 2. CST Arena parsing: parses into the arena without dropping the inner `lang.say` invocation.
+    /// A closer in a quoted output argument cannot close the outer container.
     #[crate::ctb_test]
-    fn test_lang_say_stream_splicing_end_to_end() -> Result<()> {
+    fn test_lang_say_quoted_closer_does_not_close_container() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
         let resolver = default_syntax_resolver();
 
@@ -1642,130 +1637,26 @@ mod tier4_expression_evaluation_and_stream_splicing {
             token_ids.iter().map(|&id| DcChar::from_short(id)).collect();
         let doc = create_test_mstring(&chars);
 
-        // --- Part 1: Stream Splicing Verification ---
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
-
-        // Step 1: Open italic span (Dc 286)
         let first = nav.read_next_token()?.context("Missing opening Dc 286")?;
         ensure!(
             first == DcChar::from_short(286),
             "Expected Dc 286, found {first}"
         );
 
-        // Step 2: Next token is Dc 256 (lang.say)
         let evaluator = DefaultDcExpressionEvaluator;
         let spliced =
             nav.splice_stream_invocation(&evaluator, &**resolver, &policy)?;
-        ensure!(spliced, "splice_stream_invocation must succeed on Dc 256");
-
-        // Verify spliced_tokens queue contains "Hello, World!" followed by 287
-        let expected_spliced: Vec<DcChar> =
-            [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19, 287]
-                .iter()
-                .map(|&id| DcChar::from_short(id))
-                .collect();
-        let actual_spliced: Vec<DcChar> =
-            nav.spliced_tokens().iter().copied().collect();
-        ensure!(
-            actual_spliced == expected_spliced,
-            "Spliced tokens queue mismatch: expected {expected_spliced:?}, got {actual_spliced:?}"
-        );
-
-        // Step 3: Consume tokens from stream, encountering "Hello, World!" and then 287
-        let payload_len = expected_spliced.len().saturating_sub(1);
-        let payload = expected_spliced
-            .get(..payload_len)
-            .context("Missing payload slice")?;
-        for &expected_char in payload {
-            let ch = nav
-                .read_next_token()?
-                .context("Missing spliced character")?;
-            ensure!(
-                ch == expected_char,
-                "Character mismatch: expected {expected_char}, got {ch}"
-            );
-        }
-
-        // Cleanly encounter closing 287 (End italicized text)
-        let closer =
-            nav.read_next_token()?.context("Missing closing Dc 287")?;
-        ensure!(
-            closer == DcChar::from_short(287),
-            "Expected Dc 287, found {closer}"
-        );
-
-        // Stream is cleanly consumed at end
-        ensure!(
-            nav.read_next_token()?.is_none(),
-            "Stream must be exhausted after closing 287"
-        );
-
-        // --- Part 2: CST Arena Parsing Verification ---
-        let mut arena_nav = DcDocumentNavigator::from_mstr(&doc);
-        let mut arena = DcSyntaxArena::new();
-        arena_nav.parse_document_into_arena(&mut arena, &policy)?;
-
-        let roots = arena.roots();
-        ensure!(
-            roots.len() == 1,
-            "Expected 1 root node in arena, found {}",
-            roots.len()
-        );
-
-        let root_id = *roots.first().context("Root node missing")?;
-        let root_node = arena.get(root_id).context("Root node missing")?;
-        match &root_node.kind {
-            DcSyntaxKind::Container {
-                opener,
-                closer,
-                unclosed,
-                children,
-                ..
-            } => {
-                ensure!(
-                    *opener == DcChar::from_short(286),
-                    "Opener must be 286, got {opener}"
-                );
-                ensure!(
-                    *closer == DcChar::from_short(287),
-                    "Closer must be 287, got {closer}"
-                );
-                ensure!(!unclosed, "Container must not be marked unclosed");
-                ensure!(
-                    children.len() == 13,
-                    "Expected 13 spliced children for 'Hello, World!', got {}",
-                    children.len()
-                );
-
-                let expected_text =
-                    [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
-                for (i, &expected_id) in expected_text.iter().enumerate() {
-                    let node_id = *children
-                        .get(i)
-                        .context("Child index out of bounds")?;
-                    let child_node =
-                        arena.get(node_id).context("Child node missing")?;
-                    match &child_node.kind {
-                        DcSyntaxKind::Atom(ch) => {
-                            ensure!(
-                                *ch == DcChar::from_short(expected_id),
-                                "Child {i} expected {expected_id}, got {ch}"
-                            );
-                        }
-                        other => {
-                            bail!("Child {i} expected Atom, got {other:?}")
-                        }
-                    }
-                }
-            }
-            other => bail!("Root node must be Container, got {other:?}"),
-        }
+        ensure!(!spliced, "Output calls must not splice into the input");
+        assert_eq!(nav.read_next_token()?, Some(DcChar::from_short(256)));
+        let mut validation = DcDocumentNavigator::from_mstr(&doc);
+        ensure!(validation.validate_document(&policy).is_err());
 
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_historical_lang_say_splice_without_graph_wasm() -> Result<()> {
+    fn test_historical_lang_say_is_not_stream_splicing() -> Result<()> {
         let revision = 8_589_958_834;
         let graph = ctb_formats_dcdata::seed_graph::SeedGraphIndex::load_at_most_recent_from_asset_bundle(revision)?;
         let resolver = DatasetRuleResolver::from_seed_graph(&graph)?;
@@ -1807,17 +1698,48 @@ mod tier4_expression_evaluation_and_stream_splicing {
             navigator.read_next_token()?,
             Some(DcChar::from_long(revision))
         );
-        assert_eq!(navigator.read_next_token()?, Some(DcChar::from('A')));
-        assert_eq!(navigator.read_next_token()?, Some(DcChar::from_short(261)));
-        assert_eq!(navigator.read_next_token()?, Some(DcChar::from('B')));
+        for token in [
+            say,
+            DcChar::from_short(258),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(264),
+            DcChar::from_short(263),
+            DcChar::from('A'),
+            DcChar::from_short(255),
+            DcChar::from_short(261),
+            DcChar::from('B'),
+            DcChar::from_short(261),
+            DcChar::from_short(259),
+        ] {
+            assert_eq!(navigator.read_next_token()?, Some(token));
+        }
         assert_eq!(navigator.read_next_token()?, None);
+
+        let invocation = create_test_mstring(&[
+            say,
+            DcChar::from_short(258),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(264),
+            DcChar::from_short(263),
+            DcChar::from('A'),
+            DcChar::from_short(261),
+            DcChar::from_short(259),
+        ]);
+        let policy = DcProjectionPolicy::strict();
+        let mut nav = DcDocumentNavigator::from_mstr(&invocation);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let root = *arena.roots().first().context("Missing invocation")?;
+        let projection = DcProjectionContext::new(&arena, &policy);
+        assert!(projection.resolve_expression_node(root)?.is_none());
         Ok(())
     }
 
-    /// Verifies that `lang.say` inside a container where the closer (Dc 287) is outside
-    /// the `lang.say` call correctly splices the 13 characters into the container.
+    /// An output invocation remains a child of its enclosing container.
     #[crate::ctb_test]
-    fn test_lang_say_external_closer_stream_splicing() -> Result<()> {
+    fn test_lang_say_external_closer_preserves_invocation() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
 
         // 286 (Begin italicized text)
@@ -1862,32 +1784,13 @@ mod tier4_expression_evaluation_and_stream_splicing {
                     "Closer must be 287, got {closer}"
                 );
                 ensure!(!unclosed, "Container must not be marked unclosed");
+                ensure!(children.len() == 1, "Expected one invocation child");
+                let child =
+                    arena.get(children[0]).context("Missing invocation")?;
                 ensure!(
-                    children.len() == 13,
-                    "Expected 13 spliced children for 'Hello, World!', got {}",
-                    children.len()
+                    child.semantic_token()
+                        == Some(DcChar::from_short(256).to_u128())
                 );
-
-                let expected_text =
-                    [57u32, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19];
-                for (i, &expected_id) in expected_text.iter().enumerate() {
-                    let node_id = *children
-                        .get(i)
-                        .context("Child index out of bounds")?;
-                    let child_node =
-                        arena.get(node_id).context("Child node missing")?;
-                    match &child_node.kind {
-                        DcSyntaxKind::Atom(ch) => {
-                            ensure!(
-                                *ch == DcChar::from_short(expected_id),
-                                "Child {i} expected {expected_id}, got {ch}"
-                            );
-                        }
-                        other => {
-                            bail!("Child {i} expected Atom, got {other:?}")
-                        }
-                    }
-                }
             }
             other => bail!("Root node must be Container, got {other:?}"),
         }
@@ -1895,10 +1798,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Verifies that `eval_term_single` handles `lang.say` stream splicing
-    /// during grammar validation.
+    /// Output arguments are not substituted into grammar validation.
     #[crate::ctb_test]
-    fn test_eval_term_single_lang_say_stream_splicing() -> Result<()> {
+    fn test_eval_term_single_does_not_splice_lang_say() -> Result<()> {
         let _policy = DcProjectionPolicy::strict();
         let resolver = default_syntax_resolver();
 
@@ -1918,18 +1820,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // Term matching 'H' (Dc 57)
         let term_h = SyntaxTerm::CharRef(CharTarget::Dc(57));
         let matched = nav.eval_term_single(&term_h, &mut ctx)?;
-        ensure!(
-            matched,
-            "eval_term_single must splice lang.say and match first spliced character 'H'"
-        );
-
-        // Term matching 'e' (Dc 86)
-        let term_e = SyntaxTerm::CharRef(CharTarget::Dc(86));
-        let matched_e = nav.eval_term_single(&term_e, &mut ctx)?;
-        ensure!(
-            matched_e,
-            "eval_term_single must match next spliced character 'e'"
-        );
+        ensure!(!matched, "Output text must not satisfy an input grammar");
 
         Ok(())
     }
@@ -2144,7 +2035,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Verifies `unwrap_equivalent_or_self` and `unwrap_transparent` resolving 398 and expression nodes (540, 276, 279).
+    /// Verifies equivalent and bound-reference resolution without inventing routine results.
     #[crate::ctb_test]
     fn test_unwrap_equivalent_and_expression_nodes() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
@@ -2256,21 +2147,11 @@ mod tier4_expression_evaluation_and_stream_splicing {
         nav.parse_document_into_arena(&mut arena, &policy)?;
         let routine_id =
             *arena.roots().first().context("Missing routine root")?;
-        let mut ctx =
+        let ctx =
             ctb_formats_dcstring::DcProjectionContext::new(&arena, &policy);
         let unwrapped_routine = ctx.unwrap_equivalent_or_self(routine_id)?;
-        ensure!(
-            arena.is_literal_with_resolver(unwrapped_routine, ctx.resolver()),
-            "279 must resolve to argument Literal"
-        );
-        let decoded_routine: String =
-            ctb_formats_dcstring::DcMixedDecode::decode_dc_node(
-                &mut ctx, routine_id,
-            )?;
-        ensure!(
-            decoded_routine == "routine_payload",
-            "279 routine must transparently decode payload"
-        );
+        ensure!(unwrapped_routine == routine_id);
+        ensure!(ctx.resolve_expression_node(routine_id)?.is_none());
         Ok(())
     }
 
@@ -3134,15 +3015,9 @@ mod dynamic_runtime_equivalence_overlay_tests {
     }
 
     #[crate::ctb_test]
-    fn test_spliced_streams_multi_token_outer_closers_and_quoted_content()
-    -> Result<()> {
+    fn test_output_arguments_cannot_supply_outer_closers() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
 
-        // 1. lang.say (Dc 256) inside a struct container (401..402) emitting:
-        //    - Field 400 ("title") whose quoted literal payload contains an unescaped outer closer Dc 402
-        //      and an escaped Dc 261 (255 261)
-        //    - Field 406 ("count") = 42
-        //    - The outer container closer Dc 402 itself!
         let mut say_payload = DcMstring::new();
         say_payload.push_char(DcChar::from_short(400));
         say_payload.push_char(DcChar::from_short(260));
@@ -3157,7 +3032,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         say_payload.push_char(DcChar::from_short(261));
         say_payload.push_char(DcChar::from_short(406));
         42u64.encode_dc_mixed(&mut say_payload)?;
-        say_payload.push_char(DcChar::from_short(402)); // emitted outer closer 402
+        say_payload.push_char(DcChar::from_short(402)); // quoted outer closer 402
 
         let say_payload_str = say_payload.to_dc_string()?;
         let mut doc = DcMstring::new();
@@ -3167,47 +3042,15 @@ mod dynamic_runtime_equivalence_overlay_tests {
         say_payload_str.encode_dc_mixed(&mut doc)?;
         doc.push_char(DcChar::from_short(259));
 
-        // Validate document grammar and decode via typed projection:
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
-        nav.validate_document(&strict)?;
+        ensure!(nav.validate_document(&strict).is_err());
 
-        #[derive(
-            Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed,
-        )]
-        #[dc(begin = 401, end = 402)]
-        struct SplicedDcMstrRecord {
-            #[dc(400)]
-            title: DcMstring,
-            #[dc(406)]
-            count: u64,
-        }
-
-        let decoded: SplicedDcMstrRecord = doc.decode(&strict)?;
-        let expected_title: DcMstring = [
-            DcChar::from_char('A'),
-            DcChar::from_short(402),
-            DcChar::from_short(261),
-            DcChar::from_char('B'),
-        ]
-        .into_iter()
-        .collect();
-        ensure!(
-            decoded.title == expected_title,
-            "Spliced literal containing outer closer 402 and escaped 261 must decode losslessly"
-        );
-        ensure!(
-            decoded.count == 42,
-            "Spliced multi-token field after literal must decode before emitted closer 402"
-        );
-
-        // 2. lang.say inside a list container (310 275 ... 311) emitting an escaped closer (255 311),
-        //    a separator (312), a nested list (310 275 517 311), and the outer closer (311):
         let mut list_say = DcMstring::new();
         list_say.push_char(DcChar::from_short(255));
         list_say.push_char(DcChar::from_short(311)); // escaped 311 atom
         list_say.push_char(DcChar::from_short(312));
         list_say.push_char(DcChar::from_short(517)); // true atom
-        list_say.push_char(DcChar::from_short(311)); // actual outer list closer
+        list_say.push_char(DcChar::from_short(311)); // quoted outer list closer
 
         let list_say_str = list_say.to_dc_string()?;
         let mut list_doc = DcMstring::new();
@@ -3219,29 +3062,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         list_doc.push_char(DcChar::from_short(259));
 
         let mut list_nav = DcDocumentNavigator::from_mstr(&list_doc);
-        list_nav.validate_document(&strict)?;
-        let mut list_arena = DcSyntaxArena::new();
-        let mut list_nav2 = DcDocumentNavigator::from_mstr(&list_doc);
-        list_nav2.parse_document_into_arena(&mut list_arena, &strict)?;
-        let list_root =
-            *list_arena.roots().first().context("Missing list root")?;
-        let list_node =
-            list_arena.node(list_root).context("Missing list node")?;
-        let children = list_node.children();
-        let operands = list_arena.split_operands(&children[1..]);
-        ensure!(
-            operands.len() == 2,
-            "Expected 2 list elements separated by 312, found {}",
-            operands.len()
-        );
-        let first_elem = list_arena
-            .node(*operands[0].first().context("Missing first element")?)
-            .context("Missing first element node")?;
-        ensure!(
-            first_elem.is_escaped_atom()
-                && matches!(first_elem.kind, DcSyntaxKind::Atom(ch) if ch == DcChar::from_short(311)),
-            "First spliced element must be recognized as an escaped Dc 311 atom"
-        );
+        ensure!(list_nav.validate_document(&strict).is_err());
 
         Ok(())
     }

@@ -59,7 +59,7 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
 1. Snapshot resolution for `Dc 641 "Global graph system block most recent node ID at time of document creation"` must never silently substitute `HEAD` when history is missing, when a pin is newer than the local graph, or when resolver loading fails.
 2. Foundational kernel semantics (transport/framing codecs, `.Semantic:Pattern` interpretation for `Dc 599 "Self reference"`..`Dc 607 "Pattern replacement"`, `Dc 611 "Canonical decomposition"` equivalence resolution, Dc-WASM lowering, and the 32-byte linear-memory mailbox ABI) must be explicitly specified and frozen or versioned.
 3. Document-controlled WASM execution must be bounded by independent instruction metering, linear-memory caps, and output byte limits inside each `step()` call—not merely an outer loop counter around synchronous `tinywasm` calls.
-4. Evaluated streams with token splicing (`Dc 256 "void lang.say([string] text)"` and WASM-backed splice routines) must preserve incremental expansion-before-framing, kept distinct from unevaluated source/CST inspection.
+4. Evaluated streams with genuine token splicing must preserve incremental expansion-before-framing, kept distinct from unevaluated source/CST inspection. `Dc 256 "void lang.say([string] text)"` is an output routine, not a token splice.
 
 ---
 
@@ -78,7 +78,7 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
   - `DcDocumentNavigator` replaced heap-cloned `VecDeque<DcChar>` in checkpoints with `spliced_buf: Vec<DcChar>` and `Copy` indices (`spliced_head`, `spliced_end` in `NavigatorCheckpoint`, `src/formats/dcstring/navigator/eval.rs:307-316`) plus precomputed `splice_trigger_tokens` (`src/formats/dcdata/syntax/resolver.rs:1375-1384`).
 - **Historical Snapshot Resolution, Pin Validation, Scoped Inheritance, and Transitive WASM Splicing (`src/formats/dcdata/seed_graph.rs`, `src/formats/dcdata/syntax/resolver.rs`, `src/formats/dcstring/navigator.rs`, `src/formats/dcstring/converters/wasm.rs`)**:
   - `SeedGraphIndex::load_at_most_recent_from_asset_bundle` (`src/formats/dcdata/seed_graph.rs:479-520`) rejects pins outside the System block (`l8589934592..=l12884901887`), rejects pins newer than the local graph (`most_recent_node_id > head_id`), and requires complete historical `.ctbnbdl` bundle coverage through `most_recent_node_id` whenever superseded (`Dc 591 "Supersedes"`) or retracted (`Dc 592 "Retracts"`) statements affect the snapshot.
-  - `DcDocumentNavigator` (`src/formats/dcstring/navigator.rs`) propagates pin-resolution errors into diagnostics instead of silently substituting `HEAD`, supports `Dc 641 "Global graph system block most recent node ID at time of document creation"` in raw stream prefixes and document/environment headers (`Dc 235 "Begin document"`..`Dc 236 "End document"`, `Dc 340 "Begin execution environment description"`..`Dc 341 "End execution environment description"`, `Dc 617 "Begin graph node definition"`..`Dc 618 "End graph node definition"`), honors `policy.unpinned_fallback_most_recent_node_id` before root header pin discovery and on non-stub navigation paths (`effective_resolver()`, `peek_token()`, `read_next_token()`) as well as policy-aware `.dcmm` file constructors (`from_dcmm_file_with_kernel_version`, `try_from_dcmm_file_with_kernel_version_number`, `from_dcmm_file_with_policy`), inherits the enclosing document's pin into nested documents unless overridden, rejects pins/references targeting unimplemented blocks (`4294967296..8589934592` and `> 12884901887`), and preserves incremental expansion-before-framing for spliced streams across both `Dc 256 "void lang.say([string] text)"` and general WASM-backed splice routines while debiting the navigator's shared `SharedWasmTaskQuota`.
+  - `DcDocumentNavigator` (`src/formats/dcstring/navigator.rs`) propagates pin-resolution errors into diagnostics instead of silently substituting `HEAD`, supports `Dc 641 "Global graph system block most recent node ID at time of document creation"` in raw stream prefixes and document/environment headers (`Dc 235 "Begin document"`..`Dc 236 "End document"`, `Dc 340 "Begin execution environment description"`..`Dc 341 "End execution environment description"`, `Dc 617 "Begin graph node definition"`..`Dc 618 "End graph node definition"`), honors `policy.unpinned_fallback_most_recent_node_id` before root header pin discovery and on non-stub navigation paths (`effective_resolver()`, `peek_token()`, `read_next_token()`) as well as policy-aware `.dcmm` file constructors (`from_dcmm_file_with_kernel_version`, `try_from_dcmm_file_with_kernel_version_number`, `from_dcmm_file_with_policy`), inherits the enclosing document's pin into nested documents unless overridden, rejects pins/references targeting unimplemented blocks (`4294967296..8589934592` and `> 12884901887`), and preserves incremental expansion-before-framing for WASM-backed splice routines while debiting the navigator's shared `SharedWasmTaskQuota`.
   - `expand_graph_wasm_shorthands` and `dcstring_to_wasm_with_resolver` (`src/formats/dcstring/converters/wasm.rs`) expand both `DcShorthand::Long(node_id)` references and transitive Short-Dc WASM helpers resolved via `Dc 611 "Canonical decomposition"`, enforcing snapshot pin bounds, unsupported-block checks, retraction checks, and cycle detection.
 - **Portable `.wasm` Bytecode Instrumentation, Logical vs. Physical Growth Separation, and Trusted Supervisor Bootstrap Verification (`src/formats/dcstring/converters/wasm_quota.rs`, `src/formats/dcdata/seed_graph.rs`, `src/runtime/runtime.rs`)**:
   - Restored unmodified upstream `tinywasm 0.8.0` and implemented `instrument_wasm_module_bytes` (`src/formats/dcstring/converters/wasm_quota.rs`) with `deduct-before-effect` compute-quota accounting in appended WASM globals (`$__ctb_deduct`, `$__ctb_deduct_batch`), recording `last_interrupted_op_ordinal` and `last_interrupted_op_required_cost` on `WasmResourceInterruption::ComputeQuotaExhausted` (`Privilege::ExcessiveCompute`).
@@ -231,19 +231,24 @@ interruptions remain external host events rather than logical budget policy.
 
 ### Gate 3: Prove One End-to-End Vertical Migration with Real Graph History
 - [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:
-  - Select a small self-contained behavior currently hardcoded in Rust (for example, `Dc 256 "void lang.say([string] text)"` payload extraction in `DefaultDcExpressionEvaluator::eval_stream_splice` at `src/formats/dcstring/navigator/eval.rs:260-300`, or a specific format/value rule), emit its definition through `src/formats/dcdata/support/graph_ledger.rs` into `.ctbnodes` / `.ctbnbdl`, and delete the corresponding procedural Rust fallback.
-  - Candidate constraint: the real historical snapshot `l8589958834` has no
-    graph WASM definition for `Dc 256 "void lang.say([string] text)"`, but
-    pinned documents currently splice its literal payload, including escaped
-    tokens. `test_historical_lang_say_splice_without_graph_wasm` records this
-    behavior. Appending a definition at HEAD cannot give that earlier snapshot
-    a definition; removing the fallback needs a compatible historical execution
-    strategy, not a HEAD substitution.
-  - Semantic conflict: the current catalog describes `Dc 256 "void lang.say([string] text)"`
-    as outputting a string with a final line feed, while the procedural splice
-    emits tokens without adding one. Resolve this against historical meaning
-    before using it as the graph migration example; alternatively select a
-    different behavior whose semantics and historical execution are established.
+  - Select a small self-contained behavior currently hardcoded in Rust, such as a
+    specific format/value rule, emit its definition through
+    `src/formats/dcdata/support/graph_ledger.rs` into `.ctbnodes` / `.ctbnbdl`,
+    and delete the corresponding procedural Rust fallback.
+  - The historical catalog and hello-world fixture establish that
+    `Dc 256 "void lang.say([string] text)"` sends a string to its output
+    context with a final line feed if needed. The recent parser incorrectly
+    spliced its argument into input and treated it as a return value; these
+    fallbacks were removed. The routine's actual output effect is not yet
+    implemented or verified against the hello-world fixture.
+  - The real historical snapshot `l8589958834` has no graph WASM definition for
+    this routine. Appending a definition at HEAD cannot supply one to an older
+    pin; establish compatible historical execution without HEAD substitution,
+    or select a different behavior with a viable historical definition.
+  - The navigator currently treats WASM-backed definitions as potential splice
+    triggers, except for the output routine above. A general graph-backed
+    distinction between splice routines, value computations, and output effects
+    is still needed before migrating behaviors that are not splices.
 - [ ] **Build the end-to-end historical-behavior and trace-replay regression suite**:
   - Using real generated graph history (`Dc 591 "Supersedes"` / `Dc 592 "Retracts"` across active and historical `.ctbnbdl` bundles):
     1. Author a document pinned to `Dc 641 "Global graph system block most recent node ID at time of document creation"` at revision $R_1$.
@@ -252,7 +257,7 @@ interruptions remain external host events rather than logical budget policy.
     4. Verify that a document pinned to an unavailable future revision $R_3 > R_2$ produces an explicit diagnostic/error rather than silently running against $R_2$.
     5. Add focused replay cases for denied/mocked capabilities and asynchronous event ordering at defined logical delivery points, using mocks or in-memory transports. Different external responses may change output, but must not change requests or outputs that precede their delivery.
     6. Add canonical raster-output cases with explicit font and format-chain inputs, including subpixel rendering and vertical/horizontal pixel alignment. Compare exact pixel bytes across implementation revisions and supported hardware; changing rendering configuration changes inputs, not the compatibility guarantee.
-    7. Exercise internal semantic constructs through observable trace outputs (framing boundaries for `Dc 590 "Is a closing delimiter of syntactic block for"`, `Dc 255 "Ignore following Dc"`, and `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`; decoded values for `Dc 6 "Begin number"`..`Dc 7 "End number"`, `Dc 260 "Begin literal value"`..`Dc 261 "End literal value"`, and `Dc 270 "Begin identifier"`..`Dc 271 "End identifier"`; lexical bindings for `Dc 541 "Enter identifier scope"`..`Dc 542 "Exit identifier scope"`, `Dc 269 "Assignment operator"`, `Dc 268 "void lang.assign([identifier] identifier, [value] value)"`, `Dc 540 "Reference bound value"`, `Dc 276 "Reference named object"`, `Dc 638 "For each"`, and `Dc 639 "This element"`; spliced streams for `Dc 256 "void lang.say([string] text)"` and `Dc 397 "Equivalent representations"` / `Dc 561 "Partially equivalent representations"`; and forgiving-recovery diagnostics).
+    7. Exercise internal semantic constructs through observable trace outputs (framing boundaries for `Dc 590 "Is a closing delimiter of syntactic block for"`, `Dc 255 "Ignore following Dc"`, and `Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`; decoded values for `Dc 6 "Begin number"`..`Dc 7 "End number"`, `Dc 260 "Begin literal value"`..`Dc 261 "End literal value"`, and `Dc 270 "Begin identifier"`..`Dc 271 "End identifier"`; lexical bindings for `Dc 541 "Enter identifier scope"`..`Dc 542 "Exit identifier scope"`, `Dc 269 "Assignment operator"`, `Dc 268 "void lang.assign([identifier] identifier, [value] value)"`, `Dc 540 "Reference bound value"`, `Dc 276 "Reference named object"`, `Dc 638 "For each"`, and `Dc 639 "This element"`; output from `Dc 256 "void lang.say([string] text)"`, genuine spliced streams, and `Dc 397 "Equivalent representations"` / `Dc 561 "Partially equivalent representations"`; and forgiving-recovery diagnostics).
 
 ### Gate 4: Incremental Expansion & Cleanup (Post-Proof)
 - [ ] **Eliminate implicit Rust rule synthesis in `DatasetRuleResolver::from_seed_graph` (`src/formats/dcdata/syntax/resolver.rs`)**:

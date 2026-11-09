@@ -609,33 +609,27 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
         let canon = self.canonical_token(token);
         self.base.is_special_wrapper_token(canon)
             || self.roles_overlay.get(&token).is_some_and(|roles| {
-                roles.contains(&DcRole::LangSay)
-                    || roles.contains(&DcRole::OptionalPresent)
+                roles.contains(&DcRole::OptionalPresent)
                     || roles.contains(&DcRole::OptionalAbsent)
             })
             || (canon != token
                 && self.roles_overlay.get(&canon).is_some_and(|roles| {
-                    roles.contains(&DcRole::LangSay)
-                        || roles.contains(&DcRole::OptionalPresent)
+                    roles.contains(&DcRole::OptionalPresent)
                         || roles.contains(&DcRole::OptionalAbsent)
                 }))
     }
 
     fn is_splice_trigger_token(&self, token: u128) -> bool {
+        if self.token_fills_role(token, DcRole::LangSay) {
+            return false;
+        }
         if self.canonical_overlay.is_empty() && self.roles_overlay.is_empty() {
-            return self.base.is_splice_trigger_token(token);
+            return self.base.is_splice_trigger_token(token)
+                || self.resolve_wasm_definition_tokens(token).is_some();
         }
         let canon = self.canonical_token(token);
         self.base.is_splice_trigger_token(canon)
-            || self
-                .roles_overlay
-                .get(&token)
-                .is_some_and(|roles| roles.contains(&DcRole::LangSay))
-            || (canon != token
-                && self
-                    .roles_overlay
-                    .get(&canon)
-                    .is_some_and(|roles| roles.contains(&DcRole::LangSay)))
+            || self.resolve_wasm_definition_tokens(token).is_some()
     }
 
     fn is_plain_atom_dc(&self, token: u128) -> bool {

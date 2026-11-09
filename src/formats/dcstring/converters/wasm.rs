@@ -4717,8 +4717,11 @@ mod tests {
             .chars()
             .map(|ch| DcShorthand::from_global_id(ch.to_u128()))
             .collect();
-        let custom_op = DcChar::from_short(256);
-        resolver.register_wasm_definition(custom_op.to_u128(), routine_shorthands);
+        let custom_op = DcChar::from_short(3916);
+        resolver.register_wasm_definition(
+            custom_op.to_u128(),
+            routine_shorthands.clone(),
+        );
 
         let evaluator = DefaultDcExpressionEvaluator;
         let call_tokens = vec![custom_op, DcChar::from_short(517)];
@@ -4726,6 +4729,29 @@ mod tests {
             .eval_stream_splice(&call_tokens, &resolver)?
             .expect("Expected WASM splice evaluation");
         assert_eq!(spliced, vec![DcChar::from_short(517)]);
+        assert!(resolver.is_splice_trigger_token(custom_op.to_u128()));
+
+        let say = DcChar::from_short(256);
+        let say_alias = DcChar::from_short(3917);
+        resolver.register_equivalence(say_alias.to_u128(), say.to_u128());
+        resolver.register_wasm_definition(say.to_u128(), routine_shorthands);
+        for token in [say, say_alias] {
+            assert!(!resolver.is_splice_trigger_token(token.to_u128()));
+            let call = [token, DcChar::from_short(517)];
+            assert!(evaluator.eval_stream_splice(&call, &resolver)?.is_none());
+            assert!(
+                evaluator
+                    .eval_expression_for_requirement(
+                        &call,
+                        &ValueRequirement::NamedConstruct {
+                            name: "boolean",
+                            subtype: None,
+                        },
+                        &resolver,
+                    )?
+                    .is_none()
+            );
+        }
 
         let eval_val = evaluator
             .eval_expression_for_requirement(

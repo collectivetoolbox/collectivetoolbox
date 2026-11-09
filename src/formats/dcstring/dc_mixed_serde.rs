@@ -1277,56 +1277,14 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         None
     }
 
-    /// Resolves an expression node (`DcRole::ReferenceBoundValue`, `DcRole::ReferenceNamedObject`,
-    /// or `DcRole::RoutineInvocation`) to the evaluated value's CST `NodeId` in the arena if possible.
+    /// Resolves a bound or named reference to its value's CST `NodeId` if possible.
     pub fn resolve_expression_node(
         &self,
         node_id: NodeId,
     ) -> Result<Option<NodeId>> {
-        let node = self.node(node_id)?;
-        // 1. Bound value reference (`Dc 540`) or named object reference (`Dc 276`)
         if let Some(ident_name) = self.unwrap_bound_reference(node_id)? {
             if let Some(assigned_id) = self.find_bound_assignment(&ident_name) {
                 return Ok(Some(assigned_id));
-            }
-        }
-        // 2. Routine invocation (`Dc 279`, `Dc 256`, `Dc 265`)
-        if let Some((tok, args)) = node.head_and_children() {
-            if self.token_fills_role(tok, DcRole::RoutineInvocation)
-                || self.token_fills_role(tok, DcRole::LangSay)
-            {
-                let resolver = self.resolver();
-                // In a routine invocation, arguments follow the routine identifier (or are trailing parameter containers).
-                // If an argument payload exists (e.g. `lang.say "payload"` or routine(param)), resolve to it.
-                let candidate_arg = args
-                    .iter()
-                    .skip(usize::from(
-                        self.token_fills_role(tok, DcRole::RoutineInvocation),
-                    ))
-                    .find(|&&id| !self.arena.is_identifier_with_resolver(id, resolver))
-                    .copied()
-                    .or_else(|| args.get(1).copied())
-                    .or_else(|| args.first().copied());
-
-                if let Some(arg_id) = candidate_arg {
-                    let arg_node = self.node(arg_id)?;
-                    if let DcSyntaxKind::Container {
-                        opener, children, ..
-                    } = &arg_node.kind
-                    {
-                        if self
-                            .token_fills_role(*opener, DcRole::BeginParameter)
-                        {
-                            if let Some(&param_child) = children.first() {
-                                return Ok(Some(param_child));
-                            }
-                        }
-                    }
-                    if !self.arena.is_identifier_with_resolver(arg_id, resolver)
-                    {
-                        return Ok(Some(arg_id));
-                    }
-                }
             }
         }
         Ok(None)
@@ -1870,7 +1828,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     }
 
     /// Repeatedly unwraps transparent wrappers (`397`/`398`/`561` equivalent lists,
-    /// `315` optionals, and `540`/`276`/`279` expression nodes), using `predicate`
+    /// `315` optionals, and `540`/`276` reference nodes), using `predicate`
     /// to select a preferred candidate child from representation sets.
     pub fn unwrap_transparent_matching<F>(
         &self,
