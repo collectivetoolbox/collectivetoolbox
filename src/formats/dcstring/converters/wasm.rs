@@ -28,7 +28,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::dc_number::read_dc_number_from_reader_with_resolver;
-use crate::navigator::BootstrapKernelVersion;
+use crate::navigator::{
+    BootstrapKernelVersion, tokens_match_named_construct_with_resolver,
+};
 use crate::{
     DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcChar, DcCharExt,
     DcDocumentNavigator, DcMstr, DcMstring, DcProjectionPolicy, DcStr,
@@ -40,8 +42,8 @@ use ctb_formats_dcdata::dc::{
     DC_WASM_FD_PAGE1_START, DC_WASM_START,
 };
 use ctb_formats_dcdata::syntax::{
-    CharTarget, DcRole, SyntaxElement, SyntaxPattern, SyntaxRuleResolver,
-    SyntaxTerm, default_syntax_resolver,
+    CharTarget, DcRole, Quantifier, SyntaxElement, SyntaxPattern,
+    SyntaxRuleResolver, SyntaxTerm, default_syntax_resolver,
 };
 use ctb_formats_dcdata::tinywasm::interpreter::TinyWasmValue;
 use ctb_formats_dcdata::tinywasm::types::ExternVal;
@@ -944,11 +946,230 @@ trait FromNeBytesExt {
 impl FromNeBytesExt for i32 {}
 impl FromNeBytesExt for i64 {}
 
+#[derive(Debug, Clone, Copy)]
+struct RoutineHeaderToken {
+    token: DcChar,
+    optional: bool,
+}
+
+#[derive(Debug, Clone)]
+struct RoutineHeaderLayout {
+    prefix_tokens: Vec<RoutineHeaderToken>,
+    post_sig_tokens: Vec<RoutineHeaderToken>,
+    custom_routine_rule: bool,
+}
+
+impl RoutineHeaderLayout {
+    fn token_starts_routine(
+        &self,
+        tok: DcChar,
+        resolver: &dyn SyntaxRuleResolver,
+    ) -> bool {
+        for hdr in &self.prefix_tokens {
+            if tok == hdr.token
+                || resolver.is_equivalent_to(tok.to_u128(), hdr.token.to_u128())
+            {
+                return true;
+            }
+            if !hdr.optional {
+                return false;
+            }
+        }
+        resolver.token_fills_role(tok.to_u128(), DcRole::BeginLiteral)
+    }
+}
+
+fn extract_header_token_element(
+    el: &SyntaxElement,
+) -> Option<RoutineHeaderToken> {
+    let outer_optional = match el.quantifier {
+        Quantifier::ExactOne => false,
+        Quantifier::Optional => true,
+        _ => return None,
+    };
+    match &el.term {
+        SyntaxTerm::CharRef(target) => Some(RoutineHeaderToken {
+            token: DcChar::from_u128(target.to_u128()),
+            optional: outer_optional,
+        }),
+        SyntaxTerm::Group(SyntaxPattern::Sequence(inner))
+            if inner.len() == 1 =>
+        {
+            let first = inner.first()?;
+            let mut tok = extract_header_token_element(first)?;
+            tok.optional = tok.optional || outer_optional;
+            Some(tok)
+        }
+        _ => None,
+    }
+}
+
+fn extract_pattern_routine_header_tokens(
+    pattern: &SyntaxPattern,
+    construct_name: &str,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<(Vec<RoutineHeaderToken>, Vec<RoutineHeaderToken>)> {
+    let SyntaxPattern::Sequence(elements) = pattern else {
+        bail!(
+            "Active graph grammar for '{construct_name}' must be a sequence pattern"
+        );
+    };
+    let last_el = elements.last().with_context(|| {
+        format!("Active graph grammar for '{construct_name}' is empty")
+    })?;
+    let is_end_literal = matches!(
+        last_el,
+        SyntaxElement {
+            term: SyntaxTerm::CharRef(target),
+            quantifier: Quantifier::ExactOne,
+        } if resolver.token_fills_role(target.to_u128(), DcRole::EndLiteral)
+    );
+    ensure!(
+        is_end_literal,
+        "Active graph grammar for '{construct_name}' must end with Dc 261 (End literal value)"
+    );
+
+    let mut header_start_idx = None;
+    for idx in 0..elements.len() {
+        if let (Some(e0), Some(e1), Some(e2), Some(e3)) = (
+            elements.get(idx),
+            elements.get(idx.saturating_add(1)),
+            elements.get(idx.saturating_add(2)),
+            elements.get(idx.saturating_add(3)),
+        ) && matches!(
+            e0,
+            SyntaxElement {
+                term: SyntaxTerm::CharRef(t0),
+                quantifier: Quantifier::ExactOne,
+            } if resolver.token_fills_role(t0.to_u128(), DcRole::BeginLiteral)
+        ) && matches!(
+            e1,
+            SyntaxElement {
+                term: SyntaxTerm::CharRef(t1),
+                quantifier: Quantifier::ExactOne,
+            } if resolver.token_fills_role(t1.to_u128(), DcRole::BeginTypeDef)
+        ) && matches!(
+            e2,
+            SyntaxElement {
+                term: SyntaxTerm::RuleRef { target: t2 },
+                quantifier: Quantifier::ExactOne,
+            } if resolver.token_fills_role(t2.to_u128(), DcRole::TypeRoutine)
+        ) && matches!(
+            e3,
+            SyntaxElement {
+                term: SyntaxTerm::CharRef(t3),
+                quantifier: Quantifier::ExactOne,
+            } if resolver.token_fills_role(t3.to_u128(), DcRole::EndTypeDef)
+        ) {
+            header_start_idx = Some(idx);
+            break;
+        }
+    }
+    let lit_idx = header_start_idx.with_context(|| {
+        format!(
+            "Active graph grammar for '{construct_name}' is missing canonical Dc 260..Dc 262 [280:] Dc 263 routine signature header"
+        )
+    })?;
+
+    let mut prefix_tokens = Vec::new();
+    if let Some(prefix_slice) = elements.get(..lit_idx) {
+        for el in prefix_slice {
+            let hdr_tok = extract_header_token_element(el).with_context(|| {
+                format!(
+                    "Unsupported non-fixed prefix element in active graph grammar for '{construct_name}'"
+                )
+            })?;
+            prefix_tokens.push(hdr_tok);
+        }
+    }
+
+    let mut post_sig_tokens = Vec::new();
+    let after_sig_idx = lit_idx.saturating_add(4);
+    let end_idx = elements.len().saturating_sub(1);
+    if let Some(after_sig_slice) = elements.get(after_sig_idx..end_idx) {
+        for el in after_sig_slice {
+            if let Some(hdr_tok) = extract_header_token_element(el) {
+                post_sig_tokens.push(hdr_tok);
+            } else {
+                break;
+            }
+        }
+    }
+
+    Ok((prefix_tokens, post_sig_tokens))
+}
+
+fn extract_routine_header_layout(
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<RoutineHeaderLayout> {
+    let routine_pattern = resolver
+        .resolve_named_type("Routine")
+        .context("Active syntax resolver does not define named construct 'Routine'")?;
+    let wasm_routine_pattern = resolver
+        .resolve_named_type("wasm_routine")
+        .context("Active syntax resolver does not define named construct 'wasm_routine'")?;
+    let (routine_prefix, routine_post_sig) =
+        extract_pattern_routine_header_tokens(
+            routine_pattern,
+            "Routine",
+            resolver,
+        )?;
+    let (wasm_prefix, wasm_post_sig) = extract_pattern_routine_header_tokens(
+        wasm_routine_pattern,
+        "wasm_routine",
+        resolver,
+    )?;
+    let prefix_tokens = if !wasm_prefix.is_empty() {
+        wasm_prefix
+    } else {
+        routine_prefix
+    };
+    let post_sig_tokens = if !wasm_post_sig.is_empty() {
+        wasm_post_sig
+    } else {
+        routine_post_sig
+    };
+    let custom_routine_rule =
+        !prefix_tokens.is_empty() || !post_sig_tokens.is_empty();
+    Ok(RoutineHeaderLayout {
+        prefix_tokens,
+        post_sig_tokens,
+        custom_routine_rule,
+    })
+}
+
 fn parse_wasm_routine_from_cursor(
     cursor: &mut TokenCursor<'_>,
     name: String,
     external_sig: Option<WasmFuncSignature>,
 ) -> Result<WasmRoutineDef> {
+    let routine_start = cursor.pos;
+    let layout = extract_routine_header_layout(cursor.resolver)?;
+    for hdr in &layout.prefix_tokens {
+        if hdr.optional {
+            if let Some(peek) = cursor.peek()
+                && (peek == hdr.token
+                    || cursor.resolver.is_equivalent_to(
+                        peek.to_u128(),
+                        hdr.token.to_u128(),
+                    ))
+            {
+                let _ = cursor.next()?;
+            }
+        } else {
+            let actual = cursor.next()?;
+            ensure!(
+                actual == hdr.token
+                    || cursor.resolver.is_equivalent_to(
+                        actual.to_u128(),
+                        hdr.token.to_u128(),
+                    ),
+                "Expected leading routine header token {} required by active graph grammar, found {actual}",
+                hdr.token
+            );
+        }
+    }
+
     let lit_open = cursor.next()?;
     ensure!(
         cursor.token_fills_role(lit_open, DcRole::BeginLiteral),
@@ -965,6 +1186,32 @@ fn parse_wasm_routine_from_cursor(
         "Expected Dc 280 (Built-in type identifier: Routine) in wasm_routine header, found {routine_tok}"
     );
     let inline_sig = cursor.read_routine_signature_after_280()?;
+
+    for hdr in &layout.post_sig_tokens {
+        if hdr.optional {
+            if let Some(peek) = cursor.peek()
+                && (peek == hdr.token
+                    || cursor.resolver.is_equivalent_to(
+                        peek.to_u128(),
+                        hdr.token.to_u128(),
+                    ))
+            {
+                let _ = cursor.next()?;
+            }
+        } else {
+            let actual = cursor.next()?;
+            ensure!(
+                actual == hdr.token
+                    || cursor.resolver.is_equivalent_to(
+                        actual.to_u128(),
+                        hdr.token.to_u128(),
+                    ),
+                "Expected post-signature routine header token {} required by active graph grammar, found {actual}",
+                hdr.token
+            );
+        }
+    }
+    let body_start_pos = cursor.pos;
 
     let signature = match (external_sig, inline_sig) {
         (Some(ext), Some(inl)) => {
@@ -999,6 +1246,24 @@ fn parse_wasm_routine_from_cursor(
         &mut body_bytes,
     )?;
     body_bytes.push(0x0B); // End of function body
+
+    let routine_end = cursor.pos;
+    let routine_slice = cursor
+        .tokens
+        .get(routine_start..routine_end)
+        .context("Invalid routine slice bounds in Dc-WASM stream")?;
+    if layout.custom_routine_rule
+        || body_start_pos.saturating_add(1) < routine_end
+    {
+        ensure!(
+            tokens_match_named_construct_with_resolver(
+                routine_slice,
+                "Routine",
+                cursor.resolver,
+            )?,
+            "Dc-WASM routine for '{name}' does not match active graph grammar rule 'Routine'"
+        );
+    }
 
     Ok(WasmRoutineDef {
         name,
@@ -1340,13 +1605,13 @@ pub fn dcstring_to_wasm_with_resolver(
         active_resolver,
     )?;
 
+    let routine_layout = extract_routine_header_layout(active_resolver)?;
     let tokens: Vec<DcChar> = expanded_doc.chars().collect();
     let unwrapped_tokens = if let (Some(&first_tok), Some(&second_tok), Some(&last_tok)) =
         (tokens.first(), tokens.get(1), tokens.last())
         && active_resolver
             .token_fills_role(first_tok.to_u128(), DcRole::BeginWasmProgram)
-        && active_resolver
-            .token_fills_role(second_tok.to_u128(), DcRole::BeginLiteral)
+        && routine_layout.token_starts_routine(second_tok, active_resolver)
         && active_resolver
             .token_fills_role(last_tok.to_u128(), DcRole::EndWasmProgram)
         && let Some(inner) = tokens.get(1..tokens.len().saturating_sub(1))
@@ -1360,7 +1625,7 @@ pub fn dcstring_to_wasm_with_resolver(
     let first = cursor.peek().context("Empty Dc-WASM document")?;
 
     // Case 1: Standalone `wasm_routine` literal (`Dc 260`..`Dc 261`)
-    if cursor.token_fills_role(first, DcRole::BeginLiteral) {
+    if routine_layout.token_starts_routine(first, active_resolver) {
         let routine =
             parse_wasm_routine_from_cursor(&mut cursor, "main".to_owned(), None)?;
         ensure!(
@@ -1435,7 +1700,7 @@ pub fn dcstring_to_wasm_with_resolver(
             let val_peek = cursor
                 .peek()
                 .context("Missing value in WASM program key-value pair")?;
-            if cursor.token_fills_role(val_peek, DcRole::BeginLiteral) {
+            if routine_layout.token_starts_routine(val_peek, active_resolver) {
                 let ext_sig = match key_type {
                     ParsedKeyType::Routine(sig) => Some(sig),
                     ParsedKeyType::None => None,

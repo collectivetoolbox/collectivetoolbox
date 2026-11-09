@@ -2073,7 +2073,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
 
         let restricted_named = named_with_routine(":260 262 [280:] 263 648 [^261]+ 261")?;
         let (restricted_nodes, _) = update_ledger_in_memory(
-            updated, definitions, formats, &scripts, Some(&restricted_named),
+            updated.clone(), definitions, formats, &scripts, Some(&restricted_named),
         )?;
         let restricted_revision = restricted_nodes.last()
             .context("Empty restricted ledger")?.id;
@@ -2086,6 +2086,16 @@ mod tier4_expression_evaluation_and_stream_splicing {
             &ValueRequirement::NamedConstruct { name: "boolean", subtype: None },
             &restricted,
         )?.is_none(), "Execution must not fall back to a Rust header check when the graph rejects a Routine");
+        assert!(
+            ctb_formats_dcstring::DcWasmSession::from_dc_wasm_with_resolver(
+                &executable,
+                &DcMstring::new(),
+                None,
+                &restricted,
+            )
+            .is_err(),
+            "Direct Dc-WASM compilation must reject a Routine that does not match the active graph grammar"
+        );
         let mut revised_executable = create_test_mstring(
             tokens.get(..5).context("Missing Routine type header")?,
         );
@@ -2096,6 +2106,63 @@ mod tier4_expression_evaluation_and_stream_splicing {
         assert_eq!(execute(
             &pin(&revised_executable, restricted_revision)?, Some(&restricted),
         )?, execution_before);
+
+        let prefix_restricted_named =
+            named_with_routine(":u52 260 262 [280:] 263 [^261]+ 261")?;
+        let (prefix_restricted_nodes, _) = update_ledger_in_memory(
+            updated,
+            definitions,
+            formats,
+            &scripts,
+            Some(&prefix_restricted_named),
+        )?;
+        let prefix_restricted_revision = prefix_restricted_nodes
+            .last()
+            .context("Empty prefix-restricted ledger")?
+            .id;
+        let prefix_restricted = DatasetRuleResolver::from_seed_graph(
+            &SeedGraphIndex::from_nodes(prefix_restricted_nodes),
+        )?;
+        assert!(
+            ctb_formats_dcstring::DcWasmSession::from_dc_wasm_with_resolver(
+                &executable,
+                &DcMstring::new(),
+                None,
+                &prefix_restricted,
+            )
+            .is_err(),
+            "Direct Dc-WASM compilation must reject an unprefixed Routine when the active graph grammar requires a prefix"
+        );
+        let mut prefix_revised_executable = DcMstring::new();
+        prefix_revised_executable.push_char(DcChar::from_u128(u128::from(b'R')));
+        for &token in &tokens {
+            prefix_revised_executable.push_char(token);
+        }
+        assert_eq!(
+            execute(
+                &pin(&prefix_revised_executable, prefix_restricted_revision)?,
+                Some(&prefix_restricted),
+            )?,
+            execution_before
+        );
+        assert!(
+            execute(
+                &pin(&prefix_revised_executable, revision1)?,
+                Some(&old),
+            )
+            .is_err(),
+            "Historical pinned revision must reject a Routine using a later revision's header prefix"
+        );
+        assert!(
+            ctb_formats_dcstring::DcWasmSession::from_dc_wasm_with_resolver(
+                &pin(&prefix_revised_executable, wasm_historical_revision)?,
+                &DcMstring::new(),
+                None,
+                &prefix_restricted,
+            )
+            .is_err(),
+            "Embedded Dc 641 historical pin must override caller resolver and reject a later revision's Routine header prefix"
+        );
         Ok(())
     }
 

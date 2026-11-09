@@ -71,19 +71,29 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
 
 ## Completed Foundations (Cleaned Up from Earlier Proposals)
 
-- **Graph-Owned Routine Acceptance and Execution Dispatch (2026-11-09)**:
-  - The selected System graph's named `Routine` pattern controls literal
-    acceptance and direct expression execution. Removed both the redundant
-    post-match Rust header validation and fixed-position execution dispatch;
-    syntax recognition uses an inert evaluator to avoid executing candidate
-    values recursively. Foundational Dc-WASM lowering remains in the kernel.
+- **Graph-Owned Routine Acceptance, Execution Dispatch, and Dc-WASM Routine Header Lowering (2026-11-09)**:
+  - The selected System graph's named `Routine` and `wasm_routine` patterns control
+    literal acceptance, direct expression execution, and Dc-WASM routine header
+    lowering in both [`eval.rs`](../src/formats/dcstring/navigator/eval.rs) and
+    [`wasm.rs`](../src/formats/dcstring/converters/wasm.rs). Removed both the
+    redundant post-match Rust header validation and fixed-position `Dc 260 "Begin literal value"`
+    header assumptions; `dcstring_to_wasm_with_resolver` and
+    `parse_wasm_routine_from_cursor` extract leading and post-signature routine
+    header tokens from the active `SyntaxRuleResolver`'s `Routine` and
+    `wasm_routine` rules and validate routines against the active graph grammar
+    using an inert evaluator (`tokens_match_named_construct_with_resolver`) so
+    candidate values are never executed recursively. Foundational Dc-WASM opcode
+    body lowering remains in the kernel.
   - `test_gate3_routine_header_uses_generated_graph_history` in
     [`e2e_dc_syntax.rs`](../src/formats/dcstring/tests/e2e_dc_syntax.rs)
     generates ledgers from the real CSV grammar, modifies only `Routine`,
     preserves assigned nodes, and roundtrips active/history `.ctbnbdl`
     bundles. It checks unchanged pinned document octets, grammar diagnostics,
-    exact completion bytes and pure-session replay, revised-rule execution,
-    graph rejection without a procedural fallback, and future-pin errors.
+    exact completion bytes and pure-session replay, revised-rule execution
+    (including non-WASM leading prefix tokens such as `u0052` `'R'` as well as
+    post-signature header tokens), direct `DcWasmSession::from_dc_wasm_with_resolver`
+    and `DefaultDcExpressionEvaluator` graph rejection without a procedural
+    fallback, and historical/future-pin errors.
     Synthetic snapshots use explicit caller resolvers; a separate execution
     case exercises normal pin discovery from real bundled graph history.
   - The existing generated production rule needs no new assignment or

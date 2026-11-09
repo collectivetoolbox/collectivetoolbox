@@ -121,6 +121,35 @@ impl DcExpressionEvaluator for SyntaxOnlyDcExpressionEvaluator {
     }
 }
 
+/// Returns `true` when `tokens` matches the named construct `construct_name` completely
+/// under `resolver` without executing nested candidate expressions.
+pub(crate) fn tokens_match_named_construct_with_resolver(
+    tokens: &[DcChar],
+    construct_name: &str,
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<bool> {
+    let mut prog_mstr = DcMstring::new();
+    for &token in tokens {
+        prog_mstr.push_char(token);
+    }
+    let mut routine_navigator = DcDocumentNavigator::from_mstr(&prog_mstr);
+    let mut routine_context = SyntaxEvalContext::new(resolver, None);
+    routine_context.evaluator = Some(Arc::new(SyntaxOnlyDcExpressionEvaluator));
+    let matched = routine_navigator.eval_term_single(
+        &SyntaxTerm::NamedConstruct {
+            name: construct_name.to_owned(),
+            subtype: None,
+            capture_var: None,
+        },
+        &mut routine_context,
+    )?;
+    Ok(
+        matched
+            && !routine_context.has_errors
+            && routine_navigator.position() == routine_navigator.active_span().end,
+    )
+}
+
 impl DefaultDcExpressionEvaluator {
     /// Creates a [`SharedQuotaDcExpressionEvaluator`] initialized with explicit [`crate::DcWasmResourceLimits`].
     #[must_use]
@@ -272,24 +301,18 @@ fn eval_expression_for_requirement_impl(
                 )?;
             return Ok(Some(DcEvaluatedValue::Document(doc)));
         }
-        let mut prog_mstr = DcMstring::new();
-        for &token in expr_tokens {
-            prog_mstr.push_char(token);
-        }
-        let mut routine_navigator = DcDocumentNavigator::from_mstr(&prog_mstr);
-        let mut routine_context = SyntaxEvalContext::new(resolver, None);
-        routine_context.evaluator = Some(Arc::new(SyntaxOnlyDcExpressionEvaluator));
         let is_direct_wasm = first
             .fills_role_with(DcRole::BeginWasmProgram, resolver)
-            || (routine_navigator.eval_term_single(
-                &SyntaxTerm::NamedConstruct {
-                    name: "Routine".to_owned(),
-                    subtype: None,
-                    capture_var: None,
-                },
-                &mut routine_context,
-            )? && routine_navigator.position() == u64::try_from(prog_mstr.len())?);
+            || tokens_match_named_construct_with_resolver(
+                expr_tokens,
+                "Routine",
+                resolver,
+            )?;
         if is_direct_wasm {
+            let mut prog_mstr = DcMstring::new();
+            for &token in expr_tokens {
+                prog_mstr.push_char(token);
+            }
             let empty_input = DcMstring::new();
             let doc =
                 crate::converters::wasm::run_dc_wasm_pure_conversion_with_resolver_and_quota(
