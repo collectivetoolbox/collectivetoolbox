@@ -692,8 +692,10 @@ impl StateJournal {
         }
         ensure!(
             header.get(..8) == Some(JOURNAL_MAGIC_V5.as_slice())
-                && header.get(8..13) == Some(&ctb_formats_dcstring::DCMM_MAGIC)
-                && header.get(13..29) == Some(&ctb_formats_dcstring::DCMM_UUID),
+                && header.get(8..13)
+                    == Some(ctb_formats_dcstring::DCMM_MAGIC.as_slice())
+                && header.get(13..29)
+                    == Some(ctb_formats_dcstring::DCMM_UUID.as_slice()),
             "Cannot resume a legacy CSC journal (expected CSCJRNL5 / DcMixed2): {}",
             journal_path.display()
         );

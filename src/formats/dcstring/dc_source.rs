@@ -482,6 +482,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         }
 
         let effective_resolver = nav.effective_resolver();
+        // Reason for fallback: when no explicit caller resolver is passed, inspection uses the document navigator's effective resolver.
         let active_resolver: &dyn SyntaxRuleResolver =
             resolver.unwrap_or(effective_resolver.as_ref());
         let roots = arena.roots();

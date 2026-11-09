@@ -1112,6 +1112,7 @@ impl DatasetRuleResolver {
         self.canonical_map
             .entry(canonical_token)
             .or_insert(canonical_token);
+        // Reason for fallback: when canonical_token has no prior equivalence group, initialize a singleton set containing canonical_token.
         let mut group = self
             .semantic_equivalents
             .get(&canonical_token)

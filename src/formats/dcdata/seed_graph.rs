@@ -330,6 +330,7 @@ impl SeedGraphIndex {
         }
         let mut index = Self::from_bundled_nodes(active_nodes);
         if let Some(wm) = active_most_recent {
+            // Reason for fallback: when no prior watermark has been recorded, wm is the initial watermark.
             index.system_block_most_recent_node_id = Some(
                 index
                     .system_block_most_recent_node_id
@@ -348,6 +349,7 @@ impl SeedGraphIndex {
             Self::load_merged_nodes_with_history()?;
         let mut index = Self::from_bundled_nodes(merged);
         if let Some(wm) = bundle_most_recent {
+            // Reason for fallback: when no prior watermark has been recorded, wm is the initial watermark.
             index.system_block_most_recent_node_id = Some(
                 index
                     .system_block_most_recent_node_id
@@ -609,6 +611,7 @@ impl SeedGraphIndex {
                     format!("Failed to decode .ctbnbdl bundle '{asset_path}'")
                 })?;
             if let Some(wm) = bundle_most_recent {
+                // Reason for fallback: when no prior bundle watermark has been recorded, wm is the initial watermark.
                 max_most_recent =
                     Some(max_most_recent.map_or(wm, |cur| cur.max(wm)));
             }
@@ -649,6 +652,7 @@ impl SeedGraphIndex {
         let (most_recent, nodes) = decode_ctbnbdl_bundle(bytes)?;
         let mut index = Self::from_nodes(nodes);
         if let Some(wm) = most_recent {
+            // Reason for fallback: when no prior watermark has been recorded, wm is the initial watermark.
             index.system_block_most_recent_node_id = Some(
                 index
                     .system_block_most_recent_node_id

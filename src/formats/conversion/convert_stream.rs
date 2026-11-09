@@ -186,8 +186,9 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
     };
 
     let is_dcmm1_header = peek_bytes.len() >= DCMM_HEADER_LEN
-        && peek_bytes.get(..5) == Some(&DCMM_MAGIC)
-        && peek_bytes.get(5..21) == Some(&ctb_formats_dcstring::DCMM_UUID_V1);
+        && peek_bytes.get(..5) == Some(DCMM_MAGIC.as_slice())
+        && peek_bytes.get(5..21)
+            == Some(ctb_formats_dcstring::DCMM_UUID_V1.as_slice());
 
     if resolved_format == SupportedDcInputFormat::DcMixed2
         || (resolved_format == SupportedDcInputFormat::DcMixed

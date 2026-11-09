@@ -426,7 +426,7 @@ impl SystemSupervisorAdmission {
         );
         let inner = tokens
             .get(1..tokens.len().saturating_sub(1))
-            .unwrap_or(&[]); // Reason: slice bounds verified by first/last check above.
+            .context("Graph user quota configuration node is too short")?;
         let mut bytes = Vec::with_capacity(inner.len());
         for &tok in inner {
             let DcShorthand::Unicode(code) = tok else {
@@ -1023,6 +1023,7 @@ impl ExecutionContext {
         cumulative_trace_bytes: usize,
         interrupted_op_info: Option<(u64, u64)>,
     ) -> WasmExecutionTrace {
+        // Reason for fallback: when supervisor admission was not configured or failed before admission, trace metadata reports the caller's fallback_limits.
         let effective_limits = self
             .supervisor_admission
             .as_ref()
@@ -1119,6 +1120,7 @@ impl ExecutionContext {
         mut cumulative_trace_bytes: usize,
         interrupted_op_info: Option<(u64, u64)>,
     ) -> WasmExecutionTrace {
+        // Reason for fallback: when session initialization failed before a DcWasmSession was constructed, trace budget enforcement uses fallback_limits.max_trace_bytes.
         let max_trace_bytes =
             session.map_or(fallback_limits.max_trace_bytes, |s| {
                 s.resource_limits().max_trace_bytes

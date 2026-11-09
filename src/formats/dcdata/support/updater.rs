@@ -322,6 +322,7 @@ impl ScriptBlockAllocator {
             ensure!(seen.insert(*id), "Duplicate short ID: {id}");
         }
 
+        // Reason for fallback: an empty assigned-ID list has a highest assigned short ID of 0.
         let max_short_id = assigned.last().map_or(0, |&(id, _)| id);
         let first_block_start = preexisting_cap
             .checked_add(1)
@@ -650,6 +651,7 @@ fn process_dc_category_files(
                             )
                         })?
                     {
+                        // Reason for fallback: rows with omitted trailing columns treat the missing Script cell as an empty string.
                         let script =
                             row.get(7).map_or("", |s| s.trim()).to_string();
                         assigned_entries.push((id, script));
@@ -717,6 +719,7 @@ fn process_dc_category_files(
                     }
 
                     let line_no = row_idx.saturating_add(2);
+                    // Reason for fallback: rows with omitted trailing columns treat the missing Script cell as an empty string.
                     let script = row.get(7).map_or("", |s| s.as_str());
                     let new_short =
                         allocator.allocate(script, &file_name, line_no)?;
@@ -897,6 +900,7 @@ fn process_format_category_files(
                         format!("Invalid format ID in {file_name}: {short_str}")
                     })?
                 {
+                    // Reason for fallback: rows with omitted trailing columns treat the missing Category cell as an empty string.
                     let script = format_category_to_script(
                         row.get(4).map_or("", |s| s.as_str()),
                     );
@@ -961,6 +965,7 @@ fn process_format_category_files(
                 }
 
                 let line_no = row_idx.saturating_add(2);
+                // Reason for fallback: rows with omitted trailing columns treat the missing Category cell as an empty string.
                 let script = format_category_to_script(
                     row.get(4).map_or("", |s| s.as_str()),
                 );

@@ -895,6 +895,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 {
                     let next_pos =
                         if first_tok.fills_role_with(DcRole::Escape, resolver) {
+                            // Reason for fallback: a trailing escape token at EOF has no escaped operand, so header-pin scan stops at after_first.
                             self.read_token_or_binary_at(after_first)
                                 .ok()
                                 .flatten()
@@ -1168,6 +1169,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                 } else {
                     let default_res = Arc::clone(default_syntax_resolver());
+                    // Reason for fallback: when no caller resolver is supplied, header-pin discovery uses the bundled default syntax resolver.
                     let scan_res: &dyn SyntaxRuleResolver =
                         caller_resolver.unwrap_or(default_res.as_ref());
                     let candidate =
@@ -1185,6 +1187,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             } else {
                 let default_res = Arc::clone(default_syntax_resolver());
+                // Reason for fallback: when no caller resolver is supplied, header-pin discovery uses the bundled default syntax resolver.
                 let scan_res: &dyn SyntaxRuleResolver =
                     caller_resolver.unwrap_or(default_res.as_ref());
                 let candidate =

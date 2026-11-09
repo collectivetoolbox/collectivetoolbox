@@ -2967,7 +2967,7 @@ fn parse_names_payload(
     }
 
     let names_bytes = if payload.len() >= 7
-        && payload.get(0..2) == Some(&[0x00, 0xfe])
+        && payload.get(0..2) == Some(&[0x00, 0xfe][..])
     {
         let len_hi = *payload
             .get(2)
@@ -2988,7 +2988,9 @@ fn parse_names_payload(
         payload
             .get(7..names_data_end)
             .context("Invalid NAMES framed payload range")?
-    } else if payload.len() >= 6 && payload.get(0..2) == Some(&[0x53, 0x00]) {
+    } else if payload.len() >= 6
+        && payload.get(0..2) == Some(&[0x53, 0x00][..])
+    {
         let declared_bytes = usize::try_from(read_u32_le(payload, 2)?)
             .context("NAMES byte count does not fit in usize")?;
 
@@ -3071,7 +3073,7 @@ fn parse_widths_payload(
     payload: &[u8],
     is_be: bool,
 ) -> anyhow::Result<Vec<u16>> {
-    let width_bytes = if payload.get(0..2) == Some(b"HS") {
+    let width_bytes = if payload.get(0..2) == Some(b"HS".as_slice()) {
         payload.get(2..).context("Invalid WIDTHS payload range")?
     } else if (payload.len() & 1) == 1 && payload.first() == Some(&0) {
         payload.get(1..).context("Invalid WIDTHS payload range")?
@@ -3106,7 +3108,7 @@ fn parse_types_payload(
     payload: &[u8],
     expected_count: usize,
 ) -> anyhow::Result<Vec<u8>> {
-    let payload = if payload.get(0..2) == Some(&[0x53, 0x00]) {
+    let payload = if payload.get(0..2) == Some(&[0x53, 0x00][..]) {
         payload.get(2..).context("Invalid TYPES payload range")?
     } else {
         payload
@@ -3138,7 +3140,7 @@ fn parse_string_array_payload(
     }
 
     let array_bytes = if payload.len() >= 7
-        && payload.get(0..2) == Some(&[0x00, 0xfe])
+        && payload.get(0..2) == Some(&[0x00, 0xfe][..])
     {
         let len_hi = *payload
             .get(2)
@@ -3152,7 +3154,9 @@ fn parse_string_array_payload(
             Some(slice) => slice,
             None => &[],
         }
-    } else if payload.len() >= 6 && payload.get(0..2) == Some(&[0x47, 0x00]) {
+    } else if payload.len() >= 6
+        && payload.get(0..2) == Some(&[0x47, 0x00][..])
+    {
         let declared_bytes = usize::try_from(read_u32_le(payload, 2)?)
             .context("String array byte count does not fit in usize")?;
         let end = declared_bytes.min(payload.len());
@@ -3169,7 +3173,7 @@ fn parse_string_array_payload(
             None => &[],
         }
     } else if payload.len() >= 4
-        && payload.get(1..4) == Some(&[0x00, 0x00, 0x00])
+        && payload.get(1..4) == Some(&[0x00, 0x00, 0x00][..])
     {
         let first_byte = match payload.first() {
             Some(&b) => b,

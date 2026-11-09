@@ -218,6 +218,7 @@ impl NumericBoundValue {
     /// Parses a DSL numeric bound expression (such as `"0"`, `"8"`, `"(2^8)"`, `"(-2^7)"`, or `"(2^128)"`).
     pub fn parse_dsl_bound(raw: &str) -> Result<Self> {
         let trimmed = raw.trim();
+        // Reason for fallback: numeric bounds in DSL syntax may be unparenthesized (e.g. "0" or "8"), in which case trimmed is used directly.
         let inner = trimmed
             .strip_prefix('(')
             .and_then(|s| s.strip_suffix(')'))

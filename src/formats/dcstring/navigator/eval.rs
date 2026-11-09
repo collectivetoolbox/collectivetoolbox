@@ -2378,9 +2378,11 @@ impl DcDocumentNavigator<'_> {
                         }
                     }
                 }
-                let payload_slice = consumed
+                let Some(payload_slice) = consumed
                     .get(payload_start..consumed.len().saturating_sub(1))
-                    .unwrap_or(&[]);
+                else {
+                    return Ok(false);
+                };
                 let mut decoded_payload =
                     Vec::with_capacity(payload_slice.len());
                 let mut iter = payload_slice.iter().copied();
@@ -2460,9 +2462,11 @@ impl DcDocumentNavigator<'_> {
             }
             "number" if subtype.is_some() || capture_var.is_some() => {
                 let consumed = self.consumed_tokens_since(term_checkpoint)?;
-                let digits = consumed
-                    .get(2..consumed.len().saturating_sub(1))
-                    .unwrap_or(&[]);
+                let Some(digits) =
+                    consumed.get(2..consumed.len().saturating_sub(1))
+                else {
+                    return Ok(false);
+                };
                 let Ok(val) =
                     crate::dc_number::parse_dc_number_digits_with_resolver(
                         digits,

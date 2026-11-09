@@ -322,6 +322,7 @@ pub fn parse_scripts_block_sizes_with_report(
             reason = "Row is guaranteed non-empty by the is_empty() check above"
         )]
         let script = row.first().expect("row is non-empty").trim();
+        // Reason for fallback: a missing second CSV column is treated as empty so the validation check below reports a missing block increment size.
         let raw_block_size = row.get(1).map_or("", |s| s.trim());
 
         let parsed_block_size = if raw_block_size.is_empty() {

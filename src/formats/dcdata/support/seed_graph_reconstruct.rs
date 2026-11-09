@@ -199,6 +199,7 @@ impl SeedGraphIndex {
             .get_multi_properties(subj, sh(DC_CROSS_REFERENCE))
             .iter()
             .map(|e| {
+                // Reason for fallback: cross-reference targets that have no string literal in the seed graph are formatted as their DcShorthand token.
                 self.get_string(e.value)
                     .map_or_else(|| e.value.to_string(), str::to_string)
             })
