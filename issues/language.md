@@ -59,7 +59,13 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
 1. Snapshot resolution for `Dc 641 "Global graph system block most recent node ID at time of document creation"` must never silently substitute `HEAD` when history is missing, when a pin is newer than the local graph, or when resolver loading fails.
 2. Foundational kernel semantics (transport/framing codecs, `.Semantic:Pattern` interpretation for `Dc 599 "Self reference"`..`Dc 607 "Pattern replacement"`, `Dc 611 "Canonical decomposition"` equivalence resolution, Dc-WASM lowering, and the 32-byte linear-memory mailbox ABI) must be explicitly specified and frozen or versioned.
 3. Document-controlled WASM execution must be bounded by independent instruction metering, linear-memory caps, and output byte limits inside each `step()` call—not merely an outer loop counter around synchronous `tinywasm` calls.
-4. Evaluated streams with genuine token splicing must preserve incremental expansion-before-framing, kept distinct from unevaluated source/CST inspection. `Dc 256 "void lang.say([string] text)"` is an output routine, not a token splice.
+4. Evaluated streams must preserve incremental expansion-before-framing, kept
+  distinct from unevaluated source/CST inspection. Evaluated values contribute
+  to the final document string; printing is not a separate effect that removes
+  those values from evaluation. `Dc 256 "void lang.say([string] text)"` emits
+  its string with a final line feed if needed. An emitted delimiter may close
+  a block in that evaluated document even when it was quoted in the source
+  argument.
 
 ---
 
@@ -237,9 +243,9 @@ interruptions remain external host events rather than logical budget policy.
     and delete the corresponding procedural Rust fallback.
   - **In Progress (2026-11-09): Routine literal header validation** is the
     first bounded migration. The named `Routine` pattern already exists in
-    generated System graph history, including `l8589958834`; unlike the output
-    routine below, it needs neither a historical WASM backfill nor effect
-    dispatch. Removed the evaluator's redundant fixed-position Rust header
+    generated System graph history, including `l8589958834`; it needs no
+    historical WASM backfill. Removed the evaluator's redundant fixed-position
+    Rust header
     check for `Routine`; the selected graph pattern now decides acceptance.
     Production graph definitions and existing node IDs are unchanged.
   - `test_gate3_routine_header_uses_generated_graph_history` in
@@ -262,27 +268,37 @@ interruptions remain external host events rather than logical budget policy.
     analogous `string` header check remains necessary: its historical named
     pattern accepts a generic literal, so a HEAD-only restriction cannot
     justify deleting that check for older pins.
-  - **Verification (Linux musl)**: All 211 dcstring library tests and 46 syntax
-    integration tests passed, with none ignored. Production-only dcstring
-    Clippy passed. Clippy including the syntax integration target remains
-    blocked by pre-existing `panic_in_result_fn` errors in
-    `test_lang_say_quoted_closer_does_not_close_container` and
-    `test_historical_lang_say_is_not_stream_splicing`; the new regression uses
-    an item-scoped test-assertion expectation.
+  - **Initial Routine-header Verification (Linux musl)**: All 211 dcstring
+    library tests and 46 syntax integration tests passed, with none ignored.
+    Production-only dcstring Clippy passed. The two integration assertion
+    lints reported at that point were in incorrect output-rejection tests;
+    those tests have since been corrected to check emitted output.
   - The historical catalog and hello-world fixture establish that
     `Dc 256 "void lang.say([string] text)"` sends a string to its output
-    context with a final line feed if needed. The recent parser incorrectly
-    spliced its argument into input and treated it as a return value; these
-    fallbacks were removed. The routine's actual output effect is not yet
-    implemented or verified against the hello-world fixture.
+    context with a final line feed if needed. The removal of argument
+    expansion incorrectly introduced a distinction between printed and
+    returned document values. Restored expansion into the evaluated document,
+    including emitted block closers, and added the previously missing final
+    line feed without duplicating an existing LF or its graph equivalents.
+    Stream and value evaluation share the same output implementation. The
+    hello-world and idiomatic-hello-world fixtures now have exact output-byte
+    regression checks, including historical snapshot resolution.
   - The real historical snapshot `l8589958834` has no graph WASM definition for
     this routine. Appending a definition at HEAD cannot supply one to an older
-    pin; establish compatible historical execution without HEAD substitution,
-    or select a different behavior with a viable historical definition.
-  - The navigator currently treats WASM-backed definitions as potential splice
-    triggers, except for the output routine above. A general graph-backed
-    distinction between splice routines, value computations, and output effects
-    is still needed before migrating behaviors that are not splices.
+    pin. Historical execution currently uses the restored host implementation,
+    without HEAD substitution. Migrating that implementation into the graph
+    while preserving older pins remains pending.
+  - Navigator and runtime resolver dispatch now recognize the output routine
+    and its equivalents as evaluated-stream triggers. A graph-WASM definition
+    in the selected snapshot takes precedence over the historical host
+    fallback. Source inspection must remain distinct from evaluated output;
+    there is no separate prohibition on using emitted values in evaluated
+    grammar or on closing a block through emitted output.
+  - **Output-correction Verification (Linux musl)**: All 211 dcstring library,
+    48 syntax integration, and 11 dcdata syntax/resolver tests passed, with
+    none ignored. Clippy passed for dcstring (including syntax integration
+    tests) and the dcdata library. Fixture output comparisons explicitly select
+    graph-equivalence normalization for historical short-character spellings.
 - [ ] **Build the end-to-end historical-behavior and trace-replay regression suite**:
   - Using real generated graph history (`Dc 591 "Supersedes"` / `Dc 592 "Retracts"` across active and historical `.ctbnbdl` bundles):
     1. Author a document pinned to `Dc 641 "Global graph system block most recent node ID at time of document creation"` at revision $R_1$.

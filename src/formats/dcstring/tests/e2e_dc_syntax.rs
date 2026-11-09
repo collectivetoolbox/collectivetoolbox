@@ -3260,7 +3260,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
     }
 
     #[crate::ctb_test]
-    fn test_output_arguments_cannot_supply_outer_closers() -> Result<()> {
+    fn test_output_expansion_preserves_nested_quoting_and_closers() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
 
         let mut say_payload = DcMstring::new();
@@ -3288,7 +3288,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         doc.push_char(DcChar::from_short(259));
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
-        ensure!(nav.validate_document(&strict).is_err());
+        nav.validate_document(&strict)?;
 
         let mut list_say = DcMstring::new();
         list_say.push_char(DcChar::from_short(255));
@@ -3307,7 +3307,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         list_doc.push_char(DcChar::from_short(259));
 
         let mut list_nav = DcDocumentNavigator::from_mstr(&list_doc);
-        ensure!(list_nav.validate_document(&strict).is_err());
+        list_nav.validate_document(&strict)?;
 
         Ok(())
     }
