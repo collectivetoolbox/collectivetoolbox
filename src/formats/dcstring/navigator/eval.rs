@@ -2221,18 +2221,15 @@ impl DcDocumentNavigator<'_> {
             }
             "string" | "Routine" => {
                 let consumed = self.consumed_tokens_since(term_checkpoint)?;
-                let Some(&type_dc) = consumed.get(2) else {
-                    return Ok(false);
-                };
-                let expected_role = if construct_name == "Routine" {
-                    DcRole::TypeRoutine
-                } else {
-                    DcRole::TypeString
-                };
-                if !type_dc.fills_role_with(expected_role, ctx.resolver)
-                    && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
-                {
-                    return Ok(false);
+                if construct_name == "string" {
+                    let Some(&type_dc) = consumed.get(2) else {
+                        return Ok(false);
+                    };
+                    if !type_dc.fills_role_with(DcRole::TypeString, ctx.resolver)
+                        && !type_dc.fills_role_with(DcRole::TypeAny, ctx.resolver)
+                    {
+                        return Ok(false);
+                    }
                 }
                 let Some(sub) = subtype else {
                     return Ok(true);

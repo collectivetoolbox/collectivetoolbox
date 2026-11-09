@@ -1737,6 +1737,122 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
+    #[crate::ctb_test]
+    fn test_gate3_routine_header_uses_generated_graph_history() -> Result<()> {
+        use ctb_formats_dcdata::graph_ledger::{
+            decode_nodes_from_ctbnbdl_bytes, encode_nodes_to_ctbnbdl_bytes,
+            partition_active_and_inactive_nodes, update_ledger_in_memory,
+        };
+        use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
+        use std::collections::BTreeSet;
+
+        let definitions = ctb_formats_dcdata::lookup::get_all_dc_defns();
+        let formats = ctb_formats_dcdata::lookup::get_all_format_defns();
+        let scripts: BTreeSet<String> = definitions
+            .iter()
+            .chain(formats.iter())
+            .map(|definition| definition.script.clone())
+            .filter(|script| !script.is_empty())
+            .collect();
+        let named = b"Name,Syntax,Notes\nRoutine,:260 262 [280:] 263 [^261]+ 261,\n";
+        let (original, _) = update_ledger_in_memory(
+            Vec::new(), definitions, formats, &scripts, Some(named),
+        )?;
+        let revision1 = original.last().context("Empty initial ledger")?.id;
+        let initial = SeedGraphIndex::from_nodes(original.clone());
+        let initial_resolver = DatasetRuleResolver::from_seed_graph(&initial)?;
+        assert_eq!(initial_resolver.resolve_named_type("Routine"),
+            default_syntax_resolver().resolve_named_type("Routine"));
+
+        let routine = create_test_mstring(&[
+            DcChar::from_short(260), DC_BEGIN_TYPE_DEF,
+            DcChar::from_short(280), DC_END_TYPE_DEF,
+            DcChar::from('A'), DcChar::from_short(261),
+        ]);
+        let pin = |body: &DcMstring, revision| -> Result<DcMstring> {
+            let mut document = create_test_mstring(&[
+                DcChar::from_short(641), DcChar::from_long(revision),
+            ]);
+            for token in body.to_dc_string()?.chars() {
+                document.push_char(token);
+            }
+            Ok(document)
+        };
+        let observe = |document: &DcMstring, resolver: &DatasetRuleResolver|
+            -> Result<(bool, u64, Vec<String>)> {
+            let mut navigator = DcDocumentNavigator::from_mstr(document);
+            navigator.set_pinned_resolver(Some(Arc::new(resolver.clone())));
+            assert_eq!(navigator.read_next_token()?, Some(DcChar::from_short(641)));
+            let revision = navigator.read_next_token()?.context("Missing pin")?;
+            assert!((ctb_storage_minimal::global_graph_layout::SYSTEM_REGION_START
+                ..=ctb_storage_minimal::global_graph_layout::SYSTEM_REGION_END)
+                .contains(&revision.to_u128()));
+            let mut context = SyntaxEvalContext::new(resolver, None);
+            let matched = navigator.eval_term_single(
+                &SyntaxTerm::NamedConstruct {
+                    name: "Routine".to_owned(), subtype: None, capture_var: None,
+                },
+                &mut context,
+            )?;
+            Ok((matched, navigator.position(), context.diagnostics
+                .iter().map(|diagnostic| diagnostic.message.clone()).collect()))
+        };
+        let document1 = pin(&routine, revision1)?;
+        let before = observe(&document1, &initial_resolver)?;
+        assert_eq!(before, (true, u64::try_from(document1.len())?, Vec::new()));
+        let historical_revision = 8_589_958_834;
+        let historical = DatasetRuleResolver::load_at_most_recent(historical_revision)?;
+        let historical_document = pin(&routine, historical_revision)?;
+        assert_eq!(observe(&historical_document, &historical)?,
+            (true, u64::try_from(historical_document.len())?, Vec::new()));
+
+        let updated_named = b"Name,Syntax,Notes\nRoutine,:(u52)? 260 262 [280:] 263 [^261]+ 261,\n";
+        let (updated, statistics) = update_ledger_in_memory(
+            original.clone(), definitions, formats, &scripts, Some(updated_named),
+        )?;
+        assert_eq!(updated.get(..original.len()), Some(original.as_slice()));
+        assert!(statistics.nodes_superseded > 0);
+        let revision2 = updated.last().context("Empty updated ledger")?.id;
+        assert!(revision2 > revision1);
+        let (active, history) = partition_active_and_inactive_nodes(&updated);
+        assert!(!history.is_empty());
+        let active = decode_nodes_from_ctbnbdl_bytes(
+            &encode_nodes_to_ctbnbdl_bytes(&active)?,
+        )?;
+        let history = decode_nodes_from_ctbnbdl_bytes(
+            &encode_nodes_to_ctbnbdl_bytes(&history)?,
+        )?;
+        let resolve = |revision| SeedGraphIndex::from_active_and_history_nodes_at_most_recent(
+            Some(revision2), active.clone(), Some(revision2), history.clone(), revision,
+        );
+        let old = DatasetRuleResolver::from_seed_graph(&resolve(revision1)?)?;
+        let new = DatasetRuleResolver::from_seed_graph(&resolve(revision2)?)?;
+        assert_eq!(observe(&document1, &old)?, before);
+        let document2 = pin(&routine, revision2)?;
+        assert_eq!(observe(&document2, &new)?,
+            (true, u64::try_from(document2.len())?, Vec::new()));
+
+        let mut prefixed = DcMstring::new();
+        prefixed.push_char(DcChar::from('R'));
+        for token in routine.to_dc_string()?.chars() {
+            prefixed.push_char(token);
+        }
+        assert!(!observe(&pin(&prefixed, revision1)?, &old)?.0);
+        let prefixed_document = pin(&prefixed, revision2)?;
+        assert_eq!(observe(&prefixed_document, &new)?,
+            (true, u64::try_from(prefixed_document.len())?, Vec::new()));
+        let malformed = create_test_mstring(&[
+            DcChar::from_short(260), DC_BEGIN_TYPE_DEF,
+            DcChar::from_short(264), DC_END_TYPE_DEF,
+            DcChar::from('A'), DcChar::from_short(261),
+        ]);
+        assert!(!observe(&pin(&malformed, revision1)?, &old)?.0);
+        assert!(!observe(&pin(&malformed, revision2)?, &new)?.0);
+        assert!(resolve(revision2.checked_add(1).context("Revision overflow")?)
+            .unwrap_err().to_string().contains("newer System graph snapshot"));
+        Ok(())
+    }
+
     /// An output invocation remains a child of its enclosing container.
     #[crate::ctb_test]
     fn test_lang_say_external_closer_preserves_invocation() -> Result<()> {
