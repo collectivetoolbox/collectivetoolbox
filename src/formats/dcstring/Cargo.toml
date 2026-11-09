@@ -28,5 +28,8 @@ serde_json = "1.0"
 ctb-dc-macro = { path = "ctb_dc_macro" }
 tempfile = "3"
 
+[dev-dependencies]
+csv = "1.4.0"
+
 [lints]
 workspace = true

@@ -4578,8 +4578,8 @@ mod tests {
             resolver.as_ref()
         ));
 
-        // Output invocations cannot supply numeric input across any backend.
-        for digit in [sdc(134), sdc(135)] {
+        // Emitted numbers participate in constraints across every backend.
+        for (digit, expected_ok) in [(sdc(134), true), (sdc(135), false)] {
             let spliced_label = vec![
                 sdc(405),
                 sdc(256),
@@ -4595,7 +4595,7 @@ mod tests {
                 sdc(261),
                 sdc(259),
             ];
-            check_all_backends(&spliced_label, false)?;
+            check_all_backends(&spliced_label, expected_ok)?;
         }
 
         let mut spliced_dim_ok = vec![
@@ -4934,7 +4934,7 @@ mod tests {
         assert_eq!(resolver.framing_shape(sdc(517)), FramingShape::Atom);
 
         // Verify dedicated splice trigger check vs broader special wrapper set
-        assert!(!resolver.is_splice_trigger_token(sdc(256)));
+        assert!(resolver.is_splice_trigger_token(sdc(256)));
         assert!(!resolver.is_splice_trigger_token(sdc(315)));
         assert!(!resolver.is_splice_trigger_token(sdc(316)));
         assert!(!resolver.is_splice_trigger_token(sdc(397)));

@@ -71,6 +71,30 @@ Append-only System-block storage (`l8589934592..=l12884901887`) is necessary but
 
 ## Completed Foundations (Cleaned Up from Earlier Proposals)
 
+- **Graph-Owned Routine Acceptance and Execution Dispatch (2026-11-09)**:
+  - The selected System graph's named `Routine` pattern controls literal
+    acceptance and direct expression execution. Removed both the redundant
+    post-match Rust header validation and fixed-position execution dispatch;
+    syntax recognition uses an inert evaluator to avoid executing candidate
+    values recursively. Foundational Dc-WASM lowering remains in the kernel.
+  - `test_gate3_routine_header_uses_generated_graph_history` in
+    [`e2e_dc_syntax.rs`](../src/formats/dcstring/tests/e2e_dc_syntax.rs)
+    generates ledgers from the real CSV grammar, modifies only `Routine`,
+    preserves assigned nodes, and roundtrips active/history `.ctbnbdl`
+    bundles. It checks unchanged pinned document octets, grammar diagnostics,
+    exact completion bytes and pure-session replay, revised-rule execution,
+    graph rejection without a procedural fallback, and future-pin errors.
+    Synthetic snapshots use explicit caller resolvers; a separate execution
+    case exercises normal pin discovery from real bundled graph history.
+  - The existing generated production rule needs no new assignment or
+    historical backfill. The oldest tested snapshot retains grammar coverage;
+    WASM execution uses a newer bundled historical snapshot containing its
+    instruction definitions. Capability/event and raster replay remain pending
+    under Gate 3; this is not completion of the wider execution migration.
+  - Verification: Linux musl dcstring library tests (211) and syntax integration
+    tests (48) pass, with zero failures or ignored tests. Scoped dcstring Clippy
+    passes for the library and syntax integration target.
+
 - **WASM Instruction & Program Dcs Allocated (`src/formats/dcdata/data-src/categories/wasm.csv`)**:
   - Core and extension WebAssembly opcodes across five 256-entry opcode pages (`Dc 647 "WASM unreachable"`..`Dc 1926 "WASM Reserved 0xFD 0xFF 0x03"`) and program delimiters (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`) are allocated in `.WASM` script blocks with immediate/block syntax rules.
 - **Zero-Table Dc-WASM Assembler & Pure-Compute `DcWasmSession` (`src/formats/dcstring/converters/wasm.rs`)**:
@@ -236,69 +260,11 @@ and emergency process watchdogs. Physical allocation failures and watchdog
 interruptions remain external host events rather than logical budget policy.
 
 ### Gate 3: Prove One End-to-End Vertical Migration with Real Graph History
-- [ ] **Migrate one concrete Rust-defined behavior into the system graph and remove its procedural fallback**:
-  - Select a small self-contained behavior currently hardcoded in Rust, such as a
-    specific format/value rule, emit its definition through
-    `src/formats/dcdata/support/graph_ledger.rs` into `.ctbnodes` / `.ctbnbdl`,
-    and delete the corresponding procedural Rust fallback.
-  - **In Progress (2026-11-09): Routine literal header validation** is the
-    first bounded migration. The named `Routine` pattern already exists in
-    generated System graph history, including `l8589958834`; it needs no
-    historical WASM backfill. Removed the evaluator's redundant fixed-position
-    Rust header
-    check for `Routine`; the selected graph pattern now decides acceptance.
-    Production graph definitions and existing node IDs are unchanged.
-  - `test_gate3_routine_header_uses_generated_graph_history` in
-    [`e2e_dc_syntax.rs`](../src/formats/dcstring/tests/e2e_dc_syntax.rs)
-    generates R1/R2 ledgers from CSV input using `update_ledger_in_memory`,
-    preserves the original node prefix, supersedes the named rule, partitions
-    active/history nodes, and roundtrips both through `.ctbnbdl`. It checks
-    unchanged R1 document octets and matching outcomes after R2, a test-only
-    alternate R2 prefix that the removed Rust check would reject, malformed
-    headers, explicit future-revision errors, and the bundled historical rule.
-    Pin-bearing navigators use caller-supplied snapshot resolvers, not a global
-    resolver-cache replacement. The alternate encoding is only a fixture, not
-    an assigned production syntax change.
-  - **Remaining Gaps / Pending Work**: This proves graph-owned grammar
-    acceptance, cursor consumption, and syntax diagnostics, not observable
-    execution-trace replay. Extend the candidate into actual routine execution
-    through normal pin/bundle discovery, comparing output/request bytes and
-    outcomes across graph and implementation revisions. Capability/event
-    ordering and canonical raster cases remain under the next checkbox. The
-    analogous `string` header check remains necessary: its historical named
-    pattern accepts a generic literal, so a HEAD-only restriction cannot
-    justify deleting that check for older pins.
-  - **Initial Routine-header Verification (Linux musl)**: All 211 dcstring
-    library tests and 46 syntax integration tests passed, with none ignored.
-    Production-only dcstring Clippy passed. The two integration assertion
-    lints reported at that point were in incorrect output-rejection tests;
-    those tests have since been corrected to check emitted output.
-  - The historical catalog and hello-world fixture establish that
-    `Dc 256 "void lang.say([string] text)"` sends a string to its output
-    context with a final line feed if needed. The removal of argument
-    expansion incorrectly introduced a distinction between printed and
-    returned document values. Restored expansion into the evaluated document,
-    including emitted block closers, and added the previously missing final
-    line feed without duplicating an existing LF or its graph equivalents.
-    Stream and value evaluation share the same output implementation. The
-    hello-world and idiomatic-hello-world fixtures now have exact output-byte
-    regression checks, including historical snapshot resolution.
-  - The real historical snapshot `l8589958834` has no graph WASM definition for
-    this routine. Appending a definition at HEAD cannot supply one to an older
-    pin. Historical execution currently uses the restored host implementation,
-    without HEAD substitution. Migrating that implementation into the graph
-    while preserving older pins remains pending.
-  - Navigator and runtime resolver dispatch now recognize the output routine
-    and its equivalents as evaluated-stream triggers. A graph-WASM definition
-    in the selected snapshot takes precedence over the historical host
-    fallback. Source inspection must remain distinct from evaluated output;
-    there is no separate prohibition on using emitted values in evaluated
-    grammar or on closing a block through emitted output.
-  - **Output-correction Verification (Linux musl)**: All 211 dcstring library,
-    48 syntax integration, and 11 dcdata syntax/resolver tests passed, with
-    none ignored. Clippy passed for dcstring (including syntax integration
-    tests) and the dcdata library. Fixture output comparisons explicitly select
-    graph-equivalence normalization for historical short-character spellings.
+
+The bounded Routine migration is recorded under Completed Foundations. The
+remaining compatibility suite below is still pending, including capability
+ordering, asynchronous events, and canonical raster output.
+
 - [ ] **Build the end-to-end historical-behavior and trace-replay regression suite**:
   - Using real generated graph history (`Dc 591 "Supersedes"` / `Dc 592 "Retracts"` across active and historical `.ctbnbdl` bundles):
     1. Author a document pinned to `Dc 641 "Global graph system block most recent node ID at time of document creation"` at revision $R_1$.
@@ -315,7 +281,24 @@ interruptions remain external host events rather than logical budget policy.
   - English-name scraping (`extract_el_type_name`) is no longer present in
     runtime definition loading. Continue moving literal constraints to explicit
     graph rules/subtypes, preserving historical behavior; the `string` header
-    restriction described in Gate 3 is still procedural.
+    restriction remains procedural.
+- [ ] **Migrate the historical output routine without changing older pins**:
+  - The analogous `string` header check remains necessary: its historical named
+    pattern accepts a generic literal, so a HEAD-only restriction cannot justify
+    deleting that check for older pins.
+  - `Dc 256 "void lang.say([string] text)"` contributes its string to the final
+    evaluated document, adding a line feed only when needed. Printed and
+    returned document values are equivalent; emitted closers can close outer
+    blocks. Stream and value evaluation share one implementation, and exact
+    historical hello-world fixture checks preserve this behavior.
+  - The real historical snapshot `l8589958834` has no graph WASM definition for
+    this routine. Appending a definition at HEAD cannot backfill an older pin.
+    The historical host implementation therefore remains pending migration,
+    without HEAD substitution. A graph-WASM definition in the selected snapshot
+    takes precedence, including through equivalent routine identifiers.
+  - Source inspection remains distinct from evaluated output. There is no
+    separate prohibition on using emitted values in evaluated grammar or
+    closing a block through emitted output.
 - [ ] **Migrate remaining procedural constraint & value evaluators (`src/formats/dcstring/navigator/eval.rs`)**:
   - Incrementally migrate subtype constraints (`number_satisfies_subtype`, `type_tokens_satisfy`, `eval_list_constraints`, `eval_data_construct`, `eval_typed_data_construct`), lexical bindings (`Dc 269 "Assignment operator"`, `Dc 540 "Reference bound value"`, `Dc 638 "For each"`), and representation sets (`Dc 397 "Equivalent representations"`, `Dc 561 "Partially equivalent representations"`) into pinned graph definitions, retiring each duplicate Rust representation only after its vertical compatibility test passes.
 - [ ] **Enforce graph WASM source-provenance linting (`issues/issues.md`)**:

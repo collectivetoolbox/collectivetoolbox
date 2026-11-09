@@ -99,6 +99,28 @@ pub trait DcExpressionEvaluator: Send + Sync {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DefaultDcExpressionEvaluator;
 
+/// Prevents candidate expressions from executing during graph syntax recognition.
+struct SyntaxOnlyDcExpressionEvaluator;
+
+impl DcExpressionEvaluator for SyntaxOnlyDcExpressionEvaluator {
+    fn eval_expression_for_requirement(
+        &self,
+        _expr_tokens: &[DcChar],
+        _requirement: &ValueRequirement<'_>,
+        _resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<DcEvaluatedValue>> {
+        Ok(None)
+    }
+
+    fn eval_stream_splice(
+        &self,
+        _call_tokens: &[DcChar],
+        _resolver: &dyn SyntaxRuleResolver,
+    ) -> Result<Option<Vec<DcChar>>> {
+        Ok(None)
+    }
+}
+
 impl DefaultDcExpressionEvaluator {
     /// Creates a [`SharedQuotaDcExpressionEvaluator`] initialized with explicit [`crate::DcWasmResourceLimits`].
     #[must_use]
@@ -230,7 +252,13 @@ fn eval_expression_for_requirement_impl(
             return Ok(None);
         };
         if first.fills_role_with(DcRole::LangSay, resolver) {
-            return Ok(None);
+            let output = eval_stream_splice_impl(expr_tokens, resolver, shared_quota)?
+                .context("lang.say did not produce an evaluated document")?;
+            let mut document = DcMstring::new();
+            for token in output {
+                document.push_char(token);
+            }
+            return Ok(Some(DcEvaluatedValue::Document(document)));
         }
         if let Some(wasm_shorthands) =
             resolver.resolve_wasm_definition_tokens(first.to_u128())
@@ -244,20 +272,24 @@ fn eval_expression_for_requirement_impl(
                 )?;
             return Ok(Some(DcEvaluatedValue::Document(doc)));
         }
+        let mut prog_mstr = DcMstring::new();
+        for &token in expr_tokens {
+            prog_mstr.push_char(token);
+        }
+        let mut routine_navigator = DcDocumentNavigator::from_mstr(&prog_mstr);
+        let mut routine_context = SyntaxEvalContext::new(resolver, None);
+        routine_context.evaluator = Some(Arc::new(SyntaxOnlyDcExpressionEvaluator));
         let is_direct_wasm = first
             .fills_role_with(DcRole::BeginWasmProgram, resolver)
-            || (first.fills_role_with(DcRole::BeginLiteral, resolver)
-                && expr_tokens.get(1).is_some_and(|t| {
-                    t.fills_role_with(DcRole::BeginTypeDef, resolver)
-                })
-                && expr_tokens.get(2).is_some_and(|t| {
-                    t.fills_role_with(DcRole::TypeRoutine, resolver)
-                }));
+            || (routine_navigator.eval_term_single(
+                &SyntaxTerm::NamedConstruct {
+                    name: "Routine".to_owned(),
+                    subtype: None,
+                    capture_var: None,
+                },
+                &mut routine_context,
+            )? && routine_navigator.position() == u64::try_from(prog_mstr.len())?);
         if is_direct_wasm {
-            let mut prog_mstr = DcMstring::new();
-            for &tok in expr_tokens {
-                prog_mstr.push_char(tok);
-            }
             let empty_input = DcMstring::new();
             let doc =
                 crate::converters::wasm::run_dc_wasm_pure_conversion_with_resolver_and_quota(
@@ -380,7 +412,10 @@ fn eval_stream_splice_impl(
         let Some(first) = call_tokens.first() else {
             return Ok(None);
         };
-        if first.fills_role_with(DcRole::LangSay, resolver) {
+        let wasm_definition = resolver.resolve_wasm_definition_tokens(first.to_u128());
+        if first.fills_role_with(DcRole::LangSay, resolver)
+            && wasm_definition.is_none()
+        {
             let parameter = call_tokens.get(1)
                 .context("lang.say is missing its parameter")?;
             ensure!(parameter.fills_role_with(DcRole::BeginParameter, resolver),
@@ -400,6 +435,16 @@ fn eval_stream_splice_impl(
             ensure!(navigator.read_next_token()?.is_none(),
                 "Unexpected tokens after lang.say parameter");
             let mut literal_navigator = DcDocumentNavigator::from_mstr(&literal);
+            let checkpoint = literal_navigator.save_checkpoint();
+            let mut context = SyntaxEvalContext::new(resolver, None);
+            ensure!(literal_navigator.eval_term_single(
+                &SyntaxTerm::NamedConstruct {
+                    name: "string".to_owned(), subtype: None, capture_var: None,
+                }, &mut context,
+            )? && !context.has_errors
+                && literal_navigator.position() == u64::try_from(literal.len())?,
+                "lang.say requires a string literal");
+            literal_navigator.restore_checkpoint(checkpoint);
             let mut arena = crate::DcSyntaxArena::new();
             literal_navigator.parse_document_into_arena_with_resolver(
                 &mut arena, &policy, resolver,
@@ -416,9 +461,7 @@ fn eval_stream_splice_impl(
             }
             return Ok(Some(chars));
         }
-        if let Some(wasm_shorthands) =
-            resolver.resolve_wasm_definition_tokens(first.to_u128())
-        {
+        if let Some(wasm_shorthands) = wasm_definition {
             let doc =
                 crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
                     wasm_shorthands,

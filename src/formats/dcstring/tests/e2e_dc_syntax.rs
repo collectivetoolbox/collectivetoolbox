@@ -1660,7 +1660,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
     }
 
     #[crate::ctb_test]
-    fn test_historical_lang_say_is_not_stream_splicing() -> Result<()> {
+    fn test_historical_lang_say_emits_unescaped_output_and_line_feed() -> Result<()> {
         let revision = 8_589_958_834;
         let graph = ctb_formats_dcdata::seed_graph::SeedGraphIndex::load_at_most_recent_from_asset_bundle(revision)?;
         let resolver = DatasetRuleResolver::from_seed_graph(&graph)?;
@@ -1696,48 +1696,121 @@ mod tier4_expression_evaluation_and_stream_splicing {
             &document,
             &DcProjectionPolicy::strict(),
         );
-        assert_eq!(navigator.document_most_recent_node_id(), Some(revision));
-        assert_eq!(navigator.read_next_token()?, Some(DcChar::from_short(641)));
-        assert_eq!(
-            navigator.read_next_token()?,
-            Some(DcChar::from_long(revision))
-        );
+        ensure!(navigator.document_most_recent_node_id() == Some(revision),
+            "Historical pin was not selected");
+        ensure!(navigator.read_next_token()? == Some(DcChar::from_short(641)),
+            "Missing historical pin marker");
+        ensure!(navigator.read_next_token()? == Some(DcChar::from_long(revision)),
+            "Unexpected historical pin");
         for token in [
-            say,
-            DcChar::from_short(258),
-            DcChar::from_short(260),
-            DcChar::from_short(262),
-            DcChar::from_short(264),
-            DcChar::from_short(263),
             DcChar::from('A'),
-            DcChar::from_short(255),
             DcChar::from_short(261),
             DcChar::from('B'),
-            DcChar::from_short(261),
-            DcChar::from_short(259),
+            DcChar::from('\n'),
         ] {
-            assert_eq!(navigator.read_next_token()?, Some(token));
+            ensure!(navigator.read_next_token()? == Some(token),
+                "Historical lang.say emitted an unexpected output token");
         }
-        assert_eq!(navigator.read_next_token()?, None);
+        ensure!(navigator.read_next_token()?.is_none(),
+            "Historical lang.say emitted extra output");
+        Ok(())
+    }
 
-        let invocation = create_test_mstring(&[
-            say,
-            DcChar::from_short(258),
-            DcChar::from_short(260),
-            DcChar::from_short(262),
-            DcChar::from_short(264),
-            DcChar::from_short(263),
-            DcChar::from('A'),
-            DcChar::from_short(261),
-            DcChar::from_short(259),
-        ]);
-        let policy = DcProjectionPolicy::strict();
-        let mut nav = DcDocumentNavigator::from_mstr(&invocation);
-        let mut arena = DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, &policy)?;
-        let root = *arena.roots().first().context("Missing invocation")?;
-        let projection = DcProjectionContext::new(&arena, &policy);
-        assert!(projection.resolve_expression_node(root)?.is_none());
+    #[crate::ctb_test]
+    fn test_lang_say_line_feed_and_literal_error_cases() -> Result<()> {
+        let historical = DatasetRuleResolver::load_at_most_recent(8_589_958_834)?;
+        let current = default_syntax_resolver();
+        for resolver in [current.as_ref(), &historical] {
+            let evaluator = DefaultDcExpressionEvaluator;
+            for (payload, expected) in [
+                (Vec::new(), vec![DcChar::from('\n')]),
+                (vec![DcChar::from('A')], vec![DcChar::from('A'), DcChar::from('\n')]),
+                (vec![DcChar::from('A'), DcChar::from('\n')], vec![DcChar::from('A'), DcChar::from('\n')]),
+                (vec![DcChar::from('\r'), DcChar::from('\n')], vec![DcChar::from('\r'), DcChar::from('\n')]),
+                (vec![DcChar::from('\r')], vec![DcChar::from('\r'), DcChar::from('\n')]),
+                (vec![DcChar::from_short(120)], vec![DcChar::from_short(120)]),
+                (vec![DcChar::from_short(255), DcChar::from_short(261)],
+                    vec![DcChar::from_short(255), DcChar::from_short(261), DcChar::from('\n')]),
+            ] {
+                let mut call = create_test_mstring(&[
+                    DcChar::from_short(256), DcChar::from_short(258),
+                ]);
+                let text = create_test_mstring(&payload);
+                text.encode_dc_mixed(&mut call)?;
+                call.push_char(DcChar::from_short(259));
+                let tokens: Vec<DcChar> = call.to_dc_string()?.chars().collect();
+                let actual = evaluator.eval_stream_splice(&tokens, resolver)?
+                    .context("lang.say did not emit output")?;
+                ensure!(actual == expected,
+                    "lang.say newline or escaping mismatch: {actual:?} != {expected:?}");
+                let result = evaluator.eval_expression_for_requirement(
+                    &tokens,
+                    &ValueRequirement::NamedConstruct { name: "value", subtype: None },
+                    resolver,
+                )?.context("lang.say did not return its evaluated output")?;
+                let DcEvaluatedValue::Document(result) = result else {
+                    bail!("lang.say must produce the same document result as its output");
+                };
+                let result_tokens: Vec<DcChar> = result.to_dc_string()?.chars().collect();
+                ensure!(result_tokens == actual,
+                    "Value evaluation and stream emission must agree");
+                let missing_closer = tokens.get(..tokens.len().saturating_sub(1))
+                    .context("Missing call tokens")?;
+                ensure!(evaluator.eval_stream_splice(missing_closer, resolver).is_err(),
+                    "Missing parameter closer must produce an error");
+            }
+            let non_string = create_test_mstring(&[
+                DcChar::from_short(256), DcChar::from_short(258),
+                DcChar::from_short(260), DC_BEGIN_TYPE_DEF,
+                DcChar::from_short(280), DC_END_TYPE_DEF,
+                DcChar::from('A'), DcChar::from_short(261),
+                DcChar::from_short(259),
+            ]);
+            let tokens: Vec<DcChar> = non_string.to_dc_string()?.chars().collect();
+            ensure!(evaluator.eval_stream_splice(&tokens, resolver).is_err(),
+                "Non-string literal arguments must be rejected");
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_lang_say_historical_hello_world_fixture_outputs() -> Result<()> {
+        use ctb_formats_dcstring::converters::{ascii, dcal};
+
+        let plain = ascii::ascii_to_dcmstring(include_bytes!(
+            "../../../../old/eite/docs/examples/hello-world/hello-world.emd"
+        ))?.0;
+        let idiomatic = dcal::dcsh_to_dcmstring(include_bytes!(
+            "../../../../old/eite/docs/examples/hello-world/idiomatic-hello-world.ems"
+        ))?.0;
+        let historical = DatasetRuleResolver::load_at_most_recent(8_589_958_834)?;
+        let current = default_syntax_resolver();
+        for resolver in [current.as_ref(), &historical] {
+            for (document, expected) in [
+                (&plain, include_bytes!(
+                    "../../../../old/eite/docs/examples/hello-world/hello-world.out"
+                ).as_slice()),
+                (&idiomatic, include_bytes!(
+                    "../../../../old/eite/docs/examples/hello-world/idiomatic-hello-world.out"
+                ).as_slice()),
+            ] {
+                let mut navigator = DcDocumentNavigator::from_mstr(document);
+                navigator.set_pinned_resolver(Some(Arc::new(resolver.clone())));
+                let mut evaluated = DcMstring::new();
+                while let Some(token) = navigator.read_next_token()? {
+                    evaluated.push_char(token);
+                }
+                let actual = ascii::dcmstring_to_ascii_with_settings(
+                    &evaluated,
+                    &ascii::AsciiSettings {
+                        normalization: Some(DcNormalizationMode::All),
+                        ..Default::default()
+                    },
+                )?.0;
+                ensure!(actual == expected,
+                    "Historical hello-world output mismatch: {actual:?} != {expected:?}");
+            }
+        }
         Ok(())
     }
 
@@ -1763,14 +1836,35 @@ mod tier4_expression_evaluation_and_stream_splicing {
             .map(|definition| definition.script.clone())
             .filter(|script| !script.is_empty())
             .collect();
-        let named =
-            b"Name,Syntax,Notes\nRoutine,:260 262 [280:] 263 [^261]+ 261,\n";
+        let named_with_routine = |syntax: &str| -> Result<Vec<u8>> {
+            let table = csv_tools::parse_csv_reader(
+                &include_bytes!("../../dcdata/data-src/README-named-types.csv").to_vec(),
+                csv_tools::CsvParseOptions {
+                    has_header: true,
+                    ..Default::default()
+                },
+            )?;
+            let mut writer = csv::Writer::from_writer(Vec::new());
+            writer.write_record(table.header().context("Missing named-type header")?)?;
+            let mut replaced = false;
+            for row in table.rows_iter() {
+                let mut row = row.to_vec();
+                if row.first().is_some_and(|name| name == "Routine") {
+                    *row.get_mut(1).context("Missing Routine syntax")? = syntax.to_owned();
+                    replaced = true;
+                }
+                writer.write_record(row)?;
+            }
+            ensure!(replaced, "Missing Routine named rule");
+            Ok(writer.into_inner()?)
+        };
+        let named = named_with_routine(":260 262 [280:] 263 [^261]+ 261")?;
         let (original, _) = update_ledger_in_memory(
             Vec::new(),
             definitions,
             formats,
             &scripts,
-            Some(named),
+            Some(&named),
         )?;
         let revision1 = original.last().context("Empty initial ledger")?.id;
         let initial = SeedGraphIndex::from_nodes(original.clone());
@@ -1844,13 +1938,13 @@ mod tier4_expression_evaluation_and_stream_splicing {
             (true, u64::try_from(historical_document.len())?, Vec::new())
         );
 
-        let updated_named = b"Name,Syntax,Notes\nRoutine,:(u52)? 260 262 [280:] 263 [^261]+ 261,\n";
+        let updated_named = named_with_routine(":(u52)? 260 262 [280:] 263 [^261]+ 261")?;
         let (updated, statistics) = update_ledger_in_memory(
             original.clone(),
             definitions,
             formats,
             &scripts,
-            Some(updated_named),
+            Some(&updated_named),
         )?;
         assert_eq!(updated.get(..original.len()), Some(original.as_slice()));
         assert!(statistics.nodes_superseded > 0);
@@ -1905,12 +1999,109 @@ mod tier4_expression_evaluation_and_stream_splicing {
                 .unwrap_err().to_string()
                 .contains("newer System graph snapshot")
         );
+
+        let mut expected = DcMstring::new();
+        expected.push_char(DC_BOOLEAN_TRUE);
+        let encoded_value = i32::from_le_bytes(
+            expected.as_bytes().get(DCMM_HEADER_LEN..)
+                .context("Missing encoded output token")?.try_into()?,
+        );
+        let mut executable = create_test_mstring(&[
+            DcChar::from_short(260), DC_BEGIN_TYPE_DEF,
+            DcChar::from_short(280),
+            DcChar::from_u128(FormatId::I32.dc_id().context("Missing i32 type")?),
+            DC_END_TYPE_DEF,
+        ]);
+        for (address, value) in [(64i32, encoded_value), (8, 64), (12, 4)] {
+            executable.push_char(DcChar::from_short(712));
+            address.encode_dc_mixed(&mut executable)?;
+            executable.push_char(DcChar::from_short(712));
+            value.encode_dc_mixed(&mut executable)?;
+            executable.push_char(DcChar::from_short(701));
+            for immediate in [0u32, 2, 0] {
+                immediate.encode_dc_mixed(&mut executable)?;
+            }
+        }
+        executable.push_char(DcChar::from_short(712));
+        0i32.encode_dc_mixed(&mut executable)?;
+        executable.push_char(DcChar::from_short(261));
+        let execute = |document: &DcMstring, resolver: Option<&DatasetRuleResolver>|
+            -> Result<Vec<u8>> {
+            let mut navigator = DcDocumentNavigator::from_mstr(document);
+            if let Some(resolver) = resolver {
+                navigator.set_pinned_resolver(Some(Arc::new(resolver.clone())));
+            }
+            assert_eq!(navigator.read_next_token()?, Some(DcChar::from_short(641)));
+            navigator.read_next_token()?.context("Missing execution pin")?;
+            let selected = navigator.effective_resolver();
+            ensure!(navigator.diagnostics().is_empty(), "Pin discovery failed");
+            let mut tokens = Vec::new();
+            while let Some(token) = navigator.read_next_token()? {
+                tokens.push(token);
+            }
+            let value = DefaultDcExpressionEvaluator.eval_expression_for_requirement(
+                &tokens,
+                &ValueRequirement::NamedConstruct { name: "boolean", subtype: None },
+                selected.as_ref(),
+            )?.context("Routine was not executed")?;
+            let DcEvaluatedValue::Document(output) = value else {
+                bail!("Routine did not return document bytes");
+            };
+            let body = create_test_mstring(&tokens);
+            let mut session = DcWasmSession::from_dc_wasm_with_resolver(
+                &body, &DcMstring::new(), navigator.document_most_recent_node_id(),
+                selected.as_ref(),
+            )?;
+            let WasmStepOutcome::Complete(replayed) = session.step()? else {
+                bail!("Pure Routine emitted a frame or capability request instead of completing");
+            };
+            ensure!(replayed.as_bytes() == output.as_bytes(),
+                "Routine replay changed observable completion bytes");
+            Ok(output.as_bytes().to_vec())
+        };
+        let executable1 = pin(&executable, revision1)?;
+        let execution_before = execute(&executable1, Some(&initial_resolver))?;
+        assert_eq!(execution_before, expected.as_bytes());
+        assert_eq!(execute(&executable1, Some(&old))?, execution_before);
+        assert_eq!(execute(&pin(&executable, revision2)?, Some(&new))?, execution_before);
+        let bundled_head = default_syntax_resolver().seed_graph()
+            .and_then(SeedGraphIndex::system_block_most_recent_node_id)
+            .context("Missing bundled System revision")?;
+        let wasm_historical_revision = bundled_head.checked_sub(1)
+            .context("No previous bundled System revision")?;
+        assert_eq!(execute(&pin(&executable, wasm_historical_revision)?, None)?, execution_before);
+
+        let restricted_named = named_with_routine(":260 262 [280:] 263 648 [^261]+ 261")?;
+        let (restricted_nodes, _) = update_ledger_in_memory(
+            updated, definitions, formats, &scripts, Some(&restricted_named),
+        )?;
+        let restricted_revision = restricted_nodes.last()
+            .context("Empty restricted ledger")?.id;
+        let restricted = DatasetRuleResolver::from_seed_graph(
+            &SeedGraphIndex::from_nodes(restricted_nodes),
+        )?;
+        let tokens: Vec<DcChar> = executable.to_dc_string()?.chars().collect();
+        assert!(DefaultDcExpressionEvaluator.eval_expression_for_requirement(
+            &tokens,
+            &ValueRequirement::NamedConstruct { name: "boolean", subtype: None },
+            &restricted,
+        )?.is_none(), "Execution must not fall back to a Rust header check when the graph rejects a Routine");
+        let mut revised_executable = create_test_mstring(
+            tokens.get(..5).context("Missing Routine type header")?,
+        );
+        revised_executable.push_char(DcChar::from_short(648));
+        for &token in tokens.get(5..).context("Missing Routine body")? {
+            revised_executable.push_char(token);
+        }
+        assert_eq!(execute(
+            &pin(&revised_executable, restricted_revision)?, Some(&restricted),
+        )?, execution_before);
         Ok(())
     }
 
-    /// An output invocation remains a child of its enclosing container.
+    /// Evaluated output remains inside a container with an explicit closer.
     #[crate::ctb_test]
-    fn test_lang_say_external_closer_preserves_invocation() -> Result<()> {
+    fn test_lang_say_external_closer_preserves_evaluated_output() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
 
         // 286 (Begin italicized text)
@@ -1955,13 +2146,14 @@ mod tier4_expression_evaluation_and_stream_splicing {
                     "Closer must be 287, got {closer}"
                 );
                 ensure!(!unclosed, "Container must not be marked unclosed");
-                ensure!(children.len() == 1, "Expected one invocation child");
-                let child =
-                    arena.get(children[0]).context("Missing invocation")?;
-                ensure!(
-                    child.semantic_token()
-                        == Some(DcChar::from_short(256).to_u128())
-                );
+                let actual: Vec<u128> = children.iter().filter_map(|child|
+                    arena.get(*child).and_then(|node| node.semantic_token()))
+                    .collect();
+                let mut expected: Vec<u128> = chars.iter().skip(7).take(13)
+                    .map(|token| token.to_u128()).collect();
+                expected.push(DcChar::from('\n').to_u128());
+                ensure!(actual == expected,
+                    "Evaluated container must preserve emitted text and its line feed");
             }
             other => bail!("Root node must be Container, got {other:?}"),
         }
@@ -1969,9 +2161,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Output arguments are not substituted into grammar validation.
+    /// Emitted document values participate in evaluated grammar matching.
     #[crate::ctb_test]
-    fn test_eval_term_single_does_not_splice_lang_say() -> Result<()> {
+    fn test_eval_term_single_matches_lang_say_output() -> Result<()> {
         let _policy = DcProjectionPolicy::strict();
         let resolver = default_syntax_resolver();
 
@@ -1991,7 +2183,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // Term matching 'H' (Dc 57)
         let term_h = SyntaxTerm::CharRef(CharTarget::Dc(57));
         let matched = nav.eval_term_single(&term_h, &mut ctx)?;
-        ensure!(!matched, "Output text must not satisfy an input grammar");
+        ensure!(matched, "Evaluated grammar must match the emitted text");
 
         Ok(())
     }
@@ -3186,7 +3378,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
     }
 
     #[crate::ctb_test]
-    fn test_output_arguments_cannot_supply_outer_closers() -> Result<()> {
+    fn test_output_expansion_preserves_nested_quoting_and_closers() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
 
         let mut say_payload = DcMstring::new();
@@ -3214,7 +3406,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         doc.push_char(DcChar::from_short(259));
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
-        ensure!(nav.validate_document(&strict).is_err());
+        nav.validate_document(&strict)?;
 
         let mut list_say = DcMstring::new();
         list_say.push_char(DcChar::from_short(255));
@@ -3233,7 +3425,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         list_doc.push_char(DcChar::from_short(259));
 
         let mut list_nav = DcDocumentNavigator::from_mstr(&list_doc);
-        ensure!(list_nav.validate_document(&strict).is_err());
+        list_nav.validate_document(&strict)?;
 
         Ok(())
     }
