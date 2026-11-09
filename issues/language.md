@@ -235,6 +235,40 @@ interruptions remain external host events rather than logical budget policy.
     specific format/value rule, emit its definition through
     `src/formats/dcdata/support/graph_ledger.rs` into `.ctbnodes` / `.ctbnbdl`,
     and delete the corresponding procedural Rust fallback.
+  - **In Progress (2026-11-09): Routine literal header validation** is the
+    first bounded migration. The named `Routine` pattern already exists in
+    generated System graph history, including `l8589958834`; unlike the output
+    routine below, it needs neither a historical WASM backfill nor effect
+    dispatch. Removed the evaluator's redundant fixed-position Rust header
+    check for `Routine`; the selected graph pattern now decides acceptance.
+    Production graph definitions and existing node IDs are unchanged.
+  - `test_gate3_routine_header_uses_generated_graph_history` in
+    [`e2e_dc_syntax.rs`](../src/formats/dcstring/tests/e2e_dc_syntax.rs)
+    generates R1/R2 ledgers from CSV input using `update_ledger_in_memory`,
+    preserves the original node prefix, supersedes the named rule, partitions
+    active/history nodes, and roundtrips both through `.ctbnbdl`. It checks
+    unchanged R1 document octets and matching outcomes after R2, a test-only
+    alternate R2 prefix that the removed Rust check would reject, malformed
+    headers, explicit future-revision errors, and the bundled historical rule.
+    Pin-bearing navigators use caller-supplied snapshot resolvers, not a global
+    resolver-cache replacement. The alternate encoding is only a fixture, not
+    an assigned production syntax change.
+  - **Remaining Gaps / Pending Work**: This proves graph-owned grammar
+    acceptance, cursor consumption, and syntax diagnostics, not observable
+    execution-trace replay. Extend the candidate into actual routine execution
+    through normal pin/bundle discovery, comparing output/request bytes and
+    outcomes across graph and implementation revisions. Capability/event
+    ordering and canonical raster cases remain under the next checkbox. The
+    analogous `string` header check remains necessary: its historical named
+    pattern accepts a generic literal, so a HEAD-only restriction cannot
+    justify deleting that check for older pins.
+  - **Verification (Linux musl)**: All 211 dcstring library tests and 46 syntax
+    integration tests passed, with none ignored. Production-only dcstring
+    Clippy passed. Clippy including the syntax integration target remains
+    blocked by pre-existing `panic_in_result_fn` errors in
+    `test_known_hello_world_invocation_shape_not_dropped_or_over_consumed` and
+    `test_historical_lang_say_is_not_stream_splicing`; the new regression uses
+    an item-scoped test-assertion expectation.
   - The historical catalog and hello-world fixture establish that
     `Dc 256 "void lang.say([string] text)"` sends a string to its output
     context with a final line feed if needed. The recent parser incorrectly
@@ -262,7 +296,10 @@ interruptions remain external host events rather than logical budget policy.
 ### Gate 4: Incremental Expansion & Cleanup (Post-Proof)
 - [ ] **Eliminate implicit Rust rule synthesis in `DatasetRuleResolver::from_seed_graph` (`src/formats/dcdata/syntax/resolver.rs`)**:
   - Emit explicit `Dc 590 "Is a closing delimiter of syntactic block for"` statements into `.ctbnodes` so container closers do not rely on `detect_container_closer` heuristics (`src/formats/dcdata/syntax/resolver.rs:1716-1734`).
-  - Emit explicit graph rules/subtypes for `.EL Types` literal constructs so runtime loading does not scrape English canonical names (`extract_el_type_name`).
+  - English-name scraping (`extract_el_type_name`) is no longer present in
+    runtime definition loading. Continue moving literal constraints to explicit
+    graph rules/subtypes, preserving historical behavior; the `string` header
+    restriction described in Gate 3 is still procedural.
 - [ ] **Migrate remaining procedural constraint & value evaluators (`src/formats/dcstring/navigator/eval.rs`)**:
   - Incrementally migrate subtype constraints (`number_satisfies_subtype`, `type_tokens_satisfy`, `eval_list_constraints`, `eval_data_construct`, `eval_typed_data_construct`), lexical bindings (`Dc 269 "Assignment operator"`, `Dc 540 "Reference bound value"`, `Dc 638 "For each"`), and representation sets (`Dc 397 "Equivalent representations"`, `Dc 561 "Partially equivalent representations"`) into pinned graph definitions, retiring each duplicate Rust representation only after its vertical compatibility test passes.
 - [ ] **Enforce graph WASM source-provenance linting (`issues/issues.md`)**:
