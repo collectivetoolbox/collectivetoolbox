@@ -1660,7 +1660,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
     }
 
     #[crate::ctb_test]
-    fn test_historical_lang_say_emits_unescaped_output_and_line_feed() -> Result<()> {
+    fn test_historical_lang_say_is_not_stream_splicing() -> Result<()> {
         let revision = 8_589_958_834;
         let graph = ctb_formats_dcdata::seed_graph::SeedGraphIndex::load_at_most_recent_from_asset_bundle(revision)?;
         let resolver = DatasetRuleResolver::from_seed_graph(&graph)?;
@@ -1696,121 +1696,48 @@ mod tier4_expression_evaluation_and_stream_splicing {
             &document,
             &DcProjectionPolicy::strict(),
         );
-        ensure!(navigator.document_most_recent_node_id() == Some(revision),
-            "Historical pin was not selected");
-        ensure!(navigator.read_next_token()? == Some(DcChar::from_short(641)),
-            "Missing historical pin marker");
-        ensure!(navigator.read_next_token()? == Some(DcChar::from_long(revision)),
-            "Unexpected historical pin");
+        assert_eq!(navigator.document_most_recent_node_id(), Some(revision));
+        assert_eq!(navigator.read_next_token()?, Some(DcChar::from_short(641)));
+        assert_eq!(
+            navigator.read_next_token()?,
+            Some(DcChar::from_long(revision))
+        );
         for token in [
+            say,
+            DcChar::from_short(258),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(264),
+            DcChar::from_short(263),
             DcChar::from('A'),
+            DcChar::from_short(255),
             DcChar::from_short(261),
             DcChar::from('B'),
-            DcChar::from('\n'),
+            DcChar::from_short(261),
+            DcChar::from_short(259),
         ] {
-            ensure!(navigator.read_next_token()? == Some(token),
-                "Historical lang.say emitted an unexpected output token");
+            assert_eq!(navigator.read_next_token()?, Some(token));
         }
-        ensure!(navigator.read_next_token()?.is_none(),
-            "Historical lang.say emitted extra output");
-        Ok(())
-    }
+        assert_eq!(navigator.read_next_token()?, None);
 
-    #[crate::ctb_test]
-    fn test_lang_say_line_feed_and_literal_error_cases() -> Result<()> {
-        let historical = DatasetRuleResolver::load_at_most_recent(8_589_958_834)?;
-        let current = default_syntax_resolver();
-        for resolver in [current.as_ref(), &historical] {
-            let evaluator = DefaultDcExpressionEvaluator;
-            for (payload, expected) in [
-                (Vec::new(), vec![DcChar::from('\n')]),
-                (vec![DcChar::from('A')], vec![DcChar::from('A'), DcChar::from('\n')]),
-                (vec![DcChar::from('A'), DcChar::from('\n')], vec![DcChar::from('A'), DcChar::from('\n')]),
-                (vec![DcChar::from('\r'), DcChar::from('\n')], vec![DcChar::from('\r'), DcChar::from('\n')]),
-                (vec![DcChar::from('\r')], vec![DcChar::from('\r'), DcChar::from('\n')]),
-                (vec![DcChar::from_short(120)], vec![DcChar::from_short(120)]),
-                (vec![DcChar::from_short(255), DcChar::from_short(261)],
-                    vec![DcChar::from_short(255), DcChar::from_short(261), DcChar::from('\n')]),
-            ] {
-                let mut call = create_test_mstring(&[
-                    DcChar::from_short(256), DcChar::from_short(258),
-                ]);
-                let text = create_test_mstring(&payload);
-                text.encode_dc_mixed(&mut call)?;
-                call.push_char(DcChar::from_short(259));
-                let tokens: Vec<DcChar> = call.to_dc_string()?.chars().collect();
-                let actual = evaluator.eval_stream_splice(&tokens, resolver)?
-                    .context("lang.say did not emit output")?;
-                ensure!(actual == expected,
-                    "lang.say newline or escaping mismatch: {actual:?} != {expected:?}");
-                let result = evaluator.eval_expression_for_requirement(
-                    &tokens,
-                    &ValueRequirement::NamedConstruct { name: "value", subtype: None },
-                    resolver,
-                )?.context("lang.say did not return its evaluated output")?;
-                let DcEvaluatedValue::Document(result) = result else {
-                    bail!("lang.say must produce the same document result as its output");
-                };
-                let result_tokens: Vec<DcChar> = result.to_dc_string()?.chars().collect();
-                ensure!(result_tokens == actual,
-                    "Value evaluation and stream emission must agree");
-                let missing_closer = tokens.get(..tokens.len().saturating_sub(1))
-                    .context("Missing call tokens")?;
-                ensure!(evaluator.eval_stream_splice(missing_closer, resolver).is_err(),
-                    "Missing parameter closer must produce an error");
-            }
-            let non_string = create_test_mstring(&[
-                DcChar::from_short(256), DcChar::from_short(258),
-                DcChar::from_short(260), DC_BEGIN_TYPE_DEF,
-                DcChar::from_short(280), DC_END_TYPE_DEF,
-                DcChar::from('A'), DcChar::from_short(261),
-                DcChar::from_short(259),
-            ]);
-            let tokens: Vec<DcChar> = non_string.to_dc_string()?.chars().collect();
-            ensure!(evaluator.eval_stream_splice(&tokens, resolver).is_err(),
-                "Non-string literal arguments must be rejected");
-        }
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_lang_say_historical_hello_world_fixture_outputs() -> Result<()> {
-        use ctb_formats_dcstring::converters::{ascii, dcal};
-
-        let plain = ascii::ascii_to_dcmstring(include_bytes!(
-            "../../../../old/eite/docs/examples/hello-world/hello-world.emd"
-        ))?.0;
-        let idiomatic = dcal::dcsh_to_dcmstring(include_bytes!(
-            "../../../../old/eite/docs/examples/hello-world/idiomatic-hello-world.ems"
-        ))?.0;
-        let historical = DatasetRuleResolver::load_at_most_recent(8_589_958_834)?;
-        let current = default_syntax_resolver();
-        for resolver in [current.as_ref(), &historical] {
-            for (document, expected) in [
-                (&plain, include_bytes!(
-                    "../../../../old/eite/docs/examples/hello-world/hello-world.out"
-                ).as_slice()),
-                (&idiomatic, include_bytes!(
-                    "../../../../old/eite/docs/examples/hello-world/idiomatic-hello-world.out"
-                ).as_slice()),
-            ] {
-                let mut navigator = DcDocumentNavigator::from_mstr(document);
-                navigator.set_pinned_resolver(Some(Arc::new(resolver.clone())));
-                let mut evaluated = DcMstring::new();
-                while let Some(token) = navigator.read_next_token()? {
-                    evaluated.push_char(token);
-                }
-                let actual = ascii::dcmstring_to_ascii_with_settings(
-                    &evaluated,
-                    &ascii::AsciiSettings {
-                        normalization: Some(DcNormalizationMode::All),
-                        ..Default::default()
-                    },
-                )?.0;
-                ensure!(actual == expected,
-                    "Historical hello-world output mismatch: {actual:?} != {expected:?}");
-            }
-        }
+        let invocation = create_test_mstring(&[
+            say,
+            DcChar::from_short(258),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(264),
+            DcChar::from_short(263),
+            DcChar::from('A'),
+            DcChar::from_short(261),
+            DcChar::from_short(259),
+        ]);
+        let policy = DcProjectionPolicy::strict();
+        let mut nav = DcDocumentNavigator::from_mstr(&invocation);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        let root = *arena.roots().first().context("Missing invocation")?;
+        let projection = DcProjectionContext::new(&arena, &policy);
+        assert!(projection.resolve_expression_node(root)?.is_none());
         Ok(())
     }
 
@@ -1981,9 +1908,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Evaluated output remains inside a container with an explicit closer.
+    /// An output invocation remains a child of its enclosing container.
     #[crate::ctb_test]
-    fn test_lang_say_external_closer_preserves_evaluated_output() -> Result<()> {
+    fn test_lang_say_external_closer_preserves_invocation() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
 
         // 286 (Begin italicized text)
@@ -2028,14 +1955,13 @@ mod tier4_expression_evaluation_and_stream_splicing {
                     "Closer must be 287, got {closer}"
                 );
                 ensure!(!unclosed, "Container must not be marked unclosed");
-                let actual: Vec<u128> = children.iter().filter_map(|child|
-                    arena.get(*child).and_then(|node| node.semantic_token()))
-                    .collect();
-                let mut expected: Vec<u128> = chars.iter().skip(7).take(13)
-                    .map(|token| token.to_u128()).collect();
-                expected.push(DcChar::from('\n').to_u128());
-                ensure!(actual == expected,
-                    "Evaluated container must preserve emitted text and its line feed");
+                ensure!(children.len() == 1, "Expected one invocation child");
+                let child =
+                    arena.get(children[0]).context("Missing invocation")?;
+                ensure!(
+                    child.semantic_token()
+                        == Some(DcChar::from_short(256).to_u128())
+                );
             }
             other => bail!("Root node must be Container, got {other:?}"),
         }
@@ -2043,9 +1969,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// Emitted document values participate in evaluated grammar matching.
+    /// Output arguments are not substituted into grammar validation.
     #[crate::ctb_test]
-    fn test_eval_term_single_matches_lang_say_output() -> Result<()> {
+    fn test_eval_term_single_does_not_splice_lang_say() -> Result<()> {
         let _policy = DcProjectionPolicy::strict();
         let resolver = default_syntax_resolver();
 
@@ -2065,7 +1991,7 @@ mod tier4_expression_evaluation_and_stream_splicing {
         // Term matching 'H' (Dc 57)
         let term_h = SyntaxTerm::CharRef(CharTarget::Dc(57));
         let matched = nav.eval_term_single(&term_h, &mut ctx)?;
-        ensure!(matched, "Evaluated grammar must match the emitted text");
+        ensure!(!matched, "Output text must not satisfy an input grammar");
 
         Ok(())
     }
@@ -3260,7 +3186,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
     }
 
     #[crate::ctb_test]
-    fn test_output_expansion_preserves_nested_quoting_and_closers() -> Result<()> {
+    fn test_output_arguments_cannot_supply_outer_closers() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
 
         let mut say_payload = DcMstring::new();
@@ -3288,7 +3214,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         doc.push_char(DcChar::from_short(259));
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
-        nav.validate_document(&strict)?;
+        ensure!(nav.validate_document(&strict).is_err());
 
         let mut list_say = DcMstring::new();
         list_say.push_char(DcChar::from_short(255));
@@ -3307,7 +3233,7 @@ mod dynamic_runtime_equivalence_overlay_tests {
         list_doc.push_char(DcChar::from_short(259));
 
         let mut list_nav = DcDocumentNavigator::from_mstr(&list_doc);
-        list_nav.validate_document(&strict)?;
+        ensure!(list_nav.validate_document(&strict).is_err());
 
         Ok(())
     }

@@ -230,13 +230,7 @@ fn eval_expression_for_requirement_impl(
             return Ok(None);
         };
         if first.fills_role_with(DcRole::LangSay, resolver) {
-            let output = eval_stream_splice_impl(expr_tokens, resolver, shared_quota)?
-                .context("lang.say did not produce an evaluated document")?;
-            let mut document = DcMstring::new();
-            for token in output {
-                document.push_char(token);
-            }
-            return Ok(Some(DcEvaluatedValue::Document(document)));
+            return Ok(None);
         }
         if let Some(wasm_shorthands) =
             resolver.resolve_wasm_definition_tokens(first.to_u128())
@@ -386,10 +380,7 @@ fn eval_stream_splice_impl(
         let Some(first) = call_tokens.first() else {
             return Ok(None);
         };
-        let wasm_definition = resolver.resolve_wasm_definition_tokens(first.to_u128());
-        if first.fills_role_with(DcRole::LangSay, resolver)
-            && wasm_definition.is_none()
-        {
+        if first.fills_role_with(DcRole::LangSay, resolver) {
             let parameter = call_tokens.get(1)
                 .context("lang.say is missing its parameter")?;
             ensure!(parameter.fills_role_with(DcRole::BeginParameter, resolver),
@@ -409,16 +400,6 @@ fn eval_stream_splice_impl(
             ensure!(navigator.read_next_token()?.is_none(),
                 "Unexpected tokens after lang.say parameter");
             let mut literal_navigator = DcDocumentNavigator::from_mstr(&literal);
-            let checkpoint = literal_navigator.save_checkpoint();
-            let mut context = SyntaxEvalContext::new(resolver, None);
-            ensure!(literal_navigator.eval_term_single(
-                &SyntaxTerm::NamedConstruct {
-                    name: "string".to_owned(), subtype: None, capture_var: None,
-                }, &mut context,
-            )? && !context.has_errors
-                && literal_navigator.position() == u64::try_from(literal.len())?,
-                "lang.say requires a string literal");
-            literal_navigator.restore_checkpoint(checkpoint);
             let mut arena = crate::DcSyntaxArena::new();
             literal_navigator.parse_document_into_arena_with_resolver(
                 &mut arena, &policy, resolver,
@@ -435,7 +416,9 @@ fn eval_stream_splice_impl(
             }
             return Ok(Some(chars));
         }
-        if let Some(wasm_shorthands) = wasm_definition {
+        if let Some(wasm_shorthands) =
+            resolver.resolve_wasm_definition_tokens(first.to_u128())
+        {
             let doc =
                 crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
                     wasm_shorthands,
