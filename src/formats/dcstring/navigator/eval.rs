@@ -1885,6 +1885,10 @@ impl DcDocumentNavigator<'_> {
                         && target.to_u128()
                             == ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY
                                 .to_u128()
+                        && first_dc.fills_role_with(
+                            DcRole::StartEncapsulationBinary,
+                            ctx.resolver,
+                        )
                         && let Some((
                             end_offset,
                             DcFrameHeaderInfo::Binary { .. },

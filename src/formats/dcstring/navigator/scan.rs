@@ -341,11 +341,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 end_offset,
                 is_v1,
             } => {
-                let dc203_len = if *is_v1 {
-                    crate::dc_mixed::DC_203_BYTES_V1.len()
+                let expected_prefix: &[u8] = if *is_v1 {
+                    &crate::dc_mixed::DC_203_BYTES_V1
                 } else {
-                    crate::dc_mixed::DC_203_BYTES.len()
+                    &crate::dc_mixed::DC_203_BYTES
                 };
+                let dc203_len = expected_prefix.len();
                 let after_dc203 = start_offset
                     .checked_add(u64::try_from(dc203_len)?)
                     .context("Binary encapsulation offset overflow")?;
@@ -353,15 +354,28 @@ impl<'a> DcDocumentNavigator<'a> {
                 if after_dc203 >= source_end {
                     return Ok(None);
                 }
-                seek_buffered_file(reader, reader_pos, after_dc203)?;
-                let mut type_byte = [0_u8; 1];
-                if let Err(err) = reader.read_exact(&mut type_byte) {
+                seek_buffered_file(reader, reader_pos, start_offset)?;
+                let mut prefix_and_type = [0_u8; 7];
+                let total_probe_len = dc203_len
+                    .checked_add(1)
+                    .context("Binary encapsulation probe length overflow")?;
+                let Some(probe_buf) =
+                    prefix_and_type.get_mut(..total_probe_len)
+                else {
+                    return Ok(None);
+                };
+                if let Err(err) = reader.read_exact(probe_buf) {
                     *reader_pos = None;
                     return Err(err)
                         .context("Truncated .dcmm binary encapsulation type");
                 }
                 *reader_pos = after_dc203.checked_add(1);
-                let encap_type = type_byte[0];
+                if probe_buf.get(..dc203_len) != Some(expected_prefix) {
+                    return Ok(None);
+                }
+                let Some(&encap_type) = probe_buf.get(dc203_len) else {
+                    return Ok(None);
+                };
                 if encap_type >= 0xF4 {
                     return Ok(None);
                 }
