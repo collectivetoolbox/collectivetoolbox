@@ -621,7 +621,7 @@ impl SyntaxRuleResolver for SyntaxRuntimeResolver {
 
     fn is_splice_trigger_token(&self, token: u128) -> bool {
         if self.token_fills_role(token, DcRole::LangSay) {
-            return false;
+            return true;
         }
         if self.canonical_overlay.is_empty() && self.roles_overlay.is_empty() {
             return self.base.is_splice_trigger_token(token)

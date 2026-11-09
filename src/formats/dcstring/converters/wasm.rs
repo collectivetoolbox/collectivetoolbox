@@ -4736,21 +4736,25 @@ mod tests {
         resolver.register_equivalence(say_alias.to_u128(), say.to_u128());
         resolver.register_wasm_definition(say.to_u128(), routine_shorthands);
         for token in [say, say_alias] {
-            assert!(!resolver.is_splice_trigger_token(token.to_u128()));
+            assert!(resolver.is_splice_trigger_token(token.to_u128()));
             let call = [token, DcChar::from_short(517)];
-            assert!(evaluator.eval_stream_splice(&call, &resolver)?.is_none());
-            assert!(
-                evaluator
-                    .eval_expression_for_requirement(
-                        &call,
-                        &ValueRequirement::NamedConstruct {
-                            name: "boolean",
-                            subtype: None,
-                        },
-                        &resolver,
-                    )?
-                    .is_none()
+            assert_eq!(
+                evaluator.eval_stream_splice(&call, &resolver)?
+                    .context("Missing graph-defined output")?,
+                vec![DcChar::from_short(517)]
             );
+            let result = evaluator.eval_expression_for_requirement(
+                &call,
+                &ValueRequirement::NamedConstruct {
+                    name: "boolean", subtype: None,
+                },
+                &resolver,
+            )?.context("Missing graph-defined result")?;
+            let crate::DcEvaluatedValue::Document(document) = result else {
+                bail!("Expected an evaluated document result");
+            };
+            assert_eq!(document.to_dc_string()?.chars().collect::<Vec<_>>(),
+                vec![DcChar::from_short(517)]);
         }
 
         let eval_val = evaluator

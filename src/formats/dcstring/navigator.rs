@@ -4578,8 +4578,8 @@ mod tests {
             resolver.as_ref()
         ));
 
-        // Output invocations cannot supply numeric input across any backend.
-        for digit in [sdc(134), sdc(135)] {
+        // Emitted numbers participate in constraints across every backend.
+        for (digit, expected_ok) in [(sdc(134), true), (sdc(135), false)] {
             let spliced_label = vec![
                 sdc(405),
                 sdc(256),
@@ -4595,7 +4595,7 @@ mod tests {
                 sdc(261),
                 sdc(259),
             ];
-            check_all_backends(&spliced_label, false)?;
+            check_all_backends(&spliced_label, expected_ok)?;
         }
 
         let mut spliced_dim_ok = vec![
@@ -4614,6 +4614,7 @@ mod tests {
         spliced_dim_ok.push(sdc(312));
         spliced_dim_ok.extend_from_slice(&num_20);
         spliced_dim_ok.extend([sdc(311), sdc(512)]);
+        // The emitted LF separates the dimension from the required list token.
         check_all_backends(&spliced_dim_ok, false)?;
 
         let mut spliced_dim_bad = vec![

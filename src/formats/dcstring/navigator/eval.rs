@@ -386,7 +386,10 @@ fn eval_stream_splice_impl(
         let Some(first) = call_tokens.first() else {
             return Ok(None);
         };
-        if first.fills_role_with(DcRole::LangSay, resolver) {
+        let wasm_definition = resolver.resolve_wasm_definition_tokens(first.to_u128());
+        if first.fills_role_with(DcRole::LangSay, resolver)
+            && wasm_definition.is_none()
+        {
             let parameter = call_tokens.get(1)
                 .context("lang.say is missing its parameter")?;
             ensure!(parameter.fills_role_with(DcRole::BeginParameter, resolver),
@@ -432,9 +435,7 @@ fn eval_stream_splice_impl(
             }
             return Ok(Some(chars));
         }
-        if let Some(wasm_shorthands) =
-            resolver.resolve_wasm_definition_tokens(first.to_u128())
-        {
+        if let Some(wasm_shorthands) = wasm_definition {
             let doc =
                 crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
                     wasm_shorthands,
