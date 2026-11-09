@@ -1612,9 +1612,9 @@ mod tier4_expression_evaluation_and_stream_splicing {
         Ok(())
     }
 
-    /// A closer in a quoted output argument cannot close the outer container.
+    /// Output can close its enclosing block and ends with a line feed.
     #[crate::ctb_test]
-    fn test_lang_say_quoted_closer_does_not_close_container() -> Result<()> {
+    fn test_lang_say_output_closes_container_and_adds_line_feed() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
         let resolver = default_syntax_resolver();
 
@@ -1647,10 +1647,14 @@ mod tier4_expression_evaluation_and_stream_splicing {
         let evaluator = DefaultDcExpressionEvaluator;
         let spliced =
             nav.splice_stream_invocation(&evaluator, &**resolver, &policy)?;
-        ensure!(!spliced, "Output calls must not splice into the input");
-        assert_eq!(nav.read_next_token()?, Some(DcChar::from_short(256)));
+        ensure!(spliced, "Output must enter the evaluated stream");
+        let mut expected: Vec<DcChar> = chars.iter().skip(7).take(14)
+            .copied().collect();
+        expected.push(DcChar::from('\n'));
+        ensure!(nav.spliced_tokens() == expected,
+            "Output must preserve its closer and append a final line feed");
         let mut validation = DcDocumentNavigator::from_mstr(&doc);
-        ensure!(validation.validate_document(&policy).is_err());
+        validation.validate_document(&policy)?;
 
         Ok(())
     }

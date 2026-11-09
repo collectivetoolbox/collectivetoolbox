@@ -1376,9 +1376,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((ch, _)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if ch.fills_role_with(DcRole::LangSay, resolver)
-            || !resolver.is_splice_trigger_token(ch.to_u128())
-        {
+        if !resolver.is_splice_trigger_token(ch.to_u128()) {
             return Ok(false);
         }
         let Some(end_offset) = self.scan_splice_invocation_at(

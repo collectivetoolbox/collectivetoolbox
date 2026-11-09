@@ -326,10 +326,10 @@ pub trait SyntaxRuleResolver {
             || self.token_fills_role(token, DcRole::OptionalAbsent)
             || self.is_representation_set(token)
     }
-    /// Returns true if `token` is a WASM-backed splice routine in the active snapshot.
+    /// Returns true if `token` emits into the evaluated stream.
     fn is_splice_trigger_token(&self, token: u128) -> bool {
-        !self.token_fills_role(token, DcRole::LangSay)
-            && self.resolve_wasm_definition_tokens(token).is_some()
+        self.token_fills_role(token, DcRole::LangSay)
+            || self.resolve_wasm_definition_tokens(token).is_some()
     }
     /// Returns true if `token` matches the single-token branch of `[atom_dc]`
     /// (i.e. is not in the negated delimiter/operator exclusion set of `atom_dc`).
@@ -2154,7 +2154,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
 
     fn is_splice_trigger_token(&self, token: u128) -> bool {
         if self.token_fills_role(token, DcRole::LangSay) {
-            return false;
+            return true;
         }
         if !self.splice_trigger_tokens.is_empty()
             && self.splice_trigger_tokens.contains(&token)

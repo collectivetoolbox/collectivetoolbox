@@ -762,10 +762,7 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(None);
         };
-        if resolver
-            .resolve_wasm_definition_tokens(first_dc.to_u128())
-            .is_none()
-        {
+        if !resolver.is_splice_trigger_token(first_dc.to_u128()) {
             return Ok(None);
         }
         if let Some(target) = CharTarget::from_u128(first_dc.to_u128()) {

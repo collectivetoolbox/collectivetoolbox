@@ -381,7 +381,40 @@ fn eval_stream_splice_impl(
             return Ok(None);
         };
         if first.fills_role_with(DcRole::LangSay, resolver) {
-            return Ok(None);
+            let parameter = call_tokens.get(1)
+                .context("lang.say is missing its parameter")?;
+            ensure!(parameter.fills_role_with(DcRole::BeginParameter, resolver),
+                "lang.say requires a parameter container");
+            let mut argument = DcMstring::new();
+            for token in call_tokens.iter().skip(2) {
+                argument.push_char(*token);
+            }
+            let policy = DcProjectionPolicy::strict();
+            let mut navigator = DcDocumentNavigator::from_mstr(&argument);
+            let stub = navigator.next_sibling_stub_with_resolver(&policy, resolver)?
+                .context("lang.say is missing its string argument")?;
+            let literal = navigator.read_span_as_mstring(stub.outer_span)?;
+            ensure!(navigator.read_next_token()?.is_some_and(|token|
+                token.fills_role_with(DcRole::EndParameter, resolver)),
+                "lang.say requires exactly one string argument");
+            ensure!(navigator.read_next_token()?.is_none(),
+                "Unexpected tokens after lang.say parameter");
+            let mut literal_navigator = DcDocumentNavigator::from_mstr(&literal);
+            let mut arena = crate::DcSyntaxArena::new();
+            literal_navigator.parse_document_into_arena_with_resolver(
+                &mut arena, &policy, resolver,
+            )?;
+            let root = *arena.roots().first().context("Missing lang.say literal")?;
+            let (_, output) = arena.decode_literal_with_resolver(root, resolver)
+                .context("lang.say argument is not a literal string")?;
+            let mut chars: Vec<DcChar> = output.to_dc_string()?.chars().collect();
+            let line_feed = DcChar::from('\n');
+            if !chars.last().is_some_and(|token|
+                resolver.is_equivalent_to(token.to_u128(), line_feed.to_u128()))
+            {
+                chars.push(line_feed);
+            }
+            return Ok(Some(chars));
         }
         if let Some(wasm_shorthands) =
             resolver.resolve_wasm_definition_tokens(first.to_u128())
