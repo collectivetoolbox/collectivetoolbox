@@ -2520,7 +2520,7 @@ pub fn validate_all_dc_files_from_disk(
         .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
         .collect();
 
-    validate_dc_files_data(
+    let mut defns = validate_dc_files_data(
         files_iter,
         &dc_dir.display().to_string(),
         known_format_ids,
@@ -2530,7 +2530,56 @@ pub fn validate_all_dc_files_from_disk(
         known_format_with_syntax,
         format_registry,
         report,
-    )
+    );
+    if let Some(data_src_dir) = dc_dir.parent() {
+        attach_staged_dc_impls_from_data_dir(data_src_dir, &mut defns, report);
+    }
+    defns
+}
+
+/// Loads staged `.wat` implementations from `data_src_dir` (`stage_0_impls/`, `stage_1_impls/`,
+/// and `impls/`), validates that each targets a known Short Dc ID in `dc_defns`, and attaches its
+/// `<semantic>1927 ... 1928` decomposition entry to the matching [`DcDefn`].
+pub fn attach_staged_dc_impls_from_data_dir(
+    data_src_dir: &Path,
+    dc_defns: &mut [DcDefn],
+    report: &mut ValidationReport,
+) {
+    match crate::wat::load_staged_dc_impls(data_src_dir) {
+        Ok((staged_impls, _raw_files)) => {
+            for staged in staged_impls {
+                let target_short = usize::try_from(staged.target_short_id).ok();
+                if let Some(defn) =
+                    dc_defns.iter_mut().find(|d| d.short_id == target_short)
+                {
+                    let entry = staged.to_decomposition_entry();
+                    if !defn.decompositions.contains(&entry) {
+                        defn.decompositions.push(entry);
+                    }
+                } else {
+                    report.add_error(
+                        &staged.rel_path,
+                        None,
+                        Some("Short"),
+                        format!(
+                            "Staged .wat implementation targets unknown Short Dc ID {}",
+                            staged.target_short_id
+                        ),
+                        Some("Ensure the target Short Dc ID is defined in a category CSV"),
+                    );
+                }
+            }
+        }
+        Err(err) => {
+            report.add_error(
+                &data_src_dir.display().to_string(),
+                None,
+                Some("wat"),
+                format!("Failed to load staged .wat implementations: {err:#}"),
+                Some("Fix syntax or filename errors in stage_0_impls/, stage_1_impls/, or impls/"),
+            );
+        }
+    }
 }
 
 #[cfg(test)]

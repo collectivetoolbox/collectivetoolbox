@@ -961,6 +961,52 @@ impl DatasetRuleResolver {
         self.populate_seed_graph_splice_triggers();
     }
 
+    fn is_wasm_routine_splice_candidate(&self, token: u128) -> bool {
+        if self.token_fills_role(token, DcRole::LangSay) {
+            return true;
+        }
+        let canon = self.canonical_token(token);
+        if canon == crate::dc::DC_DC_DOCUMENT_EXECUTION_KERNEL.to_u128()
+            || canon == crate::dc::DC_COLLECTIVE_TOOLBOX_WORKSPACE.to_u128()
+        {
+            return false;
+        }
+        for role in [
+            DcRole::BeginLiteral,
+            DcRole::LangAssign,
+            DcRole::LangInvoke,
+            DcRole::ReferenceBoundValue,
+            DcRole::EnterIdentifierScope,
+            DcRole::ForEach,
+            DcRole::ReferenceNamedObject,
+            DcRole::RoutineInvocation,
+            DcRole::HasA,
+            DcRole::IsEqualTo,
+            DcRole::HasValue,
+            DcRole::EvaluateValueAsAtom,
+        ] {
+            if self.token_fills_role(token, role) {
+                return false;
+            }
+        }
+        if self.closing_delimiters.contains_key(&token)
+            || self.closing_delimiters.contains_key(&canon)
+        {
+            return false;
+        }
+        if let Some(target) = CharTarget::from_u128(token)
+            && self.opener_to_closer.contains_key(&target)
+        {
+            return false;
+        }
+        if let Some(target) = CharTarget::from_u128(canon)
+            && self.opener_to_closer.contains_key(&target)
+        {
+            return false;
+        }
+        true
+    }
+
     fn populate_seed_graph_splice_triggers(&mut self) {
         use ctb_storage_minimal::shorthand::DcShorthand;
 
@@ -972,6 +1018,7 @@ impl DatasetRuleResolver {
             if matches!(prop, DcShorthand::Short(611 | 571 | 614))
                 && sg.get_wasm_definition_tokens(subj).is_some()
                 && let Ok(gid) = subj.to_global_id()
+                && self.is_wasm_routine_splice_candidate(gid)
             {
                 wasm_triggers.push(gid);
             }
@@ -980,6 +1027,7 @@ impl DatasetRuleResolver {
             if prop == DcShorthand::Short(594)
                 && sg.get_wasm_definition_tokens(subj).is_some()
                 && let Ok(gid) = subj.to_global_id()
+                && self.is_wasm_routine_splice_candidate(gid)
             {
                 wasm_triggers.push(gid);
             }
@@ -2162,7 +2210,8 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         {
             return true;
         }
-        self.resolve_wasm_definition_tokens(token).is_some()
+        self.is_wasm_routine_splice_candidate(token)
+            && self.resolve_wasm_definition_tokens(token).is_some()
     }
 
     fn is_plain_atom_dc(&self, token: u128) -> bool {

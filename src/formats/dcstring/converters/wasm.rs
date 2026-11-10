@@ -4280,7 +4280,25 @@ fn expand_graph_wasm_shorthands(
             continue;
         }
         if matches!(sh, DcShorthand::Short(_) | DcShorthand::Format(_))
-            && !matches!(sh, DcShorthand::Short(647..=1928))
+            && !matches!(
+                sh,
+                DcShorthand::Short(
+                    256
+                        | 260
+                        | 268
+                        | 276
+                        | 279
+                        | 307
+                        | 540
+                        | 541
+                        | 584
+                        | 585
+                        | 610
+                        | 616
+                        | 638
+                        | 647..=1937
+                )
+            )
         {
             if let Some(sg) = resolver.seed_graph() {
                 if let Some((opt_node_id, helper_tokens)) =

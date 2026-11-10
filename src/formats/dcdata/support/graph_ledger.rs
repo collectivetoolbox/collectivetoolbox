@@ -3773,7 +3773,7 @@ fn plan_csv_reconciliation_items_for_repo(
         .iter()
         .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
         .collect();
-    let dc_defns = crate::validation::validate_dc_files_data(
+    let mut dc_defns = crate::validation::validate_dc_files_data(
         dc_files_iter,
         &categories_dir.display().to_string(),
         &format_ids,
@@ -3782,6 +3782,17 @@ fn plan_csv_reconciliation_items_for_repo(
         Some(&known_scripts_set),
         Some(&format_syntax_ids),
         Some(&format_registry),
+        &mut report,
+    );
+    let (_staged_impls, staged_raw_files) =
+        crate::wat::load_staged_dc_impls(&data_dir)?;
+    for (rel_path, staged_bytes) in &staged_raw_files {
+        pinned_input_sha256s
+            .insert(rel_path.clone(), sha256_bytes_hex(staged_bytes));
+    }
+    crate::validation::attach_staged_dc_impls_from_data_dir(
+        &data_dir,
+        &mut dc_defns,
         &mut report,
     );
     report.ensure_valid().with_context(|| {

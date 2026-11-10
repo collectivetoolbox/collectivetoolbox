@@ -1226,7 +1226,7 @@ fn verify_and_extract_baseline_for_pending(
     dir: &Path,
     label: &str,
     pending: &JournalRecord,
-) -> Result<Vec<LedgerNode>> {
+) -> Result<(Vec<LedgerNode>, usize)> {
     let (disk_nodes, torn_tail) = load_nodes_from_dir_allowing_torn_tail(dir)?;
     let baseline_count = disk_nodes
         .iter()
@@ -1296,7 +1296,7 @@ fn verify_and_extract_baseline_for_pending(
         );
     }
 
-    Ok(baseline_nodes)
+    Ok((baseline_nodes, appended_nodes.len()))
 }
 
 fn parse_planned_items_to_nodes(

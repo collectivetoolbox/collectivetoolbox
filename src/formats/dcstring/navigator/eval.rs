@@ -289,8 +289,9 @@ fn eval_expression_for_requirement_impl(
             }
             return Ok(Some(DcEvaluatedValue::Document(document)));
         }
-        if let Some(wasm_shorthands) =
-            resolver.resolve_wasm_definition_tokens(first.to_u128())
+        if resolver.is_splice_trigger_token(first.to_u128())
+            && let Some(wasm_shorthands) =
+                resolver.resolve_wasm_definition_tokens(first.to_u128())
         {
             let doc =
                 crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
@@ -1746,10 +1747,7 @@ impl DcDocumentNavigator<'_> {
                     && (first_dc.fills_role_with(
                         DcRole::EvaluableExpressionStarter,
                         ctx.resolver,
-                    ) || ctx
-                        .resolver
-                        .resolve_wasm_definition_tokens(first)
-                        .is_some()
+                    ) || ctx.resolver.is_splice_trigger_token(first)
                         || first_dc.fills_role_with(
                             DcRole::BeginWasmProgram,
                             ctx.resolver,

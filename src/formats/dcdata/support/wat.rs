@@ -1790,13 +1790,16 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
     let mut out = Vec::new();
     out.push(dc_to_sh(DC_BEGIN_WASM_PROGRAM));
 
-    // Single-function module with default `"main"` export and no globals/data segments
+    // Single-function module with default `"main"` / `"_start"` export and no globals/data segments
     // emits the compact `1927 <wasm_routine> 1928` form.
     if funcs.len() == 1
         && globals.is_empty()
         && datas.is_empty()
         && let Some(only_fn) = funcs.first()
-        && only_fn.export_name.as_deref().unwrap_or("main") == "main"
+        && matches!(
+            only_fn.export_name.as_deref().unwrap_or("main"),
+            "main" | "_start"
+        )
     {
         emit_wasm_routine_shorthands(
             only_fn,

@@ -1788,6 +1788,27 @@ impl SeedGraphIndex {
         )
     }
 
+    const fn is_document_syntax_or_framing_short_dc(short_id: usize) -> bool {
+        matches!(
+            short_id,
+            256
+                | 260
+                | 268
+                | 276
+                | 279
+                | 307
+                | 540
+                | 541
+                | 584
+                | 585
+                | 610
+                | 616
+                | 638
+                | 1936
+                | 1937
+        )
+    }
+
     fn tokens_are_wasm_helper_or_definition_inner(
         &self,
         tokens: &[DcShorthand],
@@ -1796,6 +1817,9 @@ impl SeedGraphIndex {
     ) -> bool {
         if Self::tokens_start_wasm_definition(tokens) {
             return true;
+        }
+        if tokens.first() == Some(&sh(DC_BEGIN_LITERAL)) {
+            return false;
         }
         if tokens
             .iter()
@@ -1822,7 +1846,10 @@ impl SeedGraphIndex {
                         return true;
                     }
                 }
-                DcShorthand::Short(_) => {
+                DcShorthand::Short(short_id) => {
+                    if Self::is_document_syntax_or_framing_short_dc(short_id) {
+                        continue;
+                    }
                     if !visited_shorthands.insert(tok) {
                         continue;
                     }
