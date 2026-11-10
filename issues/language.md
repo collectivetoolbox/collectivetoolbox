@@ -1,3 +1,7 @@
+  - **Stage 0 (`src/formats/dcdata/data-src/stage_0_impls/`)** is the *only* stage implemented in `.wat` (WASM text format lowered to `Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"` and WebAssembly instruction Dcs `Dc 647 "WASM unreachable"`..`Dc 1926 "WASM Reserved 0xFD 0xFF 0x03"`).
+  - **Stage 1 (`src/formats/dcdata/data-src/stage_1_impls/`)** is to be written in a **minimal base language** (which is not yet defined—not `.wat`), implemented on top of Stage 0, to provide the higher-level implementations and implement the full VSO language.
+  - **Stage 2 (`src/formats/dcdata/data-src/impls/`)** is to be written in the **VSO-syntax language** from [2026-10-31-language.md](file:///workspaces/ctoolbox/docs/chats/2026-10-31-language.md#L153-L165) and [language.md](file:///workspaces/ctoolbox/issues/language.md#L318-L330) (which is not yet implemented—not `.wat`), containing the remaining Dcs such as `Dc 256 "void lang.say([string] text)"`.
+
 # Graph-Defined Dc Language, Execution Kernel, and Compatibility Plan
 
 **Overall Status**: `Partially Implemented`
