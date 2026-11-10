@@ -31,6 +31,7 @@ pub mod codegen;
 pub mod convert;
 pub mod parse;
 pub mod stagel2;
+pub mod stagel3;
 
 #[cfg(test)]
 pub(crate) fn get_stagel_data(key: &str) -> Option<Vec<u8>> {
