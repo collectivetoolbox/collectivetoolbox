@@ -2,6 +2,11 @@
   - **Stage 1 (`src/formats/dcdata/data-src/stage_1_impls/`)** is to be written in a **minimal base language** (which is not yet defined—not `.wat`), implemented on top of Stage 0, to provide the higher-level implementations and implement the full VSO language.
   - **Stage 2 (`src/formats/dcdata/data-src/impls/`)** is to be written in the **VSO-syntax language** from [2026-10-31-language.md](file:///workspaces/ctoolbox/docs/chats/2026-10-31-language.md#L153-L165) and [language.md](file:///workspaces/ctoolbox/issues/language.md#L318-L330) (which is not yet implemented—not `.wat`), containing the remaining Dcs such as `Dc 256 "void lang.say([string] text)"`.
 
+
+> Using i32.clz((255 - b0) << 24) (Dc 750) computes the DcTF byte length for all 128 <= b0 < 255 in a single expression!
+
+If you run across things like this that are reused, it's potentially worth allocating a new Dc to keep it DRY.
+
 # Graph-Defined Dc Language, Execution Kernel, and Compatibility Plan
 
 **Overall Status**: `Partially Implemented`
