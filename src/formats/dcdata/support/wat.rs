@@ -2067,15 +2067,22 @@ pub fn load_staged_dc_impls(
                 continue;
             }
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-            if !matches!(ext, "wat" | "dcsh") {
+            if stage == ImplStage::Stage0 {
+                if ext != "wat" {
+                    bail!(
+                        "stage_0_impls file '{}' must be a .wat file",
+                        path.display()
+                    );
+                }
+            } else if ext == "wat" {
                 bail!(
-                    "Unsupported file extension '.{ext}' in {}: expected .wat or .dcsh",
+                    "{} file '{}' cannot be a .wat file (.wat is restricted to stage_0_impls/)",
+                    stage.dir_name(),
                     path.display()
                 );
-            }
-            if stage == ImplStage::Stage0 && ext != "wat" {
+            } else if ext != "dcsh" {
                 bail!(
-                    "stage_0_impls file '{}' must be a .wat file",
+                    "Unsupported file extension '.{ext}' in {}: expected .dcsh",
                     path.display()
                 );
             }

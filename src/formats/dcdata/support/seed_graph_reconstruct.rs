@@ -798,8 +798,23 @@ impl SeedGraphIndex {
                         return Some(crate::format_spec::format_expr(&expr));
                     }
                 }
-                let parts: Vec<String> =
-                    node.tokens.iter().map(ToString::to_string).collect();
+                let mut parts = Vec::with_capacity(node.tokens.len());
+                for &tok in &node.tokens {
+                    if let DcShorthand::Long(child_id) = tok
+                        && let Some(child_node) = self.get_active_node(child_id)
+                        && !child_node.tokens.is_empty()
+                        && child_node
+                            .tokens
+                            .iter()
+                            .all(|t| matches!(t, DcShorthand::Unicode(_)))
+                    {
+                        for &u_tok in &child_node.tokens {
+                            parts.push(u_tok.to_string());
+                        }
+                    } else {
+                        parts.push(tok.to_string());
+                    }
+                }
                 return Some(parts.join(" "));
             }
         }

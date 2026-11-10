@@ -1225,6 +1225,44 @@ impl LedgerBuilder {
         Ok(entity_id)
     }
 
+    fn intern_embedded_string_runs_in_value_node(
+        &mut self,
+        tokens: &[DcShorthand],
+    ) -> Result<Vec<DcShorthand>> {
+        if decode_string_value_tokens(tokens).is_some()
+            || !tokens.iter().any(|t| matches!(t, DcShorthand::Unicode(_)))
+        {
+            return Ok(tokens.to_vec());
+        }
+
+        let mut out = Vec::with_capacity(tokens.len());
+        let mut idx = 0usize;
+        while let Some(&tok) = tokens.get(idx) {
+            if matches!(tok, DcShorthand::Unicode(_)) {
+                let run_start = idx;
+                while matches!(
+                    tokens.get(idx),
+                    Some(DcShorthand::Unicode(_))
+                ) {
+                    idx = idx.saturating_add(1);
+                }
+                if let Some(run_slice) = tokens.get(run_start..idx)
+                    && let Some(decoded) = decode_string_value_tokens(run_slice)
+                {
+                    let str_node_id = self.get_or_insert_value_node(
+                        run_slice.to_vec(),
+                        format_string_summary(&decoded),
+                    )?;
+                    out.push(DcShorthand::Long(str_node_id));
+                    continue;
+                }
+            }
+            out.push(tok);
+            idx = idx.saturating_add(1);
+        }
+        Ok(out)
+    }
+
     fn resolve_value_spec(&mut self, spec: &ValueSpec) -> Result<DcShorthand> {
         match spec {
             ValueSpec::Direct(shorthand) => Ok(*shorthand),
@@ -1233,8 +1271,10 @@ impl LedgerBuilder {
                 Ok(DcShorthand::Long(id))
             }
             ValueSpec::ValueNode { tokens, comment } => {
+                let normalized_tokens =
+                    self.intern_embedded_string_runs_in_value_node(tokens)?;
                 let id = self.get_or_insert_value_node(
-                    tokens.clone(),
+                    normalized_tokens,
                     comment.clone(),
                 )?;
                 Ok(DcShorthand::Long(id))

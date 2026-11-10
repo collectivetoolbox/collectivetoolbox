@@ -394,6 +394,18 @@ impl<'a> TokenCursor<'a> {
             if self.token_fills_role(ch, DcRole::Escape) {
                 ch = self.next()?;
             }
+            if let ctb_storage_minimal::shorthand::DcShorthand::Long(node_id) =
+                ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+                    ch.to_u128(),
+                )
+                && let Some(sg) = self.resolver.seed_graph()
+                && let Some(s) = sg.get_string(
+                    ctb_storage_minimal::shorthand::DcShorthand::Long(node_id),
+                )
+            {
+                name.push_str(s);
+                continue;
+            }
             let cp = ch.to_unicode().with_context(|| {
                 format!(
                     "WASM identifier name character {ch} is not a Unicode codepoint"
@@ -8208,11 +8220,12 @@ mod tests {
             );
         }
 
+        // Dc 256 (lang.say) belongs to Stage 2 (impls/) in the VSO language, so it has no Stage 0 .wat definition yet.
         assert_eq!(
             resolver
                 .resolve_wasm_definition_tokens(DcChar::from_short(256).to_u128()),
-            Some(lang_say_shorthands.as_slice()),
-            "Dc 256 (lang.say) active graph .WASM definition must match build_lang_say_wasm_shorthands()"
+            None,
+            "Dc 256 (lang.say) belongs in Stage 2 (impls/), not Stage 0 (.wat)"
         );
         assert_eq!(
             resolver

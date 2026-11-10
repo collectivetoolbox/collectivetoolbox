@@ -51,7 +51,8 @@ use crate::dc::{
     DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
     DC_END_LIST, DC_ENTITY_TYPE,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
-    DC_IN_CONTEXT_OF, DC_IS_INSTANCE_OF, DC_IS_STABLE, DC_MANUAL_ENTRY,
+    DC_IN_CONTEXT_OF, DC_IS_BASED_ON, DC_IS_INSTANCE_OF, DC_IS_STABLE,
+    DC_MANUAL_ENTRY,
     DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER,
     DC_REPLACEMENT, DC_RETRACTS, DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES,
     DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT,
@@ -1940,40 +1941,49 @@ impl SeedGraphIndex {
             }
         }
 
-        let rule_tokens = self.get_syntax_rule_tokens(subj)?;
-        let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
-        let sh_close = sh(DC_END_ASSOCIATIVITY_GROUP);
-        let sh_repl = sh(DC_PATTERN_REPLACEMENT);
-        if rule_tokens.last() != Some(&sh_close) {
-            return None;
-        }
-        let mut depth = 0usize;
-        let mut open_idx = None;
-        for (idx, &tok) in rule_tokens.iter().enumerate().rev() {
-            if tok == sh_close {
-                depth = depth.saturating_add(1);
-            } else if tok == sh_open {
-                depth = depth.saturating_sub(1);
-                if depth == 0 {
-                    open_idx = Some(idx);
-                    break;
+        if let Some(rule_tokens) = self.get_syntax_rule_tokens(subj) {
+            let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
+            let sh_close = sh(DC_END_ASSOCIATIVITY_GROUP);
+            let sh_repl = sh(DC_PATTERN_REPLACEMENT);
+            if rule_tokens.last() == Some(&sh_close) {
+                let mut depth = 0usize;
+                let mut open_idx = None;
+                for (idx, &tok) in rule_tokens.iter().enumerate().rev() {
+                    if tok == sh_close {
+                        depth = depth.saturating_add(1);
+                    } else if tok == sh_open {
+                        depth = depth.saturating_sub(1);
+                        if depth == 0 {
+                            open_idx = Some(idx);
+                            break;
+                        }
+                    }
+                }
+                if let Some(start) = open_idx
+                    && let Some(group_slice) = rule_tokens.get(start..)
+                    && group_slice.get(1) == Some(&sh_repl)
+                    && let Some(inner) =
+                        group_slice.get(2..group_slice.len().saturating_sub(1))
+                    && self.tokens_are_wasm_helper_or_definition(inner)
+                {
+                    if inner.len() == 1
+                        && let Some(&DcShorthand::Long(node_id)) = inner.first()
+                        && let Some(node) = self.get_active_node(node_id)
+                    {
+                        return Some(node.tokens.as_slice());
+                    }
+                    return Some(inner);
                 }
             }
         }
-        let start = open_idx?;
-        let group_slice = rule_tokens.get(start..)?;
-        if group_slice.get(1) != Some(&sh_repl) {
-            return None;
-        }
-        let inner = group_slice.get(2..group_slice.len().saturating_sub(1))?;
-        if self.tokens_are_wasm_helper_or_definition(inner) {
-            if inner.len() == 1
-                && let Some(&DcShorthand::Long(node_id)) = inner.first()
-                && let Some(node) = self.get_active_node(node_id)
+
+        for &base_tok in self.get_direct_objects(sh(DC_IS_BASED_ON), subj) {
+            if matches!(base_tok, DcShorthand::Short(_) | DcShorthand::Format(_))
+                && let Some(tokens) =
+                    self.get_wasm_definition_tokens_inner(base_tok, visited)
             {
-                return Some(node.tokens.as_slice());
+                return Some(tokens);
             }
-            return Some(inner);
         }
         None
     }
@@ -2272,6 +2282,18 @@ impl SeedGraphIndex {
         &self,
         subj: DcShorthand,
     ) -> Option<(u128, u128, u128, Vec<DcShorthand>)> {
+        let mut visited = HashSet::new();
+        self.resolve_active_wasm_definition_entry_inner(subj, &mut visited)
+    }
+
+    fn resolve_active_wasm_definition_entry_inner(
+        &self,
+        subj: DcShorthand,
+        visited: &mut HashSet<DcShorthand>,
+    ) -> Option<(u128, u128, u128, Vec<DcShorthand>)> {
+        if !visited.insert(subj) {
+            return None;
+        }
         for prop_dc in [
             DC_CANONICAL_DECOMPOSITION,
             DC_DECOMPOSITION,
@@ -2295,59 +2317,71 @@ impl SeedGraphIndex {
             }
         }
 
-        let rule_entry =
-            self.get_single_property_entry(subj, sh(DC_SYNTAX_RULE))?;
-        let DcShorthand::Long(rule_node_id) = rule_entry.value else {
-            return None;
-        };
-        let resolved_rule_node_id = self.resolve_latest_node_id(rule_node_id)?;
-        let rule_node = self.get_node(resolved_rule_node_id)?;
-        let rule_tokens = rule_node.tokens.as_slice();
-        let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
-        let sh_close = sh(DC_END_ASSOCIATIVITY_GROUP);
-        let sh_repl = sh(DC_PATTERN_REPLACEMENT);
-        if rule_tokens.last() != Some(&sh_close) {
-            return None;
-        }
-        let mut depth = 0usize;
-        let mut open_idx = None;
-        for (idx, &tok) in rule_tokens.iter().enumerate().rev() {
-            if tok == sh_close {
-                depth = depth.saturating_add(1);
-            } else if tok == sh_open {
-                depth = depth.saturating_sub(1);
-                if depth == 0 {
-                    open_idx = Some(idx);
-                    break;
+        if let Some(rule_entry) =
+            self.get_single_property_entry(subj, sh(DC_SYNTAX_RULE))
+            && let DcShorthand::Long(rule_node_id) = rule_entry.value
+            && let Some(resolved_rule_node_id) =
+                self.resolve_latest_node_id(rule_node_id)
+            && let Some(rule_node) = self.get_node(resolved_rule_node_id)
+        {
+            let rule_tokens = rule_node.tokens.as_slice();
+            let sh_open = sh(DC_BEGIN_ASSOCIATIVITY_GROUP);
+            let sh_close = sh(DC_END_ASSOCIATIVITY_GROUP);
+            let sh_repl = sh(DC_PATTERN_REPLACEMENT);
+            if rule_tokens.last() == Some(&sh_close) {
+                let mut depth = 0usize;
+                let mut open_idx = None;
+                for (idx, &tok) in rule_tokens.iter().enumerate().rev() {
+                    if tok == sh_close {
+                        depth = depth.saturating_add(1);
+                    } else if tok == sh_open {
+                        depth = depth.saturating_sub(1);
+                        if depth == 0 {
+                            open_idx = Some(idx);
+                            break;
+                        }
+                    }
+                }
+                if let Some(start) = open_idx
+                    && let Some(group_slice) = rule_tokens.get(start..)
+                    && group_slice.get(1) == Some(&sh_repl)
+                    && let Some(inner) =
+                        group_slice.get(2..group_slice.len().saturating_sub(1))
+                    && self.tokens_are_wasm_helper_or_definition(inner)
+                {
+                    if inner.len() == 1
+                        && let Some(&DcShorthand::Long(target_id)) =
+                            inner.first()
+                        && let Some(resolved_target_id) =
+                            self.resolve_latest_node_id(target_id)
+                        && let Some(node) = self.get_node(resolved_target_id)
+                    {
+                        return Some((
+                            rule_entry.has_a_id,
+                            rule_entry.has_val_id,
+                            resolved_target_id,
+                            node.tokens.clone(),
+                        ));
+                    }
+                    return Some((
+                        rule_entry.has_a_id,
+                        rule_entry.has_val_id,
+                        resolved_rule_node_id,
+                        inner.to_vec(),
+                    ));
                 }
             }
         }
-        let start = open_idx?;
-        let group_slice = rule_tokens.get(start..)?;
-        if group_slice.get(1) != Some(&sh_repl) {
-            return None;
-        }
-        let inner = group_slice.get(2..group_slice.len().saturating_sub(1))?;
-        if self.tokens_are_wasm_helper_or_definition(inner) {
-            if inner.len() == 1
-                && let Some(&DcShorthand::Long(target_id)) = inner.first()
-                && let Some(resolved_target_id) =
-                    self.resolve_latest_node_id(target_id)
-                && let Some(node) = self.get_node(resolved_target_id)
+
+        for &base_tok in self.get_direct_objects(sh(DC_IS_BASED_ON), subj) {
+            if matches!(base_tok, DcShorthand::Short(_) | DcShorthand::Format(_))
+                && let Some(entry) = self
+                    .resolve_active_wasm_definition_entry_inner(
+                        base_tok, visited,
+                    )
             {
-                return Some((
-                    rule_entry.has_a_id,
-                    rule_entry.has_val_id,
-                    resolved_target_id,
-                    node.tokens.clone(),
-                ));
+                return Some(entry);
             }
-            return Some((
-                rule_entry.has_a_id,
-                rule_entry.has_val_id,
-                resolved_rule_node_id,
-                inner.to_vec(),
-            ));
         }
         None
     }
@@ -2414,7 +2448,18 @@ impl SeedGraphIndex {
         );
 
         let subj = sh(entry_dc);
-        self.verify_subject_provenance_and_history(subj)?;
+        let mut base_cur = subj;
+        let mut base_visited = HashSet::new();
+        while base_visited.insert(base_cur) {
+            self.verify_subject_provenance_and_history(base_cur)?;
+            if let Some(&next_base) =
+                self.get_direct_objects(sh(DC_IS_BASED_ON), base_cur).first()
+            {
+                base_cur = next_base;
+            } else {
+                break;
+            }
+        }
 
         let (
             statement_node_id,
