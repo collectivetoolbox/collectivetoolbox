@@ -1487,19 +1487,22 @@ pub fn recover_pending_ledger_journal_with_guard(
     let allocated_dir =
         repo_root.join("src/formats/dcdata/data-src/nodes/allocated");
 
-    let baseline_nodes = verify_and_extract_baseline_for_pending(
-        &graph_dir,
-        "primary ledger",
-        &pending,
-    )?;
+    let (baseline_nodes, primary_appended_count) =
+        verify_and_extract_baseline_for_pending(
+            &graph_dir,
+            "primary ledger",
+            &pending,
+        )?;
 
+    let mut shadow_appended_counts: BTreeMap<PathBuf, usize> = BTreeMap::new();
     for (label, shadow_dir) in highwater_shadow_dirs(repo_root) {
         if shadow_dir.is_dir() && !list_chunk_files(&shadow_dir)?.is_empty() {
-            verify_and_extract_baseline_for_pending(
+            let (_, count) = verify_and_extract_baseline_for_pending(
                 &shadow_dir,
                 &label,
                 &pending,
             )?;
+            shadow_appended_counts.insert(shadow_dir, count);
         }
     }
 
@@ -1571,11 +1574,17 @@ pub fn recover_pending_ledger_journal_with_guard(
             _ => None,
         };
 
-        let primary_chunk = append_single_node_to_ledger_dir(
-            &graph_dir,
-            &progressive_nodes,
-            torn_keep,
-        )?;
+        let primary_chunk = if idx >= primary_appended_count
+            || torn_keep.is_some()
+        {
+            append_single_node_to_ledger_dir(
+                &graph_dir,
+                &progressive_nodes,
+                torn_keep,
+            )?
+        } else {
+            graph_dir.join(&item.target_chunk)
+        };
         if torn_keep.is_some() {
             fsync_file(&primary_chunk)?;
             bail!(
@@ -1587,15 +1596,27 @@ pub fn recover_pending_ledger_journal_with_guard(
             .insert(item.target_chunk.clone(), primary_chunk.clone());
 
         for (label, shadow_dir) in &shadow_dirs {
-            fs::create_dir_all(shadow_dir).with_context(|| {
-                format!("Failed to create {label} at {}", shadow_dir.display())
-            })?;
-            unprotect_shadow_tail_for_append(shadow_dir, &item.target_chunk);
-            let shadow_chunk = append_single_node_to_ledger_dir(
-                shadow_dir,
-                &progressive_nodes,
-                None,
-            )?;
+            let shadow_count =
+                shadow_appended_counts.get(shadow_dir).copied().unwrap_or(0);
+            let shadow_chunk = if idx >= shadow_count {
+                fs::create_dir_all(shadow_dir).with_context(|| {
+                    format!(
+                        "Failed to create {label} at {}",
+                        shadow_dir.display()
+                    )
+                })?;
+                unprotect_shadow_tail_for_append(
+                    shadow_dir,
+                    &item.target_chunk,
+                );
+                append_single_node_to_ledger_dir(
+                    shadow_dir,
+                    &progressive_nodes,
+                    None,
+                )?
+            } else {
+                shadow_dir.join(&item.target_chunk)
+            };
             touched_shadow_chunks.push(shadow_chunk);
         }
 
