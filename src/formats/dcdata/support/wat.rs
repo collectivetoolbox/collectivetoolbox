@@ -722,6 +722,7 @@ struct FuncCompileCtx {
     func_indices: BTreeMap<String, u32>,
     global_indices: BTreeMap<String, u32>,
     local_indices: BTreeMap<String, u32>,
+    const_values: BTreeMap<String, i64>,
     label_stack: Vec<Option<String>>,
 }
 
@@ -756,6 +757,51 @@ impl FuncCompileCtx {
                 .with_context(|| format!("Unknown WAT function '{tok}'"))
         } else {
             parse_wat_u32(tok)
+        }
+    }
+
+    fn resolve_i32_const(&self, tok: &str) -> Result<i32> {
+        if tok.starts_with('$') {
+            let val = self
+                .const_values
+                .get(tok)
+                .copied()
+                .with_context(|| format!("Unknown WAT constant '{tok}'"))?;
+            i32::try_from(val)
+                .or_else(|_| u32::try_from(val).map(u32::cast_signed))
+                .with_context(|| {
+                    format!("WAT constant '{tok}' ({val}) overflows i32")
+                })
+        } else {
+            parse_wat_i32(tok)
+        }
+    }
+
+    fn resolve_i64_const(&self, tok: &str) -> Result<i64> {
+        if tok.starts_with('$') {
+            self.const_values
+                .get(tok)
+                .copied()
+                .with_context(|| format!("Unknown WAT constant '{tok}'"))
+        } else {
+            parse_wat_i64(tok)
+        }
+    }
+
+    fn resolve_u64_const(&self, tok: &str) -> Result<u64> {
+        if tok.starts_with('$') {
+            let val = self
+                .const_values
+                .get(tok)
+                .copied()
+                .with_context(|| format!("Unknown WAT constant '{tok}'"))?;
+            u64::try_from(val).with_context(|| {
+                format!(
+                    "WAT constant '{tok}' ({val}) must be non-negative for unsigned offset/align"
+                )
+            })
+        } else {
+            parse_wat_u64(tok)
         }
     }
 
@@ -823,6 +869,7 @@ fn consume_memarg_from_atoms(
     items: &[SExpr],
     cursor: &mut usize,
     natural_align_exp: u32,
+    ctx: &FuncCompileCtx,
 ) -> Result<(u32, u32, u64)> {
     let mut memidx = 0u32;
     let mut align_exp = natural_align_exp;
@@ -839,10 +886,10 @@ fn consume_memarg_from_atoms(
 
     while let Some(SExpr::Atom(a)) = items.get(*cursor) {
         if let Some(off_str) = a.strip_prefix("offset=") {
-            offset = parse_wat_u64(off_str)?;
+            offset = ctx.resolve_u64_const(off_str)?;
             *cursor = cursor.saturating_add(1);
         } else if let Some(align_str) = a.strip_prefix("align=") {
-            let align_bytes = parse_wat_u64(align_str)?;
+            let align_bytes = ctx.resolve_u64_const(align_str)?;
             align_exp = parse_align_exponent(align_bytes)?;
             *cursor = cursor.saturating_add(1);
         } else {
@@ -851,6 +898,37 @@ fn consume_memarg_from_atoms(
     }
 
     Ok((memidx, align_exp, offset))
+}
+
+fn parse_const_decl(
+    sub: &[SExpr],
+    consts: &mut BTreeMap<String, i64>,
+) -> Result<()> {
+    ensure!(
+        sub.len() == 3,
+        "WAT (const $NAME <integer>) requires a $-prefixed constant name and an integer value"
+    );
+    let cname = sub
+        .get(1)
+        .and_then(SExpr::as_atom)
+        .context("Expected $-prefixed name in WAT (const $NAME <integer>)")?;
+    ensure!(
+        cname.starts_with('$'),
+        "WAT constant name '{cname}' in (const ...) must start with '$'"
+    );
+    let val_tok = sub
+        .get(2)
+        .and_then(SExpr::as_atom)
+        .context("Expected integer literal in WAT (const $NAME <integer>)")?;
+    let val = if val_tok.starts_with('$') {
+        *consts.get(val_tok).with_context(|| {
+            format!("Unknown WAT constant '{val_tok}' referenced in (const {cname} ...)")
+        })?
+    } else {
+        parse_wat_i64(val_tok)?
+    };
+    consts.insert(cname.to_owned(), val);
+    Ok(())
 }
 
 #[allow(
@@ -867,15 +945,20 @@ fn compile_instr_sequence(
         idx = idx.saturating_add(1);
         match expr {
             SExpr::List(list) => {
-                compile_folded_sexpr(list, ctx, out)?;
+                if list.first().and_then(SExpr::as_atom) == Some("const") {
+                    parse_const_decl(list, &mut ctx.const_values)?;
+                } else {
+                    compile_folded_sexpr(list, ctx, out)?;
+                }
             }
             SExpr::StringLit(_) => {
                 bail!("Unexpected string literal in WAT instruction stream");
             }
-            SExpr::Atom(mnemonic) => {
+            SExpr::Atom(raw_mnemonic) => {
+                let mnemonic = normalize_wat_mnemonic(raw_mnemonic);
                 let (short_dc, kind) = lookup_wat_instruction(mnemonic)
                     .with_context(|| {
-                        format!("Unknown or unsupported WAT instruction '{mnemonic}'")
+                        format!("Unknown or unsupported WAT instruction '{raw_mnemonic}'")
                     })?;
                 match kind {
                     WatImmediateKind::Block | WatImmediateKind::Loop => {
@@ -953,17 +1036,225 @@ fn compile_instr_sequence(
     Ok(())
 }
 
+fn normalize_wat_mnemonic(raw: &str) -> &str {
+    match raw {
+        "get" => "local.get",
+        "set" => "local.set",
+        "tee" => "local.tee",
+        other => other,
+    }
+}
+
+fn expected_folded_operand_valtype(mnemonic: &str, operand_idx: usize) -> WatValType {
+    if mnemonic.starts_with("i64.load") {
+        WatValType::I32
+    } else if mnemonic.starts_with("i64.store") {
+        if operand_idx == 0 {
+            WatValType::I32
+        } else {
+            WatValType::I64
+        }
+    } else if mnemonic.starts_with("i64.") {
+        WatValType::I64
+    } else {
+        WatValType::I32
+    }
+}
+
+fn compile_folded_operand(
+    op_expr: &SExpr,
+    expected_vt: WatValType,
+    ctx: &mut FuncCompileCtx,
+    out: &mut Vec<DcShorthand>,
+) -> Result<()> {
+    match op_expr {
+        SExpr::List(sub) => compile_folded_sexpr(sub, ctx, out),
+        SExpr::StringLit(_) => {
+            bail!("Unexpected string literal operand in folded WAT instruction")
+        }
+        SExpr::Atom(atom) => {
+            if atom.starts_with('$') {
+                if let Some(&loc_idx) = ctx.local_indices.get(atom) {
+                    let (dc, _) = lookup_wat_instruction("local.get")
+                        .context("Missing local.get opcode")?;
+                    out.push(DcShorthand::Short(dc));
+                    out.extend(encode_u128_dc_shorthands(u128::from(loc_idx)));
+                    return Ok(());
+                }
+                if let Some(&glob_idx) = ctx.global_indices.get(atom) {
+                    let (dc, _) = lookup_wat_instruction("global.get")
+                        .context("Missing global.get opcode")?;
+                    out.push(DcShorthand::Short(dc));
+                    out.extend(encode_u128_dc_shorthands(u128::from(glob_idx)));
+                    return Ok(());
+                }
+                if ctx.const_values.contains_key(atom) {
+                    if expected_vt == WatValType::I64 {
+                        let val = ctx.resolve_i64_const(atom)?;
+                        let (dc, _) = lookup_wat_instruction("i64.const")
+                            .context("Missing i64.const opcode")?;
+                        out.push(DcShorthand::Short(dc));
+                        out.extend(encode_i64_dc_shorthands(val));
+                    } else {
+                        let val = ctx.resolve_i32_const(atom)?;
+                        let (dc, _) = lookup_wat_instruction("i32.const")
+                            .context("Missing i32.const opcode")?;
+                        out.push(DcShorthand::Short(dc));
+                        out.extend(encode_i64_dc_shorthands(i64::from(val)));
+                    }
+                    return Ok(());
+                }
+                bail!(
+                    "Unknown WAT local, global, or constant '{atom}' in folded operand"
+                );
+            }
+            if expected_vt == WatValType::I64 {
+                let val = parse_wat_i64(atom)?;
+                let (dc, _) = lookup_wat_instruction("i64.const")
+                    .context("Missing i64.const opcode")?;
+                out.push(DcShorthand::Short(dc));
+                out.extend(encode_i64_dc_shorthands(val));
+            } else {
+                let val = parse_wat_i32(atom)?;
+                let (dc, _) = lookup_wat_instruction("i32.const")
+                    .context("Missing i32.const opcode")?;
+                out.push(DcShorthand::Short(dc));
+                out.extend(encode_i64_dc_shorthands(i64::from(val)));
+            }
+            Ok(())
+        }
+    }
+}
+
+fn folded_immediate_end_index(
+    mnemonic: &str,
+    kind: WatImmediateKind,
+    list: &[SExpr],
+) -> usize {
+    match kind {
+        WatImmediateKind::None
+        | WatImmediateKind::Block
+        | WatImmediateKind::Loop
+        | WatImmediateKind::If
+        | WatImmediateKind::Else
+        | WatImmediateKind::End => 1,
+        WatImmediateKind::BrLabel
+        | WatImmediateKind::FuncIdx
+        | WatImmediateKind::LocalIdx
+        | WatImmediateKind::GlobalIdx
+        | WatImmediateKind::I32Const
+        | WatImmediateKind::I64Const
+        | WatImmediateKind::F32Const
+        | WatImmediateKind::F64Const
+        | WatImmediateKind::ValType => 2.min(list.len()),
+        WatImmediateKind::BrTable => {
+            let mut idx = 1usize;
+            while matches!(list.get(idx), Some(SExpr::Atom(_))) {
+                idx = idx.saturating_add(1);
+            }
+            idx
+        }
+        WatImmediateKind::CallIndirect => {
+            if matches!(list.get(2), Some(SExpr::Atom(a)) if a.chars().next().is_some_and(|c| c.is_ascii_digit()))
+            {
+                3.min(list.len())
+            } else {
+                2.min(list.len())
+            }
+        }
+        WatImmediateKind::TableIdx | WatImmediateKind::MemIdx => {
+            let expected_ops = match mnemonic {
+                "memory.size" | "table.size" | "data.drop" | "elem.drop" => 0,
+                "memory.grow" => 1,
+                "table.grow" => 2,
+                "memory.fill" | "table.fill" => 3,
+                _ => 0,
+            };
+            if list.len().saturating_sub(1) > expected_ops {
+                2.min(list.len())
+            } else {
+                1
+            }
+        }
+        WatImmediateKind::MemCopy => {
+            let expected_ops = 3usize;
+            let extra = list.len().saturating_sub(1).saturating_sub(expected_ops);
+            1usize.saturating_add(extra.min(2)).min(list.len())
+        }
+        WatImmediateKind::MemArg { .. } => {
+            let expected_ops = if mnemonic.contains(".store") {
+                2usize
+            } else {
+                1usize
+            };
+            let mut idx = 1usize;
+            let non_kv_count = list
+                .iter()
+                .skip(1)
+                .filter(|item| {
+                    !item.as_atom().is_some_and(|a| {
+                        a.starts_with("offset=") || a.starts_with("align=")
+                    })
+                })
+                .count();
+            if non_kv_count > expected_ops
+                && let Some(SExpr::Atom(a)) = list.get(idx)
+                && !a.starts_with("offset=")
+                && !a.starts_with("align=")
+                && a.chars().next().is_some_and(|c| c.is_ascii_digit())
+            {
+                idx = idx.saturating_add(1);
+            }
+            while let Some(SExpr::Atom(a)) = list.get(idx) {
+                if a.starts_with("offset=") || a.starts_with("align=") {
+                    idx = idx.saturating_add(1);
+                } else {
+                    break;
+                }
+            }
+            idx
+        }
+    }
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "Compiles folded S-expression instructions, control blocks, and inline operands"
+)]
 fn compile_folded_sexpr(
     list: &[SExpr],
     ctx: &mut FuncCompileCtx,
     out: &mut Vec<DcShorthand>,
 ) -> Result<()> {
-    let head = list
+    let raw_head = list
         .first()
         .and_then(SExpr::as_atom)
         .context("WAT S-expression instruction must start with an opcode atom")?;
+    if raw_head == "when" {
+        ensure!(
+            list.len() >= 3,
+            "Folded WAT (when <cond> <body>...) requires a condition and at least one body instruction"
+        );
+        let cond_expr = list.get(1).context("Missing condition in (when ...)")?;
+        compile_folded_operand(cond_expr, WatValType::I32, ctx, out)?;
+        let (if_dc, _) =
+            lookup_wat_instruction("if").context("Missing 'if' opcode")?;
+        out.push(DcShorthand::Short(if_dc));
+        emit_blocktype(None, out);
+        ctx.label_stack.push(None);
+        let body = list.get(2..).unwrap_or(&[]);
+        compile_instr_sequence(body, ctx, out)?;
+        let _ = ctx.label_stack.pop();
+        let end_dc = lookup_wat_instruction("end")
+            .map(|(dc, _)| dc)
+            .context("Missing 'end' opcode")?;
+        out.push(DcShorthand::Short(end_dc));
+        return Ok(());
+    }
+
+    let head = normalize_wat_mnemonic(raw_head);
     let (short_dc, kind) = lookup_wat_instruction(head).with_context(|| {
-        format!("Unknown or unsupported WAT instruction '{head}'")
+        format!("Unknown or unsupported WAT instruction '{raw_head}'")
     })?;
 
     match kind {
@@ -999,6 +1290,9 @@ fn compile_folded_sexpr(
             let mut label = None;
             if let Some(SExpr::Atom(a)) = list.get(pos)
                 && a.starts_with('$')
+                && !ctx.local_indices.contains_key(a)
+                && !ctx.global_indices.contains_key(a)
+                && !ctx.const_values.contains_key(a)
             {
                 label = Some(a.clone());
                 pos = pos.saturating_add(1);
@@ -1010,12 +1304,17 @@ fn compile_folded_sexpr(
                 bt = Some(vt);
                 pos = pos.saturating_add(1);
             }
-            // Any folded expressions before `(then ...)` are condition operands pushed BEFORE `if`!
-            while let Some(SExpr::List(sub)) = list.get(pos) {
-                if sub.first().and_then(SExpr::as_atom) == Some("then") {
+            // Any expressions before `(then ...)` are condition operands pushed BEFORE `if`!
+            while let Some(item) = list.get(pos) {
+                if item
+                    .as_list()
+                    .and_then(|sub| sub.first())
+                    .and_then(SExpr::as_atom)
+                    == Some("then")
+                {
                     break;
                 }
-                compile_folded_sexpr(sub, ctx, out)?;
+                compile_folded_operand(item, WatValType::I32, ctx, out)?;
                 pos = pos.saturating_add(1);
             }
             let then_list = list
@@ -1062,20 +1361,11 @@ fn compile_folded_sexpr(
             out.push(DcShorthand::Short(end_dc));
         }
         _ => {
-            // In folded `(op imm* (arg1) (arg2) ...)`, immediates are atoms immediately following `op`,
-            // and nested lists `(arg1) (arg2)` are operand instructions emitted BEFORE `op imm*`!
-            let mut imm_end = 1usize;
-            while let Some(SExpr::Atom(_)) = list.get(imm_end) {
-                imm_end = imm_end.saturating_add(1);
-            }
+            let imm_end = folded_immediate_end_index(head, kind, list);
             let operand_exprs = list.get(imm_end..).unwrap_or(&[]);
-            for op_expr in operand_exprs {
-                let sub = op_expr.as_list().with_context(|| {
-                    format!(
-                        "Expected nested S-expression operand in folded WAT instruction '({head} ...)'"
-                    )
-                })?;
-                compile_folded_sexpr(sub, ctx, out)?;
+            for (op_idx, op_expr) in operand_exprs.iter().enumerate() {
+                let expected_vt = expected_folded_operand_valtype(head, op_idx);
+                compile_folded_operand(op_expr, expected_vt, ctx, out)?;
             }
             let mut imm_cursor = 1usize;
             let imm_slice = list.get(..imm_end).unwrap_or(&[]);
@@ -1090,7 +1380,7 @@ fn compile_folded_sexpr(
             )?;
             ensure!(
                 imm_cursor == imm_end,
-                "Unconsumed immediate arguments in folded WAT instruction '({head} ...)'"
+                "Unconsumed immediate arguments in folded WAT instruction '({raw_head} ...)'"
             );
         }
     }
@@ -1238,7 +1528,7 @@ fn emit_non_control_instruction_with_immediates(
         }
         WatImmediateKind::MemArg { natural_align_exp } => {
             let (memidx, align_exp, offset) =
-                consume_memarg_from_atoms(items, cursor, natural_align_exp)?;
+                consume_memarg_from_atoms(items, cursor, natural_align_exp, ctx)?;
             emit_memarg_immediates(
                 natural_align_exp,
                 memidx,
@@ -1251,18 +1541,18 @@ fn emit_non_control_instruction_with_immediates(
             let num_tok = items
                 .get(*cursor)
                 .and_then(SExpr::as_atom)
-                .context("Expected i32 literal after 'i32.const'")?;
+                .context("Expected i32 literal or $const after 'i32.const'")?;
             *cursor = cursor.saturating_add(1);
-            let val = parse_wat_i32(num_tok)?;
+            let val = ctx.resolve_i32_const(num_tok)?;
             out.extend(encode_i64_dc_shorthands(i64::from(val)));
         }
         WatImmediateKind::I64Const => {
             let num_tok = items
                 .get(*cursor)
                 .and_then(SExpr::as_atom)
-                .context("Expected i64 literal after 'i64.const'")?;
+                .context("Expected i64 literal or $const after 'i64.const'")?;
             *cursor = cursor.saturating_add(1);
-            let val = parse_wat_i64(num_tok)?;
+            let val = ctx.resolve_i64_const(num_tok)?;
             out.extend(encode_i64_dc_shorthands(val));
         }
         WatImmediateKind::F32Const => {
@@ -1326,6 +1616,7 @@ struct ParsedWatFunc {
     params: Vec<(Option<String>, WatValType)>,
     result: Option<WatValType>,
     locals: Vec<(Option<String>, WatValType)>,
+    consts: BTreeMap<String, i64>,
     body: Vec<SExpr>,
 }
 
@@ -1343,13 +1634,18 @@ struct ParsedWatData {
     bytes: Vec<u8>,
 }
 
-fn parse_func_decl(items: &[SExpr], func_ordinal: usize) -> Result<ParsedWatFunc> {
+fn parse_func_decl(
+    items: &[SExpr],
+    func_ordinal: usize,
+    module_consts: &BTreeMap<String, i64>,
+) -> Result<ParsedWatFunc> {
     let mut pos = 1usize;
     let mut id = None;
     let mut export_name = None;
     let mut params = Vec::new();
     let mut result = None;
     let mut locals = Vec::new();
+    let mut consts = module_consts.clone();
 
     if let Some(SExpr::Atom(a)) = items.get(pos)
         && a.starts_with('$')
@@ -1437,6 +1733,10 @@ fn parse_func_decl(items: &[SExpr], func_ordinal: usize) -> Result<ParsedWatFunc
                 }
                 pos = pos.saturating_add(1);
             }
+            "const" => {
+                parse_const_decl(sub, &mut consts)?;
+                pos = pos.saturating_add(1);
+            }
             _ => break,
         }
     }
@@ -1449,6 +1749,7 @@ fn parse_func_decl(items: &[SExpr], func_ordinal: usize) -> Result<ParsedWatFunc
         params,
         result,
         locals,
+        consts,
         body,
     })
 }
@@ -1456,6 +1757,7 @@ fn parse_func_decl(items: &[SExpr], func_ordinal: usize) -> Result<ParsedWatFunc
 fn parse_global_decl(
     items: &[SExpr],
     global_ordinal: usize,
+    module_consts: &BTreeMap<String, i64>,
 ) -> Result<ParsedWatGlobal> {
     let mut pos = 1usize;
     let mut id = None;
@@ -1517,9 +1819,30 @@ fn parse_global_decl(
         .get(1)
         .and_then(SExpr::as_atom)
         .context("Missing literal value in WAT global initializer")?;
+    let resolved_const = if init_lit.starts_with('$') {
+        Some(*module_consts.get(init_lit).with_context(|| {
+            format!("Unknown WAT constant '{init_lit}' in global initializer")
+        })?)
+    } else {
+        None
+    };
     let init_val = match init_op {
-        "i32.const" => i64::from(parse_wat_i32(init_lit)?),
-        "i64.const" => parse_wat_i64(init_lit)?,
+        "i32.const" => {
+            if let Some(c) = resolved_const {
+                i64::from(i32::try_from(c).with_context(|| {
+                    format!("WAT constant '{init_lit}' ({c}) overflows i32")
+                })?)
+            } else {
+                i64::from(parse_wat_i32(init_lit)?)
+            }
+        }
+        "i64.const" => {
+            if let Some(c) = resolved_const {
+                c
+            } else {
+                parse_wat_i64(init_lit)?
+            }
+        }
         other => bail!("Unsupported WAT global initializer opcode '{other}'"),
     };
     let _ = global_ordinal;
@@ -1630,6 +1953,7 @@ fn emit_wasm_routine_shorthands(
         func_indices: func_indices.clone(),
         global_indices: global_indices.clone(),
         local_indices,
+        const_values: func.consts.clone(),
         label_stack: Vec::new(),
     };
 
@@ -1695,6 +2019,7 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
     let mut funcs = Vec::new();
     let mut globals = Vec::new();
     let mut datas = Vec::new();
+    let mut module_consts: BTreeMap<String, i64> = BTreeMap::new();
     let mut pending_func_exports: Vec<(String, String)> = Vec::new();
     let mut pending_global_exports: Vec<(String, String)> = Vec::new();
 
@@ -1708,12 +2033,15 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
             .context("Expected keyword at start of WAT module member")?;
         match tag {
             "memory" => {}
+            "const" => {
+                parse_const_decl(list, &mut module_consts)?;
+            }
             "func" => {
-                let f = parse_func_decl(list, funcs.len())?;
+                let f = parse_func_decl(list, funcs.len(), &module_consts)?;
                 funcs.push(f);
             }
             "global" => {
-                let g = parse_global_decl(list, globals.len())?;
+                let g = parse_global_decl(list, globals.len(), &module_consts)?;
                 globals.push(g);
             }
             "data" => {
@@ -2192,6 +2520,44 @@ mod tests {
         assert!(shorthands.contains(&DcShorthand::Short(651))); // if
         assert!(shorthands.contains(&DcShorthand::Short(652))); // else
         assert!(shorthands.contains(&DcShorthand::Short(660))); // br_if
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_wat_readability_sugar_consts_inline_operands_and_when() -> Result<()> {
+        let verbose_wat = r#"
+            (module
+              (func (export "_start") (result i32)
+                (local $ptr i32)
+                (local $val i32)
+                (local.set $ptr (i32.load align=4 offset=0 (i32.const 0)))
+                (if (i32.ge_u (local.get $ptr) (i32.const 64))
+                  (then (unreachable)))
+                (local.set $val (i32.load8_u align=1 offset=64 (local.get $ptr)))
+                (i32.store align=4 offset=0 (i32.const 8) (i32.add (local.get $val) (i32.const 1)))
+                (i64.store align=1 offset=0 (i32.const 68) (i64.const 1000000))
+                (i32.const 0)))
+        "#;
+        let concise_wat = r#"
+            (module
+              (const $MB_IN_PTR 0)
+              (const $MB_OUT_PTR 8)
+              (const $CFG_BASE 64)
+              (const $CFG_FUEL 68)
+              (func (export "_start") (result i32)
+                (local $ptr i32)
+                (local $val i32)
+                (set $ptr (i32.load $MB_IN_PTR))
+                (when (i32.ge_u $ptr $CFG_BASE) (unreachable))
+                (set $val (i32.load8_u offset=$CFG_BASE $ptr))
+                (i32.store $MB_OUT_PTR (i32.add $val 1))
+                (i64.store align=1 $CFG_FUEL 1000000)
+                (i32.const 0)))
+        "#;
+        assert_eq!(
+            wat_to_dc_shorthands(concise_wat)?,
+            wat_to_dc_shorthands(verbose_wat)?
+        );
         Ok(())
     }
 }
