@@ -1778,20 +1778,20 @@ mod tier4_expression_evaluation_and_stream_splicing {
         use ctb_formats_dcstring::converters::{ascii, dcal};
 
         let plain = ascii::ascii_to_dcmstring(include_bytes!(
-            "../../../../old/eite/docs/examples/hello-world/hello-world.emd"
+            "../../dct_el/fixtures/examples/hello-world/hello-world.emd"
         ))?.0;
         let idiomatic = dcal::dcsh_to_dcmstring(include_bytes!(
-            "../../../../old/eite/docs/examples/hello-world/idiomatic-hello-world.ems"
+            "../../dct_el/fixtures/examples/hello-world/idiomatic-hello-world.ems"
         ))?.0;
         let historical = DatasetRuleResolver::load_at_most_recent(8_589_958_834)?;
         let current = default_syntax_resolver();
         for resolver in [current.as_ref(), &historical] {
             for (document, expected) in [
                 (&plain, include_bytes!(
-                    "../../../../old/eite/docs/examples/hello-world/hello-world.out"
+                    "../../dct_el/fixtures/examples/hello-world/hello-world.out"
                 ).as_slice()),
                 (&idiomatic, include_bytes!(
-                    "../../../../old/eite/docs/examples/hello-world/idiomatic-hello-world.out"
+                    "../../dct_el/fixtures/examples/hello-world/idiomatic-hello-world.out"
                 ).as_slice()),
             ] {
                 let mut navigator = DcDocumentNavigator::from_mstr(document);

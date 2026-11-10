@@ -15,7 +15,7 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for wayland to ensure libdir is lib.
+;;; Patch for wayland to ensure libdir is lib and disable tests.
 
 (define-module (patches wayland)
   #:use-module (guix packages)
@@ -29,6 +29,7 @@
     (inherit pkg)
     (arguments
      (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)
        ((#:configure-flags flags #~'())
         #~(cons "--libdir=lib" #$flags))))))
 
