@@ -70,7 +70,12 @@ pub use converters::wasm::{
     run_graph_wasm_tokens_on_dc_slice,
     run_graph_wasm_tokens_on_dc_slice_with_quota,
 };
-pub use converters::{dcal, dctext, dcts, eite, transform, utf8, wasm};
+pub use converters::{
+    dcal, dctext, dcts, eite, transform, utf8, wasm, wat,
+    wat_to_dc_shorthand_string, wat_to_dc_shorthands, wat_to_dclist,
+    wat_to_dcmstring, wat_to_dcmstring_with_resolver, wat_to_dcstring,
+    wat_to_wasm, wat_to_wasm_with_resolver,
+};
 pub use ctb_dc_macro::DcMixed;
 pub use ctb_formats_dcdata::ctbnbdl::LedgerNode;
 pub use ctb_formats_dcdata::dc;

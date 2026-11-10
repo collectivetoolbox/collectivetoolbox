@@ -35,6 +35,7 @@ pub mod transform;
 pub mod utf8;
 pub mod wasm;
 pub mod wasm_quota;
+pub mod wat;
 
 /// Produces DcUtf while retaining binary payload types and checksums.
 ///
@@ -89,4 +90,9 @@ pub use wasm::{
     run_dc_wasm_pure_conversion, run_dc_wasm_pure_conversion_with_resolver,
     run_graph_wasm_tokens_on_dc_slice,
     run_graph_wasm_tokens_on_dc_slice_with_quota,
+};
+pub use wat::{
+    wat_to_dc_shorthand_string, wat_to_dc_shorthands, wat_to_dclist,
+    wat_to_dcmstring, wat_to_dcmstring_with_resolver, wat_to_dcstring,
+    wat_to_wasm, wat_to_wasm_with_resolver,
 };

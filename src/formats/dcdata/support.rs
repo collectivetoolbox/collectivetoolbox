@@ -34,3 +34,4 @@ pub mod syntax_parser;
 pub mod syntax_validator;
 pub mod updater;
 pub mod validation;
+pub mod wat;

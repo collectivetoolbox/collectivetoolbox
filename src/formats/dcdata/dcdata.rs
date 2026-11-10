@@ -49,7 +49,7 @@ pub mod syntax;
 
 pub use support::{
     column_spec, format, graph_ledger, layout, report, shared, updater,
-    validation,
+    validation, wat,
 };
 
 pub use column_spec::{
