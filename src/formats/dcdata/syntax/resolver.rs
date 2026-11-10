@@ -974,7 +974,6 @@ impl DatasetRuleResolver {
         for role in [
             DcRole::BeginLiteral,
             DcRole::LangAssign,
-            DcRole::LangInvoke,
             DcRole::ReferenceBoundValue,
             DcRole::EnterIdentifierScope,
             DcRole::ForEach,

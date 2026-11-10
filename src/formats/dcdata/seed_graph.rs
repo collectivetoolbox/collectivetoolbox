@@ -1788,7 +1788,7 @@ impl SeedGraphIndex {
         )
     }
 
-    const fn is_document_syntax_or_framing_short_dc(short_id: usize) -> bool {
+    const fn is_document_syntax_or_framing_short_dc(short_id: u32) -> bool {
         matches!(
             short_id,
             256
