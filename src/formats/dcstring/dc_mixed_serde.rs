@@ -1256,15 +1256,73 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             .is_some_and(|token| self.is_representation_set_token(token))
     }
 
-    /// Finds an assignment declaration (`ident = value`) in the arena by its identifier name,
-    /// searching in reverse document order to honor lexical shadowing.
+    /// Finds an assignment declaration (`ident = value` or `lang.assign(ident, value)`) in the arena
+    /// by its identifier name, searching in reverse document order.
     #[must_use]
     pub fn find_bound_assignment(
         &self,
         name: &crate::DcMstr,
     ) -> Option<NodeId> {
+        let last_idx = self.arena.nodes().len().checked_sub(1)?;
+        self.find_bound_assignment_at(name, NodeId(last_idx))
+    }
+
+    /// Finds an assignment declaration (`ident = value` or `lang.assign(ident, value)`) visible
+    /// at `at_node_id`, honoring `Dc 541 "Enter identifier scope"` .. `Dc 542 "Exit identifier scope"`
+    /// lexical scope boundaries and reverse-chronological shadowing prior to `at_node_id`.
+    #[must_use]
+    pub fn find_bound_assignment_at(
+        &self,
+        name: &crate::DcMstr,
+        at_node_id: NodeId,
+    ) -> Option<NodeId> {
         let resolver = self.resolver();
-        for idx in (0..self.arena.nodes().len()).rev() {
+        let ref_span = self.arena.get(at_node_id)?.span;
+        let nodes = self.arena.nodes();
+
+        let is_in_scope_for_ref = |assign_idx: usize| -> bool {
+            let Some(assign_node) = nodes.get(assign_idx) else {
+                return false;
+            };
+            let assign_span = assign_node.span;
+            for scope_node in nodes {
+                if let DcSyntaxKind::Container { opener, .. } = &scope_node.kind
+                    && self.token_fills_role(*opener, DcRole::EnterIdentifierScope)
+                {
+                    let scope_span = scope_node.span;
+                    let encloses_assign = scope_span.start <= assign_span.start
+                        && assign_span.end <= scope_span.end;
+                    if encloses_assign {
+                        let encloses_ref = scope_span.start <= ref_span.start
+                            && ref_span.end <= scope_span.end;
+                        if !encloses_ref {
+                            return false;
+                        }
+                    }
+                }
+            }
+            true
+        };
+
+        let upper_preceding = at_node_id.0.min(nodes.len().saturating_sub(1));
+        for idx in (0..=upper_preceding).rev() {
+            if !is_in_scope_for_ref(idx) {
+                continue;
+            }
+            if let Some((ident, value)) =
+                self.arena.decode_assignment_with_resolver(NodeId(idx), resolver)
+            {
+                let ident_mstr: &crate::DcMstr = ident.as_ref();
+                if ident_mstr == name {
+                    return Some(value);
+                }
+            }
+        }
+
+        for idx in (upper_preceding.saturating_add(1)..nodes.len()).rev() {
+            if !is_in_scope_for_ref(idx) {
+                continue;
+            }
             if let Some((ident, value)) =
                 self.arena.decode_assignment_with_resolver(NodeId(idx), resolver)
             {
@@ -1283,7 +1341,9 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         node_id: NodeId,
     ) -> Result<Option<NodeId>> {
         if let Some(ident_name) = self.unwrap_bound_reference(node_id)? {
-            if let Some(assigned_id) = self.find_bound_assignment(&ident_name) {
+            if let Some(assigned_id) =
+                self.find_bound_assignment_at(&ident_name, node_id)
+            {
                 return Ok(Some(assigned_id));
             }
         }

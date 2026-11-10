@@ -1206,9 +1206,11 @@ impl SeedGraphIndex {
             return Ok((SyntaxTerm::SelfChar, idx.saturating_add(1)));
         }
 
-        if tok == sh_value_range
-            && tokens.get(idx.saturating_add(1)) == Some(&sh_atom_dc)
-        {
+        if tok == sh_value_range {
+            ensure!(
+                tokens.get(idx.saturating_add(1)) == Some(&sh_atom_dc),
+                "Expected AtomDc (Dc 640) domain token after Range (Dc 643) in pattern term"
+            );
             let mut next_idx = idx.saturating_add(2);
             let start = consume_pattern_char_target(tokens, &mut next_idx)
                 .context(
@@ -1506,6 +1508,16 @@ impl SeedGraphIndex {
             let group_pat = self.decode_syntax_pattern_tokens(inner)?;
             return Ok((SyntaxTerm::Group(group_pat), next_idx));
         }
+
+        ensure!(
+            tok != sh_alt
+                && tok != sh(DC_PATTERN_REPETITION)
+                && tok != sh_neg
+                && tok != sh_sub
+                && tok != sh_capture
+                && tok != sh(DC_PATTERN_REPLACEMENT),
+            "Unexpected ungrouped .Semantic:Pattern operator {tok} at token index {idx}"
+        );
 
         let mut next_idx = idx;
         let target = consume_pattern_char_target(tokens, &mut next_idx)?;

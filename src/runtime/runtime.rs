@@ -3671,4 +3671,253 @@ mod tests {
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_gate3_async_event_ordering_prefix_invariance_and_vertical_migration()
+    -> Result<()> {
+        use ctb_formats_dcstring::{
+            DcChar, DcMixedEncode, DcWasmResourceLimits, LedgerNode,
+        };
+
+        let i32_dc =
+            DcChar::from_u128(crate::FormatId::I32.dc_id().unwrap());
+
+        // Build a 5-step Dc-WASM routine using mem[64] as phase counter (0..=4):
+        // - Step 0 (phase 0): sets mem[64]=1, echoes input mailbox to output, returns 1 (YieldFrame #0)
+        // - Step 1 (phase 1): sets mem[64]=2, echoes input mailbox to output, returns 2 (RequestCapability #1)
+        // - Step 2 (phase 2): sets mem[64]=3, echoes capability #1 response to output, returns 1 (YieldFrame #1)
+        // - Step 3 (phase 3): sets mem[64]=4, writes saved request at mem[128..136] to output, returns 2 (RequestCapability #2)
+        // - Step 4 (phase 4): echoes capability #2 response to output, returns 0 (Complete)
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_short(260));
+        doc.push_char(DcChar::from_short(262));
+        doc.push_char(DcChar::from_short(280));
+        doc.push_char(i32_dc);
+        doc.push_char(DcChar::from_short(263));
+
+        // Default output mailbox (8..16) = current input mailbox (0..8)
+        for (dst, src) in [(8i32, 0i32), (12, 4)] {
+            doc.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&dst, &mut doc)?;
+            doc.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&src, &mut doc)?;
+            doc.push_char(DcChar::from_short(687));
+            for imm in [0u32, 2, 0] {
+                u32::encode_dc_mixed(&imm, &mut doc)?;
+            }
+            doc.push_char(DcChar::from_short(701));
+            for imm in [0u32, 2, 0] {
+                u32::encode_dc_mixed(&imm, &mut doc)?;
+            }
+        }
+
+        // Helper closure to emit: if (mem[64] == phase) { mem[64] = phase + 1; ...; return status; } else { ... }
+        let emit_phase_check = |out: &mut DcMstring, phase: i32| -> Result<()> {
+            out.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&64, out)?;
+            out.push_char(DcChar::from_short(687));
+            for imm in [0u32, 2, 0] {
+                u32::encode_dc_mixed(&imm, out)?;
+            }
+            out.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&phase, out)?;
+            out.push_char(DcChar::from_short(717)); // i32.eq
+            out.push_char(DcChar::from_short(651)); // if (result i32)
+            out.push_char(i32_dc);
+            out.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&64, out)?;
+            out.push_char(DcChar::from_short(712));
+            i32::encode_dc_mixed(&(phase + 1), out)?;
+            out.push_char(DcChar::from_short(701));
+            for imm in [0u32, 2, 0] {
+                u32::encode_dc_mixed(&imm, out)?;
+            }
+            Ok(())
+        };
+
+        // Phase 0: return 1 (YieldFrame #0 with initial input)
+        emit_phase_check(&mut doc, 0)?;
+        doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut doc)?;
+        doc.push_char(DcChar::from_short(652)); // else
+
+        // Phase 1: return 2 (RequestCapability #1)
+        emit_phase_check(&mut doc, 1)?;
+        doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&2, &mut doc)?;
+        doc.push_char(DcChar::from_short(652)); // else
+
+        // Phase 2: return 1 (YieldFrame #1 with capability #1's response)
+        emit_phase_check(&mut doc, 2)?;
+        doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&1, &mut doc)?;
+        doc.push_char(DcChar::from_short(652)); // else
+
+        // Phase 3: return 2 (RequestCapability #2 with capability #1's response in mailbox)
+        emit_phase_check(&mut doc, 3)?;
+        doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&2, &mut doc)?;
+        doc.push_char(DcChar::from_short(652)); // else
+
+        // Phase 4: return 0 (Complete with capability #2's response)
+        doc.push_char(DcChar::from_short(712));
+        i32::encode_dc_mixed(&0, &mut doc)?;
+
+        // Close all 4 nested `if` blocks and the literal container:
+        for _ in 0..4 {
+            doc.push_char(DcChar::from_short(658));
+        }
+        doc.push_char(DcChar::from_short(261));
+
+        let mut req_input = DcMstring::new();
+        req_input.push_str("FileIo");
+
+        let mut resp_first = DcMstring::new();
+        resp_first.push_str("first_cap_ok");
+        let mut resp_second_a = DcMstring::new();
+        resp_second_a.push_str("second_cap_branch_A");
+        let mut resp_second_b = DcMstring::new();
+        resp_second_b.push_str("second_cap_branch_B");
+        let mut resp_second_denied = DcMstring::new();
+        resp_second_denied.push_char(dc::DC_BOOLEAN_FALSE);
+
+        let run_scenario = |second_resp: DcMstring| -> Result<WasmExecutionTrace> {
+            let mut session =
+                DcWasmSession::from_dc_wasm(&doc, &req_input, None)?;
+            let mut ctx = ExecutionContext::new(false)
+                .with_privilege_decision(
+                    Privilege::FileIo,
+                    PermissionDecision::Allow,
+                );
+            let mut call_idx = 0usize;
+            let first_clone = resp_first.clone();
+            ctx.execute_wasm_session_with_trace(
+                &mut session,
+                &req_input,
+                |_priv, _dec, _raw| {
+                    call_idx += 1;
+                    if call_idx == 1 {
+                        Ok(first_clone.clone())
+                    } else {
+                        Ok(second_resp.clone())
+                    }
+                },
+            )
+        };
+
+        let trace_a = run_scenario(resp_second_a.clone())?;
+        let trace_b = run_scenario(resp_second_b.clone())?;
+        let trace_denied = run_scenario(resp_second_denied.clone())?;
+
+        // 1. Subsequent outputs diverge after delivery point #2 (step 3):
+        assert_eq!(trace_a.result.output, resp_second_a);
+        assert_eq!(trace_b.result.output, resp_second_b);
+        assert_eq!(trace_denied.result.output, resp_second_denied);
+        assert_ne!(trace_a.result.output, trace_b.result.output);
+        assert_ne!(trace_a.result.output, trace_denied.result.output);
+
+        // 2. Prefix invariance: all frames (`frames[0..2]`), all earlier events (`events[0..3]`),
+        //    and the capability request emitted at step 3 (`events[3].request`) are bit-for-bit identical!
+        assert_eq!(trace_a.result.frames, vec![req_input.clone(), resp_first.clone()]);
+        assert_eq!(trace_a.result.frames, trace_b.result.frames);
+        assert_eq!(trace_a.result.frames, trace_denied.result.frames);
+        assert_eq!(trace_a.events[..3], trace_b.events[..3]);
+        assert_eq!(trace_a.events[..3], trace_denied.events[..3]);
+        match (&trace_a.events[3], &trace_b.events[3], &trace_denied.events[3]) {
+            (
+                WasmTraceEvent::CapabilityInteraction {
+                    request: req_a,
+                    privilege: priv_a,
+                    ..
+                },
+                WasmTraceEvent::CapabilityInteraction {
+                    request: req_b,
+                    privilege: priv_b,
+                    ..
+                },
+                WasmTraceEvent::CapabilityInteraction {
+                    request: req_c,
+                    privilege: priv_c,
+                    ..
+                },
+            ) => {
+                assert_eq!(req_a, &resp_first);
+                assert_eq!(req_a, req_b);
+                assert_eq!(req_a, req_c);
+                assert_eq!(
+                    priv_a,
+                    &Privilege::Custom("first_cap_ok".to_string())
+                );
+                assert_eq!(priv_a, priv_b);
+                assert_eq!(priv_a, priv_c);
+            }
+            other => panic!("Expected CapabilityInteraction at event[3], got {other:?}"),
+        }
+
+        // 3. Replaying each trace reproduces the exact branch output and trace:
+        for expected_trace in [&trace_a, &trace_b, &trace_denied] {
+            let mut replay_session =
+                DcWasmSession::from_dc_wasm(&doc, &req_input, None)?;
+            let mut replay_ctx = ExecutionContext::new(false);
+            let replayed = replay_ctx.replay_wasm_session_trace(
+                &mut replay_session,
+                &req_input,
+                expected_trace,
+            )?;
+            assert_eq!(&replayed, expected_trace);
+        }
+
+        // 4. Vertical migration across generated System graph snapshots R1 < R2 (and R3 > R2 rejection):
+        let shared = ctb_formats_dcstring::SeedGraphIndex::shared()?;
+        let head_pin = shared.system_block_most_recent_node_id().unwrap();
+        let prev_pin = head_pin.checked_sub(1).unwrap();
+        for pin in [prev_pin, head_pin] {
+            let mut pinned_doc = DcMstring::new();
+            pinned_doc.push_char(
+                dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+            );
+            pinned_doc.push_char(DcChar::from_u128(pin));
+            for ch in doc.to_dc_string()?.chars() {
+                pinned_doc.push_char(ch);
+            }
+            let pinned_nav = ctb_formats_dcstring::DcDocumentNavigator::from_mstr(&pinned_doc);
+            assert_eq!(pinned_nav.document_most_recent_node_id(), Some(pin));
+            let pinned_resolver = pinned_nav.effective_resolver();
+            let mut pinned_session =
+                DcWasmSession::from_dc_wasm_with_resolver(
+                    &doc,
+                    &req_input,
+                    Some(pin),
+                    pinned_resolver.as_ref(),
+                )?;
+            let mut replay_ctx = ExecutionContext::new(false);
+            let replayed_pinned = replay_ctx.replay_wasm_session_trace(
+                &mut pinned_session,
+                &req_input,
+                &trace_a,
+            )?;
+            assert_eq!(replayed_pinned, trace_a);
+        }
+        // Future pin R3 = head_pin + 1 must fail before any capability request is issued:
+        let future_pin = head_pin.checked_add(1).unwrap();
+        let mut future_doc = DcMstring::new();
+        future_doc.push_char(
+            dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID,
+        );
+        future_doc.push_char(DcChar::from_u128(future_pin));
+        for ch in doc.to_dc_string()?.chars() {
+            future_doc.push_char(ch);
+        }
+        assert!(
+            DcWasmSession::from_dc_wasm(&future_doc, &req_input, None).is_err(),
+            "Future Dc 641 snapshot pin must be rejected before execution"
+        );
+
+        let _ = (DcWasmResourceLimits::default(), LedgerNode {
+            id: 0,
+            tokens: Vec::new(),
+            comment: String::new(),
+        });
+        Ok(())
+    }
 }

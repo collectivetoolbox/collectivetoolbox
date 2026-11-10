@@ -3603,3 +3603,885 @@ mod dynamic_runtime_equivalence_overlay_tests {
         })?
     }
 }
+
+mod gate2_bootstrap_kernel_conformance_fixtures {
+    use super::*;
+    use ctb_formats_dcdata::graph_ledger::LedgerNode;
+    use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
+    use ctb_formats_dcdata::syntax::ast::{
+        DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm,
+    };
+    use ctb_formats_dcstring::{
+        BinaryPayload, DCMM_HEADER_LEN, DcMstr, DcShorthand, DcString,
+        DcWasmSession, WasmStepOutcome,
+    };
+
+    #[crate::ctb_test]
+    fn test_gate2_conformance_physical_token_codecs_and_malformed_recovery()
+    -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+
+        // 1. DcTF variable-length UTF-8-extended encoding/decoding across 1..=5 byte widths:
+        let sample_tokens = vec![
+            DcChar::from_char('A'),                // 1-byte ASCII
+            DcChar::from_char('é'),                // 2-byte UTF-8
+            DcChar::from_char('Ω'),                // 3-byte UTF-8
+            DcChar::from_short(256),               // 4-byte short Dc
+            DcChar::from_format(494),              // 4-byte format Dc
+            DcChar::from_long(8_589_958_834_u128), // 5-byte long Dc
+        ];
+        let mut dc_str = DcString::new();
+        for &tok in &sample_tokens {
+            dc_str.push(tok);
+        }
+        let decoded_tokens: Vec<DcChar> = dc_str.chars().collect();
+        ensure!(
+            decoded_tokens == sample_tokens,
+            "DcTF roundtrip token mismatch: {decoded_tokens:?} != {sample_tokens:?}"
+        );
+        // Invalid DcTF prefix byte (0xFF) and truncated multi-byte sequence (0xF8 without continuation) must fail:
+        ensure!(
+            ctb_formats_dcstring::DcStr::from_bytes(&[0xFF]).is_err(),
+            "Invalid DcTF prefix byte 0xFF must be rejected"
+        );
+        ensure!(
+            ctb_formats_dcstring::DcStr::from_bytes(&[0xF8, 0x80]).is_err(),
+            "Truncated 5-byte DcTF sequence must be rejected"
+        );
+
+        // 2. .dcmm 32-byte header + inline UTF-8 prefix + 4-byte little-endian tail:
+        let mut dcmm = DcMstring::new();
+        dcmm.push_str("Hi");
+        dcmm.push_char(DcChar::from_short(517));
+        dcmm.push_char(DcChar::from_long(8_589_958_834_u128));
+        ensure!(
+            dcmm.as_bytes().len() > DCMM_HEADER_LEN,
+            "Expected .dcmm payload beyond 32-byte header"
+        );
+        let roundtripped_dcmm: Vec<DcChar> =
+            dcmm.to_dc_string()?.chars().collect();
+        ensure!(
+            roundtripped_dcmm
+                == vec![
+                    DcChar::from_char('H'),
+                    DcChar::from_char('i'),
+                    DcChar::from_short(517),
+                    DcChar::from_long(8_589_958_834_u128),
+                ],
+            ".dcmm mixed prefix + tail roundtrip mismatch"
+        );
+        // Truncated header (< 32 bytes) and invalid DcTF byte in .dcmm payload must be rejected:
+        ensure!(
+            DcMstr::from_bytes(&dcmm.as_bytes()[..16]).is_err(),
+            "Truncated .dcmm header must be rejected"
+        );
+        let mut invalid_dcmm = dcmm.as_bytes().to_vec();
+        invalid_dcmm.push(0xFF);
+        ensure!(
+            DcMstr::from_bytes(&invalid_dcmm).is_err()
+                || DcMstr::from_bytes(&invalid_dcmm)
+                    .map_or(true, |m: &DcMstr| m.to_dc_string().is_err()),
+            "Invalid DcTF byte in .dcmm payload must be rejected"
+        );
+
+        // 3. Binary encapsulation (`Dc 203`..`Dc 204`) round-tripping and malformed recovery:
+        for payload in [
+            Vec::new(),
+            vec![0x41],
+            vec![0x41, 0x42],
+            vec![0x00, 0xFF, 0x7F],
+            vec![1, 2, 3, 4, 5, 6, 7],
+        ] {
+            let mut bin_doc = DcMstring::new();
+            bin_doc.push_binary(&payload);
+            let decoded: BinaryPayload = bin_doc.decode(&strict)?;
+            ensure!(
+                decoded.0 == payload,
+                "Binary encapsulation roundtrip mismatch for len {}",
+                payload.len()
+            );
+        }
+
+        // Malformed binary spans:
+        // (a) Unclosed `Dc 203`:
+        let unclosed_bin = create_test_mstring(&[
+            DcChar::from_short(203),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+        ]);
+        ensure!(
+            unclosed_bin.decode::<BinaryPayload>(&strict).is_err(),
+            "Unclosed Dc 203 binary span must fail strict decode"
+        );
+        // (b) Invalid Base64 digit inside `Dc 203`..`Dc 204`:
+        let invalid_digit_bin = create_test_mstring(&[
+            DcChar::from_short(203),
+            DcChar::from_short(517),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(204),
+        ]);
+        ensure!(
+            invalid_digit_bin.decode::<BinaryPayload>(&strict).is_err(),
+            "Non-Base64 digit inside Dc 203..Dc 204 must fail decode"
+        );
+        // (c) Bad quantum length (`len % 4 == 1`):
+        let bad_quantum_bin = create_test_mstring(&[
+            DcChar::from_short(203),
+            DcChar::from_short(127),
+            DcChar::from_short(204),
+        ]);
+        ensure!(
+            bad_quantum_bin.decode::<BinaryPayload>(&strict).is_err(),
+            "Base64 span with len % 4 == 1 must fail decode"
+        );
+        // (d) Misplaced `Dc 80` (`"="`) padding before final quantum:
+        let misplaced_pad_bin = create_test_mstring(&[
+            DcChar::from_short(203),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(80),
+            DcChar::from_short(80),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(127),
+            DcChar::from_short(204),
+        ]);
+        ensure!(
+            misplaced_pad_bin.decode::<BinaryPayload>(&strict).is_err(),
+            "Padding Dc 80 before final Base64 quantum must fail decode"
+        );
+        // (e) Non-zero trailing padding bits in `XX==` (second digit has low 4 bits != 0):
+        let noncanonical_pad_bin = create_test_mstring(&[
+            DcChar::from_short(203),
+            DcChar::from_short(127),     // 0
+            DcChar::from_short(127 + 1), // 1 (low 4 bits non-zero for 1-byte quantum)
+            DcChar::from_short(80),      // '='
+            DcChar::from_short(80),      // '='
+            DcChar::from_short(204),
+        ]);
+        ensure!(
+            noncanonical_pad_bin
+                .decode::<BinaryPayload>(&strict)
+                .is_err(),
+            "Non-zero trailing padding bits in Base64 quantum must fail decode"
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_conformance_active_graph_statement_and_equivalence_resolution()
+    -> Result<()> {
+        // Construct a synthetic ledger exercising:
+        // - `Dc 584` + `Dc 610` property statements (with `Dc 594` syntax rule)
+        // - `Dc 638` + `Dc 639` distributed statements
+        // - Transitive `Dc 591 "Supersedes"` chain (`N1 <- N2 <- N3`)
+        // - `Dc 592 "Retracts"` (`R1`) and retracted retraction (`R2` retracting `R1`)
+        // - `Dc 397 "Equivalent representations"` canonicalization
+        let base: u128 = 8_589_934_592;
+        // `.Semantic:Pattern` token sequences (`Dc 599` self reference `~`, followed by `517` / `518`)
+        let pat_v1 = vec![DcShorthand::Short(599), DcShorthand::Short(517)];
+        let pat_v2 = vec![DcShorthand::Short(599), DcShorthand::Short(518)];
+        let pat_v3 = vec![
+            DcShorthand::Short(599),
+            DcShorthand::Short(517),
+            DcShorthand::Short(518),
+        ];
+
+        let nodes = vec![
+            // base + 0: pattern v1 (`: ~ 517`)
+            LedgerNode {
+                id: base,
+                tokens: pat_v1,
+                comment: String::new(),
+            },
+            // base + 1: 584 9900 594 (9900 has syntax rule)
+            LedgerNode {
+                id: base + 1,
+                tokens: vec![
+                    DcShorthand::Short(584),
+                    DcShorthand::Short(9900),
+                    DcShorthand::Short(594),
+                ],
+                comment: String::new(),
+            },
+            // base + 2: 610 (base+1) (base+0)
+            LedgerNode {
+                id: base + 2,
+                tokens: vec![
+                    DcShorthand::Short(610),
+                    DcShorthand::Long(base + 1),
+                    DcShorthand::Long(base),
+                ],
+                comment: String::new(),
+            },
+            // base + 3: pattern v2 (`: ~ 518`)
+            LedgerNode {
+                id: base + 3,
+                tokens: pat_v2,
+                comment: String::new(),
+            },
+            // base + 4: 610 (base+1) (base+3)
+            LedgerNode {
+                id: base + 4,
+                tokens: vec![
+                    DcShorthand::Short(610),
+                    DcShorthand::Long(base + 1),
+                    DcShorthand::Long(base + 3),
+                ],
+                comment: String::new(),
+            },
+            // base + 5: 591 (base+4) (base+2) (N2 supersedes N1)
+            LedgerNode {
+                id: base + 5,
+                tokens: vec![
+                    DcShorthand::Short(591),
+                    DcShorthand::Long(base + 4),
+                    DcShorthand::Long(base + 2),
+                ],
+                comment: String::new(),
+            },
+            // base + 6: pattern v3 (`: ~ 517 518`)
+            LedgerNode {
+                id: base + 6,
+                tokens: pat_v3,
+                comment: String::new(),
+            },
+            // base + 7: 610 (base+1) (base+6)
+            LedgerNode {
+                id: base + 7,
+                tokens: vec![
+                    DcShorthand::Short(610),
+                    DcShorthand::Long(base + 1),
+                    DcShorthand::Long(base + 6),
+                ],
+                comment: String::new(),
+            },
+            // base + 8: 591 (base+7) (base+4) (N3 supersedes N2 -> transitive chain N1 <- N2 <- N3)
+            LedgerNode {
+                id: base + 8,
+                tokens: vec![
+                    DcShorthand::Short(591),
+                    DcShorthand::Long(base + 7),
+                    DcShorthand::Long(base + 4),
+                ],
+                comment: String::new(),
+            },
+            // base + 9: `Dc 397 "Equivalent representations"`:
+            // 397 310 640 9900 312 9901 311 (9901 is equivalent to 9900)
+            LedgerNode {
+                id: base + 9,
+                tokens: vec![
+                    DcShorthand::Short(397),
+                    DcShorthand::Short(310),
+                    DcShorthand::Short(640),
+                    DcShorthand::Short(9900),
+                    DcShorthand::Short(312),
+                    DcShorthand::Short(9901),
+                    DcShorthand::Short(311),
+                ],
+                comment: String::new(),
+            },
+            // base + 10: Retract N3 (`592 615 (base+7)`)
+            LedgerNode {
+                id: base + 10,
+                tokens: vec![
+                    DcShorthand::Short(592),
+                    DcShorthand::Short(615),
+                    DcShorthand::Long(base + 7),
+                ],
+                comment: String::new(),
+            },
+            // base + 11: Retract the retraction (`592 615 (base+10)`), restoring N3!
+            LedgerNode {
+                id: base + 11,
+                tokens: vec![
+                    DcShorthand::Short(592),
+                    DcShorthand::Short(615),
+                    DcShorthand::Long(base + 10),
+                ],
+                comment: String::new(),
+            },
+        ];
+
+        // Snapshot at base + 2: N1 (`: ~ 517`) is active
+        let g1 =
+            SeedGraphIndex::from_nodes_at_most_recent(nodes.clone(), base + 2);
+        ensure!(
+            g1.decode_syntax_rule_for_subject(DcShorthand::Short(9900))?
+                .map(|r| r.pattern.format_dsl())
+                .as_deref()
+                == Some("~ 517"),
+            "Expected N1 rule at snapshot base+2"
+        );
+
+        // Snapshot at base + 5: N2 (`: ~ 518`) supersedes N1
+        let g2 =
+            SeedGraphIndex::from_nodes_at_most_recent(nodes.clone(), base + 5);
+        ensure!(
+            g2.decode_syntax_rule_for_subject(DcShorthand::Short(9900))?
+                .map(|r| r.pattern.format_dsl())
+                .as_deref()
+                == Some("~ 518"),
+            "Expected N2 rule at snapshot base+5"
+        );
+
+        // Snapshot at base + 9: N3 (`: ~ 517 518`) transitively supersedes N2 & N1, and 9901 <-> 9900
+        let g3 =
+            SeedGraphIndex::from_nodes_at_most_recent(nodes.clone(), base + 9);
+        ensure!(
+            g3.decode_syntax_rule_for_subject(DcShorthand::Short(9900))?
+                .map(|r| r.pattern.format_dsl())
+                .as_deref()
+                == Some("~ 517 518"),
+            "Expected N3 rule at snapshot base+9"
+        );
+        ensure!(
+            g3.get_active_node(base + 9).is_some(),
+            "Expected Dc 397 equivalence statement node at snapshot base+9"
+        );
+
+        // Snapshot at base + 10: N3 is retracted by base+10
+        let g4 =
+            SeedGraphIndex::from_nodes_at_most_recent(nodes.clone(), base + 10);
+        ensure!(
+            g4.decode_syntax_rule_for_subject(DcShorthand::Short(9900))?
+                .is_none(),
+            "Expected rule to be retracted at snapshot base+10"
+        );
+
+        // Snapshot at base + 11: Retraction base+10 is itself retracted by base+11, restoring N3!
+        let g5 = SeedGraphIndex::from_nodes_at_most_recent(nodes, base + 11);
+        ensure!(
+            g5.decode_syntax_rule_for_subject(DcShorthand::Short(9900))?
+                .map(|r| r.pattern.format_dsl())
+                .as_deref()
+                == Some("~ 517 518"),
+            "Expected N3 rule to be restored when its retraction is retracted at snapshot base+11"
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_conformance_semantic_pattern_operators_and_malformed_patterns()
+    -> Result<()> {
+        let resolver = default_syntax_resolver();
+
+        // 1. Ordered choice (`Dc 602 "Pattern alternation"`), capture scope (`Dc 606 "Pattern capture"`),
+        //    and rollback when a later element in the first branch fails:
+        //    Pattern: `:(517 [number $x] 517) | (517 [number $y] 518)`
+        //    Input: `517 <42> 518`
+        //    Branch 1 matches `517` and captures `$x = 42`, then fails on `518 != 517`.
+        //    Backtracking must restore the token cursor AND roll back `$x`, then match Branch 2 with `$y = 42`.
+        let choice_rule = ctb_formats_dcdata::parse_dc_syntax(
+            ":(517 [number $x] 517) | (517 [number $y] 518)",
+        )?;
+
+        let mut choice_doc = DcMstring::new();
+        choice_doc.push_char(DC_BOOLEAN_TRUE);
+        42u64.encode_dc_mixed(&mut choice_doc)?;
+        choice_doc.push_char(DC_BOOLEAN_FALSE);
+
+        let mut nav = DcDocumentNavigator::from_mstr(&choice_doc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        let matched = nav.eval_pattern(&choice_rule.pattern, &mut ctx)?;
+        ensure!(matched, "Second alternation branch must match after first fails");
+        ensure!(
+            !ctx.captured_numbers.contains_key("x"),
+            "Failed first branch capture $x must be rolled back on backtrack"
+        );
+        ensure!(
+            ctx.captured_numbers.contains_key("y"),
+            "Succeeded second branch capture $y must be retained"
+        );
+
+        // 2. Range arity (`Dc 643 "Range"` with 3 operands: domain, lower, upper; `Dc 644` exclusive;
+        //    `Dc 316` unbounded; and `Dc 603 "Pattern repetition"`):
+        let range_rule = ctb_formats_dcdata::parse_dc_syntax(
+            ":[number:f200 & >=10 & <20]{2,3}",
+        )?;
+        let mut valid_range_doc = DcMstring::new();
+        10u64.encode_dc_mixed(&mut valid_range_doc)?;
+        19u64.encode_dc_mixed(&mut valid_range_doc)?;
+        let mut range_nav = DcDocumentNavigator::from_mstr(&valid_range_doc);
+        let mut range_ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(
+            range_nav.eval_pattern(&range_rule.pattern, &mut range_ctx)?,
+            "10 and 19 must match [number:f200 & >=10 & <20]{{2,3}}"
+        );
+
+        let mut out_of_bounds_doc = DcMstring::new();
+        10u64.encode_dc_mixed(&mut out_of_bounds_doc)?;
+        20u64.encode_dc_mixed(&mut out_of_bounds_doc)?; // 20 violates exclusive upper bound `<20`
+        let mut bad_range_nav =
+            DcDocumentNavigator::from_mstr(&out_of_bounds_doc);
+        let mut bad_range_ctx = SyntaxEvalContext::new(&**resolver, None);
+        ensure!(
+            !bad_range_nav
+                .eval_pattern(&range_rule.pattern, &mut bad_range_ctx)?,
+            "20 must be rejected by exclusive upper bound <20"
+        );
+
+        // 3. Recursive rule/construct reference (`Dc 605 "Subpattern match"`):
+        //    (a) 0-token left-recursive cycle (`9950 -> 9950` at the same cursor offset) terminates
+        //        deterministically via `call_stack` cycle detection;
+        //    (b) Consuming recursion (`9951 -> 517 [9951:]` advancing the cursor on each step)
+        //        terminates deterministically at `MAX_SYNTAX_EXPANSION_DEPTH` (32) with an
+        //        expansion-depth diagnostic.
+        let mut cycle_registry = SyntaxRuntimeResolver::default();
+        let cycle_target = CharTarget::Dc(9950);
+        let cycle_rule = DcSyntaxRule {
+            pattern: SyntaxPattern::Sequence(vec![SyntaxElement {
+                term: SyntaxTerm::RuleRef {
+                    target: cycle_target.clone(),
+                },
+                quantifier: Quantifier::ExactOne,
+            }]),
+            action: None,
+            raw: ":[9950:]".to_owned(),
+        };
+        cycle_registry.register_rule(cycle_target.clone(), cycle_rule);
+
+        let depth_target = CharTarget::Dc(9951);
+        let depth_rule = ctb_formats_dcdata::parse_dc_syntax(":517 [9951:]")?;
+        cycle_registry.register_rule(depth_target.clone(), depth_rule);
+
+        let mut cycle_doc = DcMstring::new();
+        for _ in 0..35 {
+            cycle_doc.push_char(DC_BOOLEAN_TRUE);
+        }
+        let mut cycle_nav = DcDocumentNavigator::from_mstr(&cycle_doc);
+        let mut cycle_ctx = SyntaxEvalContext::new(&cycle_registry, None);
+        ensure!(
+            !cycle_nav.eval_term_single(
+                &SyntaxTerm::RuleRef {
+                    target: cycle_target
+                },
+                &mut cycle_ctx
+            )?,
+            "0-token left-recursive RuleRef cycle must terminate cleanly"
+        );
+        ensure!(
+            !cycle_nav.eval_term_single(
+                &SyntaxTerm::RuleRef {
+                    target: depth_target
+                },
+                &mut cycle_ctx
+            )?,
+            "Consuming recursive RuleRef must terminate cleanly at MAX_SYNTAX_EXPANSION_DEPTH"
+        );
+        ensure!(
+            cycle_ctx
+                .diagnostics
+                .iter()
+                .any(|d| d.message.contains("expansion depth")),
+            "Expected expansion depth diagnostic on recursive RuleRef exceeding MAX_SYNTAX_EXPANSION_DEPTH"
+        );
+
+        // 4. Malformed `.Semantic:Pattern` token sequences fail cleanly without panicking:
+        let empty_graph = SeedGraphIndex::from_nodes(Vec::new());
+        // (a) Unbalanced `Dc 298` (`Begin expression group`) without `Dc 299`:
+        let unbalanced_group = vec![
+            DcShorthand::Short(298),
+            DcShorthand::Short(517),
+        ];
+        ensure!(
+            empty_graph
+                .decode_syntax_rule_tokens(&unbalanced_group)
+                .is_err(),
+            "Unbalanced Dc 298 without Dc 299 must fail decode"
+        );
+        // (b) Truncated `Dc 643 "Range"` with fewer than 3 operands:
+        let truncated_range_no_domain = vec![
+            DcShorthand::Short(643),
+            DcShorthand::Short(517),
+        ];
+        ensure!(
+            empty_graph
+                .decode_syntax_rule_tokens(&truncated_range_no_domain)
+                .is_err(),
+            "Truncated Dc 643 Range missing Dc 640 domain must fail decode"
+        );
+        let truncated_range_no_end = vec![
+            DcShorthand::Short(643),
+            DcShorthand::Short(640),
+            DcShorthand::Short(517),
+        ];
+        ensure!(
+            empty_graph
+                .decode_syntax_rule_tokens(&truncated_range_no_end)
+                .is_err(),
+            "Truncated Dc 643 Range with < 3 operands must fail decode"
+        );
+        // (c) Truncated `Dc 606 "Pattern capture"` missing capture identifier:
+        let truncated_capture = vec![
+            DcShorthand::Short(606),
+            DcShorthand::Short(517),
+        ];
+        ensure!(
+            empty_graph
+                .decode_syntax_rule_tokens(&truncated_capture)
+                .is_err(),
+            "Truncated Dc 606 Pattern capture missing variable must fail decode"
+        );
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_gate2_conformance_dc_wasm_lowering_and_mailbox_abi() -> Result<()> {
+        // Verify that a Routine reading the 32-byte mailbox at `0x0000..0x0020` can inspect:
+        // - `0..4`: `input_ptr`
+        // - `4..8`: `input_len`
+        // - `16..32`: `u128` little-endian `Dc 641` most recent node ID (`low64` at `16..24`, `high64` at `24..32`)
+        // and emit `YieldFrame` (`1`), `RequestCapability` (`2`), and `Complete` (`0`).
+        let i32_dc = DcChar::from_u128(
+            FormatId::I32.dc_id().context("Missing i32 Dc")?,
+        );
+        let pin_id: u128 = 8_589_958_834;
+        let expected_low_i32 =
+            i32::from_le_bytes(u32::try_from(pin_id & 0xFFFF_FFFF)?.to_le_bytes());
+
+        let mut expected_true = DcMstring::new();
+        expected_true.push_char(DC_BOOLEAN_TRUE);
+        let encoded_true_i32 = i32::from_le_bytes(
+            expected_true
+                .as_bytes()
+                .get(DCMM_HEADER_LEN..)
+                .context("Missing encoded DC_BOOLEAN_TRUE token")?
+                .try_into()?,
+        );
+
+        // Build a Dc-WASM Routine that reads the low 32 bits of the Dc 641 pin at mem[16],
+        // checks `mem[16] == expected_low_i32`, and when equal writes `DC_BOOLEAN_TRUE` at mem[128],
+        // sets output_ptr (mem[8]) = 128, output_len (mem[12]) = 4, and returns 0 (Complete).
+        let mut doc = create_test_mstring(&[
+            DcChar::from_short(260),
+            DC_BEGIN_TYPE_DEF,
+            DcChar::from_short(280),
+            i32_dc,
+            DC_END_TYPE_DEF,
+        ]);
+        // if (mem[16] == expected_low_i32) { mem[128] = encoded_true_i32; }
+        doc.push_char(DcChar::from_short(712));
+        16i32.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_short(687)); // i32.load
+        for imm in [0u32, 2, 0] {
+            imm.encode_dc_mixed(&mut doc)?;
+        }
+        doc.push_char(DcChar::from_short(712));
+        expected_low_i32.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_short(717)); // i32.eq
+        doc.push_char(DcChar::from_short(651)); // if (empty blocktype)
+        doc.push_char(DcChar::from_short(316));
+        doc.push_char(DcChar::from_short(712));
+        128i32.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_short(712));
+        encoded_true_i32.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_short(701)); // i32.store
+        for imm in [0u32, 2, 0] {
+            imm.encode_dc_mixed(&mut doc)?;
+        }
+        doc.push_char(DcChar::from_short(658)); // end if
+        // mem[8] = 128 (output_ptr), mem[12] = 4 (output_len)
+        for (addr, val) in [(8i32, 128i32), (12, 4)] {
+            doc.push_char(DcChar::from_short(712));
+            addr.encode_dc_mixed(&mut doc)?;
+            doc.push_char(DcChar::from_short(712));
+            val.encode_dc_mixed(&mut doc)?;
+            doc.push_char(DcChar::from_short(701));
+            for imm in [0u32, 2, 0] {
+                imm.encode_dc_mixed(&mut doc)?;
+            }
+        }
+        // return 0 (Complete)
+        doc.push_char(DcChar::from_short(712));
+        0i32.encode_dc_mixed(&mut doc)?;
+        doc.push_char(DcChar::from_short(261));
+
+        let mut session =
+            DcWasmSession::from_dc_wasm(&doc, &DcMstring::new(), Some(pin_id))?;
+        let WasmStepOutcome::Complete(out) = session.step()? else {
+            bail!("Expected Complete from mailbox pin inspection routine");
+        };
+        ensure!(
+            out.as_bytes() == expected_true.as_bytes(),
+            "Mailbox 16..20 verification routine must emit DC_BOOLEAN_TRUE when Dc 641 pin matches"
+        );
+
+        Ok(())
+    }
+}
+
+mod gate3_historical_snapshot_and_trace_replay_regression {
+    use super::*;
+    use std::sync::Arc;
+    use ctb_formats_dcdata::dc::{
+        DC_ASSIGN, DC_BEGIN_IDENTIFIER, DC_BEGIN_LITERAL, DC_BEGIN_NUMBER,
+        DC_END_IDENTIFIER, DC_END_LITERAL, DC_END_NUMBER,
+        DC_ENTER_IDENTIFIER_SCOPE, DC_EXIT_IDENTIFIER_SCOPE,
+        DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_REFERENCE_BOUND_VALUE,
+        DC_REFERENCE_NAMED_OBJECT, DC_TYPE_STRING,
+    };
+    use ctb_formats_dcstring::{
+        BinaryPayload, DcMixedDecode, DcMixedEncode, DcSyntaxArena,
+        DcSyntaxKind,
+    };
+
+    /// Exercises internal semantic constructs through observable trace/projection outputs
+    /// across both pinned historical snapshot (`l8589958834`) and `HEAD`:
+    /// - Framing boundaries for `Dc 590 "Is a closing delimiter of syntactic block for"`,
+    ///   `Dc 255 "Ignore following Dc"`, and `Dc 203`..`Dc 204` binary encapsulation
+    /// - Decoded values for `Dc 6`..`Dc 7` numbers, `Dc 260`..`Dc 261` literals, and
+    ///   `Dc 270`..`Dc 271` identifiers
+    /// - Lexical bindings for `Dc 541`..`Dc 542` scopes, `Dc 269` assignment operator,
+    ///   `Dc 268` `lang.assign`, `Dc 540` bound value reference, `Dc 276` named object
+    ///   reference, and `Dc 638`..`Dc 639` (`For each` / `This element`)
+    /// - Output from `Dc 256` `lang.say`, spliced WASM streams, and `Dc 397` / `Dc 561`
+    ///   (`Dc 398`) equivalent representations
+    /// - Forgiving-recovery diagnostics vs strict rejection.
+    #[crate::ctb_test]
+    fn test_gate3_internal_semantic_constructs_observable_trace_replay()
+    -> Result<()> {
+        let historical_pin: u128 = 8_589_958_834;
+        let head_pin: u128 = ctb_formats_dcdata::seed_graph::SeedGraphIndex::shared()?
+            .system_block_most_recent_node_id()
+            .context("Missing HEAD System revision")?;
+
+        let run_for_pin = |pin: u128| -> Result<
+            (String, i64, Vec<u8>, u64, u64, u64, String, u64, Vec<String>),
+        > {
+            let resolver = DatasetRuleResolver::load_at_most_recent(pin)?;
+            let strict = DcProjectionPolicy::strict();
+
+            // 1. Framing boundaries (`Dc 590`, `Dc 255`, `Dc 203`..`Dc 204`) +
+            //    decoded values (`Dc 6`..`Dc 7`, `Dc 260`..`Dc 261`, `Dc 270`..`Dc 271`):
+            //    Literal containing an escaped literal closer (`255 261`),
+            //    a negative number (`6 .. 7`), and a binary payload (`203 .. 204`) inside a list (`310 .. 311`):
+            let mut lit_with_escape = DcMstring::new();
+            lit_with_escape.push_char(DC_BEGIN_LITERAL);
+            lit_with_escape.push_char(DC_BEGIN_TYPE_DEF);
+            lit_with_escape.push_char(DC_TYPE_STRING);
+            lit_with_escape.push_char(DC_END_TYPE_DEF);
+            lit_with_escape.push_char(DcChar::from_char('X'));
+            lit_with_escape.push_char(DcChar::from_short(255));
+            lit_with_escape.push_char(DC_END_LITERAL);
+            lit_with_escape.push_char(DcChar::from_char('Y'));
+            lit_with_escape.push_char(DC_END_LITERAL);
+            let decoded_escaped_mstr: DcMstring =
+                lit_with_escape.decode_with_resolver(&resolver, &strict)?;
+            let decoded_escaped_chars: Vec<DcChar> =
+                decoded_escaped_mstr.to_dc_string()?.chars().collect();
+            ensure!(
+                decoded_escaped_chars
+                    == vec![
+                        DcChar::from_char('X'),
+                        DC_END_LITERAL,
+                        DcChar::from_char('Y'),
+                    ],
+                "Escaped Dc 261 inside literal must decode to raw token"
+            );
+
+            let mut num_doc = DcMstring::new();
+            (-9876i64).encode_dc_mixed(&mut num_doc)?;
+            ensure!(
+                num_doc.to_dc_string()?.chars().next() == Some(DC_BEGIN_NUMBER)
+                    && num_doc.to_dc_string()?.chars().last()
+                        == Some(DC_END_NUMBER),
+                "Encoded i64 must be framed by Dc 6..Dc 7"
+            );
+            let decoded_num: i64 =
+                num_doc.decode_with_resolver(&resolver, &strict)?;
+
+            let mut bin_doc = DcMstring::new();
+            bin_doc.push_binary(&[0xDE, 0xAD, 0xBE, 0xEF]);
+            let decoded_bin: BinaryPayload =
+                bin_doc.decode_with_resolver(&resolver, &strict)?;
+
+            // 2. Lexical bindings (`Dc 541`..`Dc 542`, `Dc 269`, `Dc 268`, `Dc 540`, `Dc 276`):
+            //    - Root 0: `v = 10` (`270 "v" 271 269 <10>`)
+            //    - Root 1: `540 270 "v" 271` (reads outer `v == 10`)
+            //    - Root 2: `541` (`Enter identifier scope`)
+            //        - Child 0: `268 258 270 "v" 271 <99> 259` (`lang.assign("v", 99)`)
+            //        - Child 1: `540 270 "v" 271` (reads inner shadowed `v == 99`)
+            //      `542` (`Exit identifier scope`)
+            //    - Root 3: `540 270 "v" 271` (reads restored outer `v == 10`)
+            //    - Root 4: `276 270 "v" 271` (`Reference named object` -> `10`)
+            let mut scope_doc = DcMstring::new();
+            // Root 0: v = 10
+            scope_doc.push_char(DC_BEGIN_IDENTIFIER);
+            scope_doc.push_str("v");
+            scope_doc.push_char(DC_END_IDENTIFIER);
+            scope_doc.push_char(DC_ASSIGN);
+            10u64.encode_dc_mixed(&mut scope_doc)?;
+            // Root 1: 540 v
+            scope_doc.push_char(DC_REFERENCE_BOUND_VALUE);
+            scope_doc.push_char(DC_BEGIN_IDENTIFIER);
+            scope_doc.push_str("v");
+            scope_doc.push_char(DC_END_IDENTIFIER);
+            // Root 2: 541 { 268(v, 99); 540 v } 542
+            scope_doc.push_char(DC_ENTER_IDENTIFIER_SCOPE);
+            scope_doc.push_char(DcChar::from_short(268));
+            scope_doc.push_char(DcChar::from_short(258));
+            scope_doc.push_char(DC_BEGIN_IDENTIFIER);
+            scope_doc.push_str("v");
+            scope_doc.push_char(DC_END_IDENTIFIER);
+            scope_doc.push_char(DcChar::from_short(259));
+            scope_doc.push_char(DcChar::from_short(258));
+            99u64.encode_dc_mixed(&mut scope_doc)?;
+            scope_doc.push_char(DcChar::from_short(259));
+            scope_doc.push_char(DC_REFERENCE_BOUND_VALUE);
+            scope_doc.push_char(DC_BEGIN_IDENTIFIER);
+            scope_doc.push_str("v");
+            scope_doc.push_char(DC_END_IDENTIFIER);
+            scope_doc.push_char(DC_EXIT_IDENTIFIER_SCOPE);
+            // Root 3: 540 v (after exiting scope 541..542)
+            scope_doc.push_char(DC_REFERENCE_BOUND_VALUE);
+            scope_doc.push_char(DC_BEGIN_IDENTIFIER);
+            scope_doc.push_str("v");
+            scope_doc.push_char(DC_END_IDENTIFIER);
+            // Root 4: 276 v
+            scope_doc.push_char(DC_REFERENCE_NAMED_OBJECT);
+            scope_doc.push_char(DC_BEGIN_IDENTIFIER);
+            scope_doc.push_str("v");
+            scope_doc.push_char(DC_END_IDENTIFIER);
+
+            let mut scope_nav = DcDocumentNavigator::from_mstr(&scope_doc);
+            let mut scope_arena = DcSyntaxArena::new();
+            scope_nav.parse_document_into_arena_with_resolver(
+                &mut scope_arena,
+                &strict,
+                &resolver,
+            )?;
+            let mut proj_ctx = ctb_formats_dcstring::DcProjectionContext::new(
+                &scope_arena,
+                &strict,
+            )
+            .with_syntax_resolver(&resolver);
+
+            let outer_before_id = *scope_arena
+                .roots()
+                .get(1)
+                .context("Missing outer_before root")?;
+            let outer_before: u64 =
+                u64::decode_dc_node(&mut proj_ctx, outer_before_id)?;
+
+            let scope_block_id = *scope_arena
+                .roots()
+                .get(2)
+                .context("Missing scope block root")?;
+            let DcSyntaxKind::Container { children, .. } =
+                &scope_arena.get(scope_block_id).context("Missing scope node")?.kind
+            else {
+                bail!("Expected Container for 541..542 scope block");
+            };
+            let inner_ref_id =
+                *children.get(1).context("Missing inner 540 child")?;
+            let inner_shadowed: u64 =
+                u64::decode_dc_node(&mut proj_ctx, inner_ref_id)?;
+
+            let outer_after_id = *scope_arena
+                .roots()
+                .get(3)
+                .context("Missing outer_after root")?;
+            let outer_after: u64 =
+                u64::decode_dc_node(&mut proj_ctx, outer_after_id)?;
+
+            let named_ref_id = *scope_arena
+                .roots()
+                .get(4)
+                .context("Missing named_ref root")?;
+            let named_val: u64 =
+                u64::decode_dc_node(&mut proj_ctx, named_ref_id)?;
+            ensure!(
+                outer_before == 10
+                    && inner_shadowed == 99
+                    && outer_after == 10
+                    && named_val == 10,
+                "Scope shadowing/restoration mismatch: before={outer_before}, inner={inner_shadowed}, after={outer_after}, named={named_val}"
+            );
+
+            // 3. `Dc 256 "void lang.say([string] text)"` + `Dc 397` / `Dc 398` equivalent representations:
+            let mut say_and_equiv = DcMstring::new();
+            say_and_equiv.push_char(DcChar::from_short(641));
+            say_and_equiv.push_char(DcChar::from_long(pin));
+            say_and_equiv.push_char(DcChar::from_short(256));
+            say_and_equiv.push_char(DcChar::from_short(258));
+            "ok".encode_dc_mixed(&mut say_and_equiv)?;
+            say_and_equiv.push_char(DcChar::from_short(259));
+            let mut say_nav = DcDocumentNavigator::from_mstr(&say_and_equiv);
+            let mut emitted = String::new();
+            let _ = say_nav.read_next_token()?; // 641
+            let _ = say_nav.read_next_token()?; // pin
+            while let Some(tok) = say_nav.read_next_token()? {
+                if let Some(ch) = tok.as_char() {
+                    emitted.push(ch);
+                }
+            }
+
+            let mut equiv_doc = DcMstring::new();
+            equiv_doc.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+            equiv_doc.push_char(DC_BEGIN_LIST);
+            equiv_doc.push_char(DC_TYPE_ANY);
+            "fallback_str".encode_dc_mixed(&mut equiv_doc)?;
+            equiv_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+            777u64.encode_dc_mixed(&mut equiv_doc)?;
+            equiv_doc.push_char(DC_END_LIST);
+            let equiv_u64: u64 =
+                equiv_doc.decode_with_resolver(&resolver, &strict)?;
+
+            // 4. Forgiving recovery diagnostics vs strict rejection on unclosed container:
+            let mut unclosed_list = DcMstring::new();
+            unclosed_list.push_char(DC_BEGIN_LIST);
+            unclosed_list.push_char(DC_TYPE_ANY);
+            5u64.encode_dc_mixed(&mut unclosed_list)?;
+            let mut strict_nav = DcDocumentNavigator::from_mstr(&unclosed_list);
+            strict_nav.set_pinned_resolver(Some(Arc::new(resolver.clone())));
+            ensure!(
+                strict_nav.validate_document(&strict).is_err(),
+                "Unclosed list must fail strict validation"
+            );
+            let forgiving = DcProjectionPolicy::forgiving();
+            let mut forg_nav = DcDocumentNavigator::from_mstr(&unclosed_list);
+            forg_nav.set_pinned_resolver(Some(Arc::new(resolver)));
+            let mut forg_arena = DcSyntaxArena::new();
+            forg_nav.parse_document_into_arena(&mut forg_arena, &forgiving)?;
+            let diag_msgs: Vec<String> = forg_arena
+                .diagnostics()
+                .iter()
+                .map(|d| d.message.clone())
+                .collect();
+            ensure!(
+                !diag_msgs.is_empty(),
+                "Forgiving parse of unclosed list must record recovery diagnostic"
+            );
+
+            Ok((
+                format!("{decoded_escaped_chars:?}"),
+                decoded_num,
+                decoded_bin.0,
+                outer_before,
+                inner_shadowed,
+                outer_after,
+                emitted,
+                equiv_u64,
+                diag_msgs,
+            ))
+        };
+
+        let trace_hist = run_for_pin(historical_pin)?;
+        let trace_head = run_for_pin(head_pin)?;
+        ensure!(
+            trace_hist == trace_head,
+            "Observable semantic construct trace diverged between historical pin and HEAD: {trace_hist:?} != {trace_head:?}"
+        );
+
+        Ok(())
+    }
+}

@@ -225,7 +225,7 @@ and running on unmodified `tinywasm 0.8.0` (with no forked WASM runtime required
 Live host capabilities default to denial unless explicitly granted; parse errors steer requests toward mocks. Historical graph pins cannot grant host permissions. `ExecutionContext::execute_wasm_session_with_trace` and `ExecutionContext::execute_wasm_bytes_with_trace` record the active `supervisor_revision_node_id`, `dependency_snapshot_node_ids`, `accounting_version` (`WASM_RESOURCE_ACCOUNTING_VERSION`), canonical `effective_config_bytes`, `last_interrupted_op_ordinal`, and `last_interrupted_op_required_cost`, and preserve all accumulated `frames` and `events` in the returned [`WasmExecutionTrace`](../src/runtime/runtime.rs) when a resource interruption is denied (`PermissionDecision::Deny`), breaks out (`BreakOutResumeNext`), is granted additional compute quota (`PermissionDecision::Allow` via `increase_compute_quota`), or traps with a non-resource guest trap (`WasmTraceEvent::NonResourceTrap`, including traps during module `start` via `WasmStartSectionTrap`), and `replay_wasm_session_trace` / `replay_wasm_bytes_trace` deterministically execute and verify those interruptions and continuations against the recorded trace.
 
 **Remaining Gaps / Pending Work Before Freezing**:
-- Allocating the production Short Dc for the System supervisor base document (requires operator approval) and authoring the self-hosted System supervisor Dc-WASM document and graph-backed user compute-quota configuration schema in `.ctbnodes` / `.ctbnbdl` (retiring the transitional host Rust resource scaffolding in `wasm.rs` / `wasm_quota.rs`) remain pending.
+- While the production Short Dc entries (`Dc 1936` `"Dc document execution kernel"` and `Dc 1937` `"Collective Toolbox Workspace"`) and their bundled `.WASM` supervisor validation definitions are allocated and wired into [`SystemSupervisorAdmission`](../src/runtime/runtime.rs), authoring the self-hosted System supervisor Dc-WASM bytecode instrumentation pass and graph-backed user compute-quota configuration schema in `.ctbnodes` / `.ctbnbdl` (retiring the transitional host Rust resource scaffolding in `wasm.rs` / `wasm_quota.rs`) remains pending.
 - Gates 3 and 4 of [the language plan](../issues/language.md) (eliminating remaining procedural syntax rule synthesis and completing self-hosted `.WASM` definitions) must land before `BootstrapKernelVersion::V1` is frozen.
 
 ### 4.5 Portable Resource Semantics Versus Host Watchdogs
@@ -344,3 +344,60 @@ supervisor validation definitions are emitted in the System graph and wired into
 [`SystemSupervisorAdmission`](../src/runtime/runtime.rs); migrating the full
 `__ctb_*` bytecode transformation pass and operation cost table out of host Rust
 (`wasm_quota.rs`) into self-hosted `.WASM` remains future work.
+
+---
+
+## 5. Independent Conformance Fixtures
+
+To allow an independent implementation to verify bit-for-bit conformance with the
+bootstrap kernel without depending on internal Rust helper structures, the
+conformance test suite in
+[`src/formats/dcstring/tests/e2e_dc_syntax.rs`](../src/formats/dcstring/tests/e2e_dc_syntax.rs)
+(`gate2_bootstrap_kernel_conformance_fixtures` and
+`gate3_historical_snapshot_and_trace_replay_regression`) exercises the following
+self-contained fixture categories end-to-end:
+
+1. **Physical Token Codecs & Malformed-Input Recovery**:
+   - `DcTF` variable-length UTF-8-extended octet encoding/decoding (`1..=5` bytes)
+     and invalid prefix/continuation byte rejection.
+   - `.dcmm` mixed-mode 32-byte header (`FormatId::Dcmm`, document UUID, inline
+     UTF-8 prefix length) and 4-byte little-endian `DcChar` tail, plus truncated
+     header/tail recovery.
+   - `Dc 203` (`"Begin encapsulated binary data"`) .. `Dc 204` (`"End encapsulated binary data"`)
+     payload round-tripping across empty, 1-byte, 2-byte, and multi-quantum
+     inputs, and deterministic rejection of unclosed spans, invalid Base64
+     digits, bad quantum lengths (`len % 4 == 1`), misplaced `Dc 80` (`"="`), and
+     non-zero trailing padding bits.
+2. **Active Graph Statement & Equivalence Resolution**:
+   - Resolving active statements at a selected `Dc 641` (`"Global graph system block most recent node ID at time of document creation"`)
+     snapshot across `Dc 584` (`"Has property"`) + `Dc 610` (`"Property value"`),
+     distributing `Dc 638` (`"For each"`) + `Dc 639` (`"This element"`),
+     following transitive `Dc 591` (`"Supersedes"`) chains (`N1 <- N2 <- N3`),
+     applying `Dc 592` (`"Retracts"`), restoring statements whose retraction node
+     is itself retracted, and resolving `Dc 397` (`"Equivalent representations"`)
+     / `Dc 561` (`"Partially equivalent representations"`) canonical groups.
+3. **`.Semantic:Pattern` Operators & Malformed Pattern Diagnostics**:
+   - Ordered choice and backtracking (`Dc 602` `"Pattern alternation"`): failing
+     an earlier branch restores both the navigator token cursor and any
+     provisional captures before trying the next branch.
+   - Capture scope and rollback (`Dc 606` `"Pattern capture"`): captured slices
+     bind only when the enclosing branch succeeds and roll back cleanly when a
+     subsequent term in the same sequence fails.
+   - Recursive rule/construct references (`Dc 605` `"Subpattern match"`) and
+     deterministic enforcement of `MAX_SYNTAX_EXPANSION_DEPTH` (`32`).
+   - Range arity and endpoints (`Dc 643` `"Range"` with 3 operands: domain,
+     lower bound, and upper bound; `Dc 644` `"Exclusive range endpoint"`;
+     `Dc 316` `"Optional value absent"` unbounded endpoints; `Dc 603` `"Pattern repetition"`
+     quantifier bounds; plus historical 2-operand `Dc 4` `"Range"` and `Dc 584`
+     subtype encodings at older snapshots).
+   - Malformed `.Semantic:Pattern` rejection: unbalanced `Dc 298` (`"Begin expression group"`)
+     .. `Dc 299` (`"End expression group"`), truncated `Dc 643` (`"Range"`)
+     operands, and invalid action/capture groups fail cleanly without panicking.
+4. **Dc-WASM Lowering & 32-Byte Linear-Memory Mailbox ABI**:
+   - Lowering both `Dc 1927` (`"Begin WebAssembly module"`) .. `Dc 1928` (`"End WebAssembly module"`)
+     streams and `Routine` (`Dc 260` .. `Dc 261` with `Dc 280` `"Routine"`)
+     streams into canonical `.wasm` bytecode, verifying the 32-byte mailbox at
+     linear memory `0x0000..0x0020` (`input_ptr` at `0..4`, `input_len` at `4..8`,
+     `output_ptr` at `8..12`, `output_len` at `12..16`, and `u128` little-endian
+     `Dc 641` snapshot pin at `16..32`), and stepping across all three `step() -> i32`
+     status codes (`0` = `Complete`, `1` = `YieldFrame`, `2` = `RequestCapability`).
