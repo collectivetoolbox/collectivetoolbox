@@ -4405,6 +4405,7 @@ pub fn run_graph_wasm_tokens_on_dc_slice_with_quota(
 mod tests {
     use super::*;
     use crate::{DcMixedEncode, DcMstring};
+    use ctb_formats_dcdata::DcShorthand;
     use ctb_formats_dcdata::tinywasm::{Module, Store};
 
     fn i32_type_dc() -> DcChar {
@@ -7481,6 +7482,731 @@ mod tests {
         assert!(
             start_err.downcast_ref::<WasmStartSectionTrap>().is_some(),
             "Expected WasmStartSectionTrap, got {start_err:#}"
+        );
+        Ok(())
+    }
+
+    fn build_lang_say_wasm_shorthands() -> Result<Vec<DcShorthand>> {
+        let i32_dc = i32_type_dc();
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_short(1927));
+        doc.push_char(DcChar::from_short(260));
+        doc.push_char(DcChar::from_short(262));
+        doc.push_char(DcChar::from_short(280));
+        doc.push_char(i32_dc);
+        doc.push_char(DcChar::from_short(263));
+
+        // 7 i32 locals: 0=pos, 1=body_end, 2=dst, 3=out_start, 4=b0, 5=tok_len, 6=last_is_lf
+        doc.push_char(DcChar::from_short(310));
+        doc.push_char(DcChar::from_short(565));
+        for idx in 0..7 {
+            if idx > 0 {
+                doc.push_char(DcChar::from_short(312));
+            }
+            doc.push_char(i32_dc);
+        }
+        doc.push_char(DcChar::from_short(311));
+
+        let emit_op = |out: &mut DcMstring, op: u32| {
+            out.push_char(DcChar::from_short(op));
+        };
+        let emit_u32 = |out: &mut DcMstring, op: u32, val: u32| -> Result<()> {
+            out.push_char(DcChar::from_short(op));
+            val.encode_dc_mixed(out)
+        };
+        let emit_i32 = |out: &mut DcMstring, op: u32, val: i32| -> Result<()> {
+            out.push_char(DcChar::from_short(op));
+            val.encode_dc_mixed(out)
+        };
+        let emit_mem =
+            |out: &mut DcMstring, op: u32, align: u32, offset: u32| -> Result<()> {
+                out.push_char(DcChar::from_short(op));
+                0u32.encode_dc_mixed(out)?;
+                align.encode_dc_mixed(out)?;
+                offset.encode_dc_mixed(out)
+            };
+        let emit_trap_if = |out: &mut DcMstring| {
+            out.push_char(DcChar::from_short(651));
+            out.push_char(DcChar::from_short(316));
+            out.push_char(DcChar::from_short(647));
+            out.push_char(DcChar::from_short(658));
+        };
+        let emit_dctf_len_at_pos = |out: &mut DcMstring| -> Result<()> {
+            emit_u32(out, 679, 0)?; // local.get 0 (pos)
+            emit_mem(out, 692, 0, 0)?; // i32.load8_u
+            emit_u32(out, 681, 4)?; // local.tee 4 (b0)
+            emit_i32(out, 712, 128)?;
+            emit_op(out, 720); // i32.lt_u
+            emit_op(out, 651); // if (result i32)
+            out.push_char(i32_dc);
+            emit_i32(out, 712, 1)?;
+            emit_op(out, 652); // else
+            emit_u32(out, 679, 4)?; // local.get 4 (b0)
+            emit_i32(out, 712, 255)?;
+            emit_op(out, 720); // i32.lt_u
+            emit_op(out, 651); // if (result i32)
+            out.push_char(i32_dc);
+            emit_i32(out, 712, 255)?;
+            emit_u32(out, 679, 4)?;
+            emit_op(out, 754); // i32.sub
+            emit_i32(out, 712, 24)?;
+            emit_op(out, 763); // i32.shl
+            emit_op(out, 750); // i32.clz
+            emit_op(out, 652); // else
+            emit_i32(out, 712, 8)?;
+            emit_u32(out, 679, 0)?; // local.get 0 (pos)
+            emit_mem(out, 692, 0, 1)?; // i32.load8_u offset=1
+            emit_i32(out, 712, 2)?;
+            emit_op(out, 765); // i32.shr_u
+            emit_i32(out, 712, 15)?;
+            emit_op(out, 760); // i32.and
+            emit_op(out, 753); // i32.add
+            emit_op(out, 658); // end inner if
+            emit_op(out, 658); // end outer if
+            emit_u32(out, 680, 5) // local.set 5 (tok_len)
+        };
+
+        // 1. Check in_len >= 29
+        emit_i32(&mut doc, 712, 4)?;
+        emit_mem(&mut doc, 687, 2, 0)?;
+        emit_u32(&mut doc, 681, 1)?; // local.tee 1 (in_len)
+        emit_i32(&mut doc, 712, 29)?;
+        emit_op(&mut doc, 720); // i32.lt_u
+        emit_trap_if(&mut doc);
+
+        // 2. pos = in_ptr, out_start = dst = in_ptr + in_len, body_end = out_start - 8, mem[8] = out_start
+        emit_i32(&mut doc, 712, 0)?;
+        emit_mem(&mut doc, 687, 2, 0)?;
+        emit_u32(&mut doc, 681, 0)?; // local.tee 0 (pos)
+        emit_u32(&mut doc, 679, 1)?; // local.get 1 (in_len)
+        emit_op(&mut doc, 753); // i32.add
+        emit_u32(&mut doc, 681, 3)?; // local.tee 3 (out_start)
+        emit_u32(&mut doc, 680, 2)?; // local.set 2 (dst)
+        emit_u32(&mut doc, 679, 3)?;
+        emit_i32(&mut doc, 712, 8)?;
+        emit_op(&mut doc, 754); // i32.sub
+        emit_u32(&mut doc, 680, 1)?; // local.set 1 (body_end)
+        emit_i32(&mut doc, 712, 8)?;
+        emit_u32(&mut doc, 679, 3)?;
+        emit_mem(&mut doc, 701, 2, 0)?; // mem[8] = out_start
+
+        // 3. Skip token 0 (routine identifier)
+        emit_dctf_len_at_pos(&mut doc)?;
+        emit_u32(&mut doc, 679, 0)?;
+        emit_u32(&mut doc, 679, 5)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 0)?;
+
+        // 4. Verify pos + 20 <=_u body_end
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 20)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 722); // i32.gt_u
+        emit_trap_if(&mut doc);
+
+        let dctf_i32 = |short_id: u32| -> Result<i32> {
+            let mut s = DcMstring::new();
+            s.push_char(DcChar::from_short(short_id));
+            let dc_str = s.to_dc_string()?;
+            let bytes: [u8; 4] = dc_str.as_bytes().try_into().map_err(|_| {
+                anyhow!("Expected 4-byte DcTF for short Dc {short_id}")
+            })?;
+            Ok(i32::from_le_bytes(bytes))
+        };
+
+        // 5. Verify header tokens 258, 260, 262, 264, 263 at pos + 0..16
+        for (offset, short_id) in
+            [(0u32, 258u32), (4, 260), (8, 262), (12, 264), (16, 263)]
+        {
+            emit_u32(&mut doc, 679, 0)?;
+            emit_mem(&mut doc, 687, 0, offset)?;
+            emit_i32(&mut doc, 712, dctf_i32(short_id)?)?;
+            emit_op(&mut doc, 718); // i32.ne
+            emit_trap_if(&mut doc);
+        }
+
+        // 6. Verify closing tokens 261, 259 at body_end + 0..4
+        for (offset, short_id) in [(0u32, 261u32), (4, 259)] {
+            emit_u32(&mut doc, 679, 1)?;
+            emit_mem(&mut doc, 687, 0, offset)?;
+            emit_i32(&mut doc, 712, dctf_i32(short_id)?)?;
+            emit_op(&mut doc, 718); // i32.ne
+            emit_trap_if(&mut doc);
+        }
+
+        // 7. pos += 20
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 20)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 0)?;
+
+        // 8. Payload loop: block { loop { ... } }
+        emit_op(&mut doc, 649);
+        doc.push_char(DcChar::from_short(316));
+        emit_op(&mut doc, 650);
+        doc.push_char(DcChar::from_short(316));
+
+        emit_u32(&mut doc, 679, 0)?;
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 717); // i32.eq
+        emit_u32(&mut doc, 660, 1)?; // br_if 1
+
+        emit_u32(&mut doc, 679, 0)?;
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 722); // i32.gt_u
+        emit_trap_if(&mut doc);
+
+        // If pos + 4 <=_u body_end: check premature 261 and escape 255
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 4)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 724); // i32.le_u
+        emit_op(&mut doc, 651);
+        doc.push_char(DcChar::from_short(316));
+
+        emit_u32(&mut doc, 679, 0)?;
+        emit_mem(&mut doc, 687, 0, 0)?;
+        emit_i32(&mut doc, 712, dctf_i32(261)?)?; // 261
+        emit_op(&mut doc, 717);
+        emit_trap_if(&mut doc);
+
+        emit_u32(&mut doc, 679, 0)?;
+        emit_mem(&mut doc, 687, 0, 0)?;
+        emit_i32(&mut doc, 712, dctf_i32(255)?)?; // 255
+        emit_op(&mut doc, 717);
+        emit_op(&mut doc, 651);
+        doc.push_char(DcChar::from_short(316));
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 4)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 681, 0)?; // pos += 4
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 726); // i32.ge_u
+        emit_trap_if(&mut doc);
+        emit_op(&mut doc, 658); // end if 255
+
+        emit_op(&mut doc, 658); // end if pos + 4 <= body_end
+
+        // Decode tok_len of payload token at pos
+        emit_dctf_len_at_pos(&mut doc)?;
+        emit_u32(&mut doc, 679, 0)?;
+        emit_u32(&mut doc, 679, 5)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 722); // i32.gt_u
+        emit_trap_if(&mut doc);
+
+        // Update last_is_lf = (tok_len == 1 && b0 == 10) || (tok_len == 4 && i32.load(pos) == Dc 120)
+        emit_u32(&mut doc, 679, 5)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 717);
+        emit_u32(&mut doc, 679, 4)?;
+        emit_i32(&mut doc, 712, 10)?;
+        emit_op(&mut doc, 717);
+        emit_op(&mut doc, 760); // i32.and
+        emit_u32(&mut doc, 679, 5)?;
+        emit_i32(&mut doc, 712, 4)?;
+        emit_op(&mut doc, 717);
+        emit_u32(&mut doc, 679, 0)?;
+        emit_mem(&mut doc, 687, 0, 0)?;
+        emit_i32(&mut doc, 712, dctf_i32(120)?)?; // Dc 120 ("LF")
+        emit_op(&mut doc, 717);
+        emit_op(&mut doc, 760); // i32.and
+        emit_op(&mut doc, 761); // i32.or
+        emit_u32(&mut doc, 680, 6)?; // local.set 6 (last_is_lf)
+
+        // Copy tok_len bytes from pos to dst
+        emit_op(&mut doc, 649);
+        doc.push_char(DcChar::from_short(316));
+        emit_op(&mut doc, 650);
+        doc.push_char(DcChar::from_short(316));
+        emit_u32(&mut doc, 679, 5)?;
+        emit_op(&mut doc, 716); // i32.eqz
+        emit_u32(&mut doc, 660, 1)?; // br_if 1
+        emit_u32(&mut doc, 679, 2)?;
+        emit_u32(&mut doc, 679, 0)?;
+        emit_mem(&mut doc, 692, 0, 0)?;
+        emit_mem(&mut doc, 705, 0, 0)?;
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 0)?;
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 2)?;
+        emit_u32(&mut doc, 679, 5)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 754);
+        emit_u32(&mut doc, 680, 5)?;
+        emit_u32(&mut doc, 659, 0)?; // br 0
+        emit_op(&mut doc, 658); // end inner loop
+        emit_op(&mut doc, 658); // end inner block
+
+        emit_u32(&mut doc, 659, 0)?; // br 0 (outer payload loop)
+        emit_op(&mut doc, 658); // end outer loop
+        emit_op(&mut doc, 658); // end outer block
+
+        // 9. Append '\n' if last_is_lf == 0
+        emit_u32(&mut doc, 679, 6)?;
+        emit_op(&mut doc, 716); // i32.eqz
+        emit_op(&mut doc, 651);
+        doc.push_char(DcChar::from_short(316));
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 10)?;
+        emit_mem(&mut doc, 705, 0, 0)?;
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 2)?;
+        emit_op(&mut doc, 658);
+
+        // 10. mem[12] = dst - out_start; return 0
+        emit_i32(&mut doc, 712, 12)?;
+        emit_u32(&mut doc, 679, 2)?;
+        emit_u32(&mut doc, 679, 3)?;
+        emit_op(&mut doc, 754);
+        emit_mem(&mut doc, 701, 2, 0)?;
+        emit_i32(&mut doc, 712, 0)?;
+
+        doc.push_char(DcChar::from_short(261));
+        doc.push_char(DcChar::from_short(1928));
+
+        Ok(doc
+            .to_dc_string()?
+            .chars()
+            .map(|ch| DcShorthand::from_global_id(ch.to_u128()))
+            .collect())
+    }
+
+    fn build_supervisor_wasm_shorthands() -> Result<Vec<DcShorthand>> {
+        let i32_dc = i32_type_dc();
+        let mut doc = DcMstring::new();
+        doc.push_char(DcChar::from_short(1927));
+        doc.push_char(DcChar::from_short(260));
+        doc.push_char(DcChar::from_short(262));
+        doc.push_char(DcChar::from_short(280));
+        doc.push_char(i32_dc);
+        doc.push_char(DcChar::from_short(263));
+
+        // 5 i32 locals: 0=pos, 1=in_end, 2=idx, 3=b0, 4=dst
+        doc.push_char(DcChar::from_short(310));
+        doc.push_char(DcChar::from_short(565));
+        for idx in 0..5 {
+            if idx > 0 {
+                doc.push_char(DcChar::from_short(312));
+            }
+            doc.push_char(i32_dc);
+        }
+        doc.push_char(DcChar::from_short(311));
+
+        let emit_op = |out: &mut DcMstring, op: u32| {
+            out.push_char(DcChar::from_short(op));
+        };
+        let emit_u32 = |out: &mut DcMstring, op: u32, val: u32| -> Result<()> {
+            out.push_char(DcChar::from_short(op));
+            val.encode_dc_mixed(out)
+        };
+        let emit_i32 = |out: &mut DcMstring, op: u32, val: i32| -> Result<()> {
+            out.push_char(DcChar::from_short(op));
+            val.encode_dc_mixed(out)
+        };
+        let emit_i64 = |out: &mut DcMstring, op: u32, val: i64| -> Result<()> {
+            out.push_char(DcChar::from_short(op));
+            val.encode_dc_mixed(out)
+        };
+        let emit_mem =
+            |out: &mut DcMstring, op: u32, align: u32, offset: u32| -> Result<()> {
+                out.push_char(DcChar::from_short(op));
+                0u32.encode_dc_mixed(out)?;
+                align.encode_dc_mixed(out)?;
+                offset.encode_dc_mixed(out)
+            };
+        let emit_trap_if = |out: &mut DcMstring| {
+            out.push_char(DcChar::from_short(651));
+            out.push_char(DcChar::from_short(316));
+            out.push_char(DcChar::from_short(647));
+            out.push_char(DcChar::from_short(658));
+        };
+
+        // 1. pos = in_ptr, in_end = dst = in_ptr + in_len, mem[8] = dst
+        emit_i32(&mut doc, 712, 0)?;
+        emit_mem(&mut doc, 687, 2, 0)?;
+        emit_u32(&mut doc, 681, 0)?; // local.tee 0 (pos)
+        emit_i32(&mut doc, 712, 4)?;
+        emit_mem(&mut doc, 687, 2, 0)?;
+        emit_op(&mut doc, 753); // i32.add
+        emit_u32(&mut doc, 681, 1)?; // local.tee 1 (in_end)
+        emit_u32(&mut doc, 680, 4)?; // local.set 4 (dst)
+        emit_i32(&mut doc, 712, 8)?;
+        emit_u32(&mut doc, 679, 4)?;
+        emit_mem(&mut doc, 701, 2, 0)?; // mem[8] = dst
+
+        // 2. If in_len == 0 (pos == in_end): synthesize default 76-byte config at mem[64..140]
+        emit_u32(&mut doc, 679, 0)?;
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 717); // i32.eq
+        emit_op(&mut doc, 651); // if
+        doc.push_char(DcChar::from_short(316));
+
+        emit_i32(&mut doc, 712, 64)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_mem(&mut doc, 701, 2, 0)?; // accounting_version = 1
+        for (addr, val) in [
+            (68i32, 1_000_000_i64),
+            (76, 256),
+            (84, -1),
+            (92, 65_536),
+            (100, -1),
+            (108, 4_194_304),
+            (116, 16_777_216),
+            (124, 1_048_576),
+            (132, 16_777_216),
+        ] {
+            emit_i32(&mut doc, 712, addr)?;
+            emit_i64(&mut doc, 713, val)?;
+            emit_mem(&mut doc, 702, 0, 0)?;
+        }
+
+        emit_op(&mut doc, 652); // else: decode UTF-8 bytes from pos..in_end into mem[64..140]
+        emit_i32(&mut doc, 712, 0)?;
+        emit_u32(&mut doc, 680, 2)?; // idx = 0
+        emit_op(&mut doc, 649);
+        doc.push_char(DcChar::from_short(316));
+        emit_op(&mut doc, 650);
+        doc.push_char(DcChar::from_short(316));
+
+        emit_u32(&mut doc, 679, 0)?;
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 717);
+        emit_u32(&mut doc, 660, 1)?; // br_if 1
+
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 76)?;
+        emit_op(&mut doc, 726); // i32.ge_u
+        emit_trap_if(&mut doc);
+
+        emit_u32(&mut doc, 679, 0)?;
+        emit_mem(&mut doc, 692, 0, 0)?;
+        emit_u32(&mut doc, 681, 3)?; // b0
+        emit_i32(&mut doc, 712, 128)?;
+        emit_op(&mut doc, 720); // i32.lt_u
+        emit_op(&mut doc, 651);
+        doc.push_char(DcChar::from_short(316));
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 0)?;
+        emit_op(&mut doc, 652); // else: 2-byte UTF-8
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 2)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 722); // i32.gt_u
+        emit_trap_if(&mut doc);
+        emit_u32(&mut doc, 679, 3)?;
+        emit_i32(&mut doc, 712, 254)?;
+        emit_op(&mut doc, 760);
+        emit_i32(&mut doc, 712, 194)?;
+        emit_op(&mut doc, 718); // i32.ne
+        emit_trap_if(&mut doc);
+        emit_u32(&mut doc, 679, 3)?;
+        emit_i32(&mut doc, 712, 3)?;
+        emit_op(&mut doc, 760);
+        emit_i32(&mut doc, 712, 6)?;
+        emit_op(&mut doc, 763);
+        emit_u32(&mut doc, 679, 0)?;
+        emit_mem(&mut doc, 692, 0, 1)?;
+        emit_i32(&mut doc, 712, 63)?;
+        emit_op(&mut doc, 760);
+        emit_op(&mut doc, 761);
+        emit_u32(&mut doc, 680, 3)?;
+        emit_u32(&mut doc, 679, 0)?;
+        emit_i32(&mut doc, 712, 2)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 0)?;
+        emit_op(&mut doc, 658); // end if b0 < 128
+
+        emit_u32(&mut doc, 679, 2)?;
+        emit_u32(&mut doc, 679, 3)?;
+        emit_mem(&mut doc, 705, 0, 64)?; // mem[64 + idx] = byte
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 2)?;
+        emit_u32(&mut doc, 659, 0)?; // br 0
+        emit_op(&mut doc, 658); // end loop
+        emit_op(&mut doc, 658); // end block
+
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 76)?;
+        emit_op(&mut doc, 718); // i32.ne
+        emit_trap_if(&mut doc);
+
+        emit_op(&mut doc, 658); // end if in_len == 0
+
+        // 3. Validate accounting_version == 1, max_instructions_per_step > 0, max_memory_pages > 0
+        emit_i32(&mut doc, 712, 64)?;
+        emit_mem(&mut doc, 687, 2, 0)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 718);
+        emit_trap_if(&mut doc);
+
+        emit_i32(&mut doc, 712, 68)?;
+        emit_mem(&mut doc, 688, 0, 0)?;
+        emit_op(&mut doc, 727); // i64.eqz
+        emit_trap_if(&mut doc);
+
+        emit_i32(&mut doc, 712, 76)?;
+        emit_mem(&mut doc, 688, 0, 0)?;
+        emit_op(&mut doc, 727); // i64.eqz
+        emit_trap_if(&mut doc);
+
+        // 4. Encode mem[64..140] as 76 UTF-8 characters into dst
+        emit_i32(&mut doc, 712, 0)?;
+        emit_u32(&mut doc, 680, 2)?; // idx = 0
+        emit_op(&mut doc, 649);
+        doc.push_char(DcChar::from_short(316));
+        emit_op(&mut doc, 650);
+        doc.push_char(DcChar::from_short(316));
+
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 76)?;
+        emit_op(&mut doc, 717);
+        emit_u32(&mut doc, 660, 1)?; // br_if 1
+
+        emit_u32(&mut doc, 679, 2)?;
+        emit_mem(&mut doc, 692, 0, 64)?;
+        emit_u32(&mut doc, 681, 3)?; // b0
+        emit_i32(&mut doc, 712, 128)?;
+        emit_op(&mut doc, 720); // i32.lt_u
+        emit_op(&mut doc, 651);
+        doc.push_char(DcChar::from_short(316));
+        emit_u32(&mut doc, 679, 4)?;
+        emit_u32(&mut doc, 679, 3)?;
+        emit_mem(&mut doc, 705, 0, 0)?;
+        emit_u32(&mut doc, 679, 4)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 4)?;
+        emit_op(&mut doc, 652); // else: 2-byte UTF-8
+        emit_u32(&mut doc, 679, 4)?;
+        emit_u32(&mut doc, 679, 3)?;
+        emit_i32(&mut doc, 712, 6)?;
+        emit_op(&mut doc, 765);
+        emit_i32(&mut doc, 712, 192)?;
+        emit_op(&mut doc, 761);
+        emit_mem(&mut doc, 705, 0, 0)?;
+        emit_u32(&mut doc, 679, 4)?;
+        emit_u32(&mut doc, 679, 3)?;
+        emit_i32(&mut doc, 712, 63)?;
+        emit_op(&mut doc, 760);
+        emit_i32(&mut doc, 712, 128)?;
+        emit_op(&mut doc, 761);
+        emit_mem(&mut doc, 705, 0, 1)?;
+        emit_u32(&mut doc, 679, 4)?;
+        emit_i32(&mut doc, 712, 2)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 4)?;
+        emit_op(&mut doc, 658);
+
+        emit_u32(&mut doc, 679, 2)?;
+        emit_i32(&mut doc, 712, 1)?;
+        emit_op(&mut doc, 753);
+        emit_u32(&mut doc, 680, 2)?;
+        emit_u32(&mut doc, 659, 0)?; // br 0
+        emit_op(&mut doc, 658); // end loop
+        emit_op(&mut doc, 658); // end block
+
+        // 5. mem[12] = dst - in_end; return 0
+        emit_i32(&mut doc, 712, 12)?;
+        emit_u32(&mut doc, 679, 4)?;
+        emit_u32(&mut doc, 679, 1)?;
+        emit_op(&mut doc, 754);
+        emit_mem(&mut doc, 701, 2, 0)?;
+        emit_i32(&mut doc, 712, 0)?;
+
+        doc.push_char(DcChar::from_short(261));
+        doc.push_char(DcChar::from_short(1928));
+
+        Ok(doc
+            .to_dc_string()?
+            .chars()
+            .map(|ch| DcShorthand::from_global_id(ch.to_u128()))
+            .collect())
+    }
+
+    #[crate::ctb_test]
+    fn test_builtin_graph_wasm_routines() -> Result<()> {
+        let resolver = default_syntax_resolver();
+        let lang_say_shorthands = build_lang_say_wasm_shorthands()?;
+        let sup_shorthands = build_supervisor_wasm_shorthands()?;
+
+        // 1. Verify lang.say .WASM routine across all cases:
+        for (payload, expected) in [
+            (Vec::new(), vec![DcChar::from('\n')]),
+            (
+                vec![DcChar::from('A')],
+                vec![DcChar::from('A'), DcChar::from('\n')],
+            ),
+            (
+                vec![DcChar::from('A'), DcChar::from('\n')],
+                vec![DcChar::from('A'), DcChar::from('\n')],
+            ),
+            (
+                vec![DcChar::from('\r'), DcChar::from('\n')],
+                vec![DcChar::from('\r'), DcChar::from('\n')],
+            ),
+            (
+                vec![DcChar::from('\r')],
+                vec![DcChar::from('\r'), DcChar::from('\n')],
+            ),
+            (vec![DcChar::from_short(120)], vec![DcChar::from_short(120)]),
+            (
+                vec![DcChar::from_short(255), DcChar::from_short(261)],
+                vec![
+                    DcChar::from_short(255),
+                    DcChar::from_short(261),
+                    DcChar::from('\n'),
+                ],
+            ),
+        ] {
+            let mut call = DcMstring::new();
+            call.push_char(DcChar::from_short(256));
+            call.push_char(DcChar::from_short(258));
+            let text: DcMstring = payload.into_iter().collect();
+            text.encode_dc_mixed(&mut call)?;
+            call.push_char(DcChar::from_short(259));
+            let call_tokens: Vec<DcChar> = call.to_dc_string()?.chars().collect();
+            let out_doc = run_graph_wasm_tokens_on_dc_slice_with_quota(
+                &lang_say_shorthands,
+                &call_tokens,
+                resolver.as_ref(),
+                None,
+            )?;
+            let actual: Vec<DcChar> = out_doc.to_dc_string()?.chars().collect();
+            assert_eq!(actual, expected);
+
+            // Missing trailing 259 must trap:
+            assert!(
+                run_graph_wasm_tokens_on_dc_slice_with_quota(
+                    &lang_say_shorthands,
+                    &call_tokens[..call_tokens.len() - 1],
+                    resolver.as_ref(),
+                    None,
+                )
+                .is_err()
+            );
+        }
+
+        // Non-string literal type (280) must trap:
+        let non_string_tokens = [
+            DcChar::from_short(256),
+            DcChar::from_short(258),
+            DcChar::from_short(260),
+            DcChar::from_short(262),
+            DcChar::from_short(280),
+            DcChar::from_short(263),
+            DcChar::from('A'),
+            DcChar::from_short(261),
+            DcChar::from_short(259),
+        ];
+        assert!(
+            run_graph_wasm_tokens_on_dc_slice_with_quota(
+                &lang_say_shorthands,
+                &non_string_tokens,
+                resolver.as_ref(),
+                None,
+            )
+            .is_err()
+        );
+
+        // 2. Verify supervisor .WASM routine (empty input -> default limits; valid config -> roundtrip; invalid -> trap):
+        let empty_out = run_graph_wasm_tokens_on_dc_slice_with_quota(
+            &sup_shorthands,
+            &[],
+            resolver.as_ref(),
+            None,
+        )?;
+        let empty_bytes: Vec<u8> = empty_out
+            .to_dc_string()?
+            .chars()
+            .map(|c| u8::try_from(c.to_unicode().unwrap()).unwrap())
+            .collect();
+        assert_eq!(
+            DcWasmResourceLimits::decode_canonical_config_bytes(&empty_bytes)?,
+            DcWasmResourceLimits::default()
+        );
+
+        let custom_limits = DcWasmResourceLimits::default()
+            .with_max_instructions_per_step(5_000)
+            .with_max_memory_pages(32);
+        let custom_tokens: Vec<DcChar> = custom_limits
+            .encode_canonical_config_bytes()
+            .into_iter()
+            .map(|b| DcChar::from_unicode(u32::from(b)).unwrap())
+            .collect();
+        let custom_out = run_graph_wasm_tokens_on_dc_slice_with_quota(
+            &sup_shorthands,
+            &custom_tokens,
+            resolver.as_ref(),
+            None,
+        )?;
+        let custom_out_bytes: Vec<u8> = custom_out
+            .to_dc_string()?
+            .chars()
+            .map(|c| u8::try_from(c.to_unicode().unwrap()).unwrap())
+            .collect();
+        assert_eq!(
+            DcWasmResourceLimits::decode_canonical_config_bytes(
+                &custom_out_bytes
+            )?,
+            custom_limits
+        );
+
+        for invalid in [
+            DcWasmResourceLimits {
+                accounting_version: 2,
+                ..DcWasmResourceLimits::default()
+            },
+            DcWasmResourceLimits::default().with_max_instructions_per_step(0),
+            DcWasmResourceLimits::default().with_max_memory_pages(0),
+        ] {
+            let bad_tokens: Vec<DcChar> = invalid
+                .encode_canonical_config_bytes()
+                .into_iter()
+                .map(|b| DcChar::from_unicode(u32::from(b)).unwrap())
+                .collect();
+            assert!(
+                run_graph_wasm_tokens_on_dc_slice_with_quota(
+                    &sup_shorthands,
+                    &bad_tokens,
+                    resolver.as_ref(),
+                    None,
+                )
+                .is_err()
+            );
+        }
+
+        assert_eq!(
+            resolver
+                .resolve_wasm_definition_tokens(DcChar::from_short(256).to_u128()),
+            Some(lang_say_shorthands.as_slice()),
+            "Dc 256 (lang.say) active graph .WASM definition must match build_lang_say_wasm_shorthands()"
+        );
+        assert_eq!(
+            resolver
+                .resolve_wasm_definition_tokens(DcChar::from_short(1936).to_u128()),
+            Some(sup_shorthands.as_slice()),
+            "Dc 1936 (Dc document execution kernel) active graph .WASM definition must match build_supervisor_wasm_shorthands()"
+        );
+        assert_eq!(
+            resolver
+                .resolve_wasm_definition_tokens(DcChar::from_short(1937).to_u128()),
+            Some(sup_shorthands.as_slice()),
+            "Dc 1937 (Collective Toolbox Workspace) active graph .WASM definition must match build_supervisor_wasm_shorthands()"
         );
         Ok(())
     }
