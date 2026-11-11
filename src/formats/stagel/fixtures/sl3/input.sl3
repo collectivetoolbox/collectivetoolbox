@@ -10,20 +10,21 @@
 : b"abc" is an l/u8 byte literal using the slash escapes below; it is available in StageL 3 and inherited by StageR 3.
 : A bare "abc" is a StageR 3 s literal using Dcts, not a StageL 3 literal and not JSON string syntax.
 : The normalized StageL character set uses 32 characters: A-Z, slash, colon, space, newline, quotation mark, and dot.
-: Input files may use any other characters in comments. Identifiers and letters literals normalize to uppercase.
-: Thus assert eq t"a" t"A" shall pass. OPEN: Specify assert, returning unit on success and a defined fault on failure.
+: Input files may use any other characters in comments. Identifiers and letters literals normalize to uppercase. Lowercase or unicode characters in Dcts and byte strings will normalize to the corresponding escape sequences.
+: StageR Library function assert, returning unit on success and a defined fault on failure.
 : Outside literals/comments, semicolon normalizes to dot and closing brace normalizes to :: double colon.
 : Source byte escapes use slash: /" = quotation mark, // = slash, /x1a = substitute, /0 = null, /a = bell, /b = backspace.
-: Further byte escapes: /t = horizontal tab, /n = newline, /v = vertical tab, /f = form feed, /r = carriage return.
+: Further byte escapes: /t = horizontal tab, /n = newline, /v = vertical tab, /f = form feed, /r = carriage return. /d = starts a number.
 : /x hexadecimal escapes are permitted through /xff; /x5c represents backslash. Byte lists have no inherent character semantics.
+: Dcts accept the byte string escapes in addition to normal Dcts escapes.
 : OPEN: Specify exactly two hex digits, malformed-escape errors, raw non-ASCII bytes, and which escapes are valid in t literals.
 : OPEN: Specify lossless byte/Dcts literal normalization: do not infer payload case folding from identifier/letters normalization.
 : OPEN: Specify the digit-free intermediate encoding of escapes such as /x1a and /0, and Dcts quote framing.
+: Digits 0-9 normalize to N:A: for 0 etc. In byte strings or Dcts, /d is needed, for instance source `let b/foo "ABC/x5cDE";` -> `LET B/FOO "ABC/X/DN:F:CDE".`
 : String (DcMst) split = explode "b" "abc" yields l/s: "a" "c" ::
 : Binary string split = explodeB b"b" b"abc" yields l/l/u8: b"a" b"c" ::
 : Binary string join = catB b"a" catB b"b" b"c" yields b"abc"
 : Binary string join = implodeB l/l/u8: b"a" b"b" b"c" :: yields b"abc"
-: RECOMMENDATION: Keep explode/implode in libraries, with efficient bulk construction; repeated copying cat can take quadratic time.
 : Letters splitting: explodeL t"b" t"abc" yields l/t: t"a" t"c" ::. Analogous dcs operations belong to StageR 3.
 : OPEN: Specify empty separators, overlapping matches, retained empty pieces, and DcMst binary-run matching.
 : OPEN: Reconcile catB with generic concat for l/u8; prefer one canonical concatenation operation, not duplicate aliases.
