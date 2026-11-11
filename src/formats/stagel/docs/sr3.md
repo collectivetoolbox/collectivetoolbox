@@ -38,9 +38,9 @@ StageR 3 builds strictly on top of [StageL 3 (`sl3.md`)](./sl3.md):
 
 | Type | Semantics & Invariants |
 | :--- | :--- |
-| `i128`, `u128` | Fixed-width signed and unsigned 128-bit integers (`i128:-42`, `u128:0`). Support checked `add`/`sub`/`mul`/`div`/`mod`, `can*`, `try*`, bitwise ops, shifts (`COUNT < 128`), comparisons, and explicit conversions. |
-| `int` | Arbitrary-precision signed integer (`int:0`, `int:-100000000000000000000`). Arithmetic faults only on division/modulus by zero (memory exhaustion is a host/supervisor resource interruption, never wrapped or converted into `overflow`). |
-| `rat` | Exact arbitrary-precision rational (`num: int`, `den: int`) maintained in canonical reduced form: `den > 0`, `gcd(|num|, den) == 1`, and zero represented uniquely as `0/1`. Constructed via `makeRat int/num int/den -> result/rat` (`err error:invalid_denominator` when `den == 0`). |
+| `i128`, `u128` | Fixed-width signed and unsigned 128-bit integers (`i128:-42`, `u128:0`). Support checked `add`/`sub`/`mul`/`div`/`mod` (plus `truncRem` and `neg` on signed `i128`), `can*`, `try*`, bitwise ops, shifts (`COUNT < 128`), comparisons, and explicit conversions. |
+| `int` | Arbitrary-precision signed integer (`int:0`, `int:-100000000000000000000`). Supports `add`/`sub`/`mul`/`div`/`mod`/`truncRem`/`neg`; arithmetic faults only on division/modulus/remainder by zero (memory exhaustion is a host/supervisor resource interruption, never wrapped or converted into `overflow`). |
+| `rat` | Exact arbitrary-precision rational (`num: int`, `den: int`) maintained in canonical reduced form: `den > 0`, `gcd(|num|, den) == 1`, and zero represented uniquely as `0/1`. Constructed via `makeRat int/num int/den -> result/rat` (`err error:invalidDenominator` when `den == 0`). |
 | `dc` | Strongly typed 128-bit Document Character (`DcChar`). Supports `eq`, `ne`, and explicit fallible/lossless conversions (`dcFromU128 -> option/dc`, `u128FromDc -> u128`), never implicit integer arithmetic. |
 | `s` | Mixed-mode Document Character + binary string (`DcMst`, corresponding to Rust `DcMstr`/`DcMstring`). Can hold arbitrary Document Characters and encapsulated binary runs (`Dc 203 "Begin encapsulated binary data"`..`Dc 204 "End encapsulated binary data"`). |
 | `dcs` | Pure Document Character sequence (`DcStr`/`DcString`, containing no raw unencapsulated binary runs). Converting `s` to `dcs` is explicit and fallible (`dcsFromS s/x -> result/dcs`); widening `dcs` to `s` is infallible (`sFromDcs dcs/x -> s`). |
@@ -48,16 +48,16 @@ StageR 3 builds strictly on top of [StageL 3 (`sl3.md`)](./sl3.md):
 | `cursor` | Mutable sequential/random-access reader `(view: view, pos: u64)` enforcing `0 <= pos <= view.len`. Failed reads leave `pos` unchanged. |
 | `option/T` | Tagged optional value: `option/T:none` or `option/T:some VALUE`. |
 | `result/T` | Tagged fallible result: `result/T:ok VALUE` or `result/T:err ERROR`. Ordinary values—constructing an `err` does **not** implicitly return from the enclosing verb. |
-| `error` | Structured semantic error value (`error:overflow`, `error:division_by_zero`, `error:invalid_denominator`, `error:invalid_encoding`, `error:out_of_bounds`, etc.). |
+| `error` | Structured semantic error value using camelCase `.sri3`-compatible tags (`error:overflow`, `error:divisionByZero`, `error:invalidDenominator`, `error:invalidEncoding`, `error:outOfBounds`, etc.). |
 
 ---
 
 ## 4. StageR 3 Core Operations
 
 ### 4.1 Fallible Checked Arithmetic (`try*`)
-- `tryAdd X Y`, `trySub X Y`, `tryMul X Y`, `tryDiv X Y`, `tryMod X Y` -> `(T, T) -> result/T`:
-  - Fixed-width overflow or `MIN / -1` returns `result/T:err error:overflow`.
-  - Zero divisor returns `result/T:err error:division_by_zero`.
+- `tryAdd X Y`, `trySub X Y`, `tryMul X Y`, `tryDiv X Y`, `tryMod X Y` -> `(T, T) -> result/T` (and `tryTruncRem X Y` -> `(T, T) -> result/T` on signed `i32`, `i64`, `i128`, `int`):
+  - Fixed-width overflow or `MIN / -1` in `tryDiv` returns `result/T:err error:overflow` (`tryMod` and `tryTruncRem` on `(MIN, -1)` return `result/T:ok 0`).
+  - Zero divisor returns `result/T:err error:divisionByZero`.
   - Operands evaluate once left-to-right; bounds are checked without executing a trapping core instruction first.
 
 ### 4.2 `option/T` and `result/T` Inspection

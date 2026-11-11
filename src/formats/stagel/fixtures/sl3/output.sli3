@@ -20,6 +20,12 @@ V/UN:D:N:C:/MODSTEP UN:D:N:C:/A UN:D:N:C:/B
         OUT UN:D:N:C::N:C:
     MOD UN:D:N:C:/A UN:D:N:C:/B.
 
+V/IN:D:N:C:/REMSTEP IN:D:N:C:/A IN:D:N:C:/B
+    TEST COMPUTES SIGNED TRUNCATED REMAINDER
+        IN IN:D:N:C::N:M:N:H: IN:D:N:C::N:D:
+        OUT IN:D:N:C::N:M:N:B:
+    TRUNCREM IN:D:N:C:/A IN:D:N:C:/B.
+
 V/L/UN:D:N:C:/APPENDUN:D:N:C: L/UN:D:N:C:/A L/UN:D:N:C:/B
     TEST CONCATENATES TWO LISTS
         IN L/UN:D:N:C:: UN:D:N:C::N:A: UN:D:N:C::N:B: :: L/UN:D:N:C:: UN:D:N:C::N:C: UN:D:N:C::N:D: ::

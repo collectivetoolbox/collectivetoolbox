@@ -131,10 +131,14 @@ StageL 3 and `.WASM` (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program
 Operands evaluate strictly **left-to-right** (except short-circuiting `if`, `and`, `or`). User-defined verbs cannot overload names, whereas the built-in operators below are type-directed over fixed primitive families.
 
 ### 6.1 Checked Arithmetic (`u8`, `i32`, `u32`, `i64`, `u64`)
-Invalid arithmetic (overflow, division/modulus by zero, or `MIN / -1`) terminates evaluation with a deterministic fault (**never** silent two's-complement wrapping):
+Invalid arithmetic (overflow, division/modulus/remainder by zero, or `MIN / -1`) terminates evaluation with a deterministic fault (**never** silent two's-complement wrapping):
 - `add X Y`, `sub X Y`, `mul X Y`, `div X Y`, `mod X Y` -> `(T, T) -> T`
-  - `div` truncates toward zero (matching WASM `div_u` / `div_s`, with `MIN / -1` faulting).
-  - **`mod` semantics**: Identical to remainder on unsigned types (`u8`, `u32`, `u64`: `17 mod 5 == 2`). On signed types (`i32`, `i64`), **Euclidean modulus** (`0 <= (a mod b) < |b|` for `b != 0`; fault when `b == 0`) is used so `mod` always yields a non-negative residue (`-7 mod 3 == 2`), avoiding confusion with truncated C/WASM `rem_s` (`-1`). *(Note: StageR 3 also provides `tryDiv` and `tryMod` returning `result/T`.)*
+  - `div` truncates toward zero (matching WASM `div_u` / `div_s`, with signed `MIN / -1` faulting).
+  - **`mod` semantics**: On unsigned types (`u8`, `u32`, `u64`), lowers directly to single-instruction `Dc 759 "WASM i32.rem_u"` / `Dc 777 "WASM i64.rem_u"` (`17 mod 5 == 2`). On signed types (`i32`, `i64`), computes **Euclidean modulus** (`0 <= (a mod b) < |b|` for `b != 0`; fault when `b == 0`; `MIN mod -1 == 0`) so `mod` always yields a non-negative residue (`-7 mod 3 == 2`).
+- `truncRem X Y` -> `(T, T) -> T` (signed `i32`, `i64` only; StageR 3 also adds `i128`, `int`, and `tryTruncRem`):
+  - Computes **WASM-style truncated remainder** `a - trunc(a / b) * b`, keeping the dividend's sign (`truncRem i32:-7 i32:3 == i32:-1`) and lowering directly to a single `Dc 758 "WASM i32.rem_s"` or `Dc 776 "WASM i64.rem_s"` instruction with no Euclidean sign-adjustment branch.
+  - Faults when `Y == 0`. Following the WebAssembly specification (`rem_s`), `truncRem MIN -1 == 0` does **not** fault because the mathematical remainder `0` is representable (Rust backends must lower via `wrapping_rem` after checking `Y != 0`, not panicking `%` / `checked_rem`).
+  - Restricted to signed types (like `neg`) so unsigned types do not carry duplicate aliases (`mod` on unsigned types is already single-instruction `rem_u`). Spelled camelCase `truncRem` (`TRUNCREM` in `.sli3`) because `_` is outside the 32-character `.sli3` alphabet.
 - `neg X` -> `T -> T` (signed `i32`, `i64` only; faults on `i32::MIN` / `i64::MIN`).
 - Pure pre-check predicates (`(T, T) -> b`, never faulting):
   `canAdd X Y`, `canSub X Y`, `canMul X Y`, `canDiv X Y` (`false` when `Y == 0` or signed `X == MIN && Y == -1`).
