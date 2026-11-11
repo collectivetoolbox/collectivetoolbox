@@ -23,19 +23,45 @@ jobs:
     name: Build & Core CI
     if: github.event_name != 'workflow_dispatch' || inputs.run_ci_build
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
-      env:
-        WINEPREFIX: /tmp/ctb-wine
 
     steps:
+      - name: Free unused host runner disk space
+        run: |
+          df -h /
+          for sdk_dir in \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL; do
+            if [[ -d "$sdk_dir" ]]; then
+              echo "Removing unused runner directory: $sdk_dir"
+              sudo find "$sdk_dir" -depth -delete
+            fi
+          done
+          df -h /
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Run CI script
-        run: ./ci
+        run: |
+          docker pull ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
+          docker run --rm --shm-size=2g \
+            -e INSIDE_CONTAINER=true \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
+            -e WINEPREFIX=/tmp/ctb-wine \
+            -v "$GITHUB_WORKSPACE:/workspaces/ctoolbox" \
+            -w /workspaces/ctoolbox \
+            ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest \
+            bash -c 'git config --global --add safe.directory "*" && exec ./ci'
+
+      - name: Restore workspace ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -45,16 +71,30 @@ jobs:
             built/*/ctoolbox
             built/*/ctoolbox.exe
             built/*/ctoolbox.rsrc
+            built/*/system_graph_history.rsrc
+            built/linux-x64/refresh-asset-bundle
           retention-days: 7
 
   browser-tests:
     name: Playwright Browser Tests
     needs: build-ci
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
 
     steps:
+      - name: Free unused host runner disk space
+        run: |
+          df -h /
+          for sdk_dir in \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc; do
+            if [[ -d "$sdk_dir" ]]; then
+              echo "Removing unused runner directory: $sdk_dir"
+              sudo find "$sdk_dir" -depth -delete
+            fi
+          done
+          df -h /
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -62,19 +102,35 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ctoolbox-built
-          path: built/linux-x64
+          path: built
 
       - name: Ensure binary execution permissions
         run: |
           if [[ -f built/linux-x64/ctoolbox ]]; then
             chmod +x built/linux-x64/ctoolbox
           fi
+          if [[ -f built/linux-x64/refresh-asset-bundle ]]; then
+            chmod +x built/linux-x64/refresh-asset-bundle
+          fi
           if [[ -f built/ctoolbox ]]; then
             chmod +x built/ctoolbox
           fi
 
       - name: Run Playwright Browser Tests
-        run: ./scripts/ci-browser-tests
+        run: |
+          docker pull ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
+          docker run --rm --shm-size=2g \
+            -e INSIDE_CONTAINER=true \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
+            -v "$GITHUB_WORKSPACE:/workspaces/ctoolbox" \
+            -w /workspaces/ctoolbox \
+            ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest \
+            bash -c 'git config --global --add safe.directory "*" && exec ./scripts/ci-browser-tests'
+
+      - name: Restore workspace ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
 
       - name: Upload browser test results & screenshots
         if: always()

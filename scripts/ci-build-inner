@@ -192,10 +192,6 @@ export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 # Reduce size of test artifacts in CI by stripping full debuginfo from tests
 export CARGO_PROFILE_TEST_DEBUG="line-tables-only"
 
-# Do not pack 12GB v86_images.rsrc in CI builds to conserve runner disk space
-export CTB_SKIP_V86_RSRC=1
-rm -f built/v86_images.rsrc built/*/v86_images.rsrc 2>/dev/null || true
-
 # Suppress all compiler and doc warnings in CI
 export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
 export RUSTDOCFLAGS="${RUSTDOCFLAGS:--Awarnings}"
@@ -325,6 +321,14 @@ echo "Running offline build..."
 # to being unable to check for yanked crates for some reason. It does finish
 # eventually though.
 ./build --release --offline --clean-targets all
+
+if [[ -d built/linux-x64 ]]; then
+    echo "Building standalone refresh-asset-bundle helper for browser-tests..."
+    RUSTFLAGS="-C target-feature=+crt-static" cargo build --offline --release \
+        -p ctb-build-support --bin refresh-asset-bundle --target x86_64-unknown-linux-musl
+    cp target/x86_64-unknown-linux-musl/release/refresh-asset-bundle built/linux-x64/refresh-asset-bundle
+    cargo clean
+fi
 
 echo "Verifying that all cleaned generated files were regenerated without drift..."
 drift_count=0

@@ -61,9 +61,37 @@ async function waitForServer(url, timeoutMs = 60000) {
   });
   page.on('pageerror', err => console.error('[BROWSER ERROR]', err.stack || err.message || err));
 
+  const testUsername = `v86_arch_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  const testPassword = 'CtbBrowserTest!928374_StrongPass';
+  console.log(`[VERIFY-ARCH] Registering authenticated test session as ${testUsername}...`);
+  const regResp = await context.request.post(`${serverUrl}/registration`, {
+    form: {
+      username: testUsername,
+      password: testPassword,
+      password_confirm: testPassword,
+    },
+    maxRedirects: 0,
+  });
+  const cookies = await context.cookies(serverUrl);
+  if (!cookies.some((c) => c.name === 'session' && c.value)) {
+    const regBody = await regResp.text();
+    await browser.close();
+    throw new Error(
+      `Failed to establish authenticated session via /registration (status ${regResp.status()}): ${regBody.slice(0, 400)}`
+    );
+  }
+
   const targetUrl = `${serverUrl}/v86/arch`;
   console.log(`[VERIFY-ARCH] Navigating to ${targetUrl}...`);
-  await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  const navResp = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  if (navResp && navResp.status() !== 200) {
+    await browser.close();
+    throw new Error(`Unexpected HTTP status ${navResp.status()} loading ${targetUrl}`);
+  }
+  await page.waitForLoadState('load');
+  // Wait for coi-serviceworker reload (if triggered on first visit) to settle
+  // so window.emulator and serial listeners attach to the active isolated page.
+  await page.waitForFunction(() => window.crossOriginIsolated === true, { timeout: 15000 }).catch(() => {});
   await page.waitForLoadState('load');
 
   console.log("[VERIFY-ARCH] Page loaded. Waiting for v86 emulator initialization...");

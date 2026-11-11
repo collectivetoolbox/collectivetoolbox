@@ -25,19 +25,77 @@ echo "=================================================="
 echo "Starting Browser Verification Tests (Playwright)"
 echo "=================================================="
 
-binary_path="$(scripts/run-dev-ctb --resolve --offline)"
+resolve_flags=(--resolve)
+if [[ "${CI:-}" == "true" ]]; then
+    resolve_flags+=(--offline)
+fi
+binary_path="$(scripts/run-dev-ctb "${resolve_flags[@]}")"
 
 echo "Using binary: $binary_path"
 
-# Check Node.js availability
+binary_dir="$(dirname "$binary_path")"
+
+# Ensure v86_images.rsrc is available next to the ctoolbox binary.
+# In CI browser-tests, the 12GB v86_images.rsrc is omitted from GitHub Actions
+# artifact uploads and deterministically packed from the container cache.
+if [[ ! -f "$binary_dir/v86_images.rsrc" ]]; then
+    if [[ -f "built/v86_images.rsrc" ]]; then
+        echo "Linking built/v86_images.rsrc into $binary_dir/v86_images.rsrc..."
+        ln "built/v86_images.rsrc" "$binary_dir/v86_images.rsrc" 2>/dev/null \
+            || cp "built/v86_images.rsrc" "$binary_dir/v86_images.rsrc"
+    else
+        v86_src_dir=""
+        if [[ -f "vendor/v86_images/guix/guix-fs.json" ]]; then
+            v86_src_dir="vendor/v86_images"
+        elif [[ -f "/var/cache/ctoolbox/v86_images/guix/guix-fs.json" ]]; then
+            v86_src_dir="/var/cache/ctoolbox/v86_images"
+        fi
+
+        if [[ -z "$v86_src_dir" ]]; then
+            echo "Error: Could not find v86_images.rsrc or source v86_images directory." >&2
+            exit 1
+        fi
+
+        refresh_bin=""
+        if [[ -x "$binary_dir/refresh-asset-bundle" ]]; then
+            refresh_bin="$binary_dir/refresh-asset-bundle"
+        elif [[ -x "built/linux-x64/refresh-asset-bundle" ]]; then
+            refresh_bin="built/linux-x64/refresh-asset-bundle"
+        elif [[ -x "target/release/refresh-asset-bundle" ]]; then
+            refresh_bin="target/release/refresh-asset-bundle"
+        elif [[ -x "target/debug/refresh-asset-bundle" ]]; then
+            refresh_bin="target/debug/refresh-asset-bundle"
+        else
+            echo "Building refresh-asset-bundle utility..."
+            RUSTFLAGS="-C target-feature=+crt-static" cargo build --offline --release \
+                -p ctb-build-support --bin refresh-asset-bundle --target x86_64-unknown-linux-musl
+            refresh_bin="target/x86_64-unknown-linux-musl/release/refresh-asset-bundle"
+        fi
+
+        echo "Packing $binary_dir/v86_images.rsrc from $v86_src_dir using $refresh_bin..."
+        "$refresh_bin" --pack-v86-rsrc "$v86_src_dir" "$binary_dir/v86_images.rsrc"
+    fi
+fi
+
+# Check Node.js availability (including standard nvm paths if not yet on PATH)
+if ! command -v node >/dev/null 2>&1; then
+    if [[ -x "/usr/local/share/nvm/current/bin/node" ]]; then
+        export PATH="/usr/local/share/nvm/current/bin:$PATH"
+    fi
+fi
+
 if ! command -v node >/dev/null 2>&1; then
     echo "Error: Node.js is required to run Playwright tests." >&2
     exit 1
 fi
 
-# Configure NODE_PATH for globally installed playwright
+# Configure NODE_PATH and PLAYWRIGHT_BROWSERS_PATH for globally installed playwright
+node_prefix_dir="$(dirname "$(dirname "$(readlink -f "$(command -v node)")")")"
 global_npm_root="$(npm root -g 2>/dev/null || true)"
-export NODE_PATH="${NODE_PATH:-}:${global_npm_root}:/usr/local/lib/node_modules:/usr/lib/node_modules"
+export NODE_PATH="${NODE_PATH:-}:${global_npm_root}:${node_prefix_dir}/lib/node_modules:/usr/local/lib/node_modules:/usr/lib/node_modules"
+if [[ -z "${PLAYWRIGHT_BROWSERS_PATH:-}" && -d "/root/.cache/ms-playwright" ]]; then
+    export PLAYWRIGHT_BROWSERS_PATH="/root/.cache/ms-playwright"
+fi
 
 # Ensure output logs directory exists
 mkdir -p ci-logs
@@ -47,45 +105,75 @@ if [[ -f "$log_file" ]]; then
     rm "$log_file"
 fi
 
-# Start ctoolbox server process in background
-binary_dir="$(dirname "$binary_path")"
-echo "Launching ctoolbox server from $binary_dir in background..."
+test_storage_dir="$(mktemp -d)"
 
-(cd "$binary_dir" && RUST_BACKTRACE=1 ./ctoolbox) > "$log_file" 2>&1 &
+# Start ctoolbox server process in background with isolated test storage
+echo "Launching ctoolbox server from $binary_dir in background (storage: $test_storage_dir)..."
+
+(
+    cd "$binary_dir" && \
+    CTB_TEST_STORAGE_DIR="$test_storage_dir" \
+    BROWSER=/bin/true \
+    RUST_BACKTRACE=1 \
+    ./ctoolbox --no-update
+) > "$log_file" 2>&1 &
 CTOOLBOX_PID=$!
 
 echo "ctoolbox started with PID: $CTOOLBOX_PID"
 
-# Register cleanup trap to ensure background process is killed on exit
-# shellcheck disable=SC2329
+# Register cleanup trap to ensure background process tree and temp storage are cleaned on exit
+# shellcheck disable=SC2317,SC2329
 cleanup() {
     echo "Cleaning up background ctoolbox process (PID $CTOOLBOX_PID)..."
     if kill -0 "$CTOOLBOX_PID" 2>/dev/null; then
+        pkill -P "$CTOOLBOX_PID" 2>/dev/null || true
         kill "$CTOOLBOX_PID" 2>/dev/null || true
         sleep 1
         if kill -0 "$CTOOLBOX_PID" 2>/dev/null; then
+            pkill -9 -P "$CTOOLBOX_PID" 2>/dev/null || true
             kill -9 "$CTOOLBOX_PID" 2>/dev/null || true
         fi
+    fi
+    if [[ -d "$test_storage_dir" ]]; then
+        find "$test_storage_dir" -depth -delete 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
 
-# Wait for server readiness (up to 60 seconds)
+# Wait for server readiness and discover bound HTTP URL (up to 60 seconds)
 echo "Waiting for ctoolbox server to become ready..."
 server_ready=false
+server_url=""
 # shellcheck disable=SC2034
 for i in $(seq 1 60); do
-    if curl -s -o /dev/null "http://127.0.0.1:8080" 2>/dev/null; then
-        server_ready=true
+    if ! kill -0 "$CTOOLBOX_PID" 2>/dev/null; then
+        echo "Error: ctoolbox process exited prematurely!" >&2
         break
     fi
-    # Also check if ctoolbox is bound to a different port via ss
-    if command -v ss >/dev/null 2>&1; then
-        if ss -tlpn 2>/dev/null | grep -q ctoolbox; then
-            server_ready=true
-            break
+
+    if [[ -f "$log_file" ]]; then
+        detected_url="$(grep -Eo 'http://127\.0\.0\.1:[0-9]+' "$log_file" | head -n 1 || true)"
+        if [[ -n "$detected_url" ]]; then
+            if curl -fsS -o /dev/null "$detected_url" 2>/dev/null; then
+                server_url="$detected_url"
+                server_ready=true
+                break
+            fi
         fi
     fi
+
+    if command -v ss >/dev/null 2>&1; then
+        ss_port="$(ss -tlpn 2>/dev/null | grep ctoolbox | grep -Eo '127\.0\.0\.1:[0-9]+' | head -n 1 | cut -d: -f2 || true)"
+        if [[ -n "$ss_port" ]]; then
+            candidate_url="http://127.0.0.1:${ss_port}"
+            if curl -fsS -o /dev/null "$candidate_url" 2>/dev/null; then
+                server_url="$candidate_url"
+                server_ready=true
+                break
+            fi
+        fi
+    fi
+
     sleep 1
 done
 
@@ -97,12 +185,17 @@ if ! $server_ready; then
     exit 1
 fi
 
-echo "ctoolbox server is up and responding!"
+export TEST_SERVER_URL="$server_url"
+echo "ctoolbox server is up and responding at $TEST_SERVER_URL!"
 
 # Discover and run Playwright test files in tests/
 test_files=( )
 if [[ -f "tests/v86_arch_verification_test.js" ]]; then
-    test_files+=("tests/v86_arch_verification_test.js")
+    if [[ -f "vendor/v86_images/arch/arch_state-v3.bin.zst" || -f "/var/cache/ctoolbox/v86_images/arch/arch_state-v3.bin.zst" ]]; then
+        test_files+=("tests/v86_arch_verification_test.js")
+    else
+        echo "Skipping tests/v86_arch_verification_test.js (Arch v86 image is excluded from bundle)."
+    fi
 fi
 if [[ -f "tests/v86_x11_verification_test.js" ]]; then
     test_files+=("tests/v86_x11_verification_test.js")

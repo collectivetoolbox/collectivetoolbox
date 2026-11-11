@@ -327,6 +327,51 @@ export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
 export RUSTDOCFLAGS="${RUSTDOCFLAGS:--Awarnings}"
 export CARGO_HOST_RUSTFLAGS="${CARGO_HOST_RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
 
+if [[ ! -f "built/v86_out/build/v86.wasm" || ! -f "built/v86_out/bios/seabios.bin" || ! -f "built/v86_out/bios/vgabios.bin" ]]; then
+    echo "=== Building v86 WASM and SeaBIOS in temporary build folder ==="
+    cargo build ${offline} -p ctb-build-support --bin seabios-tool
+    seabios_tool_bin="$PWD/target/debug/seabios-tool"
+
+    v86_tmp_dir="built/v86_build_tmp"
+    if [[ -d "$v86_tmp_dir" ]]; then
+        find "$v86_tmp_dir" -depth -delete
+    fi
+    mkdir -p "$v86_tmp_dir"
+    cp -r vendor/v86 "$v86_tmp_dir/v86"
+    cp -r vendor/seabios "$v86_tmp_dir/seabios"
+    cp vendor/v86/bios/seabios.config "$v86_tmp_dir/seabios/.config"
+
+    "$seabios_tool_bin" generate-v86 "$v86_tmp_dir/v86"
+    make -j"$(($(nproc)/2 + 1))" -C "$v86_tmp_dir/v86" build/v86.wasm
+    make -j"$(($(nproc)/2 + 1))" -C "$v86_tmp_dir/seabios" PYTHON="$seabios_tool_bin" out/bios.bin out/vgabios.bin
+
+    mkdir -p built/v86_out/build
+    mkdir -p built/v86_out/bios
+    cp "$v86_tmp_dir/v86/build/v86.wasm" built/v86_out/build/
+    if [[ -f "$v86_tmp_dir/seabios/out/bios.bin" ]]; then
+        cp "$v86_tmp_dir/seabios/out/bios.bin" built/v86_out/bios/seabios.bin
+    else
+        echo "Could not find built SeaBIOS!"
+        exit 1
+    fi
+    if [[ -f "$v86_tmp_dir/seabios/out/vgabios.bin" ]]; then
+        cp "$v86_tmp_dir/seabios/out/vgabios.bin" built/v86_out/bios/vgabios.bin
+    else
+        echo "Could not find built VGA BIOS!"
+        exit 1
+    fi
+
+    if [[ -d "${v86_tmp_dir}" ]]; then
+        find "${v86_tmp_dir}" -depth -delete
+    fi
+    if [[ -d vendor/v86/build ]]; then
+        find vendor/v86/build -depth -delete
+    fi
+    if [[ -d vendor/seabios/out ]]; then
+        find vendor/seabios/out -depth -delete
+    fi
+fi
+
 if [[ ! -f "built/ctoolbox.rsrc" ]]; then
     echo "Preparing runtime asset bundle..."
     cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin refresh-asset-bundle -- .
@@ -442,42 +487,6 @@ for p in "${platforms[@]}"; do
 
     # Try to set build concurrency to something reasonable
     export MAKEFLAGS="-j$(($(nproc)/2))"
-
-    if [[ ! -f "built/v86_out/build/v86.wasm" || ! -f "built/v86_out/bios/seabios.bin" ]]; then
-        echo "=== Building v86 WASM and SeaBIOS in temporary build folder ==="
-        cargo build -p ctb-build-support --bin seabios-tool
-        seabios_tool_bin="$PWD/target/debug/seabios-tool"
-
-        v86_tmp_dir="built/v86_build_tmp"
-        rm -rf "$v86_tmp_dir"
-        mkdir -p "$v86_tmp_dir"
-        cp -r vendor/v86 "$v86_tmp_dir/v86"
-        cp -r vendor/seabios "$v86_tmp_dir/seabios"
-
-        "$seabios_tool_bin" generate-v86 "$v86_tmp_dir/v86"
-        make -C "$v86_tmp_dir/v86" build/v86.wasm
-        make -C "$v86_tmp_dir/seabios" PYTHON="$seabios_tool_bin" out/bios.bin out/vgabios.bin
-
-        mkdir -p built/v86_out/build
-        mkdir -p built/v86_out/bios
-        cp "$v86_tmp_dir/v86/build/v86.wasm" built/v86_out/build/
-        if [[ -f "$v86_tmp_dir/seabios/out/bios.bin" ]]; then
-            cp "$v86_tmp_dir/seabios/out/bios.bin" built/v86_out/bios/seabios.bin
-        else
-            echo "Could not find built SeaBIOS!"
-            exit 1
-        fi
-        if [[ -f "$v86_tmp_dir/seabios/out/vgabios.bin" ]]; then
-            cp "$v86_tmp_dir/seabios/out/vgabios.bin" built/v86_out/bios/vgabios.bin
-        else
-            echo "Could not find built VGA BIOS!"
-            exit 1
-        fi
-
-        rm -rf "${v86_tmp_dir?}"
-        rm -rf vendor/v86/build
-        rm -rf vendor/seabios/out
-    fi
 
     if [[ "$run_tests" == "true" ]]; then
         test_exclude=( )
