@@ -44,6 +44,11 @@ const EXPECTED_RESOURCE_BUNDLE_UUID: Option<&str> =
 const EXPECTED_RESOURCE_BUNDLE_SHA256: Option<&str> =
     option_env!("CTB_ASSET_PACK_SHA256");
 
+const EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_UUID: Option<&str> =
+    option_env!("CTB_SYSTEM_GRAPH_HISTORY_ASSET_PACK_UUID");
+const EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_SHA256: Option<&str> =
+    option_env!("CTB_SYSTEM_GRAPH_HISTORY_ASSET_PACK_SHA256");
+
 const EXPECTED_V86_RESOURCE_BUNDLE_UUID: Option<&str> =
     option_env!("CTB_V86_ASSET_PACK_UUID");
 const EXPECTED_V86_RESOURCE_BUNDLE_SHA256: Option<&str> =
@@ -428,19 +433,37 @@ fn verify_bundle_integrity(
     let is_dev = environment::is_cargo_target_binary()
         || environment::is_in_test()
         || environment::is_debug_build();
+    verify_bundle_integrity_with_mode(
+        bundle_name,
+        header,
+        expected_uuid,
+        expected_sha256,
+        is_dev,
+    )
+}
 
+fn verify_bundle_integrity_with_mode(
+    bundle_name: &str,
+    header: &asset_bundle_format::AssetBundleHeader,
+    expected_uuid: Option<&str>,
+    expected_sha256: Option<&str>,
+    is_dev: bool,
+) -> Result<()> {
     if let Some(exp_uuid_str) = expected_uuid {
-        if let Ok(exp_uuid) = Uuid::parse_str(exp_uuid_str) {
-            if header.bundle_uuid != exp_uuid {
-                let msg = format!(
-                    "Resource bundle UUID mismatch in {bundle_name}: expected {exp_uuid_str}, found {}",
-                    header.bundle_uuid
-                );
-                if is_dev {
-                    warn!(msg);
-                } else {
-                    bail!(msg);
-                }
+        let exp_uuid = Uuid::parse_str(exp_uuid_str).with_context(|| {
+            format!(
+                "Invalid compile-time expected UUID '{exp_uuid_str}' for {bundle_name}"
+            )
+        })?;
+        if header.bundle_uuid != exp_uuid {
+            let msg = format!(
+                "Resource bundle UUID mismatch in {bundle_name}: expected {exp_uuid_str}, found {}",
+                header.bundle_uuid
+            );
+            if is_dev {
+                warn!(msg);
+            } else {
+                bail!(msg);
             }
         }
     }
@@ -554,6 +577,12 @@ impl ResourceBundle {
                                 history_path.display()
                             )
                         })?;
+                verify_bundle_integrity(
+                    &history_path.display().to_string(),
+                    &parsed_history.header,
+                    EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_UUID,
+                    EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_SHA256,
+                )?;
                 let mmap_index = mmaps.len();
                 mmaps.push(history_mmap);
                 for parsed_entry in parsed_history.entries {
@@ -915,5 +944,73 @@ mod tests {
                 resolve_allowed_candidate(&symlink_path, Some(other_dir));
             assert_eq!(resolved, None);
         }
+    }
+
+    #[crate::ctb_test]
+    fn compile_time_expected_bundle_metadata_is_populated() {
+        assert!(
+            EXPECTED_RESOURCE_BUNDLE_UUID.is_some(),
+            "CTB_ASSET_PACK_UUID must be populated by ctb-storage-asset-bundle/build.rs"
+        );
+        assert!(
+            EXPECTED_RESOURCE_BUNDLE_SHA256.is_some(),
+            "CTB_ASSET_PACK_SHA256 must be populated by ctb-storage-asset-bundle/build.rs"
+        );
+        assert!(
+            EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_UUID.is_some(),
+            "CTB_SYSTEM_GRAPH_HISTORY_ASSET_PACK_UUID must be populated by ctb-storage-asset-bundle/build.rs"
+        );
+        assert!(
+            EXPECTED_SYSTEM_GRAPH_HISTORY_RESOURCE_BUNDLE_SHA256.is_some(),
+            "CTB_SYSTEM_GRAPH_HISTORY_ASSET_PACK_SHA256 must be populated by ctb-storage-asset-bundle/build.rs"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn verify_bundle_integrity_rejects_mismatched_uuid_and_sha256_in_release() {
+        let valid_uuid =
+            Uuid::parse_str("4c059cbb-98f6-4ef1-a4b7-db80efd12345").unwrap();
+        let other_uuid = "11111111-2222-4333-8444-555555555555";
+        let sha_bytes = [0xab_u8; 32];
+        let valid_sha = asset_bundle_format::format_sha256_hex(&sha_bytes);
+        let other_sha =
+            "0000000000000000000000000000000000000000000000000000000000000000";
+
+        let header = asset_bundle_format::AssetBundleHeader {
+            version: asset_bundle_format::RESOURCE_BUNDLE_VERSION,
+            entry_count: 1,
+            bundle_uuid: valid_uuid,
+            content_sha256: sha_bytes,
+            created_at_unix_secs: 0,
+        };
+
+        verify_bundle_integrity_with_mode(
+            "system_graph_history.rsrc",
+            &header,
+            Some(&valid_uuid.to_string()),
+            Some(&valid_sha),
+            false,
+        )
+        .expect("matching UUID and SHA256 must pass");
+
+        let uuid_err = verify_bundle_integrity_with_mode(
+            "system_graph_history.rsrc",
+            &header,
+            Some(other_uuid),
+            Some(&valid_sha),
+            false,
+        )
+        .expect_err("mismatched UUID must fail in non-dev mode");
+        assert!(format!("{uuid_err:#}").contains("UUID mismatch"));
+
+        let sha_err = verify_bundle_integrity_with_mode(
+            "system_graph_history.rsrc",
+            &header,
+            Some(&valid_uuid.to_string()),
+            Some(other_sha),
+            false,
+        )
+        .expect_err("mismatched SHA256 must fail in non-dev mode");
+        assert!(format!("{sha_err:#}").contains("SHA256 mismatch"));
     }
 }

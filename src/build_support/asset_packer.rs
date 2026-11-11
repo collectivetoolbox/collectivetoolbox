@@ -1214,7 +1214,13 @@ pub fn print_rerun_directives(manifest_dir: &Path) -> Result<()> {
         project_root.join("build").display()
     );
     println!("cargo:rerun-if-env-changed=PROFILE");
+    println!("cargo:rerun-if-env-changed=CTB_SKIP_DOCS");
+    println!("cargo:rerun-if-env-changed=CTB_SKIP_V86_RSRC");
     println!("cargo:rerun-if-env-changed=REBUILD_V86_IMAGES");
+    println!(
+        "cargo:rerun-if-changed={}",
+        project_root.join("built").join("v86_out").display()
+    );
     println!(
         "cargo:rerun-if-changed={}",
         project_root.join("vendor").join("v86_images").display()

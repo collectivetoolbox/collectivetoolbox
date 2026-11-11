@@ -17,7 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Build script for ctb-storage that ensures assets are prepared.
+//! Build script for ctb-storage-asset-bundle that prepares runtime assets and
+//! embeds expected bundle UUID and SHA-256 metadata for integrity checks.
 
 use anyhow::Result;
 use ctb_build_support::asset_packer::{
@@ -38,14 +39,15 @@ fn main() -> Result<()> {
     let build_rs_debug = env::var_os("CTB_BUILD_RS_DEBUG").is_some();
     if build_rs_debug {
         println!(
-            "cargo:warning=ctb-storage/build.rs: CARGO_MANIFEST_DIR={}",
+            "cargo:warning=ctb-storage-asset-bundle/build.rs: CARGO_MANIFEST_DIR={}",
             manifest_path.display()
         );
     }
 
-    // Navigate up to the ctoolbox crate directory
+    // Navigate up from src/storage/asset_bundle to the workspace root directory
     let ctoolbox_dir = manifest_path
         .parent()
+        .and_then(|p| p.parent())
         .and_then(|p| p.parent())
         .ok_or_else(|| anyhow::anyhow!("Could not find ctoolbox directory"))?;
 
@@ -54,7 +56,9 @@ fn main() -> Result<()> {
 
     // Prepare assets (Cargo controls re-running build scripts via the
     // `rerun-if-changed` directives above).
-    println!("cargo:warning=ctb-storage: Preparing build output directory...");
+    println!(
+        "cargo:warning=ctb-storage-asset-bundle: Preparing build output directory..."
+    );
     let options = PrepareOptions {
         prepare_runtime_bundle: true,
         prepare_minimal_assets: true,
@@ -64,13 +68,13 @@ fn main() -> Result<()> {
     };
     if build_rs_debug {
         println!(
-            "cargo:warning=ctb-storage/build.rs: PrepareOptions={options:?}"
+            "cargo:warning=ctb-storage-asset-bundle/build.rs: PrepareOptions={options:?}"
         );
         let target_doc_dir =
             ctoolbox_dir.join("target/x86_64-unknown-linux-musl/doc");
         let built_doc_dir = ctoolbox_dir.join("built/docs");
         println!(
-            "cargo:warning=ctb-storage/build.rs: target-docs exists={} built-docs exists={}",
+            "cargo:warning=ctb-storage-asset-bundle/build.rs: target-docs exists={} built-docs exists={}",
             target_doc_dir.is_dir(),
             built_doc_dir.is_dir()
         );
@@ -81,6 +85,20 @@ fn main() -> Result<()> {
     }
     if let Some(asset_pack_sha256) = prepared_assets.asset_pack_sha256 {
         println!("cargo:rustc-env=CTB_ASSET_PACK_SHA256={asset_pack_sha256}");
+    }
+    if let Some(history_uuid) =
+        prepared_assets.system_graph_history_asset_pack_uuid
+    {
+        println!(
+            "cargo:rustc-env=CTB_SYSTEM_GRAPH_HISTORY_ASSET_PACK_UUID={history_uuid}"
+        );
+    }
+    if let Some(history_sha) =
+        prepared_assets.system_graph_history_asset_pack_sha256
+    {
+        println!(
+            "cargo:rustc-env=CTB_SYSTEM_GRAPH_HISTORY_ASSET_PACK_SHA256={history_sha}"
+        );
     }
     if let Some(v86_uuid) = prepared_assets.v86_asset_pack_uuid {
         println!("cargo:rustc-env=CTB_V86_ASSET_PACK_UUID={v86_uuid}");

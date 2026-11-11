@@ -3991,11 +3991,9 @@ name = "ctb-storage"
 version = "0.0.0"
 dependencies = [
  "aes-gcm 0.11.0",
- "anyhow",
  "argon2",
  "base64 0.22.1",
  "ctb-api-client",
- "ctb-build-support",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcstring",
  "ctb-formats-html",
@@ -4024,6 +4022,8 @@ dependencies = [
 name = "ctb-storage-asset-bundle"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
+ "ctb-build-support",
  "ctb-formats-ctb-asset-bundle",
  "ctb-utilities",
  "glob",
