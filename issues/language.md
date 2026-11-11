@@ -1,112 +1,15 @@
 # Language Layers (2026-11-11)
 
-The language design is split into three languages; these names are distinct from
-the implementation-stage directory numbers below:
+**Overall Language Stack Status**: `Partially Implemented` (format registrations, literal-aware 32-char `.sli3`/`.sri3` normalizer, staged loader support, and `tinywasm` constant-stack tail calls implemented; parsers, type checkers, compilers, and runtime libraries pending).
 
-- **StageL 3** is the core language, to be implemented directly in WAT. Its types
-  are `b`, `t` (letters), `u8`, `i32`, `u32`, `i64`, `u64`, lists `l/T` of supported
-  element types, `void`, and `never`. Named functions, including nested functions,
-  are directly callable but are not first-class values. `v/RETURN/name` is
-  declaration syntax, not a function-value type.
-- **StageR 3** builds on StageL 3 and adds the 128-bit primitives `i128` and
-  `u128`, arbitrary-precision `int` and `rat`, `dc`, `view`, `cursor`, `s`
-  (DcMst mixed-mode strings), `dcs` (Dc-character strings), `option/T`, and `result/T`. These are not StageL 3
-  core types. StageR 3 does not add first-class functions.
-- **EM3** is the full VSO language built on StageR 3, with speakable and compact
-  code profiles. Only EM3 supports first-class functions: function values,
-  callbacks passed as values, anonymous functions, and functions returned from
-  other functions, including escaping closures.
+Canonical language specifications now live in:
+- **StageL 3 (`f656` `.sl3` / `f659` `.sli3`)**: [`src/formats/stagel/docs/sl3.md`](../src/formats/stagel/docs/sl3.md) — core expression-oriented language to be implemented directly in `stage_0_impls/*.wat` (`b`, `t`, `u8`, `i32`, `u32`, `i64`, `u64`, `l/T`, `void`, `never`; `let`/`set`/`const` with definite-assignment checking; named nested verbs with shared lexical capture; mandatory constant-stack tail calls; no first-class functions).
+- **StageR 3 (`f657` `.sr3` / `f660` `.sri3`) & EM3 Boundary (`f658` `.em3` / `f661` `.emc`)**: [`src/formats/stagel/docs/sr3.md`](../src/formats/stagel/docs/sr3.md) — adds `i128`, `u128`, `int`, `rat`, `dc`, `view`, `cursor`, `s` (`DcMst`), `dcs`, `option/T`, `result/T`, `try*` checked operations, bare `"..."` Dcts literals, and zero-copy window/extent streaming. First-class functions and escaping closures remain **EM3-only**.
 
-All three languages are **expression-oriented, like Lisp**. Every normally
-completing expression returns a value. A block or function returns the value of
-its final expression; earlier expressions are evaluated for their effects and
-their values discarded. `void` denotes the unit value, not an absence of a value:
-declarations, `new`, `set`, normally completed loops, and empty blocks return
-unit. `never` describes an expression that does not return normally. An `if`
-returns its selected branch's value; the branch types must agree, with `never`
-compatible with the other branch. Dot and normalized semicolon separate
-expressions without discarding the final value.
-
-**Tail calls do not grow the call stack**, including mutual tail calls. This is
-a language guarantee, not an optional optimization. A call is in tail position
-when its result is returned directly, including in the selected branch of a
-tail-position `if` or the final expression of a returned block. Non-tail calls
-can still grow the stack; tail calls do not imply bounded heap allocation.
-
-**Nested functions capture lexical bindings from where they are defined, not
-from where they are called.** Captures refer to shared bindings, so mutations
-are visible through the capture. A caller's local variables do not replace the
-definition-site environment. StageL 3 and StageR 3 nested functions cannot
-escape as values; EM3 closures can, keeping captured bindings alive after the
-defining invocation returns. Loop bodies and conditional branches in the core
-are expressions, not first-class callbacks.
-
-The intended implementation stages are:
-
-- **Stage 0 (`src/formats/dcdata/data-src/stage_0_impls/`)** uses WAT for the
-  foundations, including the implementation of StageL 3.
-- **Stage 1 (`src/formats/dcdata/data-src/stage_1_impls/`)** uses StageL 3 for
-  the StageR 3 extensions, then StageR 3 for the full EM3 language implementation.
-- **Stage 2 (`src/formats/dcdata/data-src/impls/`)** uses EM3 for the remaining
-  high-level definitions and the full VSO code/localization language described
-  in [the language design discussion](../docs/chats/2026-10-31-language.md).
-
-## Pending Work
-
-These are design requirements, not implemented compiler/runtime guarantees.
-The StageL 3 source normalizer does not implement type checking, execution,
-lexical capture, or tail-call lowering. Core arithmetic failure behavior must
-be specified without relying on StageR 3 `result/T`; the proposed StageR 3
-checked operations use result values without changing inherited core signatures.
-ABI, ownership, definite initialization across nested calls,
-stack-safe tail-call lowering with captures, and EM3 closure lowering remain
-to be specified and implemented.
-
-## Resolved Literal and Type Decisions
-
-- `t` (letters) is an opaque identifier-oriented sequence, not a byte buffer or a
-  general-purpose Unicode string. Values can be compared, split, and joined;
-  their in-memory representation is unspecified. The intended intermediate
-  alphabet is `A-Z`, `/`, `:`, space, newline, quotation mark, and `.`.
-- `t"abc"` denotes `t`; letters are case-insensitive, so `t"a"` equals `t"A"`.
-  `b"abc"` denotes `l/u8` without inherent character semantics. Both are core
-  literal forms. The source escape marker is slash, not backslash: `/"` is a
-  quotation mark, `//` a slash, `/0` NUL, `/a` bell, `/b` backspace, `/t` tab,
-  `/n` newline, `/v` vertical tab, `/f` form feed, `/r` carriage return, and
-  `/xHH` a hexadecimal byte through `/xff` (including `/x5c` for backslash).
-  These choices supersede the earlier backslash-escape recommendation.
-- The example specifies separator-based splitting: `explodeB b"b" b"abc"`
-  yields `l/l/u8: b"a" b"c" ::`, and `explodeL t"b" t"abc"` yields
-  `l/t: t"a" t"c" ::`. `catB` concatenates two byte lists; `implodeB` joins
-  a list of byte lists without a separator. StageR `explode "b" "abc"`
-  yields `l/s: "a" "c" ::`. Empty separators, overlapping matches, and
-  leading/trailing empty pieces still need explicit contracts.
-- Bare `"abc"` is StageR 3's default `s` literal, with a **Dcts payload**, not
-  JSON. `s` is a **DcMst mixed-mode document-string value**: it can carry Dc
-  characters and embedded binary data, not merely Unicode text. In the current
-  Rust implementation, `DcMstr` is a borrowed view and `DcMstring` an owned
-  value. These Rust ownership spellings do not create extra StageR types.
-- `dcs` is a Dc-character string, corresponding to Rust `DcStr`/`DcString`.
-  It must not be conflated with `s` or raw `l/u8`. Conversions must be explicit
-  and fallible where encoding or binary framing can fail. A dedicated `dcs`
-  literal spelling is not yet resolved; the earlier `s:"..."`/`dcs:"..."`
-  JSON proposal is superseded.
-- `dc` is a strongly typed character value backed by 128 bits, not an integer
-  with implicit coercions. `int` is arbitrary precision; `rat` has arbitrary-
-  precision numerator and denominator, normalized to positive denominator and
-  coprime components, with zero represented as `0/1`.
-- `view` describes a source range; `cursor` adds a mutable position. Their
-  checked bounds and source lifetimes are not solved merely by naming fields.
-  `option/T` and `result/T` are tagged values, not nullable/exception aliases.
-- `::` is the canonical inline header and explicit block/list closer; `}`
-  remains accepted in source and normalizes to `::` outside literals/comments.
-  Comments start with `: ` or a lone `:` after optional indentation, not every
-  leading colon: a line beginning with `::` must remain a delimiter.
-
-The normalizer still implements the old, quote-unaware alphabet and rejects
-quotes in code. The current fixture can normalize only because literal sketches
-are comments. Its `:CHAR:` comment escapes are not a settled literal encoding.
-These resolved language decisions do not imply lexer or runtime support.
+The bootstrap implementation directory stages are:
+- **Stage 0 (`src/formats/dcdata/data-src/stage_0_impls/`)**: `.wat` foundations (`1936_dc_document_execution_kernel.wat` and the StageL 3 compiler `f656_*.wat`).
+- **Stage 1 (`src/formats/dcdata/data-src/stage_1_impls/`)**: `.dcsh` and `.sl3` implementations, including the StageR 3 compiler (`f657_*.sl3`).
+- **Stage 2 (`src/formats/dcdata/data-src/impls/`)**: `.dcsh`, `.sl3`, and `.sr3` implementations, including EM3 (`f658`) and higher-level VSO/localization definitions described in [`docs/chats/2026-10-31-language.md`](../docs/chats/2026-10-31-language.md).
 
 ## Transpilation Architecture
 
@@ -133,12 +36,6 @@ until a target conversion rule has been selected:
    supported operation that fails during execution must not silently retry via
    a fallback, which could duplicate effects or conceal an error.
 
-This provides the effect of direct, high-level conversion without maintaining
-independent language frontends for each target. Do not first flatten everything
-to StageR and then try to recover the original high-level constructs from
-generated code. An implementation hint may preserve provenance, but must not
-replace a semantic construct needed to choose a correct target rule.
-
 "Dc-by-Dc" conversion operates on **resolved constructs with their operands
 and context**, not independent character substitution. Binding, closure
 conversion, mutual recursion, imports, and data layout require enclosing-scope
@@ -146,293 +43,31 @@ or module analysis. Rules must use the shared graph resolver, including
 equivalences, rather than a backend's private numeric allowlist.
 
 Target-rule eligibility and priority must be deterministic and versioned with
-the compilation configuration. A rule may use target features only when the
-target profile guarantees them; unsupported features cause compile-time
-decomposition, not a runtime retry. Native target operations are not sufficient
-merely because their names resemble the source operation. Both high-level and
-fallback paths must preserve values, faults, effect ordering, tail-call bounds,
-and the observable execution/replay contract, including logical resource
-accounting where that contract applies. Cross-path equivalence tests are a
-required gate before enabling a specialized rule.
+the compilation configuration. Both high-level and fallback paths must preserve
+values, faults, effect ordering, tail-call bounds, and the observable
+execution/replay contract, including logical resource accounting where that
+contract applies. Cross-path equivalence tests are a required gate before
+enabling a specialized rule.
 
-## Design Review and Recommendations
+## Pending Work (StageL 3, StageR 3, and EM3)
 
-The recommendations below are **not yet resolved language rules**. The language
-has a suitable expression-oriented foundation, but is not yet a sufficient
-compiler/runtime contract for portable Lisp-like EM3 programs.
+- [ ] **StageL 3 Parser, Type Checker, Definite-Assignment Pass, and Stage 0 `.wat` Compiler (`stage_0_impls/f656_*.wat`)**:
+  - Parse `.sli3` indentation/inline `::` blocks, two-pass verb signatures, `let`/`set`/`const` bindings (rejecting same-block re-declaration, shadowing, and reads before definite assignment across branches and nested verb calls), and inline `test` blocks (extending `test` syntax to cover expected faults/errors as well as return values).
+  - Lower uncaptured bindings to WASM locals, captured mutable `let` bindings to linear-memory shadow frames popped before non-child tail calls, and tail-position calls to `Dc 665 "WASM return_call"`.
+  - Wire the `StagedSourceCompiler` callback into `load_staged_dc_impls_with_compiler` once `f656_*.wat` is committed so `stage_1_impls/*.sl3` compiles automatically during ledger generation.
+- [ ] **StageL 3 Iteration & Multi-File Library Extensions**:
+  - Add explicit element/index binding syntax to `foreach` before permitting nested `foreach` loops, and specify module/import boundaries before scaling beyond single-file Stage 1 routines.
+- [ ] **StageR 3 Compiler (`stage_1_impls/f657_*.sl3`), Runtime Types, and Backends (Rust / JS / StageL 3)**:
+  - Implement runtime layouts and typed arena handles for `i128`, `u128`, `int`, `rat`, `dc`, `s` (`DcMst`), `dcs`, `option/T`, `result/T`, and structured `error` payloads (keeping physical allocation exhaustion distinct from `error:overflow`, and avoiding precision loss via `BigInt` in JS).
+  - Finalize exhaustive pattern matching and explicit error-propagation syntax for `option/T` and `result/T`.
+  - Implement `view` and `cursor` sliding-window host paging (`MapWindow` yield) and zero-copy output extent emission (`Dc 376 "Extent byte offset"` / `Dc 377 "Extent byte length"`) for multi-gigabyte files and deduplicated graph value-node slices.
+  - Specify ELAD decoding and text-mapping helpers (`dcaFromElad`, `dctCodeToText`) with explicit `option/s` and `result/...` error contracts before porting legacy StageL v1/v2 codecs (`format-ascii.stagel`, `format-utf8.stagel`).
+- [ ] **EM3 (`f658` / `f661`) First-Class Closures, Speakable/Compact Profiles, and Cross-Backend Conformance**:
+  - Finalize EM3 function-value declaration syntax, `{ fn_id: u32, env_ptr: u32 }` closure lowering with per-signature `Dc 661 "WASM br_table"` + `Dc 665 "WASM return_call"` dispatchers (plus trampoline fallback on Rust/JS targets without guaranteed mutual tail calls), and cycle-safe arena/tracing lifetime management for escaping closures.
+  - Specify quoted syntax data, hygienic macro expansion (if enabled), and logical non-tail recursion limits separately from host stacks.
+  - Gate target-specific optimization rules on cross-backend equivalence tests (`StageR -> Rust`, `StageR -> JS`, and `StageR -> StageL -> WAT`) covering mutated captures, mutual tail calls, arithmetic boundary faults, and mixed Dc/binary strings.
 
-### Arithmetic Failure
-
-Recommend keeping core `add`, `sub`, `mul`, and `div` as **checked operations
-returning their operand type**. Invalid arithmetic produces a defined execution
-fault, never wrapping, a sentinel value, or host-dependent behavior. Core
-`canAdd`, `canSub`, `canMul`, and `canDiv` predicates permit explicit recovery
-before evaluation; StageR adds `tryAdd`, `trySub`, `tryMul`, and `tryDiv` returning
-`result/T`. Inherited core signatures must remain unchanged in StageR.
-
-- Evaluate operands once, left to right, then check and calculate. Bind operands
-  before a separate predicate/operation pair if evaluating them has effects or
-  reads mutable state. A predicate must not compute the overflowing operation
-  just to discover that it is invalid.
-- Specify overflow, zero division, and signed minimum divided by negative one
-  explicitly. Recommend integer division truncated toward zero, remainder with
-  the dividend's sign, and invalid shift counts rejected rather than masked.
-  Narrowing and float/integer conversions, if floats are later added, must be
-  explicit and checked. Bit-shift overflow and wrapping operations need their
-  own named contracts rather than inheriting host defaults.
-- Give faults stable categories and a source-operation location. At the runtime
-  boundary return a structured failure; do not rely on Rust panics, JavaScript
-  exception wording, or raw WASM trap messages. StageR recovery checks the
-  condition before performing the core operation, rather than catching an
-  arbitrary host failure afterward.
-- Centralize the validity logic in the lower-level implementation so predicates,
-  core operations, and StageR wrappers cannot drift apart. JavaScript integer
-  lowering must not lose precision through `Number`; use `BigInt` or an exact
-  representation when required, with explicit fixed-width bounds. Rust release
-  overflow and WASM wrapping instructions need explicit checks too.
-- Keep allocation exhaustion distinct from arithmetic errors. A physical memory
-  failure is a resource interruption, not an ordinary `overflow` result.
-
-The tradeoff is that core recoverable arithmetic needs an explicit guard. It
-keeps `result` out of StageL without forcing all core computations into a
-status-return protocol. If ordinary core code needs to propagate many different
-recoverable failures, reconsider that boundary before freezing the language.
-
-### Literals and Separate StageR Fixtures
-
-Recommend separate `.sr3` source and `.sri3` normalized fixtures alongside the
-core fixtures. Move StageR examples out of StageL comments once they can be
-normalized as actual code. Use one quote-aware lexer/normalizer with an explicit
-language mode, not two implementations: core admits `t"..."` and `b"..."`,
-StageR additionally admits bare Dcts `"..."`. Type availability and semantic
-validation belong in the parser/type checker, not byte normalization.
-
-The shared normalizer must distinguish identifiers, comments, each literal
-kind, and `::`. Uppercasing identifiers or rewriting semicolons and line endings
-must not change byte or Dcts payloads. Recommended remaining decisions:
-
-- Letters case folding and the slash-based source escape repertoire are now
-  specified above. Recommend rejecting decoded characters outside the letters
-  alphabet, including byte escapes that are valid only in `b` literals. Keep
-  separator-based `explode` distinct from indexed slicing.
-- Recommend exactly two hexadecimal digits after `/x`, rejection of unknown
-  or incomplete escapes, and case-insensitive escape names in letters/byte
-  source syntax. Specify whether unescaped non-ASCII source characters in byte
-  literals are forbidden or UTF-8 encoded. Case folding of identifiers and
-  letters must not silently uppercase byte or Dcts values; the source's broad
-  lowercase-normalization statement needs this explicit exception.
-- Specify the outer quote framing separately from Dcts payload parsing, with
-  no double-unescaping. Choose a reversible normalized literal encoding within
-  the intended alphabet, including an escape for its own marker. Comment
-  `:CHAR:` escaping is not automatically suitable for values.
-- Test embedded quotes, delimiters, newlines, binary bytes, non-Unicode Dcs,
-  malformed escapes, and adjacent literals. Assert preservation of decoded
-  values, normalization idempotence, and rejection of bare literals in core.
-
-#### Remaining Fixture Blockers
-
-Source escape spellings, letters case folding, and source `}` normalization are
-now specified. They are no longer reasons to defer the fixtures. The remaining
-blockers for **literal-bearing normalized** `.sr3`/`.sri3` pairs are narrower:
-
-1. **Value-preserving intermediate encoding**: `/x1a` and `/0` contain digits,
-   which are absent from the 32-character alphabet. Specify their reversible
-   normalized spelling and how normalization distinguishes it from source
-   syntax. Do not silently uppercase byte or Dcts payloads. State whether
-   letters escapes are decoded and alphabet-validated before case folding.
-2. **Dcts framing**: Decide how the outer quotation delimiter and slash escapes
-   interact with Dcts payload syntax. Literal quotes and slashes must survive
-   without accidental early termination or double decoding. Define malformed
-   escape behavior and either restrict initial byte fixtures to ASCII or settle
-   the raw non-ASCII byte policy.
-3. **Implementation and tests**: The existing normalizer rejects code quotes,
-   preserves `}` instead of rewriting it, and lacks a language mode. Its
-   comment detector also misses a comment at byte zero and can mistake a line
-   starting `:: ` for a comment. Add one shared stateful lexer and focused
-   source/intermediate checks before calling literal-bearing fixtures verified.
-
-There is **no design blocker to a limited nonliteral StageR fixture**, such as
-an `i128` identity function or an `option/u32` constructor, nor to a clearly
-labeled source-only draft. These would not test the unresolved literal path.
-Arithmetic execution, result matching, source ownership, closures, and WAT
-lowering are not prerequisites for normalization fixtures; they are separate
-parser/runtime gates. Do not wait for every OPEN item to be closed.
-
-**Deferred**: This review does not choose a new intermediate literal encoding,
-add a quote-aware normalizer, or create separate StageR files. The existing
-StageR snippets remain commentary, not runnable coverage. Once the two lexical
-contracts above are chosen, normalization work and fixtures can proceed without
-settling the full language runtime.
-
-#### Split and Join Review
-
-Keep `explode`/`implode` as library operations rather than new syntax. However,
-joining by repeatedly copying the accumulated result through `cat` can take
-quadratic time. Provide checked preallocation/bulk fill or an amortized builder
-underneath a linear-time join. The same issue applies to repeated list `concat`
-in the current copy example; it is a semantic sketch, not an efficient recipe.
-
-Because bytes are already `l/u8`, decide whether `catB` is replaced by the
-existing generic `concat` instead of maintaining two names for the same
-operation. This is a recommendation, not a silent renaming of the new examples.
-Separator splitting still needs empty-separator, overlapping-match, retained
-empty-piece, and DcMst binary-run rules. Recommend non-overlapping left-to-right
-matching, retained empty pieces, and rejection of an empty separator, with a
-separate operation for splitting into individual elements.
-
-### Original StageL Feature Comparison
-
-This comparison is grounded in the original
-[ASCII codec](../src/formats/stagel/fixtures/format-ascii.stagel),
-[UTF-8 codec](../src/formats/stagel/fixtures/format-utf8.stagel),
-[codec tests](../src/formats/stagel/fixtures/format-utf8-tests.stagel), and
-[code generator](../src/formats/stagel/codegen.rs). The codecs call runtime
-helpers; their presence in a fixture is evidence of an intended API, not proof
-that every helper/backend currently works. No original runtime suite was run
-for this design review.
-
-**Recommended for StageL 3's core or core library:**
-
-- **Checked indexed access and slicing**: Original `get` and `anSubset` are
-  used repeatedly by codecs. Define typed list access, half-open slices, and
-  explicit bounds behavior. Do not inherit the old `-1` end sentinel into
-  unsigned indices; use an explicit length or a separate slice-to-end operation.
-  Add efficient construction/bulk copying, not just repeated concatenation.
-- **Boolean and ordered comparisons**: Original examples use `not`, `and`,
-  `or`, `lt`, and `le`. Specify all ordered integer comparisons and lazy Boolean
-  conjunction/disjunction. The old code generator emits ordinary helper calls;
-  that is not evidence that the old helpers were short-circuiting. Lazy forms
-  should lower to `if`, not eagerly evaluated ordinary function arguments.
-- **Explicit indexed iteration**: The old `loop-block` lowering binds both an
-  index and an element. Extend the existing `foreach` with explicit bindings
-  and scope rules so nested traversal need not share the reserved `this` name.
-  Preserve snapshot iteration unless mutation semantics are deliberately changed.
-- **Early return**: Original `return` is useful for decoder guards and failure
-  exits. Recommend a `return VALUE` expression of type `never`, targeting only
-  the current function; a returned call remains a tail call. This complements
-  final-expression returns. Do not copy the old generator's prohibition on
-  invoking a function directly in `return` or `new`.
-- **Assertions and negative tests**: The original fixtures use `assertIsByteArray`,
-  `assertIsDcArray`, and `runTest`; the new notes already use `assert`. Specify
-  `assert` as unit on success and a defined fault on failure, not a debug-only
-  check. Static types replace redundant dynamic type assertions; boundary
-  validation remains fallible. Extend inline tests to expect faults/errors,
-  rather than testing only successful return values.
-
-**Recommended for libraries, with StageR types where necessary:**
-
-- Original `push`, `contains`, `arrNonempty`, `arrEq`, and `intIsBetween` need
-  equivalents, but need not all become primitives. Use the existing `eq`/`len`
-  concepts and one canonical API per operation. Generic library functions need
-  a defined type-parameter mechanism or compiler-known signatures; do not assume
-  user-defined overloading after explicitly prohibiting it.
-- `pack32`, `unpack32`, byte/UTF-8 conversion, and numeric text helpers belong
-  in typed libraries with explicit widths, byte order, malformed-input errors,
-  and consumption counts. Machine-width byte packing can live in the core
-  library; Dc and mixed-mode string conversions belong in StageR.
-- Original format mapping/settings, unmappable-character warnings, and decoder
-  diagnostics belong in the StageR format library with explicit context and
-  structured errors. Host I/O must remain capability-mediated, not implicit
-  global authority carried over from a target runtime.
-
-**Do not restore:** the unspecified numeric `n` type, one numeric array type for
-both bytes and Dcs, empty-array/negative-number error sentinels, or default
-initialization that obscures a missing value. Expression-oriented initialization
-and returns already improve on the old generator. `elif` can be a nested `if`;
-first-class callbacks remain EM3-only. Bitwise operations, shifts, and explicit
-numeric conversions also deserve a core contract for implementing codecs, but
-this comparison does not claim that every such operation existed in version 1.
-
-**Pending Work**: These are placement recommendations, not new accepted syntax
-or implemented APIs. Prioritize indexed access/slicing, efficient construction,
-Boolean operators, and explicit iteration bindings before porting codecs or
-implementing EM3's runtime. Add module/import and generic-library contracts
-before scaling beyond a single source file.
-
-### Other Open Points
-
-- **Results and errors**: Use exhaustive matching on tagged `option`/`result`
-  values. Model errors as stable semantic categories with typed payloads. Add
-  explicit propagation only for functions with a compatible result type;
-  ordinary result values must not implicitly return from their enclosing body.
-- **DcMst operations**: Define equality on the represented Dc/binary sequence,
-  separately from graph-semantic equivalence and encoded-byte equality. Give
-  encoded byte length and character counts distinct operations; a binary run
-  must not silently count as Unicode text. Define emptiness directly. The
-  current `len s/in` sketches remain provisional until this contract is settled.
-- **Views and cursors**: Retain an immutable source owner while a view exists.
-  Check ranges using `offset <= source_len` and `len <= source_len - offset`;
-  avoid overflow in `offset + len`. Cursor reads validate before advancing and
-  leave position unchanged on failure. Specify cursor aliasing/copy semantics
-  and whether source mutation is prohibited, versioned, or snapshot-based.
-- **Initialization and captures**: Perform definite-initialization analysis
-  across direct calls, including forward and mutually recursive declarations.
-  Reject reachable reads or writes before initialization. Lift named nested
-  functions with explicit environment parameters; shared mutation needs shared
-  cells rather than copying captured values.
-- **Ownership and ABI**: Specify observable aliasing and value behavior first,
-  then internal representations. Keep Rust borrow syntax out of the source
-  language. Use typed handles and explicit layouts for the WAT runtime; pin the
-  boundary ABI separately from optimizable internal layouts. Define list
-  indexing, construction, allocation, and bulk operations before implementing
-  a compiler with repeated `concat` copies.
-- **Rationals and decoding**: Normalize rational signs and common factors at
-  construction, with a nonzero denominator. Decoders return errors with input
-  locations rather than partial silent success. Missing mappings use `option`,
-  not empty strings; conversion to text must choose `s`, `dcs`, or a Dc list
-  explicitly instead of treating them as interchangeable.
-- **Control flow and parsing**: Specify left-to-right argument evaluation and
-  all lazy forms. Keep `break`/`continue` local to their loop and function.
-  Introduce explicit element bindings before allowing nested `foreach`.
-  Define how indentation and `::` delimit nested prefix expressions and how a
-  parser distinguishes type syntax, comments, and adjacent literal delimiters.
-
-### Lisp-Like EM3 and Backend Readiness
-
-The strongest parts of the design are uniform expression values, lexical scope,
-explicit types in the lower layers, and mandatory tail calls. These support
-Lisp-like semantics without requiring Lisp punctuation or host-language `eval`.
-The most important gaps are:
-
-1. **Runtime data representation**: StageR has no general user-defined records,
-   variants, or recursive object layout specified yet. Closures, syntax trees,
-   symbols, and heterogeneous Lisp values need a representation. Recommend a
-   small explicit tagged-object runtime with typed arena handles and defined
-   allocation/access operations, expressible in lower-level storage. This is a
-   runtime prerequisite, not evidence that these language features already exist.
-2. **Functions without target function values**: Lower EM3 closures to code tags
-   plus environment handles and generated direct-call dispatch in StageR.
-   Shared mutable captures use cells; escaping environments outlive their creator.
-   A closed-world compiler can generate finite dispatch; runtime-loaded code or
-   `eval` needs an interpreter or an explicitly extensible dispatch mechanism.
-   Native Rust/JS closures are optional target rules, not the baseline model.
-3. **Tail calls and memory**: Use loops for eligible self-tail calls and a
-   trampoline/state machine for general mutual or indirect tail calls. Rust and
-   JavaScript do not guarantee general proper tail calls; WAT lowering must
-   either require supported tail-call instructions or use the same fallback.
-   Do not retain obsolete activation environments indefinitely. Cyclic closures
-   need tracing or another cycle-safe lifetime strategy, not reference counting
-   alone. Define logical non-tail recursion limits separately from host stacks.
-4. **Quotation, macros, and application**: Treat quoted forms as syntax data,
-   distinct from execution. Use hygienic binding identities for macros and
-   explicit expansion stages before type checking/lowering. First-class and
-   variadic calls need explicit argument framing, since fixed-arity prefix
-   parsing cannot infer arity from an arbitrary runtime function value.
-5. **Scope of Lisp compatibility**: Expression orientation does not imply
-   continuations, runtime `eval`, reflective environments, or a full numeric
-   tower. Defer these until requested; if `eval` is required, run it through the
-   same semantic runtime and capability rules, never JavaScript's host `eval`.
-
-**Pending Work**: Specify and test these contracts before claiming EM3 backend
-readiness. Start with one closure capturing a mutated binding, mutually recursive
-tail calls, exact arithmetic boundary cases, and mixed Dc/binary literals. Run
-the same observable-behavior cases through StageR-to-Rust, StageR-to-JavaScript,
-and StageR-to-StageL-to-WAT, then through each optional high-level target rule.
-No compiler, quote-aware normalizer, or cross-backend runtime tests are provided
-by this documentation change.
-
-
-> Using i32.clz((255 - b0) << 24) (Dc 750) computes the DcTF byte length for all 128 <= b0 < 255 in a single expression!
+> Using `i32.clz((255 - b0) << 24)` (`Dc 750 "WASM i32.clz"`) computes the DcTF byte length for all `128 <= b0 < 255` in a single expression!
 
 If you run across things like this that are reused, it's potentially worth allocating a new Dc to keep it DRY.
 
@@ -760,12 +395,12 @@ ordering, asynchronous events, and canonical raster output.
   - **`Dcsh`+ assembler (earlier Tier 0 proposal)**: Minimal human-writable assembler extending `src/formats/dcstring/converters/dcal.rs` with `@ident` resolution, inline literals, and automatic closer insertion via `Dc 590 "Is a closing delimiter of syntactic block for"`.
   - **EM3 (VSO / Polish Prefix Semantic & Programming Language in `src/formats/dct_el/`; earlier Tier 1 proposal)**:
     - General-purpose English-like VSO / Polish prefix language usable for both code and UI localization (transpiling to semantic Dcs and projecting into natural languages or WASM).
-    - Two lexical profiles mapping to the same token stream:
-      - **Speakable profile**: `Doing see I you.`, `Is to dipre meet I you par good.`, `Let var foo add 3 4.`, `Let var int32 var bar var foo.`, `Set var bar mul var bar dipre daun.`, `Let verb i32 sum i32 p1 i32 p2 par add p1 p2.`
-      - **Compact code profile**: `doing see I you`, `is to is meet I you } good`, `let /foo add 3 4`, `let i32/bar foo`, `set /bar mul /bar /bar`, `let v/i32/sum i32/p1 i32/p2 } add p1 p2;`
+    - Two lexical profiles mapping to the same token stream (aligned with `const` for constants, `let` for mutable variables, `set` for mutation, and `v/...` for verb declarations):
+      - **Speakable profile (`.em3`)**: `Doing see I you.`, `Is to dipre meet I you par good.`, `Const var i32 var foo add i32:3 i32:4.`, `Let var i32 var bar var i32 var foo.`, `Set var i32 var bar mul var i32 var bar dipre daun.`, `Verb i32 sum i32 p1 i32 p2 par add i32 p1 i32 p2.`
+      - **Compact code profile (`.emc`)**: `doing see I you`, `is to is meet I you } good`, `const i32/foo add i32:3 i32:4`, `let i32/bar i32/foo`, `set i32/bar mul i32/bar i32/bar`, `v/i32/sum i32/p1 i32/p2 } add i32/p1 i32/p2;`
     - **EM3 function / verb literal conventions**:
-      - Named routine: `let v/i32/sum i32/p1 i32/p2 } add p1 p2;`
-      - Anonymous verb literal: `v/i32/ p1 p2 } ...`
+      - Named routine: `v/i32/sum i32/p1 i32/p2 } add i32/p1 i32/p2;`
+      - Anonymous verb literal (EM3-only): `v/i32/ i32/p1 i32/p2 } ...`
       - Untyped/any return (`Dc 275 "Built-in type identifier: * (Object or any subtype)"`): `v//...`
       - Unit-returning routines: explicit `v/void/log`; routines that never return normally: `v/never/log` (neither uses `v//log`).
     - **Repetition Dcs (`dipre`, `daun`, `dato`)**: Compact 1-token repetition of the word before previous (`dipre`) or previous word (`daun`, `dato`) to provide elegant variation when spoken.
