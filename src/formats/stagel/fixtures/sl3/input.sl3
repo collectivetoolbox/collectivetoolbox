@@ -12,7 +12,7 @@ v/b/isEmpty l/u32/items
 
 v/b/nne i64/a i64/b :: ne i64/a i64/b.
 v/b/nneSemicolon i64/a i64/b :: ne i64/a i64/b;
-v/u32/braceBlock u32/x :: do u32/x. }
+v/u32/braceBlock u32/x :: do u32/x. }.
 
 v/u32/modStep u32/a u32/b
     test computes unsigned modulus

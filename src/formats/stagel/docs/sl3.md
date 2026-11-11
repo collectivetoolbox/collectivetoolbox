@@ -85,8 +85,8 @@ v/RETURN/name TYPE/param1 TYPE/param2 ...
     BODY_STATEMENT_1.
     FINAL_EXPRESSION.
 ```
-- An inline single-statement body uses `::` after the parameter list:
-  `v/b/nne i64/a i64/b :: ne i64/a i64/b.`
+- An inline single-statement body uses `::` after the parameter list and still ends with `.` (or `;`), even when its body expression ends with a `::` / `}` closer:
+  `v/b/nne i64/a i64/b :: ne i64/a i64/b.` / `v/u32/braceBlock u32/x :: do u32/x. }.`
 - Prefix calls have fixed arity. Verb signatures in a block are collected before parsing bodies so forward and mutually recursive calls work throughout the enclosing block. Overloading is prohibited.
 
 ### Variable & Constant Bindings (`let`, `set`, `const`)
