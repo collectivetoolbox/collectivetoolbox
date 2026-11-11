@@ -1397,7 +1397,7 @@ pub enum FormatId {
     StageL3,
     /// StageR 3 (Short 657, Category: programming)
     StageR3,
-    /// EM3 (Short 658, Category: programming)
+    /// EM3 (Short 658, Category: document)
     Em3,
 }
 
@@ -1682,7 +1682,8 @@ impl FormatId {
             | Self::CtbNodeV3
             | Self::CtbNodeIncoming
             | Self::Dce_3_02a
-            | Self::Dce_3_03a => FormatCategory::Document,
+            | Self::Dce_3_03a
+            | Self::Em3 => FormatCategory::Document,
             Self::Second
             | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
@@ -2032,8 +2033,7 @@ impl FormatId {
             | Self::StageL2Intermediate
             | Self::ActionScript
             | Self::StageL3
-            | Self::StageR3
-            | Self::Em3 => FormatCategory::Programming,
+            | Self::StageR3 => FormatCategory::Programming,
             Self::DcArray
             | Self::Unicode
             | Self::String
@@ -7614,5 +7614,5 @@ pub const DC_ADD_SYSTEM_GRAPH_MOST_RECENT: DcChar = DcChar::from_format(655);
 pub const DC_STAGE_L3: DcChar = DcChar::from_format(656);
 /// DcChar constant for Format `StageR3` (Short f657, Category: programming): StageR 3
 pub const DC_STAGE_R3: DcChar = DcChar::from_format(657);
-/// DcChar constant for Format `Em3` (Short f658, Category: programming): EM3
+/// DcChar constant for Format `Em3` (Short f658, Category: document): EM3
 pub const DC_EM3: DcChar = DcChar::from_format(658);

@@ -13,7 +13,10 @@ The region offsets are multiples of 16, so short IDs have the same alignment.
 the size of future blocks only. Changing an increment never resizes a reservation.
 The allocator fills a script's existing blocks above their recorded allocation
 high-water marks before reserving another block. Removing category rows does not
-release their IDs or reservations. The legacy ID region remains reserved.
+release their IDs or reservations. Moving an already-allocated row (`<=` its
+block's recorded high-water mark) to another registered script preserves its
+immutable ID while keeping future allocations for the new script in that
+script's own block. The legacy ID region remains reserved.
 
 To shrink a block manually, edit its last long ID in the registry. Keep its end
 aligned to hexadecimal `F`, at or above its last allocated ID and every assigned

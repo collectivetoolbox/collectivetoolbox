@@ -368,16 +368,23 @@ impl ScriptBlockAllocator {
             if id <= preexisting_cap {
                 continue;
             }
+            ensure!(
+                script_block_sizes.contains_key(&script),
+                "Assigned short ID {id} has unknown script '{script}'"
+            );
             let block = blocks
                 .iter_mut()
                 .find(|block| id >= block.start && id < block.end_exclusive)
                 .with_context(|| {
                     format!("Assigned short ID {id} has no reserved block")
                 })?;
+            // Already-allocated IDs (`id <= block.max_used`) retain their ID when
+            // reclassified to another registered category/script (README.stability.md).
             ensure!(
-                block.script == script,
-                "Assigned short ID {id} has script '{script}', but its block belongs to '{}'",
-                block.script
+                block.script == script || id <= block.max_used,
+                "Assigned short ID {id} has script '{script}', but its block belongs to '{}' and {id} exceeds the block's allocated high-water mark ({})",
+                block.script,
+                block.max_used
             );
             block.max_used = block.max_used.max(id);
         }
@@ -1955,6 +1962,15 @@ mod tests {
             validate(vec![block.clone()], vec![(1937, ".Other".to_string())])
                 .is_err()
         );
+        assert!(
+            validate(vec![block.clone()], vec![(1936, ".Unknown".to_string())])
+                .is_err()
+        );
+        let mut moved =
+            validate(vec![block.clone()], vec![(1936, ".Other".to_string())])
+                .unwrap();
+        assert_eq!(moved.allocate(".Small", "test.csv", 2).unwrap(), 1937);
+        assert_eq!(moved.allocate(".Other", "test.csv", 3).unwrap(), 1968);
         assert!(
             validate(Vec::new(), vec![(1936, ".Small".to_string())]).is_err()
         );
