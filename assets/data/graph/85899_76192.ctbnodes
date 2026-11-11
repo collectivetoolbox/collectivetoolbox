@@ -1,0 +1,78 @@
+l8589976192: 610 l8589976191 l8589976150 # Has value (Has a (ASCII text, Latin letters subset, Programmatic identifier), "AsciiLatin")
+l8589976193: u65 u6d u72 # "emr"
+l8589976194: u65 u72 u64 # "erd"
+l8589976195: u2e u65 u72 u64 # ".erd"
+l8589976196: u65 u64 u66 # "edf"
+l8589976197: u65 u64 u66 u5f u6c u61 u74 u65 u73 u74 # "edf_latest"
+l8589976198: u2e u65 u64 u66 # ".edf"
+l8589976199: u65 u64 u66 u5f u31 u5f u30 u5f u34 u33 # "edf_1_0_43"
+l8589976200: u45 u6d u62 u65 u72 u20 u44 u6f u63 u75 u6d u65 u6e u74 u20 u46 u6f u72 u6d u61 u74 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u31 u2e u30 u2e u34 u33 # "Ember Document Format, version 1.0.43"
+l8589976201: u65 u64 u66 u5f u31 u5f u30 u5f u34 u34 # "edf_1_0_44"
+l8589976202: u45 u6d u62 u65 u72 u20 u44 u6f u63 u75 u6d u65 u6e u74 u20 u46 u6f u72 u6d u61 u74 u2c u20 u76 u65 u72 u73 u69 u6f u6e u20 u31 u2e u30 u2e u34 u34 # "Ember Document Format, version 1.0.44"
+l8589976203: u65 u64 u63 # "edc"
+l8589976204: u2e u65 u64 u63 # ".edc"
+l8589976205: u65 u64 u63 u65 u64 u69 u74 u61 u62 u6c u65 # "edceditable"
+l8589976206: u65 u64 u69 u74 u61 u62 u6c u65 u64 u63 # "editabledc"
+l8589976207: u2e u65 u64 u63 u65 u64 u69 u74 u61 u62 u6c u65 # ".edceditable"
+l8589976208: u61 u73 u63 u69 u69 u6c u61 u74 u69 u6e # "asciilatin"
+l8589976209: 584 f916 575 # Has a (EITE Record Documents (ERD), Nickname)
+l8589976210: 610 l8589976209 l8589976193 # Has value (Has a (EITE Record Documents (ERD), Nickname), "emr")
+l8589976211: 584 f916 575 # Has a (EITE Record Documents (ERD), Nickname)
+l8589976212: 610 l8589976211 l8589976194 # Has value (Has a (EITE Record Documents (ERD), Nickname), "erd")
+l8589976213: 584 f916 f264 # Has a (EITE Record Documents (ERD), File extension)
+l8589976214: 610 l8589976213 l8589976195 # Has value (Has a (EITE Record Documents (ERD), File extension), ".erd")
+l8589976215: 584 f917 575 # Has a (Ember Document Format, Nickname)
+l8589976216: 610 l8589976215 l8589976196 # Has value (Has a (Ember Document Format, Nickname), "edf")
+l8589976217: 584 f917 575 # Has a (Ember Document Format, Nickname)
+l8589976218: 610 l8589976217 l8589976197 # Has value (Has a (Ember Document Format, Nickname), "edf_latest")
+l8589976219: 584 f917 579 # Has a (Ember Document Format, Magic signature)
+l8589976220: 610 l8589976219 l8589976133 # Has value (Has a (Ember Document Format, Magic signature), "Ember Document Format")
+l8589976221: 584 f917 f264 # Has a (Ember Document Format, File extension)
+l8589976222: 610 l8589976221 l8589976198 # Has value (Has a (Ember Document Format, File extension), ".edf")
+l8589976223: 584 f918 575 # Has a (Ember Document Format 1.0.43, Nickname)
+l8589976224: 610 l8589976223 l8589976199 # Has value (Has a (Ember Document Format 1.0.43, Nickname), "edf_1_0_43")
+l8589976225: 584 f918 579 # Has a (Ember Document Format 1.0.43, Magic signature)
+l8589976226: 610 l8589976225 l8589976200 # Has value (Has a (Ember Document Format 1.0.43, Magic signature), "Ember Document Format, version 1.0.43")
+l8589976227: 584 f918 f264 # Has a (Ember Document Format 1.0.43, File extension)
+l8589976228: 610 l8589976227 l8589976198 # Has value (Has a (Ember Document Format 1.0.43, File extension), ".edf")
+l8589976229: 584 f919 575 # Has a (Ember Document Format 1.0.44, Nickname)
+l8589976230: 610 l8589976229 l8589976201 # Has value (Has a (Ember Document Format 1.0.44, Nickname), "edf_1_0_44")
+l8589976231: 584 f919 579 # Has a (Ember Document Format 1.0.44, Magic signature)
+l8589976232: 610 l8589976231 l8589976202 # Has value (Has a (Ember Document Format 1.0.44, Magic signature), "Ember Document Format, version 1.0.44")
+l8589976233: 584 f919 f264 # Has a (Ember Document Format 1.0.44, File extension)
+l8589976234: 610 l8589976233 l8589976198 # Has value (Has a (Ember Document Format 1.0.44, File extension), ".edf")
+l8589976235: 584 f920 575 # Has a (Ember Document Format ASCII Dc List, Nickname)
+l8589976236: 610 l8589976235 l8589976203 # Has value (Has a (Ember Document Format ASCII Dc List, Nickname), "edc")
+l8589976237: 584 f920 f264 # Has a (Ember Document Format ASCII Dc List, File extension)
+l8589976238: 610 l8589976237 l8589976204 # Has value (Has a (Ember Document Format ASCII Dc List, File extension), ".edc")
+l8589976239: 584 f921 575 # Has a (Ember Document Format Editable ASCII Dc List, Nickname)
+l8589976240: 610 l8589976239 l8589976205 # Has value (Has a (Ember Document Format Editable ASCII Dc List, Nickname), "edceditable")
+l8589976241: 584 f921 575 # Has a (Ember Document Format Editable ASCII Dc List, Nickname)
+l8589976242: 610 l8589976241 l8589976206 # Has value (Has a (Ember Document Format Editable ASCII Dc List, Nickname), "editabledc")
+l8589976243: 584 f921 f264 # Has a (Ember Document Format Editable ASCII Dc List, File extension)
+l8589976244: 610 l8589976243 l8589976207 # Has value (Has a (Ember Document Format Editable ASCII Dc List, File extension), ".edceditable")
+l8589976245: 584 f1168 575 # Has a (ASCII text, Latin letters subset, Nickname)
+l8589976246: 610 l8589976245 l8589976208 # Has value (Has a (ASCII text, Latin letters subset, Nickname), "asciilatin")
+l8589976247: 584 f1168 f264 # Has a (ASCII text, Latin letters subset, File extension)
+l8589976248: 610 l8589976247 l8589944682 # Has value (Has a (ASCII text, Latin letters subset, File extension), ".txt")
+l8589976249: 584 l8589976211 570 # Has a (Has a (EITE Record Documents (ERD), Nickname), Preferred)
+l8589976250: 584 l8589976215 570 # Has a (Has a (Ember Document Format, Nickname), Preferred)
+l8589976251: 584 l8589976241 570 # Has a (Has a (Ember Document Format Editable ASCII Dc List, Nickname), Preferred)
+l8589976252: 586 f916 l8589934647 # Is an instance of (EITE Record Documents (ERD), Script .Formats:document)
+l8589976253: 586 f917 l8589934647 # Is an instance of (Ember Document Format, Script .Formats:document)
+l8589976254: 586 f918 l8589934647 # Is an instance of (Ember Document Format 1.0.43, Script .Formats:document)
+l8589976255: 586 f919 l8589934647 # Is an instance of (Ember Document Format 1.0.44, Script .Formats:document)
+l8589976256: 586 f920 l8589934647 # Is an instance of (Ember Document Format ASCII Dc List, Script .Formats:document)
+l8589976257: 586 f921 l8589934647 # Is an instance of (Ember Document Format Editable ASCII Dc List, Script .Formats:document)
+l8589976258: 586 f1168 l8589934649 # Is an instance of (ASCII text, Latin letters subset, Script .Formats:encoding)
+l8589976259: 587 f918 f917 # Is a subtype of (Ember Document Format 1.0.43, Ember Document Format)
+l8589976260: 587 f919 f917 # Is a subtype of (Ember Document Format 1.0.44, Ember Document Format)
+l8589976261: 587 f920 f4 # Is a subtype of (Ember Document Format ASCII Dc List, ASCII)
+l8589976262: 587 f921 f0 # Is a subtype of (Ember Document Format Editable ASCII Dc List, UTF-8)
+l8589976263: 587 f1168 f4 # Is a subtype of (ASCII text, Latin letters subset, ASCII)
+l8589976264: 588 f918 f917 # Is based on (Ember Document Format 1.0.43, Ember Document Format)
+l8589976265: 588 f919 f917 # Is based on (Ember Document Format 1.0.44, Ember Document Format)
+l8589976266: 588 f919 f918 # Is based on (Ember Document Format 1.0.44, Ember Document Format 1.0.43)
+l8589976267: 588 f1168 f4 # Is based on (ASCII text, Latin letters subset, ASCII)
+l8589976268: 638 584 639 635 310 640 l8589976130 312 l8589976131 312 l8589976132 312 l8589976133 312 l8589976134 312 l8589976135 312 l8589976136 312 l8589976137 312 l8589976138 312 l8589976139 312 l8589976140 312 l8589976141 312 l8589976142 312 l8589976143 312 l8589976144 312 l8589976145 312 l8589976146 312 l8589976147 312 l8589976148 312 l8589976149 312 l8589976150 312 l8589976151 312 l8589976152 312 l8589976153 312 l8589976154 312 l8589976155 312 l8589976156 312 l8589976157 312 l8589976158 312 l8589976159 312 l8589976160 312 l8589976161 312 l8589976162 312 l8589976163 312 l8589976164 312 l8589976165 312 l8589976166 312 l8589976167 312 l8589976168 312 l8589976169 312 l8589976170 312 l8589976171 312 l8589976172 312 l8589976173 312 l8589976174 312 l8589976175 312 l8589976176 312 l8589976177 312 l8589976178 312 l8589976179 312 l8589976180 312 l8589976181 312 l8589976182 312 l8589976183 312 l8589976184 312 l8589976185 312 l8589976186 312 l8589976187 312 l8589976188 312 l8589976189 312 l8589976190 312 l8589976191 312 l8589976192 312 l8589976193 312 l8589976194 312 l8589976195 312 l8589976196 312 l8589976197 312 l8589976198 312 l8589976199 312 l8589976200 312 l8589976201 312 l8589976202 312 l8589976203 312 l8589976204 312 l8589976205 312 l8589976206 312 l8589976207 312 l8589976208 312 l8589976209 312 l8589976210 312 l8589976211 312 l8589976212 312 l8589976213 312 l8589976214 312 l8589976215 312 l8589976216 312 l8589976217 312 l8589976218 312 l8589976219 312 l8589976220 312 l8589976221 312 l8589976222 312 l8589976223 312 l8589976224 312 l8589976225 312 l8589976226 312 l8589976227 312 l8589976228 312 l8589976229 312 l8589976230 312 l8589976231 312 l8589976232 312 l8589976233 312 l8589976234 312 l8589976235 312 l8589976236 312 l8589976237 312 l8589976238 312 l8589976239 312 l8589976240 312 l8589976241 312 l8589976242 312 l8589976243 312 l8589976244 312 l8589976245 312 l8589976246 312 l8589976247 312 l8589976248 312 l8589976249 312 l8589976250 312 l8589976251 312 l8589976252 312 l8589976253 312 l8589976254 312 l8589976255 312 l8589976256 312 l8589976257 312 l8589976258 312 l8589976259 312 l8589976260 312 l8589976261 312 l8589976262 312 l8589976263 312 l8589976264 312 l8589976265 312 l8589976266 312 l8589976267 311 # For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589976130..l8589976267 (138 elements)])
+l8589976269: 610 l8589976268 636 # Has value (For each (Has a (This element, Collective Toolbox seed graph data source), [Built-in type identifier: Atom Dc (unevaluated Document Character reference): l8589976130..l8589976267 (138 elements)]), Collective Toolbox Dc CSV seed database)

@@ -33,3 +33,4 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228555,331,AlphaSmartNeoLowCtlUaMac,"AlphaSmart Neo, control low bytes, Ukraine (Mac)",encoding,"@based_on(f326), @default_line_ending(cr)",,,,,alphasmartneolowctluamac,3 3,3 3,1 1,,,
 2228556,332,AlphaSmartNeoLowCtlUaPc,"AlphaSmart Neo, control low bytes, Ukraine (PC)",encoding,"@based_on(f326), @default_line_ending(cr)",,,,,alphasmartneolowctluapc,3 3,3 3,1 1,,,
 2228766,542,Iso88591,ISO 8859-1,encoding,@based_on(f4),,,,,"iso88591, latin1",3 3,3 3,1 1,,,
+2229392,1168,AsciiLatin,"ASCII text, Latin letters subset",encoding,"@based_on(f4), @implies(f4)",.txt,,,,asciilatin,,,,,"Legacy text encoding entry (format code asciilatin, *.txt) listed in Ember 1.0.51 (2015). Only an empty converter stub (convert_asciilatin_to_dc) and no mapping rows in edf.sqlite survive, leaving the exact byte repertoire unspecified.",

@@ -995,6 +995,11 @@ pub fn detect_custom_text_format_candidate(
                 {
                     FormatId::Cdce
                 } else if hint_ext
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("edceditable"))
+                    && !has_dcts_prefix_token
+                {
+                    FormatId::EdfEditableDcList
+                } else if hint_ext
                     .is_some_and(|ext| ext.eq_ignore_ascii_case("dcts"))
                     || has_dcts_prefix_token
                 {
@@ -1187,6 +1192,20 @@ mod tests {
         )
         .expect("detect legacy_cdce");
         assert_eq!(cdce_cand.format_id, Some(FormatId::CdceLegacy));
+
+        let edceditable_hint = DetectionHint {
+            filename: Some("doc.edceditable".to_string()),
+            ..Default::default()
+        };
+        let edceditable_cand = detect_custom_text_format_candidate(
+            b"Hello @1@ World!",
+            Some(&edceditable_hint),
+        )
+        .expect("detect edceditable");
+        assert_eq!(
+            edceditable_cand.format_id,
+            Some(FormatId::EdfEditableDcList)
+        );
 
         let compat_hint = DetectionHint {
             compat: true,

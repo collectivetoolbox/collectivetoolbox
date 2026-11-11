@@ -752,6 +752,30 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("delq"),
     },
     ExtensionEntry {
+        format_id: FormatId::Erd,
+        rule: ExtensionRule::insensitive("erd"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Edf,
+        rule: ExtensionRule::insensitive("edf"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Edf_1_0_43,
+        rule: ExtensionRule::insensitive("edf"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Edf_1_0_44,
+        rule: ExtensionRule::insensitive("edf"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::EdfDcList,
+        rule: ExtensionRule::insensitive("edc"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::EdfEditableDcList,
+        rule: ExtensionRule::insensitive("edceditable"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Utf8,
         rule: ExtensionRule::insensitive("txt"),
     },
@@ -774,6 +798,10 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::Ascii,
         rule: ExtensionRule::insensitive("ascii"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::AsciiLatin,
+        rule: ExtensionRule::insensitive("txt"),
     },
     ExtensionEntry {
         format_id: FormatId::Elf,

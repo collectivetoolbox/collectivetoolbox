@@ -2493,6 +2493,15 @@ mod tests {
             (&b"WARC/1.1\r\n"[..], FormatId::Warc),
             (&b"\x00\x05\x16\x00\x00\x02\x00\x00"[..], FormatId::AppleSingle),
             (&b"\x00\x05\x16\x07\x00\x02\x00\x00"[..], FormatId::AppleDouble),
+            (
+                &b"\x89EDFe\r\n\x1a\n\xfe\xff|Format version:1"[..],
+                FormatId::Edf_1_0_43,
+            ),
+            (
+                &b"\x89EDFe\r\n\x1a\xfe\xff\n|Format version:1_0_44"[..],
+                FormatId::Edf_1_0_44,
+            ),
+            (&b"\x89EDFe\r\n\x1a\x00\x00\x00"[..], FormatId::Edf),
         ] {
             let mut slice = magic;
             let report = guess_format_report(&mut slice, None).unwrap();
@@ -2505,6 +2514,59 @@ mod tests {
                 report.candidates
             );
         }
+
+        // Extension-only .edf should boost the common implied ancestor FormatId::Edf
+        // above specific versions Edf_1_0_43 and Edf_1_0_44.
+        assert_eq!(
+            detect_format_id(None, Some("sample.edf"), None),
+            Some(FormatId::Edf)
+        );
+    }
+
+    #[ctb_test]
+    fn test_edf_and_ember_formats_detection() {
+        let edf_43 = b"\x89EDFe\r\n\x1a\n\xfe\xff|Format version:1\0Hello";
+        assert_eq!(
+            detect_format_id(Some(edf_43), None, None),
+            Some(FormatId::Edf_1_0_43)
+        );
+        assert_eq!(
+            detect_format_id(Some(edf_43), Some("doc.edf"), None),
+            Some(FormatId::Edf_1_0_43)
+        );
+
+        let edf_44 = b"\x89EDFe\r\n\x1a\xfe\xff\n|Format version:1_0_44\0Hello";
+        assert_eq!(
+            detect_format_id(Some(edf_44), None, None),
+            Some(FormatId::Edf_1_0_44)
+        );
+        assert_eq!(
+            detect_format_id(Some(edf_44), Some("doc.edf"), None),
+            Some(FormatId::Edf_1_0_44)
+        );
+
+        let edf_unknown_ver = b"\x89EDFe\r\n\x1a\x99\x99\0Hello";
+        assert_eq!(
+            detect_format_id(Some(edf_unknown_ver), None, None),
+            Some(FormatId::Edf)
+        );
+
+        assert_eq!(
+            detect_format_id(None, Some("pivot.edc"), None),
+            Some(FormatId::EdfDcList)
+        );
+        assert_eq!(
+            detect_format_id(
+                Some(b"Hello @1@ World!"),
+                Some("doc.edceditable"),
+                None
+            ),
+            Some(FormatId::EdfEditableDcList)
+        );
+        assert_eq!(
+            detect_format_id(None, Some("records.erd"), None),
+            Some(FormatId::Erd)
+        );
     }
 
     #[ctb_test]

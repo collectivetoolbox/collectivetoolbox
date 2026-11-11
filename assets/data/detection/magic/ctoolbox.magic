@@ -94,4 +94,16 @@
 !:mime	application/octet-stream
 !:ext	dce
 
+# Ember Document Format (EDF)
+0	string		\x89EDFe\x0d\x0a\x1a\xfe\xff\x0a	Ember Document Format, version 1.0.44
+!:mime	application/octet-stream
+!:ext	edf
+
+0	string		\x89EDFe\x0d\x0a\x1a\x0a\xfe\xff	Ember Document Format, version 1.0.43
+!:mime	application/octet-stream
+!:ext	edf
+
+0	string		\x89EDFe\x0d\x0a\x1a	Ember Document Format
+!:mime	application/octet-stream
+!:ext	edf
 

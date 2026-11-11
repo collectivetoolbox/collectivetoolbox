@@ -1413,6 +1413,20 @@ pub enum FormatId {
     Ems,
     /// DEMS (short Dcs) (Short 915, Category: document)
     Dems,
+    /// EITE Record Documents (ERD) (Short 916, Category: document)
+    Erd,
+    /// Ember Document Format (Short 917, Category: document)
+    Edf,
+    /// Ember Document Format 1.0.43 (Short 918, Category: document)
+    Edf_1_0_43,
+    /// Ember Document Format 1.0.44 (Short 919, Category: document)
+    Edf_1_0_44,
+    /// Ember Document Format ASCII Dc List (Short 920, Category: document)
+    EdfDcList,
+    /// Ember Document Format Editable ASCII Dc List (Short 921, Category: document)
+    EdfEditableDcList,
+    /// ASCII text, Latin letters subset (Short 1168, Category: encoding)
+    AsciiLatin,
 }
 
 impl FormatId {
@@ -1701,7 +1715,13 @@ impl FormatId {
             | Self::EmberLanguageEarly
             | Self::Em
             | Self::Ems
-            | Self::Dems => FormatCategory::Document,
+            | Self::Dems
+            | Self::Erd
+            | Self::Edf
+            | Self::Edf_1_0_43
+            | Self::Edf_1_0_44
+            | Self::EdfDcList
+            | Self::EdfEditableDcList => FormatCategory::Document,
             Self::Second
             | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
@@ -1721,7 +1741,8 @@ impl FormatId {
             | Self::AlphaSmartNeoLowCtlUs
             | Self::AlphaSmartNeoLowCtlUaMac
             | Self::AlphaSmartNeoLowCtlUaPc
-            | Self::Iso88591 => FormatCategory::Encoding,
+            | Self::Iso88591
+            | Self::AsciiLatin => FormatCategory::Encoding,
             Self::Elf
             | Self::Pe
             | Self::MachO
@@ -2761,6 +2782,13 @@ impl FormatId {
             "em" | "els" => Some(Self::Em),
             "ems" | "elq" => Some(Self::Ems),
             "dems" | "delq" => Some(Self::Dems),
+            "erd" | "emr" => Some(Self::Erd),
+            "edf" | "edf_latest" => Some(Self::Edf),
+            "edf_1_0_43" => Some(Self::Edf_1_0_43),
+            "edf_1_0_44" => Some(Self::Edf_1_0_44),
+            "edfdclist" | "edf_dc_list" | "edc" => Some(Self::EdfDcList),
+            "edfeditabledclist" | "edf_editable_dc_list" | "editabledc" | "edceditable" => Some(Self::EdfEditableDcList),
+            "asciilatin" | "ascii_latin" => Some(Self::AsciiLatin),
             _ => None,
         }
     }
@@ -3435,6 +3463,13 @@ impl FormatId {
             Self::Em => "Em",
             Self::Ems => "Ems",
             Self::Dems => "Dems",
+            Self::Erd => "Erd",
+            Self::Edf => "Edf",
+            Self::Edf_1_0_43 => "Edf_1_0_43",
+            Self::Edf_1_0_44 => "Edf_1_0_44",
+            Self::EdfDcList => "EdfDcList",
+            Self::EdfEditableDcList => "EdfEditableDcList",
+            Self::AsciiLatin => "AsciiLatin",
         }
     }
 
@@ -3648,6 +3683,11 @@ impl FormatId {
             Self::CscJournal5 => &[Self::CscJournal],
             Self::CscArchive2 => &[Self::CscArchive],
             Self::CtbNodeIncoming => &[Self::Text],
+            Self::Edf_1_0_43 => &[Self::Edf],
+            Self::Edf_1_0_44 => &[Self::Edf],
+            Self::EdfDcList => &[Self::Ascii, Self::Utf8],
+            Self::EdfEditableDcList => &[Self::Utf8],
+            Self::AsciiLatin => &[Self::Ascii, Self::Utf8],
             _ => &[],
         }
     }
@@ -4322,6 +4362,13 @@ impl FormatId {
             Self::Em => "f913",
             Self::Ems => "f914",
             Self::Dems => "f915",
+            Self::Erd => "f916",
+            Self::Edf => "f917",
+            Self::Edf_1_0_43 => "f918",
+            Self::Edf_1_0_44 => "f919",
+            Self::EdfDcList => "f920",
+            Self::EdfEditableDcList => "f921",
+            Self::AsciiLatin => "f1168",
         }
     }
 
@@ -4996,6 +5043,13 @@ impl FormatId {
             "f913" => Some(Self::Em),
             "f914" => Some(Self::Ems),
             "f915" => Some(Self::Dems),
+            "f916" => Some(Self::Erd),
+            "f917" => Some(Self::Edf),
+            "f918" => Some(Self::Edf_1_0_43),
+            "f919" => Some(Self::Edf_1_0_44),
+            "f920" => Some(Self::EdfDcList),
+            "f921" => Some(Self::EdfEditableDcList),
+            "f1168" => Some(Self::AsciiLatin),
             _ => None,
         }
     }
@@ -5670,6 +5724,13 @@ impl FormatId {
             Self::Em => Some(2229137_u128),
             Self::Ems => Some(2229138_u128),
             Self::Dems => Some(2229139_u128),
+            Self::Erd => Some(2229140_u128),
+            Self::Edf => Some(2229141_u128),
+            Self::Edf_1_0_43 => Some(2229142_u128),
+            Self::Edf_1_0_44 => Some(2229143_u128),
+            Self::EdfDcList => Some(2229144_u128),
+            Self::EdfEditableDcList => Some(2229145_u128),
+            Self::AsciiLatin => Some(2229392_u128),
         }
     }
 
@@ -6356,6 +6417,13 @@ impl FormatId {
             2229137_u128 => Some(Self::Em),
             2229138_u128 => Some(Self::Ems),
             2229139_u128 => Some(Self::Dems),
+            2229140_u128 => Some(Self::Erd),
+            2229141_u128 => Some(Self::Edf),
+            2229142_u128 => Some(Self::Edf_1_0_43),
+            2229143_u128 => Some(Self::Edf_1_0_44),
+            2229144_u128 => Some(Self::EdfDcList),
+            2229145_u128 => Some(Self::EdfEditableDcList),
+            2229392_u128 => Some(Self::AsciiLatin),
             _ => None,
         }
     }
@@ -7693,3 +7761,17 @@ pub const DC_EM: DcChar = DcChar::from_format(913);
 pub const DC_EMS: DcChar = DcChar::from_format(914);
 /// DcChar constant for Format `Dems` (Short f915, Category: document): DEMS (short Dcs)
 pub const DC_DEMS: DcChar = DcChar::from_format(915);
+/// DcChar constant for Format `Erd` (Short f916, Category: document): EITE Record Documents (ERD)
+pub const DC_ERD: DcChar = DcChar::from_format(916);
+/// DcChar constant for Format `Edf` (Short f917, Category: document): Ember Document Format
+pub const DC_EDF: DcChar = DcChar::from_format(917);
+/// DcChar constant for Format `Edf_1_0_43` (Short f918, Category: document): Ember Document Format 1.0.43
+pub const DC_EDF_1_0_43: DcChar = DcChar::from_format(918);
+/// DcChar constant for Format `Edf_1_0_44` (Short f919, Category: document): Ember Document Format 1.0.44
+pub const DC_EDF_1_0_44: DcChar = DcChar::from_format(919);
+/// DcChar constant for Format `EdfDcList` (Short f920, Category: document): Ember Document Format ASCII Dc List
+pub const DC_EDF_DC_LIST: DcChar = DcChar::from_format(920);
+/// DcChar constant for Format `EdfEditableDcList` (Short f921, Category: document): Ember Document Format Editable ASCII Dc List
+pub const DC_EDF_EDITABLE_DC_LIST: DcChar = DcChar::from_format(921);
+/// DcChar constant for Format `AsciiLatin` (Short f1168, Category: encoding): ASCII text, Latin letters subset
+pub const DC_ASCII_LATIN: DcChar = DcChar::from_format(1168);
