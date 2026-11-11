@@ -9,16 +9,21 @@
 : t"abc" is a letters literal. The t stands for text or letters, not a general Unicode string type.
 : b"abc" is an l/u8 byte literal using C/PHP-style escapes; it is available in StageL 3 and inherited by StageR 3.
 : A bare "abc" is a StageR 3 s literal using Dcts, not a StageL 3 literal and not JSON string syntax.
-: OPEN: Specify letters case canonicalization, quote escaping, split/join signatures, and the exact byte escape set.
+: The normalized StageL character set uses 32 characters: A-Z, slash, colon, space, newline, quotation mark, and dot. Input files may use any other characters in comments. In input files, lowercase letters are permitted but hold no distinction from uppercase and will normalize to uppercase. Semicolon ; is permitted and will normalize to dot. Closing brace } is permitted and will normalize to :: double colon. Quote escaping works like subset of PHP, using slash as the escape: /" = escaped quotation mark, // = escaped slash, /x1a = substitute, /0 = null, /a = bell, /b = backspace, /t = horizontal tab, /n = new line, /v = vertical tab, /f = form feed, /r = carriage return, /x5c = backslash, other /x hexadecimal are permitted up to /xff. As it is a l/u8, it holds no character semantics inherently.
+: String (DcMst) split = explode "b" "abc" yields l/s/
+: Binary string split = explodeB b"b" b"abc" yields l/l/u8: b"a" b"c" ::
+: etc.
+: Binary string join = catB b"a" catB b"b" b"c" yields b"abc"
+: Binary string join = implode l/l/u8: b"a" b"b" b"c" :: yields b"abc"
+: etc.
 : The literal forms and opaque letters semantics are resolved; their lexical edge cases and normalization are not yet implemented.
 : b literals: true, false. There is no unspecified numeric type n.
 : l/T is a list of supported element type T. v/RETURN/name declares a named verb, not a function value.
 : Everything is expression-oriented, like Lisp: every normally completing expression returns a value.
 : void is the unit value, returned by declarations, new, set, normally completed loops, and empty blocks.
 : never does not return normally. It does not denote a returned value.
-: OPEN: Specify core arithmetic failure behavior without StageR 3 result/T.
-: RECOMMENDATION: Checked core operations return T; invalid arithmetic terminates evaluation with a defined fault, never silent wrapping.
-: RECOMMENDATION: Pure canAdd/canSub/canMul/canDiv predicates allow recovery before the operation; StageR 3 tryAdd/trySub/tryMul/tryDiv return result/T.
+: Checked core operations return T; invalid arithmetic terminates evaluation with a defined fault, never silent wrapping.
+: Pure canAdd/canSub/canMul/canDiv predicates allow recovery before the operation; StageR 3 tryAdd/trySub/tryMul/tryDiv return result/T.
 : These arithmetic choices are proposals, not resolved semantics. StageR 3 must not change the return types of inherited core operations.
 : Opening braces are prohibited outside strings/comments. Block and list openings are implicit.
 : Declarations: [let] v/RETURN/name TYPE/parameter ... HEADER_END BODY.
