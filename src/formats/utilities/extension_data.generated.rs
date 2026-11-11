@@ -912,6 +912,18 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("as"),
     },
     ExtensionEntry {
+        format_id: FormatId::StageL3,
+        rule: ExtensionRule::insensitive("sl3"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::StageR3,
+        rule: ExtensionRule::insensitive("sr3"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Em3,
+        rule: ExtensionRule::insensitive("em3"),
+    },
+    ExtensionEntry {
         format_id: FormatId::DcBasenb,
         rule: ExtensionRule::insensitive("dcbnb"),
     },

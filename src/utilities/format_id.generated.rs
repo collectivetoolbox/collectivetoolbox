@@ -1393,6 +1393,12 @@ pub enum FormatId {
     UnicodeToShortDc,
     /// Add global graph system block most recent (Short 655, Category: transformation)
     AddSystemGraphMostRecent,
+    /// StageL 3 (Short 656, Category: programming)
+    StageL3,
+    /// StageR 3 (Short 657, Category: programming)
+    StageR3,
+    /// EM3 (Short 658, Category: programming)
+    Em3,
 }
 
 impl FormatId {
@@ -2024,7 +2030,10 @@ impl FormatId {
             | Self::JqJaq
             | Self::StageL2
             | Self::StageL2Intermediate
-            | Self::ActionScript => FormatCategory::Programming,
+            | Self::ActionScript
+            | Self::StageL3
+            | Self::StageR3
+            | Self::Em3 => FormatCategory::Programming,
             Self::DcArray
             | Self::Unicode
             | Self::String
@@ -2721,6 +2730,9 @@ impl FormatId {
             "dce_3_03a" => Some(Self::Dce_3_03a),
             "unicodetoshortdc" | "unicode_to_short_dc" => Some(Self::UnicodeToShortDc),
             "addsystemgraphmostrecent" | "add_system_graph_most_recent" => Some(Self::AddSystemGraphMostRecent),
+            "stagel3" | "stage_l3" | "sl3" => Some(Self::StageL3),
+            "stager3" | "stage_r3" | "sr3" => Some(Self::StageR3),
+            "em3" => Some(Self::Em3),
             _ => None,
         }
     }
@@ -3385,6 +3397,9 @@ impl FormatId {
             Self::Dce_3_03a => "Dce_3_03a",
             Self::UnicodeToShortDc => "UnicodeToShortDc",
             Self::AddSystemGraphMostRecent => "AddSystemGraphMostRecent",
+            Self::StageL3 => "StageL3",
+            Self::StageR3 => "StageR3",
+            Self::Em3 => "Em3",
         }
     }
 
@@ -4262,6 +4277,9 @@ impl FormatId {
             Self::Dce_3_03a => "f653",
             Self::UnicodeToShortDc => "f654",
             Self::AddSystemGraphMostRecent => "f655",
+            Self::StageL3 => "f656",
+            Self::StageR3 => "f657",
+            Self::Em3 => "f658",
         }
     }
 
@@ -4926,6 +4944,9 @@ impl FormatId {
             "f653" => Some(Self::Dce_3_03a),
             "f654" => Some(Self::UnicodeToShortDc),
             "f655" => Some(Self::AddSystemGraphMostRecent),
+            "f656" => Some(Self::StageL3),
+            "f657" => Some(Self::StageR3),
+            "f658" => Some(Self::Em3),
             _ => None,
         }
     }
@@ -5590,6 +5611,9 @@ impl FormatId {
             Self::Dce_3_03a => Some(2228877_u128),
             Self::UnicodeToShortDc => Some(2228878_u128),
             Self::AddSystemGraphMostRecent => Some(2228879_u128),
+            Self::StageL3 => Some(2228880_u128),
+            Self::StageR3 => Some(2228881_u128),
+            Self::Em3 => Some(2228882_u128),
         }
     }
 
@@ -6266,6 +6290,9 @@ impl FormatId {
             2228877_u128 => Some(Self::Dce_3_03a),
             2228878_u128 => Some(Self::UnicodeToShortDc),
             2228879_u128 => Some(Self::AddSystemGraphMostRecent),
+            2228880_u128 => Some(Self::StageL3),
+            2228881_u128 => Some(Self::StageR3),
+            2228882_u128 => Some(Self::Em3),
             _ => None,
         }
     }
@@ -7583,3 +7610,9 @@ pub const DC_DCE_3_03A: DcChar = DcChar::from_format(653);
 pub const DC_UNICODE_TO_SHORT_DC: DcChar = DcChar::from_format(654);
 /// DcChar constant for Format `AddSystemGraphMostRecent` (Short f655, Category: transformation): Add global graph system block most recent
 pub const DC_ADD_SYSTEM_GRAPH_MOST_RECENT: DcChar = DcChar::from_format(655);
+/// DcChar constant for Format `StageL3` (Short f656, Category: programming): StageL 3
+pub const DC_STAGE_L3: DcChar = DcChar::from_format(656);
+/// DcChar constant for Format `StageR3` (Short f657, Category: programming): StageR 3
+pub const DC_STAGE_R3: DcChar = DcChar::from_format(657);
+/// DcChar constant for Format `Em3` (Short f658, Category: programming): EM3
+pub const DC_EM3: DcChar = DcChar::from_format(658);

@@ -37,3 +37,6 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228566,342,StageL2,StageL 2,programming,@based_on(f133),.sl,,,,,,,,,,
 2228567,343,StageL2Intermediate,Normalized StageL 2,programming,@based_on(f342),.sli,,,,,,,,,,
 2228767,543,ActionScript,ActionScript,programming,,.as,,,,,,,,,,
+2228880,656,StageL3,StageL 3,programming,@based_on(f342),.sl3,,,,sl3,,,,,Low-level bootstrap subset language compiled to Dc-WASM (stage_0_impls/).,
+2228881,657,StageR3,StageR 3,programming,@based_on(f656),.sr3,,,,sr3,,,,,"Superset of StageL 3 adding Dc-native types, arbitrary-precision math, and structured error handling (stage_1_impls/).",
+2228882,658,Em3,EM3,programming,@based_on(f657),.em3,,,,,,,,,"High-level scripting language built atop StageR 3; successor to EL (Ember Language, .em / .eite). EM3 has no acronym expansion other than EM3.",
