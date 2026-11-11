@@ -1,0 +1,43 @@
+: StageR 3 fixture (see src/formats/stagel/docs/sr3.md for full specification).
+: Exercises StageR 3 types (s, dc, dcs, i128, u128, int, rat, view, cursor, option/T, result/T) and bare "..." Dcts literals.
+
+v/b/zl s/in
+    test works with zero length string
+        in ""
+        out true
+    test works with nonzero length string
+        in "a"
+        out false
+    eq u64:0 byteLen s/in.
+
+v/result/i64/addChecked i64/a i64/b :: tryAdd i64/a i64/b.
+
+v/s/default s/a s/b :: if zl s/a s/b s/a.
+
+v/i128/passWide i128/x
+    test preserves negative wide integer
+        in i128:-42
+        out i128:-42
+    i128/x.
+
+v/option/u32/nonZeroOrNone u32/x
+    test wraps nonzero value
+        in u32:5
+        out option/u32:some u32:5
+    if eq u32:0 u32/x
+        option/u32:none
+        option/u32:some u32/x.
+
+v/s/getFormatImportSetting s/a s/b :: unimplemented "Import settings".
+v/option/s/dcGetMappingToFormat dc/a s/b :: unimplemented "Dc mapping".
+v/s/getEnvCodeLanguage :: unimplemented "Environment language".
+
+v/s/getTargetLanguageForDctCodeToText
+    const s/targetLanguage getFormatImportSetting "codetotext" "language".
+    if zl s/targetLanguage getEnvCodeLanguage s/targetLanguage.
+
+v/l/s/splitDcts s/sep s/input
+    test splits mixed mode string with embedded Dc token
+        in ":" "alpha:@256@:beta"
+        out l/s: "alpha" "@256@" "beta" ::
+    explode s/sep s/input.
