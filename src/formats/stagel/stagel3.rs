@@ -46,6 +46,9 @@ use crate::utilities::*;
 /// intermediate character set (capital `A-Z`, `/`, `:`, space, newline, `}`,
 /// and `.`).
 ///
+/// This is the legacy alphabet, not the revised literal-aware design. Quoted
+/// literals are not supported, and `}` is not yet normalized to `::`.
+///
 /// Converts lowercase ASCII characters to uppercase, normalizes line endings,
 /// normalizes `;` to `.`, identifies comments starting with `: ` after optional
 /// indentation, escapes disallowed characters within comments as

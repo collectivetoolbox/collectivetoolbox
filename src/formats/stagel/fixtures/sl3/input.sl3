@@ -7,16 +7,26 @@
 : letters is a string in the StageL intermediate character set: A-Z, slash, colon, space, newline, quotation mark, dot.
 : letters values are opaque identifiers, not byte data. They support comparison, splitting, and joining; memory representation is unspecified.
 : t"abc" is a letters literal. The t stands for text or letters, not a general Unicode string type.
-: b"abc" is an l/u8 byte literal using C/PHP-style escapes; it is available in StageL 3 and inherited by StageR 3.
+: b"abc" is an l/u8 byte literal using the slash escapes below; it is available in StageL 3 and inherited by StageR 3.
 : A bare "abc" is a StageR 3 s literal using Dcts, not a StageL 3 literal and not JSON string syntax.
-: The normalized StageL character set uses 32 characters: A-Z, slash, colon, space, newline, quotation mark, and dot. Input files may use any other characters in comments. In input files, lowercase letters are permitted but hold no distinction from uppercase and will normalize to uppercase. Thus: `assert eq t"a" t"A".` shall pass. Semicolon ; is permitted and will normalize to dot. Closing brace } is permitted and will normalize to :: double colon. Quote escaping works like subset of PHP, using slash as the escape: /" = escaped quotation mark, // = escaped slash, /x1a = substitute, /0 = null, /a = bell, /b = backspace, /t = horizontal tab, /n = new line, /v = vertical tab, /f = form feed, /r = carriage return, /x5c = backslash, other /x hexadecimal are permitted up to /xff. As it is a l/u8, it holds no character semantics inherently.
-: String (DcMst) split = explode "b" "abc" yields l/s/
+: The normalized StageL character set uses 32 characters: A-Z, slash, colon, space, newline, quotation mark, and dot.
+: Input files may use any other characters in comments. Identifiers and letters literals normalize to uppercase.
+: Thus assert eq t"a" t"A" shall pass. OPEN: Specify assert, returning unit on success and a defined fault on failure.
+: Outside literals/comments, semicolon normalizes to dot and closing brace normalizes to :: double colon.
+: Source byte escapes use slash: /" = quotation mark, // = slash, /x1a = substitute, /0 = null, /a = bell, /b = backspace.
+: Further byte escapes: /t = horizontal tab, /n = newline, /v = vertical tab, /f = form feed, /r = carriage return.
+: /x hexadecimal escapes are permitted through /xff; /x5c represents backslash. Byte lists have no inherent character semantics.
+: OPEN: Specify exactly two hex digits, malformed-escape errors, raw non-ASCII bytes, and which escapes are valid in t literals.
+: OPEN: Specify lossless byte/Dcts literal normalization: do not infer payload case folding from identifier/letters normalization.
+: OPEN: Specify the digit-free intermediate encoding of escapes such as /x1a and /0, and Dcts quote framing.
+: String (DcMst) split = explode "b" "abc" yields l/s: "a" "c" ::
 : Binary string split = explodeB b"b" b"abc" yields l/l/u8: b"a" b"c" ::
-: etc.
 : Binary string join = catB b"a" catB b"b" b"c" yields b"abc"
 : Binary string join = implodeB l/l/u8: b"a" b"b" b"c" :: yields b"abc"
-: etc. (implode probably not part of the core language as it a simple to implement as loop of cat. Maybe explode too.)
-: Similar available for letters and (in StageR 3) dcs: explodeL t"b" t"abc" yields l/t: t"a" t"c" ::
+: RECOMMENDATION: Keep explode/implode in libraries, with efficient bulk construction; repeated copying cat can take quadratic time.
+: Letters splitting: explodeL t"b" t"abc" yields l/t: t"a" t"c" ::. Analogous dcs operations belong to StageR 3.
+: OPEN: Specify empty separators, overlapping matches, retained empty pieces, and DcMst binary-run matching.
+: OPEN: Reconcile catB with generic concat for l/u8; prefer one canonical concatenation operation, not duplicate aliases.
 : The literal forms and opaque letters semantics are resolved; their lexical edge cases and normalization are not yet implemented.
 : b literals: true, false. There is no unspecified numeric type n.
 : l/T is a list of supported element type T. v/RETURN/name declares a named verb, not a function value.
@@ -140,7 +150,7 @@ v/void/unitChoice b/condition :: if b/condition do :: do ::.
 : Bare "..." uses Dcts to construct s, including non-Unicode Dcs. b"..." constructs bytes; t"..." constructs letters.
 : There is no separate dcs literal spelling resolved here; converting mixed-mode strings to dcs must be explicit and fallible.
 : OPEN: Define string equality and length for DcMst binary runs; do not confuse bytes, Dc characters, and Unicode code points.
-: OPEN: Specify Dcts embedding boundaries, quote escaping, and preservation of literal payloads during normalization.
+: OPEN: Specify Dcts embedding boundaries and how outer quote escaping composes with Dcts; preserve literal payload values during normalization.
 : OPEN: Specify ABI, ownership, and WASM lowering for wide integers, int, rat, and strings.
 : unimplemented MESSAGE is a development-only never-returning stub, not recoverable error handling.
 :

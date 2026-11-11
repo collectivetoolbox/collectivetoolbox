@@ -4,7 +4,7 @@ The language design is split into three languages; these names are distinct from
 the implementation-stage directory numbers below:
 
 - **StageL 3** is the core language, to be implemented directly in WAT. Its types
-  are `b`, `letters`, `u8`, `i32`, `u32`, `i64`, `u64`, lists `l/T` of supported
+  are `b`, `t` (letters), `u8`, `i32`, `u32`, `i64`, `u64`, lists `l/T` of supported
   element types, `void`, and `never`. Named functions, including nested functions,
   are directly callable but are not first-class values. `v/RETURN/name` is
   declaration syntax, not a function-value type.
@@ -64,14 +64,23 @@ to be specified and implemented.
 
 ## Resolved Literal and Type Decisions
 
-- `letters` is an opaque identifier-oriented sequence, not a byte buffer or a
+- `t` (letters) is an opaque identifier-oriented sequence, not a byte buffer or a
   general-purpose Unicode string. Values can be compared, split, and joined;
   their in-memory representation is unspecified. The intended intermediate
   alphabet is `A-Z`, `/`, `:`, space, newline, quotation mark, and `.`.
-- `t"abc"` denotes `letters`; `b"abc"` denotes `l/u8` with C/PHP-style escapes.
-  Both are core literal forms. The exact escape repertoire, letters case
-  canonicalization, and split/join signatures still need a lexical/API decision;
-  C and PHP do not have identical string escape rules.
+- `t"abc"` denotes `t`; letters are case-insensitive, so `t"a"` equals `t"A"`.
+  `b"abc"` denotes `l/u8` without inherent character semantics. Both are core
+  literal forms. The source escape marker is slash, not backslash: `/"` is a
+  quotation mark, `//` a slash, `/0` NUL, `/a` bell, `/b` backspace, `/t` tab,
+  `/n` newline, `/v` vertical tab, `/f` form feed, `/r` carriage return, and
+  `/xHH` a hexadecimal byte through `/xff` (including `/x5c` for backslash).
+  These choices supersede the earlier backslash-escape recommendation.
+- The example specifies separator-based splitting: `explodeB b"b" b"abc"`
+  yields `l/l/u8: b"a" b"c" ::`, and `explodeL t"b" t"abc"` yields
+  `l/t: t"a" t"c" ::`. `catB` concatenates two byte lists; `implodeB` joins
+  a list of byte lists without a separator. StageR `explode "b" "abc"`
+  yields `l/s: "a" "c" ::`. Empty separators, overlapping matches, and
+  leading/trailing empty pieces still need explicit contracts.
 - Bare `"abc"` is StageR 3's default `s` literal, with a **Dcts payload**, not
   JSON. `s` is a **DcMst mixed-mode document-string value**: it can carry Dc
   characters and embedded binary data, not merely Unicode text. In the current
@@ -89,7 +98,8 @@ to be specified and implemented.
 - `view` describes a source range; `cursor` adds a mutable position. Their
   checked bounds and source lifetimes are not solved merely by naming fields.
   `option/T` and `result/T` are tagged values, not nullable/exception aliases.
-- `::` replaces `}` as the inline header and explicit block/list closer.
+- `::` is the canonical inline header and explicit block/list closer; `}`
+  remains accepted in source and normalizes to `::` outside literals/comments.
   Comments start with `: ` or a lone `:` after optional indentation, not every
   leading colon: a line beginning with `::` must remain a delimiter.
 
@@ -201,14 +211,16 @@ The shared normalizer must distinguish identifiers, comments, each literal
 kind, and `::`. Uppercasing identifiers or rewriting semicolons and line endings
 must not change byte or Dcts payloads. Recommended remaining decisions:
 
-- Canonicalize letters to the stated uppercase alphabet; reject characters
-  outside it after decoding escapes. Use equality on the canonical sequence,
-  zero-based splitting at character boundaries, and ordered concatenation.
-  Specify whether out-of-bounds splitting faults or returns a StageR result.
-- Define an exact byte escape set, rather than delegating to C or PHP. A small
-  candidate is `\\`, `\"`, `\n`, `\r`, `\t`, `\0`, and exactly two hexadecimal
-  digits after `\x`; reject unknown or incomplete escapes. Specify whether
-  unescaped non-ASCII source characters are forbidden or UTF-8 encoded.
+- Letters case folding and the slash-based source escape repertoire are now
+  specified above. Recommend rejecting decoded characters outside the letters
+  alphabet, including byte escapes that are valid only in `b` literals. Keep
+  separator-based `explode` distinct from indexed slicing.
+- Recommend exactly two hexadecimal digits after `/x`, rejection of unknown
+  or incomplete escapes, and case-insensitive escape names in letters/byte
+  source syntax. Specify whether unescaped non-ASCII source characters in byte
+  literals are forbidden or UTF-8 encoded. Case folding of identifiers and
+  letters must not silently uppercase byte or Dcts values; the source's broad
+  lowercase-normalization statement needs this explicit exception.
 - Specify the outer quote framing separately from Dcts payload parsing, with
   no double-unescaping. Choose a reversible normalized literal encoding within
   the intended alphabet, including an escape for its own marker. Comment
@@ -217,10 +229,125 @@ must not change byte or Dcts payloads. Recommended remaining decisions:
   malformed escapes, and adjacent literals. Assert preservation of decoded
   values, normalization idempotence, and rejection of bare literals in core.
 
-**Deferred**: No separate fixture files or conditional normalizer are added by
-this design update. Quoted code is currently rejected, and choosing its
-normalized encoding silently would settle an unresolved language decision.
-The existing StageR snippets remain commentary, not runnable coverage.
+#### Remaining Fixture Blockers
+
+Source escape spellings, letters case folding, and source `}` normalization are
+now specified. They are no longer reasons to defer the fixtures. The remaining
+blockers for **literal-bearing normalized** `.sr3`/`.sri3` pairs are narrower:
+
+1. **Value-preserving intermediate encoding**: `/x1a` and `/0` contain digits,
+   which are absent from the 32-character alphabet. Specify their reversible
+   normalized spelling and how normalization distinguishes it from source
+   syntax. Do not silently uppercase byte or Dcts payloads. State whether
+   letters escapes are decoded and alphabet-validated before case folding.
+2. **Dcts framing**: Decide how the outer quotation delimiter and slash escapes
+   interact with Dcts payload syntax. Literal quotes and slashes must survive
+   without accidental early termination or double decoding. Define malformed
+   escape behavior and either restrict initial byte fixtures to ASCII or settle
+   the raw non-ASCII byte policy.
+3. **Implementation and tests**: The existing normalizer rejects code quotes,
+   preserves `}` instead of rewriting it, and lacks a language mode. Its
+   comment detector also misses a comment at byte zero and can mistake a line
+   starting `:: ` for a comment. Add one shared stateful lexer and focused
+   source/intermediate checks before calling literal-bearing fixtures verified.
+
+There is **no design blocker to a limited nonliteral StageR fixture**, such as
+an `i128` identity function or an `option/u32` constructor, nor to a clearly
+labeled source-only draft. These would not test the unresolved literal path.
+Arithmetic execution, result matching, source ownership, closures, and WAT
+lowering are not prerequisites for normalization fixtures; they are separate
+parser/runtime gates. Do not wait for every OPEN item to be closed.
+
+**Deferred**: This review does not choose a new intermediate literal encoding,
+add a quote-aware normalizer, or create separate StageR files. The existing
+StageR snippets remain commentary, not runnable coverage. Once the two lexical
+contracts above are chosen, normalization work and fixtures can proceed without
+settling the full language runtime.
+
+#### Split and Join Review
+
+Keep `explode`/`implode` as library operations rather than new syntax. However,
+joining by repeatedly copying the accumulated result through `cat` can take
+quadratic time. Provide checked preallocation/bulk fill or an amortized builder
+underneath a linear-time join. The same issue applies to repeated list `concat`
+in the current copy example; it is a semantic sketch, not an efficient recipe.
+
+Because bytes are already `l/u8`, decide whether `catB` is replaced by the
+existing generic `concat` instead of maintaining two names for the same
+operation. This is a recommendation, not a silent renaming of the new examples.
+Separator splitting still needs empty-separator, overlapping-match, retained
+empty-piece, and DcMst binary-run rules. Recommend non-overlapping left-to-right
+matching, retained empty pieces, and rejection of an empty separator, with a
+separate operation for splitting into individual elements.
+
+### Original StageL Feature Comparison
+
+This comparison is grounded in the original
+[ASCII codec](../src/formats/stagel/fixtures/format-ascii.stagel),
+[UTF-8 codec](../src/formats/stagel/fixtures/format-utf8.stagel),
+[codec tests](../src/formats/stagel/fixtures/format-utf8-tests.stagel), and
+[code generator](../src/formats/stagel/codegen.rs). The codecs call runtime
+helpers; their presence in a fixture is evidence of an intended API, not proof
+that every helper/backend currently works. No original runtime suite was run
+for this design review.
+
+**Recommended for StageL 3's core or core library:**
+
+- **Checked indexed access and slicing**: Original `get` and `anSubset` are
+  used repeatedly by codecs. Define typed list access, half-open slices, and
+  explicit bounds behavior. Do not inherit the old `-1` end sentinel into
+  unsigned indices; use an explicit length or a separate slice-to-end operation.
+  Add efficient construction/bulk copying, not just repeated concatenation.
+- **Boolean and ordered comparisons**: Original examples use `not`, `and`,
+  `or`, `lt`, and `le`. Specify all ordered integer comparisons and lazy Boolean
+  conjunction/disjunction. The old code generator emits ordinary helper calls;
+  that is not evidence that the old helpers were short-circuiting. Lazy forms
+  should lower to `if`, not eagerly evaluated ordinary function arguments.
+- **Explicit indexed iteration**: The old `loop-block` lowering binds both an
+  index and an element. Extend the existing `foreach` with explicit bindings
+  and scope rules so nested traversal need not share the reserved `this` name.
+  Preserve snapshot iteration unless mutation semantics are deliberately changed.
+- **Early return**: Original `return` is useful for decoder guards and failure
+  exits. Recommend a `return VALUE` expression of type `never`, targeting only
+  the current function; a returned call remains a tail call. This complements
+  final-expression returns. Do not copy the old generator's prohibition on
+  invoking a function directly in `return` or `new`.
+- **Assertions and negative tests**: The original fixtures use `assertIsByteArray`,
+  `assertIsDcArray`, and `runTest`; the new notes already use `assert`. Specify
+  `assert` as unit on success and a defined fault on failure, not a debug-only
+  check. Static types replace redundant dynamic type assertions; boundary
+  validation remains fallible. Extend inline tests to expect faults/errors,
+  rather than testing only successful return values.
+
+**Recommended for libraries, with StageR types where necessary:**
+
+- Original `push`, `contains`, `arrNonempty`, `arrEq`, and `intIsBetween` need
+  equivalents, but need not all become primitives. Use the existing `eq`/`len`
+  concepts and one canonical API per operation. Generic library functions need
+  a defined type-parameter mechanism or compiler-known signatures; do not assume
+  user-defined overloading after explicitly prohibiting it.
+- `pack32`, `unpack32`, byte/UTF-8 conversion, and numeric text helpers belong
+  in typed libraries with explicit widths, byte order, malformed-input errors,
+  and consumption counts. Machine-width byte packing can live in the core
+  library; Dc and mixed-mode string conversions belong in StageR.
+- Original format mapping/settings, unmappable-character warnings, and decoder
+  diagnostics belong in the StageR format library with explicit context and
+  structured errors. Host I/O must remain capability-mediated, not implicit
+  global authority carried over from a target runtime.
+
+**Do not restore:** the unspecified numeric `n` type, one numeric array type for
+both bytes and Dcs, empty-array/negative-number error sentinels, or default
+initialization that obscures a missing value. Expression-oriented initialization
+and returns already improve on the old generator. `elif` can be a nested `if`;
+first-class callbacks remain EM3-only. Bitwise operations, shifts, and explicit
+numeric conversions also deserve a core contract for implementing codecs, but
+this comparison does not claim that every such operation existed in version 1.
+
+**Pending Work**: These are placement recommendations, not new accepted syntax
+or implemented APIs. Prioritize indexed access/slicing, efficient construction,
+Boolean operators, and explicit iteration bindings before porting codecs or
+implementing EM3's runtime. Add module/import and generic-library contracts
+before scaling beyond a single source file.
 
 ### Other Open Points
 
