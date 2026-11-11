@@ -3,7 +3,7 @@
 : StageR 3 builds on StageL 3 with the additional types described below.
 : EM3 is the full VSO language built on StageR 3. Only EM3 has first-class functions.
 : Identifiers are ASCII case-insensitive. Typing is strict; there is no automatic coercion.
-: Core types: b, letters, u8, i32, u32, i64, u64, l/T, void, never.
+: Core types: b, t ("letters"), u8, i32, u32, i64, u64, l/T, void, never.
 : letters is a string in the StageL intermediate character set: A-Z, slash, colon, space, newline, quotation mark, dot.
 : letters values are opaque identifiers, not byte data. They support comparison, splitting, and joining; memory representation is unspecified.
 : t"abc" is a letters literal. The t stands for text or letters, not a general Unicode string type.
@@ -14,8 +14,9 @@
 : Binary string split = explodeB b"b" b"abc" yields l/l/u8: b"a" b"c" ::
 : etc.
 : Binary string join = catB b"a" catB b"b" b"c" yields b"abc"
-: Binary string join = implode l/l/u8: b"a" b"b" b"c" :: yields b"abc"
-: etc.
+: Binary string join = implodeB l/l/u8: b"a" b"b" b"c" :: yields b"abc"
+: etc. (implode probably not part of the core language as it a simple to implement as loop of cat. Maybe explode too.)
+: Similar available for letters and (in StageR 3) dcs: explodeL t"b" t"abc" yields l/t: t"a" t"c" ::
 : The literal forms and opaque letters semantics are resolved; their lexical edge cases and normalization are not yet implemented.
 : b literals: true, false. There is no unspecified numeric type n.
 : l/T is a list of supported element type T. v/RETURN/name declares a named verb, not a function value.
