@@ -124,6 +124,7 @@
     ("webrtc-audio-processing-0.3" . ,webrtc-audio-processing-fixed-proc)
     ("harfbuzz" . ,harfbuzz-fixed-proc)
     ("wayland" . ,wayland-fixed-proc)
+    ("wayland-protocols" . ,wayland-protocols-fixed-proc)
     ("colord-minimal" . ,colord-fixed-proc)
     ("colord" . ,colord-fixed-proc)
     ("glib" . ,glib-fixed-proc)

@@ -15,14 +15,15 @@
 ;;; You should have received a copy of the GNU General Public License
 ;;; along with this Scheme program.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Patch for wayland to ensure libdir is lib and disable tests.
+;;; Patch for wayland and wayland-protocols to ensure libdir is lib and disable tests.
 
 (define-module (patches wayland)
   #:use-module (guix packages)
   #:use-module (guix utils)
   #:use-module (guix gexp)
   #:use-module (gnu packages freedesktop)
-  #:export (wayland-fixed-proc wayland-fixed))
+  #:export (wayland-fixed-proc wayland-fixed
+            wayland-protocols-fixed-proc wayland-protocols-fixed))
 
 (define (wayland-fixed-proc pkg)
   (package
@@ -35,3 +36,13 @@
 
 (define wayland-fixed
   (wayland-fixed-proc wayland))
+
+(define (wayland-protocols-fixed-proc pkg)
+  (package
+    (inherit pkg)
+    (arguments
+     (substitute-keyword-arguments (package-arguments pkg)
+       ((#:tests? _ #f) #f)))))
+
+(define wayland-protocols-fixed
+  (wayland-protocols-fixed-proc wayland-protocols))
