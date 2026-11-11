@@ -18,6 +18,22 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! StageL version 3 normalizer and source tools.
+//!
+//! StageL 3 is the core language, to be implemented directly in WAT. StageR 3
+//! builds on it with `i128`, `u128`, `int`, `rat`, `dc`, `view`, `cursor`, `s`,
+//! `dcs`, `option`, and `result`. Only EM3, the full VSO language built on
+//! StageR 3, adds first-class functions and escaping closures. Named nested
+//! functions and direct calls do not require first-class function values.
+//!
+//! All three languages are expression-oriented: every normally completing
+//! expression returns a value, including unit for `void`. A body returns its
+//! final expression's value; `never` means no normal return. Tail calls,
+//! including mutual tail calls, must not grow the call stack. Nested functions
+//! capture shared lexical bindings at their definition site, not their call
+//! site. Only EM3 permits captured bindings to escape in function values.
+//!
+//! These are design requirements. This module only normalizes source bytes;
+//! it does not yet implement parsing, type checking, execution, or WAT lowering.
 
 #[allow(
     unused_imports,

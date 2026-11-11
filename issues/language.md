@@ -1,6 +1,65 @@
-  - **Stage 0 (`src/formats/dcdata/data-src/stage_0_impls/`)** is the *only* stage implemented in `.wat` (WASM text format lowered to `Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"` and WebAssembly instruction Dcs `Dc 647 "WASM unreachable"`..`Dc 1926 "WASM Reserved 0xFD 0xFF 0x03"`).
-  - **Stage 1 (`src/formats/dcdata/data-src/stage_1_impls/`)** is to be written in a **minimal base language** (which is not yet defined—not `.wat`), implemented on top of Stage 0, to provide the higher-level implementations and implement the full VSO language.
-  - **Stage 2 (`src/formats/dcdata/data-src/impls/`)** is to be written in the **VSO-syntax language** from [2026-10-31-language.md](file:///workspaces/ctoolbox/docs/chats/2026-10-31-language.md#L153-L165) and [language.md](file:///workspaces/ctoolbox/issues/language.md#L318-L330) (which is not yet implemented—not `.wat`), containing the remaining Dcs such as `Dc 256 "void lang.say([string] text)"`.
+# Language Layers (2026-11-11)
+
+The language design is split into three languages; these names are distinct from
+the implementation-stage directory numbers below:
+
+- **StageL 3** is the core language, to be implemented directly in WAT. Its types
+  are `b`, `letters`, `u8`, `i32`, `u32`, `i64`, `u64`, lists `l/T` of supported
+  element types, `void`, and `never`. Named functions, including nested functions,
+  are directly callable but are not first-class values. `v/RETURN/name` is
+  declaration syntax, not a function-value type.
+- **StageR 3** builds on StageL 3 and adds the 128-bit primitives `i128` and
+  `u128`, arbitrary-precision `int` and `rat`, `dc`, `view`, `cursor`, `s`
+  (DcMstr), `dcs` (DcStr), `option/T`, and `result/T`. These are not StageL 3
+  core types. StageR 3 does not add first-class functions.
+- **EM3** is the full VSO language built on StageR 3, with speakable and compact
+  code profiles. Only EM3 supports first-class functions: function values,
+  callbacks passed as values, anonymous functions, and functions returned from
+  other functions, including escaping closures.
+
+All three languages are **expression-oriented, like Lisp**. Every normally
+completing expression returns a value. A block or function returns the value of
+its final expression; earlier expressions are evaluated for their effects and
+their values discarded. `void` denotes the unit value, not an absence of a value:
+declarations, `new`, `set`, normally completed loops, and empty blocks return
+unit. `never` describes an expression that does not return normally. An `if`
+returns its selected branch's value; the branch types must agree, with `never`
+compatible with the other branch. Dot and normalized semicolon separate
+expressions without discarding the final value.
+
+**Tail calls do not grow the call stack**, including mutual tail calls. This is
+a language guarantee, not an optional optimization. A call is in tail position
+when its result is returned directly, including in the selected branch of a
+tail-position `if` or the final expression of a returned block. Non-tail calls
+can still grow the stack; tail calls do not imply bounded heap allocation.
+
+**Nested functions capture lexical bindings from where they are defined, not
+from where they are called.** Captures refer to shared bindings, so mutations
+are visible through the capture. A caller's local variables do not replace the
+definition-site environment. StageL 3 and StageR 3 nested functions cannot
+escape as values; EM3 closures can, keeping captured bindings alive after the
+defining invocation returns. Loop bodies and conditional branches in the core
+are expressions, not first-class callbacks.
+
+The intended implementation stages are:
+
+- **Stage 0 (`src/formats/dcdata/data-src/stage_0_impls/`)** uses WAT for the
+  foundations, including the implementation of StageL 3.
+- **Stage 1 (`src/formats/dcdata/data-src/stage_1_impls/`)** uses StageL 3 for
+  the StageR 3 extensions, then StageR 3 for the full EM3 language implementation.
+- **Stage 2 (`src/formats/dcdata/data-src/impls/`)** uses EM3 for the remaining
+  high-level definitions and the full VSO code/localization language described
+  in [the language design discussion](../docs/chats/2026-10-31-language.md).
+
+## Pending Work
+
+These are design requirements, not implemented compiler/runtime guarantees.
+The StageL 3 source normalizer does not implement type checking, execution,
+lexical capture, or tail-call lowering. Core arithmetic failure behavior must
+be specified without relying on StageR 3 `result/T`; StageR 3 checked arithmetic
+uses result values. ABI, ownership, definite initialization across nested calls,
+stack-safe tail-call lowering with captures, and EM3 closure lowering remain
+to be specified and implemented.
 
 
 > Using i32.clz((255 - b0) << 24) (Dc 750) computes the DcTF byte length for all 128 <= b0 < 255 in a single expression!
@@ -320,20 +379,25 @@ ordering, asynchronous events, and canonical raster output.
 
 ## Deferred Items (Not Required for Compatibility Closure)
 
-### 1. Tier 0 & Tier 1 Textual Languages (`Dcsh`+ and VSO / Polish Prefix Language)
+### 1. StageL 3, StageR 3, and EM3 Textual Languages
 - **Status**: `Deferred` until Gates 1–3 are established.
+- **Pending Work**: Implement the WAT-based StageL 3 core, the StageR 3 type
+  extensions, and then EM3, following the [language layers](#language-layers-2026-11-11).
+  Expression values, lexical capture, and stack-safe tail calls are required
+  throughout; first-class functions are EM3-only. The older assembler/VSO tier
+  labels below do not replace this implementation hierarchy.
 - **Preserved Design Notes from [`docs/chats/2026-10-31-language.md`](../docs/chats/2026-10-31-language.md)**:
-  - **Tier 0 (`Dcsh`+ assembler)**: Minimal human-writable assembler extending `src/formats/dcstring/converters/dcal.rs` with `@ident` resolution, inline literals, and automatic closer insertion via `Dc 590 "Is a closing delimiter of syntactic block for"`.
-  - **Tier 1 (VSO / Polish Prefix Semantic & Programming Language in `src/formats/dct_el/`)**:
+  - **`Dcsh`+ assembler (earlier Tier 0 proposal)**: Minimal human-writable assembler extending `src/formats/dcstring/converters/dcal.rs` with `@ident` resolution, inline literals, and automatic closer insertion via `Dc 590 "Is a closing delimiter of syntactic block for"`.
+  - **EM3 (VSO / Polish Prefix Semantic & Programming Language in `src/formats/dct_el/`; earlier Tier 1 proposal)**:
     - General-purpose English-like VSO / Polish prefix language usable for both code and UI localization (transpiling to semantic Dcs and projecting into natural languages or WASM).
     - Two lexical profiles mapping to the same token stream:
       - **Speakable profile**: `Doing see I you.`, `Is to dipre meet I you par good.`, `Let var foo add 3 4.`, `Let var int32 var bar var foo.`, `Set var bar mul var bar dipre daun.`, `Let verb i32 sum i32 p1 i32 p2 par add p1 p2.`
       - **Compact code profile**: `doing see I you`, `is to is meet I you } good`, `let /foo add 3 4`, `let i32/bar foo`, `set /bar mul /bar /bar`, `let v/i32/sum i32/p1 i32/p2 } add p1 p2;`
-    - **Function / verb literal conventions**:
+    - **EM3 function / verb literal conventions**:
       - Named routine: `let v/i32/sum i32/p1 i32/p2 } add p1 p2;`
       - Anonymous verb literal: `v/i32/ p1 p2 } ...`
       - Untyped/any return (`Dc 275 "Built-in type identifier: * (Object or any subtype)"`): `v//...`
-      - Void / no-return routines: explicit `v/void/log` or `v/never/log` (rather than `v//log`).
+      - Unit-returning routines: explicit `v/void/log`; routines that never return normally: `v/never/log` (neither uses `v//log`).
     - **Repetition Dcs (`dipre`, `daun`, `dato`)**: Compact 1-token repetition of the word before previous (`dipre`) or previous word (`daun`, `dato`) to provide elegant variation when spoken.
     - **Possibly new anaphoric / backreference Dcs**: Compact 1-token backreferences to the previous clause or previous identifier to avoid repeating long identifiers or assigning intermediate node IDs.
 

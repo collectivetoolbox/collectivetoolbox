@@ -1,207 +1,68 @@
-: Types:
-
-: b = boolean
-: s = DcMstr (default/recommended string type)
-: dcs = DcStr
-: letters = string in StageL character set (capital A-Z, slash, colon, space, newline, brace, dot)
-: v/ = verb (an additional type is required)
-: l/ = list (a primitive type is required)
-: void (does not have a return value)
-: never (does not return)
-: view: a struct: (source_id: u32, offset: u64, len: u64)
-: cursor: a mutable reader positioned at pos: u64 within a view (I guess this would be a (pos: u64, view: view))
-: result: Err or Ok(type)
-: option: None or Some(type)
-: primitive types:
-: u8
-: i32
-: u32
-: i64
-: u64
-: i128
-: u128
-: int (arbitrary-precision)
-: rat (arbitrary-precision: struct (num: int, den: int))
-: dc (in effect a u128, but typed)
-
-: tests specify input value and expected return values
-
-: Identifiers are not case-sensitive.
-
-: Newline or brace ends a parameter list
-
-: Dot (or semicolon, which is normalized to dot in intermediate) ends a statement
-
-: conditionals use: if cond ifTrue ifFalse
-
-: loops use: while cond verb
-
-: list iteration can use: foreach list verb
-
-: "this" is a reserved identifier for use by the current element in foreach loops
-
-: typing is strict and there is no automatic coercion
-
-
-: Leading LET is implicit and can be omitted
-let v/b/zl s/in
-    test works with zero length string
-        in s:
-        out 1
-    test works with nonzero length string
-        in s:a
-        out 0
-    eq 0 len s/in
-
-let v/s/getFormatImportSetting s/a s/b
-    s:UNIMPLEMENTED
-
-v/s/dcGetMappingToFormat s/a s/b
-    s:UNIMPLEMENTED
-
-v/b/nne n/a n/b
-    : number not equal to (this is a comment; any bytes allowed until nl)
-    false
-
-: brace ends a parameter list
-let v/b/sneOne s/a s/b } false
-
-: semicolon desugars to a dot
-let v/b/sneTwo s/a s/b } false.
-: does the same thing
-let v/b/sneThree s/a s/b } false;
-
-: this returns s/b if s/a is empty, else s/a
-let v/b/default s/a s/b / if zl s/a / s/b s/a
-
-: this returns a verb named "default"
-let v/v/b/default s/a s/b / /default s/a s/b / if zl s/a / s/b s/a
-
-: written more nicely
-v/v/b/default s/a s/b
-    /default s/a s/b / if zl s/a / s/b s/a
-
-v/l/u32/appendU32 lu32/a lu32/b
-    : append one list to another
-    : UNIMPLEMENTED
-    test works
-        in l:0 1 l:2 3
-        out l:0 1 2 3
-    l:0 3 2 1
-
-v/s/getTargetLanguageForDctCodeToText
-    new s/targetLanguage getFormatImportSetting s:codetotext s:language
-    if zl s/targetLanguage : getEnvCodeLanguage : s/targetLanguage
-
-v/l/dcaFromElad s/in
-    : UNIMPLEMENTED
-    l:0 1 2 3
-
-v/l/push l/in n/toPush
-    : UNIMPLEMENTED
-
-v/l/convertElementAndAppend n/e s/targetLanguage l/converted
-    new s/temp dcGetMappingToFormat n/e s/targetLanguage
-    if ne 0 len s/temp } lappend l/res dcaFromElad s/temp } push l/res n/currentDc
-    : Alternatively, can indent arguments for readability (this is still one logical line). Only one level of indentation allowed.
-    if
-        ne 0 len s/temp }
-        lappend l/res dcaFromElad s/temp }
-        push l/res n/currentDc
-
-e:l/dctCodeToText l/in
-    new l/res
-    new s/targetLanguage getTargetLanguageForDctCodeToText
-    each l/in set l/res convertElementAndAppend /e s/targetLanguage l/res
-    l/res
-
+: StageL 3 core example
+: StageL 3 is the core language, to be implemented directly in WAT.
+: StageR 3 builds on StageL 3 with the additional types described below.
+: EM3 is the full VSO language built on StageR 3. Only EM3 has first-class functions.
 : Identifiers are ASCII case-insensitive. Typing is strict; there is no automatic coercion.
-: Types: b, s (DcMstr), dcs (DcStr), letters, u8, i32, u32, i64, u64, i128, u128, int, rat, dc, view, cursor.
+: Core types: b, letters, u8, i32, u32, i64, u64, l/T, void, never.
+: letters is a string in the StageL intermediate character set: A-Z, slash, colon, space, newline, }, dot.
+: OPEN: Define letters literals and operations precisely.
 : b literals: true, false. There is no unspecified numeric type n.
-: l/T is a list of T. v/T[A,B] is a verb taking A,B and returning T; v/T[] takes no arguments.
-: void has no value; never does not return normally.
-: result/T: tagged union Err(error) or Ok(T). option/T: tagged union None or Some(T).
-: Constructor expressions: result/T:err ERROR, result/T:ok VALUE, option/T:none, option/T:some VALUE.
-: error variants include overflow, division_by_zero, invalid_denominator; literals use error:NAME.
-: OPEN: Define extensible error payloads, result/option matching, and explicit error propagation syntax.
-: rat contains num:int and den:int; require den nonzero, positive, and coprime to num. Zero is normalized to 0/1.
-: makeRat NUM DEN returns result/rat; zero denominator produces Err(invalid_denominator).
-: Arithmetic operations return result/T. Fixed-width integer overflow produces Err(overflow), never wrapping.
-: Division by zero produces Err(division_by_zero); an unrepresentable quotient produces Err(overflow).
-: Errors are ordinary result values, not automatic returns from the enclosing verb.
-: OPEN: Define integer division rounding, remainder signs, shifts, conversions, and allocation-failure behavior.
-: view contains source_id:u32, offset:u64, len:u64; cursor contains pos:u64 and a view.
-: OPEN: Define source lifetimes, checked view bounds, cursor ownership, and enforce pos <= len.
-: String length counts Dcs, not bytes or Unicode code points; len returns u64. List length counts elements.
-: OPEN: Define string equality, lossless non-Unicode Dc literals, and the precise letters alphabet.
+: l/T is a list of supported element type T. v/RETURN/name declares a named verb, not a function value.
+: Everything is expression-oriented, like Lisp: every normally completing expression returns a value.
+: void is the unit value, returned by declarations, new, set, normally completed loops, and empty blocks.
+: never does not return normally. It does not denote a returned value.
+: OPEN: Specify core arithmetic failure behavior without StageR 3 result/T.
 : Opening braces are prohibited outside strings/comments. Block and list openings are implicit.
 : Declarations: [let] v/RETURN/name TYPE/parameter ... HEADER_END BODY.
 : HEADER_END is newline for an indented body, or } for an inline body containing one statement.
 : Indentation delimits declaration bodies. Dot ends statements; semicolon normalizes to dot outside literals/comments.
-: The final statement supplies a body's value. A void body may be empty; a value-returning body may not.
+: Statements are expressions. The final expression supplies a body's value; earlier values are discarded.
+: Dot and semicolon do not suppress the final value. An empty body returns unit of type void.
 : Prefix calls have fixed arity; collect verb signatures before parsing bodies. Overloading is prohibited.
-: /name refers to a verb; call /name ARGUMENTS invokes it. Direct calls use name ARGUMENTS.
+: Direct calls use name ARGUMENTS. Named nested verbs are allowed in StageL 3 and StageR 3.
+: Function values, anonymous verbs, passed callbacks, and returned verbs are EM3-only.
+: StageL 3 and StageR 3 cannot assign, pass, or return a verb as a value.
+: Tail calls do not grow the call stack, including mutual tail calls. This is required, not optional optimization.
+: A call is in tail position when its result is returned directly, including through a final block or if branch.
+: Non-tail calls may grow the stack. Stack-safe tail calls do not imply bounded heap use.
 : if CONDITION THEN ELSE takes expressions, requires b, and evaluates only the selected branch.
+: if returns the selected expression's value.
 : Branch result types must agree, except never is compatible with either branch's type.
-: do introduces an implicit expression block, terminated by }; its final statement supplies its value.
-: while CONDITION BODY reevaluates both expressions as needed; CONDITION must return b, BODY void.
-: foreach LIST BODY evaluates LIST once and BODY for each element; BODY must return void.
+: do introduces an implicit expression block, terminated by }; its final expression supplies its value.
+: while CONDITION BODY reevaluates both expressions as needed; CONDITION must return b, BODY unit of type void.
+: foreach LIST BODY evaluates LIST once and BODY for each element; BODY must return unit of type void.
+: Loop bodies and conditional branches are expressions, not first-class callbacks.
 : foreach provides read-only T/this. Nested foreach is prohibited until an explicit element-binding syntax is defined.
 : break exits the nearest loop; continue starts its next iteration. Neither accepts a label or level count.
-: Both have type never at their occurrence and cannot cross a callback/verb boundary.
+: Both have type never at their occurrence and cannot cross a verb boundary.
 : Bindings are in scope throughout their block, including before their declaration; shadowing is prohibited.
-: new TYPE/name VALUE declares and initializes a mutable binding; set TYPE/name VALUE mutates it and returns void.
+: new TYPE/name VALUE declares and initializes a mutable binding; set TYPE/name VALUE mutates it. Both return unit.
 : Reads or writes before initialization are rejected. Verb declarations are available throughout their block.
-: Callbacks inherit enclosing scope and capture shared bindings; mutations are visible to all users of those bindings.
-: Captured bindings remain alive after their declaring invocation returns.
-: OPEN: Specify definite-initialization checks across callbacks and the WASM representation of captured bindings.
-: Strings use s:"..." or dcs:"..." with JSON escapes; typed numbers use u32:0.
+: A nested function captures shared lexical bindings from where it was defined, not where it is called.
+: Mutations are visible to all users of a captured binding; caller locals do not replace the definition-site environment.
+: Only EM3 closures can escape as values and keep captured bindings alive after the defining invocation returns.
+: OPEN: Specify definite-initialization checks across nested calls, capture lowering, and stack-safe tail-call lowering.
+: Typed numbers use u32:0.
 : List literals start with l/T: and end with }; elements are expressions, such as l/u32: u32:0 u32:1 }.
-: eq/ne compare same-typed values. concat returns a new list; foreach iterates a snapshot.
+: eq/ne compare same-typed values. concat returns a new list; len returns u64 and counts list elements.
+: foreach iterates a snapshot.
 : A colon at the first nonblank position starts a comment through newline.
 : test LABEL has indented in/out lines: in supplies arguments; out supplies one expected value.
-: OPEN: Specify ABI, ownership, recursion limits, and WASM lowering for wide integers, int, rat, and strings.
-: unimplemented MESSAGE is a development-only never-returning stub, not recoverable error handling.
-let v/b/zl s/in
-    test works with zero length string
-        in s:""
+: OPEN: Specify ABI, ownership, and non-tail recursion limits. These examples are design, not an implemented runtime.
+
+: Leading let is optional. Inline bodies end their parameter list with }.
+let v/b/isEmpty l/u32/items
+    test works with empty list
+        in l/u32: }
         out true
-    test works with nonzero length string
-        in s:"a"
+    test works with nonempty list
+        in l/u32: u32:7 }
         out false
-    eq u64:0 len s/in.
-v/result/i64/addChecked i64/a i64/b } add i64/a i64/b.
-let v/s/getFormatImportSetting s/a s/b } unimplemented s:"Import settings".
-v/s/dcGetMappingToFormat dc/a s/b } unimplemented s:"Dc mapping".
+    eq u64:0 len l/u32/items.
+
 v/b/nne i64/a i64/b } ne i64/a i64/b.
-let v/b/sneOne s/a s/b } ne s/a s/b.
-let v/b/sneTwo s/a s/b } ne s/a s/b.
-let v/b/sneThree s/a s/b } ne s/a s/b;
-let v/s/default s/a s/b } if zl s/a s/b s/a.
-
-: The creator returns a verb accepting two strings
-v/v/s/makeDefault s/a s/b } }
-    v/s/chooseDefault s/a s/b }
-        if zl s/a s/b s/a.
-    /chooseDefault.
-
-:The creator captures two strings and returns a zero-argument verb:
-v/v/s/makeDefault } s/a s/b }
-    v/s/getDefault }
-        if zl s/a s/b s/a.
-    /getDefault.
-
-
-:This creator captures a fallback; the returned verb accepts two candidates:
-v/v/s/makeDefault s/a s/b } s/fallback }
-    v/s/chooseDefault s/a s/b }
-        if zl s/a
-            if zl s/b s/fallback s/b
-            s/a.
-    /chooseDefault.
-
-:These are alternative definitions of makeDefault, not overloads.
-
+let v/b/nneDot i64/a i64/b } ne i64/a i64/b.
+let v/b/nneSemicolon i64/a i64/b } ne i64/a i64/b;
 
 v/l/u32/appendU32 l/u32/a l/u32/b
     test works
@@ -209,30 +70,101 @@ v/l/u32/appendU32 l/u32/a l/u32/b
         out l/u32: u32:0 u32:1 u32:2 u32:3 }
     concat l/u32/a l/u32/b.
 
-v/s/getEnvCodeLanguage } unimplemented s:"Environment language".
+: The nested reader captures this invocation's binding, even when called by a sibling verb.
+v/u32/lexicalCapture u32/initial
+    test reads the shared binding after mutation
+        in u32:7
+        out u32:9
+    new u32/captured u32/initial.
+    v/u32/readCaptured } u32/captured.
+    v/u32/callFromSibling
+        new u32/callerLocal u32:99.
+        readCaptured.
+    set u32/captured u32:9.
+    callFromSibling.
 
-v/s/getTargetLanguageForDctCodeToText
-    new s/targetLanguage getFormatImportSetting s:"codetotext" s:"language".
-    if zl s/targetLanguage getEnvCodeLanguage s/targetLanguage.
+: Both directions of this mutual recursion are tail calls, including the selected if branch.
+v/b/tailFirst b/stop
+    test takes the tail call
+        in false
+        out false
+    if b/stop true tailSecond true.
+v/b/tailSecond b/stop } if b/stop false tailFirst true.
 
-: OPEN: Define ELAD decoding and malformed-input errors.
-v/l/dc/dcaFromElad s/in } unimplemented s:"ELAD decoding".
-
-v/l/dc/push l/dc/in dc/toPush
-    concat l/dc/in l/dc: dc/toPush }.
-
-: OPEN: Missing mappings should be option/s; empty text may be a valid mapping.
-v/l/dc/convertElementAndAppend dc/e s/targetLanguage l/dc/converted
-    new s/temp dcGetMappingToFormat dc/e s/targetLanguage.
-    if ne u64:0 len s/temp
-        concat l/dc/converted dcaFromElad s/temp
-        push l/dc/converted dc/e.
-
-: OPEN: This returns Dc values, not s or dcs; define the intended text conversion.
-v/l/dc/dctCodeToText l/dc/in
-    new l/dc/res l/dc: }.
-    new s/targetLanguage getTargetLanguageForDctCodeToText.
-    foreach l/dc/in do
-        set l/dc/res convertElementAndAppend dc/this s/targetLanguage l/dc/res.
+: new, set, and foreach return unit; the final expression supplies the list value.
+v/l/u32/copyList l/u32/items
+    test copies the list
+        in l/u32: u32:2 u32:3 }
+        out l/u32: u32:2 u32:3 }
+    new l/u32/copied l/u32: }.
+    foreach l/u32/items do
+        set l/u32/copied concat l/u32/copied l/u32: u32/this }.
     }.
-    l/dc/res.
+    l/u32/copied.
+
+: An empty block is a unit expression, so both branches return a value of type void.
+v/void/unitChoice b/condition } if b/condition do } do }.
+
+: StageR 3 extension notes and examples. Everything below is commentary, not StageL 3 code.
+: Added types: i128, u128, int, rat, dc, view, cursor, s, dcs, option/T, result/T.
+: s is DcMstr, the default/recommended string type. dcs is DcStr. dc is a strongly typed u128.
+: int is arbitrary-precision. rat contains num:int and den:int; den is nonzero, positive, and coprime to num.
+: Zero rat is normalized to 0/1. makeRat NUM DEN returns result/rat; zero denominator yields Err(invalid_denominator).
+: result/T is Err(error) or Ok(T). option/T is None or Some(T).
+: Constructors: result/T:err ERROR, result/T:ok VALUE, option/T:none, option/T:some VALUE.
+: Error variants include overflow, division_by_zero, invalid_denominator; literals use error:NAME.
+: StageR 3 checked arithmetic returns result/T. Fixed-width overflow produces Err(overflow), never wrapping.
+: Division by zero produces Err(division_by_zero); an unrepresentable quotient produces Err(overflow).
+: Errors are ordinary result values, not automatic returns from the enclosing verb.
+: OPEN: Define extensible error payloads, result/option matching, and explicit error propagation syntax.
+: OPEN: Define integer division rounding, remainder signs, shifts, conversions, and allocation-failure behavior.
+: view contains source_id:u32, offset:u64, len:u64; cursor contains pos:u64 and a view.
+: OPEN: Define source lifetimes, checked view bounds, cursor ownership, and enforce pos <= len.
+: Strings use s:"..." or dcs:"..." with JSON escapes. String len returns u64 and counts Dcs, not bytes or Unicode code points.
+: OPEN: Define string equality and lossless non-Unicode Dc literals.
+: OPEN: Specify ABI, ownership, and WASM lowering for wide integers, int, rat, and strings.
+: unimplemented MESSAGE is a development-only never-returning stub, not recoverable error handling.
+:
+: v/b/zl s/in
+:     test works with zero length string
+:         in s:""
+:         out true
+:     test works with nonzero length string
+:         in s:"a"
+:         out false
+:     eq u64:0 len s/in.
+: v/result/i64/addChecked i64/a i64/b } add i64/a i64/b.
+: v/s/default s/a s/b } if zl s/a s/b s/a.
+: v/s/getFormatImportSetting s/a s/b } unimplemented s:"Import settings".
+: v/s/dcGetMappingToFormat dc/a s/b } unimplemented s:"Dc mapping".
+: v/s/getEnvCodeLanguage } unimplemented s:"Environment language".
+:
+: v/s/getTargetLanguageForDctCodeToText
+:     new s/targetLanguage getFormatImportSetting s:"codetotext" s:"language".
+:     if zl s/targetLanguage getEnvCodeLanguage s/targetLanguage.
+:
+: OPEN: Define ELAD decoding and malformed-input errors.
+: v/l/dc/dcaFromElad s/in } unimplemented s:"ELAD decoding".
+: v/l/dc/push l/dc/in dc/toPush
+:     concat l/dc/in l/dc: dc/toPush }.
+:
+: OPEN: Missing mappings should be option/s; empty text may be a valid mapping.
+: v/l/dc/convertElementAndAppend dc/e s/targetLanguage l/dc/converted
+:     new s/temp dcGetMappingToFormat dc/e s/targetLanguage.
+:     if ne u64:0 len s/temp
+:         concat l/dc/converted dcaFromElad s/temp
+:         push l/dc/converted dc/e.
+:
+: OPEN: This returns Dc values, not s or dcs; define the intended text conversion.
+: v/l/dc/dctCodeToText l/dc/in
+:     new l/dc/res l/dc: }.
+:     new s/targetLanguage getTargetLanguageForDctCodeToText.
+:     foreach l/dc/in do
+:         set l/dc/res convertElementAndAppend dc/this s/targetLanguage l/dc/res.
+:     }.
+:     l/dc/res.
+:
+: EM3-only: v/T[A,B] describes a function value taking A,B and returning T; v/T[] takes no arguments.
+: EM3-only: /name refers to a function value; call /name ARGUMENTS invokes it.
+: Returning a function that captures a fallback belongs to EM3, not StageL 3 or StageR 3.
+: OPEN: Specify EM3 function-value declaration syntax, escaping closure ownership, and lowering.
