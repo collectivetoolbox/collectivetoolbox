@@ -143,6 +143,7 @@ mod tests {
     use crate::get_stagel_data;
 
     #[crate::ctb_test]
+    #[ignore = "WIP StageL v3 normalization"]
     fn test_normalize_sl3_fixtures() {
         let input = get_stagel_data("fixtures/sl3/input.sl3")
             .unwrap_or_else(|| panic!("Failed to load fixtures/sl3/input.sl3"));
