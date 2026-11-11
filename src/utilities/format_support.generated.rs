@@ -967,7 +967,7 @@ pub enum SupportedDcInputFormat {
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
     MacRoman,
     /// SEMS (short Dcs)
-    #[value(name = "sems", alias = "Sems", alias = "f6")]
+    #[value(name = "sems", alias = "selq", alias = "Sems", alias = "f6")]
     Sems,
     /// UTF-8
     #[default]
@@ -1487,7 +1487,7 @@ pub enum SupportedDcOutputFormat {
     #[value(name = "eitecolorcoded", alias = "EiteColorCoded", alias = "f21", alias = "htm")]
     EiteColorCoded,
     /// EITE Language in ASCII documents (ELAD)
-    #[value(name = "elad", alias = "Elad", alias = "f17")]
+    #[value(name = "elad", alias = "emd", alias = "Elad", alias = "f17")]
     Elad,
     /// DCE (hex-encoded)
     #[value(name = "hex_dce", alias = "dcehex", alias = "DceHex", alias = "f96")]
@@ -1514,7 +1514,7 @@ pub enum SupportedDcOutputFormat {
     #[value(name = "macroman", alias = "MacRoman", alias = "f87")]
     MacRoman,
     /// SEMS (short Dcs)
-    #[value(name = "sems", alias = "Sems", alias = "f6")]
+    #[value(name = "sems", alias = "selq", alias = "Sems", alias = "f6")]
     Sems,
     /// UTF-8
     #[default]

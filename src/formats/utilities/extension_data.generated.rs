@@ -504,6 +504,10 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("sems"),
     },
     ExtensionEntry {
+        format_id: FormatId::Sems,
+        rule: ExtensionRule::insensitive("selq"),
+    },
+    ExtensionEntry {
         format_id: FormatId::HtmlFragment,
         rule: ExtensionRule::insensitive("htmfrag"),
     },
@@ -514,6 +518,10 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::Elad,
         rule: ExtensionRule::insensitive("elad"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Elad,
+        rule: ExtensionRule::insensitive("emd"),
     },
     ExtensionEntry {
         format_id: FormatId::EiteColorCoded,
@@ -710,6 +718,38 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::Em3,
         rule: ExtensionRule::insensitive("em3"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::EmberLanguageEarly,
+        rule: ExtensionRule::insensitive("eite"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Em,
+        rule: ExtensionRule::insensitive("em"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Em,
+        rule: ExtensionRule::insensitive("eite"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Em,
+        rule: ExtensionRule::insensitive("els"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Ems,
+        rule: ExtensionRule::insensitive("ems"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Ems,
+        rule: ExtensionRule::insensitive("elq"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Dems,
+        rule: ExtensionRule::insensitive("dems"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Dems,
+        rule: ExtensionRule::insensitive("delq"),
     },
     ExtensionEntry {
         format_id: FormatId::Utf8,
@@ -922,6 +962,18 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     ExtensionEntry {
         format_id: FormatId::StageR3,
         rule: ExtensionRule::insensitive("sr3"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::StageL3Intermediate,
+        rule: ExtensionRule::insensitive("sli3"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::StageR3Intermediate,
+        rule: ExtensionRule::insensitive("sri3"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Emc,
+        rule: ExtensionRule::insensitive("emc"),
     },
     ExtensionEntry {
         format_id: FormatId::DcBasenb,

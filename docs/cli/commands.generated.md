@@ -440,7 +440,7 @@ Supported input formats (--from):
     dcutf (DcUtf): DcUtf
     hex_dce (DceHex): DCE (hex-encoded)
     legacy_cdce (CdceLegacy): CDCE (legacy)
-    sems (Sems): SEMS (short Dcs)
+    sems, selq (Sems): SEMS (short Dcs)
     utf8_dc64 (Utf8_Dc64): UTF-8 (Base64-encoded, ASCII Dc ID list)
     utf8_dc64_bin (Utf8_Dc64_bin): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
     utf8_dc64_bin_enc (Utf8_Dc64_bin_enc): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
@@ -579,7 +579,7 @@ Supported input formats (--from):
     dcutf (DcUtf): DcUtf
     hex_dce (DceHex): DCE (hex-encoded)
     legacy_cdce (CdceLegacy): CDCE (legacy)
-    sems (Sems): SEMS (short Dcs)
+    sems, selq (Sems): SEMS (short Dcs)
     utf8_dc64 (Utf8_Dc64): UTF-8 (Base64-encoded, ASCII Dc ID list)
     utf8_dc64_bin (Utf8_Dc64_bin): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
     utf8_dc64_bin_enc (Utf8_Dc64_bin_enc): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
@@ -635,14 +635,14 @@ Supported output formats (--to):
     dcts (Dcts): DcText short
     dcutf (DcUtf): DcUtf
     eitecolorcoded (EiteColorCoded): Color-coded HTML integer list
-    elad (Elad): EITE Language in ASCII documents (ELAD)
+    elad, emd (Elad): EITE Language in ASCII documents (ELAD)
     hex_dce (DceHex): DCE (hex-encoded)
     html (Html): HTML
     html_l (HtmlLegacyCdce): HTML (legacy CDCE output)
     html_snippet_l (HtmlLegacyCdceSnippet): HTML (snippet) (legacy CDCE output)
     htmlfragment (HtmlFragment): HTML fragment
     legacy_cdce (CdceLegacy): CDCE (legacy)
-    sems (Sems): SEMS (short Dcs)
+    sems, selq (Sems): SEMS (short Dcs)
     utf8_dc64 (Utf8_Dc64): UTF-8 (Base64-encoded, ASCII Dc ID list)
     utf8_dc64_bin (Utf8_Dc64_bin): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
     utf8_dc64_bin_enc (Utf8_Dc64_bin_enc): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)

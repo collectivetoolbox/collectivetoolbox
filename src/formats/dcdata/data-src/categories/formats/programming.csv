@@ -39,3 +39,6 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228767,543,ActionScript,ActionScript,programming,,.as,,,,,,,,,,
 2228880,656,StageL3,StageL 3,programming,@based_on(f342),.sl3,,,,sl3,,,,,Low-level bootstrap subset language compiled to Dc-WASM (stage_0_impls/).,
 2228881,657,StageR3,StageR 3,programming,@based_on(f656),.sr3,,,,sr3,,,,,"Superset of StageL 3 adding Dc-native types, arbitrary-precision math, and structured error handling (stage_1_impls/).",
+2228883,659,StageL3Intermediate,Normalized StageL 3,programming,@based_on(f656),.sli3,,,,sli3,,,,,Normalized intermediate representation of StageL 3.,
+2228884,660,StageR3Intermediate,Normalized StageR 3,programming,@based_on(f657),.sri3,,,,sri3,,,,,Normalized intermediate representation of StageR 3.,
+2228885,661,Emc,EMC,programming,,.emc,,,,emc,,,,,"Implementation language for early Ember Language standard library and runtime definitions (lang.*, system.*), declaring @Type and @Routine interfaces and implementations tagged with LanguageProfile levels such as C ('Core', host-implemented primitives) and B ('Basic', implemented in .emc). Acronym expansion of EMC is unattested in surviving sources.",

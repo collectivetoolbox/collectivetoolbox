@@ -1399,6 +1399,20 @@ pub enum FormatId {
     StageR3,
     /// EM3 (Short 658, Category: document)
     Em3,
+    /// Normalized StageL 3 (Short 659, Category: programming)
+    StageL3Intermediate,
+    /// Normalized StageR 3 (Short 660, Category: programming)
+    StageR3Intermediate,
+    /// EMC (Short 661, Category: programming)
+    Emc,
+    /// Ember Language (early) (Short 912, Category: document)
+    EmberLanguageEarly,
+    /// Ember Language source (EM) (Short 913, Category: document)
+    Em,
+    /// EMS (short Dcs) (Short 914, Category: document)
+    Ems,
+    /// DEMS (short Dcs) (Short 915, Category: document)
+    Dems,
 }
 
 impl FormatId {
@@ -1683,7 +1697,11 @@ impl FormatId {
             | Self::CtbNodeIncoming
             | Self::Dce_3_02a
             | Self::Dce_3_03a
-            | Self::Em3 => FormatCategory::Document,
+            | Self::Em3
+            | Self::EmberLanguageEarly
+            | Self::Em
+            | Self::Ems
+            | Self::Dems => FormatCategory::Document,
             Self::Second
             | Self::Nanosecond => FormatCategory::Duration,
             Self::Utf8
@@ -2033,7 +2051,10 @@ impl FormatId {
             | Self::StageL2Intermediate
             | Self::ActionScript
             | Self::StageL3
-            | Self::StageR3 => FormatCategory::Programming,
+            | Self::StageR3
+            | Self::StageL3Intermediate
+            | Self::StageR3Intermediate
+            | Self::Emc => FormatCategory::Programming,
             Self::DcArray
             | Self::Unicode
             | Self::String
@@ -2080,7 +2101,7 @@ impl FormatId {
             "asciisafesubset" | "ascii_safe_subset" => Some(Self::AsciiSafeSubset),
             "ascii" => Some(Self::Ascii),
             "html" => Some(Self::Html),
-            "sems" => Some(Self::Sems),
+            "sems" | "selq" => Some(Self::Sems),
             "unicode" => Some(Self::Unicode),
             "vt100" => Some(Self::Vt100),
             "videoterminal" => Some(Self::Videoterminal),
@@ -2091,7 +2112,7 @@ impl FormatId {
             "text" => Some(Self::Text),
             "lang_en" | "lang__en" => Some(Self::Lang_En),
             "lang_en_us" | "lang__en__us" => Some(Self::Lang_En_Us),
-            "elad" => Some(Self::Elad),
+            "elad" | "emd" => Some(Self::Elad),
             "javascript" | "java_script" => Some(Self::JavaScript),
             "semantictotext" | "semantic_to_text" => Some(Self::SemanticToText),
             "codetotext" | "code_to_text" => Some(Self::CodeToText),
@@ -2733,6 +2754,13 @@ impl FormatId {
             "stagel3" | "stage_l3" | "sl3" => Some(Self::StageL3),
             "stager3" | "stage_r3" | "sr3" => Some(Self::StageR3),
             "em3" => Some(Self::Em3),
+            "stagel3intermediate" | "stage_l3_intermediate" | "sli3" => Some(Self::StageL3Intermediate),
+            "stager3intermediate" | "stage_r3_intermediate" | "sri3" => Some(Self::StageR3Intermediate),
+            "emc" => Some(Self::Emc),
+            "emberlanguageearly" | "ember_language_early" | "el_early" => Some(Self::EmberLanguageEarly),
+            "em" | "els" => Some(Self::Em),
+            "ems" | "elq" => Some(Self::Ems),
+            "dems" | "delq" => Some(Self::Dems),
             _ => None,
         }
     }
@@ -3400,6 +3428,13 @@ impl FormatId {
             Self::StageL3 => "StageL3",
             Self::StageR3 => "StageR3",
             Self::Em3 => "Em3",
+            Self::StageL3Intermediate => "StageL3Intermediate",
+            Self::StageR3Intermediate => "StageR3Intermediate",
+            Self::Emc => "Emc",
+            Self::EmberLanguageEarly => "EmberLanguageEarly",
+            Self::Em => "Em",
+            Self::Ems => "Ems",
+            Self::Dems => "Dems",
         }
     }
 
@@ -4280,6 +4315,13 @@ impl FormatId {
             Self::StageL3 => "f656",
             Self::StageR3 => "f657",
             Self::Em3 => "f658",
+            Self::StageL3Intermediate => "f659",
+            Self::StageR3Intermediate => "f660",
+            Self::Emc => "f661",
+            Self::EmberLanguageEarly => "f912",
+            Self::Em => "f913",
+            Self::Ems => "f914",
+            Self::Dems => "f915",
         }
     }
 
@@ -4947,6 +4989,13 @@ impl FormatId {
             "f656" => Some(Self::StageL3),
             "f657" => Some(Self::StageR3),
             "f658" => Some(Self::Em3),
+            "f659" => Some(Self::StageL3Intermediate),
+            "f660" => Some(Self::StageR3Intermediate),
+            "f661" => Some(Self::Emc),
+            "f912" => Some(Self::EmberLanguageEarly),
+            "f913" => Some(Self::Em),
+            "f914" => Some(Self::Ems),
+            "f915" => Some(Self::Dems),
             _ => None,
         }
     }
@@ -5614,6 +5663,13 @@ impl FormatId {
             Self::StageL3 => Some(2228880_u128),
             Self::StageR3 => Some(2228881_u128),
             Self::Em3 => Some(2228882_u128),
+            Self::StageL3Intermediate => Some(2228883_u128),
+            Self::StageR3Intermediate => Some(2228884_u128),
+            Self::Emc => Some(2228885_u128),
+            Self::EmberLanguageEarly => Some(2229136_u128),
+            Self::Em => Some(2229137_u128),
+            Self::Ems => Some(2229138_u128),
+            Self::Dems => Some(2229139_u128),
         }
     }
 
@@ -6293,6 +6349,13 @@ impl FormatId {
             2228880_u128 => Some(Self::StageL3),
             2228881_u128 => Some(Self::StageR3),
             2228882_u128 => Some(Self::Em3),
+            2228883_u128 => Some(Self::StageL3Intermediate),
+            2228884_u128 => Some(Self::StageR3Intermediate),
+            2228885_u128 => Some(Self::Emc),
+            2229136_u128 => Some(Self::EmberLanguageEarly),
+            2229137_u128 => Some(Self::Em),
+            2229138_u128 => Some(Self::Ems),
+            2229139_u128 => Some(Self::Dems),
             _ => None,
         }
     }
@@ -7616,3 +7679,17 @@ pub const DC_STAGE_L3: DcChar = DcChar::from_format(656);
 pub const DC_STAGE_R3: DcChar = DcChar::from_format(657);
 /// DcChar constant for Format `Em3` (Short f658, Category: document): EM3
 pub const DC_EM3: DcChar = DcChar::from_format(658);
+/// DcChar constant for Format `StageL3Intermediate` (Short f659, Category: programming): Normalized StageL 3
+pub const DC_STAGE_L3_INTERMEDIATE: DcChar = DcChar::from_format(659);
+/// DcChar constant for Format `StageR3Intermediate` (Short f660, Category: programming): Normalized StageR 3
+pub const DC_STAGE_R3_INTERMEDIATE: DcChar = DcChar::from_format(660);
+/// DcChar constant for Format `Emc` (Short f661, Category: programming): EMC
+pub const DC_EMC: DcChar = DcChar::from_format(661);
+/// DcChar constant for Format `EmberLanguageEarly` (Short f912, Category: document): Ember Language (early)
+pub const DC_EMBER_LANGUAGE_EARLY: DcChar = DcChar::from_format(912);
+/// DcChar constant for Format `Em` (Short f913, Category: document): Ember Language source (EM)
+pub const DC_EM: DcChar = DcChar::from_format(913);
+/// DcChar constant for Format `Ems` (Short f914, Category: document): EMS (short Dcs)
+pub const DC_EMS: DcChar = DcChar::from_format(914);
+/// DcChar constant for Format `Dems` (Short f915, Category: document): DEMS (short Dcs)
+pub const DC_DEMS: DcChar = DcChar::from_format(915);

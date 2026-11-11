@@ -1,0 +1,100 @@
+l8589975992: 584 f660 572 # Has a (Normalized StageR 3, Canonical name)
+l8589975993: 610 l8589975992 l8589975964 # Has value (Has a (Normalized StageR 3, Canonical name), "Normalized StageR 3")
+l8589975994: 584 f660 573 # Has a (Normalized StageR 3, Description)
+l8589975995: 610 l8589975994 l8589975965 # Has value (Has a (Normalized StageR 3, Description), "Normalized intermediate representation of StageR 3.")
+l8589975996: 584 f660 574 # Has a (Normalized StageR 3, Programmatic identifier)
+l8589975997: 610 l8589975996 l8589975966 # Has value (Has a (Normalized StageR 3, Programmatic identifier), "StageR3Intermediate")
+l8589975998: 584 f661 572 # Has a (EMC, Canonical name)
+l8589975999: 610 l8589975998 l8589975967 # Has value (Has a (EMC, Canonical name), "EMC")
+l8589976000: 584 f661 573 # Has a (EMC, Description)
+l8589976001: 610 l8589976000 l8589975968 # Has value (Has a (EMC, Description), "Implementation language for early Ember Language standard library and runtime definitions (lang.*, system.*), declaring @Type and @Routine interfaces and implementations tagged with LanguageProfile levels such as C ('Core', host-implemented primitives) and B ('Basic', implemented in .emc). Acronym expansion of EMC is unattested in surviving sources.")
+l8589976002: 584 f661 574 # Has a (EMC, Programmatic identifier)
+l8589976003: 610 l8589976002 l8589975969 # Has value (Has a (EMC, Programmatic identifier), "Emc")
+l8589976004: 584 f912 572 # Has a (Ember Language (early), Canonical name)
+l8589976005: 610 l8589976004 l8589975970 # Has value (Has a (Ember Language (early), Canonical name), "Ember Language (early)")
+l8589976006: 584 f912 573 # Has a (Ember Language (early), Description)
+l8589976007: 610 l8589976006 l8589975971 # Has value (Has a (Ember Language (early), Description), "Early pre-Dc-stream version of Ember Language used alongside EMC (.emc) for project and parser definitions (e.g., ember.eite with @Overview, @Visibility, and project directives). The .eite extension was later repurposed for the Dc-based Ember Language source format before it adopted .em.")
+l8589976008: 584 f912 574 # Has a (Ember Language (early), Programmatic identifier)
+l8589976009: 610 l8589976008 l8589975972 # Has value (Has a (Ember Language (early), Programmatic identifier), "EmberLanguageEarly")
+l8589976010: 584 f913 572 # Has a (Ember Language source (EM), Canonical name)
+l8589976011: 610 l8589976010 l8589975973 # Has value (Has a (Ember Language source (EM), Canonical name), "Ember Language source (EM)")
+l8589976012: 584 f913 573 # Has a (Ember Language source (EM), Description)
+l8589976013: 610 l8589976012 l8589975974 # Has value (Has a (Ember Language source (EM), Description), "Programming-language-inspired ASCII source representation of short-Dc Ember Language / EITE Language documents (supporting dc: blocks, say statements, routines, types, and indentation-based blocks). Originally used the repurposed .eite extension before adopting .em, and later renamed ELS (EITE Language source files, .els) in the May 2019 EITE specification.")
+l8589976014: 584 f913 574 # Has a (Ember Language source (EM), Programmatic identifier)
+l8589976015: 610 l8589976014 l8589975975 # Has value (Has a (Ember Language source (EM), Programmatic identifier), "Em")
+l8589976016: 584 f914 572 # Has a (EMS (short Dcs), Canonical name)
+l8589976017: 610 l8589976016 l8589975976 # Has value (Has a (EMS (short Dcs), Canonical name), "EMS (short Dcs)")
+l8589976018: 584 f914 573 # Has a (EMS (short Dcs), Description)
+l8589976019: 610 l8589976018 l8589975977 # Has value (Has a (EMS (short Dcs), Description), "ASCII sequence format storing short Dc IDs as space-separated decimal integers, four Dcs per line, terminated by LF (0x0A). Renamed ELQ (EITE Language sequence files, .elq) in the May 2019 EITE specification; acronym expansion of EMS itself is unattested in surviving sources.")
+l8589976020: 584 f914 574 # Has a (EMS (short Dcs), Programmatic identifier)
+l8589976021: 610 l8589976020 l8589975978 # Has value (Has a (EMS (short Dcs), Programmatic identifier), "Ems")
+l8589976022: 584 f915 572 # Has a (DEMS (short Dcs), Canonical name)
+l8589976023: 610 l8589976022 l8589975979 # Has value (Has a (DEMS (short Dcs), Canonical name), "DEMS (short Dcs)")
+l8589976024: 584 f915 573 # Has a (DEMS (short Dcs), Description)
+l8589976025: 610 l8589976024 l8589975980 # Has value (Has a (DEMS (short Dcs), Description), "Documented variant of EMS (.ems): four space-separated decimal short Dc IDs per line, followed by ' # ' (0x202320) and space-separated printable ASCII equivalents for each Dc on the line (using '.' for spaces or non-printable Dcs). Renamed DELQ (Documented EITE Language sequence files, .delq) in the May 2019 EITE specification; acronym expansion of EMS itself is unattested in surviving sources.")
+l8589976026: 584 f915 574 # Has a (DEMS (short Dcs), Programmatic identifier)
+l8589976027: 610 l8589976026 l8589975981 # Has value (Has a (DEMS (short Dcs), Programmatic identifier), "Dems")
+l8589976028: u73 u65 u6c u71 # "selq"
+l8589976029: u2e u73 u65 u6c u71 # ".selq"
+l8589976030: u65 u6c u61 u64 # "elad"
+l8589976031: u65 u6d u64 # "emd"
+l8589976032: u2e u65 u6d u64 # ".emd"
+l8589976033: u73 u6c u69 u33 # "sli3"
+l8589976034: u2e u73 u6c u69 u33 # ".sli3"
+l8589976035: u73 u72 u69 u33 # "sri3"
+l8589976036: u2e u73 u72 u69 u33 # ".sri3"
+l8589976037: u65 u6d u63 # "emc"
+l8589976038: u2e u65 u6d u63 # ".emc"
+l8589976039: u65 u6c u5f u65 u61 u72 u6c u79 # "el_early"
+l8589976040: u2e u65 u69 u74 u65 # ".eite"
+l8589976041: u65 u6c u73 # "els"
+l8589976042: u65 u6d # "em"
+l8589976043: u2e u65 u6c u73 # ".els"
+l8589976044: u2e u65 u6d # ".em"
+l8589976045: u65 u6c u71 # "elq"
+l8589976046: u65 u6d u73 # "ems"
+l8589976047: u2e u65 u6c u71 # ".elq"
+l8589976048: u2e u65 u6d u73 # ".ems"
+l8589976049: u64 u65 u6c u71 # "delq"
+l8589976050: u64 u65 u6d u73 # "dems"
+l8589976051: u2e u64 u65 u6c u71 # ".delq"
+l8589976052: u2e u64 u65 u6d u73 # ".dems"
+l8589976053: 584 f6 575 # Has a (SEMS (short Dcs), Nickname)
+l8589976054: 610 l8589976053 l8589976028 # Has value (Has a (SEMS (short Dcs), Nickname), "selq")
+l8589976055: 584 f6 f264 # Has a (SEMS (short Dcs), File extension)
+l8589976056: 610 l8589976055 l8589976029 # Has value (Has a (SEMS (short Dcs), File extension), ".selq")
+l8589976057: 584 f17 575 # Has a (EITE Language in ASCII documents (ELAD), Nickname)
+l8589976058: 610 l8589976057 l8589976030 # Has value (Has a (EITE Language in ASCII documents (ELAD), Nickname), "elad")
+l8589976059: 584 f17 575 # Has a (EITE Language in ASCII documents (ELAD), Nickname)
+l8589976060: 610 l8589976059 l8589976031 # Has value (Has a (EITE Language in ASCII documents (ELAD), Nickname), "emd")
+l8589976061: 584 f17 f264 # Has a (EITE Language in ASCII documents (ELAD), File extension)
+l8589976062: 610 l8589976061 l8589976032 # Has value (Has a (EITE Language in ASCII documents (ELAD), File extension), ".emd")
+l8589976063: 584 f659 575 # Has a (Normalized StageL 3, Nickname)
+l8589976064: 610 l8589976063 l8589976033 # Has value (Has a (Normalized StageL 3, Nickname), "sli3")
+l8589976065: 584 f659 f264 # Has a (Normalized StageL 3, File extension)
+l8589976066: 610 l8589976065 l8589976034 # Has value (Has a (Normalized StageL 3, File extension), ".sli3")
+l8589976067: 584 f660 575 # Has a (Normalized StageR 3, Nickname)
+l8589976068: 610 l8589976067 l8589976035 # Has value (Has a (Normalized StageR 3, Nickname), "sri3")
+l8589976069: 584 f660 f264 # Has a (Normalized StageR 3, File extension)
+l8589976070: 610 l8589976069 l8589976036 # Has value (Has a (Normalized StageR 3, File extension), ".sri3")
+l8589976071: 584 f661 575 # Has a (EMC, Nickname)
+l8589976072: 610 l8589976071 l8589976037 # Has value (Has a (EMC, Nickname), "emc")
+l8589976073: 584 f661 f264 # Has a (EMC, File extension)
+l8589976074: 610 l8589976073 l8589976038 # Has value (Has a (EMC, File extension), ".emc")
+l8589976075: 584 f912 575 # Has a (Ember Language (early), Nickname)
+l8589976076: 610 l8589976075 l8589976039 # Has value (Has a (Ember Language (early), Nickname), "el_early")
+l8589976077: 584 f912 f264 # Has a (Ember Language (early), File extension)
+l8589976078: 610 l8589976077 l8589976040 # Has value (Has a (Ember Language (early), File extension), ".eite")
+l8589976079: 584 f913 575 # Has a (Ember Language source (EM), Nickname)
+l8589976080: 610 l8589976079 l8589976041 # Has value (Has a (Ember Language source (EM), Nickname), "els")
+l8589976081: 584 f913 575 # Has a (Ember Language source (EM), Nickname)
+l8589976082: 610 l8589976081 l8589976042 # Has value (Has a (Ember Language source (EM), Nickname), "em")
+l8589976083: 584 f913 f264 # Has a (Ember Language source (EM), File extension)
+l8589976084: 610 l8589976083 l8589976040 # Has value (Has a (Ember Language source (EM), File extension), ".eite")
+l8589976085: 584 f913 f264 # Has a (Ember Language source (EM), File extension)
+l8589976086: 610 l8589976085 l8589976043 # Has value (Has a (Ember Language source (EM), File extension), ".els")
+l8589976087: 584 f913 f264 # Has a (Ember Language source (EM), File extension)
+l8589976088: 610 l8589976087 l8589976044 # Has value (Has a (Ember Language source (EM), File extension), ".em")
+l8589976089: 584 f914 575 # Has a (EMS (short Dcs), Nickname)
+l8589976090: 610 l8589976089 l8589976045 # Has value (Has a (EMS (short Dcs), Nickname), "elq")
+l8589976091: 584 f914 575 # Has a (EMS (short Dcs), Nickname)
