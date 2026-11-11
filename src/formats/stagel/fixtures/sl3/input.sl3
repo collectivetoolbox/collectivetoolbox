@@ -5,15 +5,21 @@
 : Identifiers are ASCII case-insensitive. Typing is strict; there is no automatic coercion.
 : Core types: b, letters, u8, i32, u32, i64, u64, l/T, void, never.
 : letters is a string in the StageL intermediate character set: A-Z, slash, colon, space, newline, quotation mark, dot.
-: OPEN: Define letters literals and operations precisely.
-  : The letters literals are opaque values - they can be compared, split, and joined. The representation in memory is not guaranteed. They're meant for convenient identifiers, not data.
-  : Quotation marks " defines a literal by type: "abc" = DcMst using Dcts format for string literal; b"abc" = l/u8 of bytes using C-style escapes (same as PHP strings); t"abc" = letters (opaque stringish identifiers) (short for "text" or leTters).
+: letters values are opaque identifiers, not byte data. They support comparison, splitting, and joining; memory representation is unspecified.
+: t"abc" is a letters literal. The t stands for text or letters, not a general Unicode string type.
+: b"abc" is an l/u8 byte literal using C/PHP-style escapes; it is available in StageL 3 and inherited by StageR 3.
+: A bare "abc" is a StageR 3 s literal using Dcts, not a StageL 3 literal and not JSON string syntax.
+: OPEN: Specify letters case canonicalization, quote escaping, split/join signatures, and the exact byte escape set.
+: The literal forms and opaque letters semantics are resolved; their lexical edge cases and normalization are not yet implemented.
 : b literals: true, false. There is no unspecified numeric type n.
 : l/T is a list of supported element type T. v/RETURN/name declares a named verb, not a function value.
 : Everything is expression-oriented, like Lisp: every normally completing expression returns a value.
 : void is the unit value, returned by declarations, new, set, normally completed loops, and empty blocks.
 : never does not return normally. It does not denote a returned value.
 : OPEN: Specify core arithmetic failure behavior without StageR 3 result/T.
+: RECOMMENDATION: Checked core operations return T; invalid arithmetic terminates evaluation with a defined fault, never silent wrapping.
+: RECOMMENDATION: Pure canAdd/canSub/canMul/canDiv predicates allow recovery before the operation; StageR 3 tryAdd/trySub/tryMul/tryDiv return result/T.
+: These arithmetic choices are proposals, not resolved semantics. StageR 3 must not change the return types of inherited core operations.
 : Opening braces are prohibited outside strings/comments. Block and list openings are implicit.
 : Declarations: [let] v/RETURN/name TYPE/parameter ... HEADER_END BODY.
 : HEADER_END is newline for an indented body, or :: for an inline body containing one statement.
@@ -48,7 +54,8 @@
 : List literals start with l/T: and end with ::; elements are expressions, such as l/u32: u32:0 u32:1 ::.
 : eq/ne compare same-typed values. concat returns a new list; len returns u64 and counts list elements.
 : foreach iterates a snapshot.
-: A colon at the first nonblank position starts a comment through newline.
+: A colon followed by space, or a colon alone on a line, starts a comment through newline after optional indentation.
+: A leading :: is a delimiter, not a comment. The quote-aware lexer must also distinguish literal contents from comments.
 : test LABEL has indented in/out lines: in supplies arguments; out supplies one expected value.
 : OPEN: Specify ABI, ownership, and non-tail recursion limits. These examples are design, not an implemented runtime.
 
@@ -109,44 +116,49 @@ v/void/unitChoice b/condition :: if b/condition do :: do ::.
 
 : StageR 3 extension notes and examples. Everything below is commentary, not StageL 3 code.
 : Added types: i128, u128, int, rat, dc, view, cursor, s, dcs, option/T, result/T.
-: s is DcMstr, the default/recommended string type. dcs is DcStr. dc is a strongly typed u128.
+: s is the default DcMst mixed-mode document-string value, represented by DcMstr/DcMstring in Rust; it is not just Unicode text.
+: dcs is a Dc-character string, represented by DcStr/DcString in Rust. dc is a strongly typed u128, not an ordinary integer.
+: Rust borrowing and ownership suffixes are implementation details, not extra StageR 3 language types.
 : int is arbitrary-precision. rat contains num:int and den:int; den is nonzero, positive, and coprime to num.
 : Zero rat is normalized to 0/1. makeRat NUM DEN returns result/rat; zero denominator yields Err(invalid_denominator).
 : result/T is Err(error) or Ok(T). option/T is None or Some(T).
 : Constructors: result/T:err ERROR, result/T:ok VALUE, option/T:none, option/T:some VALUE.
 : Error variants include overflow, division_by_zero, invalid_denominator; literals use error:NAME.
-: StageR 3 checked arithmetic returns result/T. Fixed-width overflow produces Err(overflow), never wrapping.
+: Proposed StageR 3 tryAdd/trySub/tryMul/tryDiv return result/T. Fixed-width overflow produces Err(overflow), never wrapping.
 : Division by zero produces Err(division_by_zero); an unrepresentable quotient produces Err(overflow).
 : Errors are ordinary result values, not automatic returns from the enclosing verb.
 : OPEN: Define extensible error payloads, result/option matching, and explicit error propagation syntax.
 : OPEN: Define integer division rounding, remainder signs, shifts, conversions, and allocation-failure behavior.
 : view contains source_id:u32, offset:u64, len:u64; cursor contains pos:u64 and a view.
 : OPEN: Define source lifetimes, checked view bounds, cursor ownership, and enforce pos <= len.
-: Strings use s:"..." or dcs:"..." with JSON escapes. String len returns u64 and counts Dcs, not bytes or Unicode code points.
-: OPEN: Define string equality and lossless non-Unicode Dc literals.
+: Bare "..." uses Dcts to construct s, including non-Unicode Dcs. b"..." constructs bytes; t"..." constructs letters.
+: There is no separate dcs literal spelling resolved here; converting mixed-mode strings to dcs must be explicit and fallible.
+: OPEN: Define string equality and length for DcMst binary runs; do not confuse bytes, Dc characters, and Unicode code points.
+: OPEN: Specify Dcts embedding boundaries, quote escaping, and preservation of literal payloads during normalization.
 : OPEN: Specify ABI, ownership, and WASM lowering for wide integers, int, rat, and strings.
 : unimplemented MESSAGE is a development-only never-returning stub, not recoverable error handling.
 :
 : v/b/zl s/in
 :     test works with zero length string
-:         in s:""
+:         in ""
 :         out true
 :     test works with nonzero length string
-:         in s:"a"
+:         in "a"
 :         out false
 :     eq u64:0 len s/in.
-: v/result/i64/addChecked i64/a i64/b :: add i64/a i64/b.
+: Proposed checked wrapper, pending the arithmetic decision:
+: v/result/i64/addChecked i64/a i64/b :: tryAdd i64/a i64/b.
 : v/s/default s/a s/b :: if zl s/a s/b s/a.
-: v/s/getFormatImportSetting s/a s/b :: unimplemented s:"Import settings".
-: v/s/dcGetMappingToFormat dc/a s/b :: unimplemented s:"Dc mapping".
-: v/s/getEnvCodeLanguage :: unimplemented s:"Environment language".
+: v/s/getFormatImportSetting s/a s/b :: unimplemented "Import settings".
+: v/s/dcGetMappingToFormat dc/a s/b :: unimplemented "Dc mapping".
+: v/s/getEnvCodeLanguage :: unimplemented "Environment language".
 :
 : v/s/getTargetLanguageForDctCodeToText
-:     new s/targetLanguage getFormatImportSetting s:"codetotext" s:"language".
+:     new s/targetLanguage getFormatImportSetting "codetotext" "language".
 :     if zl s/targetLanguage getEnvCodeLanguage s/targetLanguage.
 :
 : OPEN: Define ELAD decoding and malformed-input errors.
-: v/l/dc/dcaFromElad s/in :: unimplemented s:"ELAD decoding".
+: v/l/dc/dcaFromElad s/in :: unimplemented "ELAD decoding".
 : v/l/dc/push l/dc/in dc/toPush
 :     concat l/dc/in l/dc: dc/toPush ::.
 :

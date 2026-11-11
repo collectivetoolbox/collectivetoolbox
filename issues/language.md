@@ -10,7 +10,7 @@ the implementation-stage directory numbers below:
   declaration syntax, not a function-value type.
 - **StageR 3** builds on StageL 3 and adds the 128-bit primitives `i128` and
   `u128`, arbitrary-precision `int` and `rat`, `dc`, `view`, `cursor`, `s`
-  (DcMstr), `dcs` (DcStr), `option/T`, and `result/T`. These are not StageL 3
+  (DcMst mixed-mode strings), `dcs` (Dc-character strings), `option/T`, and `result/T`. These are not StageL 3
   core types. StageR 3 does not add first-class functions.
 - **EM3** is the full VSO language built on StageR 3, with speakable and compact
   code profiles. Only EM3 supports first-class functions: function values,
@@ -56,10 +56,47 @@ The intended implementation stages are:
 These are design requirements, not implemented compiler/runtime guarantees.
 The StageL 3 source normalizer does not implement type checking, execution,
 lexical capture, or tail-call lowering. Core arithmetic failure behavior must
-be specified without relying on StageR 3 `result/T`; StageR 3 checked arithmetic
-uses result values. ABI, ownership, definite initialization across nested calls,
+be specified without relying on StageR 3 `result/T`; the proposed StageR 3
+checked operations use result values without changing inherited core signatures.
+ABI, ownership, definite initialization across nested calls,
 stack-safe tail-call lowering with captures, and EM3 closure lowering remain
 to be specified and implemented.
+
+## Resolved Literal and Type Decisions
+
+- `letters` is an opaque identifier-oriented sequence, not a byte buffer or a
+  general-purpose Unicode string. Values can be compared, split, and joined;
+  their in-memory representation is unspecified. The intended intermediate
+  alphabet is `A-Z`, `/`, `:`, space, newline, quotation mark, and `.`.
+- `t"abc"` denotes `letters`; `b"abc"` denotes `l/u8` with C/PHP-style escapes.
+  Both are core literal forms. The exact escape repertoire, letters case
+  canonicalization, and split/join signatures still need a lexical/API decision;
+  C and PHP do not have identical string escape rules.
+- Bare `"abc"` is StageR 3's default `s` literal, with a **Dcts payload**, not
+  JSON. `s` is a **DcMst mixed-mode document-string value**: it can carry Dc
+  characters and embedded binary data, not merely Unicode text. In the current
+  Rust implementation, `DcMstr` is a borrowed view and `DcMstring` an owned
+  value. These Rust ownership spellings do not create extra StageR types.
+- `dcs` is a Dc-character string, corresponding to Rust `DcStr`/`DcString`.
+  It must not be conflated with `s` or raw `l/u8`. Conversions must be explicit
+  and fallible where encoding or binary framing can fail. A dedicated `dcs`
+  literal spelling is not yet resolved; the earlier `s:"..."`/`dcs:"..."`
+  JSON proposal is superseded.
+- `dc` is a strongly typed character value backed by 128 bits, not an integer
+  with implicit coercions. `int` is arbitrary precision; `rat` has arbitrary-
+  precision numerator and denominator, normalized to positive denominator and
+  coprime components, with zero represented as `0/1`.
+- `view` describes a source range; `cursor` adds a mutable position. Their
+  checked bounds and source lifetimes are not solved merely by naming fields.
+  `option/T` and `result/T` are tagged values, not nullable/exception aliases.
+- `::` replaces `}` as the inline header and explicit block/list closer.
+  Comments start with `: ` or a lone `:` after optional indentation, not every
+  leading colon: a line beginning with `::` must remain a delimiter.
+
+The normalizer still implements the old, quote-unaware alphabet and rejects
+quotes in code. The current fixture can normalize only because literal sketches
+are comments. Its `:CHAR:` comment escapes are not a settled literal encoding.
+These resolved language decisions do not imply lexer or runtime support.
 
 
 > Using i32.clz((255 - b0) << 24) (Dc 750) computes the DcTF byte length for all 128 <= b0 < 255 in a single expression!
