@@ -968,7 +968,11 @@ fn prepare_runtime_assets(
             is_any_file_newer(&v86_images_vendor, t).unwrap_or(true)
         });
 
-    if (rsrc_out_of_date || rebuild_requested) && v86_images_vendor.is_dir() {
+    let skip_v86_rsrc = std::env::var_os("CTB_SKIP_V86_RSRC").is_some();
+    if !skip_v86_rsrc
+        && (rsrc_out_of_date || rebuild_requested)
+        && v86_images_vendor.is_dir()
+    {
         println!(
             "cargo:warning=Packaging v86 images into built/v86_images.rsrc..."
         );

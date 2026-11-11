@@ -144,20 +144,24 @@ pub fn encode_i64_dc_shorthands(val: i64) -> Vec<DcShorthand> {
 fn encode_binary_data_shorthands(bytes: &[u8]) -> Vec<DcShorthand> {
     let mut out = Vec::new();
     out.push(dc_to_sh(DC_START_ENCAPSULATION_BINARY));
+    // Reason for fallback: usize fits in u128 on all supported architectures.
     out.extend(encode_u128_dc_shorthands(u128::try_from(bytes.len()).unwrap_or(0)));
 
     let mut idx = 0usize;
     while idx < bytes.len() {
+        // Reason for fallback: loop condition idx < bytes.len() guarantees idx is in bounds.
         let b0 = bytes.get(idx).copied().unwrap_or(0);
         let b1_opt = bytes.get(idx.saturating_add(1)).copied();
         let b2_opt = bytes.get(idx.saturating_add(2)).copied();
 
         let d0 = b0 >> 2;
+        // Reason for fallback: standard base64 chunk padding treats missing trailing bytes as zero.
         let d1 = ((b0 & 0x03) << 4) | (b1_opt.unwrap_or(0) >> 4);
         out.push(dc_to_sh(dc_base64_digit_to_char(d0)));
         out.push(dc_to_sh(dc_base64_digit_to_char(d1)));
 
         if let Some(b1) = b1_opt {
+            // Reason for fallback: standard base64 chunk padding treats missing trailing bytes as zero.
             let d2 = ((b1 & 0x0F) << 2) | (b2_opt.unwrap_or(0) >> 6);
             out.push(dc_to_sh(dc_base64_digit_to_char(d2)));
         } else {
@@ -1242,6 +1246,7 @@ fn compile_folded_sexpr(
         out.push(DcShorthand::Short(if_dc));
         emit_blocktype(None, out);
         ctx.label_stack.push(None);
+        // Reason for fallback: empty if body falls back to empty instruction slice.
         let body = list.get(2..).unwrap_or(&[]);
         compile_instr_sequence(body, ctx, out)?;
         let _ = ctx.label_stack.pop();
@@ -1277,6 +1282,7 @@ fn compile_folded_sexpr(
             out.push(DcShorthand::Short(short_dc));
             emit_blocktype(bt, out);
             ctx.label_stack.push(label);
+            // Reason for fallback: empty block/loop body falls back to empty instruction slice.
             let body = list.get(pos..).unwrap_or(&[]);
             compile_instr_sequence(body, ctx, out)?;
             let _ = ctx.label_stack.pop();
@@ -1331,6 +1337,7 @@ fn compile_folded_sexpr(
             emit_blocktype(bt, out);
             ctx.label_stack.push(label);
 
+            // Reason for fallback: empty then branch body falls back to empty instruction slice.
             let then_body = then_list.get(1..).unwrap_or(&[]);
             compile_instr_sequence(then_body, ctx, out)?;
 
@@ -1347,6 +1354,7 @@ fn compile_folded_sexpr(
                     .map(|(dc, _)| dc)
                     .context("Missing 'else' opcode")?;
                 out.push(DcShorthand::Short(else_dc));
+                // Reason for fallback: empty else branch body falls back to empty instruction slice.
                 let else_body = else_list.get(1..).unwrap_or(&[]);
                 compile_instr_sequence(else_body, ctx, out)?;
             }
@@ -1362,12 +1370,14 @@ fn compile_folded_sexpr(
         }
         _ => {
             let imm_end = folded_immediate_end_index(head, kind, list);
+            // Reason for fallback: instructions without folded operands fall back to empty slice.
             let operand_exprs = list.get(imm_end..).unwrap_or(&[]);
             for (op_idx, op_expr) in operand_exprs.iter().enumerate() {
                 let expected_vt = expected_folded_operand_valtype(head, op_idx);
                 compile_folded_operand(op_expr, expected_vt, ctx, out)?;
             }
             let mut imm_cursor = 1usize;
+            // Reason for fallback: instructions without immediates fall back to empty slice.
             let imm_slice = list.get(..imm_end).unwrap_or(&[]);
             emit_non_control_instruction_with_immediates(
                 head,
@@ -1742,6 +1752,7 @@ fn parse_func_decl(
     }
 
     let _ = func_ordinal;
+    // Reason for fallback: empty function body falls back to empty item slice.
     let body = items.get(pos..).unwrap_or(&[]).to_vec();
     Ok(ParsedWatFunc {
         id,
@@ -1914,6 +1925,7 @@ fn emit_wasm_routine_shorthands(
             let clean_name = pname_opt
                 .as_deref()
                 .map(|s| s.trim_start_matches('$').to_owned())
+                // Reason for fallback: unnamed WAT parameters default to synthetic p{idx} identifier.
                 .unwrap_or_else(|| format!("p{idx}"));
             push_identifier_shorthands(&clean_name, &[pvt.to_shorthand()], out);
         }
@@ -1986,6 +1998,7 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
         } else {
             1
         };
+        // Reason for fallback: empty module declarations list falls back to empty slice.
         list.get(start..).unwrap_or(&[])
     } else {
         sexprs.as_slice()
@@ -2058,10 +2071,12 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
                     .get(2)
                     .and_then(SExpr::as_list)
                     .context("WAT (export ...) requires target descriptor")?;
+                // Reason for fallback: malformed export target descriptor without atom defaults to empty kind.
                 let kind = target.first().and_then(SExpr::as_atom).unwrap_or("");
                 let target_ref = target
                     .get(1)
                     .and_then(SExpr::as_atom)
+                    // Reason for fallback: export target without index defaults to index 0.
                     .unwrap_or("0")
                     .to_owned();
                 match kind {
@@ -2125,6 +2140,7 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
         && datas.is_empty()
         && let Some(only_fn) = funcs.first()
         && matches!(
+            // Reason for fallback: unexported single function defaults to "main" export name.
             only_fn.export_name.as_deref().unwrap_or("main"),
             "main" | "_start"
         )
@@ -2158,6 +2174,7 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
             .export_name
             .clone()
             .or_else(|| g.id.as_deref().map(|s| s.trim_start_matches('$').to_owned()))
+            // Reason for fallback: unnamed global defaults to synthetic global_{idx} identifier.
             .unwrap_or_else(|| format!("global_{idx}"));
         out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
         push_identifier_shorthands(&gname, &[g.valtype.to_shorthand()], &mut out);
@@ -2171,6 +2188,7 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
             .export_name
             .clone()
             .or_else(|| f.id.as_deref().map(|s| s.trim_start_matches('$').to_owned()))
+            // Reason for fallback: unnamed function defaults to main for index 0 or func_{idx}.
             .unwrap_or_else(|| {
                 if idx == 0 {
                     "main".to_owned()
@@ -2325,6 +2343,7 @@ fn parse_target_short_id_from_stem(stem: &str, rel_path: &str) -> Result<usize> 
     let prefix = stem
         .split(['_', '-'])
         .next()
+        // Reason for fallback: strings without underscores or hyphens return the entire stem.
         .unwrap_or(stem)
         .trim();
     ensure!(
@@ -2394,6 +2413,7 @@ pub fn load_staged_dc_impls(
             if file_name.starts_with('.') || file_name.ends_with(".md") {
                 continue;
             }
+            // Reason for fallback: files without an extension default to empty extension.
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
             if stage == ImplStage::Stage0 {
                 if ext != "wat" {
@@ -2428,6 +2448,7 @@ pub fn load_staged_dc_impls(
             let stem = path
                 .file_stem()
                 .and_then(|s| s.to_str())
+                // Reason for fallback: files without stem default to entire file name.
                 .unwrap_or(file_name);
             let target_short_id =
                 parse_target_short_id_from_stem(stem, &rel_path)?;

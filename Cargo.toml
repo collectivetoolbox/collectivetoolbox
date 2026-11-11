@@ -62,6 +62,10 @@ opt-level = 3
 [profile.test]
 inherits = "dev"
 
+[profile.test.package."*"]
+debug = 0
+opt-level = 0
+
 [profile.test.package.ctb-formats-javascript]
 opt-level = 3
 

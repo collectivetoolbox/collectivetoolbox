@@ -192,6 +192,10 @@ export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 # Reduce size of test artifacts in CI by stripping full debuginfo from tests
 export CARGO_PROFILE_TEST_DEBUG="line-tables-only"
 
+# Do not pack 12GB v86_images.rsrc in CI builds to conserve runner disk space
+export CTB_SKIP_V86_RSRC=1
+rm -f built/v86_images.rsrc built/*/v86_images.rsrc 2>/dev/null || true
+
 # Suppress all compiler and doc warnings in CI
 export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
 export RUSTDOCFLAGS="${RUSTDOCFLAGS:--Awarnings}"
