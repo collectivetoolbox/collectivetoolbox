@@ -293,7 +293,7 @@ pub fn pack_v86_rsrc(
     let mut entries = Vec::new();
     collect_v86_entries(v86_images_dir, v86_images_dir, &mut entries)?;
 
-    ctb_formats_ctb_asset_bundle::write_asset_bundle_from_disk_entries(
+    ctb_formats_ctb_asset_bundle::write_asset_bundle_from_disk_entries_deterministic(
         &entries,
         output_rsrc_path,
     )?;

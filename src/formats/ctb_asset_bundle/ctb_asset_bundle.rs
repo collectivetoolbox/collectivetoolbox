@@ -105,6 +105,14 @@ use uuid::Uuid;
 pub mod delta;
 
 #[cfg(test)]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude for test harness"
+)]
+pub(crate) use ctb_utilities::*;
+
+#[cfg(test)]
 pub fn get_ctb_asset_bundle_data(key: &str) -> Option<Vec<u8>> {
     ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
@@ -248,26 +256,13 @@ pub fn compute_asset_bundle_content_sha256(
     hash_normalized_entries(&entries)
 }
 
-pub fn compute_v2_resource_bundle_uuid(
-    entries: &[AssetBundleSourceEntry],
+/// Derive a deterministic RFC 4122 custom-content UUID from a bundle's
+/// `content_sha256` digest.
+pub fn uuid_from_content_sha256(
+    content_sha256: &[u8; RESOURCE_BUNDLE_SHA256_SIZE],
 ) -> Result<Uuid> {
-    let entries = normalized_source_entries(entries)?;
-    let mut hasher = Sha256::new();
-    for entry in &entries {
-        let path_len = u64::try_from(entry.path.len())
-            .context("resource bundle path length overflow")?;
-        hasher.update(path_len.to_le_bytes());
-        hasher.update(entry.path.as_bytes());
-
-        let contents_len = u64::try_from(entry.contents.len())
-            .context("resource bundle contents length overflow")?;
-        hasher.update(contents_len.to_le_bytes());
-        hasher.update(&entry.contents);
-    }
-
-    let digest = hasher.finalize();
     let mut uuid_bytes = [0_u8; RESOURCE_BUNDLE_UUID_SIZE];
-    for (dst, src) in uuid_bytes.iter_mut().zip(digest.iter()) {
+    for (dst, src) in uuid_bytes.iter_mut().zip(content_sha256.iter()) {
         *dst = *src;
     }
 
@@ -278,6 +273,14 @@ pub fn compute_v2_resource_bundle_uuid(
     *byte8 = (*byte8 & 0x3f) | 0x80;
 
     Ok(Uuid::from_bytes(uuid_bytes))
+}
+
+pub fn compute_v2_resource_bundle_uuid(
+    entries: &[AssetBundleSourceEntry],
+) -> Result<Uuid> {
+    let entries = normalized_source_entries(entries)?;
+    let digest = hash_normalized_entries(&entries)?;
+    uuid_from_content_sha256(&digest)
 }
 
 fn build_asset_bundle_internal(
@@ -486,6 +489,12 @@ pub fn build_asset_bundle_v4_with_details(
     )
 }
 
+#[derive(Clone, Copy)]
+enum DiskBundleUuidMode {
+    ExplicitOrRandom(Option<Uuid>),
+    ContentDerived,
+}
+
 /// Write an asset bundle directly to disk from on-disk source files in a
 /// streaming manner without loading all payload bytes into memory.
 pub fn write_asset_bundle_from_disk_entries(
@@ -501,6 +510,22 @@ pub fn write_asset_bundle_from_disk_entries(
     )
 }
 
+/// Write a deterministic, byte-for-byte reproducible asset bundle directly to
+/// disk from on-disk source files, deriving `bundle_uuid` from `content_sha256`
+/// and setting `created_at_unix_secs` to `0`.
+pub fn write_asset_bundle_from_disk_entries_deterministic(
+    entries: &[AssetBundleDiskSourceEntry],
+    output_path: &Path,
+) -> Result<AssetBundleHeader> {
+    write_asset_bundle_from_disk_entries_internal(
+        entries,
+        output_path,
+        RESOURCE_BUNDLE_VERSION,
+        DiskBundleUuidMode::ContentDerived,
+        Some(0),
+    )
+}
+
 /// Write an asset bundle directly to disk from on-disk source files with
 /// explicit version, uuid, and timestamp parameters.
 pub fn write_asset_bundle_from_disk_entries_with_details(
@@ -510,29 +535,35 @@ pub fn write_asset_bundle_from_disk_entries_with_details(
     custom_uuid: Option<Uuid>,
     custom_created_at: Option<u64>,
 ) -> Result<AssetBundleHeader> {
+    write_asset_bundle_from_disk_entries_internal(
+        entries,
+        output_path,
+        version,
+        DiskBundleUuidMode::ExplicitOrRandom(custom_uuid),
+        custom_created_at,
+    )
+}
+
+fn write_asset_bundle_from_disk_entries_internal(
+    entries: &[AssetBundleDiskSourceEntry],
+    output_path: &Path,
+    version: u32,
+    uuid_mode: DiskBundleUuidMode,
+    custom_created_at: Option<u64>,
+) -> Result<AssetBundleHeader> {
     let entries = normalized_disk_source_entries(entries)?;
     let entry_count = u32::try_from(entries.len())
         .context("Too many resource bundle entries")?;
 
     let header_size = match version {
         RESOURCE_BUNDLE_VERSION_V1 => RESOURCE_BUNDLE_V1_HEADER_SIZE,
-        RESOURCE_BUNDLE_VERSION_V2 => RESOURCE_BUNDLE_V2_HEADER_SIZE,
-        RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4 => {
-            RESOURCE_BUNDLE_HEADER_SIZE
-        }
-        _ => bail!("Unsupported resource bundle version {version}"),
-    };
-
-    let bundle_uuid = match version {
-        RESOURCE_BUNDLE_VERSION_V1 => Uuid::nil(),
         RESOURCE_BUNDLE_VERSION_V2 => {
             bail!(
                 "Streaming disk bundle write is only supported for v3 and v4 bundles"
             );
         }
         RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4 => {
-            // Reason for fallback: when custom UUID is not provided for v3/v4 bundle, generate a random UUID.
-            custom_uuid.unwrap_or_else(Uuid::new_v4)
+            RESOURCE_BUNDLE_HEADER_SIZE
         }
         _ => bail!("Unsupported resource bundle version {version}"),
     };
@@ -674,6 +705,22 @@ pub fn write_asset_bundle_from_disk_entries_with_details(
     for (dst, src) in content_sha256.iter_mut().zip(digest.iter()) {
         *dst = *src;
     }
+
+    let bundle_uuid = match (version, uuid_mode) {
+        (RESOURCE_BUNDLE_VERSION_V1, _) => Uuid::nil(),
+        (
+            RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4,
+            DiskBundleUuidMode::ExplicitOrRandom(custom_uuid),
+        ) => {
+            // Reason for fallback: when custom UUID is not provided for v3/v4 bundle, generate a random UUID.
+            custom_uuid.unwrap_or_else(Uuid::new_v4)
+        }
+        (
+            RESOURCE_BUNDLE_VERSION_V3 | RESOURCE_BUNDLE_VERSION_V4,
+            DiskBundleUuidMode::ContentDerived,
+        ) => uuid_from_content_sha256(&content_sha256)?,
+        _ => bail!("Unsupported resource bundle version {version}"),
+    };
 
     let header = AssetBundleHeader {
         version,
@@ -1604,6 +1651,61 @@ mod tests {
         assert_eq!(parsed.entries.len(), 2);
         assert_eq!(parsed.entries[0].path, "path/a.bin");
         assert_eq!(parsed.entries[1].path, "path/b.bin");
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_write_asset_bundle_from_disk_entries_deterministic_is_reproducible()
+    -> Result<()> {
+        let temp_dir =
+            std::env::temp_dir().join("ctb_test_disk_bundle_deterministic");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+
+        let file1_path = temp_dir.join("alpha.bin");
+        let file2_path = temp_dir.join("beta.bin");
+        fs::write(&file1_path, b"deterministic payload one")?;
+        fs::write(&file2_path, b"deterministic payload two")?;
+
+        // Supply entries in opposite orders across two runs to verify both
+        // entry ordering and header metadata are 100% reproducible.
+        let entries_forward = vec![
+            AssetBundleDiskSourceEntry::new("images/alpha.bin", &file1_path, 25),
+            AssetBundleDiskSourceEntry::new("images/beta.bin", &file2_path, 25),
+        ];
+        let entries_reverse = vec![
+            AssetBundleDiskSourceEntry::new("images/beta.bin", &file2_path, 25),
+            AssetBundleDiskSourceEntry::new("images/alpha.bin", &file1_path, 25),
+        ];
+
+        let out_a = temp_dir.join("bundle_a.rsrc");
+        let out_b = temp_dir.join("bundle_b.rsrc");
+        let hdr_a = write_asset_bundle_from_disk_entries_deterministic(
+            &entries_forward,
+            &out_a,
+        )?;
+        let hdr_b = write_asset_bundle_from_disk_entries_deterministic(
+            &entries_reverse,
+            &out_b,
+        )?;
+
+        assert_eq!(hdr_a, hdr_b);
+        assert_ne!(hdr_a.bundle_uuid, Uuid::nil());
+        assert_eq!(hdr_a.created_at_unix_secs, 0);
+        assert_eq!(fs::read(&out_a)?, fs::read(&out_b)?);
+
+        // Changing file content while keeping identical file length must
+        // change both content_sha256 and bundle_uuid.
+        fs::write(&file2_path, b"deterministic payload TWO")?;
+        let out_c = temp_dir.join("bundle_c.rsrc");
+        let hdr_c = write_asset_bundle_from_disk_entries_deterministic(
+            &entries_forward,
+            &out_c,
+        )?;
+        assert_ne!(hdr_c.content_sha256, hdr_a.content_sha256);
+        assert_ne!(hdr_c.bundle_uuid, hdr_a.bundle_uuid);
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
