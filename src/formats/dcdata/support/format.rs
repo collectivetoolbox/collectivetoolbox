@@ -871,12 +871,30 @@ pub fn validate_all_format_files_from_disk(
         .map(|(name, bytes)| (name.as_str(), bytes.as_slice()))
         .collect();
 
-    validate_format_files_data(
+    let mut defns = validate_format_files_data(
         files_iter,
         &formats_dir.display().to_string(),
         known_scripts,
         report,
-    )
+    );
+    if let Some(data_src_dir) = formats_dir.parent().and_then(std::path::Path::parent)
+        && let Ok((staged_impls, _)) = crate::wat::load_staged_dc_impls(data_src_dir)
+    {
+        for staged in staged_impls {
+            if let ctb_storage_minimal::shorthand::DcShorthand::Format(fid) =
+                staged.target
+                && let Some(fdefn) = defns
+                    .iter_mut()
+                    .find(|d| d.format.is_some() && d.short_id == Some(fid))
+            {
+                let entry = staged.to_decomposition_entry();
+                if !fdefn.decompositions.contains(&entry) {
+                    fdefn.decompositions.push(entry);
+                }
+            }
+        }
+    }
+    defns
 }
 
 #[cfg(test)]

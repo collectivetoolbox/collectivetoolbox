@@ -731,8 +731,11 @@ fn lookup_wat_instruction(mnemonic: &str) -> Option<(u32, WatImmediateKind)> {
 #[derive(Debug, Default)]
 struct FuncCompileCtx {
     func_indices: BTreeMap<String, u32>,
+    func_param_types: Vec<Vec<WatValType>>,
     global_indices: BTreeMap<String, u32>,
+    global_types: Vec<WatValType>,
     local_indices: BTreeMap<String, u32>,
+    local_types: Vec<WatValType>,
     const_values: BTreeMap<String, i64>,
     label_stack: Vec<Option<String>>,
 }
@@ -1056,19 +1059,58 @@ fn normalize_wat_mnemonic(raw: &str) -> &str {
     }
 }
 
-fn expected_folded_operand_valtype(mnemonic: &str, operand_idx: usize) -> WatValType {
-    if mnemonic.starts_with("i64.load") {
-        WatValType::I32
-    } else if mnemonic.starts_with("i64.store") {
-        if operand_idx == 0 {
-            WatValType::I32
-        } else {
-            WatValType::I64
+fn expected_folded_operand_valtype(
+    mnemonic: &str,
+    imm_slice: &[SExpr],
+    operand_idx: usize,
+    ctx: &FuncCompileCtx,
+) -> Result<WatValType> {
+    match mnemonic {
+        "local.set" | "local.tee" => {
+            if let Some(tok) = imm_slice.get(1).and_then(SExpr::as_atom) {
+                let loc_idx = usize::try_from(ctx.resolve_local(tok)?)?;
+                if let Some(&vt) = ctx.local_types.get(loc_idx) {
+                    return Ok(vt);
+                }
+            }
+            Ok(WatValType::I32)
         }
-    } else if mnemonic.starts_with("i64.") {
-        WatValType::I64
-    } else {
-        WatValType::I32
+        "global.set" => {
+            if let Some(tok) = imm_slice.get(1).and_then(SExpr::as_atom) {
+                let glob_idx = usize::try_from(ctx.resolve_global(tok)?)?;
+                if let Some(&vt) = ctx.global_types.get(glob_idx) {
+                    return Ok(vt);
+                }
+            }
+            Ok(WatValType::I32)
+        }
+        "call" | "return_call" => {
+            if let Some(tok) = imm_slice.get(1).and_then(SExpr::as_atom) {
+                let fn_idx = usize::try_from(ctx.resolve_func(tok)?)?;
+                if let Some(params) = ctx.func_param_types.get(fn_idx)
+                    && let Some(&vt) = params.get(operand_idx)
+                {
+                    return Ok(vt);
+                }
+            }
+            Ok(WatValType::I32)
+        }
+        "i32.wrap_i64"
+        | "f32.convert_i64_s"
+        | "f32.convert_i64_u"
+        | "f64.convert_i64_s"
+        | "f64.convert_i64_u" => Ok(WatValType::I64),
+        "i64.extend_i32_s" | "i64.extend_i32_u" => Ok(WatValType::I32),
+        _ if mnemonic.starts_with("i64.load") => Ok(WatValType::I32),
+        _ if mnemonic.starts_with("i64.store") => {
+            if operand_idx == 0 {
+                Ok(WatValType::I32)
+            } else {
+                Ok(WatValType::I64)
+            }
+        }
+        _ if mnemonic.starts_with("i64.") => Ok(WatValType::I64),
+        _ => Ok(WatValType::I32),
     }
 }
 
@@ -1381,17 +1423,18 @@ fn compile_folded_sexpr(
         }
         _ => {
             let imm_end = folded_immediate_end_index(head, kind, list);
+            let imm_slice = list
+                .get(..imm_end)
+                .context("Invalid folded instruction immediate slice")?;
             let operand_exprs = list
                 .get(imm_end..)
                 .context("Invalid folded instruction operand slice")?;
             for (op_idx, op_expr) in operand_exprs.iter().enumerate() {
-                let expected_vt = expected_folded_operand_valtype(head, op_idx);
+                let expected_vt =
+                    expected_folded_operand_valtype(head, imm_slice, op_idx, ctx)?;
                 compile_folded_operand(op_expr, expected_vt, ctx, out)?;
             }
             let mut imm_cursor = 1usize;
-            let imm_slice = list
-                .get(..imm_end)
-                .context("Invalid folded instruction immediate slice")?;
             emit_non_control_instruction_with_immediates(
                 head,
                 short_dc,
@@ -1914,10 +1957,49 @@ fn push_identifier_shorthands(
     out.push(dc_to_sh(DC_END_IDENTIFIER));
 }
 
+fn validate_memory_decl(items: &[SExpr]) -> Result<()> {
+    let mut pos = 1usize;
+    if let Some(SExpr::Atom(a)) = items.get(pos)
+        && a.starts_with('$')
+    {
+        pos = pos.saturating_add(1);
+    }
+    while let Some(SExpr::List(sub)) = items.get(pos) {
+        ensure!(
+            sub.first().and_then(SExpr::as_atom) == Some("export"),
+            "Unsupported list clause inside WAT (memory ...)"
+        );
+        pos = pos.saturating_add(1);
+    }
+    if let Some(SExpr::Atom(min_str)) = items.get(pos) {
+        let min_pages = parse_wat_u32(min_str)?;
+        ensure!(
+            min_pages == 1,
+            "Dc-WASM modules always instantiate 1 initial 64 KiB page and grow via (memory.grow ...); got (memory {min_pages})"
+        );
+        pos = pos.saturating_add(1);
+        if let Some(SExpr::Atom(max_str)) = items.get(pos) {
+            let max_pages = parse_wat_u32(max_str)?;
+            ensure!(
+                max_pages >= min_pages,
+                "WAT (memory {min_pages} {max_pages}) maximum pages must be >= minimum pages"
+            );
+            pos = pos.saturating_add(1);
+        }
+    }
+    ensure!(
+        pos == items.len(),
+        "Unexpected trailing tokens in WAT (memory ...) declaration"
+    );
+    Ok(())
+}
+
 fn emit_wasm_routine_shorthands(
     func: &ParsedWatFunc,
     func_indices: &BTreeMap<String, u32>,
+    func_param_types: &[Vec<WatValType>],
     global_indices: &BTreeMap<String, u32>,
+    global_types: &[WatValType],
     out: &mut Vec<DcShorthand>,
 ) -> Result<()> {
     out.push(dc_to_sh(DC_BEGIN_LITERAL));
@@ -1962,24 +2044,31 @@ fn emit_wasm_routine_shorthands(
     }
 
     let mut local_indices = BTreeMap::new();
+    let mut local_types =
+        Vec::with_capacity(func.params.len().saturating_add(func.locals.len()));
     let mut next_local = 0u32;
-    for (pname_opt, _) in &func.params {
+    for (pname_opt, pvt) in &func.params {
         if let Some(pname) = pname_opt {
             local_indices.insert(pname.clone(), next_local);
         }
+        local_types.push(*pvt);
         next_local = next_local.saturating_add(1);
     }
-    for (lname_opt, _) in &func.locals {
+    for (lname_opt, lvt) in &func.locals {
         if let Some(lname) = lname_opt {
             local_indices.insert(lname.clone(), next_local);
         }
+        local_types.push(*lvt);
         next_local = next_local.saturating_add(1);
     }
 
     let mut ctx = FuncCompileCtx {
         func_indices: func_indices.clone(),
+        func_param_types: func_param_types.to_vec(),
         global_indices: global_indices.clone(),
+        global_types: global_types.to_vec(),
         local_indices,
+        local_types,
         const_values: func.consts.clone(),
         label_stack: Vec::new(),
     };
@@ -2060,7 +2149,9 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
             .and_then(SExpr::as_atom)
             .context("Expected keyword at start of WAT module member")?;
         match tag {
-            "memory" => {}
+            "memory" => {
+                validate_memory_decl(list)?;
+            }
             "const" => {
                 parse_const_decl(list, &mut module_consts)?;
             }
@@ -2109,16 +2200,20 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
     }
 
     let mut func_indices = BTreeMap::new();
+    let mut func_param_types = Vec::with_capacity(funcs.len());
     for (idx, f) in funcs.iter().enumerate() {
         if let Some(id) = &f.id {
             func_indices.insert(id.clone(), u32::try_from(idx)?);
         }
+        func_param_types.push(f.params.iter().map(|(_, vt)| *vt).collect());
     }
     let mut global_indices = BTreeMap::new();
+    let mut global_types = Vec::with_capacity(globals.len());
     for (idx, g) in globals.iter().enumerate() {
         if let Some(id) = &g.id {
             global_indices.insert(id.clone(), u32::try_from(idx)?);
         }
+        global_types.push(g.valtype);
     }
 
     for (exp_name, target_ref) in pending_func_exports {
@@ -2164,7 +2259,9 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
         emit_wasm_routine_shorthands(
             only_fn,
             &func_indices,
+            &func_param_types,
             &global_indices,
+            &global_types,
             &mut out,
         )?;
         out.push(dc_to_sh(DC_END_WASM_PROGRAM));
@@ -2215,7 +2312,14 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
         out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
         push_identifier_shorthands(&fname, &[], &mut out);
         out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
-        emit_wasm_routine_shorthands(f, &func_indices, &global_indices, &mut out)?;
+        emit_wasm_routine_shorthands(
+            f,
+            &func_indices,
+            &func_param_types,
+            &global_indices,
+            &global_types,
+            &mut out,
+        )?;
         out.push(dc_to_sh(DC_END_KV_PAIR));
     }
 
@@ -2329,15 +2433,25 @@ impl ImplStage {
     }
 }
 
-/// One compiled Dc implementation loaded from `stage_0_impls/`, `stage_1_impls/`, or `impls/`.
+/// Callback type used to compile higher-stage `.sl3` / `.sr3` implementation files using
+/// previously loaded lower-stage bootstrap compilers.
+pub type StagedSourceCompiler<'a> = dyn Fn(
+        ImplStage,
+        &str,
+        &str,
+        &[StagedDcImpl],
+    ) -> Result<Vec<DcShorthand>>
+    + 'a;
+
+/// One compiled Dc or Format implementation loaded from `stage_0_impls/`, `stage_1_impls/`, or `impls/`.
 #[derive(Debug, Clone)]
 pub struct StagedDcImpl {
     /// Stage folder from which this implementation was loaded.
     pub stage: ImplStage,
     /// Repository-relative path (`src/formats/dcdata/data-src/...`).
     pub rel_path: String,
-    /// Target Document Character short ID implemented by this file.
-    pub target_short_id: usize,
+    /// Target Short Dc (`DcShorthand::Short`) or Format Dc (`DcShorthand::Format`) implemented by this file.
+    pub target: DcShorthand,
     /// Decomposition tag (`"semantic"` or `"equiv"`).
     pub decomp_tag: String,
     /// Compiled Dc shorthand tokens.
@@ -2355,7 +2469,7 @@ impl StagedDcImpl {
     }
 }
 
-fn parse_target_short_id_from_stem(stem: &str, rel_path: &str) -> Result<usize> {
+fn parse_target_from_stem(stem: &str, rel_path: &str) -> Result<DcShorthand> {
     let prefix = stem
         .split(['_', '-'])
         .next()
@@ -2363,13 +2477,19 @@ fn parse_target_short_id_from_stem(stem: &str, rel_path: &str) -> Result<usize> 
         .trim();
     ensure!(
         !prefix.is_empty(),
-        "Implementation file '{rel_path}' must start with a numeric short Dc ID (e.g. '1936_kernel.wat')"
+        "Implementation file '{rel_path}' must start with a short Dc or format shorthand (e.g. '1936_kernel.wat' or 'f656_stagel3.wat')"
     );
-    prefix.parse::<usize>().with_context(|| {
-        format!(
-            "Implementation file '{rel_path}' stem prefix '{prefix}' is not a valid short Dc ID"
+    let parsed = DcShorthand::parse(prefix).map_err(|e| {
+        anyhow!(
+            "Implementation file '{rel_path}' stem prefix '{prefix}' is not a valid Dc shorthand: {e}"
         )
-    })
+    })?;
+    match parsed {
+        DcShorthand::Short(_) | DcShorthand::Format(_) => Ok(parsed),
+        other => bail!(
+            "Implementation file '{rel_path}' stem prefix '{other}' must be a short Dc (e.g. '1936') or format Dc (e.g. 'f656')"
+        ),
+    }
 }
 
 fn extract_decomp_tag_override(src: &str) -> String {
@@ -2378,6 +2498,7 @@ fn extract_decomp_tag_override(src: &str) -> String {
         if let Some(rest) = trimmed
             .strip_prefix(";;")
             .or_else(|| trimmed.strip_prefix('#'))
+            .or_else(|| trimmed.strip_prefix(": "))
         {
             let comment = rest.trim();
             if comment.contains("@decomp(equiv)") {
@@ -2396,13 +2517,32 @@ fn extract_decomp_tag_override(src: &str) -> String {
 ///
 /// # Errors
 /// Returns an error if any implementation file fails to parse or if two files target the same
-/// `(target_short_id, decomp_tag)` pair.
+/// `(target, decomp_tag)` pair.
 pub fn load_staged_dc_impls(
     data_dir: &Path,
 ) -> Result<(Vec<StagedDcImpl>, BTreeMap<String, Vec<u8>>)> {
-    let mut impls = Vec::new();
+    load_staged_dc_impls_with_compiler(data_dir, None)
+}
+
+/// Loads and compiles all staged implementation files under `data_dir`, invoking `source_compiler`
+/// when higher-stage `.sl3` (`stage_1_impls/`, `impls/`) or `.sr3` (`impls/`) files are present.
+///
+/// # Errors
+/// Returns an error if stage extension constraints are violated, required lower-stage language
+/// compilers (`StageL3` / `StageR3`) are missing, duplicate targets exist, or compilation fails.
+#[allow(
+    clippy::too_many_lines,
+    reason = "Validates per-stage file extension rules, bootstrap compiler prerequisites, target uniqueness, and compilation"
+)]
+pub fn load_staged_dc_impls_with_compiler(
+    data_dir: &Path,
+    source_compiler: Option<&StagedSourceCompiler<'_>>,
+) -> Result<(Vec<StagedDcImpl>, BTreeMap<String, Vec<u8>>)> {
+    let mut impls: Vec<StagedDcImpl> = Vec::new();
     let mut raw_files: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    let mut seen_targets: BTreeMap<(usize, String), String> = BTreeMap::new();
+    let mut seen_targets: BTreeMap<(String, String), String> = BTreeMap::new();
+    let stagel3_sh = ctb_utilities::format_id::FormatId::StageL3.shorthand();
+    let stager3_sh = ctb_utilities::format_id::FormatId::StageR3.shorthand();
 
     for stage in [ImplStage::Stage0, ImplStage::Stage1, ImplStage::Stage2] {
         let dir_path = data_dir.join(stage.dir_name());
@@ -2430,24 +2570,40 @@ pub fn load_staged_dc_impls(
             }
             // Reason for fallback: files without an extension default to empty extension.
             let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-            if stage == ImplStage::Stage0 {
-                if ext != "wat" {
-                    bail!(
+            match stage {
+                ImplStage::Stage0 => {
+                    ensure!(
+                        ext == "wat",
                         "stage_0_impls file '{}' must be a .wat file",
                         path.display()
                     );
                 }
-            } else if ext == "wat" {
-                bail!(
-                    "{} file '{}' cannot be a .wat file (.wat is restricted to stage_0_impls/)",
-                    stage.dir_name(),
-                    path.display()
-                );
-            } else if ext != "dcsh" {
-                bail!(
-                    "Unsupported file extension '.{ext}' in {}: expected .dcsh",
-                    path.display()
-                );
+                ImplStage::Stage1 => {
+                    if ext == "wat" {
+                        bail!(
+                            "stage_1_impls file '{}' cannot be a .wat file (.wat is restricted to stage_0_impls/)",
+                            path.display()
+                        );
+                    }
+                    ensure!(
+                        matches!(ext, "dcsh" | "sl3"),
+                        "Unsupported file extension '.{ext}' in {}: expected .dcsh or .sl3",
+                        path.display()
+                    );
+                }
+                ImplStage::Stage2 => {
+                    if ext == "wat" {
+                        bail!(
+                            "impls file '{}' cannot be a .wat file (.wat is restricted to stage_0_impls/)",
+                            path.display()
+                        );
+                    }
+                    ensure!(
+                        matches!(ext, "dcsh" | "sl3" | "sr3"),
+                        "Unsupported file extension '.{ext}' in {}: expected .dcsh, .sl3, or .sr3",
+                        path.display()
+                    );
+                }
             }
 
             let rel_path = format!(
@@ -2465,31 +2621,65 @@ pub fn load_staged_dc_impls(
                 .and_then(|s| s.to_str())
                 // Reason for fallback: files without stem default to entire file name.
                 .unwrap_or(file_name);
-            let target_short_id =
-                parse_target_short_id_from_stem(stem, &rel_path)?;
+            let target = parse_target_from_stem(stem, &rel_path)?;
+            let target_key = target.to_string();
             let decomp_tag = extract_decomp_tag_override(src);
 
             if let Some(prev_path) = seen_targets
-                .insert((target_short_id, decomp_tag.clone()), rel_path.clone())
+                .insert((target_key.clone(), decomp_tag.clone()), rel_path.clone())
             {
                 bail!(
-                    "Duplicate <{decomp_tag}> implementation for Dc {target_short_id} in '{rel_path}' and '{prev_path}'"
+                    "Duplicate <{decomp_tag}> implementation for {target_key} in '{rel_path}' and '{prev_path}'"
                 );
             }
 
-            let tokens = if ext == "wat" {
-                wat_to_dc_shorthands(src)
-                    .with_context(|| format!("Failed to compile {rel_path}"))?
-            } else {
-                parse_dcsh_impl_tokens(src)
-                    .with_context(|| format!("Failed to parse {rel_path}"))?
+            let tokens = match ext {
+                "wat" => wat_to_dc_shorthands(src)
+                    .with_context(|| format!("Failed to compile {rel_path}"))?,
+                "dcsh" => parse_dcsh_impl_tokens(src)
+                    .with_context(|| format!("Failed to parse {rel_path}"))?,
+                "sl3" => {
+                    let has_sl3_compiler = impls.iter().any(|prior| {
+                        prior.stage == ImplStage::Stage0
+                            && prior.target.to_string() == stagel3_sh
+                    });
+                    ensure!(
+                        has_sl3_compiler,
+                        "Cannot compile '{rel_path}': StageL 3 compiler ({stagel3_sh}) must be defined in stage_0_impls/ first"
+                    );
+                    let compiler = source_compiler.with_context(|| {
+                        format!(
+                            "Cannot compile '{rel_path}': no StageL 3 bootstrap execution hook was provided to load_staged_dc_impls_with_compiler"
+                        )
+                    })?;
+                    compiler(stage, ext, src, &impls)
+                        .with_context(|| format!("Failed to compile {rel_path}"))?
+                }
+                "sr3" => {
+                    let has_sr3_compiler = impls.iter().any(|prior| {
+                        prior.stage < stage
+                            && prior.target.to_string() == stager3_sh
+                    });
+                    ensure!(
+                        has_sr3_compiler,
+                        "Cannot compile '{rel_path}': StageR 3 compiler ({stager3_sh}) must be defined in stage_0_impls/ or stage_1_impls/ first"
+                    );
+                    let compiler = source_compiler.with_context(|| {
+                        format!(
+                            "Cannot compile '{rel_path}': no StageR 3 bootstrap execution hook was provided to load_staged_dc_impls_with_compiler"
+                        )
+                    })?;
+                    compiler(stage, ext, src, &impls)
+                        .with_context(|| format!("Failed to compile {rel_path}"))?
+                }
+                _ => bail!("Unhandled staged implementation extension '.{ext}'"),
             };
 
             raw_files.insert(rel_path.clone(), bytes);
             impls.push(StagedDcImpl {
                 stage,
                 rel_path,
-                target_short_id,
+                target,
                 decomp_tag,
                 tokens,
             });
@@ -2593,6 +2783,103 @@ mod tests {
         assert_eq!(
             wat_to_dc_shorthands(concise_wat)?,
             wat_to_dc_shorthands(verbose_wat)?
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_wat_folded_i64_operand_inference_and_memory_validation() -> Result<()> {
+        let explicit_wat = r#"
+            (module
+              (memory (export "memory") 1)
+              (global $g64 (mut i64) (i64.const 0))
+              (func $helper (param $a i64) (param $b i32) (result i32)
+                (i32.add (i32.wrap_i64 (local.get $a)) (local.get $b)))
+              (func (export "main") (result i32)
+                (local $x64 i64)
+                (local.set $x64 (i64.const 0x1_0000_0005))
+                (global.set $g64 (local.tee $x64 (i64.extend_i32_u (i32.const 42))))
+                (return_call $helper (i64.const -9) (i32.wrap_i64 (i64.const 51)))))
+        "#;
+        let inferred_wat = r#"
+            (module
+              (memory (export "memory") 1)
+              (const $FIFTY_ONE 51)
+              (global $g64 (mut i64) (i64.const 0))
+              (func $helper (param $a i64) (param $b i32) (result i32)
+                (i32.add (i32.wrap_i64 $a) $b))
+              (func (export "main") (result i32)
+                (local $x64 i64)
+                (set $x64 0x1_0000_0005)
+                (global.set $g64 (tee $x64 (i64.extend_i32_u 42)))
+                (return_call $helper -9 (i32.wrap_i64 $FIFTY_ONE))))
+        "#;
+        assert_eq!(
+            wat_to_dc_shorthands(inferred_wat)?,
+            wat_to_dc_shorthands(explicit_wat)?
+        );
+
+        let invalid_mem_wat = r#"
+            (module
+              (memory 2)
+              (func (export "main") (result i32) (i32.const 0)))
+        "#;
+        assert!(wat_to_dc_shorthands(invalid_mem_wat).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_load_staged_dc_impls_supports_format_stems_and_stage_gating() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let s0 = tmp.path().join("stage_0_impls");
+        let s1 = tmp.path().join("stage_1_impls");
+        let s2 = tmp.path().join("impls");
+        std::fs::create_dir_all(&s0)?;
+        std::fs::create_dir_all(&s1)?;
+        std::fs::create_dir_all(&s2)?;
+
+        let minimal_wat =
+            r#"(module (func (export "main") (result i32) (i32.const 0)))"#;
+
+        // `.sl3` in stage_1_impls without `f656` in stage_0_impls must fail.
+        std::fs::write(
+            s1.join("f657_stager3.sl3"),
+            ": @decomp(equiv)\nv/void/noop :: do ::.\n",
+        )?;
+        assert!(
+            load_staged_dc_impls_with_compiler(
+                tmp.path(),
+                Some(&|_, _, _, _| Ok(vec![DcShorthand::Short(1927), DcShorthand::Short(1928)]))
+            )
+            .is_err()
+        );
+
+        // Adding `f656_stagel3.wat` in stage_0_impls unlocks `.sl3` in stage_1_impls,
+        // and `f657_stager3.sl3` in stage_1_impls unlocks `.sr3` in impls/.
+        std::fs::write(s0.join("f656_stagel3.wat"), minimal_wat)?;
+        std::fs::write(s2.join("256_say.sr3"), "v/void/say :: do ::.\n")?;
+
+        let (loaded, _raw) = load_staged_dc_impls_with_compiler(
+            tmp.path(),
+            Some(&|_stage, _ext, _src, _prior| {
+                Ok(vec![DcShorthand::Short(1927), DcShorthand::Short(1928)])
+            }),
+        )?;
+        assert_eq!(loaded.len(), 3);
+        assert_eq!(loaded[0].target.to_string(), "f656");
+        assert_eq!(loaded[0].decomp_tag, "semantic");
+        assert_eq!(loaded[1].target.to_string(), "f657");
+        assert_eq!(loaded[1].decomp_tag, "equiv");
+        assert_eq!(loaded[2].target, DcShorthand::Short(256));
+
+        // `.sr3` is rejected in stage_1_impls/.
+        std::fs::write(s1.join("257_bad.sr3"), "v/void/bad :: do ::.\n")?;
+        assert!(
+            load_staged_dc_impls_with_compiler(
+                tmp.path(),
+                Some(&|_, _, _, _| Ok(vec![DcShorthand::Short(1927), DcShorthand::Short(1928)]))
+            )
+            .is_err()
         );
         Ok(())
     }

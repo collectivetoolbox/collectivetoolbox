@@ -2532,25 +2532,35 @@ pub fn validate_all_dc_files_from_disk(
         report,
     );
     if let Some(data_src_dir) = dc_dir.parent() {
-        attach_staged_dc_impls_from_data_dir(data_src_dir, &mut defns, report);
+        attach_staged_dc_impls_from_data_dir_with_known_formats(
+            data_src_dir,
+            &mut defns,
+            Some(known_format_ids),
+            report,
+        );
     }
     defns
 }
 
-/// Loads staged `.wat` implementations from `data_src_dir` (`stage_0_impls/`, `stage_1_impls/`,
-/// and `impls/`), validates that each targets a known Short Dc ID in `dc_defns`, and attaches its
-/// `<semantic>1927 ... 1928` decomposition entry to the matching [`DcDefn`].
-pub fn attach_staged_dc_impls_from_data_dir(
-    data_src_dir: &Path,
+/// Attaches already-loaded [`crate::wat::StagedDcImpl`] entries to `dc_defns` and optional
+/// `format_defns` (or validates format targets against `known_format_ids` when `format_defns` is
+/// not supplied).
+pub fn attach_staged_dc_impls_to_defns(
+    staged_impls: &[crate::wat::StagedDcImpl],
     dc_defns: &mut [DcDefn],
+    mut format_defns: Option<&mut [DcDefn]>,
+    known_format_ids: Option<&HashSet<usize>>,
     report: &mut ValidationReport,
 ) {
-    match crate::wat::load_staged_dc_impls(data_src_dir) {
-        Ok((staged_impls, _raw_files)) => {
-            for staged in staged_impls {
-                let target_short = usize::try_from(staged.target_short_id).ok();
-                if let Some(defn) =
-                    dc_defns.iter_mut().find(|d| d.short_id == target_short)
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    for staged in staged_impls {
+        match staged.target {
+            DcShorthand::Short(short_u32) => {
+                let target_short = usize::try_from(short_u32).ok();
+                if let Some(defn) = dc_defns
+                    .iter_mut()
+                    .find(|d| d.format.is_none() && d.short_id == target_short)
                 {
                     let entry = staged.to_decomposition_entry();
                     if !defn.decompositions.contains(&entry) {
@@ -2562,20 +2572,98 @@ pub fn attach_staged_dc_impls_from_data_dir(
                         None,
                         Some("Short"),
                         format!(
-                            "Staged .wat implementation targets unknown Short Dc ID {}",
-                            staged.target_short_id
+                            "Staged implementation targets unknown Short Dc ID {short_u32}"
                         ),
                         Some("Ensure the target Short Dc ID is defined in a category CSV"),
                     );
                 }
             }
+            DcShorthand::Format(fid) => {
+                if let Some(fmt_slice) = format_defns.as_deref_mut() {
+                    if let Some(fdefn) = fmt_slice
+                        .iter_mut()
+                        .find(|d| d.format.is_some() && d.short_id == Some(fid))
+                    {
+                        let entry = staged.to_decomposition_entry();
+                        if !fdefn.decompositions.contains(&entry) {
+                            fdefn.decompositions.push(entry);
+                        }
+                    } else {
+                        report.add_error(
+                            &staged.rel_path,
+                            None,
+                            Some("Short"),
+                            format!(
+                                "Staged implementation targets unknown Format Dc f{fid}"
+                            ),
+                            Some("Ensure the target Format Dc is defined in categories/formats/*.csv"),
+                        );
+                    }
+                } else if let Some(known_fids) = known_format_ids
+                    && !known_fids.contains(&fid)
+                {
+                    report.add_error(
+                        &staged.rel_path,
+                        None,
+                        Some("Short"),
+                        format!(
+                            "Staged implementation targets unknown Format Dc f{fid}"
+                        ),
+                        Some("Ensure the target Format Dc is defined in categories/formats/*.csv"),
+                    );
+                }
+            }
+            other => {
+                report.add_error(
+                    &staged.rel_path,
+                    None,
+                    Some("wat"),
+                    format!("Unsupported staged implementation target '{other}'"),
+                    Some("Use a Short Dc stem (e.g. 1936_...) or Format stem (e.g. f656_...)"),
+                );
+            }
+        }
+    }
+}
+
+/// Loads staged implementations from `data_src_dir` (`stage_0_impls/`, `stage_1_impls/`,
+/// and `impls/`), validates each target Short Dc ID in `dc_defns`, and attaches its
+/// `<semantic>...` / `<equiv>...` decomposition entry to the matching [`DcDefn`].
+pub fn attach_staged_dc_impls_from_data_dir(
+    data_src_dir: &Path,
+    dc_defns: &mut [DcDefn],
+    report: &mut ValidationReport,
+) {
+    attach_staged_dc_impls_from_data_dir_with_known_formats(
+        data_src_dir,
+        dc_defns,
+        None,
+        report,
+    );
+}
+
+fn attach_staged_dc_impls_from_data_dir_with_known_formats(
+    data_src_dir: &Path,
+    dc_defns: &mut [DcDefn],
+    known_format_ids: Option<&HashSet<usize>>,
+    report: &mut ValidationReport,
+) {
+    match crate::wat::load_staged_dc_impls(data_src_dir) {
+        Ok((staged_impls, _raw_files)) => {
+            attach_staged_dc_impls_to_defns(
+                &staged_impls,
+                dc_defns,
+                None,
+                known_format_ids,
+                report,
+            );
         }
         Err(err) => {
             report.add_error(
                 &data_src_dir.display().to_string(),
                 None,
                 Some("wat"),
-                format!("Failed to load staged .wat implementations: {err:#}"),
+                format!("Failed to load staged implementations: {err:#}"),
                 Some("Fix syntax or filename errors in stage_0_impls/, stage_1_impls/, or impls/"),
             );
         }
