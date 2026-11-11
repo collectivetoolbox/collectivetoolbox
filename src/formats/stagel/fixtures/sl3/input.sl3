@@ -4,8 +4,10 @@
 : EM3 is the full VSO language built on StageR 3. Only EM3 has first-class functions.
 : Identifiers are ASCII case-insensitive. Typing is strict; there is no automatic coercion.
 : Core types: b, letters, u8, i32, u32, i64, u64, l/T, void, never.
-: letters is a string in the StageL intermediate character set: A-Z, slash, colon, space, newline, }, dot.
+: letters is a string in the StageL intermediate character set: A-Z, slash, colon, space, newline, quotation mark, dot.
 : OPEN: Define letters literals and operations precisely.
+  : The letters literals are opaque values - they can be compared, split, and joined. The representation in memory is not guaranteed. They're meant for convenient identifiers, not data.
+  : Quotation marks " defines a literal by type: "abc" = DcMst using Dcts format for string literal; b"abc" = l/u8 of bytes using C-style escapes (same as PHP strings); t"abc" = letters (opaque stringish identifiers) (short for "text" or leTters).
 : b literals: true, false. There is no unspecified numeric type n.
 : l/T is a list of supported element type T. v/RETURN/name declares a named verb, not a function value.
 : Everything is expression-oriented, like Lisp: every normally completing expression returns a value.
@@ -14,7 +16,7 @@
 : OPEN: Specify core arithmetic failure behavior without StageR 3 result/T.
 : Opening braces are prohibited outside strings/comments. Block and list openings are implicit.
 : Declarations: [let] v/RETURN/name TYPE/parameter ... HEADER_END BODY.
-: HEADER_END is newline for an indented body, or } for an inline body containing one statement.
+: HEADER_END is newline for an indented body, or :: for an inline body containing one statement.
 : Indentation delimits declaration bodies. Dot ends statements; semicolon normalizes to dot outside literals/comments.
 : Statements are expressions. The final expression supplies a body's value; earlier values are discarded.
 : Dot and semicolon do not suppress the final value. An empty body returns unit of type void.
@@ -28,7 +30,7 @@
 : if CONDITION THEN ELSE takes expressions, requires b, and evaluates only the selected branch.
 : if returns the selected expression's value.
 : Branch result types must agree, except never is compatible with either branch's type.
-: do introduces an implicit expression block, terminated by }; its final expression supplies its value.
+: do introduces an implicit expression block, terminated by ::; its final expression supplies its value.
 : while CONDITION BODY reevaluates both expressions as needed; CONDITION must return b, BODY unit of type void.
 : foreach LIST BODY evaluates LIST once and BODY for each element; BODY must return unit of type void.
 : Loop bodies and conditional branches are expressions, not first-class callbacks.
@@ -43,31 +45,31 @@
 : Only EM3 closures can escape as values and keep captured bindings alive after the defining invocation returns.
 : OPEN: Specify definite-initialization checks across nested calls, capture lowering, and stack-safe tail-call lowering.
 : Typed numbers use u32:0.
-: List literals start with l/T: and end with }; elements are expressions, such as l/u32: u32:0 u32:1 }.
+: List literals start with l/T: and end with ::; elements are expressions, such as l/u32: u32:0 u32:1 ::.
 : eq/ne compare same-typed values. concat returns a new list; len returns u64 and counts list elements.
 : foreach iterates a snapshot.
 : A colon at the first nonblank position starts a comment through newline.
 : test LABEL has indented in/out lines: in supplies arguments; out supplies one expected value.
 : OPEN: Specify ABI, ownership, and non-tail recursion limits. These examples are design, not an implemented runtime.
 
-: Leading let is optional. Inline bodies end their parameter list with }.
+: Leading let is optional. Inline bodies end their parameter list with ::.
 let v/b/isEmpty l/u32/items
     test works with empty list
-        in l/u32: }
+        in l/u32: ::
         out true
     test works with nonempty list
-        in l/u32: u32:7 }
+        in l/u32: u32:7 ::
         out false
     eq u64:0 len l/u32/items.
 
-v/b/nne i64/a i64/b } ne i64/a i64/b.
-let v/b/nneDot i64/a i64/b } ne i64/a i64/b.
-let v/b/nneSemicolon i64/a i64/b } ne i64/a i64/b;
+v/b/nne i64/a i64/b :: ne i64/a i64/b.
+let v/b/nneDot i64/a i64/b :: ne i64/a i64/b.
+let v/b/nneSemicolon i64/a i64/b :: ne i64/a i64/b;
 
 v/l/u32/appendU32 l/u32/a l/u32/b
     test works
-        in l/u32: u32:0 u32:1 } l/u32: u32:2 u32:3 }
-        out l/u32: u32:0 u32:1 u32:2 u32:3 }
+        in l/u32: u32:0 u32:1 :: l/u32: u32:2 u32:3 ::
+        out l/u32: u32:0 u32:1 u32:2 u32:3 ::
     concat l/u32/a l/u32/b.
 
 : The nested reader captures this invocation's binding, even when called by a sibling verb.
@@ -76,7 +78,7 @@ v/u32/lexicalCapture u32/initial
         in u32:7
         out u32:9
     new u32/captured u32/initial.
-    v/u32/readCaptured } u32/captured.
+    v/u32/readCaptured :: u32/captured.
     v/u32/callFromSibling
         new u32/callerLocal u32:99.
         readCaptured.
@@ -89,21 +91,21 @@ v/b/tailFirst b/stop
         in false
         out false
     if b/stop true tailSecond true.
-v/b/tailSecond b/stop } if b/stop false tailFirst true.
+v/b/tailSecond b/stop :: if b/stop false tailFirst true.
 
 : new, set, and foreach return unit; the final expression supplies the list value.
 v/l/u32/copyList l/u32/items
     test copies the list
-        in l/u32: u32:2 u32:3 }
-        out l/u32: u32:2 u32:3 }
-    new l/u32/copied l/u32: }.
+        in l/u32: u32:2 u32:3 ::
+        out l/u32: u32:2 u32:3 ::
+    new l/u32/copied l/u32: ::.
     foreach l/u32/items do
-        set l/u32/copied concat l/u32/copied l/u32: u32/this }.
-    }.
+        set l/u32/copied concat l/u32/copied l/u32: u32/this ::.
+    ::.
     l/u32/copied.
 
 : An empty block is a unit expression, so both branches return a value of type void.
-v/void/unitChoice b/condition } if b/condition do } do }.
+v/void/unitChoice b/condition :: if b/condition do :: do ::.
 
 : StageR 3 extension notes and examples. Everything below is commentary, not StageL 3 code.
 : Added types: i128, u128, int, rat, dc, view, cursor, s, dcs, option/T, result/T.
@@ -133,20 +135,20 @@ v/void/unitChoice b/condition } if b/condition do } do }.
 :         in s:"a"
 :         out false
 :     eq u64:0 len s/in.
-: v/result/i64/addChecked i64/a i64/b } add i64/a i64/b.
-: v/s/default s/a s/b } if zl s/a s/b s/a.
-: v/s/getFormatImportSetting s/a s/b } unimplemented s:"Import settings".
-: v/s/dcGetMappingToFormat dc/a s/b } unimplemented s:"Dc mapping".
-: v/s/getEnvCodeLanguage } unimplemented s:"Environment language".
+: v/result/i64/addChecked i64/a i64/b :: add i64/a i64/b.
+: v/s/default s/a s/b :: if zl s/a s/b s/a.
+: v/s/getFormatImportSetting s/a s/b :: unimplemented s:"Import settings".
+: v/s/dcGetMappingToFormat dc/a s/b :: unimplemented s:"Dc mapping".
+: v/s/getEnvCodeLanguage :: unimplemented s:"Environment language".
 :
 : v/s/getTargetLanguageForDctCodeToText
 :     new s/targetLanguage getFormatImportSetting s:"codetotext" s:"language".
 :     if zl s/targetLanguage getEnvCodeLanguage s/targetLanguage.
 :
 : OPEN: Define ELAD decoding and malformed-input errors.
-: v/l/dc/dcaFromElad s/in } unimplemented s:"ELAD decoding".
+: v/l/dc/dcaFromElad s/in :: unimplemented s:"ELAD decoding".
 : v/l/dc/push l/dc/in dc/toPush
-:     concat l/dc/in l/dc: dc/toPush }.
+:     concat l/dc/in l/dc: dc/toPush ::.
 :
 : OPEN: Missing mappings should be option/s; empty text may be a valid mapping.
 : v/l/dc/convertElementAndAppend dc/e s/targetLanguage l/dc/converted
@@ -157,11 +159,11 @@ v/void/unitChoice b/condition } if b/condition do } do }.
 :
 : OPEN: This returns Dc values, not s or dcs; define the intended text conversion.
 : v/l/dc/dctCodeToText l/dc/in
-:     new l/dc/res l/dc: }.
+:     new l/dc/res l/dc: ::.
 :     new s/targetLanguage getTargetLanguageForDctCodeToText.
 :     foreach l/dc/in do
 :         set l/dc/res convertElementAndAppend dc/this s/targetLanguage l/dc/res.
-:     }.
+:     ::.
 :     l/dc/res.
 :
 : EM3-only: v/T[A,B] describes a function value taking A,B and returning T; v/T[] takes no arguments.
