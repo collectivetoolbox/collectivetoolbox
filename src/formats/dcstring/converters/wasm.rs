@@ -6775,6 +6775,65 @@ mod tests {
             },
         }));
 
+        // 14. Mutual tail-call (`return_call`, opcode 0x12) parity with V8 across 2,000 frames
+        //     (> `tinywasm`'s 1,024-frame non-tail call stack limit) with dead stack values unwound.
+        let tail_wat = r#"
+            (module
+              (func $ping (param $n i32) (param $acc i32) (result i32)
+                (if (result i32) (i32.le_s (local.get $n) (i32.const 0))
+                  (then (local.get $acc))
+                  (else
+                    (block (result i32)
+                      (i32.const 777)
+                      (return_call $pong
+                        (i32.sub (local.get $n) (i32.const 1))
+                        (i32.add (local.get $acc) (i32.const 3)))))))
+              (func $pong (param $n i32) (param $acc i32) (result i32)
+                (if (result i32) (i32.le_s (local.get $n) (i32.const 0))
+                  (then (local.get $acc))
+                  (else
+                    (return_call $ping
+                      (i32.sub (local.get $n) (i32.const 1))
+                      (i32.add (local.get $acc) (i32.const 1))))))
+              (func (export "main") (result i32)
+                (i32.store (i32.const 32) (call $ping (i32.const 2000) (i32.const 0)))
+                (i32.store (i32.const 8) (i32.load (i32.const 0)))
+                (i32.store (i32.const 12) (i32.load (i32.const 4)))
+                (i32.const 0)))
+        "#;
+        let tail_wasm = crate::converters::wat::wat_to_wasm(tail_wat)?;
+        let tail_limits = DcWasmResourceLimits::default()
+            .with_max_instructions_per_step(50_000)
+            .with_max_memory_pages(4);
+        let mut tail_session = DcWasmSession::from_wasm_bytes_with_limits(
+            &tail_wasm,
+            &DcMstring::new(),
+            None,
+            tail_limits,
+        )?;
+        let tail_instrumented = tail_session.instrumented_wasm_bytes().to_vec();
+        let tail_outcome = tail_session.step()?;
+        assert!(matches!(tail_outcome, WasmStepOutcome::Complete(_)));
+        assert_eq!(tail_session.read_memory(32, 4)?, 4_000_i32.to_le_bytes());
+        compatibility_cases.push(serde_json::json!({
+            "kind": "mutual_return_call_completion",
+            "quota": 50_000_u64,
+            "wasm": tail_instrumented,
+            "max_mem_pages": 4,
+            "max_table_elems": 1024,
+            "state": {
+                "trapped": false,
+                "exhausted": false,
+                "interrupted_op": None::<String>,
+                "required_cost": None::<String>,
+                "consumed": tail_session.total_instructions_executed().to_string(),
+                "remaining": tail_session.remaining_compute_quota().to_string(),
+                "result": Some(0_i32),
+                "memory": tail_session.read_memory(32, 32)?,
+                "pages": tail_session.current_memory_pages()?,
+            },
+        }));
+
         println!(
             "CTB_WASM_COMPAT {}",
             serde_json::to_string(&compatibility_cases)?

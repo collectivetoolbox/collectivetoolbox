@@ -57,7 +57,7 @@ const records = fs.readFileSync(process.argv[2], "utf8").split(/\r?\n/)
 assert.equal(records.length, 1, "Cargo must emit exactly one compatibility record");
 const record = records[0];
 const cases = JSON.parse(record.slice(record.indexOf(prefix) + prefix.length));
-assert.equal(cases.length, 13, "All quota, trap, table, numeric, and resumption cases must be exercised");
+assert.equal(cases.length, 14, "All quota, trap, table, numeric, tail-call, and resumption cases must be exercised");
 
 for (const testCase of cases) {
   const module = new WebAssembly.Module(Uint8Array.from(testCase.wasm));

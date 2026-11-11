@@ -147,4 +147,138 @@ mod tests {
         assert_eq!(out.to_dc_string()?, input.to_dc_string()?);
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_wat_mutual_return_call_constant_stack_and_quota_resumption()
+    -> Result<()> {
+        // 5,000 mutual tail-recursive calls between `$ping` and `$pong` (nearly 5x
+        // `tinywasm`'s `MAX_CALL_STACK_SIZE = 1024`), including dead intermediate
+        // values and nested `block`/`if` frames that must be unwound on `return_call`.
+        let wat = r#"
+            (module
+              (func $ping (param $n i32) (param $acc i32) (result i32)
+                (if (result i32) (i32.le_s (local.get $n) (i32.const 0))
+                  (then (local.get $acc))
+                  (else
+                    (block (result i32)
+                      ;; Push a dead intermediate value onto the stack before preparing
+                      ;; tail-call arguments inside a nested block, then `return_call`.
+                      (i32.const 999999)
+                      (return_call $pong
+                        (i32.sub (local.get $n) (i32.const 1))
+                        (i32.add (local.get $acc) (i32.const 1)))))))
+              (func $pong (param $n i32) (param $acc i32) (result i32)
+                (if (result i32) (i32.le_s (local.get $n) (i32.const 0))
+                  (then (local.get $acc))
+                  (else
+                    (return_call $ping
+                      (i32.sub (local.get $n) (i32.const 1))
+                      (i32.add (local.get $acc) (i32.const 2))))))
+              (func (export "main") (result i32)
+                ;; Store sum in scratch linear memory at 64, echo input mailbox, return 0
+                (i32.store (i32.const 64) (call $ping (i32.const 5000) (i32.const 0)))
+                (i32.store (i32.const 8) (i32.load (i32.const 0)))
+                (i32.store (i32.const 12) (i32.load (i32.const 4)))
+                (i32.const 0)))
+        "#;
+        let mstr = wat_to_dcmstring(wat)?;
+        let mut input = DcMstring::new();
+        input.push_str("ok");
+
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let limits = crate::converters::wasm::DcWasmResourceLimits::default()
+            .with_max_instructions_per_step(5_000);
+        let mut session = DcWasmSession::from_dc_wasm_with_limits(
+            &mstr,
+            &input,
+            None,
+            resolver.as_ref(),
+            limits,
+        )?;
+        let err = session
+            .step()
+            .expect_err("5,000 mutual tail calls must suspend at initial quota");
+        assert!(
+            err.downcast_ref::<crate::converters::wasm::WasmResourceInterruption>()
+                .is_some()
+        );
+
+        session.increase_compute_quota(100_000);
+        let WasmStepOutcome::Complete(out) = session.step()? else {
+            bail!("Expected Complete step outcome after quota resumption");
+        };
+        assert_eq!(out.to_dc_string()?, input.to_dc_string()?);
+        // 2,500 `$ping` steps (+1 each) + 2,500 `$pong` steps (+2 each) = 7,500
+        assert_eq!(session.read_memory(64, 4)?, 7_500_i32.to_le_bytes());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_tinywasm_return_call_indirect_constant_stack() -> Result<()> {
+        // Minimal raw WASM module with a 2-entry `funcref` table (`$even_step` = 0, `$odd_step` = 1)
+        // performing 4,000 mutual `return_call_indirect` hops (> 1,024 frame limit).
+        let wasm_bytes: Vec<u8> = vec![
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // magic + version
+            // Section 1: Type — type 0: (i32, i32) -> i32, type 1: () -> i32
+            0x01, 0x0b, 0x02,
+            0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f,
+            0x60, 0x00, 0x01, 0x7f,
+            // Section 3: Function — func 0 (type 0), func 1 (type 0), func 2 (type 1)
+            0x03, 0x04, 0x03, 0x00, 0x00, 0x01,
+            // Section 4: Table — 1 funcref table, min 2 max 2
+            0x04, 0x05, 0x01, 0x70, 0x01, 0x02, 0x02,
+            // Section 5: Memory — 1 page
+            0x05, 0x03, 0x01, 0x00, 0x01,
+            // Section 7: Export — "memory" (mem 0) and "main" (func 2)
+            0x07, 0x11, 0x02,
+            0x06, b'm', b'e', b'm', b'o', b'r', b'y', 0x02, 0x00,
+            0x04, b'm', b'a', b'i', b'n', 0x00, 0x02,
+            // Section 9: Element — active table 0 at offset 0: [func 0, func 1]
+            0x09, 0x08, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x02, 0x00, 0x01,
+            // Section 10: Code (1 + 31 + 29 + 17 = 78 = 0x4e)
+            0x0a, 0x4e, 0x03,
+            // func 0 ($step0, 30 = 0x1e bytes): if local 0 <= 0 { local 1 } else { return_call_indirect(type 0, table 0) (local0 - 1, local1 + 3, idx = 1) }
+            0x1e, 0x00,
+            0x20, 0x00, 0x41, 0x00, 0x4c, // i32.le_s(n, 0)
+            0x04, 0x7f, // if (result i32)
+            0x20, 0x01, // then: acc
+            0x05,       // else:
+            0x41, 0x2a, // dead stack value 42 before tail call args
+            0x20, 0x00, 0x41, 0x01, 0x6b, // n - 1
+            0x20, 0x01, 0x41, 0x03, 0x6a, // acc + 3
+            0x41, 0x01, // table index 1
+            0x13, 0x00, 0x00, // return_call_indirect type=0 table=0
+            0x0b, 0x0b,
+            // func 1 ($step1, 28 = 0x1c bytes): if local 0 <= 0 { local 1 } else { return_call_indirect(type 0, table 0) (local0 - 1, local1 + 1, idx = 0) }
+            0x1c, 0x00,
+            0x20, 0x00, 0x41, 0x00, 0x4c,
+            0x04, 0x7f,
+            0x20, 0x01,
+            0x05,
+            0x20, 0x00, 0x41, 0x01, 0x6b, // n - 1
+            0x20, 0x01, 0x41, 0x01, 0x6a, // acc + 1
+            0x41, 0x00, // table index 0
+            0x13, 0x00, 0x00, // return_call_indirect type=0 table=0
+            0x0b, 0x0b,
+            // func 2 (main): mem[32] = call 0(4000, 0); return 0
+            0x10, 0x00,
+            0x41, 0x20, // addr 32
+            0x41, 0xa0, 0x1f, // 4000
+            0x41, 0x00, // 0
+            0x10, 0x00, // call 0
+            0x36, 0x02, 0x00, // i32.store
+            0x41, 0x00, // 0
+            0x0b,
+        ];
+        let mut session = DcWasmSession::from_wasm_bytes(
+            &wasm_bytes,
+            &DcMstring::new(),
+            None,
+        )?;
+        let outcome = session.step()?;
+        assert!(matches!(outcome, WasmStepOutcome::Complete(_)));
+        // 2,000 steps of +3 and 2,000 steps of +1 = 8,000
+        assert_eq!(session.read_memory(32, 4)?, 8_000_i32.to_le_bytes());
+        Ok(())
+    }
 }

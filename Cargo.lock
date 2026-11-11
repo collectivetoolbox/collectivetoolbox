@@ -13604,8 +13604,6 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "tinywasm"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1a7e7ad5b05ca08236dde1fb2af95a30af146ac834ee79c1d07d38101293bdc"
 dependencies = [
  "libm",
  "log",
