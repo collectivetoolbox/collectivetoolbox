@@ -672,6 +672,7 @@ Supported output formats (--to):
 
 Supported transformations (--transform):
   Document transformations:
+    add_system_graph_most_recent (AddSystemGraphMostRecent): Add global graph system block most recent
     codetotext (CodeToText): Programmatic Dcs to text
     semantictotext (SemanticToText): Semantic Dcs to text
     unicode_to_short_dc (UnicodeToShortDc): Unicode characters to equivalent short Dcs

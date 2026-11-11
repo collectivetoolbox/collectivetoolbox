@@ -144,13 +144,20 @@ pub fn encode_i64_dc_shorthands(val: i64) -> Vec<DcShorthand> {
 fn encode_binary_data_shorthands(bytes: &[u8]) -> Vec<DcShorthand> {
     let mut out = Vec::new();
     out.push(dc_to_sh(DC_START_ENCAPSULATION_BINARY));
-    // Reason for fallback: usize fits in u128 on all supported architectures.
-    out.extend(encode_u128_dc_shorthands(u128::try_from(bytes.len()).unwrap_or(0)));
+    #[allow(
+        clippy::expect_used,
+        reason = "Provably infallible: usize fits in u128 on all supported 32-bit and 64-bit architectures"
+    )]
+    let len_u128 = u128::try_from(bytes.len()).expect("usize fits in u128");
+    out.extend(encode_u128_dc_shorthands(len_u128));
 
     let mut idx = 0usize;
     while idx < bytes.len() {
-        // Reason for fallback: loop condition idx < bytes.len() guarantees idx is in bounds.
-        let b0 = bytes.get(idx).copied().unwrap_or(0);
+        #[allow(
+            clippy::expect_used,
+            reason = "Range-checked bounds: loop condition idx < bytes.len() guarantees idx is in bounds"
+        )]
+        let b0 = *bytes.get(idx).expect("idx < bytes.len()");
         let b1_opt = bytes.get(idx.saturating_add(1)).copied();
         let b2_opt = bytes.get(idx.saturating_add(2)).copied();
 
@@ -1246,8 +1253,9 @@ fn compile_folded_sexpr(
         out.push(DcShorthand::Short(if_dc));
         emit_blocktype(None, out);
         ctx.label_stack.push(None);
-        // Reason for fallback: empty if body falls back to empty instruction slice.
-        let body = list.get(2..).unwrap_or(&[]);
+        let body = list
+            .get(2..)
+            .context("Missing body instructions in folded WAT (when ...)")?;
         compile_instr_sequence(body, ctx, out)?;
         let _ = ctx.label_stack.pop();
         let end_dc = lookup_wat_instruction("end")
@@ -1282,8 +1290,9 @@ fn compile_folded_sexpr(
             out.push(DcShorthand::Short(short_dc));
             emit_blocktype(bt, out);
             ctx.label_stack.push(label);
-            // Reason for fallback: empty block/loop body falls back to empty instruction slice.
-            let body = list.get(pos..).unwrap_or(&[]);
+            let body = list
+                .get(pos..)
+                .context("Invalid block/loop body instruction slice")?;
             compile_instr_sequence(body, ctx, out)?;
             let _ = ctx.label_stack.pop();
             let end_dc = lookup_wat_instruction("end")
@@ -1337,8 +1346,9 @@ fn compile_folded_sexpr(
             emit_blocktype(bt, out);
             ctx.label_stack.push(label);
 
-            // Reason for fallback: empty then branch body falls back to empty instruction slice.
-            let then_body = then_list.get(1..).unwrap_or(&[]);
+            let then_body = then_list
+                .get(1..)
+                .context("Invalid (then ...) clause instruction slice")?;
             compile_instr_sequence(then_body, ctx, out)?;
 
             if let Some(else_expr) = list.get(pos) {
@@ -1354,8 +1364,9 @@ fn compile_folded_sexpr(
                     .map(|(dc, _)| dc)
                     .context("Missing 'else' opcode")?;
                 out.push(DcShorthand::Short(else_dc));
-                // Reason for fallback: empty else branch body falls back to empty instruction slice.
-                let else_body = else_list.get(1..).unwrap_or(&[]);
+                let else_body = else_list
+                    .get(1..)
+                    .context("Invalid (else ...) clause instruction slice")?;
                 compile_instr_sequence(else_body, ctx, out)?;
             }
             ensure!(
@@ -1370,15 +1381,17 @@ fn compile_folded_sexpr(
         }
         _ => {
             let imm_end = folded_immediate_end_index(head, kind, list);
-            // Reason for fallback: instructions without folded operands fall back to empty slice.
-            let operand_exprs = list.get(imm_end..).unwrap_or(&[]);
+            let operand_exprs = list
+                .get(imm_end..)
+                .context("Invalid folded instruction operand slice")?;
             for (op_idx, op_expr) in operand_exprs.iter().enumerate() {
                 let expected_vt = expected_folded_operand_valtype(head, op_idx);
                 compile_folded_operand(op_expr, expected_vt, ctx, out)?;
             }
             let mut imm_cursor = 1usize;
-            // Reason for fallback: instructions without immediates fall back to empty slice.
-            let imm_slice = list.get(..imm_end).unwrap_or(&[]);
+            let imm_slice = list
+                .get(..imm_end)
+                .context("Invalid folded instruction immediate slice")?;
             emit_non_control_instruction_with_immediates(
                 head,
                 short_dc,
@@ -1752,8 +1765,10 @@ fn parse_func_decl(
     }
 
     let _ = func_ordinal;
-    // Reason for fallback: empty function body falls back to empty item slice.
-    let body = items.get(pos..).unwrap_or(&[]).to_vec();
+    let body = items
+        .get(pos..)
+        .context("Invalid function declaration body slice")?
+        .to_vec();
     Ok(ParsedWatFunc {
         id,
         export_name,
@@ -1998,8 +2013,8 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
         } else {
             1
         };
-        // Reason for fallback: empty module declarations list falls back to empty slice.
-        list.get(start..).unwrap_or(&[])
+        list.get(start..)
+            .context("Invalid module declaration item slice")?
     } else {
         sexprs.as_slice()
     };
@@ -2071,13 +2086,14 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
                     .get(2)
                     .and_then(SExpr::as_list)
                     .context("WAT (export ...) requires target descriptor")?;
-                // Reason for fallback: malformed export target descriptor without atom defaults to empty kind.
-                let kind = target.first().and_then(SExpr::as_atom).unwrap_or("");
+                let kind = target
+                    .first()
+                    .and_then(SExpr::as_atom)
+                    .context("WAT (export ...) target descriptor requires an export kind")?;
                 let target_ref = target
                     .get(1)
                     .and_then(SExpr::as_atom)
-                    // Reason for fallback: export target without index defaults to index 0.
-                    .unwrap_or("0")
+                    .context("WAT (export ...) target descriptor requires an identifier or index")?
                     .to_owned();
                 match kind {
                     "func" => pending_func_exports.push((exp_name, target_ref)),
@@ -2343,8 +2359,7 @@ fn parse_target_short_id_from_stem(stem: &str, rel_path: &str) -> Result<usize> 
     let prefix = stem
         .split(['_', '-'])
         .next()
-        // Reason for fallback: strings without underscores or hyphens return the entire stem.
-        .unwrap_or(stem)
+        .context("Missing filename stem prefix")?
         .trim();
     ensure!(
         !prefix.is_empty(),
