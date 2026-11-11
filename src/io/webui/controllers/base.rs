@@ -718,28 +718,45 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
             {
                 asset = get_asset(format!("images/{tail}").as_str());
                 #[cfg(test)]
-                if asset.is_none() {
-                    // Reason for fallback: when v86_images.rsrc is omitted (e.g. in test runners / test VMs),
+                if asset.is_none()
+                    && std::path::Path::new(tail)
+                        .components()
+                        .all(|c| matches!(c, std::path::Component::Normal(_)))
+                {
+                    // Reason for fallback: when v86_images.rsrc is omitted (e.g. in CI with CTB_SKIP_V86_RSRC=1 or test VMs),
                     // fallback to loading vendor images from disk for testing only.
-                    let mut candidate_paths = vec![
-                        std::path::PathBuf::from("vendor/v86_images")
-                            .join(tail),
+                    let mut candidate_roots = vec![
+                        std::path::PathBuf::from("vendor/v86_images"),
+                        std::path::PathBuf::from("../../../vendor/v86_images"),
+                        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .join("../../../vendor/v86_images"),
                     ];
-                    if let Ok(root) = std::env::var("CTB_WIN_TEST_ROOT") {
-                        candidate_paths.push(
+                    if let Ok(exe_path) = std::env::current_exe() {
+                        // Reason for fallback: if binary executable path cannot be canonicalized, inspect the raw current_exe path
+                        let exe_path = std::fs::canonicalize(&exe_path)
+                            .unwrap_or(exe_path);
+                        if let Some(ws_root) = ctb_utilities::workspace_path_resolution::workspace_root_for_cargo_target_exe(&exe_path) {
+                            candidate_roots.push(ws_root.join("vendor/v86_images"));
+                        }
+                    }
+                    if let Ok(root) = std::env::var("CTB_HOST_WORKSPACE_ROOT") {
+                        candidate_roots.push(
                             std::path::PathBuf::from(root)
-                                .join("vendor/v86_images")
-                                .join(tail),
+                                .join("vendor/v86_images"),
                         );
                     }
-                    candidate_paths.push(
-                        std::path::PathBuf::from(
-                            r"C:\workspaces\ctoolbox\vendor\v86_images",
-                        )
-                        .join(tail),
-                    );
-                    for path in candidate_paths {
-                        if let Ok(file) = std::fs::File::open(&path) {
+                    if let Ok(root) = std::env::var("CTB_WIN_TEST_ROOT") {
+                        candidate_roots.push(
+                            std::path::PathBuf::from(root)
+                                .join("vendor/v86_images"),
+                        );
+                    }
+                    candidate_roots.push(std::path::PathBuf::from(
+                        r"C:\workspaces\ctoolbox\vendor\v86_images",
+                    ));
+                    for root in candidate_roots {
+                        let candidate = root.join(tail);
+                        if let Ok(file) = std::fs::File::open(&candidate) {
                             let tokio_file = tokio::fs::File::from_std(file);
                             let stream =
                                 tokio_util::io::ReaderStream::new(tokio_file);

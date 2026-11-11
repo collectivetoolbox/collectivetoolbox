@@ -240,4 +240,14 @@ mod tests {
             "Guix fs.json asset URL /vendor/v86_images/guix/guix-fs.json returned 404!"
         );
     }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_v86_asset_rejects_parent_traversal() {
+        let status =
+            test_get_status_no_login("/vendor/v86_images/../Cargo.toml").await;
+        assert_ne!(
+            status, 200,
+            "Traversal URL /vendor/v86_images/../Cargo.toml must not serve disk files"
+        );
+    }
 }
