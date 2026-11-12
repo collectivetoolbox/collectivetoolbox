@@ -731,37 +731,9 @@ pub extern "C" fn _start() -> ! {
         );
     }
 
-    // SAFETY: Creating /root/dev/fb0 device node (29, 0).
-    unsafe {
-        sys_mknod(
-            c"/root/dev/fb0".as_ptr().cast(),
-            0o020_666,
-            // Reason for fallback: constant bitwise major number shift cannot overflow usize
-            29_usize.checked_shl(8).unwrap_or(0),
-        );
-    }
-    // SAFETY: Creating /root/dev/dri directory.
-    unsafe {
-        sys_mkdir(c"/root/dev/dri".as_ptr().cast(), 0o755);
-    }
-    // SAFETY: Creating /root/dev/dri/card0 device node (226, 0).
-    unsafe {
-        sys_mknod(
-            c"/root/dev/dri/card0".as_ptr().cast(),
-            0o020_666,
-            // Reason for fallback: constant bitwise major number shift cannot overflow usize
-            226_usize.checked_shl(8).unwrap_or(0),
-        );
-    }
-    // SAFETY: Creating /root/dev/dri/renderD128 device node (226, 128).
-    unsafe {
-        sys_mknod(
-            c"/root/dev/dri/renderD128".as_ptr().cast(),
-            0o020_666,
-            // Reason for fallback: constant bitwise major number shift cannot overflow usize
-            226_usize.checked_shl(8).unwrap_or(0) | 128_usize,
-        );
-    }
+    // Note: Do not manually mknod /dev/fb0 or /dev/dri/card0 when absent from
+    // devtmpfs; xf86-video-vesa checks whether /dev/fb0 or /dev/dri/card0 exists
+    // and refuses to initialize if stale ENODEV nodes are present.
     // SAFETY: Creating /root/dev/tty0 device node (4, 0).
     unsafe {
         sys_mknod(
