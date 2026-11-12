@@ -170,11 +170,10 @@ pub fn run_vgafixup(infilename: &Path, outfilename: &Path) -> Result<()> {
             out.push("retw $2".to_string());
         } else if sline == "leave" {
             out.push("movl %ebp, %esp ; popl %ebp".to_string());
-        } else if sline.starts_with("call") {
-            let rest = sline.get(4..).unwrap_or("");
+        } else if let Some(rest) = sline.strip_prefix("call") {
             out.push(format!("pushw %ax ; callw{rest}"));
         } else if sline.starts_with("leal") {
-            out.push(handle_leal(sline));
+            out.push(handle_leal(sline)?);
         } else {
             out.push(line.to_string());
         }
@@ -187,12 +186,122 @@ pub fn run_vgafixup(infilename: &Path, outfilename: &Path) -> Result<()> {
     Ok(())
 }
 
-fn handle_leal(sline: &str) -> String {
-    let rest = sline.get(4..).unwrap_or("").trim();
-    if rest.contains("(%esp)") {
-        return format!("leaw {}", rest.replace("%e", "%"));
+// Derived from SeaBIOS scripts/vgafixup.py (Kevin O'Connor, GPL-3.0-only).
+fn handle_leal(sline: &str) -> Result<String> {
+    let raw_operands = sline
+        .get(5..)
+        .with_context(|| format!("Unable to fixup leal instruction: {sline}"))?;
+    let trimmed = raw_operands.trim();
+    let Some(open_paren) = trimmed.find('(') else {
+        bail!("Unable to fixup leal instruction: {sline}");
+    };
+    let Some(before_open) = trimmed.get(..open_paren) else {
+        bail!("Unable to fixup leal instruction: {sline}");
+    };
+    let Some(after_open) = trimmed.get(open_paren.saturating_add(1)..) else {
+        bail!("Unable to fixup leal instruction: {sline}");
+    };
+    let Some(close_rel) = after_open.find(')') else {
+        bail!("Unable to fixup leal instruction: {sline}");
+    };
+    let Some(inside_parens) = after_open.get(..close_rel) else {
+        bail!("Unable to fixup leal instruction: {sline}");
+    };
+    if inside_parens.contains('(') {
+        bail!("Unable to fixup leal instruction: {sline}");
     }
-    format!("movl %ebp, %esp ; {sline}")
+    let Some(after_close) = after_open.get(close_rel.saturating_add(1)..)
+    else {
+        bail!("Unable to fixup leal instruction: {sline}");
+    };
+    let Some(dest_raw) = after_close.trim_start().strip_prefix(',') else {
+        bail!("Unable to fixup leal instruction: {sline}");
+    };
+    let dest = dest_raw.trim();
+
+    let parts: Vec<&str> = inside_parens.split(',').collect();
+    let (raw_base, raw_index, raw_scale) = match parts.as_slice() {
+        [b] => (b.trim(), "", ""),
+        [b, i] => (b.trim(), i.trim(), ""),
+        [b, i, s] => (b.trim(), i.trim(), s.trim()),
+        _ => bail!("Unable to fixup leal instruction: {sline}"),
+    };
+
+    if raw_index == "%esp" {
+        bail!("Unable to fixup leal instruction: {sline}");
+    }
+    if dest == "%esp" {
+        return Ok(format!("leaw {}", raw_operands.replace("%e", "%")));
+    }
+
+    let scale_num = if raw_scale.is_empty() {
+        1_u32
+    } else if let Some(hex) = raw_scale
+        .strip_prefix("0x")
+        .or_else(|| raw_scale.strip_prefix("0X"))
+    {
+        u32::from_str_radix(hex, 16)
+            .with_context(|| format!("Unable to parse leal scale: {sline}"))?
+    } else {
+        raw_scale
+            .parse::<u32>()
+            .with_context(|| format!("Unable to parse leal scale: {sline}"))?
+    };
+
+    let mut scale_shift = match scale_num {
+        1 => 0_u32,
+        2 => 1_u32,
+        4 => 2_u32,
+        8 => 3_u32,
+        _ => bail!("Unsupported scale {scale_num} in leal: {sline}"),
+    };
+
+    let (base, index) = if scale_shift == 0 && raw_base == raw_index {
+        scale_shift = 1;
+        ("", raw_index)
+    } else if raw_index.is_empty()
+        || (scale_shift == 0
+            && (raw_base == dest || raw_base == "%esp")
+            && raw_index != dest)
+    {
+        scale_shift = 0;
+        (raw_index, raw_base)
+    } else {
+        (raw_base, raw_index)
+    };
+
+    let mut offset = before_open.trim().to_string();
+    let mut insns = vec!["pushfw".to_string()];
+    if base != dest {
+        if index != dest {
+            insns.insert(0, format!("movl {index}, {dest}"));
+        }
+        if scale_shift != 0 {
+            insns.push(format!("shll ${scale_shift}, {dest}"));
+        }
+        if !base.is_empty() {
+            if base == "%esp" {
+                offset.push_str("+2");
+            }
+            insns.push(format!("addl {base}, {dest}"));
+        }
+    } else if base == index {
+        let factor = 1_u32
+            .checked_shl(scale_shift)
+            .and_then(|v| v.checked_add(1))
+            .context("leal scale factor overflow")?;
+        insns.push(format!("imull ${factor}, {dest}"));
+    } else {
+        insns.push(format!("pushl {index}"));
+        insns.push(format!("shll ${scale_shift}, {index}"));
+        insns.push(format!("addl {index}, {dest}"));
+        insns.push(format!("popl {index}"));
+    }
+    if !offset.is_empty() && offset != "0" {
+        insns.push(format!("addl ${offset}, {dest}"));
+    }
+    insns.push("popfw".to_string());
+    Ok(insns.join(" ; "))
 }
 
 pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
@@ -260,12 +369,13 @@ pub fn run_buildrom(inname: &Path, outname: &Path) -> Result<()> {
 }
 
 pub fn run_checkrom(
-    _objinfo: &Path,
+    objinfo: &Path,
     finalsize_kb: usize,
     rawfile: &Path,
     outfile: &Path,
 ) -> Result<()> {
-    let rawdata = fs::read(rawfile)
+    let (_secs, symbols) = parse_objdump(objinfo, "in")?;
+    let mut rawdata = fs::read(rawfile)
         .with_context(|| format!("Failed to read {}", rawfile.display()))?;
 
     let datasize = rawdata.len();
@@ -284,12 +394,88 @@ pub fn run_checkrom(
         bail!("ROM size error: {datasize} > {finalsize}");
     }
 
+    let start = symbols
+        .get("code32flat_start")
+        .context("Missing symbol code32flat_start in ROM objdump")?
+        .offset;
+    let end = symbols
+        .get("code32flat_end")
+        .context("Missing symbol code32flat_end in ROM objdump")?
+        .offset;
+    let expend = BUILD_BIOS_ADDR.saturating_add(BUILD_BIOS_SIZE);
+    if end != expend {
+        bail!("ROM code does not end at 0x{expend:x} (got 0x{end:x})");
+    }
+    let expdatasize = end
+        .checked_sub(start)
+        .context("Invalid code32flat_start/end symbol range")?;
+    if datasize != expdatasize {
+        bail!(
+            "Unexpected extra data in ROM binary (0x{datasize:x} vs 0x{expdatasize:x})"
+        );
+    }
+
+    // Derived from SeaBIOS scripts/checkrom.py CSM Compatibility16 table fixup.
+    if let (Some(csm_sym), Some(entry_csm_sym)) =
+        (symbols.get("csm_compat_table"), symbols.get("entry_csm"))
+    {
+        let tableofs = csm_sym
+            .offset
+            .checked_sub(start)
+            .context("csm_compat_table precedes code32flat_start")?;
+        let entry_addr_usize = entry_csm_sym
+            .offset
+            .checked_sub(BUILD_BIOS_ADDR)
+            .context("entry_csm precedes BUILD_BIOS_ADDR")?;
+        let entry_addr = u16::try_from(entry_addr_usize)
+            .context("entry_csm offset exceeds u16")?
+            .to_le_bytes();
+        let entry_ofs = tableofs.saturating_add(14);
+        if let (Some(&b0), Some(&b1)) = (entry_addr.first(), entry_addr.get(1))
+        {
+            if let Some(slot) = rawdata.get_mut(entry_ofs) {
+                *slot = b0;
+            }
+            if let Some(slot) = rawdata.get_mut(entry_ofs.saturating_add(1)) {
+                *slot = b1;
+            }
+        }
+        let tsfield = tableofs.saturating_add(5);
+        if let Some(&tablesize_u8) = rawdata.get(tsfield) {
+            let tablesize = usize::from(tablesize_u8);
+            let csum_ofs = tableofs.saturating_add(4);
+            if let Some(slot) = rawdata.get_mut(csum_ofs) {
+                *slot = 0;
+            }
+            if let Some(slice) =
+                rawdata.get(tableofs..tableofs.saturating_add(tablesize))
+            {
+                let sum: usize = slice.iter().map(|&b| usize::from(b)).sum();
+                let ckbyte = u8::try_from(
+                    0x100_usize.saturating_sub(sum.rem_euclid(256))
+                        .rem_euclid(256),
+                )
+                .context("checksum byte fits in u8")?;
+                if let Some(slot) = rawdata.get_mut(csum_ofs) {
+                    *slot = ckbyte;
+                }
+            }
+        }
+    }
+
+    let runtimesize = if let Some(init_end_sym) = symbols.get("code32init_end")
+    {
+        end.saturating_sub(init_end_sym.offset)
+    } else {
+        datasize
+    };
+
     let mut out = vec![0_u8; finalsize.saturating_sub(datasize)];
     out.extend_from_slice(&rawdata);
 
     let free = finalsize.saturating_sub(datasize);
-    let datasize_u32 = u32::try_from(datasize).unwrap_or(u32::MAX);
-    let finalsize_u32 = u32::try_from(finalsize).unwrap_or(u32::MAX);
+    let datasize_u32 = u32::try_from(datasize).context("ROM datasize exceeds u32")?;
+    let finalsize_u32 = u32::try_from(finalsize).context("ROM finalsize exceeds u32")?;
     let datasize_f = f64::from(datasize_u32);
     let finalsize_f = f64::from(finalsize_u32);
     let pct = if finalsize_f > 0.0 {
@@ -297,9 +483,9 @@ pub fn run_checkrom(
     } else {
         0.0
     };
-    let kb = finalsize.checked_div(1024).unwrap_or(0);
+    let kb = finalsize.checked_div(1024).context("1024 is non-zero")?;
     println!(
-        "Total size: {datasize}  Fixed: {datasize}  Free: {free} (used {pct:.1}% of {kb}KiB rom)"
+        "Total size: {datasize}  Fixed: {runtimesize}  Free: {free} (used {pct:.1}% of {kb}KiB rom)"
     );
 
     if let Some(parent) = outfile.parent() {
@@ -443,7 +629,7 @@ pub fn run_layoutrom(
     }
 
     let runtime_sections =
-        find_runtime_reachable(&runtime_anchors, &sections, &symbols_by_fileid);
+        find_runtime_reachable(&runtime_anchors, &sections, &symbols_by_fileid)?;
 
     for sec in &mut sections {
         if sec.name.starts_with(".data.varlow.") {
@@ -469,13 +655,21 @@ pub fn run_layoutrom(
         .and_then(|syms| syms.get("_reloc_abs_start"))
         .is_some();
 
-    let mut li = do_layout(sections, &config, genreloc);
+    let mut li = do_layout(sections, &config, genreloc)?;
 
     let mut varlowsyms = Vec::new();
     if let Some(flat_syms) = symbols_by_fileid.get("32flat") {
         for sym in flat_syms.values() {
             if let Some(ref sec_name) = sym.section_name {
-                if sec_name.contains(".data.varlow.") && sym.name != *sec_name {
+                let is_kept = li.sections.iter().any(|s| {
+                    s.fileid == "32flat"
+                        && s.name == *sec_name
+                        && s.finalloc.is_some()
+                });
+                if is_kept
+                    && sec_name.contains(".data.varlow.")
+                    && sym.name != *sec_name
+                {
                     varlowsyms.push(sym.clone());
                 }
             }
@@ -586,26 +780,16 @@ fn parse_objdump(
                             if let Some(rest) = raw_line.get(17..) {
                                 let parts: Vec<&str> =
                                     rest.split_whitespace().collect();
-                                let (sec_name_opt, size_str, name) = match parts
-                                    .len()
-                                {
-                                    2 => (
-                                        parts.first().copied(),
-                                        "0",
-                                        parts.get(1).copied().unwrap_or(""),
-                                    ),
-                                    3 => (
-                                        parts.first().copied(),
-                                        parts.get(1).copied().unwrap_or("0"),
-                                        parts.get(2).copied().unwrap_or(""),
-                                    ),
-                                    4 if parts.get(2) == Some(&".hidden") => (
-                                        parts.first().copied(),
-                                        parts.get(1).copied().unwrap_or("0"),
-                                        parts.get(3).copied().unwrap_or(""),
-                                    ),
-                                    _ => continue,
-                                };
+                                let (sec_name_opt, size_str, name) =
+                                    match parts.as_slice() {
+                                        [sec_s, size_s, name_s] => {
+                                            (Some(*sec_s), *size_s, *name_s)
+                                        }
+                                        [sec_s, size_s, ".hidden", name_s] => {
+                                            (Some(*sec_s), *size_s, *name_s)
+                                        }
+                                        _ => continue,
+                                    };
                                 let size = usize::from_str_radix(size_str, 16)
                                     .unwrap_or(0);
                                 let sec_name = match sec_name_opt {
@@ -886,7 +1070,7 @@ fn find_runtime_reachable(
     anchor_secs: &[(String, String)],
     all_sections: &[Section],
     symbols_by_fileid: &HashMap<String, HashMap<String, Symbol>>,
-) -> HashSet<(String, String)> {
+) -> Result<HashSet<(String, String)>> {
     let sec_by_key: HashMap<(String, String), &Section> = all_sections
         .iter()
         .map(|sec| ((sec.fileid.clone(), sec.name.clone()), sec))
@@ -908,10 +1092,17 @@ fn find_runtime_reachable(
                     check_keep(reloc, &sec.fileid, symbols_by_fileid)
                 {
                     if let Some(target_sec) = sec_by_key.get(&next_key) {
-                        if !target_sec.name.contains(".init.")
-                            && sec_by_key.contains_key(&next_key)
-                            && reachable.insert(next_key.clone())
-                        {
+                        if target_sec.name.contains(".init.") {
+                            continue;
+                        }
+                        if target_sec.name.contains(".data.varinit.") {
+                            bail!(
+                                "{} is VARVERIFY32INIT but used from runtime section {}",
+                                target_sec.name,
+                                sec.name
+                            );
+                        }
+                        if reachable.insert(next_key.clone()) {
                             pending.push(next_key);
                         }
                     }
@@ -920,15 +1111,17 @@ fn find_runtime_reachable(
         }
     }
 
-    reachable
+    Ok(reachable)
 }
 
 fn fit_sections(
     fixed_sections: &mut [(usize, Section)],
     fill_sections: &mut [Section],
-) -> usize {
+) -> Result<usize> {
     fixed_sections.sort_by_key(|k| k.0);
-    let firstfixed = fixed_sections.first().map_or(BUILD_BIOS_SIZE, |f| f.0);
+    let Some(&(firstfixed, _)) = fixed_sections.first() else {
+        bail!("No .fixedaddr.* sections found in SeaBIOS 16-bit image");
+    };
 
     let mut fixed_addr = Vec::new();
     for i in 0..fixed_sections.len() {
@@ -936,6 +1129,13 @@ fn fit_sections(
         else {
             continue;
         };
+        if sec.align != 1 {
+            bail!(
+                "Fixed section {} has non-unit alignment ({})",
+                sec.name,
+                sec.align
+            );
+        }
         let nextaddr = if i.saturating_add(1) == fixed_sections.len() {
             BUILD_BIOS_SIZE
         } else {
@@ -943,9 +1143,19 @@ fn fit_sections(
                 .get(i.saturating_add(1))
                 .map_or(BUILD_BIOS_SIZE, |k| k.0)
         };
-        let avail = nextaddr.saturating_sub(addr).saturating_sub(sec.size);
+        let avail = nextaddr
+            .checked_sub(addr)
+            .and_then(|v| v.checked_sub(sec.size))
+            .with_context(|| {
+                format!(
+                    "Fixed section {} at 0x{addr:x} (size {}) overlaps next fixed section at 0x{nextaddr:x}",
+                    sec.name, sec.size
+                )
+            })?;
         fixed_addr.push((avail, addr, sec.size));
     }
+    // Match SeaBIOS scripts/layoutrom.py: pack smallest gaps first.
+    fixed_addr.sort_by_key(|k| k.0);
 
     let mut can_relocate: Vec<(usize, usize, String, usize)> = fill_sections
         .iter()
@@ -955,9 +1165,11 @@ fn fit_sections(
     can_relocate.sort();
 
     let mut used_indices = HashSet::new();
+    let mut totalused = 0_usize;
 
     for (freespace, fixed_addr_start, fixed_sec_size) in fixed_addr {
         let mut addpos = fixed_addr_start.saturating_add(fixed_sec_size);
+        totalused = totalused.saturating_add(fixed_sec_size);
         let nextfixedaddr = addpos.saturating_add(freespace);
         loop {
             let mut canfit = None;
@@ -972,9 +1184,9 @@ fn fit_sections(
                 if fitnextaddr > nextfixedaddr {
                     continue;
                 }
-                canfit = Some((fitnextaddr, idx));
+                canfit = Some((fitnextaddr, idx, size));
             }
-            let Some((fitnextaddr, idx)) = canfit else {
+            let Some((fitnextaddr, idx, fit_size)) = canfit else {
                 break;
             };
             used_indices.insert(idx);
@@ -983,10 +1195,24 @@ fn fit_sections(
                 target.finalsegloc = addpos;
             }
             addpos = fitnextaddr;
+            totalused = totalused.saturating_add(fit_size);
         }
     }
 
-    firstfixed.saturating_add(BUILD_BIOS_ADDR)
+    let total = BUILD_BIOS_SIZE.saturating_sub(firstfixed);
+    let slack = total.saturating_sub(totalused);
+    let slack_f = f64::from(u32::try_from(slack).context("slack fits in u32")?);
+    let total_f = f64::from(u32::try_from(total).context("total fits in u32")?);
+    let pct = if total_f > 0.0 {
+        (slack_f / total_f) * 100.0
+    } else {
+        0.0
+    };
+    println!(
+        "Fixed space: 0x{firstfixed:x}-0x{BUILD_BIOS_SIZE:x}  total: {total}  slack: {slack}  Percent slack: {pct:.1}%"
+    );
+
+    Ok(firstfixed.saturating_add(BUILD_BIOS_ADDR))
 }
 
 fn set_sections_start(
@@ -1048,7 +1274,7 @@ fn do_layout(
     mut sections: Vec<Section>,
     config: &HashMap<String, usize>,
     genreloc: bool,
-) -> LayoutInfo {
+) -> Result<LayoutInfo> {
     let min_biostable =
         if config.get("CONFIG_ROM_SIZE").copied().unwrap_or(0) >= 256 {
             8192
@@ -1061,19 +1287,30 @@ fn do_layout(
     let rodatasections16 = get_sections_prefix(&sections16, ".rodata");
     let datasections16 = get_sections_prefix(&sections16, ".data16.");
 
+    // Derived from SeaBIOS scripts/layoutrom.py fitSections: assign fixed
+    // addresses directly on every .fixedaddr.* section (including reset_vector
+    // at 0xfff0) so both 16-bit and 32-flat linker scripts emit them.
     let mut fixedsections: Vec<(usize, Section)> = Vec::new();
-    for sec in &sections {
+    for sec in &mut sections {
         if sec.category == "fixed" {
-            if let Ok(addr) = usize::from_str_radix(
-                sec.name.trim_start_matches(".fixedaddr."),
-                16,
-            ) {
-                fixedsections.push((addr, sec.clone()));
-            }
+            let hex_addr = sec
+                .name
+                .strip_prefix(".fixedaddr.")
+                .with_context(|| {
+                    format!("Invalid fixed section name {}", sec.name)
+                })?
+                .trim_start_matches("0x")
+                .trim_start_matches("0X");
+            let addr = usize::from_str_radix(hex_addr, 16).with_context(|| {
+                format!("Invalid hex address in fixed section {}", sec.name)
+            })?;
+            sec.finalloc = Some(addr.saturating_add(BUILD_BIOS_ADDR));
+            sec.finalsegloc = addr;
+            fixedsections.push((addr, sec.clone()));
         }
     }
 
-    let firstfixed = fit_sections(&mut fixedsections, &mut textsections16);
+    let firstfixed = fit_sections(&mut fixedsections, &mut textsections16)?;
 
     for sec in &mut sections {
         if sec.fileid == "16" && sec.name.starts_with(".text.") {
@@ -1291,7 +1528,7 @@ fn do_layout(
     println!("Lowmem size:          {sizelow}");
     println!("f-segment var size:   {size32fseg}");
 
-    LayoutInfo {
+    Ok(LayoutInfo {
         sections,
         config: config.clone(),
         genreloc,
@@ -1307,7 +1544,7 @@ fn do_layout(
         final_readonly_start,
         varlowsyms: Vec::new(),
         entrysym: None,
-    }
+    })
 }
 
 fn max_align(a: usize, b: usize) -> usize {
@@ -1359,6 +1596,7 @@ fn out_rel_sections(
 fn get_relocs(
     sections: &[Section],
     to_section_set: &HashSet<(String, String)>,
+    symbols_by_fileid: &HashMap<String, HashMap<String, Symbol>>,
     target_type: Option<&str>,
 ) -> Vec<usize> {
     let mut list = Vec::new();
@@ -1366,11 +1604,19 @@ fn get_relocs(
         if let Some(sec_loc) = sec.finalloc {
             for reloc in &sec.relocs {
                 if target_type.is_none_or(|t| reloc.reloc_type == t) {
-                    if to_section_set.contains(&(
-                        sec.fileid.clone(),
-                        reloc.symbolname.clone(),
-                    )) {
-                        list.push(sec_loc.saturating_add(reloc.offset));
+                    if let Some((sym, target_fid)) = resolve_reloc_symbol(
+                        reloc,
+                        &sec.fileid,
+                        symbols_by_fileid,
+                    ) {
+                        if let Some(ref target_sec_name) = sym.section_name {
+                            if to_section_set.contains(&(
+                                target_fid.to_string(),
+                                target_sec_name.clone(),
+                            )) {
+                                list.push(sec_loc.saturating_add(reloc.offset));
+                            }
+                        }
                     }
                 }
             }
@@ -1462,11 +1708,20 @@ fn write_linker_scripts(
             .cloned()
             .collect();
 
-        let mut absrelocs =
-            get_relocs(&init_sections, &init_set, Some("R_386_32"));
-        let mut relrelocs =
-            get_relocs(&init_sections, &non_init_set, Some("R_386_PC32"));
-        let mut initrelocs = get_relocs(&non_init_sections, &init_set, None);
+        let mut absrelocs = get_relocs(
+            &init_sections,
+            &init_set,
+            symbols_by_fileid,
+            Some("R_386_32"),
+        );
+        let mut relrelocs = get_relocs(
+            &init_sections,
+            &non_init_set,
+            symbols_by_fileid,
+            Some("R_386_PC32"),
+        );
+        let mut initrelocs =
+            get_relocs(&non_init_sections, &init_set, symbols_by_fileid, None);
 
         let numrelocs = absrelocs
             .len()
@@ -1519,9 +1774,11 @@ fn write_linker_scripts(
         0,
     ));
 
-    let filesections32flat = get_sections_fileid(&li.sections, "32flat");
+    // Derived from SeaBIOS scripts/layoutrom.py writeLinkerScripts: emit ALL
+    // kept sections across 16, 32seg, and 32flat into romlayout32flat.lds so
+    // rom16.noexec.o, rom32seg.noexec.o, and code32flat.o link into rom.o.
     let rel_sections_str =
-        out_rel_sections(&filesections32flat, "code32flat_start", false);
+        out_rel_sections(&li.sections, "code32flat_start", false);
 
     let entry_name = li
         .entrysym
@@ -1552,6 +1809,134 @@ fn write_linker_scripts(
     fs::write(out32flat, out_32flat_str)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_leal_matches_seabios_vgafixup() {
+        assert_eq!(
+            handle_leal("leal 8(%ebp), %esp").unwrap(),
+            "leaw 8(%bp), %sp"
+        );
+        assert_eq!(
+            handle_leal("leal 12(%esp), %eax").unwrap(),
+            "movl %esp, %eax ; pushfw ; addl $12, %eax ; popfw"
+        );
+        assert_eq!(
+            handle_leal("leal 8(%esp,%eax,4), %ecx").unwrap(),
+            "movl %eax, %ecx ; pushfw ; shll $2, %ecx ; addl %esp, %ecx ; addl $8+2, %ecx ; popfw"
+        );
+        assert_eq!(
+            handle_leal("leal (,%eax,4), %edx").unwrap(),
+            "movl %eax, %edx ; pushfw ; shll $2, %edx ; popfw"
+        );
+        assert_eq!(
+            handle_leal("leal (%eax,%eax), %eax").unwrap(),
+            "pushfw ; shll $1, %eax ; popfw"
+        );
+        assert_eq!(
+            handle_leal("leal (%eax,%eax,4), %eax").unwrap(),
+            "pushfw ; imull $5, %eax ; popfw"
+        );
+        assert_eq!(
+            handle_leal("leal -4(%eax,%edx,2), %eax").unwrap(),
+            "pushfw ; pushl %edx ; shll $1, %edx ; addl %edx, %eax ; popl %edx ; addl $-4, %eax ; popfw"
+        );
+        assert!(handle_leal("leal (%eax,%esp,2), %edx").is_err());
+    }
+
+    #[test]
+    fn test_layoutrom_emits_fixedaddr_16bit_32seg_and_32flat_sections() {
+        let dir = std::env::temp_dir().join(format!(
+            "ctb_seabios_layout_test_{}",
+            std::process::id()
+        ));
+        let _ = fs::create_dir_all(&dir);
+
+        let obj16 = "\
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text.init16  00000010  00000000  00000000  00000034  2**2
+  1 .fixedaddr.0xe05b 00000008 00000000 00000000 00000044 2**0
+  2 .fixedaddr.0xfff0 00000010 00000000 00000000 0000004c 2**0
+SYMBOL TABLE:
+00000000 g       .fixedaddr.0xfff0\t00000000 reset_vector
+00000000 g       .text.init16\t00000010 init16_fn
+RELOCATION RECORDS FOR [.fixedaddr.0xfff0]:
+00000001 R_386_PC16        init16_fn
+RELOCATION RECORDS FOR [.text.init16]:
+00000004 R_386_PC32        _cfunc32seg_seg_helper
+00000008 R_386_PC32        _cfunc32flat_flat_entry
+";
+        let obj32seg = "\
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text.seg_helper 0000000c 00000000 00000000 00000034  2**2
+SYMBOL TABLE:
+00000000 g     F .text.seg_helper\t0000000c seg_helper
+";
+        let obj32flat = "\
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text.flat_entry 00000020 00000000 00000000 00000034 2**4
+SYMBOL TABLE:
+00000000 g     F .text.flat_entry\t00000020 flat_entry
+";
+        let in16 = dir.join("code16.objdump");
+        let in32seg = dir.join("code32seg.objdump");
+        let in32flat = dir.join("code32flat.objdump");
+        let cfg = dir.join("autoconf.h");
+        let out16 = dir.join("romlayout16.lds");
+        let out32seg = dir.join("romlayout32seg.lds");
+        let out32flat = dir.join("romlayout32flat.lds");
+
+        fs::write(&in16, obj16).unwrap();
+        fs::write(&in32seg, obj32seg).unwrap();
+        fs::write(&in32flat, obj32flat).unwrap();
+        fs::write(&cfg, "#define CONFIG_QEMU 1\n").unwrap();
+
+        run_layoutrom(&in16, &in32seg, &in32flat, &cfg, &out16, &out32seg, &out32flat)
+            .unwrap();
+
+        let lds16 = fs::read_to_string(&out16).unwrap();
+        let lds32flat = fs::read_to_string(&out32flat).unwrap();
+
+        assert!(
+            lds16.contains(".fixedaddr.0xfff0 0xfff0 : { *(.fixedaddr.0xfff0) }"),
+            "16-bit linker script must place reset vector at 0xfff0, got:\n{lds16}"
+        );
+        assert!(
+            lds32flat.contains("*16.*(.fixedaddr.0xfff0)"),
+            "32-flat linker script must include 16-bit fixedaddr reset vector, got:\n{lds32flat}"
+        );
+        assert!(
+            lds32flat.contains("*16.*(.text.init16)"),
+            "32-flat linker script must include 16-bit text sections, got:\n{lds32flat}"
+        );
+        assert!(
+            lds32flat.contains("*32seg.*(.text.seg_helper)"),
+            "32-flat linker script must include 32-seg text sections, got:\n{lds32flat}"
+        );
+        assert!(
+            lds32flat.contains("*32flat.*(.text.flat_entry)"),
+            "32-flat linker script must include 32-flat text sections, got:\n{lds32flat}"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
 
 /*
