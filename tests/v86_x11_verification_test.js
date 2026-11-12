@@ -255,20 +255,21 @@ async function waitForServer(url, timeoutMs = 60000) {
   console.log("=== XORG LOGS ===");
   console.log(xorgRes.output);
 
-  let psRes = await runSerialCommand("ps aux", 10000);
+  let psRes = await runSerialCommand("ps aux; echo '---OB.LOG---'; cat /tmp/ob.log 2>&1; echo '---XTERM.LOG---'; cat /tmp/xterm.log 2>&1; echo '---LS-BIN-ETC---'; ls -la /bin/sh /etc/passwd /etc/shells /dev/pts /dev/ptmx 2>&1", 10000);
   console.log("=== PROCESS TABLE ===");
   console.log(psRes.output);
   console.log("==============================================\n");
 
   // GATE 4: Graphical Framebuffer Render Verification (xterm solid RGB #3498db render)
   console.log("[GATE 4] Rendering solid RGB '#3498db' via xterm and inspecting HTML5 Canvas Framebuffer...");
-  await runSerialCommand("xterm -display :0 -geometry 120x60+0+0 -bg blue -fg white -bw 0 +sb & sleep 2", 10000);
+  let g4Cmd = await runSerialCommand("xterm -display :0 -geometry 120x60+0+0 -bg blue -fg white -bw 0 +sb > /tmp/g4.log 2>&1 & sleep 3; cat /tmp/g4.log 2>&1; ps aux | grep xterm", 12000);
+  console.log("[GATE 4 CMD OUTPUT]", g4Cmd.output);
   await page.waitForTimeout(1000);
 
   let gate4Passed = false;
   let canvasState = null;
 
-  for (let attempt = 0; attempt < 120; attempt++) {
+  for (let attempt = 0; attempt < 15; attempt++) {
     canvasState = await page.evaluate(() => {
       if (window.emulator && window.emulator.screen_adapter && typeof window.emulator.screen_adapter.update_graphical === 'function') {
         window.emulator.screen_adapter.update_graphical();
