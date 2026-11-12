@@ -2,22 +2,27 @@
 
 **Implementation Status**: `Partially Implemented`
 - **Implemented**: Format registrations (`FormatId::StageL3` `f656` `.sl3` and `FormatId::StageL3Intermediate` `f659` `.sli3`), literal-aware 32-character normalizer (`src/formats/stagel/stagel3.rs`), normalized fixture (`src/formats/stagel/fixtures/sl3/`), staged bootstrap loader support (`src/formats/dcdata/support/wat.rs`), and `tinywasm` constant-stack tail-call execution (`return_call` / `return_call_indirect`).
-- **Pending Work**: StageL 3 parser, static type checker, definite-assignment checker, inline `test` runner, and the Stage 0 `.wat` compiler (`src/formats/dcdata/data-src/stage_0_impls/f656_*.wat`).
+- **Pending Work**: StageL 3 Token Dc repertoire allocation, bidirectional `.sl3 <-> StageL Token Dcs` tokenizer/decompiler & `: @dc` auto-allocator, static type & definite-assignment validator, inline `test` runner, StageL built-in `.WASM` definitions, and the Stage 0 StageL-Dc-to-WASM transpiler (`src/formats/dcdata/data-src/stage_0_impls/f656_*.wat`).
 
 ---
 
-## 1. Role in the Language Hierarchy
+## 1. Role in the Language Hierarchy & Graph Storage Model
 
 The language stack is split into three distinct languages (separate from the bootstrap directory numbers):
 
-1. **StageL 3 (`f656`, `.sl3`)**: Small, strictly typed, expression-oriented Polish-prefix core language designed to be compiled directly in hand-written WebAssembly Text (`stage_0_impls/f656_*.wat`) into `.WASM` Document Characters (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`). Supports named nested verbs with shared lexical capture and mandatory constant-stack tail calls, but **not** first-class function values.
-2. **StageR 3 (`f657`, `.sr3`)**: Extends StageL 3 with 128-bit and arbitrary-precision numbers (`i128`, `u128`, `int`, `rat`), Document Character and string types (`dc`, `dcs`, `s`), zero-copy `view`/`cursor` handles, `option/T`, `result/T`, and bare `"..."` Dcts literals. See [`sr3.md`](./sr3.md).
+1. **StageL 3 (`f656`, `.sl3`)**: Small, strictly typed, expression-oriented Polish-prefix core language. Supports named nested verbs with shared lexical capture and mandatory constant-stack tail calls, but **not** first-class function values.
+2. **StageR 3 (`f657`, `.sr3`)**: Implemented using StageL 3; extends StageL 3 with 128-bit and arbitrary-precision numbers (`i128`, `u128`, `int`, `rat`), Document Character and string types (`dc`, `dcs`, `s`), zero-copy `view`/`cursor` handles, `option/T`, `result/T`, and bare `"..."` Dcts literals. See [`sr3.md`](./sr3.md).
 3. **EM3 (`f658`, `.em3` / compact `f661`, `.emc`)**: Full VSO semantic and programming language built on StageR 3, adding speakable/compact profiles and **first-class functions** (anonymous verbs, passed callbacks, returned/escaping closures).
 
+### Tokenized Dc Graph Representation vs. Seed ASCII Source (`.WASM` Restriction)
+- **Strict `.WASM` boundary in the graph**: **Only** foundational Stage 0 `.wat` foundations (`Dc 1936 "Dc document execution kernel"` and the **StageL-Dc-to-WASM transpiler** `f656_*.wat`) and **StageL built-in primitives** are emitted into the graph as `.WASM` Document Characters (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`, optionally paired with `Dc 397 "Equivalent representations"`).
+- **StageL & StageR Token Dcs for everything else**: Anything that can be implemented using StageL 3 or StageR 3 is stored in the System block using **StageL / StageR Token Dcs** (dedicated semantic Dcs for keywords, types, and built-in operators such as `add`, `truncRem`, etc., plus direct Dc references to called functions/constants), **never** expanded into `.WASM` Dcs in `.ctbnodes`. This keeps *meanings* in the System block and dramatically reduces append-only graph size.
+- **Seed ASCII files & AppleScript-style lossless reconstruction**: Untokenized ASCII `.sl3` and `.sr3` files under `src/formats/dcdata/data-src/` serve as **seed authoring sources** in the same manner as `categories/*.csv`; the generator parses them and emits their corresponding Token Dcs into the graph. Textual `.sl3` / `.sr3` source and the tokenized Dc stream are true alternate representations: textual source is losslessly reconstructable from the Dcs (preserving comments, local identifier names, and structure), and once a Dc-native editor is available, editing will operate directly on tokenized Dcs in the manner of Apple's AppleScript Script Editor.
+
 ### Bootstrap Stage Directories (`src/formats/dcdata/data-src/`)
-- **`stage_0_impls/` (`.wat` only)**: Hand-written WAT foundations, including `1936_dc_document_execution_kernel.wat` and the StageL 3 compiler (`f656_*.wat`).
-- **`stage_1_impls/` (`.dcsh`, `.sl3`)**: StageR 3 compiler (`f657_*.sl3`) and core bootstrap routines written in StageL 3.
-- **`impls/` (`.dcsh`, `.sl3`, `.sr3`)**: Higher-level Document Character and EM3 implementations.
+- **`stage_0_impls/` (`.wat` only)**: Hand-written WAT foundations (`1936_dc_document_execution_kernel.wat`, the StageL-Dc-to-WASM transpiler `f656_*.wat`, and non-trivial StageL built-in `.WASM` primitives).
+- **`stage_1_impls/` (`.dcsh`, `.sl3`)**: StageR 3 compiler (`f657_*.sl3`) and core bootstrap libraries written in StageL 3 (emitted into the graph as StageL Token Dcs).
+- **`impls/` (`.dcsh`, `.sl3`, `.sr3`)**: Higher-level Document Character, standard-library, UI, and EM3 implementations (emitted into the graph as StageL / StageR / EM3 Token Dcs).
 
 ### Execution, Concurrency, and Graph DRYness
 - **Single-threaded language semantics**: StageL 3 and StageR 3 have no built-in multithreading; parallelism is handled at the host level by running separate Dc documents as isolated processes (optionally sharing memory/extents), while intra-document concurrency is deferred to future EM3 design.
@@ -78,9 +83,50 @@ Named verbs (`v/RETURN/name ...`) are declarations, **not** value types. Assigni
 
 ---
 
-## 4. Declarations, Mutability, Scoping, and Definite Assignment
+## 4. Namespaces, Declarations, Visibility (`const` / `pub`), and `: @dc` Allocation
 
-### Verb Declarations
+### 4.1 File Organization: Standalone Dc Implementations vs. PSR-4 Namespaces (`ns` & `use`)
+StageL 3 and StageR 3 support two file layouts under `stage_1_impls/` and `impls/`:
+1. **Standalone implementation of an already-assigned Dc (`<dcsh>_<slug>.sl3` / `.sr3`)**:
+   - Placed at the stage directory root with the target `DcShorthand` prefix in the filename (e.g. `f657_stager3_compiler.sl3`, `256_lang_say.sr3`), matching `stage_0_impls/1936_dc_document_execution_kernel.wat`.
+2. **Multi-definition namespace modules (`ns` + PSR-4 directory path)**:
+   - Placed in a subdirectory matching its declared `/` namespace path (`stage_1_impls/std/dctf/codec.sl3` -> `ns std/dctf/codec.`):
+     ```text
+     ns std/dctf/codec.
+     use std/bytes/slice: startsWith endsWith ::.
+     use std/ascii/char: isDigit as isAsciiDigit ::.
+     ```
+   - `use` imports explicitly named `pub` verbs and `pub` constant values from other namespaces (wildcard `*` imports are disallowed so pass-1 signature collection always knows every verb's fixed arity, and `use` dependencies must form an acyclic DAG).
+
+### 4.2 Unified Top-Level `const` / `pub` Model & Auto-Assigned `: @dc` Annotations
+At file top level, all declarations are immutable (`let` and `set` are local-block-only):
+- **Bare top-level `v/RETURN/name ...` is an implicit `const`**: Declares a file-private verb (do **not** write redundant `const v/...`).
+- **`const TYPE/name EXPR.`**: Declares a file-private constant value/data/string/list (evaluated as a pure constant expression).
+- **`pub` replaces `const` for exported reusable definitions**:
+  - `pub v/RETURN/name ...` exports a verb from the file's `ns` module.
+  - `pub TYPE/name EXPR.` exports a reusable constant value/data/string/list (referenced by importers via `TYPE/name`, which never collides with bare 0-arg verb calls `name`).
+  - `pub dc/<shorthand> v/...` or `pub dc/<shorthand> TYPE/name EXPR.` binds an exported namespace item as the implementation of an already-allocated Core Short Dc or Format Dc from `categories/*.csv`.
+
+| Declaration Scope & Form | Visibility | Graph Node Allocation |
+| :--- | :--- | :--- |
+| **Nested `v/RET/name ...`** (inside a verb body) | Enclosing verb block | **No separate Dc** (compiled inside enclosing verb's Dc; shares lexical frame) |
+| **Top-level `v/...` or `const TYPE/name ...`** | File-private | **Dedicated System-region Dc (`l<id>`)** |
+| **Top-level `pub v/...` or `pub TYPE/name ...`** | Exported from `ns` | **Dedicated System-region Dc (`l<id>`)** + `Dc 646 "In context of"` namespace & `Dc 574 "Programmatic identifier"` |
+| **Top-level `pub dc/<id> ...`** (or `<id>_*.sl3` root file) | Exported / Global Dc | **Attaches `Dc 611 "Canonical decomposition"` to pre-assigned Short/Format Dc `<id>`** |
+
+#### Auto-Assigned `: @dc <shorthand>` Directive Comments
+Just as leaving Column 1 (`Dc`) blank in `categories/*.csv` causes the generator to assign and write back the permanent ID, top-level verbs and constants in `.sl3` / `.sr3` seed files without an ID receive an auto-assigned System-block `l<id>` written onto a dedicated comment line immediately before the declaration:
+```text
+: @dc l8590012345
+pub l/u8/dcmmMagic b"DcMM/0".
+
+: @dc l8590012346
+pub v/b/hasDcmmMagic l/u8/buf
+    startsWith l/u8/buf l/u8/dcmmMagic.
+```
+- **Identity anchor without revision churn**: The generator reads `: @dc l<id>` to preserve the item's permanent graph identity across body edits (`Dc 591 "Supersedes"`), renames, or file reordering, **while stripping `: @dc ...` lines from the emitted Token Dc body and content-change hash** so inserting `: @dc l<id>` never triggers a second graph revision. When rendering Token Dcs back to ASCII source, `: @dc <id>` is reconstructed from the node header.
+
+### 4.3 Verb Syntax & Local Bindings (`let`, `set`, `const`)
 ```text
 v/RETURN/name TYPE/param1 TYPE/param2 ...
     test optional test label
@@ -93,12 +139,12 @@ v/RETURN/name TYPE/param1 TYPE/param2 ...
   `v/b/nne i64/a i64/b :: ne i64/a i64/b.` / `v/u32/braceBlock u32/x :: do u32/x. }.`
 - Prefix calls have fixed arity. Verb signatures in a block are collected before parsing bodies so forward and mutually recursive calls work throughout the enclosing block. Overloading is prohibited.
 
-### Variable & Constant Bindings (`let`, `set`, `const`)
-1. **`let TYPE/name [EXPR]`** — Declares a new **mutable** variable in the current block and returns `void` (unit).
+Inside a verb or `do ... ::` block:
+1. **`let TYPE/name [EXPR]`** — Declares a new **mutable** local variable in the current block and returns `void` (unit).
    - With `EXPR` (`let u32/x u32:0.`): declares and initializes `x`.
    - Without `EXPR` (`let u32/x.`): declares `x` in an uninitialized state; `x` **must** be definitely assigned via `set` on all control-flow paths before any read (including reads via nested verbs that capture `x`). Reading a potentially uninitialized `let` variable is a **compile-time error**.
    - Once declared with `let`, `name` **cannot** be re-declared in the same block or shadowed in nested scopes within that block; mutate it with `set`.
-2. **`set TYPE/name EXPR`** — Mutates an already-declared `let` variable `name` of matching `TYPE` and returns `void` (unit). Using `set` on a `const` binding, parameter, `foreach` `this`, or undeclared identifier is a **compile-time error**.
+2. **`set TYPE/name EXPR`** — Mutates an already-declared `let` variable `name` of matching `TYPE` and returns `void` (unit). Using `set` on a `const` / `pub` binding, parameter, `foreach` `this`, or undeclared identifier is a **compile-time error**.
 3. **`const TYPE/name EXPR`** — Declares and initializes a new **immutable** constant in the current block and returns `void` (unit). Initializer `EXPR` is mandatory; re-declaration and shadowing are prohibited.
 
 ---
