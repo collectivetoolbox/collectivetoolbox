@@ -270,9 +270,8 @@ async function waitForServer(url, timeoutMs = 60000) {
 
   for (let attempt = 0; attempt < 120; attempt++) {
     canvasState = await page.evaluate(() => {
-      if (window.emulator) {
-        console.log("[DEBUG VGA KEYS]", Object.keys(window.emulator.vga || {}));
-        console.log("[DEBUG SCREEN KEYS]", Object.keys(window.emulator.screen_adapter || {}));
+      if (window.emulator && window.emulator.screen_adapter && typeof window.emulator.screen_adapter.update_graphical === 'function') {
+        window.emulator.screen_adapter.update_graphical();
       }
 
       const canvas = (window.emulator && window.emulator.screen_adapter && window.emulator.screen_adapter.canvas) || document.querySelector('canvas');

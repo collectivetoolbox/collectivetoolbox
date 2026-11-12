@@ -897,49 +897,6 @@ pub extern "C" fn _start() -> ! {
         }
     }
 
-    // SAFETY: Creating proc mount point in chroot.
-    unsafe {
-        sys_mkdir(c"/root/proc".as_ptr().cast(), 0o755);
-    }
-    // SAFETY: Creating sys mount point in chroot.
-    unsafe {
-        sys_mkdir(c"/root/sys".as_ptr().cast(), 0o755);
-    }
-    // SAFETY: Creating dev mount point in chroot.
-    unsafe {
-        sys_mkdir(c"/root/dev".as_ptr().cast(), 0o755);
-    }
-    // SAFETY: Mounting procfs in chroot.
-    unsafe {
-        sys_mount(
-            c"proc".as_ptr().cast(),
-            c"/root/proc".as_ptr().cast(),
-            c"proc".as_ptr().cast(),
-            0,
-            core::ptr::null(),
-        );
-    }
-    // SAFETY: Mounting sysfs in chroot.
-    unsafe {
-        sys_mount(
-            c"sysfs".as_ptr().cast(),
-            c"/root/sys".as_ptr().cast(),
-            c"sysfs".as_ptr().cast(),
-            0,
-            core::ptr::null(),
-        );
-    }
-    // SAFETY: Mounting devtmpfs in chroot.
-    unsafe {
-        sys_mount(
-            c"devtmpfs".as_ptr().cast(),
-            c"/root/dev".as_ptr().cast(),
-            c"devtmpfs".as_ptr().cast(),
-            0,
-            core::ptr::null(),
-        );
-    }
-
     #[cfg(target_arch = "x86")]
     // SAFETY: Enabling Bochs VBE 1024x768 32bpp LFB mode in WASM emulator engine.
     unsafe {
@@ -957,8 +914,23 @@ pub extern "C" fn _start() -> ! {
     }
 
     let cmd_str = b"\
-mkdir -p /bin /usr/bin /etc /tmp/.X11-unix /var/log /var/run
+mkdir -p /bin /usr/bin /etc /root /tmp/.X11-unix /var/log /var/run
 chmod 1777 /tmp /tmp/.X11-unix
+
+if [ ! -s /etc/passwd ]; then
+    cat > /etc/passwd <<'PWEOF'
+root:x:0:0:root:/root:/bin/sh
+nobody:x:65534:65534:nobody:/var/empty:/bin/sh
+PWEOF
+fi
+
+if [ ! -s /etc/group ]; then
+    cat > /etc/group <<'GRPEOF'
+root:x:0:
+tty:x:5:
+nogroup:x:65534:
+GRPEOF
+fi
 
 for p in /gnu/store/*-profile; do
     for f in \"$p\"/bin/* \"$p\"/sbin/*; do
@@ -967,14 +939,20 @@ for p in /gnu/store/*-profile; do
         ln -sf \"$f\" /usr/bin/ 2>/dev/null
     done
 done
+[ -e /bin/sh ] || ln -sf /tmp/sh /bin/sh 2>/dev/null || true
 
 for p in /gnu/store/*-profile; do
     export PATH=\"$p/bin:$p/sbin:$PATH\"
 done
 export PATH=\"/bin:/usr/bin:$PATH\"
+export SHELL=/bin/sh
+export USER=root
+export LOGNAME=root
+export DISPLAY=:0
 
 echo \"export PATH=$PATH\" > /etc/profile
-export DISPLAY=:0;
+echo \"export SHELL=/bin/sh\" >> /etc/profile
+echo \"export DISPLAY=:0\" >> /etc/profile
 
 MP=$(
     echo /gnu/store/*-profile/lib/xorg/modules \\
@@ -994,6 +972,13 @@ else
 fi
 
 cat > /tmp/xorg.conf <<EOF
+Section \"ServerFlags\"
+    Option \"BlankTime\" \"0\"
+    Option \"StandbyTime\" \"0\"
+    Option \"SuspendTime\" \"0\"
+    Option \"OffTime\" \"0\"
+EndSection
+
 Section \"Monitor\"
     Identifier \"Monitor0\"
     HorizSync 30.0 - 80.0
@@ -1020,18 +1005,6 @@ Section \"Screen\"
 EndSection
 EOF
 
-Xorg :0 -modulepath \"${MP}\" -config /tmp/xorg.conf -ac > /tmp/x.log 2>&1 &
-
-for i in $(seq 1 30); do
-    if [ -S /tmp/.X11-unix/X0 ]; then
-        break
-    fi
-    sleep 1
-done
-
-sleep 2
-cat /var/log/Xorg.0.log
-
 mkdir -p /usr/share/X11 /usr/lib/X11 /etc/X11 2>/dev/null || true
 cat > /usr/share/X11/rgb.txt <<'RGBEOF'
   0   0 255		blue
@@ -1043,12 +1016,20 @@ cat > /usr/share/X11/rgb.txt <<'RGBEOF'
 RGBEOF
 ln -sf /usr/share/X11/rgb.txt /usr/lib/X11/rgb.txt 2>/dev/null || true
 
-openbox --display :0 > /tmp/ob.log 2>&1 &
-xrandr --display :0 -s 1024x768 2>/dev/null || true
-xsetroot -display :0 -solid \"#3498db\" 2>/dev/null || true
-xterm -display :0 -geometry 120x60+0+0 -bg \"#3498db\" -fg white -bw 0 +sb 2>/dev/null &
+Xorg :0 -noreset -nolisten tcp -modulepath \"${MP}\" -config /tmp/xorg.conf -ac > /tmp/x.log 2>&1 &
 
-(while true; do xrandr --display :0 -s 800x600 2>/dev/null || true; xsetroot -display :0 -solid \"#3498db\" 2>/dev/null || true; sleep 1; xrandr --display :0 -s 1024x768 2>/dev/null || true; xsetroot -display :0 -solid \"#3498db\" 2>/dev/null || true; sleep 1; done) &
+for i in $(seq 1 60); do
+    if [ -S /tmp/.X11-unix/X0 ] && obxprop --display :0 --root >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+cat /var/log/Xorg.0.log 2>/dev/null || true
+
+openbox --sm-disable --display :0 > /tmp/ob.log 2>&1 &
+sleep 1
+xterm -display :0 -geometry 200x80+0+0 -bg \"#3498db\" -fg white -bw 0 +sb -e /bin/sh -c \"while true; do sleep 3600; done\" > /tmp/xterm.log 2>&1 &
 
 sleep 2
 ps aux
@@ -1060,12 +1041,16 @@ exec /tmp/sh -i
     let home_env = c"HOME=/root";
     let term_env = c"TERM=vt100";
     let display_env = c"DISPLAY=:0";
+    let shell_env = c"SHELL=/bin/sh";
+    let user_env = c"USER=root";
 
-    let envp: [*const u8; 5] = [
+    let envp: [*const u8; 7] = [
         path_env.as_ptr().cast(),
         home_env.as_ptr().cast(),
         term_env.as_ptr().cast(),
         display_env.as_ptr().cast(),
+        shell_env.as_ptr().cast(),
+        user_env.as_ptr().cast(),
         core::ptr::null(),
     ];
 
