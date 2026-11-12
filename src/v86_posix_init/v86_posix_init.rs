@@ -715,6 +715,31 @@ pub extern "C" fn _start() -> ! {
             core::ptr::null(),
         );
     }
+    // v86's 9p CreateSymlink sets mode=S_IFLNK (0o120000) and size=0, which
+    // breaks runtime symlinks on 9pfs; mount tmpfs for mutable FHS paths.
+    for dir in [
+        c"/root/bin",
+        c"/root/etc",
+        c"/root/usr",
+        c"/root/root",
+        c"/root/var/log",
+        c"/root/var/run",
+    ] {
+        // SAFETY: Creating mountpoint directory under /root before tmpfs mount.
+        unsafe {
+            sys_mkdir(dir.as_ptr().cast(), 0o755);
+        }
+        // SAFETY: Mounting kernel tmpfs on mutable directory under /root.
+        unsafe {
+            sys_mount(
+                c"tmpfs".as_ptr().cast(),
+                dir.as_ptr().cast(),
+                c"tmpfs".as_ptr().cast(),
+                0,
+                core::ptr::null(),
+            );
+        }
+    }
 
     // SAFETY: Creating /root/dev/pts directory.
     unsafe {
@@ -941,6 +966,26 @@ for p in /gnu/store/*-profile; do
 done
 [ -e /bin/sh ] || ln -sf /tmp/sh /bin/sh 2>/dev/null || true
 
+cat > /etc/shells <<'SHLEOF'
+/bin/sh
+/bin/bash
+/usr/bin/sh
+/usr/bin/bash
+/tmp/sh
+SHLEOF
+for p in /gnu/store/*-profile; do
+    [ -e \"$p/bin/sh\" ] && echo \"$p/bin/sh\" >> /etc/shells
+    [ -e \"$p/bin/bash\" ] && echo \"$p/bin/bash\" >> /etc/shells
+done
+
+XDG_DATA_DIRS=\"/usr/share\"
+XDG_CONFIG_DIRS=\"/etc/xdg\"
+for p in /gnu/store/*openbox* /gnu/store/*-profile; do
+    [ -d \"$p/share\" ] && XDG_DATA_DIRS=\"$p/share:$XDG_DATA_DIRS\"
+    [ -d \"$p/etc/xdg\" ] && XDG_CONFIG_DIRS=\"$p/etc/xdg:$XDG_CONFIG_DIRS\"
+done
+export XDG_DATA_DIRS XDG_CONFIG_DIRS
+
 for p in /gnu/store/*-profile; do
     export PATH=\"$p/bin:$p/sbin:$PATH\"
 done
@@ -953,6 +998,8 @@ export DISPLAY=:0
 echo \"export PATH=$PATH\" > /etc/profile
 echo \"export SHELL=/bin/sh\" >> /etc/profile
 echo \"export DISPLAY=:0\" >> /etc/profile
+echo \"export XDG_DATA_DIRS=$XDG_DATA_DIRS\" >> /etc/profile
+echo \"export XDG_CONFIG_DIRS=$XDG_CONFIG_DIRS\" >> /etc/profile
 
 MP=$(
     echo /gnu/store/*-profile/lib/xorg/modules \\
