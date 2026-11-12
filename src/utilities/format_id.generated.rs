@@ -1427,6 +1427,12 @@ pub enum FormatId {
     EdfEditableDcList,
     /// ASCII text, Latin letters subset (Short 1168, Category: encoding)
     AsciiLatin,
+    /// Boolean truth value (Short 1424, Category: semantic)
+    Boolean,
+    /// Void / unit type (Short 1425, Category: semantic)
+    Void,
+    /// Never / uninhabited bottom type (Short 1426, Category: semantic)
+    Never,
 }
 
 impl FormatId {
@@ -2081,7 +2087,10 @@ impl FormatId {
             | Self::String
             | Self::DateString
             | Self::TimeString
-            | Self::DateTimeString => FormatCategory::Semantic,
+            | Self::DateTimeString
+            | Self::Boolean
+            | Self::Void
+            | Self::Never => FormatCategory::Semantic,
             Self::SemanticToText
             | Self::CodeToText
             | Self::AlturaMacToWin
@@ -2789,6 +2798,9 @@ impl FormatId {
             "edfdclist" | "edf_dc_list" | "edc" => Some(Self::EdfDcList),
             "edfeditabledclist" | "edf_editable_dc_list" | "editabledc" | "edceditable" => Some(Self::EdfEditableDcList),
             "asciilatin" | "ascii_latin" => Some(Self::AsciiLatin),
+            "boolean" => Some(Self::Boolean),
+            "void" => Some(Self::Void),
+            "never" => Some(Self::Never),
             _ => None,
         }
     }
@@ -3470,6 +3482,9 @@ impl FormatId {
             Self::EdfDcList => "EdfDcList",
             Self::EdfEditableDcList => "EdfEditableDcList",
             Self::AsciiLatin => "AsciiLatin",
+            Self::Boolean => "Boolean",
+            Self::Void => "Void",
+            Self::Never => "Never",
         }
     }
 
@@ -4369,6 +4384,9 @@ impl FormatId {
             Self::EdfDcList => "f920",
             Self::EdfEditableDcList => "f921",
             Self::AsciiLatin => "f1168",
+            Self::Boolean => "f1424",
+            Self::Void => "f1425",
+            Self::Never => "f1426",
         }
     }
 
@@ -5050,6 +5068,9 @@ impl FormatId {
             "f920" => Some(Self::EdfDcList),
             "f921" => Some(Self::EdfEditableDcList),
             "f1168" => Some(Self::AsciiLatin),
+            "f1424" => Some(Self::Boolean),
+            "f1425" => Some(Self::Void),
+            "f1426" => Some(Self::Never),
             _ => None,
         }
     }
@@ -5731,6 +5752,9 @@ impl FormatId {
             Self::EdfDcList => Some(2229144_u128),
             Self::EdfEditableDcList => Some(2229145_u128),
             Self::AsciiLatin => Some(2229392_u128),
+            Self::Boolean => Some(2229648_u128),
+            Self::Void => Some(2229649_u128),
+            Self::Never => Some(2229650_u128),
         }
     }
 
@@ -6424,6 +6448,9 @@ impl FormatId {
             2229144_u128 => Some(Self::EdfDcList),
             2229145_u128 => Some(Self::EdfEditableDcList),
             2229392_u128 => Some(Self::AsciiLatin),
+            2229648_u128 => Some(Self::Boolean),
+            2229649_u128 => Some(Self::Void),
+            2229650_u128 => Some(Self::Never),
             _ => None,
         }
     }
@@ -7775,3 +7802,9 @@ pub const DC_EDF_DC_LIST: DcChar = DcChar::from_format(920);
 pub const DC_EDF_EDITABLE_DC_LIST: DcChar = DcChar::from_format(921);
 /// DcChar constant for Format `AsciiLatin` (Short f1168, Category: encoding): ASCII text, Latin letters subset
 pub const DC_ASCII_LATIN: DcChar = DcChar::from_format(1168);
+/// DcChar constant for Format `Boolean` (Short f1424, Category: semantic): Boolean truth value
+pub const DC_BOOLEAN: DcChar = DcChar::from_format(1424);
+/// DcChar constant for Format `Void` (Short f1425, Category: semantic): Void / unit type
+pub const DC_VOID: DcChar = DcChar::from_format(1425);
+/// DcChar constant for Format `Never` (Short f1426, Category: semantic): Never / uninhabited bottom type
+pub const DC_NEVER: DcChar = DcChar::from_format(1426);
