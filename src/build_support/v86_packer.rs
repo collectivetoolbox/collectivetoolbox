@@ -357,6 +357,16 @@ pub fn build_custom_initrd(
             format!("Failed to read {}", fs_json_path.display())
         })?;
 
+    let mut fs_files = Vec::new();
+    if let Ok(fs_json_val) = serde_json::from_str::<Value>(&fs_json_content) {
+        if let Some(nodes) =
+            fs_json_val.get("fsroot").and_then(Value::as_array)
+        {
+            collect_fs_chunk_files(nodes, "", &mut fs_files);
+        }
+    }
+    let flat_dir = resolve_flat_chunk_dir(fs_json_path);
+
     let profile_path = find_profile_store_path(&fs_json_content)?;
     let full_profile = format!("/{profile_path}");
 
@@ -366,6 +376,12 @@ pub fn build_custom_initrd(
         .join("../v86_posix_init/v86_posix_init.rs");
     let tmp_bin_file = std::env::temp_dir()
         .join(format!("v86_posix_init_{}", std::process::id()));
+    let rs_init_str = rs_init_file
+        .to_str()
+        .context("Invalid UTF-8 in v86_posix_init.rs path")?;
+    let tmp_bin_str = tmp_bin_file
+        .to_str()
+        .context("Invalid UTF-8 in temporary init binary path")?;
 
     println!("Compiling dynamic 32-bit freestanding init binary with rustc...");
     let rustc_status = Command::new("rustc")
@@ -382,9 +398,9 @@ pub fn build_custom_initrd(
             "link-arg=-nostdlib",
             "-C",
             "link-arg=-static",
-            rs_init_file.to_str().unwrap_or(""),
+            rs_init_str,
             "-o",
-            tmp_bin_file.to_str().unwrap_or(""),
+            tmp_bin_str,
         ])
         .status()
         .context("Failed to execute rustc for 32-bit init compilation")?;
@@ -403,7 +419,8 @@ pub fn build_custom_initrd(
 
     let _ = fs::remove_file(&tmp_bin_file);
 
-    let bash_bytes = find_bash_static_bytes(&fs_json_content)?;
+    let bash_bytes =
+        find_bash_static_bytes(&fs_files, flat_dir.as_deref(), &fs_json_content)?;
 
     let modules_dir = find_linux_modules_dir(&fs_json_content);
     println!("Resolved Linux modules dir: {}", modules_dir.display());
@@ -469,23 +486,37 @@ pub fn build_custom_initrd(
     write_cpio_entry(&mut writer, "bin/bash", &bash_bytes, 0o100755, ino)?;
     ino = ino.saturating_add(1);
 
+    let mut packaged_modules = std::collections::HashSet::new();
     for m in &mod_names {
-        if let Ok(b) = find_module_bytes(&modules_dir, m) {
+        if let Ok(b) =
+            find_module_bytes(&fs_files, flat_dir.as_deref(), &modules_dir, m)
+        {
             println!("Packaging kernel module {} ({} bytes)...", m, b.len());
             let entry_name = format!("lib/modules/{m}");
             write_cpio_entry(&mut writer, &entry_name, &b, 0o100644, ino)?;
             ino = ino.saturating_add(1);
-        } else {
-            println!("Warning: Could not locate kernel module {m}");
+            packaged_modules.insert(*m);
         }
     }
 
     write_cpio_entry(&mut writer, "TRAILER!!!", &[], 0, 0)?;
     drop(writer);
 
-    let gz_file = File::create(output_initrd_path)?;
+    for required in ["virtio_pci.ko", "9pnet.ko", "9pnet_virtio.ko", "9p.ko"] {
+        if !packaged_modules.contains(required) {
+            let _ = fs::remove_file(&tmp_cpio);
+            anyhow::bail!(
+                "Required v86 9p kernel module {required} could not be located in 9p chunk store or /gnu/store"
+            );
+        }
+    }
+
+    let tmp_gz = output_initrd_path.with_extension("cpio_gz_tmp");
+    let gz_file = File::create(&tmp_gz)
+        .with_context(|| format!("Failed to create {}", tmp_gz.display()))?;
     let mut child = std::process::Command::new("gzip")
         .arg("-9")
+        .arg("-n")
         .arg("-c")
         .arg(&tmp_cpio)
         .stdout(gz_file)
@@ -494,8 +525,16 @@ pub fn build_custom_initrd(
     let _ = fs::remove_file(&tmp_cpio);
 
     if !status.success() {
+        let _ = fs::remove_file(&tmp_gz);
         anyhow::bail!("gzip failed to compress initrd");
     }
+
+    fs::rename(&tmp_gz, output_initrd_path).with_context(|| {
+        format!(
+            "Failed to finalize initrd at {}",
+            output_initrd_path.display()
+        )
+    })?;
 
     println!(
         "Successfully built v86 initrd in Rust: {}",
@@ -504,12 +543,105 @@ pub fn build_custom_initrd(
     Ok(())
 }
 
-fn find_module_bytes(modules_dir: &Path, module_name: &str) -> Result<Vec<u8>> {
+struct FsChunkFile {
+    full_path: String,
+    name: String,
+    chunk_name: String,
+}
+
+fn collect_fs_chunk_files(
+    nodes: &[Value],
+    prefix: &str,
+    out: &mut Vec<FsChunkFile>,
+) {
+    for node in nodes {
+        let Some(arr) = node.as_array() else {
+            continue;
+        };
+        let Some(name) = arr.get(IDX_NAME).and_then(Value::as_str) else {
+            continue;
+        };
+        let full_path = format!("{prefix}/{name}");
+        let Some(target) = arr.get(IDX_TARGET_OR_CHILDREN) else {
+            continue;
+        };
+        if let Some(children) = target.as_array() {
+            collect_fs_chunk_files(children, &full_path, out);
+        } else if let Some(chunk) = target.as_str() {
+            if chunk.ends_with(".bin.zst") || chunk.ends_with(".bin") {
+                out.push(FsChunkFile {
+                    full_path,
+                    name: name.to_string(),
+                    chunk_name: chunk.to_string(),
+                });
+            }
+        }
+    }
+}
+
+fn resolve_flat_chunk_dir(fs_json_path: &Path) -> Option<PathBuf> {
+    let parent = fs_json_path.parent()?;
+    if let Some(stem) = fs_json_path.file_stem().and_then(|s| s.to_str()) {
+        if let Some(prefix) = stem.strip_suffix("-fs") {
+            let candidate = parent.join(format!("{prefix}-rootfs-flat"));
+            if candidate.is_dir() {
+                return Some(candidate);
+            }
+        }
+    }
+    let default_flat = parent.join("guix-rootfs-flat");
+    if default_flat.is_dir() {
+        return Some(default_flat);
+    }
+    None
+}
+
+fn read_chunk_bytes(flat_dir: &Path, chunk_name: &str) -> Result<Vec<u8>> {
+    let chunk_path = flat_dir.join(chunk_name);
+    let bytes = if chunk_name.ends_with(".zst") {
+        decompress_zstd_file(&chunk_path)?
+    } else {
+        fs::read(&chunk_path).with_context(|| {
+            format!("Failed to read 9p chunk {}", chunk_path.display())
+        })?
+    };
+    if bytes.get(..4) == Some(&[0x28, 0xB5, 0x2F, 0xFD]) {
+        return zstd::stream::decode_all(std::io::Cursor::new(&bytes))
+            .with_context(|| {
+                format!(
+                    "Inner zstd decompression failed for {}",
+                    chunk_path.display()
+                )
+            });
+    }
+    Ok(bytes)
+}
+
+fn find_module_bytes(
+    fs_files: &[FsChunkFile],
+    flat_dir: Option<&Path>,
+    modules_dir: &Path,
+    module_name: &str,
+) -> Result<Vec<u8>> {
+    let zst_name = format!("{module_name}.zst");
+    if let Some(flat) = flat_dir {
+        for f in fs_files {
+            if (f.name == module_name || f.name == zst_name)
+                && (f.full_path.contains("linux-libre")
+                    || f.full_path.contains("linux-modules")
+                    || f.full_path.contains("/lib/modules/"))
+            {
+                if let Ok(b) = read_chunk_bytes(flat, &f.chunk_name) {
+                    return Ok(b);
+                }
+            }
+        }
+    }
     let p1 = modules_dir.join(module_name);
     if let Ok(b) = fs::read(&p1) {
         return Ok(b);
     }
-    let p1_zst = modules_dir.join(format!("{module_name}.zst"));
+    let p1_zst = modules_dir.join(&zst_name);
     if p1_zst.is_file() {
         if let Ok(b) = decompress_zstd_file(&p1_zst) {
             return Ok(b);
@@ -559,30 +691,12 @@ fn search_file_recursive(dir: &Path, name: &str) -> Option<PathBuf> {
 }
 
 fn decompress_zstd_file(path: &Path) -> Result<Vec<u8>> {
-    let zstd_bin = find_zstd_binary().unwrap_or_else(|| PathBuf::from("zstd"));
-    let out = Command::new(zstd_bin)
-        .args(["-d", "-c", path.to_str().unwrap_or("")])
-        .output()?;
-    if out.status.success() {
-        Ok(out.stdout)
-    } else {
-        anyhow::bail!("zstd decompression failed for {}", path.display())
-    }
-}
-
-fn find_zstd_binary() -> Option<PathBuf> {
-    if let Ok(entries) = fs::read_dir("/gnu/store") {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.contains("-zstd-") {
-                let bin = entry.path().join("bin/zstd");
-                if bin.is_file() {
-                    return Some(bin);
-                }
-            }
-        }
-    }
-    None
+    let file = File::open(path).with_context(|| {
+        format!("Failed to open zstd file {}", path.display())
+    })?;
+    zstd::stream::decode_all(file).with_context(|| {
+        format!("zstd decompression failed for {}", path.display())
+    })
 }
 
 fn write_cpio_entry(
@@ -669,7 +783,31 @@ fn find_profile_store_path(json: &str) -> Result<String> {
     anyhow::bail!("Could not dynamically resolve Guix profile store path")
 }
 
-fn find_bash_static_bytes(json: &str) -> Result<Vec<u8>> {
+fn find_bash_static_bytes(
+    fs_files: &[FsChunkFile],
+    flat_dir: Option<&Path>,
+    json: &str,
+) -> Result<Vec<u8>> {
+    if let Some(flat) = flat_dir {
+        for f in fs_files {
+            if f.name == "bash"
+                && f.full_path.contains("bash-static")
+                && f.full_path.ends_with("/bin/bash")
+            {
+                if let Ok(bytes) = read_chunk_bytes(flat, &f.chunk_name) {
+                    if bytes.get(..4) == Some(b"\x7fELF")
+                        && bytes.get(4) == Some(&1)
+                    {
+                        println!(
+                            "Resolved 32-bit static bash from 9p chunk store: {}",
+                            f.full_path
+                        );
+                        return Ok(bytes);
+                    }
+                }
+            }
+        }
+    }
     for line in json.lines() {
         if line.contains("bash-static") && line.contains("gnu/store/") {
             if let Some(pos) = line.find("gnu/store/") {
@@ -977,6 +1115,26 @@ mod tests {
                 metadata.len() > 1000,
                 "Generated initrd file is too small!"
             );
+            let gunzip = Command::new("gzip")
+                .args(["-d", "-c", initrd_out.to_str().unwrap()])
+                .output()
+                .expect("decompress generated initrd");
+            assert!(gunzip.status.success(), "gzip -d failed");
+            let raw_cpio = gunzip.stdout;
+            for required_entry in [
+                b"lib/modules/virtio_pci.ko".as_slice(),
+                b"lib/modules/9pnet.ko".as_slice(),
+                b"lib/modules/9pnet_virtio.ko".as_slice(),
+                b"lib/modules/9p.ko".as_slice(),
+            ] {
+                assert!(
+                    raw_cpio
+                        .windows(required_entry.len())
+                        .any(|w| w == required_entry),
+                    "Generated initrd missing required module {}",
+                    String::from_utf8_lossy(required_entry)
+                );
+            }
             let _ = fs::remove_file(&initrd_out);
         }
     }

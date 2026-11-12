@@ -930,17 +930,34 @@ fn prepare_runtime_assets(
 
     let initrd_rs_src =
         project_root.join("src/v86_posix_init/v86_posix_init.rs");
+    let v86_packer_src = project_root.join("src/build_support/v86_packer.rs");
     let initrd_out_of_date = !guix_initrd.is_file()
         || is_file_older(&guix_initrd, &guix_fs_json)
-        || is_file_older(&guix_initrd, &initrd_rs_src);
+        || is_file_older(&guix_initrd, &initrd_rs_src)
+        || is_file_older(&guix_initrd, &v86_packer_src);
 
     if guix_fs_json.is_file() && (initrd_out_of_date || rebuild_requested) {
-        println!("cargo:warning=Building Guix POSIX initrd...");
+        let rustc_has_i586 = Command::new("rustc")
+            .args(["--target", "i586-unknown-linux-gnu", "--print", "target-libdir"])
+            .output()
+            .is_ok_and(|out| out.status.success());
         ensure_parent_dir(&guix_initrd)?;
-        if let Err(e) =
+        if rustc_has_i586 {
+            println!("cargo:warning=Building Guix POSIX initrd...");
             crate::v86_packer::build_custom_initrd(&guix_fs_json, &guix_initrd)
-        {
-            println!("cargo:warning=Failed to build custom initrd: {e}");
+                .context("Failed to build Guix POSIX initrd")?;
+        } else {
+            let vendor_initrd =
+                v86_images_vendor.join("guix/guix_posix_initrd.cpio.gz");
+            if vendor_initrd.is_file() {
+                println!(
+                    "cargo:warning=rustc target i586-unknown-linux-gnu unavailable; copying prebuilt {}",
+                    vendor_initrd.display()
+                );
+                fs::copy(&vendor_initrd, &guix_initrd).with_context(|| {
+                    format!("Failed to copy {}", vendor_initrd.display())
+                })?;
+            }
         }
     }
 
@@ -1224,6 +1241,22 @@ pub fn print_rerun_directives(manifest_dir: &Path) -> Result<()> {
     println!(
         "cargo:rerun-if-changed={}",
         project_root.join("vendor").join("v86_images").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        project_root
+            .join("src")
+            .join("v86_posix_init")
+            .join("v86_posix_init.rs")
+            .display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        project_root
+            .join("src")
+            .join("build_support")
+            .join("v86_packer.rs")
+            .display()
     );
 
     println!(
