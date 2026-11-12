@@ -988,10 +988,12 @@ pub extern "C" fn _start() -> ! {
 mkdir -p /bin /usr/bin /etc /tmp/.X11-unix /var/log /var/run
 chmod 1777 /tmp /tmp/.X11-unix
 
-prof=$(echo /gnu/store/*-profile)
-for f in $prof/bin/* $prof/sbin/*; do
-    ln -sf \"$f\" /bin/ 2>/dev/null
-    ln -sf \"$f\" /usr/bin/ 2>/dev/null
+for p in /gnu/store/*-profile; do
+    for f in \"$p\"/bin/* \"$p\"/sbin/*; do
+        [ -e \"$f\" ] || continue
+        ln -sf \"$f\" /bin/ 2>/dev/null
+        ln -sf \"$f\" /usr/bin/ 2>/dev/null
+    done
 done
 
 for p in /gnu/store/*-profile; do
@@ -1004,10 +1006,22 @@ export DISPLAY=:0;
 
 MP=$(
     echo /gnu/store/*-profile/lib/xorg/modules \\
+         /gnu/store/*xf86-video-*/lib/xorg/modules \\
          /gnu/store/*xorg-server*/lib/xorg/modules | tr ' ' ','
 )
 
-cat > /tmp/xorg.conf <<'EOF'
+if [ -e /sys/class/drm/card0 ]; then
+    X_DRV=\"modesetting\"
+    X_DEV_OPT='    Option \"kmsdev\" \"/dev/dri/card0\"'
+elif [ -e /sys/class/graphics/fb0 ]; then
+    X_DRV=\"fbdev\"
+    X_DEV_OPT='    Option \"fbdev\" \"/dev/fb0\"'
+else
+    X_DRV=\"vesa\"
+    X_DEV_OPT=\"\"
+fi
+
+cat > /tmp/xorg.conf <<EOF
 Section \"Monitor\"
     Identifier \"Monitor0\"
     HorizSync 30.0 - 80.0
@@ -1017,8 +1031,8 @@ EndSection
 
 Section \"Device\"
     Identifier \"Card0\"
-    Driver \"modesetting\"
-    Option \"kmsdev\" \"/dev/dri/card0\"
+    Driver \"${X_DRV}\"
+${X_DEV_OPT}
     Option \"ShadowFB\" \"true\"
 EndSection
 
