@@ -37,3 +37,7 @@ wasm_instr,:([script:.WASM Instructions] | [script:.WASM GC Instructions] | [scr
 wasm_catch,:310 [number $length]? ([type] | 275) (([number:>=0 & <2] [312]? [wasm_index] [312]? [wasm_index]) | ([number:>=2 & <4] [312]? [wasm_index])) 311,A catch record: kind 0 or 1 followed by tag and label indices or kind 2 or 3 followed by a label index.
 wasm_routine,:260 262 [280:] 263 [list:type $locals]? [wasm_instr]* 261,One WebAssembly routine literal with optional local variable types and zero or more WebAssembly instructions.
 wasm_member,:([wasm_routine] | [number] | [data]),One WebAssembly program member (routine global number or data segment).
+absent,:316,An omitted optional operand.
+stagel_type,:(f203 | f207 | f208 | f209 | f210 | f1424 | f1425 | f1426 | [2576:] | [2577:]),One StageL 3 value or return type.
+el_expr,:([number] | [boolean] | [data] | [2198:] | [2199:] | [2201:] | [2202:] | [2203:] | [2211:] | [2213:] | [2448:] | [2449:] | [2450:] | 2451 | 2452 | [2453:] | 2454 | [2512:] | [2513:] | [2514:] | [2515:] | [2516:] | [2517:] | [2518:] | [2519:] | [2520:] | [2521:] | [2522:] | [2523:] | [2524:] | [2525:] | [2526:] | [2527:] | [2528:] | [2529:] | [2530:] | [2531:] | [2532:] | [2533:] | [2534:] | [2535:] | [2536:] | [2537:] | [2538:] | [2539:] | [2540:] | [2541:] | [2542:] | [2543:] | [2544:] | [2545:] | [2546:] | [2578:] | [2580:] | [2581:] | [2582:] | [2583:] | [2584:] | [2585:]),One prefix expression or local statement in tokenized EL or StageL.
+el_module_item,:([2200:] | [el_expr]),One top-level module declaration or expression.

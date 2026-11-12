@@ -3527,7 +3527,7 @@ mod tests {
         let prov_has_a_id = base_id + 10;
         let prov_has_val_id = base_id + 11;
         let mut prov_for_each_tokens = vec![
-            sh(crate::dc::DC_FOR_EACH),
+            sh(crate::dc::DC_DISTRIBUTE_STATEMENT_OVER_EACH),
             sh(DC_HAS_A),
             sh(DC_THIS_ELEMENT),
             sh(DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE),

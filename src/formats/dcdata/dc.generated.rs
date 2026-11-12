@@ -379,8 +379,8 @@ pub const DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE: DcChar = DcChar::from_shor
 /// General concept of manual entry or direct human authoring. (Dc 637).
 pub const DC_MANUAL_ENTRY: DcChar = DcChar::from_short(637);
 /// Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration. (Dc 638).
-pub const DC_FOR_EACH: DcChar = DcChar::from_short(638);
-/// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (The Dc is called "This" by by analogy to jQuery $(this) in .each(), but maybe there's a better name for it.) (Dc 639).
+pub const DC_DISTRIBUTE_STATEMENT_OVER_EACH: DcChar = DcChar::from_short(638);
+/// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (Distribute statement over each element) expression. (The Dc is called "This" by analogy to jQuery $(this) in .each(), but maybe there's a better name for it.) (Dc 639).
 pub const DC_THIS_ELEMENT: DcChar = DcChar::from_short(639);
 /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (Dc 640).
 pub const DC_TYPE_ATOM_DC: DcChar = DcChar::from_short(640);
@@ -414,6 +414,156 @@ pub const DC_END_WASM_PROGRAM: DcChar = DcChar::from_short(1928);
 pub const DC_DC_DOCUMENT_EXECUTION_KERNEL: DcChar = DcChar::from_short(1936);
 /// Top-level 1-Short-Dc workspace bootstrap entry document for the full Collective Toolbox workspace application, delegating document execution and resource accounting to Dc 1936 (Dc document execution kernel). (Dc 1937).
 pub const DC_COLLECTIVE_TOOLBOX_WORKSPACE: DcChar = DcChar::from_short(1937);
+/// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (Dc 2192).
+pub const DC_BEGIN_MODULE: DcChar = DcChar::from_short(2192);
+/// Terminates a module begun by Dc 2192. (Dc 2193).
+pub const DC_END_MODULE: DcChar = DcChar::from_short(2193);
+/// Declares the PSR-4 module namespace path of the enclosing module. (Dc 2194).
+pub const DC_NAMESPACE_DECL: DcChar = DcChar::from_short(2194);
+/// Imports one or more exported bindings or routines from the specified namespace path. (Dc 2195).
+pub const DC_BEGIN_USE_IMPORT: DcChar = DcChar::from_short(2195);
+/// Terminates a use import list begun by Dc 2195. (Dc 2196).
+pub const DC_END_USE_IMPORT: DcChar = DcChar::from_short(2196);
+/// Specifies one imported item (by resolved Dc or source identifier) and an optional local alias identifier. (Dc 2197).
+pub const DC_USE_IMPORT_ITEM: DcChar = DcChar::from_short(2197);
+/// Declares a non-shadowing local mutable variable of the given type, with an optional initial value expression. (Dc 2198).
+pub const DC_DECLARE_LET: DcChar = DcChar::from_short(2198);
+/// Declares a private immutable binding with an optional assigned graph Dc identity, static type, name, and initializer expression. (Dc 2199).
+pub const DC_DECLARE_CONST: DcChar = DcChar::from_short(2199);
+/// Declares an exported module-level immutable binding with an optional assigned graph Dc identity, static type, name, and initializer expression. (Dc 2200).
+pub const DC_DECLARE_PUB: DcChar = DcChar::from_short(2200);
+/// Assigns a new value expression to an existing mutable local variable of matching type. (Dc 2201).
+pub const DC_ASSIGN_SET: DcChar = DcChar::from_short(2201);
+/// References a lexically bound variable or constant (by identifier or resolved graph Dc) with its explicit static type. (Dc 2202).
+pub const DC_TYPED_VALUE_REF: DcChar = DcChar::from_short(2202);
+/// Declares a named routine with a boolean export visibility flag (true for public, false for private), optional assigned graph Dc identity, return type, name, typed parameters, optional test block, and body expression. (Dc 2203).
+pub const DC_BEGIN_ROUTINE_DECL: DcChar = DcChar::from_short(2203);
+/// Terminates a routine declaration begun by Dc 2203. (Dc 2204).
+pub const DC_END_ROUTINE_DECL: DcChar = DcChar::from_short(2204);
+/// Declares one formal parameter of a routine with its static type and identifier. (Dc 2205).
+pub const DC_ROUTINE_PARAM: DcChar = DcChar::from_short(2205);
+/// Begins a contract block of one or more inline input/output test cases attached to a routine declaration. (Dc 2206).
+pub const DC_BEGIN_TEST_BLOCK: DcChar = DcChar::from_short(2206);
+/// Terminates a routine test block begun by Dc 2206. (Dc 2207).
+pub const DC_END_TEST_BLOCK: DcChar = DcChar::from_short(2207);
+/// Defines one inline routine test case consisting of positional argument expressions, Dc 2209, and the expected output expression (or FaultTrap for expected traps, or absent for void completion). (Dc 2208).
+pub const DC_BEGIN_TEST_CASE: DcChar = DcChar::from_short(2208);
+/// Separates positional input argument expressions from the expected output within a Dc 2208 test case. (Dc 2209).
+pub const DC_TEST_EXPECTED_OUT: DcChar = DcChar::from_short(2209);
+/// Terminates a routine test case begun by Dc 2208. (Dc 2210).
+pub const DC_END_TEST_CASE: DcChar = DcChar::from_short(2210);
+/// Invokes a local or resolved graph routine with zero or more positional argument expressions. (Dc 2211).
+pub const DC_BEGIN_ROUTINE_CALL: DcChar = DcChar::from_short(2211);
+/// Terminates a routine call begun by Dc 2211. (Dc 2212).
+pub const DC_END_ROUTINE_CALL: DcChar = DcChar::from_short(2212);
+/// Evaluates zero or more sequential expressions or local declarations in a new lexical scope, yielding the final expression's value (or void if empty). (Dc 2213).
+pub const DC_BEGIN_CODE_BLOCK: DcChar = DcChar::from_short(2213);
+/// Terminates a code block begun by Dc 2213. (Dc 2214).
+pub const DC_END_CODE_BLOCK: DcChar = DcChar::from_short(2214);
+/// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (Dc 2448).
+pub const DC_IF_CONDITIONAL: DcChar = DcChar::from_short(2448);
+/// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (Dc 2449).
+pub const DC_WHILE_LOOP: DcChar = DcChar::from_short(2449);
+/// Iterates over a sequence expression in order, binding a fresh non-shadowing element identifier of the declared type for each iteration of the body expression. (Dc 2450).
+pub const DC_FOR_EACH: DcChar = DcChar::from_short(2450);
+/// Exits the innermost enclosing loop immediately (type Never). (Dc 2451).
+pub const DC_BREAK_LOOP: DcChar = DcChar::from_short(2451);
+/// Advances immediately to the next iteration of the innermost enclosing loop (type Never). (Dc 2452).
+pub const DC_CONTINUE_LOOP: DcChar = DcChar::from_short(2452);
+/// Returns early from the enclosing routine with an optional return value expression (or absent for void routines; type Never). (Dc 2453).
+pub const DC_RETURN_ROUTINE: DcChar = DcChar::from_short(2453);
+/// Deterministically aborts execution with an unrecoverable trap (type Never). (Dc 2454).
+pub const DC_FAULT_TRAP: DcChar = DcChar::from_short(2454);
+/// Checked numeric addition of two operands of matching type; faults on overflow. (Dc 2512).
+pub const DC_ADD_OP: DcChar = DcChar::from_short(2512);
+/// Checked subtraction of the second operand from the first operand; faults on overflow. (Dc 2513).
+pub const DC_SUB_OP: DcChar = DcChar::from_short(2513);
+/// Checked numeric multiplication of two operands of matching type; faults on overflow. (Dc 2514).
+pub const DC_MUL_OP: DcChar = DcChar::from_short(2514);
+/// Checked truncated division of the first operand by the second operand; faults on division by zero or signed minimum divided by -1. (Dc 2515).
+pub const DC_DIV_OP: DcChar = DcChar::from_short(2515);
+/// Checked truncated remainder of dividing the first operand by the second operand; faults on zero divisor or signed minimum modulo -1. (Dc 2516).
+pub const DC_REM_OP: DcChar = DcChar::from_short(2516);
+/// Checked arithmetic negation of a signed operand; faults on two's-complement minimum value. (Dc 2517).
+pub const DC_NEG_OP: DcChar = DcChar::from_short(2517);
+/// Modular two's-complement addition wrapping modulo 2^width on fixed-width integers. (Dc 2518).
+pub const DC_WRAP_ADD_OP: DcChar = DcChar::from_short(2518);
+/// Modular two's-complement subtraction of the second operand from the first operand wrapping modulo 2^width. (Dc 2519).
+pub const DC_WRAP_SUB_OP: DcChar = DcChar::from_short(2519);
+/// Modular two's-complement multiplication wrapping modulo 2^width on fixed-width integers. (Dc 2520).
+pub const DC_WRAP_MUL_OP: DcChar = DcChar::from_short(2520);
+/// Bitwise conjunction of two integer operands of matching type. (Dc 2521).
+pub const DC_BIT_AND_OP: DcChar = DcChar::from_short(2521);
+/// Bitwise inclusive disjunction of two integer operands of matching type. (Dc 2522).
+pub const DC_BIT_OR_OP: DcChar = DcChar::from_short(2522);
+/// Bitwise exclusive disjunction of two integer operands of matching type. (Dc 2523).
+pub const DC_BIT_XOR_OP: DcChar = DcChar::from_short(2523);
+/// Bitwise ones'-complement inversion of an integer operand. (Dc 2524).
+pub const DC_BIT_NOT_OP: DcChar = DcChar::from_short(2524);
+/// Shifts the first integer operand left by the second u32 bit-count operand; faults if the shift count is greater than or equal to the bit width. (Dc 2525).
+pub const DC_SHL_OP: DcChar = DcChar::from_short(2525);
+/// Shifts the first integer operand right by the second u32 bit-count operand (logical zero-fill on unsigned types, arithmetic sign-extending on signed types); faults if the shift count is greater than or equal to the bit width. (Dc 2526).
+pub const DC_SHR_OP: DcChar = DcChar::from_short(2526);
+/// Bitwise left rotation of the first unsigned integer operand by the second u32 bit-count operand. (Dc 2527).
+pub const DC_ROTL_OP: DcChar = DcChar::from_short(2527);
+/// Bitwise right rotation of the first unsigned integer operand by the second u32 bit-count operand. (Dc 2528).
+pub const DC_ROTR_OP: DcChar = DcChar::from_short(2528);
+/// Counts leading zero bits in a fixed-width integer operand as a u32. (Dc 2529).
+pub const DC_CLZ_OP: DcChar = DcChar::from_short(2529);
+/// Counts trailing zero bits in a fixed-width integer operand as a u32. (Dc 2530).
+pub const DC_CTZ_OP: DcChar = DcChar::from_short(2530);
+/// Counts set one-bits in a fixed-width integer operand as a u32. (Dc 2531).
+pub const DC_POPCNT_OP: DcChar = DcChar::from_short(2531);
+/// Boolean negation of a boolean operand. (Dc 2532).
+pub const DC_LOGICAL_NOT_OP: DcChar = DcChar::from_short(2532);
+/// Short-circuiting boolean conjunction: evaluates the second operand only when the first operand is true. (Dc 2533).
+pub const DC_LOGICAL_AND_OP: DcChar = DcChar::from_short(2533);
+/// Short-circuiting boolean disjunction: evaluates the second operand only when the first operand is false. (Dc 2534).
+pub const DC_LOGICAL_OR_OP: DcChar = DcChar::from_short(2534);
+/// Tests whether two operands of matching type are equal (including structural element-wise equality on immutable lists). (Dc 2535).
+pub const DC_EQ_OP: DcChar = DcChar::from_short(2535);
+/// Tests whether two operands of matching type are not equal. (Dc 2536).
+pub const DC_NE_OP: DcChar = DcChar::from_short(2536);
+/// Tests whether the first operand is strictly less than the second operand. (Dc 2537).
+pub const DC_LT_OP: DcChar = DcChar::from_short(2537);
+/// Tests whether the first operand is less than or equal to the second operand. (Dc 2538).
+pub const DC_LE_OP: DcChar = DcChar::from_short(2538);
+/// Tests whether the first operand is strictly greater than the second operand. (Dc 2539).
+pub const DC_GT_OP: DcChar = DcChar::from_short(2539);
+/// Tests whether the first operand is greater than or equal to the second operand. (Dc 2540).
+pub const DC_GE_OP: DcChar = DcChar::from_short(2540);
+/// Converts the first operand's numeric value to the target type specified by the second operand (lossless when widening, faulting when outside the target type's range). (Dc 2541).
+pub const DC_CONVERT_OP: DcChar = DcChar::from_short(2541);
+/// Reinterprets the raw bit pattern of the first fixed-width integer operand as a same-width integer of the target type specified by the second operand. (Dc 2542).
+pub const DC_BITCAST_OP: DcChar = DcChar::from_short(2542);
+/// Returns the element count of a sequence or buffer as a u64. (Dc 2543).
+pub const DC_SEQ_LEN_OP: DcChar = DcChar::from_short(2543);
+/// Reads the element of the first sequence/buffer operand at the zero-based u64 index given by the second operand; faults when out of bounds. (Dc 2544).
+pub const DC_SEQ_GET_OP: DcChar = DcChar::from_short(2544);
+/// Extracts the half-open sub-sequence [start..end) from the first operand using the second (start) and third (end) u64 index operands; faults unless start <= end <= length. (Dc 2545).
+pub const DC_SEQ_SLICE_OP: DcChar = DcChar::from_short(2545);
+/// Returns a new immutable sequence containing all elements of the first operand followed by all elements of the second operand. (Dc 2546).
+pub const DC_SEQ_CONCAT_OP: DcChar = DcChar::from_short(2546);
+/// Parameterized immutable value-semantics StageL list type l/T over element type T. (Dc 2576).
+pub const DC_STAGEL_LIST_TYPE: DcChar = DcChar::from_short(2576);
+/// Parameterized mutable local StageL buffer type buf/T over element type T for linear-time construction and O(1) indexed updates. (Dc 2577).
+pub const DC_STAGEL_BUF_TYPE: DcChar = DcChar::from_short(2577);
+/// Constructs an immutable StageL list of the specified element type from zero or more evaluated element expressions. (Dc 2578).
+pub const DC_BEGIN_STAGEL_LIST: DcChar = DcChar::from_short(2578);
+/// Terminates a StageL list constructor begun by Dc 2578. (Dc 2579).
+pub const DC_END_STAGEL_LIST: DcChar = DcChar::from_short(2579);
+/// Allocates an empty mutable StageL buffer of the specified element type with initial u64 capacity given by the second operand. (Dc 2580).
+pub const DC_STAGEL_BUF_NEW: DcChar = DcChar::from_short(2580);
+/// Allocates a mutable StageL buffer initialized with copies of the first element-value operand repeated to the u64 length given by the second operand. (Dc 2581).
+pub const DC_STAGEL_BUF_FILL: DcChar = DcChar::from_short(2581);
+/// Appends the second element operand to the end of the first mutable StageL buffer operand in amortized O(1) time; faults if the buffer has been frozen. (Dc 2582).
+pub const DC_STAGEL_BUF_PUSH: DcChar = DcChar::from_short(2582);
+/// Appends all elements of the second immutable list operand to the end of the first mutable StageL buffer operand; faults if the buffer has been frozen. (Dc 2583).
+pub const DC_STAGEL_BUF_EXTEND: DcChar = DcChar::from_short(2583);
+/// Overwrites the element of the first mutable StageL buffer operand at the zero-based u64 index (second operand) with the third operand in O(1) time; faults if out of bounds or frozen. (Dc 2584).
+pub const DC_STAGEL_BUF_SET: DcChar = DcChar::from_short(2584);
+/// Freezes a mutable StageL buffer into an immutable l/T list in O(1) zero-copy time and marks the buffer handle frozen against subsequent mutation. (Dc 2585).
+pub const DC_STAGEL_BUF_FREEZE: DcChar = DcChar::from_short(2585);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

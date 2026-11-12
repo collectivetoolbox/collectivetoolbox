@@ -90,10 +90,11 @@ use crate::dc::{
     DC_DATA_FORMAT_DESCRIPTION, DC_DC_FORMAT_EXPORT_SUPPORT,
     DC_DC_FORMAT_IMPORT_SUPPORT, DC_DC_FORMAT_TEST_COVERAGE,
     DC_DC_FORMAT_VARIATION_NICKNAME, DC_DC_GENERAL_CATEGORY,
-    DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION, DC_ENCLOSING_DOCUMENT,
+    DC_DEFAULT_FORMAT_VARIANT, DC_DESCRIPTION,
+    DC_DISTRIBUTE_STATEMENT_OVER_EACH, DC_ENCLOSING_DOCUMENT,
     DC_END_ASSOCIATIVITY_GROUP, DC_END_GRAPH_NODE_DEFINITION, DC_END_LIST,
     DC_END_NUMBER, DC_ENTITY_TYPE, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
-    DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FOR_EACH, DC_FORMAL_ALIAS,
+    DC_EXCLUSIVE_RANGE_ENDPOINT, DC_FORMAL_ALIAS,
     DC_FORMAT_VARIATION_ASPECT, DC_GENERAL_FORMAT_EXPORT_SUPPORT,
     DC_GENERAL_FORMAT_IMPORT_SUPPORT, DC_GENERAL_FORMAT_TEST_COVERAGE,
     DC_HAS_A, DC_HAS_VALUE, DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_IN_CONTEXT_OF,
@@ -661,7 +662,10 @@ fn build_initial_token_labels(
             "Collective Toolbox Dc CSV seed database",
         ),
         (DC_MANUAL_ENTRY, "Manual entry"),
-        (DC_FOR_EACH, "For each"),
+        (
+            DC_DISTRIBUTE_STATEMENT_OVER_EACH,
+            "Distribute statement over each element",
+        ),
         (DC_THIS_ELEMENT, "This element"),
         (
             DC_TYPE_ATOM_DC,
@@ -1085,7 +1089,7 @@ impl LedgerBuilder {
             };
             return format!(
                 "{} ({} ({}, {}), [{}])",
-                self.describe_token(sh(DC_FOR_EACH)),
+                self.describe_token(sh(DC_DISTRIBUTE_STATEMENT_OVER_EACH)),
                 self.describe_token(inner_verb),
                 self.describe_atom_dc_tokens(inner_subj),
                 self.describe_atom_dc_tokens(inner_obj),
@@ -4108,7 +4112,7 @@ mod tests {
         );
         assert_eq!(
             nodes2[nodes2.len() - 2].tokens.first(),
-            Some(&sh(DC_FOR_EACH))
+            Some(&sh(DC_DISTRIBUTE_STATEMENT_OVER_EACH))
         );
         assert_eq!(
             nodes2.last().unwrap().tokens.first(),
@@ -4174,7 +4178,7 @@ mod tests {
         }
         assert_eq!(
             nodes2[initial_len + 3].tokens.first(),
-            Some(&sh(DC_FOR_EACH))
+            Some(&sh(DC_DISTRIBUTE_STATEMENT_OVER_EACH))
         );
         assert_eq!(
             nodes2[initial_len + 4].tokens.first(),
@@ -4750,7 +4754,7 @@ mod tests {
         );
         assert_eq!(
             nodes2[nodes2.len() - 2].tokens.first(),
-            Some(&sh(DC_FOR_EACH))
+            Some(&sh(DC_DISTRIBUTE_STATEMENT_OVER_EACH))
         );
         assert_eq!(
             nodes2.last().unwrap().tokens.first(),

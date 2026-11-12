@@ -381,8 +381,8 @@ pub enum DcRole {
     /// General concept of manual entry or direct human authoring. (`637`).
     ManualEntry,
     /// Evaluates or asserts the first operand ([statement]) once for each element of the second operand, binding Dc 639 (This element) to the current element on each iteration. (`638`).
-    ForEach,
-    /// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (For each) expression. (The Dc is called "This" by by analogy to jQuery $(this) in .each(), but maybe there's a better name for it.) (`639`).
+    DistributeStatementOverEach,
+    /// Pronoun referring to the element currently being iterated over within an enclosing Dc 638 (Distribute statement over each element) expression. (The Dc is called "This" by analogy to jQuery $(this) in .each(), but maybe there's a better name for it.) (`639`).
     ThisElement,
     /// An unevaluated reference to a single Document Character (or Dc 616 atom expression), denoting the character or graph node itself rather than evaluating its syntax rule. (`640`).
     TypeAtomDc,
@@ -416,6 +416,156 @@ pub enum DcRole {
     DcDocumentExecutionKernel,
     /// Top-level 1-Short-Dc workspace bootstrap entry document for the full Collective Toolbox workspace application, delegating document execution and resource accounting to Dc 1936 (Dc document execution kernel). (`1937`).
     CollectiveToolboxWorkspace,
+    /// Begins a tokenized module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (`2192`).
+    BeginModule,
+    /// Terminates a module begun by Dc 2192. (`2193`).
+    EndModule,
+    /// Declares the PSR-4 module namespace path of the enclosing module. (`2194`).
+    NamespaceDecl,
+    /// Imports one or more exported bindings or routines from the specified namespace path. (`2195`).
+    BeginUseImport,
+    /// Terminates a use import list begun by Dc 2195. (`2196`).
+    EndUseImport,
+    /// Specifies one imported item (by resolved Dc or source identifier) and an optional local alias identifier. (`2197`).
+    UseImportItem,
+    /// Declares a non-shadowing local mutable variable of the given type, with an optional initial value expression. (`2198`).
+    DeclareLet,
+    /// Declares a private immutable binding with an optional assigned graph Dc identity, static type, name, and initializer expression. (`2199`).
+    DeclareConst,
+    /// Declares an exported module-level immutable binding with an optional assigned graph Dc identity, static type, name, and initializer expression. (`2200`).
+    DeclarePub,
+    /// Assigns a new value expression to an existing mutable local variable of matching type. (`2201`).
+    AssignSet,
+    /// References a lexically bound variable or constant (by identifier or resolved graph Dc) with its explicit static type. (`2202`).
+    TypedValueRef,
+    /// Declares a named routine with a boolean export visibility flag (true for public, false for private), optional assigned graph Dc identity, return type, name, typed parameters, optional test block, and body expression. (`2203`).
+    BeginRoutineDecl,
+    /// Terminates a routine declaration begun by Dc 2203. (`2204`).
+    EndRoutineDecl,
+    /// Declares one formal parameter of a routine with its static type and identifier. (`2205`).
+    RoutineParam,
+    /// Begins a contract block of one or more inline input/output test cases attached to a routine declaration. (`2206`).
+    BeginTestBlock,
+    /// Terminates a routine test block begun by Dc 2206. (`2207`).
+    EndTestBlock,
+    /// Defines one inline routine test case consisting of positional argument expressions, Dc 2209, and the expected output expression (or FaultTrap for expected traps, or absent for void completion). (`2208`).
+    BeginTestCase,
+    /// Separates positional input argument expressions from the expected output within a Dc 2208 test case. (`2209`).
+    TestExpectedOut,
+    /// Terminates a routine test case begun by Dc 2208. (`2210`).
+    EndTestCase,
+    /// Invokes a local or resolved graph routine with zero or more positional argument expressions. (`2211`).
+    BeginRoutineCall,
+    /// Terminates a routine call begun by Dc 2211. (`2212`).
+    EndRoutineCall,
+    /// Evaluates zero or more sequential expressions or local declarations in a new lexical scope, yielding the final expression's value (or void if empty). (`2213`).
+    BeginCodeBlock,
+    /// Terminates a code block begun by Dc 2213. (`2214`).
+    EndCodeBlock,
+    /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (`2448`).
+    IfConditional,
+    /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (`2449`).
+    WhileLoop,
+    /// Iterates over a sequence expression in order, binding a fresh non-shadowing element identifier of the declared type for each iteration of the body expression. (`2450`).
+    ForEach,
+    /// Exits the innermost enclosing loop immediately (type Never). (`2451`).
+    BreakLoop,
+    /// Advances immediately to the next iteration of the innermost enclosing loop (type Never). (`2452`).
+    ContinueLoop,
+    /// Returns early from the enclosing routine with an optional return value expression (or absent for void routines; type Never). (`2453`).
+    ReturnRoutine,
+    /// Deterministically aborts execution with an unrecoverable trap (type Never). (`2454`).
+    FaultTrap,
+    /// Checked numeric addition of two operands of matching type; faults on overflow. (`2512`).
+    AddOp,
+    /// Checked subtraction of the second operand from the first operand; faults on overflow. (`2513`).
+    SubOp,
+    /// Checked numeric multiplication of two operands of matching type; faults on overflow. (`2514`).
+    MulOp,
+    /// Checked truncated division of the first operand by the second operand; faults on division by zero or signed minimum divided by -1. (`2515`).
+    DivOp,
+    /// Checked truncated remainder of dividing the first operand by the second operand; faults on zero divisor or signed minimum modulo -1. (`2516`).
+    RemOp,
+    /// Checked arithmetic negation of a signed operand; faults on two's-complement minimum value. (`2517`).
+    NegOp,
+    /// Modular two's-complement addition wrapping modulo 2^width on fixed-width integers. (`2518`).
+    WrapAddOp,
+    /// Modular two's-complement subtraction of the second operand from the first operand wrapping modulo 2^width. (`2519`).
+    WrapSubOp,
+    /// Modular two's-complement multiplication wrapping modulo 2^width on fixed-width integers. (`2520`).
+    WrapMulOp,
+    /// Bitwise conjunction of two integer operands of matching type. (`2521`).
+    BitAndOp,
+    /// Bitwise inclusive disjunction of two integer operands of matching type. (`2522`).
+    BitOrOp,
+    /// Bitwise exclusive disjunction of two integer operands of matching type. (`2523`).
+    BitXorOp,
+    /// Bitwise ones'-complement inversion of an integer operand. (`2524`).
+    BitNotOp,
+    /// Shifts the first integer operand left by the second u32 bit-count operand; faults if the shift count is greater than or equal to the bit width. (`2525`).
+    ShlOp,
+    /// Shifts the first integer operand right by the second u32 bit-count operand (logical zero-fill on unsigned types, arithmetic sign-extending on signed types); faults if the shift count is greater than or equal to the bit width. (`2526`).
+    ShrOp,
+    /// Bitwise left rotation of the first unsigned integer operand by the second u32 bit-count operand. (`2527`).
+    RotlOp,
+    /// Bitwise right rotation of the first unsigned integer operand by the second u32 bit-count operand. (`2528`).
+    RotrOp,
+    /// Counts leading zero bits in a fixed-width integer operand as a u32. (`2529`).
+    ClzOp,
+    /// Counts trailing zero bits in a fixed-width integer operand as a u32. (`2530`).
+    CtzOp,
+    /// Counts set one-bits in a fixed-width integer operand as a u32. (`2531`).
+    PopcntOp,
+    /// Boolean negation of a boolean operand. (`2532`).
+    LogicalNotOp,
+    /// Short-circuiting boolean conjunction: evaluates the second operand only when the first operand is true. (`2533`).
+    LogicalAndOp,
+    /// Short-circuiting boolean disjunction: evaluates the second operand only when the first operand is false. (`2534`).
+    LogicalOrOp,
+    /// Tests whether two operands of matching type are equal (including structural element-wise equality on immutable lists). (`2535`).
+    EqOp,
+    /// Tests whether two operands of matching type are not equal. (`2536`).
+    NeOp,
+    /// Tests whether the first operand is strictly less than the second operand. (`2537`).
+    LtOp,
+    /// Tests whether the first operand is less than or equal to the second operand. (`2538`).
+    LeOp,
+    /// Tests whether the first operand is strictly greater than the second operand. (`2539`).
+    GtOp,
+    /// Tests whether the first operand is greater than or equal to the second operand. (`2540`).
+    GeOp,
+    /// Converts the first operand's numeric value to the target type specified by the second operand (lossless when widening, faulting when outside the target type's range). (`2541`).
+    ConvertOp,
+    /// Reinterprets the raw bit pattern of the first fixed-width integer operand as a same-width integer of the target type specified by the second operand. (`2542`).
+    BitcastOp,
+    /// Returns the element count of a sequence or buffer as a u64. (`2543`).
+    SeqLenOp,
+    /// Reads the element of the first sequence/buffer operand at the zero-based u64 index given by the second operand; faults when out of bounds. (`2544`).
+    SeqGetOp,
+    /// Extracts the half-open sub-sequence [start..end) from the first operand using the second (start) and third (end) u64 index operands; faults unless start <= end <= length. (`2545`).
+    SeqSliceOp,
+    /// Returns a new immutable sequence containing all elements of the first operand followed by all elements of the second operand. (`2546`).
+    SeqConcatOp,
+    /// Parameterized immutable value-semantics StageL list type l/T over element type T. (`2576`).
+    StagelListType,
+    /// Parameterized mutable local StageL buffer type buf/T over element type T for linear-time construction and O(1) indexed updates. (`2577`).
+    StagelBufType,
+    /// Constructs an immutable StageL list of the specified element type from zero or more evaluated element expressions. (`2578`).
+    BeginStagelList,
+    /// Terminates a StageL list constructor begun by Dc 2578. (`2579`).
+    EndStagelList,
+    /// Allocates an empty mutable StageL buffer of the specified element type with initial u64 capacity given by the second operand. (`2580`).
+    StagelBufNew,
+    /// Allocates a mutable StageL buffer initialized with copies of the first element-value operand repeated to the u64 length given by the second operand. (`2581`).
+    StagelBufFill,
+    /// Appends the second element operand to the end of the first mutable StageL buffer operand in amortized O(1) time; faults if the buffer has been frozen. (`2582`).
+    StagelBufPush,
+    /// Appends all elements of the second immutable list operand to the end of the first mutable StageL buffer operand; faults if the buffer has been frozen. (`2583`).
+    StagelBufExtend,
+    /// Overwrites the element of the first mutable StageL buffer operand at the zero-based u64 index (second operand) with the third operand in O(1) time; faults if out of bounds or frozen. (`2584`).
+    StagelBufSet,
+    /// Freezes a mutable StageL buffer into an immutable l/T list in O(1) zero-copy time and marks the buffer handle frozen against subsequent mutation. (`2585`).
+    StagelBufFreeze,
     /// Base64 encapsulation digit character (0..=63).
 Base64Digit,
 /// Built-in type token, format token, or type operator.
@@ -601,7 +751,7 @@ match self {
             Self::CollectiveToolboxSeedGraphDataSource => Some(635),
             Self::CollectiveToolboxDcCsvSeedDatabase => Some(636),
             Self::ManualEntry => Some(637),
-            Self::ForEach => Some(638),
+            Self::DistributeStatementOverEach => Some(638),
             Self::ThisElement => Some(639),
             Self::TypeAtomDc => Some(640),
             Self::GlobalGraphSystemBlockMostRecentNodeId => Some(641),
@@ -619,6 +769,81 @@ match self {
             Self::EndWasmProgram => Some(1928),
             Self::DcDocumentExecutionKernel => Some(1936),
             Self::CollectiveToolboxWorkspace => Some(1937),
+            Self::BeginModule => Some(2192),
+            Self::EndModule => Some(2193),
+            Self::NamespaceDecl => Some(2194),
+            Self::BeginUseImport => Some(2195),
+            Self::EndUseImport => Some(2196),
+            Self::UseImportItem => Some(2197),
+            Self::DeclareLet => Some(2198),
+            Self::DeclareConst => Some(2199),
+            Self::DeclarePub => Some(2200),
+            Self::AssignSet => Some(2201),
+            Self::TypedValueRef => Some(2202),
+            Self::BeginRoutineDecl => Some(2203),
+            Self::EndRoutineDecl => Some(2204),
+            Self::RoutineParam => Some(2205),
+            Self::BeginTestBlock => Some(2206),
+            Self::EndTestBlock => Some(2207),
+            Self::BeginTestCase => Some(2208),
+            Self::TestExpectedOut => Some(2209),
+            Self::EndTestCase => Some(2210),
+            Self::BeginRoutineCall => Some(2211),
+            Self::EndRoutineCall => Some(2212),
+            Self::BeginCodeBlock => Some(2213),
+            Self::EndCodeBlock => Some(2214),
+            Self::IfConditional => Some(2448),
+            Self::WhileLoop => Some(2449),
+            Self::ForEach => Some(2450),
+            Self::BreakLoop => Some(2451),
+            Self::ContinueLoop => Some(2452),
+            Self::ReturnRoutine => Some(2453),
+            Self::FaultTrap => Some(2454),
+            Self::AddOp => Some(2512),
+            Self::SubOp => Some(2513),
+            Self::MulOp => Some(2514),
+            Self::DivOp => Some(2515),
+            Self::RemOp => Some(2516),
+            Self::NegOp => Some(2517),
+            Self::WrapAddOp => Some(2518),
+            Self::WrapSubOp => Some(2519),
+            Self::WrapMulOp => Some(2520),
+            Self::BitAndOp => Some(2521),
+            Self::BitOrOp => Some(2522),
+            Self::BitXorOp => Some(2523),
+            Self::BitNotOp => Some(2524),
+            Self::ShlOp => Some(2525),
+            Self::ShrOp => Some(2526),
+            Self::RotlOp => Some(2527),
+            Self::RotrOp => Some(2528),
+            Self::ClzOp => Some(2529),
+            Self::CtzOp => Some(2530),
+            Self::PopcntOp => Some(2531),
+            Self::LogicalNotOp => Some(2532),
+            Self::LogicalAndOp => Some(2533),
+            Self::LogicalOrOp => Some(2534),
+            Self::EqOp => Some(2535),
+            Self::NeOp => Some(2536),
+            Self::LtOp => Some(2537),
+            Self::LeOp => Some(2538),
+            Self::GtOp => Some(2539),
+            Self::GeOp => Some(2540),
+            Self::ConvertOp => Some(2541),
+            Self::BitcastOp => Some(2542),
+            Self::SeqLenOp => Some(2543),
+            Self::SeqGetOp => Some(2544),
+            Self::SeqSliceOp => Some(2545),
+            Self::SeqConcatOp => Some(2546),
+            Self::StagelListType => Some(2576),
+            Self::StagelBufType => Some(2577),
+            Self::BeginStagelList => Some(2578),
+            Self::EndStagelList => Some(2579),
+            Self::StagelBufNew => Some(2580),
+            Self::StagelBufFill => Some(2581),
+            Self::StagelBufPush => Some(2582),
+            Self::StagelBufExtend => Some(2583),
+            Self::StagelBufSet => Some(2584),
+            Self::StagelBufFreeze => Some(2585),
             _ => None,
 }
 }
@@ -807,7 +1032,7 @@ match self {
             Self::CollectiveToolboxSeedGraphDataSource => short == Some(635),
             Self::CollectiveToolboxDcCsvSeedDatabase => short == Some(636),
             Self::ManualEntry => short == Some(637),
-            Self::ForEach => short == Some(638),
+            Self::DistributeStatementOverEach => short == Some(638),
             Self::ThisElement => short == Some(639),
             Self::TypeAtomDc => short == Some(640),
             Self::GlobalGraphSystemBlockMostRecentNodeId => short == Some(641),
@@ -825,6 +1050,81 @@ match self {
             Self::EndWasmProgram => short == Some(1928),
             Self::DcDocumentExecutionKernel => short == Some(1936),
             Self::CollectiveToolboxWorkspace => short == Some(1937),
+            Self::BeginModule => short == Some(2192),
+            Self::EndModule => short == Some(2193),
+            Self::NamespaceDecl => short == Some(2194),
+            Self::BeginUseImport => short == Some(2195),
+            Self::EndUseImport => short == Some(2196),
+            Self::UseImportItem => short == Some(2197),
+            Self::DeclareLet => short == Some(2198),
+            Self::DeclareConst => short == Some(2199),
+            Self::DeclarePub => short == Some(2200),
+            Self::AssignSet => short == Some(2201),
+            Self::TypedValueRef => short == Some(2202),
+            Self::BeginRoutineDecl => short == Some(2203),
+            Self::EndRoutineDecl => short == Some(2204),
+            Self::RoutineParam => short == Some(2205),
+            Self::BeginTestBlock => short == Some(2206),
+            Self::EndTestBlock => short == Some(2207),
+            Self::BeginTestCase => short == Some(2208),
+            Self::TestExpectedOut => short == Some(2209),
+            Self::EndTestCase => short == Some(2210),
+            Self::BeginRoutineCall => short == Some(2211),
+            Self::EndRoutineCall => short == Some(2212),
+            Self::BeginCodeBlock => short == Some(2213),
+            Self::EndCodeBlock => short == Some(2214),
+            Self::IfConditional => short == Some(2448),
+            Self::WhileLoop => short == Some(2449),
+            Self::ForEach => short == Some(2450),
+            Self::BreakLoop => short == Some(2451),
+            Self::ContinueLoop => short == Some(2452),
+            Self::ReturnRoutine => short == Some(2453),
+            Self::FaultTrap => short == Some(2454),
+            Self::AddOp => short == Some(2512),
+            Self::SubOp => short == Some(2513),
+            Self::MulOp => short == Some(2514),
+            Self::DivOp => short == Some(2515),
+            Self::RemOp => short == Some(2516),
+            Self::NegOp => short == Some(2517),
+            Self::WrapAddOp => short == Some(2518),
+            Self::WrapSubOp => short == Some(2519),
+            Self::WrapMulOp => short == Some(2520),
+            Self::BitAndOp => short == Some(2521),
+            Self::BitOrOp => short == Some(2522),
+            Self::BitXorOp => short == Some(2523),
+            Self::BitNotOp => short == Some(2524),
+            Self::ShlOp => short == Some(2525),
+            Self::ShrOp => short == Some(2526),
+            Self::RotlOp => short == Some(2527),
+            Self::RotrOp => short == Some(2528),
+            Self::ClzOp => short == Some(2529),
+            Self::CtzOp => short == Some(2530),
+            Self::PopcntOp => short == Some(2531),
+            Self::LogicalNotOp => short == Some(2532),
+            Self::LogicalAndOp => short == Some(2533),
+            Self::LogicalOrOp => short == Some(2534),
+            Self::EqOp => short == Some(2535),
+            Self::NeOp => short == Some(2536),
+            Self::LtOp => short == Some(2537),
+            Self::LeOp => short == Some(2538),
+            Self::GtOp => short == Some(2539),
+            Self::GeOp => short == Some(2540),
+            Self::ConvertOp => short == Some(2541),
+            Self::BitcastOp => short == Some(2542),
+            Self::SeqLenOp => short == Some(2543),
+            Self::SeqGetOp => short == Some(2544),
+            Self::SeqSliceOp => short == Some(2545),
+            Self::SeqConcatOp => short == Some(2546),
+            Self::StagelListType => short == Some(2576),
+            Self::StagelBufType => short == Some(2577),
+            Self::BeginStagelList => short == Some(2578),
+            Self::EndStagelList => short == Some(2579),
+            Self::StagelBufNew => short == Some(2580),
+            Self::StagelBufFill => short == Some(2581),
+            Self::StagelBufPush => short == Some(2582),
+            Self::StagelBufExtend => short == Some(2583),
+            Self::StagelBufSet => short == Some(2584),
+            Self::StagelBufFreeze => short == Some(2585),
             Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)

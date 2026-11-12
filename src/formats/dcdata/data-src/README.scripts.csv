@@ -9,6 +9,7 @@ Script,Block increment size
 .EL Operators,64
 .EL Pronouns,32
 .EL Routines,256
+.EL StageL,32
 .EL Syntax,256
 .EL Types,64
 .Emoji,TBD

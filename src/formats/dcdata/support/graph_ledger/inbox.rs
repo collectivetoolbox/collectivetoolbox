@@ -567,21 +567,23 @@ pub fn prevalidate_and_plan_inbox_items(
                     "{inbox_name} (l{next_id}): duplicate candidate l{cand_id} in Dc 348 list"
                 );
             }
-        } else if parsed.tokens.first() == Some(&sh(crate::dc::DC_FOR_EACH)) {
+        } else if parsed.tokens.first()
+            == Some(&sh(crate::dc::DC_DISTRIBUTE_STATEMENT_OVER_EACH))
+        {
             let Some((inner_verb, _, _, _, elements)) =
                 super::parse_for_each_statement_tokens(&parsed.tokens)
             else {
                 bail!(
-                    "{inbox_name} (l{next_id}): malformed Dc 638 'For each' statement syntax"
+                    "{inbox_name} (l{next_id}): malformed Dc 638 'Distribute statement over each element' statement syntax"
                 );
             };
             ensure!(
                 is_relationship_verb_with(inner_verb, framing),
-                "{inbox_name} (l{next_id}): Dc 638 'For each' inner verb {inner_verb} is not a relationship verb"
+                "{inbox_name} (l{next_id}): Dc 638 'Distribute statement over each element' inner verb {inner_verb} is not a relationship verb"
             );
             ensure!(
                 !elements.is_empty(),
-                "{inbox_name} (l{next_id}): Dc 638 'For each' list cannot be empty"
+                "{inbox_name} (l{next_id}): Dc 638 'Distribute statement over each element' list cannot be empty"
             );
         } else if let Some(&first_tok) = parsed.tokens.first()
             && is_relationship_verb_with(first_tok, framing)

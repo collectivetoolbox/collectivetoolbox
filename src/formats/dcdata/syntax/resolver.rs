@@ -976,6 +976,7 @@ impl DatasetRuleResolver {
             DcRole::LangAssign,
             DcRole::ReferenceBoundValue,
             DcRole::EnterIdentifierScope,
+            DcRole::DistributeStatementOverEach,
             DcRole::ForEach,
             DcRole::ReferenceNamedObject,
             DcRole::RoutineInvocation,
