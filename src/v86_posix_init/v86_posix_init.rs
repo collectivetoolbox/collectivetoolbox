@@ -939,7 +939,12 @@ pub extern "C" fn _start() -> ! {
     }
 
     let cmd_str = b"\
-mkdir -p /bin /usr/bin /etc /root /tmp/.X11-unix /var/log /var/run
+for p in /gnu/store/*-profile; do
+    export PATH=\"$p/bin:$p/sbin:$PATH\"
+done
+export PATH=\"/bin:/usr/bin:/tmp:$PATH\"
+
+mkdir -p /bin /usr/bin /etc /root /tmp/.X11-unix /tmp/xdg-cache /var/log /var/run
 chmod 1777 /tmp /tmp/.X11-unix
 
 if [ ! -s /etc/passwd ]; then
@@ -985,11 +990,7 @@ for p in /gnu/store/*openbox* /gnu/store/*-profile; do
     [ -d \"$p/etc/xdg\" ] && XDG_CONFIG_DIRS=\"$p/etc/xdg:$XDG_CONFIG_DIRS\"
 done
 export XDG_DATA_DIRS XDG_CONFIG_DIRS
-
-for p in /gnu/store/*-profile; do
-    export PATH=\"$p/bin:$p/sbin:$PATH\"
-done
-export PATH=\"/bin:/usr/bin:$PATH\"
+export XDG_CACHE_HOME=/tmp/xdg-cache
 export SHELL=/bin/sh
 export USER=root
 export LOGNAME=root
@@ -1000,6 +1001,7 @@ echo \"export SHELL=/bin/sh\" >> /etc/profile
 echo \"export DISPLAY=:0\" >> /etc/profile
 echo \"export XDG_DATA_DIRS=$XDG_DATA_DIRS\" >> /etc/profile
 echo \"export XDG_CONFIG_DIRS=$XDG_CONFIG_DIRS\" >> /etc/profile
+echo \"export XDG_CACHE_HOME=/tmp/xdg-cache\" >> /etc/profile
 
 MP=$(
     echo /gnu/store/*-profile/lib/xorg/modules \\
