@@ -12,9 +12,10 @@ StageR 3 builds strictly on top of [StageL 3 (`sl3.md`)](./sl3.md):
 - **Unchanged core**: Every valid StageL 3 type, literal, control-flow form, `let`/`set`/`const` rule, lexical capture rule, constant-stack tail-call guarantee, and core operator signature retains **identical** syntax and return types in StageR 3. StageR 3 never alters inherited StageL 3 signatures (for instance, `add` still returns `T` and faults on overflow; recoverable checked arithmetic uses distinct `tryAdd` verbs returning `result/T`).
 - **No first-class functions in StageR 3**: Like StageL 3, named nested verbs are directly callable and capture shared lexical bindings, but verbs cannot be assigned, passed as arguments, or returned as values. First-class functions (`v/T[A,B]`, `/name` references, `call /fn ...`, and escaping closures) belong exclusively to **EM3 (`f658`)**.
 - **Compilation & Transpilation Hierarchy**:
-  - Baseline native/web path: **EM3 -> StageR 3 -> Rust or JavaScript**.
-  - Baseline graph/sandboxed WASM path: **EM3 -> StageR 3 -> StageL 3 -> `.WASM` (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`)**.
-  - Construct-level target rules operate on resolved semantic Dc constructs (retaining types, lexical scopes, and effects) before falling back to lower-stage decompositions; backends never flatten prematurely and try to reverse-engineer high-level constructs afterward, and runtime execution errors never silently retry via a fallback implementation.
+  - **StageR 3 is implemented using StageL 3** (`stage_1_impls/f657_*.sl3`). StageR 3 initially transpiles into WAT and compiles to `.WASM` (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`) for execution, and later transpiles directly into **Rust**, **JavaScript**, and other target languages (enabling common graph Dcs to ship precompiled as native machine code in `ctoolbox`).
+  - **EM3 (`f658`)** can always run by converting the needed StageR 3 functions and transpiling/compiling those, while also supporting higher-level construct refinements for cleaner target-language transpilation when semantics match; runtime execution errors never silently retry via a fallback implementation.
+- **Single-Threaded Execution & Graph DRYness**:
+  - StageR 3 (like StageL 3) has no intra-document multithreading; concurrency across isolated Dc document processes (with optional shared memory) and function-granularity Dc allocation for append-only graph DRYness and caching are detailed in [`issues/language.md`](../../../../issues/language.md).
 
 ---
 

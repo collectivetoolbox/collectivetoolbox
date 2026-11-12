@@ -11,30 +11,27 @@ The bootstrap implementation directory stages are:
 - **Stage 1 (`src/formats/dcdata/data-src/stage_1_impls/`)**: `.dcsh` and `.sl3` implementations, including the StageR 3 compiler (`f657_*.sl3`).
 - **Stage 2 (`src/formats/dcdata/data-src/impls/`)**: `.dcsh`, `.sl3`, and `.sr3` implementations, including EM3 (`f658`) and higher-level VSO/localization definitions described in [`docs/chats/2026-10-31-language.md`](../docs/chats/2026-10-31-language.md).
 
-## Transpilation Architecture
+## Transpilation, Concurrency, and Performance Architecture
 
-The baseline compilation path is **EM3 -> StageR 3 -> Rust or JavaScript**.
-Separate direct EM3-to-Rust and EM3-to-JavaScript compilers are not required
-initially. For WAT, use **StageR 3 -> StageL 3 -> WAT**; StageL 3 also compiles
-to WAT on its own. StageR operations can have direct WAT lowerings where useful,
-without requiring a second implementation of their semantics.
+### Staged Implementation & Transpilation Flow
 
-This is a fallback hierarchy, not a requirement to erase every high-level
-construct before selecting a backend. Preserve resolved semantic Dc constructs
-until a target conversion rule has been selected:
+1. **StageL 3 (`f656`)** is implemented directly in Stage 0 WAT (`stage_0_impls/f656_*.wat`) and compiles to WAT / `.WASM` (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`).
+2. **StageR 3 (`f657`)** is implemented **using StageL 3** (`stage_1_impls/f657_*.sl3`). Because it builds on StageL 3, StageR 3 initially transpiles into WAT and compiles to `.WASM` for execution, and later gains direct transpilers into **Rust**, **JavaScript**, and other target languages. (Individual StageR 3 primitives may also lower directly to WAT where useful without duplicating their semantic specification.)
+3. **EM3 (`f658` / `f661`)** always has a working baseline path: resolve the StageR 3 functions that implement an EM3 document's constructs and transpile/compile those. On top of that baseline, EM3 supports **higher-level construct refinements** so backends can transpile rich semantic constructs directly into idiomatic target-language code instead of flattening everything first.
+
+Preserve resolved semantic Dc constructs until a target conversion rule is selected:
 
 1. Resolve the construct and its dependencies against the selected graph
    snapshot. Retain its identity, operands, types, lexical bindings, source
    location, and effects in a common semantic representation.
-2. Prefer an applicable target-specific implementation that preserves its
-   semantics. For example, a list transform might emit a target's high-level
-   construct when evaluation order, allocation, errors, and captures agree.
-3. Otherwise use the construct's lower-level implementation, normally StageR 3
-   for EM3 constructs, and recursively convert that implementation. The same
-   mechanism can lower StageR constructs to StageL 3 for WAT.
+2. Prefer an applicable target-specific refinement that preserves exact
+   semantics (evaluation order, allocation/fault behavior, and captures).
+3. Otherwise fall back to the construct's lower-level implementation (StageR 3
+   for EM3 constructs; StageL 3 / WAT for StageR 3 constructs) and recursively
+   transpile that implementation.
 4. Report a missing implementation or decomposition cycle explicitly. A
-   supported operation that fails during execution must not silently retry via
-   a fallback, which could duplicate effects or conceal an error.
+   supported operation that fails during execution must **never** silently retry
+   via a fallback, which could duplicate effects or conceal an error.
 
 "Dc-by-Dc" conversion operates on **resolved constructs with their operands
 and context**, not independent character substitution. Binding, closure
@@ -43,11 +40,32 @@ or module analysis. Rules must use the shared graph resolver, including
 equivalences, rather than a backend's private numeric allowlist.
 
 Target-rule eligibility and priority must be deterministic and versioned with
-the compilation configuration. Both high-level and fallback paths must preserve
+the compilation configuration. Both refined and fallback paths must preserve
 values, faults, effect ordering, tail-call bounds, and the observable
 execution/replay contract, including logical resource accounting where that
 contract applies. Cross-path equivalence tests are a required gate before
 enabling a specialized rule.
+
+### Concurrency & Document Isolation Model
+
+- **Single-threaded StageL 3 and StageR 3**: Neither StageL 3 nor StageR 3 provides intra-document multithreading, shared-memory atomics, or lock primitives at this time.
+- **Process-level multi-document concurrency**: Parallelism is achieved outside StageL/StageR by running multiple Dc documents concurrently as separate isolated processes/sandboxes. Where high-throughput data sharing is needed, isolated document processes can share explicit host-managed memory regions or immutable graph/file extents (using file-descriptor-backed shared memory on Linux) rather than copying payloads over sockets. To preserve deterministic replay and avoid torn-read hazards in Rust/StageR fast paths, shared regions should be immutable/sealed snapshots (`memfd` + write-sealing) or exchanged at explicit capability yield points rather than unsynchronized concurrent mutation.
+- **Future EM3 intra-document concurrency**: Intra-document multithreading or structured concurrency within a single EM3 document is deferred to later EM3 design.
+
+### Graph DRYness & Function-Granularity Dcs
+
+Because the global graph is **append-only**, keeping graph definitions strictly DRY is essential to prevent storage bloat as the graph grows:
+- **Allocate Dcs for individual reusable functions**: Strongly prefer allocating dedicated Dcs for reusable functions and small algorithmic building blocks rather than duplicating helper logic across multiple `.WASM`, `.sl3`, or `.sr3` definitions.
+  > Example: Using `i32.clz((255 - b0) << 24)` (`Dc 750 "WASM i32.clz"`) computes the DcTF byte length for all `128 <= b0 < 255` in a single expression—reusable helpers of this kind are good candidates for dedicated function Dcs.
+- **Link/inline across function Dcs at compile time**: Giving individual functions their own Dcs keeps the stored graph compact **and** gives precompilation/memoization a canonical identity, while compilers should link and direct-call/inline resolved helper Dcs within a compiled module rather than paying a full Dc-WASM linear-memory mailbox round-trip on every fine-grained helper call.
+
+### Precompilation, Deterministic Caching, and Composite Document Execution
+
+Executing every character, word, widget decomposition, and shaping rule purely through interpreted WASM on demand would be prohibitively slow (already visible in test-suite latency). Because graph evaluation is deterministic given explicit inputs (document octets, `Dc 641 "Global graph system block most recent node ID at time of document creation"` pins, rendering configuration, and external responses), multiple acceleration layers can coexist without changing observable semantics:
+
+1. **Ahead-of-time Rust transpilation built into `ctoolbox`**: Hot/common Dcs (core codecs, standard library functions, UI/layout primitives, shaping routines) transpile to Rust and compile into optimized native machine code shipped inside the `ctoolbox` binary. Precompiled entries must be keyed to the **resolved implementation node ID** (not an unpinned Short Dc ID) so historical snapshot pins execute the exact revision active at their pin, and generated Rust must preserve deterministic compute-fuel/recursion-depth checks and non-panicking fault returns.
+2. **Cached compiled modules & resolver tables**: Compiled WASM modules, lowered StageR/StageL artifacts, and resolved syntax/property tables should be cached across runs and tests by `(snapshot_pin, node_id)`.
+3. **Cached & precomputed execution/rendering states**: Composite Dc documents—spanning UI Dcs (`window`, `menu bar` built from `button` Dcs), word/character Dcs, shaped glyph Dcs, and target projections—can cache or ship precomputed intermediate states keyed by their explicit inputs. See [`docs/renderer-flow.md`](../docs/renderer-flow.md) for the composite document, character/word/glyph shaping, and output projection pipeline.
 
 ## Pending Work (StageL 3, StageR 3, and EM3)
 
@@ -56,20 +74,17 @@ enabling a specialized rule.
   - Lower uncaptured bindings to WASM locals, captured mutable `let` bindings to linear-memory shadow frames popped before non-child tail calls, and tail-position calls to `Dc 665 "WASM return_call"`.
   - Wire the `StagedSourceCompiler` callback into `load_staged_dc_impls_with_compiler` once `f656_*.wat` is committed so `stage_1_impls/*.sl3` compiles automatically during ledger generation.
 - [ ] **StageL 3 Iteration & Multi-File Library Extensions**:
-  - Add explicit element/index binding syntax to `foreach` before permitting nested `foreach` loops, and specify module/import boundaries before scaling beyond single-file Stage 1 routines.
-- [ ] **StageR 3 Compiler (`stage_1_impls/f657_*.sl3`), Runtime Types, and Backends (Rust / JS / StageL 3)**:
+  - Add explicit element/index binding syntax to `foreach` before permitting nested `foreach` loops, and specify module/import boundaries (including cross-Dc function linking without per-call mailbox serialization) before scaling beyond single-file Stage 1 routines.
+- [ ] **StageR 3 Compiler (`stage_1_impls/f657_*.sl3`), Runtime Types, and Backends (WAT / Rust / JS)**:
   - Implement runtime layouts and typed arena handles for `i128`, `u128`, `int`, `rat`, `dc`, `s` (`DcMst`), `dcs`, `option/T`, `result/T`, and structured `error` payloads (keeping physical allocation exhaustion distinct from `error:overflow`, and avoiding precision loss via `BigInt` in JS).
   - Finalize exhaustive pattern matching and explicit error-propagation syntax for `option/T` and `result/T`.
   - Implement `view` and `cursor` sliding-window host paging (`MapWindow` yield) and zero-copy output extent emission (`Dc 376 "Extent byte offset"` / `Dc 377 "Extent byte length"`) for multi-gigabyte files and deduplicated graph value-node slices.
+  - Design the snapshot-keyed Rust AOT dispatch table (with loop/call fuel metering and fault equivalence) so common graph Dcs ship precompiled inside `ctoolbox`.
   - Specify ELAD decoding and text-mapping helpers (`dcaFromElad`, `dctCodeToText`) with explicit `option/s` and `result/...` error contracts before porting legacy StageL v1/v2 codecs (`format-ascii.stagel`, `format-utf8.stagel`).
 - [ ] **EM3 (`f658` / `f661`) First-Class Closures, Speakable/Compact Profiles, and Cross-Backend Conformance**:
   - Finalize EM3 function-value declaration syntax, `{ fn_id: u32, env_ptr: u32 }` closure lowering with per-signature `Dc 661 "WASM br_table"` + `Dc 665 "WASM return_call"` dispatchers (plus trampoline fallback on Rust/JS targets without guaranteed mutual tail calls), and cycle-safe arena/tracing lifetime management for escaping closures.
   - Specify quoted syntax data, hygienic macro expansion (if enabled), and logical non-tail recursion limits separately from host stacks.
-  - Gate target-specific optimization rules on cross-backend equivalence tests (`StageR -> Rust`, `StageR -> JS`, and `StageR -> StageL -> WAT`) covering mutated captures, mutual tail calls, arithmetic boundary faults, and mixed Dc/binary strings.
-
-> Using `i32.clz((255 - b0) << 24)` (`Dc 750 "WASM i32.clz"`) computes the DcTF byte length for all `128 <= b0 < 255` in a single expression!
-
-If you run across things like this that are reused, it's potentially worth allocating a new Dc to keep it DRY.
+  - Gate target-specific optimization rules on cross-backend equivalence tests (`StageR -> WAT`, `StageR -> Rust`, and `StageR -> JS`) covering mutated captures, mutual tail calls, arithmetic boundary faults, and mixed Dc/binary strings.
 
 # Graph-Defined Dc Language, Execution Kernel, and Compatibility Plan
 

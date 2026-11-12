@@ -19,6 +19,10 @@ The language stack is split into three distinct languages (separate from the boo
 - **`stage_1_impls/` (`.dcsh`, `.sl3`)**: StageR 3 compiler (`f657_*.sl3`) and core bootstrap routines written in StageL 3.
 - **`impls/` (`.dcsh`, `.sl3`, `.sr3`)**: Higher-level Document Character and EM3 implementations.
 
+### Execution, Concurrency, and Graph DRYness
+- **Single-threaded language semantics**: StageL 3 and StageR 3 have no built-in multithreading; parallelism is handled at the host level by running separate Dc documents as isolated processes (optionally sharing memory/extents), while intra-document concurrency is deferred to future EM3 design.
+- **Function-granularity Dcs**: Because the graph is append-only, reusable helpers should be allocated their own Dcs rather than duplicated across implementations, enabling both compact graph storage and per-Dc native Rust precompilation/caching (see [`issues/language.md`](../../../../issues/language.md)).
+
 ---
 
 ## 2. Lexical Rules & 32-Character Intermediate Format (`.sli3`)
