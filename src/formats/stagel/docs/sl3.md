@@ -1,8 +1,8 @@
 # StageL 3 Specification (`f656` `.sl3` / `f659` `.sli3`)
 
 **Implementation Status**: `Partially Implemented`
-- **Implemented**: Format registrations (`FormatId::StageL3` `f656` `.sl3` and `FormatId::StageL3Intermediate` `f659` `.sli3`), literal-aware 32-character normalizer (`src/formats/stagel/stagel3.rs`), normalized fixture (`src/formats/stagel/fixtures/sl3/`), staged bootstrap loader support (`src/formats/dcdata/support/wat.rs`), and `tinywasm` constant-stack tail-call execution (`return_call` / `return_call_indirect`).
-- **Pending Work**: StageL 3 Token Dc repertoire allocation, bidirectional `.sl3 <-> StageL Token Dcs` tokenizer/decompiler & `: @dc` auto-allocator, static type & definite-assignment validator, inline `test` runner, StageL built-in `.WASM` definitions, and the Stage 0 StageL-Dc-to-WASM transpiler (`src/formats/dcdata/data-src/stage_0_impls/f656_*.wat`).
+- **Implemented**: Format registrations (`FormatId::StageL3` `f656` `.sl3`, `FormatId::StageL3Intermediate` `f659` `.sli3`, `FormatId::Boolean` `f1424`, `FormatId::Void` `f1425`, and `FormatId::Never` `f1426`), shared `.EL` and `.EL StageL` base Token Dc repertoire (`Dc 2192 "Begin module"`..`Dc 2214 "End code block"`, `Dc 2448 "If conditional"`..`Dc 2454 "Fault trap"`, `Dc 2512 "Add operation"`..`Dc 2546 "Concatenate sequences operation"`, and `Dc 2576 "StageL list type"`..`Dc 2585 "StageL buffer freeze"`), literal-aware 32-character normalizer (`src/formats/stagel/stagel3.rs`), normalized fixture (`src/formats/stagel/fixtures/sl3/`), staged bootstrap loader support (`src/formats/dcdata/support/wat.rs`), and `tinywasm` constant-stack tail-call execution (`return_call` / `return_call_indirect`).
+- **Pending Work**: Bidirectional `.sl3 <-> StageL Token Dcs` tokenizer/decompiler & `: @dc` auto-allocator, static type & definite-assignment validator, inline `test` runner, StageL built-in `.WASM` definitions, StageL standard library modules (`mod`, `can*`, `explode`, `implode`, `assert` in `stage_1_impls/std/`), and the Stage 0 StageL-Dc-to-WASM transpiler (`src/formats/dcdata/data-src/stage_0_impls/f656_*.wat`).
 
 ---
 
@@ -66,18 +66,20 @@ StageL 3 source (`.sl3`) normalizes into `FormatId::StageL3Intermediate` (`.sli3
 
 Typing is static and strict with **zero implicit coercions**:
 
-| Type | Description | Literal Syntax |
-| :--- | :--- | :--- |
-| `b` | Boolean | `true`, `false` |
-| `t` | `letters`: opaque sequence over the 32-char `.sli3` alphabet | `t"abc"` |
-| `u8` | Unsigned 8-bit integer (`0..=255`) | `u8:0`, `u8:255` |
-| `i32` | Signed 32-bit two's-complement integer | `i32:-2147483648`, `i32:42` |
-| `u32` | Unsigned 32-bit integer | `u32:0` |
-| `i64` | Signed 64-bit two's-complement integer | `i64:-1`, `i64:0` |
-| `u64` | Unsigned 64-bit integer | `u64:0` |
-| `l/T` | Immutable/value-semantics list of supported element type `T` (`b"..."` has type `l/u8`) | `l/u32: u32:1 u32:2 ::`, `b"abc"` |
-| `void` | Unit type (single unit value returned by declarations, `set`, loops, and empty `do ::`) | `do ::` |
-| `never` | Bottom / non-returning type (`break`, `continue`, `return`, `fault`) — compatible with any branch type in `if` | *(control transfer)* |
+| Type | Token Dc / Format | Description | Literal / Constructor Syntax |
+| :--- | :--- | :--- | :--- |
+| `b` | `f1424` (`Boolean`) | Boolean | `true` (`Dc 517 "Boolean true"`), `false` (`Dc 518 "Boolean false"`) |
+| `u8` | `f203` (`U8`) | Unsigned 8-bit integer (`0..=255`) | `u8:0`, `u8:255` |
+| `i32` | `f208` (`I32`) | Signed 32-bit two's-complement integer | `i32:-2147483648`, `i32:42` |
+| `u32` | `f207` (`U32`) | Unsigned 32-bit integer | `u32:0` |
+| `i64` | `f210` (`I64`) | Signed 64-bit two's-complement integer | `i64:-1`, `i64:0` |
+| `u64` | `f209` (`U64`) | Unsigned 64-bit integer | `u64:0` |
+| `l/T` | `Dc 2576 "StageL list type"` | Immutable value-semantics list of element type `T` (`b"..."` has type `l/u8`) | `l/u32: u32:1 u32:2 ::`, `b"abc"` |
+| `buf/T` | `Dc 2577 "StageL buffer type"` | Mutable local StageL builder buffer over element type `T` (`O(1)` amortized push/set, zero-copy `bufFreeze -> l/T`; local-only, disallowed in exported `pub` constants/signatures) | `bufNew u8 u64:64`, `bufFill u8:0 u64:16` |
+| `void` | `f1425` (`Void`) | Unit type (single unit value returned by declarations, `set`, buffer mutators, loops, and empty `do ::`) | `do ::` |
+| `never` | `f1426` (`Never`) | Bottom / non-returning type (`break`, `continue`, `return`, `fault`) — compatible with any branch type in `if` | *(control transfer)* |
+
+> **Note on `t` (`letters`)**: Direct `.sl3 -> Token Dcs` compilation omits `t` (`letters`) from the base StageL 3 Token Dc repertoire (using `l/u8` byte slices in StageL 3 and `s` / `dcs` in StageR 3); `t"..."` normalization in `stagel3.rs` is retained only for `.sli3` normalizer compatibility.
 
 Named verbs (`v/RETURN/name ...`) are declarations, **not** value types. Assigning, passing, or returning a verb is prohibited in StageL 3 and StageR 3.
 
@@ -99,12 +101,12 @@ StageL 3 and StageR 3 support two file layouts under `stage_1_impls/` and `impls
    - `use` imports explicitly named `pub` verbs and `pub` constant values from other namespaces (wildcard `*` imports are disallowed so pass-1 signature collection always knows every verb's fixed arity, and `use` dependencies must form an acyclic DAG).
 
 ### 4.2 Unified Top-Level `const` / `pub` Model & Auto-Assigned `: @dc` Annotations
-At file top level, all declarations are immutable (`let` and `set` are local-block-only):
-- **Bare top-level `v/RETURN/name ...` is an implicit `const`**: Declares a file-private verb (do **not** write redundant `const v/...`).
-- **`const TYPE/name EXPR.`**: Declares a file-private constant value/data/string/list (evaluated as a pure constant expression).
-- **`pub` replaces `const` for exported reusable definitions**:
+At file top level, all declarations are immutable (`let` and `set` are local-block-only). In the tokenized AST (`Dc 2192 "Begin module"`..`Dc 2193 "End module"`), `let` (`Dc 2198 "Declare mutable binding"`), `const` (`Dc 2199 "Declare constant binding"`), and `pub` (`Dc 2200 "Declare public binding"`) are three peer binding-declarator verbs (`pub` never wraps `const`), while routines (`Dc 2203 "Begin routine declaration"`..`Dc 2204 "End routine declaration"`) carry a boolean export visibility flag (`Dc 517 "Boolean true"` for `pub v/...`, `Dc 518 "Boolean false"` for private `v/...`):
+- **Bare top-level `v/RETURN/name ...` is an implicit private routine (`Dc 2203` with `false`)**: Declares a file-private verb (do **not** write redundant `const v/...`).
+- **`const TYPE/name EXPR.` (`Dc 2199`)**: Declares a file-private constant value/data/list (evaluated as a pure constant expression).
+- **`pub` is the exported declaration form (`Dc 2200` for values, `Dc 2203` with `true` for routines)**:
   - `pub v/RETURN/name ...` exports a verb from the file's `ns` module.
-  - `pub TYPE/name EXPR.` exports a reusable constant value/data/string/list (referenced by importers via `TYPE/name`, which never collides with bare 0-arg verb calls `name`).
+  - `pub TYPE/name EXPR.` exports a reusable constant value/data/list (referenced via `Dc 2202 "Typed value reference"` `TYPE/name`, which never collides with 0-arg verb calls `Dc 2211 "Begin routine call"`..`Dc 2212 "End routine call"`).
   - `pub dc/<shorthand> v/...` or `pub dc/<shorthand> TYPE/name EXPR.` binds an exported namespace item as the implementation of an already-allocated Core Short Dc or Format Dc from `categories/*.csv`.
 
 | Declaration Scope & Form | Visibility | Graph Node Allocation |
@@ -152,12 +154,13 @@ Inside a verb or `do ... ::` block:
 ## 5. Expression-Oriented Control Flow & Tail Calls
 
 Every normally completing construct is an expression returning a value:
-- **Blocks (`do ... ::` and indented bodies)**: Evaluate statements left-to-right / top-to-bottom, discarding intermediate values and returning the final expression's value (`.` and `;` do **not** suppress the final value). An empty block `do ::` returns unit of type `void`.
-- **`if COND THEN ELSE`**: Evaluates `COND` (`b`), then evaluates **only** the selected branch. Result types of `THEN` and `ELSE` must match, except `never` unifies with any type `T` to yield `T`.
-- **`while COND BODY`**: Repeatedly evaluates `COND` (`b`) and `BODY` (`void`); returns `void` when `COND` is `false` or `break` executes.
-- **`foreach LIST BODY`**: Evaluates `LIST` (`l/T`) once (iterating a snapshot) and evaluates `BODY` (`void`) for each element with read-only `T/this` bound. Nested `foreach` is prohibited unless extracted into a helper verb (preserving unambiguous `T/this`).
-- **`break` / `continue`**: Type `never`; target the nearest enclosing loop within the current verb (cannot cross a verb boundary).
-- **`return EXPR`**: Type `never`; immediately returns `EXPR` (which must match the enclosing verb's declared `RETURN` type; `return do ::` for `void`). A call in `return CALL` is in tail position.
+- **Blocks (`do ... ::` and indented bodies, `Dc 2213 "Begin code block"`..`Dc 2214 "End code block"`)**: Evaluate statements left-to-right / top-to-bottom, discarding intermediate values and returning the final expression's value (`.` and `;` do **not** suppress the final value). An empty block `do ::` returns unit of type `void`.
+- **`if COND THEN ELSE` (`Dc 2448 "If conditional"`)**: Evaluates `COND` (`b`), then evaluates **only** the selected branch. Result types of `THEN` and `ELSE` must match, except `never` unifies with any type `T` to yield `T`.
+- **`while COND BODY` (`Dc 2449 "While loop"`)**: Repeatedly evaluates `COND` (`b`) and `BODY` (`void`); returns `void` when `COND` is `false` or `break` executes.
+- **`foreach T/elem LIST BODY` (`Dc 2450 "For each"`)**: Evaluates `LIST` (`l/T`) once (iterating a snapshot) and evaluates `BODY` (`void`) for each element with read-only non-shadowing `T/elem` bound (`: ~ [stagel_type] [identifier] [el_expr] [el_expr]`), supporting arbitrary nested `foreach` loops. (Distinct from declarative graph-relationship `Dc 638 "Distribute statement over each element"` + `Dc 639 "This element"`.)
+- **`break` (`Dc 2451 "Break loop"`) / `continue` (`Dc 2452 "Continue loop"`)**: Type `never`; target the nearest enclosing loop within the current verb (cannot cross a verb boundary).
+- **`return [EXPR]` (`Dc 2453 "Return from routine"`)**: Type `never`; immediately returns `EXPR` (or `absent` `Dc 316 "Optional value absent"` for `void` routines). A call in `return CALL` is in tail position.
+- **`fault` (`Dc 2454 "Fault trap"`)**: Type `never`; deterministically aborts execution with an unrecoverable trap.
 
 ### Mandatory Constant-Stack Tail Calls & Lexical Capture Lowering
 - **Tail-position guarantee**: Any direct call whose result is returned directly by the enclosing verb—including at the end of a verb body, inside `return`, at the end of a tail-position `do ... ::` block, or in either branch of a tail-position `if`—**must not grow the WASM call stack**, including across mutual recursion (`Dc 665 "WASM return_call"`).
@@ -176,53 +179,55 @@ StageL 3 and `.WASM` (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program
 
 ---
 
-## 6. Core Built-in Operators
+## 6. Core Built-in Operators vs. Standard Library Verbs
 
-Operands evaluate strictly **left-to-right** (except short-circuiting `if`, `and`, `or`). User-defined verbs cannot overload names, whereas the built-in operators below are type-directed over fixed primitive families.
+Operands evaluate strictly **left-to-right** (except short-circuiting `if`, `and`, `or`) in **VSO (Verb–Subject–Object)** prefix order. User-defined verbs cannot overload names, whereas the core Token Dc operators below are type-directed over fixed primitive families (`categories/el.csv` across `.EL Operators` and `.EL StageL`). Higher-level routines that can be written performantly in StageL 3 (`mod`, `can*`, `explode`, `implode`, `assert`) are Stage 1 library verbs (`stage_1_impls/std/`) rather than core Token Dcs.
 
-### 6.1 Checked Arithmetic (`u8`, `i32`, `u32`, `i64`, `u64`)
-Invalid arithmetic (overflow, division/modulus/remainder by zero, or `MIN / -1`) terminates evaluation with a deterministic fault (**never** silent two's-complement wrapping):
-- `add X Y`, `sub X Y`, `mul X Y`, `div X Y`, `mod X Y` -> `(T, T) -> T`
-  - `div` truncates toward zero (matching WASM `div_u` / `div_s`, with signed `MIN / -1` faulting).
-  - **`mod` semantics**: On unsigned types (`u8`, `u32`, `u64`), lowers directly to single-instruction `Dc 759 "WASM i32.rem_u"` / `Dc 777 "WASM i64.rem_u"` (`17 mod 5 == 2`). On signed types (`i32`, `i64`), computes **Euclidean modulus** (`0 <= (a mod b) < |b|` for `b != 0`; fault when `b == 0`; `MIN mod -1 == 0`) so `mod` always yields a non-negative residue (`-7 mod 3 == 2`).
-- `truncRem X Y` -> `(T, T) -> T` (signed `i32`, `i64` only; StageR 3 also adds `i128`, `int`, and `tryTruncRem`):
-  - Computes **WASM-style truncated remainder** `a - trunc(a / b) * b`, keeping the dividend's sign (`truncRem i32:-7 i32:3 == i32:-1`) and lowering directly to a single `Dc 758 "WASM i32.rem_s"` or `Dc 776 "WASM i64.rem_s"` instruction with no Euclidean sign-adjustment branch.
-  - Faults when `Y == 0`. Following the WebAssembly specification (`rem_s`), `truncRem MIN -1 == 0` does **not** fault because the mathematical remainder `0` is representable (Rust backends must lower via `wrapping_rem` after checking `Y != 0`, not panicking `%` / `checked_rem`).
-  - Restricted to signed types (like `neg`) so unsigned types do not carry duplicate aliases (`mod` on unsigned types is already single-instruction `rem_u`). Spelled camelCase `truncRem` (`TRUNCREM` in `.sli3`) because `_` is outside the 32-character `.sli3` alphabet.
-- `neg X` -> `T -> T` (signed `i32`, `i64` only; faults on `i32::MIN` / `i64::MIN`).
-- Pure pre-check predicates (`(T, T) -> b`, never faulting):
-  `canAdd X Y`, `canSub X Y`, `canMul X Y`, `canDiv X Y` (`false` when `Y == 0` or signed `X == MIN && Y == -1`).
+### 6.1 Checked & Wrapping Arithmetic (`u8`, `i32`, `u32`, `i64`, `u64`)
+Invalid checked arithmetic (overflow, division/remainder by zero, or signed `MIN / -1` and `MIN % -1`) terminates evaluation with a deterministic fault (**never** silent two's-complement wrapping):
+- `add X Y` (`Dc 2512 "Add operation"`), `sub X Y` (`Dc 2513 "Subtract operation"`), `mul X Y` (`Dc 2514 "Multiply operation"`), `div X Y` (`Dc 2515 "Divide operation"`), `rem X Y` (`Dc 2516 "Remainder operation"`) -> `(T, T) -> T`
+  - `div` and `rem` truncate toward zero across all integer types (`u8`, `i32`, `u32`, `i64`, `u64`), faulting when `Y == 0` or signed `X == MIN && Y == -1`.
+- `neg X` (`Dc 2517 "Negate operation"`) -> `T -> T` (signed `i32`, `i64` only; faults on `i32::MIN` / `i64::MIN`).
+- Explicit modular two's-complement wrapping arithmetic (`2^width`, never faulting; needed for hashing, PRNGs, and multi-limb StageR `i128`/`u128`/`int` lowering):
+  - `wrapAdd X Y` (`Dc 2518 "Wrapping add operation"`), `wrapSub X Y` (`Dc 2519 "Wrapping subtract operation"`), `wrapMul X Y` (`Dc 2520 "Wrapping multiply operation"`) -> `(T, T) -> T`.
+- **Standard library arithmetic (`stage_1_impls/std/math.sl3`, not core Token Dcs)**:
+  - Signed Euclidean modulus (`mod`, yielding `0 <= (a mod b) < |b|` for `b != 0` and `MIN mod -1 == 0`) and non-faulting pre-check predicates (`canAdd`, `canSub`, `canMul`, `canDiv`) are pure library verbs implemented in terms of `rem`, `div`, and comparisons.
 
-### 6.2 Bitwise & Shift Operations (`u8`, `i32`, `u32`, `i64`, `u64`)
-- `bitAnd X Y`, `bitOr X Y`, `bitXor X Y` -> `(T, T) -> T`
-- `bitNot X` -> `T -> T`
-- `shl X COUNT`, `shr X COUNT` -> `(T, u32) -> T`
+### 6.2 Bitwise, Shift, Rotate, and Bit-Count Operations (`u8`, `i32`, `u32`, `i64`, `u64`)
+- `bitAnd X Y` (`Dc 2521 "Bitwise AND operation"`), `bitOr X Y` (`Dc 2522 "Bitwise OR operation"`), `bitXor X Y` (`Dc 2523 "Bitwise XOR operation"`) -> `(T, T) -> T`
+- `bitNot X` (`Dc 2524 "Bitwise NOT operation"`) -> `T -> T`
+- `shl X COUNT` (`Dc 2525 "Shift left operation"`), `shr X COUNT` (`Dc 2526 "Shift right operation"`) -> `(T, u32) -> T`
   - `COUNT` must satisfy `COUNT < bit_width(T)` (`8`, `32`, or `64`); out-of-range shift counts fault rather than silently masking `COUNT`.
   - `shr` performs logical zero-fill right shift on unsigned types (`u8`, `u32`, `u64`) and arithmetic sign-extending right shift on signed types (`i32`, `i64`).
+- `rotl X COUNT` (`Dc 2527 "Rotate left operation"`), `rotr X COUNT` (`Dc 2528 "Rotate right operation"`) -> `(T, u32) -> T` (unsigned `u8`, `u32`, `u64`).
+- `clz X` (`Dc 2529 "Count leading zeros operation"`), `ctz X` (`Dc 2530 "Count trailing zeros operation"`), `popcnt X` (`Dc 2531 "Population count operation"`) -> `T -> u32` (single-instruction WASM bit-scan primitives, e.g. `O(1)` DcTF byte-length decoding).
 
 ### 6.3 Booleans, Equality, and Ordering
-- `not P` (`b -> b`), lazy `and P Q` (`(b, b) -> b`, lowers to `if P Q false`), lazy `or P Q` (`(b, b) -> b`, lowers to `if P true Q`).
-- `eq X Y`, `ne X Y` -> `(T, T) -> b` for `b`, `t`, `u8`, `i32`, `u32`, `i64`, `u64`, and `l/E` (structural element-by-element equality where `E` supports `eq`).
-- `lt X Y`, `le X Y`, `gt X Y`, `ge X Y` -> `(T, T) -> b` for integer types `u8`, `i32`, `u32`, `i64`, `u64` (and lexicographic order on `t`).
+- `not P` (`Dc 2532 "Logical NOT operation"`, `b -> b`), lazy `and P Q` (`Dc 2533 "Logical AND operation"`, `(b, b) -> b`), lazy `or P Q` (`Dc 2534 "Logical OR operation"`, `(b, b) -> b`).
+- `eq X Y` (`Dc 2535 "Equal comparison"`), `ne X Y` (`Dc 2536 "Not equal comparison"`) -> `(T, T) -> b` for `b`, `u8`, `i32`, `u32`, `i64`, `u64`, and `l/E` (structural element-by-element equality where `E` supports `eq`).
+- `lt X Y` (`Dc 2537 "Less than comparison"`), `le X Y` (`Dc 2538 "Less than or equal comparison"`), `gt X Y` (`Dc 2539 "Greater than comparison"`), `ge X Y` (`Dc 2540 "Greater than or equal comparison"`) -> `(T, T) -> b` for integer types `u8`, `i32`, `u32`, `i64`, `u64`.
 
-### 6.4 Explicit Numeric Conversions
-- Lossless widening: `u32FromU8`, `i32FromU8`, `u64FromU8`, `i64FromU8`, `u64FromU32`, `i64FromU32`, `i64FromI32`.
-- Checked narrowing (faults if value is outside target range): `u8FromU32`, `u8FromI32`, `u8FromU64`, `u8FromI64`, `u32FromI32`, `i32FromU32`, `u32FromU64`, `u32FromI64`, `i32FromU64`, `i32FromI64`, `u64FromI64`, `i64FromU64`.
-- Lossless bit-pattern reinterpretation (same width, never faults): `u32BitsFromI32`, `i32BitsFromU32`, `u64BitsFromI64`, `i64BitsFromU64`.
+### 6.4 Explicit Numeric Conversions (VSO Order: Value First, Target Type Second)
+All 20 numeric widening/narrowing conversions and 4 same-width bit reinterpretations tokenize to **two** VSO operators (`: ~ [el_expr] [stagel_type]`):
+- `conv X TARGET_TYPE` (`Dc 2541 "Convert value operation"`): Lossless when widening (`u8 -> u32/i32/u64/i64`, `u32 -> u64/i64`, `i32 -> i64`); checked narrowing (faults when `X` is outside `TARGET_TYPE`'s range).
+- `bitcast X TARGET_TYPE` (`Dc 2542 "Bitcast value operation"`): Lossless same-width bit-pattern reinterpretation (`i32 <-> u32`, `i64 <-> u64`; never faults).
 
-### 6.5 Lists (`l/T`), Byte Slices (`l/u8`), and `letters` (`t`)
-- `len XS` -> `l/T -> u64` (for `l/T`, including `l/u8`) and `t -> u64` (character count in `letters`).
-- `get XS IDX` -> `(l/T, u64) -> T` (0-based; faults when `IDX >= len XS`).
-- `slice XS START END` -> `(Seq, u64, u64) -> Seq` for `Seq` in `{l/T, t}` (half-open `[START..END)`; faults unless `START <= END <= len XS`).
-- `concat A B` -> `(Seq, Seq) -> Seq` for `Seq` in `{l/T, t}` (single canonical concatenation name—no separate `catB` alias).
-- `explode SEP INPUT` -> `(Seq, Seq) -> l/Seq` and `implode SEP PARTS` -> `(Seq, l/Seq) -> Seq` for `Seq` in `{l/u8, t}` (and extended to `{s, dcs}` in StageR 3):
-  - **Why generic `explode`/`implode` works cleanly**: Because `l/u8`, `t`, `s`, and `dcs` are mutually disjoint static types (and `l/l/u8`, `l/t`, `l/s`, `l/dcs` are likewise disjoint), built-in type dispatch determines the exact concrete signature from the first operand with zero type ambiguity and no user-verb overloading.
-  - **Edge-case contract**:
-    1. `SEP` must be non-empty (`len SEP > 0`); an empty separator faults deterministically.
-    2. Matching scans **left-to-right without overlap**.
-    3. Leading, trailing, and adjacent separator matches **retain empty pieces** (`explode t":" t":A:"` -> `l/t: t"" t"A" t"" ::`; `explode t":" t""` -> `l/t: t"" ::`), guaranteeing the round-trip identity `implode sep (explode sep x) == x` for every `x` and non-empty `sep` (with `implode b"" parts` / `implode t"" parts` joining without a separator).
-    4. `implode` precomputes total output length and fills in `O(total length)` time rather than quadratic repeated `concat`.
-- `assert COND` -> `b -> void` (returns unit on `true`; faults on `false`).
+### 6.5 Immutable Lists (`l/T`), Local Builder Buffers (`buf/T`), and Library Helpers
+- **Immutable list construction & sequence operations**:
+  - `l/T: ELEM_1 ... ::` (`Dc 2578 "Begin StageL list"`..`Dc 2579 "End StageL list"`) -> `l/T`
+  - `len XS` (`Dc 2543 "Sequence length operation"`) -> `l/T | buf/T -> u64`
+  - `get XS IDX` (`Dc 2544 "Get element operation"`) -> `(l/T | buf/T, u64) -> T` (0-based; faults when `IDX >= len XS`)
+  - `slice XS START END` (`Dc 2545 "Slice sequence operation"`) -> `(l/T, u64, u64) -> l/T` (half-open `[START..END)`; faults unless `START <= END <= len XS`)
+  - `concat A B` (`Dc 2546 "Concatenate sequences operation"`) -> `(l/T, l/T) -> l/T`
+- **Mutable local StageL builder buffers (`buf/T`, enabling `O(N)` construction & `O(1)` lookup tables without hidden refcounting)**:
+  - `bufNew T CAP` (`Dc 2580 "StageL buffer new"`) -> `buf/T` (empty buffer with `u64` initial capacity `CAP`)
+  - `bufFill VAL LEN` (`Dc 2581 "StageL buffer fill"`) -> `buf/T` (buffer of length `LEN` initialized with `VAL`)
+  - `bufPush BUF VAL` (`Dc 2582 "StageL buffer push"`) -> `void` (amortized `O(1)` append; faults if `BUF` is frozen)
+  - `bufExtend BUF LIST` (`Dc 2583 "StageL buffer extend"`) -> `void` (bulk `memcpy` append of `l/T`; faults if `BUF` is frozen)
+  - `bufSet BUF IDX VAL` (`Dc 2584 "StageL buffer set"`) -> `void` (`O(1)` in-place element write at `IDX < len BUF`; faults if out of bounds or frozen)
+  - `bufFreeze BUF` (`Dc 2585 "StageL buffer freeze"`) -> `l/T` (`O(1)` zero-copy conversion to immutable `l/T`, marking `BUF` frozen so later mutations fault)
+- **Standard library sequence & assertion helpers (`stage_1_impls/std/`, not core Token Dcs)**:
+  - `explode` and `implode` (linear-time byte/sequence splitting and joining built over `slice`, `bufNew`, `bufExtend`, and `bufFreeze` with non-empty separator validation and empty-piece retention so `implode sep (explode sep x) == x`) and `assert COND` (`if COND do :: fault`) live in `stage_1_impls/std/`.
 
 ---
 

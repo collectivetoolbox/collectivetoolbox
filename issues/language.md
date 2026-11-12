@@ -1,9 +1,9 @@
 # Language Layers (2026-11-11)
 
-**Overall Language Stack Status**: `Partially Implemented` (format registrations, literal-aware 32-char `.sli3`/`.sri3` normalizer, staged loader support, and `tinywasm` constant-stack tail calls implemented; parsers, type checkers, compilers, and runtime libraries pending).
+**Overall Language Stack Status**: `Partially Implemented` (format registrations including `f1424` `Boolean` / `f1425` `Void` / `f1426` `Never`, `.EL` and `.EL StageL` base Token Dc repertoire, literal-aware 32-char `.sli3`/`.sri3` normalizer, staged loader support, and `tinywasm` constant-stack tail calls implemented; tokenizers/parsers, type checkers, compilers, and runtime libraries pending).
 
 Canonical language specifications now live in:
-- **StageL 3 (`f656` `.sl3` / `f659` `.sli3`)**: [`src/formats/stagel/docs/sl3.md`](../src/formats/stagel/docs/sl3.md) — core expression-oriented language to be implemented directly in `stage_0_impls/*.wat` (`b`, `t`, `u8`, `i32`, `u32`, `i64`, `u64`, `l/T`, `void`, `never`; `let`/`set`/`const` with definite-assignment checking; named nested verbs with shared lexical capture; mandatory constant-stack tail calls; no first-class functions).
+- **StageL 3 (`f656` `.sl3` / `f659` `.sli3`)**: [`src/formats/stagel/docs/sl3.md`](../src/formats/stagel/docs/sl3.md) — core expression-oriented language to be implemented directly in `stage_0_impls/*.wat` (`b`, `u8`, `i32`, `u32`, `i64`, `u64`, `l/T`, local builder `buf/T`, `void`, `never`; peer `let`/`const`/`pub` declarators with `set` and definite-assignment checking; named nested verbs with shared lexical capture; mandatory constant-stack tail calls; no first-class functions).
 - **StageR 3 (`f657` `.sr3` / `f660` `.sri3`) & EM3 Boundary (`f658` `.em3` / `f661` `.emc`)**: [`src/formats/stagel/docs/sr3.md`](../src/formats/stagel/docs/sr3.md) — adds `i128`, `u128`, `int`, `rat`, `dc`, `view`, `cursor`, `s` (`DcMst`), `dcs`, `option/T`, `result/T`, `try*` checked operations, bare `"..."` Dcts literals, and zero-copy window/extent streaming. First-class functions and escaping closures remain **EM3-only**.
 
 The bootstrap implementation directory stages are:
@@ -74,13 +74,14 @@ Executing every character, word, widget decomposition, and shaping rule purely t
 
 ## Pending Work (StageL 3, StageR 3, and EM3)
 
-- [ ] **StageL 3 Token Dc Repertoire, Bidirectional `.sl3 <-> Token Dcs` Tokenizer/Decompiler, Static Validator, and `: @dc` Auto-Allocator**:
-  - Propose and allocate shared semantic Token Dcs for StageL 3 keywords, primitive types, and built-in operators (`add`, `truncRem`, etc., reusing existing `.Semantic` / `.EL` Dcs only where historical semantics match 100%).
-  - Implement lossless `.sl3 <-> StageL Token Dcs` conversion (preserving comments, local identifier casing, and structure for AppleScript-style round-tripping; stripping `: @dc <shorthand>` from emitted body tokens while anchoring graph IDs), PSR-4 `ns` / `use` DAG resolution, two-pass signature collection, strict static type & definite-assignment validation (`let`/`set`/`const`/`pub`), and inline `test` execution.
+- [ ] **StageL 3 Bidirectional `.sl3 <-> Token Dcs` Tokenizer/Decompiler, Static Validator, `: @dc` Auto-Allocator, and Core Standard Library**:
+  - [x] Allocated semantic Format Dcs (`f1424` `Boolean`, `f1425` `Void`, `f1426` `Never`) in `categories/formats/semantic.csv`, shared `.EL` Token Dcs (`Dc 2192 "Begin module"`..`Dc 2214 "End code block"`, `Dc 2448 "If conditional"`..`Dc 2454 "Fault trap"` including explicit-binding `Dc 2450 "For each"` alongside renamed `Dc 638 "Distribute statement over each element"`, and `Dc 2512 "Add operation"`..`Dc 2546 "Concatenate sequences operation"`), and `.EL StageL` list/buffer Dcs (`Dc 2576 "StageL list type"`..`Dc 2585 "StageL buffer freeze"`) in `categories/el.csv`.
+  - [ ] Implement lossless `.sl3 <-> StageL Token Dcs` conversion (preserving comments, local identifier casing, and structure for AppleScript-style round-tripping; stripping `: @dc <shorthand>` from emitted body tokens while anchoring graph IDs), PSR-4 `ns` / `use` DAG resolution, two-pass signature collection, strict static type & definite-assignment validation (`let`/`set`/`const`/`pub` and local-only `buf/T`), and inline `test` execution.
+  - [ ] Author core Stage 1 library modules (`stage_1_impls/std/`) for constructs kept out of the minimal Stage 0 builtin set (Euclidean signed `mod`, `canAdd`/`canSub`/`canMul`/`canDiv`, `explode`, `implode`, and `assert`).
 - [ ] **Stage 0 StageL-Dc-to-WASM Transpiler (`stage_0_impls/f656_*.wat`) & StageL Built-in `.WASM` Primitives**:
   - Emit `.WASM` Dcs (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`) **only** for Stage 0 foundations (`Dc 1936 "Dc document execution kernel"`, `f656_*.wat`) and StageL built-in primitives; lower uncaptured locals to WASM locals, captured mutable `let` bindings to shadow frames popped before non-child tail calls, and tail calls to `Dc 665 "WASM return_call"`.
-- [ ] **StageL 3 Iteration & Cross-Dc Module Linking**:
-  - Add explicit element/index binding syntax to `foreach` before permitting nested `foreach` loops, and link resolved `use` function/constant Dcs directly into compiled modules without per-call mailbox serialization.
+- [ ] **StageL 3 Cross-Dc Module Linking**:
+  - Link resolved `use` function/constant Dcs directly into compiled modules without per-call mailbox serialization.
 - [ ] **StageR 3 Compiler (`stage_1_impls/f657_*.sl3`), Runtime Types, and Backends (WAT / Rust / JS)**:
   - Implement runtime layouts and typed arena handles for `i128`, `u128`, `int`, `rat`, `dc`, `s` (`DcMst`), `dcs`, `option/T`, `result/T`, and structured `error` payloads (keeping physical allocation exhaustion distinct from `error:overflow`, and avoiding precision loss via `BigInt` in JS).
   - Finalize exhaustive pattern matching and explicit error-propagation syntax for `option/T` and `result/T`.
