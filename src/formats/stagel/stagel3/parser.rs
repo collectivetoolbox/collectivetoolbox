@@ -1360,7 +1360,7 @@ impl Parser {
                 }
             }
 
-            // Pre-scan nested `v/...` verb signatures inside this routine body.
+            // Pre-scan nested `const v/...` verb signatures inside this routine body.
             let nested_sigs =
                 self.prescan_indented_verb_arities(self.pos, decl_col, body_col)?;
             let mut inner_scope = HashMap::new();
@@ -1597,15 +1597,36 @@ impl Parser {
             .context("Expected statement expression")?
             .clone();
         if let LexKind::Word(w) = &tok.kind {
-            if w.starts_with("v/") {
-                let r = self.parse_routine_decl(
-                    false,
-                    false,
-                    None,
-                    Vec::new(),
-                    tok.span.col,
-                )?;
-                return Ok(Expr::RoutineDecl(Box::new(r)));
+            if w == "const" {
+                if let Some(sig_tok) = self.peek_at(self.pos.saturating_add(1))
+                {
+                    if let LexKind::Word(sw) = &sig_tok.kind {
+                        if sw.starts_with("v/") {
+                            ensure!(
+                                sig_tok.span.line == tok.span.line,
+                                "Expected routine signature '{}' on the same line as 'const' at {}",
+                                sw,
+                                tok.span
+                            );
+                            self.pos = self.pos.saturating_add(1);
+                            let r = self.parse_routine_decl(
+                                false,
+                                false,
+                                None,
+                                Vec::new(),
+                                tok.span.col,
+                            )?;
+                            return Ok(Expr::RoutineDecl(Box::new(r)));
+                        }
+                    }
+                }
+            } else if w.starts_with("v/") {
+                bail!(
+                    "Nested routine declaration '{}' at {} must be prefixed with 'const' inside a block (write 'const {} ...')",
+                    w,
+                    tok.span,
+                    w
+                );
             }
         }
         let expr = self.parse_expr(enclosing_is_void)?;
@@ -1666,6 +1687,11 @@ impl Parser {
                 let LexKind::Word(tw) = target.kind else {
                     bail!("Expected 'TYPE/name' after 'let' at {}", target.span);
                 };
+                if tw.starts_with("v/") {
+                    bail!(
+                        "Nested routine declarations use 'const {tw} ...', not 'let' at {span}"
+                    );
+                }
                 let (ty, name) = parse_typed_name(&tw, target.span)?;
                 self.pos = self.pos.saturating_add(1);
                 let init = if let Some(next) = self.peek_skip_comments() {
@@ -1696,6 +1722,11 @@ impl Parser {
                         target.span
                     );
                 };
+                if tw.starts_with("v/") {
+                    bail!(
+                        "Nested routine declaration 'const {tw}' at {span} is only allowed as a direct statement inside a routine or 'do ... ::' block"
+                    );
+                }
                 let (ty, name) = parse_typed_name(&tw, target.span)?;
                 self.pos = self.pos.saturating_add(1);
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
@@ -1715,6 +1746,11 @@ impl Parser {
                 let LexKind::Word(tw) = target.kind else {
                     bail!("Expected 'TYPE/name' after 'set' at {}", target.span);
                 };
+                if tw.starts_with("v/") {
+                    bail!(
+                        "Routine '{tw}' cannot be mutated with 'set' at {span}"
+                    );
+                }
                 let (ty, name) = parse_typed_name(&tw, target.span)?;
                 self.pos = self.pos.saturating_add(1);
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
@@ -1852,11 +1888,9 @@ impl Parser {
         }
 
         if word.starts_with("v/") {
-            // Rewind so `parse_routine_decl` sees signature word cleanly.
-            self.pos = self.pos.saturating_sub(1);
-            let routine =
-                self.parse_routine_decl(false, false, None, Vec::new(), span.col)?;
-            return Ok(Expr::RoutineDecl(Box::new(routine)));
+            bail!(
+                "Nested routine declaration '{word}' at {span} must be prefixed with 'const' inside a block (write 'const {word} ...')"
+            );
         }
 
         if word.contains('/') {
@@ -1955,6 +1989,42 @@ impl Parser {
                 self.pos = self.pos.saturating_add(1);
                 continue;
             }
+            if let LexKind::Word(w) = &next.kind {
+                if w == "const" {
+                    if let Some(sig_tok) = self.peek_at(self.pos.saturating_add(1))
+                    {
+                        if let LexKind::Word(sw) = &sig_tok.kind {
+                            if sw.starts_with("v/") {
+                                ensure!(
+                                    sig_tok.span.line == next.span.line,
+                                    "Expected routine signature '{}' on the same line as 'const' at {}",
+                                    sw,
+                                    next.span
+                                );
+                                self.pos = self.pos.saturating_add(1);
+                                let r = self.parse_routine_decl(
+                                    false,
+                                    false,
+                                    None,
+                                    Vec::new(),
+                                    next.span.col,
+                                )?;
+                                stmts.push(BlockItem::Expr(Expr::RoutineDecl(
+                                    Box::new(r),
+                                )));
+                                continue;
+                            }
+                        }
+                    }
+                } else if w.starts_with("v/") {
+                    bail!(
+                        "Nested routine declaration '{}' at {} must be prefixed with 'const' inside a block (write 'const {} ...')",
+                        w,
+                        next.span,
+                        w
+                    );
+                }
+            }
             let stmt = self.parse_expr(enclosing_is_void)?;
             stmts.push(BlockItem::Expr(stmt));
             let _ = self.consume_comments(false)?;
@@ -2038,12 +2108,31 @@ impl Parser {
             }
             if tok.span.col == body_col {
                 if let LexKind::Word(w) = &tok.kind {
-                    if w.starts_with("v/") {
-                        let (name, arity, after) =
-                            self.scan_routine_header(i)?;
-                        out.push((name, arity));
-                        i = self.skip_routine_body(after, body_col)?;
-                        continue;
+                    if w == "const" {
+                        if let Some(sig_tok) =
+                            self.tokens.get(i.saturating_add(1))
+                        {
+                            if let LexKind::Word(sw) = &sig_tok.kind {
+                                if sw.starts_with("v/")
+                                    && sig_tok.span.line == tok.span.line
+                                {
+                                    let (name, arity, after) = self
+                                        .scan_routine_header(
+                                            i.saturating_add(1),
+                                        )?;
+                                    out.push((name, arity));
+                                    i = self.skip_routine_body(after, body_col)?;
+                                    continue;
+                                }
+                            }
+                        }
+                    } else if w.starts_with("v/") {
+                        bail!(
+                            "Nested routine declaration '{}' at {} must be prefixed with 'const' inside a block (write 'const {} ...')",
+                            w,
+                            tok.span,
+                            w
+                        );
                     }
                 }
             }
@@ -2072,12 +2161,32 @@ impl Parser {
                     block_depth = block_depth.saturating_add(1);
                     i = i.saturating_add(1);
                 }
-                LexKind::Word(w) if w.starts_with("v/") => {
-                    let (name, arity, after) = self.scan_routine_header(i)?;
-                    if block_depth == 0 {
-                        out.push((name, arity));
+                LexKind::Word(w) if w == "const" => {
+                    if let Some(sig_tok) = self.tokens.get(i.saturating_add(1))
+                    {
+                        if let LexKind::Word(sw) = &sig_tok.kind {
+                            if sw.starts_with("v/")
+                                && sig_tok.span.line == tok.span.line
+                            {
+                                let (name, arity, after) = self
+                                    .scan_routine_header(i.saturating_add(1))?;
+                                if block_depth == 0 {
+                                    out.push((name, arity));
+                                }
+                                i = self.skip_routine_body(after, tok.span.col)?;
+                                continue;
+                            }
+                        }
                     }
-                    i = self.skip_routine_body(after, tok.span.col)?;
+                    i = i.saturating_add(1);
+                }
+                LexKind::Word(w) if w.starts_with("v/") => {
+                    bail!(
+                        "Nested routine declaration '{}' at {} must be prefixed with 'const' inside a block (write 'const {} ...')",
+                        w,
+                        tok.span,
+                        w
+                    );
                 }
                 _ => {
                     i = i.saturating_add(1);
@@ -2138,17 +2247,34 @@ impl Parser {
                             frames.push(SkipFrame::Block);
                             i = i.saturating_add(1);
                         }
-                        LexKind::Word(w) if w.starts_with("v/") => {
-                            let (_, _, after) = self.scan_routine_header(i)?;
-                            if matches!(
-                                self.tokens.get(after).map(|x| &x.kind),
-                                Some(LexKind::DoubleColon)
-                            ) {
-                                frames.push(SkipFrame::InlineVerb);
-                                i = after.saturating_add(1);
-                            } else {
-                                i = after;
+                        LexKind::Word(w) if w == "const" => {
+                            if let Some(sig_tok) =
+                                self.tokens.get(i.saturating_add(1))
+                            {
+                                if let LexKind::Word(sw) = &sig_tok.kind {
+                                    if sw.starts_with("v/")
+                                        && sig_tok.span.line == t.span.line
+                                    {
+                                        let (_, _, after) = self
+                                            .scan_routine_header(
+                                                i.saturating_add(1),
+                                            )?;
+                                        if matches!(
+                                            self.tokens
+                                                .get(after)
+                                                .map(|x| &x.kind),
+                                            Some(LexKind::DoubleColon)
+                                        ) {
+                                            frames.push(SkipFrame::InlineVerb);
+                                            i = after.saturating_add(1);
+                                        } else {
+                                            i = after;
+                                        }
+                                        continue;
+                                    }
+                                }
                             }
+                            i = i.saturating_add(1);
                         }
                         LexKind::DoubleColon => {
                             if frames.last() == Some(&SkipFrame::Block) {
@@ -2272,5 +2398,44 @@ mod tests {
         )
         .expect_err("over-indented test case must fail");
         assert!(err_test.to_string().contains("expected column 9"));
+    }
+
+    #[crate::ctb_test]
+    fn test_sl3_requires_const_for_nested_routines_in_blocks() {
+        let err_bare_nested = parse_module(
+            "v/u32/f u32/a\n    v/u32/g :: u32/a.\n    g.\n",
+        )
+        .expect_err("bare nested v/... in routine block must fail");
+        assert!(err_bare_nested.to_string().contains("const"));
+
+        let err_bare_do = parse_module(
+            "v/u32/f u32/a :: do v/u32/g :: u32/a. g. ::.\n",
+        )
+        .expect_err("bare nested v/... in do block must fail");
+        assert!(err_bare_do.to_string().contains("const"));
+
+        let err_let_nested = parse_module(
+            "v/u32/f u32/a\n    let v/u32/g :: u32/a.\n    g.\n",
+        )
+        .expect_err("let v/... must fail");
+        assert!(err_let_nested.to_string().contains("const v/u32/g"));
+
+        let err_top_const = parse_module("const v/u32/f u32/a :: u32/a.\n")
+            .expect_err("top-level const v/... must remain disallowed");
+        assert!(err_top_const.to_string().contains("Redundant 'const'"));
+
+        let ok_nested = r#"v/u32/f u32/a
+    test nestedConst
+        in u32:10
+        out u32:15.
+    let u32/acc u32/a.
+    const v/u32/readAcc :: do
+        const v/u32/plusFive :: add u32/acc u32:5.
+        plusFive.
+    ::.
+    readAcc.
+"#;
+        let rep = run_module_inline_tests(ok_nested).expect("run nestedConst");
+        assert_eq!(rep.ensure_all_passed().unwrap(), 1);
     }
 }

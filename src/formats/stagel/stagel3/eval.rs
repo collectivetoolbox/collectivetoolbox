@@ -1848,7 +1848,7 @@ v/u32/sharedCaptureMutation
         in.
         out u32:15.
     let u32/total u32:0.
-    v/void/addToTotal u32/delta :: set u32/total add u32/total u32/delta.
+    const v/void/addToTotal u32/delta :: set u32/total add u32/total u32/delta.
     addToTotal u32:4.
     addToTotal u32:11.
     u32/total.

@@ -2739,7 +2739,7 @@ v/u32/f b/cond
         let capture_before_set = r#"
 v/u32/f
     let u32/x.
-    v/u32/readX :: u32/x.
+    const v/u32/readX :: u32/x.
     let u32/early readX.
     set u32/x u32:5.
     u32/early.
@@ -2751,7 +2751,7 @@ v/u32/f
         let capture_never_init = r#"
 v/u32/f
     let u32/x.
-    v/u32/readX :: u32/x.
+    const v/u32/readX :: u32/x.
     u32:0.
 "#;
         validate_module(&parse_module(capture_never_init).unwrap())
@@ -2761,7 +2761,7 @@ v/u32/f
         let capture_after_set = r#"
 v/u32/f
     let u32/x.
-    v/u32/readX :: u32/x.
+    const v/u32/readX :: u32/x.
     set u32/x u32:9.
     readX.
 "#;
@@ -2772,7 +2772,7 @@ v/u32/f
         let capture_init_inside_nested = r#"
 v/u32/f
     let u32/x.
-    v/void/initX :: set u32/x u32:12.
+    const v/void/initX :: set u32/x u32:12.
     initX.
     u32/x.
 "#;
@@ -2808,7 +2808,7 @@ v/l/u32/f :: l/u8: u8:1 u8:2 ::.
         let bad_break_nested = r#"
 v/u32/f
     while true do
-        v/void/stopper :: break.
+        const v/void/stopper :: break.
         stopper.
     ::.
     u32:0.

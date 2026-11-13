@@ -492,8 +492,8 @@ v/i32/sharedMutableCapture i32/start
         in i32:10
         out i32:44.
     let i32/acc i32/start.
-    v/void/bump i32/delta :: set i32/acc add i32/acc i32/delta.
-    v/i32/readTwice :: add i32/acc i32/acc.
+    const v/void/bump i32/delta :: set i32/acc add i32/acc i32/delta.
+    const v/i32/readTwice :: add i32/acc i32/acc.
     bump i32:5.
     bump i32:7.
     readTwice.
@@ -524,7 +524,7 @@ v/u64/mutualOuter u64/n u64/acc
         in u64:60000 u64:0
         out u64:60000.
     let u64/sharedStep u64:1.
-    v/u64/nestedStep u64/leftover
+    const v/u64/nestedStep u64/leftover
         if eq u64/leftover u64:0
             u64/acc
             do
@@ -610,8 +610,8 @@ v/u32/lexicalCapture u32/initial
         in u32:7
         out u32:9.
     let u32/captured u32/initial.
-    v/u32/readCaptured :: u32/captured.
-    v/u32/callFromSibling
+    const v/u32/readCaptured :: u32/captured.
+    const v/u32/callFromSibling
         const u32/callerLocal u32:99.
         readCaptured.
     set u32/captured u32:9.

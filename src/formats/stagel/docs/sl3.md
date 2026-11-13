@@ -111,7 +111,7 @@ At file top level, all declarations are immutable (`let` and `set` are local-blo
 
 | Declaration Scope & Form | Visibility | Graph Node Allocation |
 | :--- | :--- | :--- |
-| **Nested `v/RET/name ...`** (inside a verb body) | Enclosing verb block | **No separate Dc** (compiled inside enclosing verb's Dc; shares lexical frame) |
+| **Nested `const v/RET/name ...`** (inside a verb or `do ... ::` block) | Enclosing block | **No separate Dc** (compiled inside enclosing verb's Dc; shares lexical frame) |
 | **Top-level `v/...` or `const TYPE/name ...`** | File-private | **Dedicated System-region Dc (`l<id>`)** |
 | **Top-level `pub v/...` or `pub TYPE/name ...`** | Exported from `ns` | **Dedicated System-region Dc (`l<id>`)** + `Dc 646 "In context of"` namespace & `Dc 574 "Programmatic identifier"` |
 | **Top-level `pub dc/<id> ...`** (or `<id>_*.sl3` root file) | Exported / Global Dc | **Attaches `Dc 611 "Canonical decomposition"` to pre-assigned Short/Format Dc `<id>`** |
@@ -147,7 +147,7 @@ Inside a verb or `do ... ::` block:
    - Without `EXPR` (`let u32/x.`): declares `x` in an uninitialized state; `x` **must** be definitely assigned via `set` on all control-flow paths before any read (including reads via nested verbs that capture `x`). Reading a potentially uninitialized `let` variable is a **compile-time error**.
    - Once declared with `let`, `name` **cannot** be re-declared in the same block or shadowed in nested scopes within that block; mutate it with `set`.
 2. **`set TYPE/name EXPR`** — Mutates an already-declared `let` variable `name` of matching `TYPE` and returns `void` (unit). Using `set` on a `const` / `pub` binding, parameter, `foreach` `this`, or undeclared identifier is a **compile-time error**.
-3. **`const TYPE/name EXPR`** — Declares and initializes a new **immutable** constant in the current block and returns `void` (unit). Initializer `EXPR` is mandatory; re-declaration and shadowing are prohibited.
+3. **`const TYPE/name EXPR` / `const v/RETURN/name ...`** — Declares an **immutable** local constant value (`const TYPE/name EXPR`, mandatory initializer) or nested routine (`const v/RETURN/name ...`; bare `v/...` is top-level-only) in the current block and returns `void` (unit). Re-declaration, shadowing, and mutation via `set` are prohibited.
 
 ---
 

@@ -1665,7 +1665,7 @@ pub fn format_module_to_sl3(module: &Module) -> Result<String> {
                 writeln!(out, ".")?;
             }
             TopDecl::Routine(r) => {
-                write_routine(&mut out, r, 0)?;
+                write_routine(&mut out, r, 0, false)?;
             }
             TopDecl::Comment(c) => {
                 write_comment_line(&mut out, 0, c)?;
@@ -1717,13 +1717,16 @@ fn write_routine(
     out: &mut String,
     r: &RoutineDecl,
     indent: usize,
+    is_nested: bool,
 ) -> Result<()> {
     for c in &r.comments_before {
         write_comment_line(out, indent, c)?;
     }
     write_dc_directive_if_needed(out, indent, r.dc_id, r.pub_dc_syntax)?;
     write_indent(out, indent);
-    if r.is_pub {
+    if is_nested {
+        write!(out, "const ")?;
+    } else if r.is_pub {
         write!(out, "pub ")?;
         if r.pub_dc_syntax {
             if let Some(dc) = r.dc_id {
@@ -1786,7 +1789,7 @@ fn write_routine(
                         write_comment_line(out, body_indent, c)?;
                     }
                     BlockItem::Expr(Expr::RoutineDecl(nested)) => {
-                        write_routine(out, nested, body_indent)?;
+                        write_routine(out, nested, body_indent, true)?;
                     }
                     BlockItem::Expr(e) => {
                         write_indent(out, body_indent);
@@ -1873,7 +1876,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             write!(out, "set {ty}/{name} ")?;
             write_expr(out, value, indent)?;
         }
-        Expr::RoutineDecl(r) => write_routine(out, r, indent)?,
+        Expr::RoutineDecl(r) => write_routine(out, r, indent, true)?,
         Expr::Call { target, args, .. } => {
             match target {
                 SymbolTarget::Ident(n) => out.push_str(n),
@@ -1910,7 +1913,7 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                             write_comment_line(out, inner_indent, c)?;
                         }
                         BlockItem::Expr(Expr::RoutineDecl(r)) => {
-                            write_routine(out, r, inner_indent)?;
+                            write_routine(out, r, inner_indent, true)?;
                         }
                         BlockItem::Expr(e) => {
                             write_indent(out, inner_indent);
@@ -2112,7 +2115,7 @@ pub v/u32/roundTripDemo u32/x i32/y l/u8/raw
     const l/u32/items l/u32: u32:1 u32:2 u32:3 ::.
     const i32/minSigned i32:-2147483648.
     const i64/minWide i64:-9223372036854775808.
-    v/u32/helper u32/n :: add u32/n u32/baseOffset.
+    const v/u32/helper u32/n :: add u32/n u32/baseOffset.
     if b/flag do
         set u32/acc u32/x.
         u32/acc.

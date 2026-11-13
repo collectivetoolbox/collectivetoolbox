@@ -3903,8 +3903,8 @@ v/u32/capturesAndLoops u32/limit
         in u32:4
         out u32:24.
     let u32/acc u32:0.
-    v/void/addAcc u32/d :: set u32/acc add u32/acc u32/d.
-    v/u32/factAcc u32/n
+    const v/void/addAcc u32/d :: set u32/acc add u32/acc u32/d.
+    const v/u32/factAcc u32/n
         if le u32/n u32:1 u32:1 add u32/n factAcc sub u32/n u32:1.
     let u32/i u32:0.
     while lt u32/i u32/limit do
@@ -4085,7 +4085,7 @@ v/l/u8/nestedPingPong u32/steps u8/tagByte
     let buf/u8/outBuf bufNew u8 u64:6.
     const l/u8/prefixBytes b"OK:".
     bufExtend buf/u8/outBuf l/u8/prefixBytes.
-    v/l/u8/pingStep u32/leftCount
+    const v/l/u8/pingStep u32/leftCount
         if eq u32/leftCount u32:0 do
             bufPush buf/u8/outBuf u8/tagByte.
             bufPush buf/u8/outBuf conv rem u32/sharedHits u32:251 u8.
@@ -4094,7 +4094,7 @@ v/l/u8/nestedPingPong u32/steps u8/tagByte
             set u32/sharedHits add u32/sharedHits u32:1.
             pongStep sub u32/leftCount u32:1.
         ::.
-    v/l/u8/pongStep u32/leftCount
+    const v/l/u8/pongStep u32/leftCount
         if eq u32/leftCount u32:0 do
             pingStep u32:0.
         :: do
@@ -4110,17 +4110,17 @@ v/u32/enclosingAndChildBlockCaps u32/baseVal u32/steps
         out u32:90015.
     let u32/tally u32:0.
     if gt u32/baseVal u32:0 do
-        v/void/bumpFromIfBranch u32/deltaVal :: set u32/tally add u32/tally u32/deltaVal.
+        const v/void/bumpFromIfBranch u32/deltaVal :: set u32/tally add u32/tally u32/deltaVal.
         bumpFromIfBranch u32:10.
     :: do
         set u32/tally u32:1.
     ::.
-    v/u32/outerLoop u32/cnt
+    const v/u32/outerLoop u32/cnt
         if eq u32/cnt u32:0
             add u32/baseVal u32/tally
             do
                 set u32/tally add u32/tally u32:1.
-                v/u32/innerStep u32/nextCnt :: outerLoop sub u32/nextCnt u32:1.
+                const v/u32/innerStep u32/nextCnt :: outerLoop sub u32/nextCnt u32:1.
                 innerStep u32/cnt.
             ::.
     outerLoop u32/steps.
@@ -4146,12 +4146,12 @@ v/u32/verifyVoidTail u32/steps
         in u32:100000
         out u32:100000.
     let u32/ticks u32:0.
-    v/void/voidTickA u32/cnt
+    const v/void/voidTickA u32/cnt
         if eq u32/cnt u32:0 do :: do
             set u32/ticks add u32/ticks u32:1.
             voidTickB sub u32/cnt u32:1.
         ::.
-    v/void/voidTickB u32/cnt
+    const v/void/voidTickB u32/cnt
         if eq u32/cnt u32:0 do :: do
             set u32/ticks add u32/ticks u32:1.
             voidTickA sub u32/cnt u32:1.
@@ -4330,7 +4330,7 @@ pub v/u32/count_down u32/steps u32/acc
 pub v/u32/count_down_alt u32/steps u32/acc
     if eq u32/steps u32:0
         do
-            v/u32/nested_finish u32/cur
+            const v/u32/nested_finish u32/cur
                 if eq u32/cur u32:0 u32/acc nested_finish sub u32/cur u32:1.
             nested_finish u32:3.
         ::

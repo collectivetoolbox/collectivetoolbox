@@ -63,8 +63,8 @@ v/u32/lexicalCapture u32/initial
         in u32:7
         out u32:9
     let u32/captured u32/initial.
-    v/u32/readCaptured :: u32/captured.
-    v/u32/callFromSibling
+    const v/u32/readCaptured :: u32/captured.
+    const v/u32/callFromSibling
         const u32/callerLocal u32:99.
         readCaptured.
     set u32/captured u32:9.
