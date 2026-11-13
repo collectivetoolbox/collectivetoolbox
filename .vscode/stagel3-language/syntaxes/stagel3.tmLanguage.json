@@ -133,12 +133,45 @@
         "keywords": {
             "patterns": [
                 {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:ns|use))\\s+([A-Za-z](?:[A-Za-z0-9/]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.declaration.stagel3"
+                        },
+                        "2": {
+                            "name": "entity.name.namespace.stagel3"
+                        }
+                    }
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:struct|enum))\\s+([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.declaration.stagel3"
+                        },
+                        "2": {
+                            "name": "entity.name.type.stagel3"
+                        }
+                    }
+                },
+                {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:case))\\s+([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.stagel3"
+                        },
+                        "2": {
+                            "name": "constant.language.stagel3"
+                        }
+                    }
+                },
+                {
                     "name": "keyword.control.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:if|while|foreach|break|continue|do|match|case|else|fault|unimplemented)(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:if|while|foreach|break|continue|return|do|match|case|else|fault|unimplemented)(?![A-Za-z0-9_/:])"
                 },
                 {
                     "name": "keyword.declaration.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:ns|use|pub|const|let|set|test|in|out|brand|type|struct|enum)(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:ns|use|as|pub|const|let|set|test|in|out|brand|type|struct|enum)(?![A-Za-z0-9_/:])"
                 }
             ]
         },
@@ -146,7 +179,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|with)(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|trySub|tryMul|tryDiv|tryMod|tryTruncRem|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|field|with|isSome|isNone|unwrapOr|unwrapSome|isOk|isErr|unwrapOk|unwrapErr|assert)(?![A-Za-z0-9_/:])"
                 }
             ]
         },
@@ -231,6 +264,10 @@
                             "name": "constant.language.stagel3"
                         }
                     }
+                },
+                {
+                    "name": "entity.name.function.call.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])"
                 }
             ]
         },
