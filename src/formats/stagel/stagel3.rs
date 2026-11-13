@@ -35,6 +35,7 @@ pub mod ast;
 pub mod dc_tokens;
 pub mod eval;
 pub mod parser;
+pub mod rust_codegen;
 pub mod validator;
 
 /// Dialect selector controlling which string literal prefixes are accepted
