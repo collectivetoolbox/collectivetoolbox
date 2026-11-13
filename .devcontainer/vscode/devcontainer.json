@@ -43,7 +43,8 @@
         "wayou.vscode-todo-highlight",
         "dbaeumer.vscode-eslint",
         "bradlc.vscode-tailwindcss",
-        "rust-lang.rust-analyzer"
+        "rust-lang.rust-analyzer",
+        "${containerWorkspaceFolder}/.vscode/stagel3-language-0.0.1.vsix"
       ]
     }
   }

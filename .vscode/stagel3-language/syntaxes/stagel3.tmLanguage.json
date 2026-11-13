@@ -1,0 +1,208 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "StageL 3 / StageR 3",
+    "scopeName": "source.stagel3",
+    "fileTypes": [
+        "sl3",
+        "sr3",
+        "sli3",
+        "sri3"
+    ],
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#operators"
+        },
+        {
+            "include": "#literals"
+        },
+        {
+            "include": "#types-and-identifiers"
+        },
+        {
+            "include": "#punctuation"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.colon.directive.stagel3",
+                    "match": "^\\s*(:)\\s+(@dc)\\s+(l?\\d+|f\\d+|u[0-9a-fA-F]+)\\b.*$",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.definition.comment.stagel3"
+                        },
+                        "2": {
+                            "name": "keyword.other.directive.stagel3"
+                        },
+                        "3": {
+                            "name": "constant.numeric.dc.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "comment.line.colon.stagel3",
+                    "match": "^\\s*:(\\s.*)?$"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.bytes.stagel3",
+                    "begin": "\\b(b)\"",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "storage.type.string.stagel3"
+                        }
+                    },
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "include": "#string-escapes"
+                        }
+                    ]
+                },
+                {
+                    "name": "string.quoted.double.letters.stagel3",
+                    "begin": "\\b([tT])\"",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "storage.type.string.stagel3"
+                        }
+                    },
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "include": "#string-escapes"
+                        }
+                    ]
+                },
+                {
+                    "name": "string.quoted.double.dcts.stagel3",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "include": "#string-escapes"
+                        },
+                        {
+                            "name": "constant.other.dc-token.stagel3",
+                            "match": "@\\d+@"
+                        }
+                    ]
+                }
+            ]
+        },
+        "string-escapes": {
+            "patterns": [
+                {
+                    "name": "constant.character.escape.stagel3",
+                    "match": "/(/|n|r|t|\"|0|x[0-9a-fA-F]{2})"
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(if|while|foreach|break|continue|do|match|case|else|fault|unimplemented)(?![A-Za-z0-9_/])"
+                },
+                {
+                    "name": "keyword.declaration.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(ns|use|pub|const|let|set|test|in|out|brand|type|struct|enum)(?![A-Za-z0-9_/])"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "support.function.builtin.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|with)(?![A-Za-z0-9_/])"
+                }
+            ]
+        },
+        "literals": {
+            "patterns": [
+                {
+                    "name": "constant.language.boolean.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(true|false)(?![A-Za-z0-9_/])"
+                },
+                {
+                    "name": "constant.numeric.typed.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128):-?\\d+(?![A-Za-z0-9_/])"
+                },
+                {
+                    "name": "constant.other.dc-shorthand.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])dc/(l?\\d+|f\\d+|u[0-9a-fA-F]+)(?![A-Za-z0-9_/])"
+                }
+            ]
+        },
+        "types-and-identifiers": {
+            "patterns": [
+                {
+                    "name": "entity.name.function.verb.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(v)/(?:(l|buf|option|result)/)*(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|b|t|s|dc|dcs|int|rat|view|cursor|void|[A-Za-z][A-Za-z0-9]*)/([A-Za-z][A-Za-z0-9]*)",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.verb.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "3": {
+                            "name": "storage.type.primitive.stagel3"
+                        },
+                        "4": {
+                            "name": "entity.name.function.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "variable.other.typed.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(?:(l|buf|option|result)/)*(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|b|t|s|dc|dcs|int|rat|view|cursor)/([A-Za-z][A-Za-z0-9]*)",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.primitive.stagel3"
+                        },
+                        "3": {
+                            "name": "variable.other.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "storage.type.primitive.stagel3",
+                    "match": "(?<![A-Za-z0-9_/])(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|b|t|s|dc|dcs|int|rat|view|cursor|void)(?![A-Za-z0-9_/])"
+                }
+            ]
+        },
+        "punctuation": {
+            "patterns": [
+                {
+                    "name": "punctuation.section.block.end.stagel3",
+                    "match": "::|\\}"
+                },
+                {
+                    "name": "punctuation.terminator.statement.stagel3",
+                    "match": "\\.|;"
+                },
+                {
+                    "name": "punctuation.separator.colon.stagel3",
+                    "match": ":"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "stagel3-language",
+  "displayName": "StageL3 Language Support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "stagel3",
+        "aliases": ["StageL3", "stagel3"],
+        "extensions": [".stagel3"]
+      }
+    ],
+    "grammars": [
+      {
+        "language": "stagel3",
+        "scopeName": "source.stagel3",
+        "path": "./syntaxes/stagel3.tmLanguage.json"
+      }
+    ]
+  }
+}
