@@ -19,10 +19,11 @@ on:
         default: false
 
 jobs:
-  build-ci:
-    name: Build & Core CI
+  lint-and-prep:
+    name: Lint & Shared Prep
     if: github.event_name != 'workflow_dispatch' || inputs.run_ci_build
     runs-on: ubuntu-latest
+    timeout-minutes: 120
 
     steps:
       - name: Free unused host runner disk space
@@ -46,10 +47,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Run CI script
+      - name: Run shared prep, docs, lints, and JS tests
         run: |
           docker pull ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
-          docker run --rm --shm-size=2g \
+          docker run --rm --init --shm-size=2g \
             -e INSIDE_CONTAINER=true \
             -e CI=true \
             -e GITHUB_ACTIONS=true \
@@ -57,28 +58,95 @@ jobs:
             -v "$GITHUB_WORKSPACE:/workspaces/ctoolbox" \
             -w /workspaces/ctoolbox \
             ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest \
-            bash -c 'git config --global --add safe.directory "*" && exec ./ci'
+            bash -c 'git config --global --add safe.directory "*" && exec ./ci --prep'
 
       - name: Restore workspace ownership
         if: always()
         run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
 
-      - name: Upload build artifacts
+      - name: Upload shared build assets
         uses: actions/upload-artifact@v4
         with:
-          name: ctoolbox-built
+          name: ci-shared-assets
           path: |
-            built/*/ctoolbox
-            built/*/ctoolbox.exe
-            built/*/ctoolbox.rsrc
-            built/*/system_graph_history.rsrc
-            built/linux-x64/refresh-asset-bundle
+            built/v86_out
+            built/docs
+            built/ctoolbox.rsrc
+            built/system_graph_history.rsrc
+          retention-days: 1
+
+  build-platform:
+    name: Build (${{ matrix.platform }})
+    needs: lint-and-prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux-x64, linux-x86, windows-x64, freebsd-x64]
+
+    steps:
+      - name: Free unused host runner disk space
+        run: |
+          df -h /
+          for sdk_dir in \
+            /usr/share/dotnet \
+            /usr/local/lib/android \
+            /opt/ghc \
+            /usr/local/share/boost \
+            /opt/hostedtoolcache/CodeQL; do
+            if [[ -d "$sdk_dir" ]]; then
+              echo "Removing unused runner directory: $sdk_dir"
+              sudo find "$sdk_dir" -depth -delete
+            fi
+          done
+          df -h /
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download shared build assets
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-shared-assets
+          path: built
+
+      - name: Build and test ${{ matrix.platform }}
+        run: |
+          docker pull ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
+          docker run --rm --init --shm-size=2g \
+            -e INSIDE_CONTAINER=true \
+            -e CI=true \
+            -e GITHUB_ACTIONS=true \
+            -e WINEPREFIX=/tmp/ctb-wine \
+            -v "$GITHUB_WORKSPACE:/workspaces/ctoolbox" \
+            -w /workspaces/ctoolbox \
+            ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest \
+            bash -c "git config --global --add safe.directory \"*\" && exec ./ci --platform \"${{ matrix.platform }}\""
+
+      - name: Restore workspace ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+
+      - name: Upload platform build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctoolbox-built-${{ matrix.platform }}
+          path: |
+            built/${{ matrix.platform }}/ctoolbox
+            built/${{ matrix.platform }}/ctoolbox.exe
+            built/${{ matrix.platform }}/ctoolbox.rsrc
+            built/${{ matrix.platform }}/system_graph_history.rsrc
+            built/${{ matrix.platform }}/refresh-asset-bundle
           retention-days: 7
 
   browser-tests:
     name: Playwright Browser Tests
-    needs: build-ci
+    needs: build-platform
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Free unused host runner disk space
@@ -98,11 +166,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
+      - name: Download linux-x64 build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ctoolbox-built
-          path: built
+          name: ctoolbox-built-linux-x64
+          path: built/linux-x64
 
       - name: Ensure binary execution permissions
         run: |
@@ -119,7 +187,7 @@ jobs:
       - name: Run Playwright Browser Tests
         run: |
           docker pull ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
-          docker run --rm --shm-size=2g \
+          docker run --rm --init --shm-size=2g \
             -e INSIDE_CONTAINER=true \
             -e CI=true \
             -e GITHUB_ACTIONS=true \

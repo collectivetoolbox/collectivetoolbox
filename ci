@@ -23,6 +23,7 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
 mode="dev"
 run_browser_tests=false
+ci_stage_args=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         "--deploy")
@@ -31,12 +32,25 @@ while [[ $# -gt 0 ]]; do
         "--browser-tests")
             run_browser_tests=true
             ;;
+        "--prep")
+            ci_stage_args+=("--prep")
+            ;;
+        "--platform")
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --platform requires a platform name." >&2
+                exit 1
+            fi
+            ci_stage_args+=("--platform" "$2")
+            shift
+            ;;
         "-h"|"--help"|"help")
-            echo "Usage: ./ci [--deploy] [--browser-tests]"
+            echo "Usage: ./ci [--deploy] [--browser-tests] [--prep | --platform <platform>]"
             echo "Modes:"
-            echo "  (no args)       Development Mode: Runs CI on current local working state"
-            echo "  --deploy        Deploy Mode: Verifies uploaded release tarballs based on VERSION and COMMIT files"
-            echo "  --browser-tests Also run Playwright browser verification tests after successful build"
+            echo "  (no args)               Development Mode: Runs CI on current local working state"
+            echo "  --deploy                Deploy Mode: Verifies uploaded release tarballs based on VERSION and COMMIT files"
+            echo "  --browser-tests         Also run Playwright browser verification tests after successful build"
+            echo "  --prep                  Run only shared prep, docs, lints, JS tests, and generated-file check"
+            echo "  --platform <platform>   Run only a single platform build/test (skips docs, lints, JS tests)"
             exit 0
             ;;
         *)
@@ -143,9 +157,9 @@ if [[ "$mode" == "deploy" ]]; then
 fi
 
 if $in_container; then
-    bash scripts/ci-build-inner "--$mode" 2>&1 | tee -a "$log_file" || exit_code=$?
+    bash scripts/ci-build-inner "--$mode" "${ci_stage_args[@]}" 2>&1 | tee -a "$log_file" || exit_code=$?
 elif [[ "$mode" == "deploy" ]]; then
-    docker run --rm \
+    docker run --rm --init \
         --network host \
         --cpus=2 \
         --memory=4g \
@@ -155,7 +169,7 @@ elif [[ "$mode" == "deploy" ]]; then
         -v "$(pwd)/scripts/ci-build-inner":/scripts/ci-build-inner:ro \
         -v "$(pwd)/.advisory-db":/advisory-db:ro \
         "$ci_image" \
-        bash /scripts/ci-build-inner --deploy 2>&1 | tee -a "$log_file" || exit_code=$?
+        bash /scripts/ci-build-inner --deploy "${ci_stage_args[@]}" 2>&1 | tee -a "$log_file" || exit_code=$?
 else
     # Development Mode: Tar local workspace, excluding large build dirs and git history, and pipe to container
     tar --exclude='./target' \
@@ -167,14 +181,14 @@ else
         --exclude='./vendor/*.tar.gz' \
         --exclude='./vendor/*.tar' \
         -cf - . | \
-        docker run --rm -i \
+        docker run --rm --init -i \
             --network host \
             --cpus=2 \
             --memory=4g \
             --memory-swap=44g \
             -v "$(pwd)/.advisory-db":/advisory-db:ro \
             "$ci_image" \
-            bash -c "mkdir -p /tmp/ctb-ci-build && tar -xf - -C /tmp/ctb-ci-build && cd /tmp/ctb-ci-build && bash scripts/ci-build-inner --dev" 2>&1 | tee -a "$log_file" || exit_code=$?
+            bash -c "mkdir -p /tmp/ctb-ci-build && tar -xf - -C /tmp/ctb-ci-build && cd /tmp/ctb-ci-build && bash scripts/ci-build-inner --dev ${ci_stage_args[*]}" 2>&1 | tee -a "$log_file" || exit_code=$?
 fi
 
 if [[ $exit_code -eq 0 && "$run_browser_tests" == "true" ]]; then

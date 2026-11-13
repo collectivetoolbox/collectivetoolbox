@@ -86,6 +86,7 @@ branding="false"
 offline=""
 clean_targets=""
 clean_generated="false"
+prep_only="false"
 
 supported_platforms=(
     "linux-x86"
@@ -258,6 +259,9 @@ while [[ $# -gt 0 ]]; do
         --offline)
             offline="--offline"
             ;;
+        --prep-only)
+            prep_only="true"
+            ;;
         --platforms|--list-platforms|list-platforms|platforms)
             list_platforms
             exit 0
@@ -429,6 +433,12 @@ fi
 if [[ "$js_test" == "true" ]]; then
     echo "=== Running JavaScript tests ==="
     cargo run $offline -p ctb-formats-javascript --bin js-test -- assets/web/js/tests || exit 1
+fi
+
+if [[ "$prep_only" == "true" ]]; then
+    echo "Prep-only mode: skipping platform builds."
+    find built/ -name '.gitignore' -delete 2>/dev/null || true
+    exit 0
 fi
 
 for p in "${platforms[@]}"; do

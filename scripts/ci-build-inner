@@ -33,21 +33,55 @@ fi
 export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
 mkdir -p "$WINEPREFIX"
 
+cleanup_ci_inner() {
+    if command -v wineserver >/dev/null 2>&1; then
+        WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}" wineserver -k 2>/dev/null || true
+    fi
+}
+trap cleanup_ci_inner EXIT
+
 # Ensure robust DNS resolution inside the container
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 echo "nameserver 1.1.1.1" >> /etc/resolv.conf
 
 mode="dev"
-if [[ $# -gt 0 ]]; then
-    if [[ "$1" == "--deploy" ]]; then
-        mode="deploy"
-    elif [[ "$1" == "--dev" ]]; then
-        mode="dev"
-    else
-        echo "Unknown option: $1" >&2
-        exit 1
-    fi
-fi
+ci_stage="all"
+ci_platform=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --deploy)
+            mode="deploy"
+            ;;
+        --dev)
+            mode="dev"
+            ;;
+        --prep)
+            if [[ "$ci_stage" == "platform" ]]; then
+                echo "Error: --prep and --platform are mutually exclusive." >&2
+                exit 1
+            fi
+            ci_stage="prep"
+            ;;
+        --platform)
+            if [[ "$ci_stage" == "prep" ]]; then
+                echo "Error: --prep and --platform are mutually exclusive." >&2
+                exit 1
+            fi
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --platform requires a platform name." >&2
+                exit 1
+            fi
+            ci_stage="platform"
+            ci_platform="$2"
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
 
 echo "Installing system dependencies..."
 
@@ -221,18 +255,21 @@ if [[ -n "$advisory_dir" ]]; then
     cp -r "$advisory_dir" "${cargo_home}/advisory-dbs/advisory-db-3157b0e258782691"
 fi
 
-echo "Backing up generated files for offline regeneration and drift check..."
-gen_backup_dir="$(mktemp -d)"
-# FIXME Guix
-while IFS= read -r f; do
-    mkdir -p "$gen_backup_dir/$(dirname "$f")"
-    cp "$f" "$gen_backup_dir/$f"
-done < <(find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' -o -name 'generated.rs' \) \
-    ! -path '*/packaging/guix/generated/*' \
-    ! -path '*/vendor/*')
+gen_backup_dir=""
+if [[ "$ci_stage" != "platform" ]]; then
+    echo "Backing up generated files for offline regeneration and drift check..."
+    gen_backup_dir="$(mktemp -d)"
+    # FIXME Guix
+    while IFS= read -r f; do
+        mkdir -p "$gen_backup_dir/$(dirname "$f")"
+        cp "$f" "$gen_backup_dir/$f"
+    done < <(find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' -o -name 'generated.rs' \) \
+        ! -path '*/packaging/guix/generated/*' \
+        ! -path '*/vendor/*')
 
-echo "Cleaning generated files to verify offline regeneration..."
-./scripts/clean-generated
+    echo "Cleaning generated files to verify offline regeneration..."
+    ./scripts/clean-generated
+fi
 
 echo "Purging developer utilities and non-build dependencies before build..."
 PLEASE_BREAK_MY_SYSTEM="y" "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
@@ -320,9 +357,15 @@ echo "Running offline build..."
 # Cargo deny produces an enormous amount of output when running in Docker, due
 # to being unable to check for yanked crates for some reason. It does finish
 # eventually though.
-./build --release --offline --clean-targets all
+if [[ "$ci_stage" == "prep" ]]; then
+    ./build --release --offline --clean-targets --prep-only
+elif [[ "$ci_stage" == "platform" ]]; then
+    ./build --release --offline --no-lints --no-docs --no-js-tests --clean-targets "$ci_platform"
+else
+    ./build --release --offline --clean-targets all
+fi
 
-if [[ -d built/linux-x64 ]]; then
+if [[ "$ci_stage" != "prep" && -d built/linux-x64 ]]; then
     echo "Building standalone refresh-asset-bundle helper for browser-tests..."
     RUSTFLAGS="-C target-feature=+crt-static" cargo build --offline --release \
         -p ctb-build-support --bin refresh-asset-bundle --target x86_64-unknown-linux-musl
@@ -330,25 +373,27 @@ if [[ -d built/linux-x64 ]]; then
     cargo clean
 fi
 
-echo "Verifying that all cleaned generated files were regenerated without drift..."
-drift_count=0
-while IFS= read -r backup_file; do
-    rel_path="${backup_file#$gen_backup_dir/}"
-    if [[ ! -f "$rel_path" ]]; then
-        echo "ERROR: Generated file $rel_path was not regenerated during build!" >&2
-        drift_count=$((drift_count + 1))
-    elif ! diff -u "$backup_file" "$rel_path"; then
-        echo "ERROR: Generated file $rel_path drifted from expected version!" >&2
-        drift_count=$((drift_count + 1))
-    fi
-done < <(find "$gen_backup_dir" -type f)
+if [[ "$ci_stage" != "platform" ]]; then
+    echo "Verifying that all cleaned generated files were regenerated without drift..."
+    drift_count=0
+    while IFS= read -r backup_file; do
+        rel_path="${backup_file#$gen_backup_dir/}"
+        if [[ ! -f "$rel_path" ]]; then
+            echo "ERROR: Generated file $rel_path was not regenerated during build!" >&2
+            drift_count=$((drift_count + 1))
+        elif ! diff -u "$backup_file" "$rel_path"; then
+            echo "ERROR: Generated file $rel_path drifted from expected version!" >&2
+            drift_count=$((drift_count + 1))
+        fi
+    done < <(find "$gen_backup_dir" -type f)
 
-if [[ $drift_count -gt 0 ]]; then
-    echo "ERROR: $drift_count generated file(s) failed regeneration or drifted." >&2
+    if [[ $drift_count -gt 0 ]]; then
+        echo "ERROR: $drift_count generated file(s) failed regeneration or drifted." >&2
+        rm -rf "$gen_backup_dir"
+        exit 1
+    fi
     rm -rf "$gen_backup_dir"
-    exit 1
+    echo "All generated files successfully regenerated offline with zero drift!"
 fi
-rm -rf "$gen_backup_dir"
-echo "All generated files successfully regenerated offline with zero drift!"
 
 echo "CI Build Inner completed successfully!"
