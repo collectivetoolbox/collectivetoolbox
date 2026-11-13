@@ -514,17 +514,21 @@ If you don't understand why that diff is missing the point of this lint, re-read
         .saturating_add(scm_files.len())
         .saturating_add(docker_files.len())
         .saturating_add(python_files.len())
-        .saturating_add(shell_files.len());
+        .saturating_add(shell_files.len())
+        .saturating_add(wat_files.len())
+        .saturating_add(stagel_files.len());
 
     if ast_results.header_violations.is_empty() {
         println!(
-            "header and docblock lint passed ({} files checked: {} Rust, {} Scheme, {} Dockerfile, {} Python, {} Shell)",
+            "header and docblock lint passed ({} files checked: {} Rust, {} Scheme, {} Dockerfile, {} Python, {} Shell, {} WAT, {} StageL)",
             total_header_files,
             header_rs_files.len(),
             scm_files.len(),
             docker_files.len(),
             python_files.len(),
-            shell_files.len()
+            shell_files.len(),
+            wat_files.len(),
+            stagel_files.len()
         );
     } else {
         any_failure = true;
