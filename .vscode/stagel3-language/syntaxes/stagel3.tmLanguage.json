@@ -36,7 +36,7 @@
             "patterns": [
                 {
                     "name": "comment.line.colon.directive.stagel3",
-                    "match": "^\\s*(:)\\s+(@dc)\\s+(l?\\d+|f\\d+|u[0-9a-fA-F]+)\\b.*$",
+                    "match": "^\\s*(:)\\s+(@[dD][cC])\\s+(l?\\d+|f\\d+|u[0-9a-fA-F]+)\\b.*$",
                     "captures": {
                         "1": {
                             "name": "punctuation.definition.comment.stagel3"
@@ -59,7 +59,7 @@
             "patterns": [
                 {
                     "name": "string.quoted.double.bytes.stagel3",
-                    "begin": "\\b(b)\"",
+                    "begin": "\\b([bB])\"",
                     "beginCaptures": {
                         "1": {
                             "name": "storage.type.string.stagel3"
@@ -107,7 +107,7 @@
             "patterns": [
                 {
                     "name": "constant.character.escape.stagel3",
-                    "match": "/(/|n|r|t|\"|0|x[0-9a-fA-F]{2})"
+                    "match": "/(/|n|N|r|R|t|T|\"|0|x[0-9a-fA-F]{2}|X[A-Pa-p]{2})"
                 }
             ]
         },
@@ -115,11 +115,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(if|while|foreach|break|continue|do|match|case|else|fault|unimplemented)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:if|while|foreach|break|continue|do|match|case|else|fault|unimplemented)(?![A-Za-z0-9_/:])"
                 },
                 {
                     "name": "keyword.declaration.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(ns|use|pub|const|let|set|test|in|out|brand|type|struct|enum)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:ns|use|pub|const|let|set|test|in|out|brand|type|struct|enum)(?![A-Za-z0-9_/:])"
                 }
             ]
         },
@@ -127,7 +127,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|with)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|with)(?![A-Za-z0-9_/:])"
                 }
             ]
         },
@@ -135,15 +135,19 @@
             "patterns": [
                 {
                     "name": "constant.language.boolean.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(true|false)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:true|false)(?![A-Za-z0-9_/:])"
                 },
                 {
                     "name": "constant.numeric.typed.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128):-?\\d+(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:u8|u16|u32|u64|u128|i8|i16|i32|i64|i128):-?\\d+(?![A-Za-z0-9_/:])"
+                },
+                {
+                    "name": "constant.numeric.typed.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])(?i:[ui](?:n:[a-j]:)+):(?:(?i:n:[a-jm]:)+)(?![A-Za-z0-9_/])"
                 },
                 {
                     "name": "constant.other.dc-shorthand.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])dc/(l?\\d+|f\\d+|u[0-9a-fA-F]+)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:dc)/(l?\\d+|f\\d+|u[0-9a-fA-F]+)(?![A-Za-z0-9_/:])"
                 }
             ]
         },
@@ -151,7 +155,7 @@
             "patterns": [
                 {
                     "name": "entity.name.function.verb.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(v)/(?:(l|buf|option|result)/)*(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|b|t|s|dc|dcs|int|rat|view|cursor|void|[A-Za-z][A-Za-z0-9]*)/([A-Za-z][A-Za-z0-9]*)",
+                    "match": "(?<![A-Za-z0-9_/:])([vV])/((?:(?i:l|buf|option|result)/)*)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void)|[A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)/([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)",
                     "captures": {
                         "1": {
                             "name": "storage.type.verb.stagel3"
@@ -169,7 +173,7 @@
                 },
                 {
                     "name": "variable.other.typed.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(?:(l|buf|option|result)/)*(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|b|t|s|dc|dcs|int|rat|view|cursor)/([A-Za-z][A-Za-z0-9]*)",
+                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor))/([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)",
                     "captures": {
                         "1": {
                             "name": "storage.type.container.stagel3"
@@ -183,8 +187,31 @@
                     }
                 },
                 {
+                    "name": "meta.type.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)+)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void))(?![A-Za-z0-9_/])",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.container.stagel3"
+                        },
+                        "2": {
+                            "name": "storage.type.primitive.stagel3"
+                        }
+                    }
+                },
+                {
                     "name": "storage.type.primitive.stagel3",
-                    "match": "(?<![A-Za-z0-9_/])(u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|b|t|s|dc|dcs|int|rat|view|cursor|void)(?![A-Za-z0-9_/])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor|void)(?![A-Za-z0-9_/])"
+                },
+                {
+                    "match": "(:)((?i:some|none|ok|err))(?![A-Za-z0-9_/:])",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.separator.colon.stagel3"
+                        },
+                        "2": {
+                            "name": "constant.language.stagel3"
+                        }
+                    }
                 }
             ]
         },
