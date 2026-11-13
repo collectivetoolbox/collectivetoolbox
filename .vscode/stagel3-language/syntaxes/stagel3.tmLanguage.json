@@ -16,6 +16,9 @@
             "include": "#strings"
         },
         {
+            "include": "#test-declarations"
+        },
+        {
             "include": "#keywords"
         },
         {
@@ -108,6 +111,22 @@
                 {
                     "name": "constant.character.escape.stagel3",
                     "match": "/(/|n|N|r|R|t|T|\"|0|x[0-9a-fA-F]{2}|X[A-Pa-p]{2})"
+                }
+            ]
+        },
+        "test-declarations": {
+            "patterns": [
+                {
+                    "name": "meta.test.declaration.stagel3",
+                    "match": "^\\s*((?i:test))(?:\\s+(.*))?$",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.declaration.stagel3"
+                        },
+                        "2": {
+                            "name": "meta.test-name.stagel3"
+                        }
+                    }
                 }
             ]
         },
