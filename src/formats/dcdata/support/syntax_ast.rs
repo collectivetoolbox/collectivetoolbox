@@ -684,6 +684,42 @@ impl SyntaxPattern {
         }
     }
 
+    /// Returns true if any leading element of this pattern (accounting for
+    /// nullable leading elements) explicitly targets a character satisfying
+    /// `pred`.
+    #[must_use]
+    pub fn can_start_with_token(
+        &self,
+        pred: &mut impl FnMut(u128) -> bool,
+    ) -> bool {
+        match self {
+            Self::Sequence(elems) => {
+                for elem in elems {
+                    let hit = match &elem.term {
+                        SyntaxTerm::CharRef(target)
+                        | SyntaxTerm::RuleRef { target } => {
+                            pred(target.to_u128())
+                        }
+                        SyntaxTerm::Group(sub) => {
+                            sub.can_start_with_token(pred)
+                        }
+                        _ => false,
+                    };
+                    if hit {
+                        return true;
+                    }
+                    if !elem.quantifier.allows_zero() {
+                        break;
+                    }
+                }
+                false
+            }
+            Self::Alternation(branches) => {
+                branches.iter().any(|b| b.can_start_with_token(pred))
+            }
+        }
+    }
+
     /// Returns a copy of this pattern with any subtype or list-length constraints removed,
     /// or `None` if no nested term is constrained.
     #[must_use]

@@ -1094,6 +1094,53 @@ impl SeedGraphIndex {
         false
     }
 
+    /// Returns true if any leading element of `tokens` (accounting for nullable
+    /// leading elements) explicitly targets a character satisfying `pred`.
+    #[must_use]
+    pub fn pattern_tokens_can_start_with_token(
+        &self,
+        raw_tokens: &[DcShorthand],
+        pred: &mut impl FnMut(u128) -> bool,
+    ) -> bool {
+        let Ok(tokens) = self.strip_pattern_action_tokens(raw_tokens) else {
+            return false;
+        };
+        if let Ok(Some(branches)) = self.split_alternation_branches(tokens) {
+            return branches
+                .iter()
+                .any(|b| self.pattern_tokens_can_start_with_token(b, pred));
+        }
+        let mut idx = 0usize;
+        while idx < tokens.len() {
+            let Ok((step, quantifier, after_idx)) =
+                self.step_pattern_token_slice(tokens, idx)
+            else {
+                break;
+            };
+            let hit = match step {
+                PatternTokenStep::Group(inner) => {
+                    self.pattern_tokens_can_start_with_token(inner, pred)
+                }
+                PatternTokenStep::Term(
+                    SyntaxTerm::CharRef(target)
+                    | SyntaxTerm::RuleRef { target },
+                ) => pred(target.to_u128()),
+                PatternTokenStep::Term(SyntaxTerm::Group(pat)) => {
+                    pat.can_start_with_token(pred)
+                }
+                PatternTokenStep::Term(_) => false,
+            };
+            if hit {
+                return true;
+            }
+            if !quantifier.allows_zero() {
+                break;
+            }
+            idx = after_idx;
+        }
+        false
+    }
+
     /// Steps a single quantified element from `tokens` at `idx` without constructing
     /// a `SyntaxPattern` AST for nested groups (`298 ... 299`).
     pub fn step_pattern_token_slice<'a>(

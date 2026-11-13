@@ -8318,4 +8318,114 @@ mod tests {
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_all_stage_0_wat_builtins_assemble_and_resolve_in_system_graph()
+    -> Result<()> {
+        use ctb_formats_dcdata::support::wat::{ImplStage, load_staged_dc_impls};
+
+        let data_src_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../dcdata/data-src");
+        let (staged, _) = load_staged_dc_impls(&data_src_dir)?;
+        let resolver = default_syntax_resolver();
+
+        let mut stage0_count = 0usize;
+        for item in &staged {
+            if item.stage != ImplStage::Stage0 {
+                continue;
+            }
+            stage0_count = stage0_count.saturating_add(1);
+
+            let resolved = if item.context_tokens.is_empty() {
+                resolver
+                    .resolve_wasm_definition_tokens(item.target.to_global_id()?)
+            } else {
+                resolver.resolve_wasm_definition_tokens_in_context(
+                    item.target.to_global_id()?,
+                    &item.context_tokens,
+                )
+            }
+            .with_context(|| {
+                format!(
+                    "Missing System graph .WASM entry for {} (target={}, ctx={:?})",
+                    item.rel_path, item.target, item.context_tokens
+                )
+            })?;
+
+            let mut raw_doc = DcMstring::new();
+            for tok in &item.tokens {
+                raw_doc.push_char(DcChar::from_u128(tok.to_global_id()?));
+            }
+            let raw_wasm_bytes =
+                dcmstring_to_wasm_with_resolver(&raw_doc, resolver.as_ref())
+                    .with_context(|| {
+                        format!(
+                            "Failed to assemble raw Stage 0 .wat entry {} (ctx={:?})",
+                            item.rel_path, item.context_tokens
+                        )
+                    })?;
+
+            let mut graph_doc = DcMstring::new();
+            for tok in resolved {
+                graph_doc.push_char(DcChar::from_u128(tok.to_global_id()?));
+            }
+            let wasm_bytes =
+                dcmstring_to_wasm_with_resolver(&graph_doc, resolver.as_ref())
+                    .with_context(|| {
+                        format!(
+                            "Failed to assemble System graph .WASM entry {} (ctx={:?})",
+                            item.rel_path, item.context_tokens
+                        )
+                    })?;
+            assert_eq!(
+                wasm_bytes, raw_wasm_bytes,
+                "Assembled .wasm mismatch between System graph and raw .wat for {} (ctx={:?})",
+                item.rel_path, item.context_tokens
+            );
+            let _ = crate::converters::wasm_quota::instrument_wasm_module_bytes(
+                &wasm_bytes,
+            )
+            .with_context(|| {
+                format!(
+                    "Quota instrumentation failed for {} (ctx={:?})",
+                    item.rel_path, item.context_tokens
+                )
+            })?;
+            let _ = ctb_formats_dcdata::tinywasm::Module::parse_bytes(&wasm_bytes)
+                .map_err(|e| {
+                    anyhow!(
+                        "tinywasm parse failed for {} (ctx={:?}): {e:?}",
+                        item.rel_path,
+                        item.context_tokens
+                    )
+                })?;
+        }
+        assert!(
+            stage0_count >= 170,
+            "Expected >= 170 Stage 0 .wat entries across all 40 files, got {stage0_count}"
+        );
+
+        // Verify wildcard prefix resolution (`275` `*`) for polymorphic sequence/nested-list ops.
+        let len_l_u8 = resolver.resolve_wasm_definition_tokens_in_context(
+            DcChar::from_short(2543).to_u128(),
+            &[DcShorthand::Short(2576), DcShorthand::Format(203)],
+        );
+        assert!(
+            len_l_u8.is_some(),
+            "Dc 2543 (len) must resolve `2576 f203` via `2576 275` wildcard"
+        );
+        let get_nested_list = resolver.resolve_wasm_definition_tokens_in_context(
+            DcChar::from_short(2544).to_u128(),
+            &[
+                DcShorthand::Short(2576),
+                DcShorthand::Short(2576),
+                DcShorthand::Format(208),
+            ],
+        );
+        assert!(
+            get_nested_list.is_some(),
+            "Dc 2544 (get) must resolve `2576 2576 f208` via `2576 2576 275` wildcard"
+        );
+        Ok(())
+    }
 }

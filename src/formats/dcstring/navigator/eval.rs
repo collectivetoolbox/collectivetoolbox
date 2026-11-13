@@ -756,6 +756,14 @@ impl DcDocumentNavigator<'_> {
                                 if first_dc.fills_role_with(
                                     DcRole::OptionalPresent,
                                     ctx.resolver,
+                                ) && !sg.pattern_tokens_can_start_with_token(
+                                    group_tokens,
+                                    &mut |gid| {
+                                        ctx.token_fills_role(
+                                            gid,
+                                            DcRole::OptionalPresent,
+                                        )
+                                    },
                                 ) {
                                     let opt_cp = self.save_checkpoint();
                                     while self.peek_next_token()?.is_some_and(
@@ -779,6 +787,14 @@ impl DcDocumentNavigator<'_> {
                                 } else if first_dc.fills_role_with(
                                     DcRole::OptionalAbsent,
                                     ctx.resolver,
+                                ) && !sg.pattern_tokens_can_start_with_token(
+                                    group_tokens,
+                                    &mut |gid| {
+                                        ctx.token_fills_role(
+                                            gid,
+                                            DcRole::OptionalAbsent,
+                                        )
+                                    },
                                 ) {
                                     let _ = self.pop_next_token()?;
                                     matched = true;
@@ -1261,7 +1277,12 @@ impl DcDocumentNavigator<'_> {
             // 2. Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
             let term_targets_opt_present = match term {
                 SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-                SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
+                SyntaxTerm::Group(pat) => {
+                    pat.starts_with_self_or_charset()
+                        || pat.can_start_with_token(&mut |gid| {
+                            ctx.token_fills_role(gid, DcRole::OptionalPresent)
+                        })
+                }
                 SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
                     ctx.token_fills_role(t.to_u128(), DcRole::OptionalPresent)
                 }
@@ -1289,7 +1310,12 @@ impl DcDocumentNavigator<'_> {
             }
             let term_targets_opt_absent = match term {
                 SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
-                SyntaxTerm::Group(pat) => pat.starts_with_self_or_charset(),
+                SyntaxTerm::Group(pat) => {
+                    pat.starts_with_self_or_charset()
+                        || pat.can_start_with_token(&mut |gid| {
+                            ctx.token_fills_role(gid, DcRole::OptionalAbsent)
+                        })
+                }
                 SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
                     ctx.token_fills_role(t.to_u128(), DcRole::OptionalAbsent)
                 }
