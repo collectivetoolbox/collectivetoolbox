@@ -3858,72 +3858,72 @@ const u32/forwardRef add u32/baseOffset u32:2.
 const u32/baseOffset u32:40.
 
 v/u32/arithAndMin i32/x u32/y
-  test smoke
-    in i32:-16 u32:10
-    out u32:102.
-  let u32/branchOut.
-  if gt u32/y u32:5 do
-    set u32/branchOut u32/forwardRef.
-  :: do
-    fault.
-  ::.
-  let i32/shifted shr i32/x u32:2.
-  let u32/negSign.
-  let i64/minWide i64:-9223372036854775808.
-  let i32/minSmall i32:-2147483648.
-  if lt i64/minWide i64:0 do
-    set u32/negSign add popcnt bitcast i32/minSmall u32 bitcast i32/shifted u32.
-  :: do
-    set u32/negSign u32:0.
-  ::.
-  : match Rust keyword identifiers too!
-  let u32/match add u32/branchOut u32:64.
-  : wrapAdd(1 + 4294967292) overflows -4u32 cleanly when using wrapSub:
-  wrapSub wrapAdd u32/match u32/negSign wrapAdd u32:1 u32:0.
+    test smoke
+        in i32:-16 u32:10
+        out u32:102.
+    let u32/branchOut.
+    if gt u32/y u32:5 do
+        set u32/branchOut u32/forwardRef.
+    :: do
+        fault.
+    ::.
+    let i32/shifted shr i32/x u32:2.
+    let u32/negSign.
+    let i64/minWide i64:-9223372036854775808.
+    let i32/minSmall i32:-2147483648.
+    if lt i64/minWide i64:0 do
+        set u32/negSign add popcnt bitcast i32/minSmall u32 bitcast i32/shifted u32.
+    :: do
+        set u32/negSign u32:0.
+    ::.
+    : match Rust keyword identifiers too!
+    let u32/match add u32/branchOut u32:64.
+    : wrapAdd(1 + 4294967292) overflows -4u32 cleanly when using wrapSub:
+    wrapSub wrapAdd u32/match u32/negSign wrapAdd u32:1 u32:0.
 
 v/l/u8/bufWorkflow u8/fillByte
-  test ok
-    in u8:65
-    out b"AAA!".
-  let buf/u8/buf1 bufFill u8/fillByte u64:4.
-  bufSet buf/u8/buf1 u64:3 u8:33.
-  bufFreeze buf/u8/buf1.
+    test ok
+        in u8:65
+        out b"AAA!".
+    let buf/u8/buf1 bufFill u8/fillByte u64:4.
+    bufSet buf/u8/buf1 u64:3 u8:33.
+    bufFreeze buf/u8/buf1.
 
 v/u64/trapFrozen
-  test frozen
-    in.
-    out fault.
-  let buf/u8/b2 bufNew u8 u64:2.
-  let l/u8/frozen bufFreeze buf/u8/b2.
-  bufSet buf/u8/b2 u64:0 u8:77.
-  len l/u8/frozen.
+    test frozen
+        in.
+        out fault.
+    let buf/u8/b2 bufNew u8 u64:2.
+    let l/u8/frozen bufFreeze buf/u8/b2.
+    bufSet buf/u8/b2 u64:0 u8:77.
+    len l/u8/frozen.
 
 v/u32/capturesAndLoops u32/limit
-  test total
-    in u32:4
-    out u32:24.
-  let u32/acc u32:0.
-  v/void/addAcc u32/d :: set u32/acc add u32/acc u32/d.
-  v/u32/factAcc u32/n
-    if le u32/n u32:1 u32:1 add u32/n factAcc sub u32/n u32:1.
-  let u32/i u32:0.
-  while lt u32/i u32/limit do
-    set u32/i add u32/i u32:1.
-    if eq u32/i u32:2 continue do ::.
-    addAcc u32/i.
-  ::.
-  let l/u32/xs l/u32: u32:2 u32:4 u32:6 ::.
-  foreach u32/el slice l/u32/xs u64:1 u64:3 do
-    addAcc u32/el.
-  ::.
-  : i=1,3,4 -> 8; slice [4,6] -> 10; factAcc(3) -> 6 => 24
-  add u32/acc factAcc u32:3.
+    test total
+        in u32:4
+        out u32:24.
+    let u32/acc u32:0.
+    v/void/addAcc u32/d :: set u32/acc add u32/acc u32/d.
+    v/u32/factAcc u32/n
+        if le u32/n u32:1 u32:1 add u32/n factAcc sub u32/n u32:1.
+    let u32/i u32:0.
+    while lt u32/i u32/limit do
+        set u32/i add u32/i u32:1.
+        if eq u32/i u32:2 continue do ::.
+        addAcc u32/i.
+    ::.
+    let l/u32/xs l/u32: u32:2 u32:4 u32:6 ::.
+    foreach u32/el slice l/u32/xs u64:1 u64:3 do
+        addAcc u32/el.
+    ::.
+    : i=1,3,4 -> 8; slice [4,6] -> 10; factAcc(3) -> 6 => 24
+    add u32/acc factAcc u32:3.
 
 v/void/voidReturn u32/x
-  test ok
-    in u32:5
-    out.
-  if eq u32/x u32:0 fault do ::.
+    test ok
+        in u32:5
+        out.
+    if eq u32/x u32:0 fault do ::.
 "#;
         // Verify StageL 3 VM agrees first.
         let vm_report = run_module_inline_tests(src).expect("VM inline tests");
@@ -3952,10 +3952,10 @@ pub u32/zeroConst u32:0.
 pub dc/257 u32/oneConst u32:1.
 
 pub v/b/isEven u32/n
-  if eq u32/n u32/zeroConst true isOdd sub u32/n u32/oneConst.
+    if eq u32/n u32/zeroConst true isOdd sub u32/n u32/oneConst.
 
 pub v/b/isOdd u32/n
-  if eq u32/n u32/zeroConst false isEven sub u32/n u32/oneConst.
+    if eq u32/n u32/zeroConst false isEven sub u32/n u32/oneConst.
 
 pub dc/256 v/u32/incByOne u32/argVal :: add u32/argVal u32/oneConst.
 
@@ -3969,16 +3969,16 @@ pub v/u32/doubleIt u32/argVal :: mul u32/argVal u32:2.
 use math/parity: isEven doubleIt as timesTwo dc/256 dc/257 ::.
 
 pub v/b/checkDeepTail
-  test even50k
-    in.
-    out true.
-  isEven u32:50000.
+    test even50k
+        in.
+        out true.
+    isEven u32:50000.
 
 pub v/u32/useImports u32/inputVal
-  test imported
-    in u32:6
-    out u32:13.
-  dc/256 timesTwo u32/inputVal.
+    test imported
+        in u32:6
+        out u32:13.
+    dc/256 timesTwo u32/inputVal.
 "#,
             },
         ];
@@ -3998,7 +3998,7 @@ pub v/u32/useImports u32/inputVal
 
     #[crate::ctb_test]
     fn test_rust_codegen_rejects_invalid_module_and_unlinked_imports() {
-        let bad = "v/u32/bad\n  let u32/x.\n  u32/x.\n";
+        let bad = "v/u32/bad\n    let u32/x.\n    u32/x.\n";
         let err = transpile_sl3_source_to_rust(
             bad,
             &RustTranspileOptions::default(),
@@ -4030,191 +4030,191 @@ pub v/u32/useImports u32/inputVal
         let src = r#"
 : Self tail recursion returning u64
 v/u64/sumDown u32/cnt u64/acc
-  test deep120k
-    in u32:120000 u64:0
-    out u64:7200060000.
-  if eq u32/cnt u32:0
-    u64/acc
-    sumDown sub u32/cnt u32:1 add u64/acc conv u32/cnt u64.
+    test deep120k
+        in u32:120000 u64:0
+        out u64:7200060000.
+    if eq u32/cnt u32:0
+        u64/acc
+        sumDown sub u32/cnt u32:1 add u64/acc conv u32/cnt u64.
 
 : Non-step leaf routine tail-called at end of 3-way mutual recursion
 v/u32/directLeaf u32/val :: add u32/val u32:7.
 
 v/u32/triA u32/cnt u32/acc
-  test deepTri120k
-    in u32:120000 u32:0
-    out u32:240007.
-  if eq u32/cnt u32:0
-    directLeaf u32/acc
-    triB sub u32/cnt u32:1 add u32/acc u32:1.
+    test deepTri120k
+        in u32:120000 u32:0
+        out u32:240007.
+    if eq u32/cnt u32:0
+        directLeaf u32/acc
+        triB sub u32/cnt u32:1 add u32/acc u32:1.
 
 v/u32/triB u32/cnt u32/acc
-  if eq u32/cnt u32:0
-    directLeaf u32/acc
-    triC sub u32/cnt u32:1 add u32/acc u32:2.
+    if eq u32/cnt u32:0
+        directLeaf u32/acc
+        triC sub u32/cnt u32:1 add u32/acc u32:2.
 
 v/u32/triC u32/cnt u32/acc
-  if eq u32/cnt u32:0
-    directLeaf u32/acc
-    triA sub u32/cnt u32:1 add u32/acc u32:3.
+    if eq u32/cnt u32:0
+        directLeaf u32/acc
+        triA sub u32/cnt u32:1 add u32/acc u32:3.
 
 : Tail call via 'return CALL' inside while and foreach loops
 v/u32/loopEarlyTail u32/limit
-  test loopReturnTail
-    in u32:90000
-    out u32:180030.
-  let u32/idx u32:0.
-  while lt u32/idx u32:5 do
-    set u32/idx add u32/idx u32:1.
-    if eq u32/idx u32:3 do
-      foreach u32/item l/u32: u32:10 u32:20 :: do
-        if eq u32/item u32:20 do
-          return triA u32/limit add u32/idx u32/item.
+    test loopReturnTail
+        in u32:90000
+        out u32:180030.
+    let u32/idx u32:0.
+    while lt u32/idx u32:5 do
+        set u32/idx add u32/idx u32:1.
+        if eq u32/idx u32:3 do
+            foreach u32/item l/u32: u32:10 u32:20 :: do
+                if eq u32/item u32:20 do
+                    return triA u32/limit add u32/idx u32/item.
+                :: do ::.
+            ::.
         :: do ::.
-      ::.
-    :: do ::.
-  ::.
-  u32:0.
+    ::.
+    u32:0.
 
 : Top-level -> nested and sibling mutual tail recursion with SlCap, ImmVal, l/u8, and buf/u8
 v/l/u8/nestedPingPong u32/steps u8/tagByte
-  test pingPong100k
-    in u32:100000 u8:33
-    out l/u8: u8:79 u8:75 u8:58 u8:33 u8:153 ::.
-  let u32/sharedHits u32:0.
-  let buf/u8/outBuf bufNew u8 u64:6.
-  const l/u8/prefixBytes b"OK:".
-  bufExtend buf/u8/outBuf l/u8/prefixBytes.
-  v/l/u8/pingStep u32/leftCount
-    if eq u32/leftCount u32:0 do
-      bufPush buf/u8/outBuf u8/tagByte.
-      bufPush buf/u8/outBuf conv rem u32/sharedHits u32:251 u8.
-      bufFreeze buf/u8/outBuf.
-    :: do
-      set u32/sharedHits add u32/sharedHits u32:1.
-      pongStep sub u32/leftCount u32:1.
-    ::.
-  v/l/u8/pongStep u32/leftCount
-    if eq u32/leftCount u32:0 do
-      pingStep u32:0.
-    :: do
-      set u32/sharedHits add u32/sharedHits u32:2.
-      pingStep sub u32/leftCount u32:1.
-    ::.
-  pingStep u32/steps.
+    test pingPong100k
+        in u32:100000 u8:33
+        out l/u8: u8:79 u8:75 u8:58 u8:33 u8:153 ::.
+    let u32/sharedHits u32:0.
+    let buf/u8/outBuf bufNew u8 u64:6.
+    const l/u8/prefixBytes b"OK:".
+    bufExtend buf/u8/outBuf l/u8/prefixBytes.
+    v/l/u8/pingStep u32/leftCount
+        if eq u32/leftCount u32:0 do
+            bufPush buf/u8/outBuf u8/tagByte.
+            bufPush buf/u8/outBuf conv rem u32/sharedHits u32:251 u8.
+            bufFreeze buf/u8/outBuf.
+        :: do
+            set u32/sharedHits add u32/sharedHits u32:1.
+            pongStep sub u32/leftCount u32:1.
+        ::.
+    v/l/u8/pongStep u32/leftCount
+        if eq u32/leftCount u32:0 do
+            pingStep u32:0.
+        :: do
+            set u32/sharedHits add u32/sharedHits u32:2.
+            pingStep sub u32/leftCount u32:1.
+        ::.
+    pingStep u32/steps.
 
 : Child if-block nested routine mutating outer let + doubly-nested routine tail-calling enclosing nested routine
 v/u32/enclosingAndChildBlockCaps u32/baseVal u32/steps
-  test doublyNested90k
-    in u32:5 u32:90000
-    out u32:90015.
-  let u32/tally u32:0.
-  if gt u32/baseVal u32:0 do
-    v/void/bumpFromIfBranch u32/deltaVal :: set u32/tally add u32/tally u32/deltaVal.
-    bumpFromIfBranch u32:10.
-  :: do
-    set u32/tally u32:1.
-  ::.
-  v/u32/outerLoop u32/cnt
-    if eq u32/cnt u32:0
-      add u32/baseVal u32/tally
-      do
-        set u32/tally add u32/tally u32:1.
-        v/u32/innerStep u32/nextCnt :: outerLoop sub u32/nextCnt u32:1.
-        innerStep u32/cnt.
-      ::.
-  outerLoop u32/steps.
+    test doublyNested90k
+        in u32:5 u32:90000
+        out u32:90015.
+    let u32/tally u32:0.
+    if gt u32/baseVal u32:0 do
+        v/void/bumpFromIfBranch u32/deltaVal :: set u32/tally add u32/tally u32/deltaVal.
+        bumpFromIfBranch u32:10.
+    :: do
+        set u32/tally u32:1.
+    ::.
+    v/u32/outerLoop u32/cnt
+        if eq u32/cnt u32:0
+            add u32/baseVal u32/tally
+            do
+                set u32/tally add u32/tally u32:1.
+                v/u32/innerStep u32/nextCnt :: outerLoop sub u32/nextCnt u32:1.
+                innerStep u32/cnt.
+            ::.
+    outerLoop u32/steps.
 
 : Void-returning deep mutual tail recursion (both top-level and nested side-effecting)
 v/void/voidStepA u32/cnt
-  test void100k
-    in u32:100000
-    out.
-  if eq u32/cnt u32:0 do :: do
-    voidStepB sub u32/cnt u32:1.
-  ::.
+    test void100k
+        in u32:100000
+        out.
+    if eq u32/cnt u32:0 do :: do
+        voidStepB sub u32/cnt u32:1.
+    ::.
 
 v/void/voidStepB u32/cnt
-  if eq u32/cnt u32:0 do
-    return.
-  :: do
-    voidStepA sub u32/cnt u32:1.
-  ::.
+    if eq u32/cnt u32:0 do
+        return.
+    :: do
+        voidStepA sub u32/cnt u32:1.
+    ::.
 
 v/u32/verifyVoidTail u32/steps
-  test ticks100k
-    in u32:100000
-    out u32:100000.
-  let u32/ticks u32:0.
-  v/void/voidTickA u32/cnt
-    if eq u32/cnt u32:0 do :: do
-      set u32/ticks add u32/ticks u32:1.
-      voidTickB sub u32/cnt u32:1.
-    ::.
-  v/void/voidTickB u32/cnt
-    if eq u32/cnt u32:0 do :: do
-      set u32/ticks add u32/ticks u32:1.
-      voidTickA sub u32/cnt u32:1.
-    ::.
-  voidTickA u32/steps.
-  u32/ticks.
+    test ticks100k
+        in u32:100000
+        out u32:100000.
+    let u32/ticks u32:0.
+    v/void/voidTickA u32/cnt
+        if eq u32/cnt u32:0 do :: do
+            set u32/ticks add u32/ticks u32:1.
+            voidTickB sub u32/cnt u32:1.
+        ::.
+    v/void/voidTickB u32/cnt
+        if eq u32/cnt u32:0 do :: do
+            set u32/ticks add u32/ticks u32:1.
+            voidTickA sub u32/cnt u32:1.
+        ::.
+    voidTickA u32/steps.
+    u32/ticks.
 
 : Never-returning deep mutual tail recursion and Value -> Never tail transition
 v/never/haltNow u32/errCode :: fault.
 
 v/never/neverSpinA u32/cnt
-  test deepNeverFault
-    in u32:90000
-    out fault.
-  if eq u32/cnt u32:0
-    haltNow u32:1
-    neverSpinB sub u32/cnt u32:1.
+    test deepNeverFault
+        in u32:90000
+        out fault.
+    if eq u32/cnt u32:0
+        haltNow u32:1
+        neverSpinB sub u32/cnt u32:1.
 
 v/never/neverSpinB u32/cnt
-  if eq u32/cnt u32:0
-    haltNow u32:2
-    neverSpinA sub u32/cnt u32:1.
+    if eq u32/cnt u32:0
+        haltNow u32:2
+        neverSpinA sub u32/cnt u32:1.
 
 v/u32/maybeNeverTail u32/modeFlag
-  test normalBranch
-    in u32:0
-    out u32:77
-  test neverBranch
-    in u32:1
-    out fault.
-  if eq u32/modeFlag u32:0
-    u32:77
-    neverSpinA u32:80000.
+    test normalBranch
+        in u32:0
+        out u32:77
+    test neverBranch
+        in u32:1
+        out fault.
+    if eq u32/modeFlag u32:0
+        u32:77
+        neverSpinA u32:80000.
 
 : 10-parameter tail recursion exercising boxed tuple variant payloads (>8 fields)
 v/u32/wideTail10 u32/cnt u32/a1 u32/a2 u32/a3 u32/a4 u32/a5 u32/a6 u32/a7 u32/a8 u32/acc
-  test wide80k
-    in u32:80000 u32:3 u32:0 u32:0 u32:0 u32:0 u32:0 u32:0 u32:4 u32:0
-    out u32:80007.
-  if eq u32/cnt u32:0
-    add u32/acc add u32/a1 u32/a8
-    wideTail10 sub u32/cnt u32:1 u32/a2 u32/a3 u32/a4 u32/a5 u32/a6 u32/a7 u32/a8 u32/a1 add u32/acc u32:1.
+    test wide80k
+        in u32:80000 u32:3 u32:0 u32:0 u32:0 u32:0 u32:0 u32:0 u32:4 u32:0
+        out u32:80007.
+    if eq u32/cnt u32:0
+        add u32/acc add u32/a1 u32/a8
+        wideTail10 sub u32/cnt u32:1 u32/a2 u32/a3 u32/a4 u32/a5 u32/a6 u32/a7 u32/a8 u32/a1 add u32/acc u32:1.
 
 : Diverging ('never') operands inside conv, bitcast, list, binary, and call arguments
 v/u32/divergingExprSmoke u32/which
-  test okCase
-    in u32:0
-    out u32:19
-  test trapCase
-    in u32:2
-    out fault.
-  if eq u32/which u32:0
-    u32:19
-    if eq u32/which u32:1
-      conv haltNow u32:1 u32
-      if eq u32/which u32:2
-        add u32:5 bitcast haltNow u32:2 u32
-        if eq u32/which u32:3
-          directLeaf haltNow u32:3
-          do
-            let l/u32/deadList l/u32: u32:1 haltNow u32:4 u32:2 ::.
-            get l/u32/deadList u64:0.
-          ::.
+    test okCase
+        in u32:0
+        out u32:19
+    test trapCase
+        in u32:2
+        out fault.
+    if eq u32/which u32:0
+        u32:19
+        if eq u32/which u32:1
+            conv haltNow u32:1 u32
+            if eq u32/which u32:2
+                add u32:5 bitcast haltNow u32:2 u32
+                if eq u32/which u32:3
+                    directLeaf haltNow u32:3
+                    do
+                        let l/u32/deadList l/u32: u32:1 haltNow u32:4 u32:2 ::.
+                        get l/u32/deadList u64:0.
+                    ::.
 "#;
 
         let ws = parse_and_validate_workspace(&[ModuleInput {
@@ -4255,14 +4255,14 @@ v/u32/divergingExprSmoke u32/which
                 source: r#"ns chain/core.
 
 pub v/u32/coreEven u32/cnt u32/acc
-  if eq u32/cnt u32:0
-    u32/acc
-    coreOdd sub u32/cnt u32:1 add u32/acc u32:2.
+    if eq u32/cnt u32:0
+        u32/acc
+        coreOdd sub u32/cnt u32:1 add u32/acc u32:2.
 
 pub dc/256 v/u32/coreOdd u32/cnt u32/acc
-  if eq u32/cnt u32:0
-    u32/acc
-    coreEven sub u32/cnt u32:1 add u32/acc u32:1.
+    if eq u32/cnt u32:0
+        u32/acc
+        coreEven sub u32/cnt u32:1 add u32/acc u32:1.
 "#,
             },
             ModuleInput {
@@ -4271,9 +4271,9 @@ pub dc/256 v/u32/coreOdd u32/cnt u32/acc
 use chain/core: coreEven as stepEven dc/256 ::.
 
 pub dc/257 v/u32/bounceMid u32/cnt u32/acc
-  if eq rem u32/cnt u32:2 u32:0
-    stepEven u32/cnt u32/acc
-    dc/256 u32/cnt u32/acc.
+    if eq rem u32/cnt u32:2 u32:0
+        stepEven u32/cnt u32/acc
+        dc/256 u32/cnt u32/acc.
 "#,
             },
             ModuleInput {
@@ -4282,15 +4282,15 @@ pub dc/257 v/u32/bounceMid u32/cnt u32/acc
 use chain/mid: bounceMid as launchChain dc/257 ::.
 
 pub v/u32/runCrossModuleTail u32/cnt
-  test even100k
-    in u32:100000
-    out u32:150000
-  test odd100k1
-    in u32:100001
-    out u32:150001.
-  if eq rem u32/cnt u32:2 u32:0
-    launchChain u32/cnt u32:0
-    dc/257 u32/cnt u32:0.
+    test even100k
+        in u32:100000
+        out u32:150000
+    test odd100k1
+        in u32:100001
+        out u32:150001.
+    if eq rem u32/cnt u32:2 u32:0
+        launchChain u32/cnt u32:0
+        dc/257 u32/cnt u32:0.
 "#,
             },
         ];
@@ -4323,30 +4323,30 @@ pub v/u32/runCrossModuleTail u32/cnt
         let strict_lib_sl3 = r#"ns clean/strict_lib.
 
 pub v/u32/count_down u32/steps u32/acc
-  if eq u32/steps u32:0
-    u32/acc
-    count_down_alt sub u32/steps u32:1 add u32/acc u32:1.
+    if eq u32/steps u32:0
+        u32/acc
+        count_down_alt sub u32/steps u32:1 add u32/acc u32:1.
 
 pub v/u32/count_down_alt u32/steps u32/acc
-  if eq u32/steps u32:0
-    do
-      v/u32/nested_finish u32/cur
-        if eq u32/cur u32:0 u32/acc nested_finish sub u32/cur u32:1.
-      nested_finish u32:3.
-    ::
-    count_down sub u32/steps u32:1 add u32/acc u32:2.
+    if eq u32/steps u32:0
+        do
+            v/u32/nested_finish u32/cur
+                if eq u32/cur u32:0 u32/acc nested_finish sub u32/cur u32:1.
+            nested_finish u32:3.
+        ::
+        count_down sub u32/steps u32:1 add u32/acc u32:2.
 
 pub v/void/spin_void u32/steps
-  if eq u32/steps u32:0 do :: do
-    spin_void sub u32/steps u32:1.
-  ::.
+    if eq u32/steps u32:0 do :: do
+        spin_void sub u32/steps u32:1.
+    ::.
 
 pub v/never/abort_now :: fault.
 
 pub v/u32/guard_or_abort u32/val
-  if eq u32/val u32:0
-    abort_now
-    count_down u32/val u32:0.
+    if eq u32/val u32:0
+        abort_now
+        count_down u32/val u32:0.
 "#;
         let strict_rust = transpile_sl3_source_to_rust(
             strict_lib_sl3,

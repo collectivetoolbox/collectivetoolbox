@@ -2101,44 +2101,44 @@ pub dc/256 u32/shortExport u32:99.
 : Main arithmetic and syntax showcase
 : @dc l9000002
 pub v/u32/roundTripDemo u32/x i32/y l/u8/raw
-  test smoke
-    in u32:10 i32:-2 b"hi/n/t///x41/"/0"
-    out u32:65.
-    in u32:2147483647 i32:1 b"a"
-    out fault.
-  : Local bindings and literals
-  let u32/acc.
-  const b/flag true.
-  const l/u32/items l/u32: u32:1 u32:2 u32:3 ::.
-  const i32/minSigned i32:-2147483648.
-  const i64/minWide i64:-9223372036854775808.
-  v/u32/helper u32/n :: add u32/n u32/baseOffset.
-  if b/flag do
-    set u32/acc u32/x.
-    u32/acc.
-  :: do
-    set u32/acc u32:0.
-    u32/acc.
-  ::.
-  let buf/u8/scratch bufNew u8 u64:4.
-  bufPush buf/u8/scratch u8:65.
-  let l/u8/frozen bufFreeze buf/u8/scratch.
-  let u32/extra u32:0.
-  foreach u8/itemByte l/u8/frozen do
-    set u32/extra wrapAdd u32/extra conv u8/itemByte u32.
-  ::.
-  if lt len l/u8/raw u64:1 fault do ::.
-  let u8/first get l/u8/raw u64:0.
-  let u32/discard1 add bitcast i32/minSigned u32 wrapSub u32:0 bitcast i32/y u32.
-  set u32/acc helper u32/acc.
-  let u32/discard2 add u32/discard1 u32/acc.
-  add u32/extra sub get l/u32/items u64:1 u32:2.
+    test smoke
+        in u32:10 i32:-2 b"hi/n/t///x41/"/0"
+        out u32:65.
+        in u32:2147483647 i32:1 b"a"
+        out fault.
+    : Local bindings and literals
+    let u32/acc.
+    const b/flag true.
+    const l/u32/items l/u32: u32:1 u32:2 u32:3 ::.
+    const i32/minSigned i32:-2147483648.
+    const i64/minWide i64:-9223372036854775808.
+    v/u32/helper u32/n :: add u32/n u32/baseOffset.
+    if b/flag do
+        set u32/acc u32/x.
+        u32/acc.
+    :: do
+        set u32/acc u32:0.
+        u32/acc.
+    ::.
+    let buf/u8/scratch bufNew u8 u64:4.
+    bufPush buf/u8/scratch u8:65.
+    let l/u8/frozen bufFreeze buf/u8/scratch.
+    let u32/extra u32:0.
+    foreach u8/itemByte l/u8/frozen do
+        set u32/extra wrapAdd u32/extra conv u8/itemByte u32.
+    ::.
+    if lt len l/u8/raw u64:1 fault do ::.
+    let u8/first get l/u8/raw u64:0.
+    let u32/discard1 add bitcast i32/minSigned u32 wrapSub u32:0 bitcast i32/y u32.
+    set u32/acc helper u32/acc.
+    let u32/discard2 add u32/discard1 u32/acc.
+    add u32/extra sub get l/u32/items u64:1 u32:2.
 
 v/void/voidRoutine u32/inputVal
-  test voidCase
-    in u32:1
-    out.
-  if eq u32/inputVal u32:0 fault do ::.
+    test voidCase
+        in u32:1
+        out.
+    if eq u32/inputVal u32:0 fault do ::.
 "#;
 
         let module1 = parse_module(src).expect("parse_module failed");

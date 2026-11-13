@@ -1739,84 +1739,84 @@ mod tests {
     fn test_eval_arithmetic_bitwise_conv_bitcast_and_traps() {
         let src = r#"
 v/u32/testArith
-  test checked
-    in.
-    out u32:42.
-  let u32/prod mul u32:6 u32:7.
-  u32/prod.
+    test checked
+        in.
+        out u32:42.
+    let u32/prod mul u32:6 u32:7.
+    u32/prod.
 
 v/u32/trapAddOverflow
-  test overflow
-    in.
-    out fault.
-  add u32:4294967295 u32:1.
+    test overflow
+        in.
+        out fault.
+    add u32:4294967295 u32:1.
 
 v/i32/trapNegMin
-  test negMin
-    in.
-    out fault.
-  neg i32:-2147483648.
+    test negMin
+        in.
+        out fault.
+    neg i32:-2147483648.
 
 v/i32/trapDivMinMinusOne
-  test divOverflow
-    in.
-    out fault.
-  div i32:-2147483648 i32:-1.
+    test divOverflow
+        in.
+        out fault.
+    div i32:-2147483648 i32:-1.
 
 v/i32/trapDivZero
-  test divZero
-    in.
-    out fault.
-  div i32:5 i32:0.
+    test divZero
+        in.
+        out fault.
+    div i32:5 i32:0.
 
 v/i32/trapRemMinMinusOne
-  test remOverflow
-    in.
-    out fault.
-  rem i32:-2147483648 i32:-1.
+    test remOverflow
+        in.
+        out fault.
+    rem i32:-2147483648 i32:-1.
 
 v/u32/testWrappingAndBitops
-  test wraps
-    in.
-    out u32:80.
-  let u32/wrapped wrapAdd u32:4294967295 u32:3.
-  let u32/wrapped2 wrapSub u32/wrapped u32:5.
-  : w = 2, w2 = u32::MAX - 2 = 0xFFFFFFFD -> popcnt = 31
-  let u32/pop popcnt u32/wrapped2.
-  : ctz(8) = 3, clz(16) = 27
-  let u32/tz ctz u32:8.
-  let u32/lz clz u32:16.
-  : rotl(1, 4) = 16, rotr(16, 3) = 2
-  let u32/rotLeft rotl u32:1 u32:4.
-  let u32/rotRight rotr u32/rotLeft u32:3.
-  : 31 + 3 + 27 + 16 + 2 + 1 = 80
-  add add u32/pop u32/tz add u32/lz add u32/rotLeft add u32/rotRight u32:1.
+    test wraps
+        in.
+        out u32:80.
+    let u32/wrapped wrapAdd u32:4294967295 u32:3.
+    let u32/wrapped2 wrapSub u32/wrapped u32:5.
+    : w = 2, w2 = u32::MAX - 2 = 0xFFFFFFFD -> popcnt = 31
+    let u32/pop popcnt u32/wrapped2.
+    : ctz(8) = 3, clz(16) = 27
+    let u32/tz ctz u32:8.
+    let u32/lz clz u32:16.
+    : rotl(1, 4) = 16, rotr(16, 3) = 2
+    let u32/rotLeft rotl u32:1 u32:4.
+    let u32/rotRight rotr u32/rotLeft u32:3.
+    : 31 + 3 + 27 + 16 + 2 + 1 = 80
+    add add u32/pop u32/tz add u32/lz add u32/rotLeft add u32/rotRight u32:1.
 
 v/i32/testSignedShiftAndBitcast
-  test shifted
-    in.
-    out i32:-4.
-  let i32/negVal i32:-16.
-  : arithmetic right shift by 2 -> -4
-  let i32/shiftedVal shr i32/negVal u32:2.
-  : Verify bitcast round-trip preserves bit pattern
-  let u32/bits bitcast i32/shiftedVal u32.
-  bitcast u32/bits i32.
+    test shifted
+        in.
+        out i32:-4.
+    let i32/negVal i32:-16.
+    : arithmetic right shift by 2 -> -4
+    let i32/shiftedVal shr i32/negVal u32:2.
+    : Verify bitcast round-trip preserves bit pattern
+    let u32/bits bitcast i32/shiftedVal u32.
+    bitcast u32/bits i32.
 
 v/i32/trapShiftWidth
-  test shiftWidth
-    in.
-    out fault.
-  shl i32:1 u32:32.
+    test shiftWidth
+        in.
+        out fault.
+    shl i32:1 u32:32.
 
 v/u8/testConvSuccessAndTrap u32/n
-  test ok
-    in u32:200
-    out u8:200.
-  test hi
-    in u32:256
-    out fault.
-  conv u32/n u8.
+    test ok
+        in u32:200
+        out u8:200.
+    test hi
+        in u32:256
+        out fault.
+    conv u32/n u8.
 "#;
         let report = run_module_inline_tests(src).unwrap();
         let passed = report.ensure_all_passed().unwrap();
@@ -1827,54 +1827,54 @@ v/u8/testConvSuccessAndTrap u32/n
     fn test_eval_buffers_captures_and_foreach_snapshots() {
         let src = r#"
 v/l/u8/buildAndFreeze u8/fillByte
-  test ok
-    in u8:65
-    out b"AAA!".
-  let buf/u8/buf1 bufFill u8/fillByte u64:4.
-  bufSet buf/u8/buf1 u64:3 u8:33.
-  bufFreeze buf/u8/buf1.
+    test ok
+        in u8:65
+        out b"AAA!".
+    let buf/u8/buf1 bufFill u8/fillByte u64:4.
+    bufSet buf/u8/buf1 u64:3 u8:33.
+    bufFreeze buf/u8/buf1.
 
 v/u64/trapPostFreeze
-  test frozenWrite
-    in.
-    out fault.
-  let buf/u8/buf2 bufNew u8 u64:2.
-  let l/u8/frozen bufFreeze buf/u8/buf2.
-  bufSet buf/u8/buf2 u64:0 u8:99.
-  len l/u8/frozen.
+    test frozenWrite
+        in.
+        out fault.
+    let buf/u8/buf2 bufNew u8 u64:2.
+    let l/u8/frozen bufFreeze buf/u8/buf2.
+    bufSet buf/u8/buf2 u64:0 u8:99.
+    len l/u8/frozen.
 
 v/u32/sharedCaptureMutation
-  test shared
-    in.
-    out u32:15.
-  let u32/total u32:0.
-  v/void/addToTotal u32/delta :: set u32/total add u32/total u32/delta.
-  addToTotal u32:4.
-  addToTotal u32:11.
-  u32/total.
+    test shared
+        in.
+        out u32:15.
+    let u32/total u32:0.
+    v/void/addToTotal u32/delta :: set u32/total add u32/total u32/delta.
+    addToTotal u32:4.
+    addToTotal u32:11.
+    u32/total.
 
 v/u32/foreachSnapshot
-  test nestedLoops
-    in.
-    out u32:20.
-  let l/u32/nums l/u32: u32:1 u32:2 u32:3 ::.
-  let u32/sum u32:0.
-  let buf/u32/dynBuf bufNew u32 u64:0.
-  bufPush buf/u32/dynBuf u32:4.
-  bufExtend buf/u32/dynBuf l/u32/nums.
-  : dyn has [4, 1, 2, 3], frozen snapshot has sum 10
-  let l/u32/snap bufFreeze buf/u32/dynBuf.
-  let buf/u32/otherBuf bufNew u32 u64:0.
-  foreach u32/itemX l/u32/snap do
-    : Mutating another buffer while iterating snap does not disturb snap
-    bufPush buf/u32/otherBuf u32:99.
-    set u32/sum add u32/sum u32/itemX.
-  ::.
-  : Check snap again equals 10 -> total 20
-  foreach u32/itemY l/u32/snap do
-    set u32/sum add u32/sum u32/itemY.
-  ::.
-  u32/sum.
+    test nestedLoops
+        in.
+        out u32:20.
+    let l/u32/nums l/u32: u32:1 u32:2 u32:3 ::.
+    let u32/sum u32:0.
+    let buf/u32/dynBuf bufNew u32 u64:0.
+    bufPush buf/u32/dynBuf u32:4.
+    bufExtend buf/u32/dynBuf l/u32/nums.
+    : dyn has [4, 1, 2, 3], frozen snapshot has sum 10
+    let l/u32/snap bufFreeze buf/u32/dynBuf.
+    let buf/u32/otherBuf bufNew u32 u64:0.
+    foreach u32/itemX l/u32/snap do
+        : Mutating another buffer while iterating snap does not disturb snap
+        bufPush buf/u32/otherBuf u32:99.
+        set u32/sum add u32/sum u32/itemX.
+    ::.
+    : Check snap again equals 10 -> total 20
+    foreach u32/itemY l/u32/snap do
+        set u32/sum add u32/sum u32/itemY.
+    ::.
+    u32/sum.
 "#;
         let report = run_module_inline_tests(src).unwrap();
         let passed = report.ensure_all_passed().unwrap();
@@ -1892,10 +1892,10 @@ pub u32/zeroConst u32:0.
 pub dc/257 u32/oneConst u32:1.
 
 pub v/b/isEven u32/n
-  if eq u32/n u32/zeroConst true isOdd sub u32/n u32/oneConst.
+    if eq u32/n u32/zeroConst true isOdd sub u32/n u32/oneConst.
 
 pub v/b/isOdd u32/n
-  if eq u32/n u32/zeroConst false isEven sub u32/n u32/oneConst.
+    if eq u32/n u32/zeroConst false isEven sub u32/n u32/oneConst.
 
 pub dc/256 v/u32/incByOne u32/argVal :: add u32/argVal u32/oneConst.
 
@@ -1909,17 +1909,17 @@ pub v/u32/doubleIt u32/argVal :: mul u32/argVal u32:2.
 use math/parity: isEven doubleIt as timesTwo dc/256 dc/257 ::.
 
 pub v/b/checkDeepTail
-  test even50k
-    in.
-    out true.
-  isEven u32:50000.
+    test even50k
+        in.
+        out true.
+    isEven u32:50000.
 
 pub v/u32/useImports u32/inputVal
-  test imported
-    in u32:6
-    out u32:13.
-  : Uses aliased 'timesTwo' AND direct Dc routine call 'dc/256' (incByOne)
-  dc/256 timesTwo u32/inputVal.
+    test imported
+        in u32:6
+        out u32:13.
+    : Uses aliased 'timesTwo' AND direct Dc routine call 'dc/256' (incByOne)
+    dc/256 timesTwo u32/inputVal.
 "#,
             },
         ];
@@ -1944,11 +1944,11 @@ pub v/u32/useImports u32/inputVal
         let quota_src = r#"
 v/void/spin :: spin.
 v/u32/testQuota
-  test hitsQuota
-    in.
-    out fault.
-  spin.
-  u32:0.
+    test hitsQuota
+        in.
+        out fault.
+    spin.
+    u32:0.
 "#;
         let qreport = run_module_inline_tests_with_config(
             quota_src,

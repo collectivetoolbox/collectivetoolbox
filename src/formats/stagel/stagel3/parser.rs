@@ -77,6 +77,13 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
     let mut only_spaces_on_line = true;
 
     while let Some(&b) = bytes.get(idx) {
+        if only_spaces_on_line && !matches!(b, b' ' | b'\r' | b'\n' | b'\t') {
+            let leading_spaces = col.saturating_sub(1);
+            ensure!(
+                leading_spaces.is_multiple_of(4),
+                "Invalid indentation at {line}:{col}: expected a multiple of 4 spaces, found {leading_spaces}"
+            );
+        }
         match b {
             b'\r' => {
                 if bytes.get(idx.saturating_add(1)) == Some(&b'\n') {
@@ -955,6 +962,11 @@ impl Parser {
                 }
                 break;
             };
+            ensure!(
+                tok.span.col == 1,
+                "Unexpected indentation at {} for top-level declaration (expected column 1)",
+                tok.span
+            );
             let comments_before = std::mem::take(&mut carry_comments);
             let dc_directive = carry_dc.take();
             let decl =
@@ -1311,6 +1323,15 @@ impl Parser {
                             decl_col
                         );
                     }
+                    let expected_body_col = decl_col.saturating_add(4);
+                    ensure!(
+                        tok.span.col == expected_body_col,
+                        "Invalid indentation at {} inside routine '{}' (expected column {}, found column {})",
+                        tok.span,
+                        name,
+                        expected_body_col,
+                        tok.span.col
+                    );
                     break tok.span.col;
                 } else {
                     bail!("Routine '{}' at {} reached EOF without body", name, sig_tok.span);
@@ -1446,6 +1467,14 @@ impl Parser {
             if tok.span.col <= test_col {
                 break;
             }
+            let expected_in_col = test_col.saturating_add(4);
+            ensure!(
+                tok.span.col == expected_in_col,
+                "Invalid indentation at {} inside 'test' block (expected column {}, found column {})",
+                tok.span,
+                expected_in_col,
+                tok.span.col
+            );
             let LexKind::Word(w) = &tok.kind else {
                 bail!("Expected 'in' inside 'test' block at {}", tok.span);
             };
@@ -2191,22 +2220,57 @@ mod tests {
 
         // Single-line :: vs multi-statement indented do :: equivalence
         let single_stmt = r#"v/u32/calc u32/lhs u32/rhs
-  test cases
-    in u32:3 u32:4
-    out u32:12.
-    in u32:5 u32:2
-    out u32:7.
-  let u32/outVal.
-  if gt u32/lhs u32/rhs do
-    set u32/outVal add u32/lhs u32/rhs.
+    test cases
+        in u32:3 u32:4
+        out u32:12.
+        in u32:5 u32:2
+        out u32:7.
+    let u32/outVal.
+    if gt u32/lhs u32/rhs do
+        set u32/outVal add u32/lhs u32/rhs.
+        u32/outVal.
+    :: do
+        set u32/outVal mul u32/lhs u32/rhs.
+        u32/outVal.
+    ::.
     u32/outVal.
-  :: do
-    set u32/outVal mul u32/lhs u32/rhs.
-    u32/outVal.
-  ::.
-  u32/outVal.
 "#;
         let r = run_module_inline_tests(single_stmt).expect("run tests");
         assert_eq!(r.ensure_all_passed().unwrap(), 2);
+    }
+
+    #[crate::ctb_test]
+    fn test_sl3_rejects_whitespace_errors() {
+        // Tab character
+        let err_tab = parse_module("v/u32/f u32/a\n\tu32/a.\n")
+            .expect_err("tab indentation must fail");
+        assert!(err_tab.to_string().contains("Tab"));
+
+        // 2-space indentation
+        let err_two = parse_module("v/u32/f u32/a\n  u32/a.\n")
+            .expect_err("2-space indentation must fail");
+        assert!(err_two.to_string().contains("multiple of 4"));
+
+        // 3-space indentation in comment
+        let err_comment = parse_module("v/u32/f u32/a\n   : bad\n    u32/a.\n")
+            .expect_err("3-space comment indentation must fail");
+        assert!(err_comment.to_string().contains("multiple of 4"));
+
+        // 8-space indentation for routine body (expected 4)
+        let err_eight = parse_module("v/u32/f u32/a\n        u32/a.\n")
+            .expect_err("8-space routine body must fail");
+        assert!(err_eight.to_string().contains("expected column 5"));
+
+        // Top-level declaration indented by 4 spaces (expected column 1)
+        let err_top = parse_module("    const u32/x u32:1.\n")
+            .expect_err("indented top-level declaration must fail");
+        assert!(err_top.to_string().contains("expected column 1"));
+
+        // Test case indented by 8 spaces past `test` (expected 4)
+        let err_test = parse_module(
+            "v/u32/f u32/a\n    test smoke\n            in u32:1\n            out u32:1.\n    u32/a.\n",
+        )
+        .expect_err("over-indented test case must fail");
+        assert!(err_test.to_string().contains("expected column 9"));
     }
 }

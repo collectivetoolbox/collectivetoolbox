@@ -2629,8 +2629,8 @@ pub v/buf/u8/badRet :: bufNew u8 u64:4.
         // Nested list of buf (l/buf/u8) fails
         let nested_buf_src = r#"
 v/u32/badNested
-  let l/buf/u8/xs l/buf/u8: bufNew u8 u64:1 ::.
-  u32:0.
+    let l/buf/u8/xs l/buf/u8: bufNew u8 u64:1 ::.
+    u32:0.
 "#;
         let err = validate_module(&parse_module(nested_buf_src).unwrap())
             .expect_err("l/buf/T must fail");
@@ -2642,9 +2642,9 @@ v/u32/badNested
         // Re-declaring let in same block fails
         let redecl_src = r#"
 v/u32/f
-  let u32/x u32:1.
-  let u32/x u32:2.
-  u32/x.
+    let u32/x u32:1.
+    let u32/x u32:2.
+    u32/x.
 "#;
         let err = validate_module(&parse_module(redecl_src).unwrap())
             .expect_err("Re-declaring let must fail");
@@ -2656,10 +2656,10 @@ v/u32/f
         // Shadowing outer variable in nested block fails
         let shadow_src = r#"
 v/u32/f u32/p
-  if true do
-    let u32/p u32:3.
-    u32/p.
-  :: u32:0.
+    if true do
+        let u32/p u32:3.
+        u32/p.
+    :: u32:0.
 "#;
         let err = validate_module(&parse_module(shadow_src).unwrap())
             .expect_err("Shadowing param must fail");
@@ -2671,8 +2671,8 @@ v/u32/f u32/p
         // Setting a constant or parameter fails
         let set_param_src = r#"
 v/u32/f u32/p
-  set u32/p u32:9.
-  u32/p.
+    set u32/p u32:9.
+    u32/p.
 "#;
         let err = validate_module(&parse_module(set_param_src).unwrap())
             .expect_err("Setting param must fail");
@@ -2684,8 +2684,8 @@ v/u32/f u32/p
         // Reading uninitialized let fails
         let uninit_read = r#"
 v/u32/f
-  let u32/x.
-  u32/x.
+    let u32/x.
+    u32/x.
 "#;
         let err = validate_module(&parse_module(uninit_read).unwrap())
             .expect_err("Reading uninit let must fail");
@@ -2699,12 +2699,12 @@ v/u32/f
         // Initialized only in one branch fails after 'if'
         let one_branch_src = r#"
 v/u32/f b/cond
-  let u32/x.
-  if b/cond do
-    set u32/x u32:1.
-    u32:0.
-  :: u32:0.
-  u32/x.
+    let u32/x.
+    if b/cond do
+        set u32/x u32:1.
+        u32:0.
+    :: u32:0.
+    u32/x.
 "#;
         validate_module(&parse_module(one_branch_src).unwrap())
             .expect_err("Partial branch init must fail");
@@ -2712,11 +2712,11 @@ v/u32/f b/cond
         // Initialized inside while body is still uninit after while
         let while_init_src = r#"
 v/u32/f b/cond
-  let u32/x.
-  while b/cond do
-    set u32/x u32:1.
-  ::.
-  u32/x.
+    let u32/x.
+    while b/cond do
+        set u32/x u32:1.
+    ::.
+    u32/x.
 "#;
         validate_module(&parse_module(while_init_src).unwrap())
             .expect_err("While-body init must fail after loop");
@@ -2724,13 +2724,13 @@ v/u32/f b/cond
         // One branch initializes and the other is Never (fault) -> OK!
         let both_or_never_ok = r#"
 v/u32/f b/cond
-  let u32/x.
-  if b/cond do
-    set u32/x u32:42.
-  :: do
-    fault.
-  ::.
-  u32/x.
+    let u32/x.
+    if b/cond do
+        set u32/x u32:42.
+    :: do
+        fault.
+    ::.
+    u32/x.
 "#;
         validate_module(&parse_module(both_or_never_ok).unwrap())
             .expect("fault else branch guarantees x assigned");
@@ -2738,11 +2738,11 @@ v/u32/f b/cond
         // Nested verb capture: called BEFORE set fails
         let capture_before_set = r#"
 v/u32/f
-  let u32/x.
-  v/u32/readX :: u32/x.
-  let u32/early readX.
-  set u32/x u32:5.
-  u32/early.
+    let u32/x.
+    v/u32/readX :: u32/x.
+    let u32/early readX.
+    set u32/x u32:5.
+    u32/early.
 "#;
         validate_module(&parse_module(capture_before_set).unwrap())
             .expect_err("Calling nested verb before captured let is set must fail");
@@ -2750,9 +2750,9 @@ v/u32/f
         // Nested verb capture: uncalled nested verb reading uninitialized var fails
         let capture_never_init = r#"
 v/u32/f
-  let u32/x.
-  v/u32/readX :: u32/x.
-  u32:0.
+    let u32/x.
+    v/u32/readX :: u32/x.
+    u32:0.
 "#;
         validate_module(&parse_module(capture_never_init).unwrap())
             .expect_err("Capturing uninitialized outer variable fails");
@@ -2760,10 +2760,10 @@ v/u32/f
         // Nested verb capture: called AFTER set succeeds!
         let capture_after_set = r#"
 v/u32/f
-  let u32/x.
-  v/u32/readX :: u32/x.
-  set u32/x u32:9.
-  readX.
+    let u32/x.
+    v/u32/readX :: u32/x.
+    set u32/x u32:9.
+    readX.
 "#;
         validate_module(&parse_module(capture_after_set).unwrap())
             .expect("Calling nested verb after set should validate");
@@ -2771,10 +2771,10 @@ v/u32/f
         // Nested verb initializes outer variable via set, then outer reads after calling it -> OK!
         let capture_init_inside_nested = r#"
 v/u32/f
-  let u32/x.
-  v/void/initX :: set u32/x u32:12.
-  initX.
-  u32/x.
+    let u32/x.
+    v/void/initX :: set u32/x u32:12.
+    initX.
+    u32/x.
 "#;
         validate_module(&parse_module(capture_init_inside_nested).unwrap())
             .expect("Nested verb initializing captured var should validate");
@@ -2807,11 +2807,11 @@ v/l/u32/f :: l/u8: u8:1 u8:2 ::.
         // break outside loop or inside nested verb fails
         let bad_break_nested = r#"
 v/u32/f
-  while true do
-    v/void/stopper :: break.
-    stopper.
-  ::.
-  u32:0.
+    while true do
+        v/void/stopper :: break.
+        stopper.
+    ::.
+    u32:0.
 "#;
         let err = validate_module(&parse_module(bad_break_nested).unwrap())
             .expect_err("break inside nested verb must fail");
@@ -2822,11 +2822,11 @@ v/u32/f
         // Tail call recording vs non-tail call
         let tail_src = r#"v/u32/helper u32/n :: u32/n.
 v/u32/caller u32/n
-  let u32/nonTail helper u32/n.
-  helper u32/nonTail.
+    let u32/nonTail helper u32/n.
+    helper u32/nonTail.
 "#;
         let vm = validate_module(&parse_module(tail_src).unwrap()).unwrap();
         assert_eq!(vm.tail_calls.len(), 1);
-        assert!(vm.tail_calls.contains(&(4, 3)));
+        assert!(vm.tail_calls.contains(&(4, 5)));
     }
 }
