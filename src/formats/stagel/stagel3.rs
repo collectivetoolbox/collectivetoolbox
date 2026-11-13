@@ -18,14 +18,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! StageL 3 (`f656` -> `f659` `.sli3`) and StageR 3 (`f657` -> `f660` `.sri3`)
-//! source normalizer and literal payload helpers.
+//! source normalizer, AST parser, static validator, Token-Dc codec, and inline
+//! test evaluator.
 //!
 //! See `src/formats/stagel/docs/sl3.md` and `src/formats/stagel/docs/sr3.md`
 //! for the full language and intermediate-format specifications.
-//!
-//! This module implements lexical normalization into the 32-character StageL 3
-//! intermediate alphabet (`A-Z`, `/`, `:`, space, newline, `"`, and `.`); it
-//! does not yet implement AST parsing, type checking, or WAT lowering.
 
 #[allow(
     unused_imports,
@@ -33,6 +30,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
+
+pub mod ast;
+pub mod dc_tokens;
+pub mod eval;
+pub mod parser;
+pub mod validator;
 
 /// Dialect selector controlling which string literal prefixes are accepted
 /// during normalization into the 32-character intermediate alphabet.

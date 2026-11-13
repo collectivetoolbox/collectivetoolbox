@@ -8,6 +8,7 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
+ctb-formats-dcdata = { path = "../dcdata" }
 sha2 = "0.10.9"
 hex = "0.4.3"
 
