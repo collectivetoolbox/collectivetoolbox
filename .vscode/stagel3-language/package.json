@@ -10,8 +10,8 @@
     "languages": [
       {
         "id": "stagel3",
-        "aliases": ["StageL3", "stagel3"],
-        "extensions": [".stagel3"]
+        "aliases": ["StageL 3 / StageR 3", "stagel3"],
+        "extensions": [".sl3", ".sr3", ".sli3", ".sri3"]
       }
     ],
     "grammars": [

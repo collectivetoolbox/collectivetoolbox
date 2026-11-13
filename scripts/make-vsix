@@ -22,8 +22,12 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
 cd .vscode/stagel3-language || exit 1
 
-mkdir -p package
-cp package.json package/
-cp -R syntaxes package/
-zip -r ../stagel3-language-0.0.1.vsix package
-rm -r package
+if [[ -e ../stagel3-language-0.0.1.vsix ]]; then
+    rm ../stagel3-language-0.0.1.vsix
+fi
+
+mkdir -p extension
+cp package.json extension/
+cp -R syntaxes extension/
+zip -r ../stagel3-language-0.0.1.vsix extension
+rm -r extension
