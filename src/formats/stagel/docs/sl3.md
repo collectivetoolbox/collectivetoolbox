@@ -11,7 +11,7 @@
 The language stack is split into three distinct languages (separate from the bootstrap directory numbers):
 
 1. **StageL 3 (`f656`, `.sl3`)**: Small, strictly typed, expression-oriented Polish-prefix core language. Supports named nested verbs with shared lexical capture and mandatory constant-stack tail calls, but **not** first-class function values.
-2. **StageR 3 (`f657`, `.sr3`)**: Implemented using StageL 3; extends StageL 3 with 128-bit and arbitrary-precision numbers (`i128`, `u128`, `int`, `rat`), Document Character and string types (`dc`, `dcs`, `s`), zero-copy `view`/`cursor` handles, `option/T`, `result/T`, and bare `"..."` Dcts literals. See [`sr3.md`](./sr3.md).
+2. **StageR 3 (`f657`, `.sr3`)**: Implemented using StageL 3; extends StageL 3 with 128-bit and arbitrary-precision numbers (`i128`, `u128`, `int`, `rat`), Document Character and string types (`dc`, `dcs`, `s`), zero-copy `view`/`cursor` handles, `option/T`, `result/T`, monomorphic nominal value types (`brand` / `type`, `struct`, `enum`) with shallow exhaustive `match`, and bare `"..."` Dcts literals. See [`sr3.md`](./sr3.md).
 3. **EM3 (`f658`, `.em3` / compact `f661`, `.emc`)**: Full VSO semantic and programming language built on StageR 3, adding speakable/compact profiles and **first-class functions** (anonymous verbs, passed callbacks, returned/escaping closures).
 
 ### Tokenized Dc Graph Representation vs. Seed ASCII Source (`.WASM` Restriction)
