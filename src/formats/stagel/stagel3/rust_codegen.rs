@@ -382,7 +382,7 @@ fn emit_runtime_prelude(
     Ok(())
 }
 
-fn sanitize_ident(raw: &str) -> String {
+pub(super) fn sanitize_ident(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     for ch in raw.chars() {
         if ch.is_ascii_alphanumeric() || ch == '_' {
@@ -2907,12 +2907,12 @@ fn strip_matched_outer_parens(expr: &str) -> &str {
     cur
 }
 
-struct BlockCapturePlan<'a> {
-    nested_routines: Vec<&'a RoutineDecl>,
-    local_captured_vars: HashMap<String, StageLType>,
-    all_captured_outer: HashSet<String>,
-    routine_captures: HashMap<String, HashSet<String>>,
-    mutated_locals: HashSet<String>,
+pub(super) struct BlockCapturePlan<'a> {
+    pub(super) nested_routines: Vec<&'a RoutineDecl>,
+    pub(super) local_captured_vars: HashMap<String, StageLType>,
+    pub(super) all_captured_outer: HashSet<String>,
+    pub(super) routine_captures: HashMap<String, HashSet<String>>,
+    pub(super) mutated_locals: HashSet<String>,
 }
 
 fn stmt_ends_without_semi(expr: &Expr) -> bool {
@@ -3032,7 +3032,7 @@ fn expr_has_tail_call(expr: &Expr, in_tail: bool) -> bool {
     }
 }
 
-fn analyze_block_captures<'a>(
+pub(super) fn analyze_block_captures<'a>(
     stmts: &[&'a Expr],
     enclosing_routine_captures: &HashMap<String, Vec<String>>,
 ) -> BlockCapturePlan<'a> {
@@ -3669,7 +3669,7 @@ fn collect_free_var_refs(
     }
 }
 
-fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
+pub(super) fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
     let mut vals = Vec::new();
     let mut by_name = HashMap::new();
     for item in items {

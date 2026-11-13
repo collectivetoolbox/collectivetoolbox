@@ -37,6 +37,7 @@ pub mod eval;
 pub mod parser;
 pub mod rust_codegen;
 pub mod validator;
+pub mod wasm_codegen;
 
 /// Dialect selector controlling which string literal prefixes are accepted
 /// during normalization into the 32-character intermediate alphabet.
