@@ -1027,12 +1027,16 @@ impl<'a> ModuleEmitter<'a> {
     }
 
     fn current_routine_mode(&self) -> ActiveRoutineMode {
+        // Reason for fallback: Top-level constant initializers and inline test
+        // harness expressions execute outside any routine context (`Direct` mode).
         self.routine_ctx_stack
             .last()
             .map_or(ActiveRoutineMode::Direct, |ctx| ctx.mode.clone())
     }
 
     fn current_var_scope_floor(&self) -> usize {
+        // Reason for fallback: Outside any enclosing routine (top-level constant
+        // initializers and test harness expressions), lexical scope starts at 0.
         self.routine_ctx_stack
             .last()
             .map_or(0, |ctx| ctx.var_scope_floor)

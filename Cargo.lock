@@ -3552,6 +3552,7 @@ name = "ctb-formats-stagel"
 version = "0.0.0"
 dependencies = [
  "ctb-formats-dcdata",
+ "ctb-formats-dcstring",
  "ctb-utilities",
  "hex",
  "sha2 0.10.9",
