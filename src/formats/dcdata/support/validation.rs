@@ -2044,7 +2044,11 @@ where
             let Some((tag_raw, payload)) = decomp.split_once('>') else {
                 continue;
             };
-            let tag_name = tag_raw.trim_start_matches('<').trim();
+            let tag_inner = tag_raw.trim_start_matches('<').trim();
+            let (tag_name, ctx_raw_opt) = match tag_inner.split_once('@') {
+                Some((t, c)) => (t.trim(), Some(c.trim())),
+                None => (tag_inner, None),
+            };
             if let Some(tags) = known_decomp_tags {
                 if !tags.contains(tag_name) {
                     report.add_error(
@@ -2056,8 +2060,34 @@ where
                     );
                 }
             }
+            if let Some(ctx_raw) = ctx_raw_opt {
+                if ctx_raw.is_empty() {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Aliases (decomposition)"),
+                        format!("Empty @context qualifier in decomposition '<{tag_inner}>'"),
+                        Some("Provide one or more Dc or Format shorthands after '@'"),
+                    );
+                } else {
+                    for ctx_tok in ctx_raw.split_whitespace() {
+                        validate_target_token(
+                            ctx_tok,
+                            &row.source_file,
+                            row.line_number,
+                            "Aliases (decomposition)",
+                            &known_dc_ids,
+                            None,
+                            None,
+                            known_format_ids,
+                            None,
+                            report,
+                        );
+                    }
+                }
+            }
             let enforce_deprecation =
-                tag_name == "equiv" || tag_name == "approx";
+                ctx_raw_opt.is_none() && (tag_name == "equiv" || tag_name == "approx");
             let tag_opt = if enforce_deprecation {
                 Some(tag_name)
             } else {

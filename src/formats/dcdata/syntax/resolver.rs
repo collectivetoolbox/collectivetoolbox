@@ -130,6 +130,32 @@ pub trait SyntaxRuleResolver {
         }
         None
     }
+    /// Resolves any active context-scoped (`Dc 646 "In context of"`) `.WASM` program attached to
+    /// `token` (or its canonical equivalent) matching `context_tokens` in the seed graph.
+    fn resolve_wasm_definition_tokens_in_context(
+        &self,
+        token: u128,
+        context_tokens: &[ctb_storage_minimal::shorthand::DcShorthand],
+    ) -> Option<&[ctb_storage_minimal::shorthand::DcShorthand]> {
+        let sg = self.seed_graph()?;
+        let sh_tok =
+            ctb_storage_minimal::shorthand::DcShorthand::from_global_id(token);
+        if let Some(tokens) =
+            sg.get_wasm_definition_tokens_in_context(sh_tok, context_tokens)
+        {
+            return Some(tokens);
+        }
+        let canon = self.canonical_token(token);
+        if canon != token {
+            let canon_sh =
+                ctb_storage_minimal::shorthand::DcShorthand::from_global_id(
+                    canon,
+                );
+            return sg
+                .get_wasm_definition_tokens_in_context(canon_sh, context_tokens);
+        }
+        None
+    }
     /// Resolves the syntax rule associated with a character or format target.
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule>;
     /// Returns the number of payload elements (excluding `~`) in a format's sequence syntax rule.

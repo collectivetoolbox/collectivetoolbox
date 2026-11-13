@@ -234,14 +234,31 @@ impl<'a> TokenCursor<'a> {
         let tok = self.next()?;
         if self.token_fills_role(tok, DcRole::BeginTypeDef) {
             let inner = self.next()?;
-            let vtype = if self.token_fills_role(inner, DcRole::TypeRoutine) {
-                while let Some( peek_tok ) = self.peek() {
-                    if self.token_fills_role(peek_tok, DcRole::EndTypeDef) {
-                        break;
+            let vtype = if self.token_fills_role(inner, DcRole::TypeRoutine)
+                || self.token_fills_role(inner, DcRole::StagelListType)
+                || self.token_fills_role(inner, DcRole::StagelBufType)
+            {
+                let mut depth = 1usize;
+                while let Some(peek_tok) = self.peek() {
+                    if self.token_fills_role(peek_tok, DcRole::BeginTypeDef) {
+                        let _ = self.next()?;
+                        depth = depth.saturating_add(1);
+                    } else if self.token_fills_role(peek_tok, DcRole::EndTypeDef)
+                    {
+                        if depth == 1 {
+                            break;
+                        }
+                        let _ = self.next()?;
+                        depth = depth.saturating_sub(1);
+                    } else {
+                        let _ = self.next()?;
                     }
-                    let _ = self.next()?;
                 }
-                WASM_VALTYPE_FUNCREF
+                if self.token_fills_role(inner, DcRole::TypeRoutine) {
+                    WASM_VALTYPE_FUNCREF
+                } else {
+                    WASM_VALTYPE_I32
+                }
             } else {
                 map_format_token_to_valtype(inner, self.resolver)?
             };
@@ -554,6 +571,7 @@ fn map_format_token_to_valtype(
         | FormatId::U16
         | FormatId::I8
         | FormatId::U8
+        | FormatId::Boolean
         | FormatId::Integer
         | FormatId::Natural0
         | FormatId::Natural1

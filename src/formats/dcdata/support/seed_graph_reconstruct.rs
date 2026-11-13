@@ -49,7 +49,8 @@ use crate::dc::{
     DC_FORMAL_ALIAS, DC_FORMAT_PARAM_APPLICATION, DC_FORMAT_VARIATION_ASPECT,
     DC_GENERAL_FORMAT_EXPORT_SUPPORT, DC_GENERAL_FORMAT_IMPORT_SUPPORT,
     DC_GENERAL_FORMAT_TEST_COVERAGE, DC_HAS_A,
-    DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_INFORMAL_ALIAS, DC_IS_ASSOCIATED_WITH,
+    DC_IMPLEMENTATION_SUPPORT_LEVEL, DC_IN_CONTEXT_OF, DC_INFORMAL_ALIAS,
+    DC_IS_ASSOCIATED_WITH,
     DC_IS_BASED_ON, DC_IS_CLOSING_DELIMITER_FOR, DC_IS_DEPRECATED,
     DC_IS_INSTANCE_OF, DC_IS_SUBTYPE_OF, DC_MAGIC_SIGNATURE,
     DC_NEGATED_PATTERN, DC_NICKNAME, DC_OPTIONAL_ABSENT,
@@ -217,7 +218,26 @@ impl SeedGraphIndex {
                     entry.value,
                     skip_format_expr,
                 ) {
-                    decompositions.push(format!("<{tag}>{payload}"));
+                    let ctx_objs = self.get_direct_objects(
+                        sh(DC_IN_CONTEXT_OF),
+                        DcShorthand::Long(entry.has_a_id),
+                    );
+                    if ctx_objs.is_empty() {
+                        decompositions.push(format!("<{tag}>{payload}"));
+                    } else {
+                        for &ctx_obj in ctx_objs {
+                            if let Some(ctx_str) = self
+                                .decode_decomposition_payload(
+                                    ctx_obj,
+                                    skip_format_expr,
+                                )
+                            {
+                                decompositions.push(format!(
+                                    "<{tag}@{ctx_str}>{payload}"
+                                ));
+                            }
+                        }
+                    }
                 }
             }
         }

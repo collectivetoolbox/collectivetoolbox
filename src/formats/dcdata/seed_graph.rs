@@ -55,8 +55,8 @@ use crate::dc::{
     DC_MANUAL_ENTRY,
     DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER,
     DC_REPLACEMENT, DC_RETRACTS, DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES,
-    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT,
-    DcChar,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ANY, DC_TYPE_ROUTINE,
+    DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
@@ -1902,6 +1902,132 @@ impl SeedGraphIndex {
         self.get_wasm_definition_tokens_inner(subj, &mut visited)
     }
 
+    /// Resolves any active context-scoped `.WASM` program (`Dc 1927 "Begin WASM program"`..`Dc 1928 "End WASM program"`)
+    /// or `wasm_routine` definition attached to `subj` whose `Dc 646 "In context of"` qualifier
+    /// matches `context_tokens` (preferring an exact match over a trailing `Dc 275 "*"` wildcard prefix).
+    #[must_use]
+    pub fn get_wasm_definition_tokens_in_context(
+        &self,
+        subj: DcShorthand,
+        context_tokens: &[DcShorthand],
+    ) -> Option<&[DcShorthand]> {
+        if context_tokens.is_empty() {
+            return self.get_wasm_definition_tokens(subj);
+        }
+        let props = [
+            DC_CANONICAL_DECOMPOSITION,
+            DC_DECOMPOSITION,
+            DC_SEMANTIC_DECOMPOSITION,
+        ];
+        // Pass 1: exact context match.
+        for prop_dc in props {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                let DcShorthand::Long(node_id) = entry.value else {
+                    continue;
+                };
+                let ctx_objs = self.get_direct_objects(
+                    sh(DC_IN_CONTEXT_OF),
+                    DcShorthand::Long(entry.has_a_id),
+                );
+                let exact_match = ctx_objs.iter().any(|&ctx_obj| {
+                    self.context_object_exact_match(ctx_obj, context_tokens)
+                });
+                if exact_match
+                    && let Some(node) = self.get_active_node(node_id)
+                    && self.tokens_are_wasm_helper_or_definition(&node.tokens)
+                {
+                    return Some(node.tokens.as_slice());
+                }
+            }
+        }
+        // Pass 2: longest trailing `Dc 275 "*"` wildcard prefix match (e.g. `2576 275` or `2576 2576 275`).
+        let mut best: Option<(usize, &[DcShorthand])> = None;
+        for prop_dc in props {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                let DcShorthand::Long(node_id) = entry.value else {
+                    continue;
+                };
+                let ctx_objs = self.get_direct_objects(
+                    sh(DC_IN_CONTEXT_OF),
+                    DcShorthand::Long(entry.has_a_id),
+                );
+                for &ctx_obj in ctx_objs {
+                    if let Some(prefix_len) = self
+                        .context_object_wildcard_prefix_len(
+                            ctx_obj,
+                            context_tokens,
+                        )
+                        && best.is_none_or(|(best_len, _)| prefix_len > best_len)
+                        && let Some(node) = self.get_active_node(node_id)
+                        && self.tokens_are_wasm_helper_or_definition(&node.tokens)
+                    {
+                        best = Some((prefix_len, node.tokens.as_slice()));
+                    }
+                }
+            }
+        }
+        best.map(|(_, tokens)| tokens)
+    }
+
+    fn context_object_tokens(&self, ctx_obj: DcShorthand) -> Option<&[DcShorthand]> {
+        match ctx_obj {
+            DcShorthand::Long(ctx_id) => {
+                self.get_active_node(ctx_id).map(|n| n.tokens.as_slice())
+            }
+            _ => None,
+        }
+    }
+
+    fn context_object_exact_match(
+        &self,
+        ctx_obj: DcShorthand,
+        query: &[DcShorthand],
+    ) -> bool {
+        if let Some(slice) = self.context_object_tokens(ctx_obj) {
+            slice == query
+        } else {
+            query.len() == 1 && query.first() == Some(&ctx_obj)
+        }
+    }
+
+    fn context_object_wildcard_prefix_len(
+        &self,
+        ctx_obj: DcShorthand,
+        query: &[DcShorthand],
+    ) -> Option<usize> {
+        let slice = self.context_object_tokens(ctx_obj)?;
+        if slice.last() != Some(&sh(DC_TYPE_ANY)) {
+            return None;
+        }
+        let prefix = slice.get(..slice.len().saturating_sub(1))?;
+        if !prefix.is_empty()
+            && query.len() > prefix.len()
+            && query.starts_with(prefix)
+        {
+            Some(prefix.len())
+        } else {
+            None
+        }
+    }
+
+    fn has_any_context_qualifier(&self, stmt_id: u128) -> bool {
+        if !self
+            .get_direct_objects(sh(DC_IN_CONTEXT_OF), DcShorthand::Long(stmt_id))
+            .is_empty()
+        {
+            return true;
+        }
+        self.subject_all_stmt_ids
+            .get(&DcShorthand::Long(stmt_id))
+            .is_some_and(|ids| {
+                ids.iter().any(|&qid| {
+                    self.get_node(qid)
+                        .and_then(|n| parse_statement_tokens(&n.tokens))
+                        .is_some_and(|(v, _, _)| v == sh(DC_IN_CONTEXT_OF))
+                })
+            })
+    }
+
     fn get_wasm_definition_tokens_inner(
         &self,
         subj: DcShorthand,
@@ -1916,6 +2042,15 @@ impl SeedGraphIndex {
             DC_SEMANTIC_DECOMPOSITION,
         ] {
             for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                if !self
+                    .get_direct_objects(
+                        sh(DC_IN_CONTEXT_OF),
+                        DcShorthand::Long(entry.has_a_id),
+                    )
+                    .is_empty()
+                {
+                    continue;
+                }
                 match entry.value {
                     DcShorthand::Long(node_id) => {
                         if let Some(node) = self.get_active_node(node_id)
@@ -2006,6 +2141,15 @@ impl SeedGraphIndex {
             DC_SEMANTIC_DECOMPOSITION,
         ] {
             for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                if !self
+                    .get_direct_objects(
+                        sh(DC_IN_CONTEXT_OF),
+                        DcShorthand::Long(entry.has_a_id),
+                    )
+                    .is_empty()
+                {
+                    continue;
+                }
                 if let DcShorthand::Long(node_id) = entry.value {
                     if let Some(block_desc) =
                         ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(
@@ -2068,6 +2212,7 @@ impl SeedGraphIndex {
                     && (obj == sh(DC_CANONICAL_DECOMPOSITION)
                         || obj == sh(DC_DECOMPOSITION)
                         || obj == sh(DC_SEMANTIC_DECOMPOSITION))
+                    && !self.has_any_context_qualifier(stmt_id)
                     && let Some(has_vals) =
                         self.has_val_stmt_ids_by_has_a.get(&stmt_id)
                 {

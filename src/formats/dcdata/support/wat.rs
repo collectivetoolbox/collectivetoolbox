@@ -89,6 +89,7 @@ enum WatToken {
     RParen,
     Atom(String),
     StringLit(Vec<u8>),
+    ContextDirective(Vec<DcShorthand>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,6 +97,7 @@ enum SExpr {
     Atom(String),
     StringLit(Vec<u8>),
     List(Vec<Self>),
+    ContextDirective(Vec<DcShorthand>),
 }
 
 impl SExpr {
@@ -198,7 +200,41 @@ fn hex_nibble(b: u8) -> Option<u8> {
     }
 }
 
+fn parse_context_directive_comment(comment: &str) -> Result<Option<Vec<DcShorthand>>> {
+    let trimmed = comment.trim();
+    let Some(rest) = trimmed.strip_prefix("@context(") else {
+        return Ok(None);
+    };
+    let Some((inner, trailing)) = rest.split_once(')') else {
+        bail!("Unclosed `;; @context(...)` directive in WAT source");
+    };
+    let trailing_trimmed = trailing.trim();
+    ensure!(
+        trailing_trimmed.is_empty() || trailing_trimmed.starts_with(";;"),
+        "Unexpected trailing text '{trailing_trimmed}' after `;; @context(...)`"
+    );
+    let mut ctx_tokens = Vec::new();
+    for tok_str in inner.split_whitespace() {
+        let parsed = DcShorthand::parse(tok_str).map_err(|e| {
+            anyhow!("Invalid DcShorthand '{tok_str}' in `;; @context(...)`: {e}")
+        })?;
+        ctx_tokens.push(parsed);
+    }
+    ensure!(
+        !ctx_tokens.is_empty(),
+        "Empty `;; @context()` directive in WAT source"
+    );
+    Ok(Some(ctx_tokens))
+}
+
 fn tokenize_wat(src: &str) -> Result<Vec<WatToken>> {
+    tokenize_wat_inner(src, false)
+}
+
+fn tokenize_wat_inner(
+    src: &str,
+    preserve_context_directives: bool,
+) -> Result<Vec<WatToken>> {
     let bytes = src.as_bytes();
     let mut pos = 0usize;
     let mut tokens = Vec::new();
@@ -211,11 +247,21 @@ fn tokenize_wat(src: &str) -> Result<Vec<WatToken>> {
         // Line comment `;; ...`
         if b == b';' && bytes.get(pos.saturating_add(1)) == Some(&b';') {
             pos = pos.saturating_add(2);
+            let comment_start = pos;
+            let mut comment_end = pos;
             while let Some(&ch) = bytes.get(pos) {
                 pos = pos.saturating_add(1);
                 if ch == b'\n' {
                     break;
                 }
+                comment_end = pos;
+            }
+            if preserve_context_directives
+                && let Some(comment_slice) = src.get(comment_start..comment_end)
+                && let Some(ctx_tokens) =
+                    parse_context_directive_comment(comment_slice)?
+            {
+                tokens.push(WatToken::ContextDirective(ctx_tokens));
             }
             continue;
         }
@@ -379,6 +425,9 @@ fn parse_one_sexpr(tokens: &[WatToken], pos: &mut usize) -> Result<SExpr> {
     match tok {
         WatToken::Atom(s) => Ok(SExpr::Atom(s.clone())),
         WatToken::StringLit(b) => Ok(SExpr::StringLit(b.clone())),
+        WatToken::ContextDirective(ctx) => {
+            Ok(SExpr::ContextDirective(ctx.clone()))
+        }
         WatToken::RParen => bail!("Unexpected ')' in WAT source"),
         WatToken::LParen => {
             let mut items = Vec::new();
@@ -968,6 +1017,9 @@ fn compile_instr_sequence(
             SExpr::StringLit(_) => {
                 bail!("Unexpected string literal in WAT instruction stream");
             }
+            SExpr::ContextDirective(_) => {
+                bail!("Unexpected `;; @context(...)` directive inside WAT instruction stream");
+            }
             SExpr::Atom(raw_mnemonic) => {
                 let mnemonic = normalize_wat_mnemonic(raw_mnemonic);
                 let (short_dc, kind) = lookup_wat_instruction(mnemonic)
@@ -1124,6 +1176,9 @@ fn compile_folded_operand(
         SExpr::List(sub) => compile_folded_sexpr(sub, ctx, out),
         SExpr::StringLit(_) => {
             bail!("Unexpected string literal operand in folded WAT instruction")
+        }
+        SExpr::ContextDirective(_) => {
+            bail!("Unexpected `;; @context(...)` directive in folded WAT operand")
         }
         SExpr::Atom(atom) => {
             if atom.starts_with('$') {
@@ -1675,10 +1730,11 @@ fn emit_non_control_instruction_with_immediates(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ParsedWatFunc {
     id: Option<String>,
     export_name: Option<String>,
+    contexts: Vec<Vec<DcShorthand>>,
     params: Vec<(Option<String>, WatValType)>,
     result: Option<WatValType>,
     locals: Vec<(Option<String>, WatValType)>,
@@ -1686,7 +1742,7 @@ struct ParsedWatFunc {
     body: Vec<SExpr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ParsedWatGlobal {
     id: Option<String>,
     export_name: Option<String>,
@@ -1694,7 +1750,7 @@ struct ParsedWatGlobal {
     init_val: i64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ParsedWatData {
     name: String,
     bytes: Vec<u8>,
@@ -1815,6 +1871,7 @@ fn parse_func_decl(
     Ok(ParsedWatFunc {
         id,
         export_name,
+        contexts: Vec::new(),
         params,
         result,
         locals,
@@ -1873,7 +1930,9 @@ fn parse_global_decl(
                 format!("Unsupported WAT global type '{tname}'")
             })?
         }
-        SExpr::StringLit(_) => bail!("Invalid string type in WAT (global ...)"),
+        SExpr::StringLit(_) | SExpr::ContextDirective(_) => {
+            bail!("Invalid non-type token in WAT (global ...)")
+        }
     };
 
     let init_expr = items
@@ -2083,13 +2142,218 @@ fn emit_wasm_routine_shorthands(
     Ok(())
 }
 
-/// Converts WebAssembly Text Format (`.wat`) source into a canonical `.WASM` Document
-/// Character shorthand sequence (`Dc 1927 "Begin WASM program"` .. `Dc 1928 "End WASM program"`).
-///
-/// # Errors
-/// Returns an error if the `.wat` source contains syntax errors or unknown instructions/identifiers.
-pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
-    let tokens = tokenize_wat(wat_src)?;
+fn collect_sexpr_block_labels(exprs: &[SExpr], labels: &mut std::collections::BTreeSet<String>) {
+    let mut idx = 0usize;
+    while let Some(expr) = exprs.get(idx) {
+        idx = idx.saturating_add(1);
+        match expr {
+            SExpr::List(sub) => {
+                if let Some(head) = sub.first().and_then(SExpr::as_atom)
+                    && matches!(head, "block" | "loop" | "if" | "when")
+                    && let Some(SExpr::Atom(lbl)) = sub.get(1)
+                    && lbl.starts_with('$')
+                {
+                    labels.insert(lbl.clone());
+                }
+                collect_sexpr_block_labels(sub, labels);
+            }
+            SExpr::Atom(head)
+                if matches!(head.as_str(), "block" | "loop" | "if") =>
+            {
+                if let Some(SExpr::Atom(lbl)) = exprs.get(idx)
+                    && lbl.starts_with('$')
+                {
+                    labels.insert(lbl.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn collect_sexpr_dollar_refs(
+    exprs: &[SExpr],
+    local_or_const_or_label: &std::collections::BTreeSet<String>,
+    func_by_id: &BTreeMap<String, usize>,
+    global_by_id: &BTreeMap<String, usize>,
+    ref_funcs: &mut std::collections::BTreeSet<usize>,
+    ref_globals: &mut std::collections::BTreeSet<usize>,
+) {
+    for expr in exprs {
+        match expr {
+            SExpr::List(sub) => {
+                if sub.first().and_then(SExpr::as_atom) == Some("const") {
+                    continue;
+                }
+                collect_sexpr_dollar_refs(
+                    sub,
+                    local_or_const_or_label,
+                    func_by_id,
+                    global_by_id,
+                    ref_funcs,
+                    ref_globals,
+                );
+            }
+            SExpr::Atom(atom) if atom.starts_with('$') => {
+                if local_or_const_or_label.contains(atom) {
+                    continue;
+                }
+                if let Some(&f_idx) = func_by_id.get(atom) {
+                    ref_funcs.insert(f_idx);
+                }
+                if let Some(&g_idx) = global_by_id.get(atom) {
+                    ref_globals.insert(g_idx);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn collect_inline_const_names(
+    exprs: &[SExpr],
+    names: &mut std::collections::BTreeSet<String>,
+) {
+    for expr in exprs {
+        if let SExpr::List(sub) = expr {
+            if sub.first().and_then(SExpr::as_atom) == Some("const") {
+                if let Some(SExpr::Atom(cname)) = sub.get(1) {
+                    names.insert(cname.clone());
+                }
+            } else {
+                collect_inline_const_names(sub, names);
+            }
+        }
+    }
+}
+
+fn emit_parsed_wat_module(
+    funcs: &[ParsedWatFunc],
+    globals: &[ParsedWatGlobal],
+    datas: &[ParsedWatData],
+) -> Result<Vec<DcShorthand>> {
+    let mut func_indices = BTreeMap::new();
+    let mut func_param_types = Vec::with_capacity(funcs.len());
+    for (idx, f) in funcs.iter().enumerate() {
+        if let Some(id) = &f.id {
+            func_indices.insert(id.clone(), u32::try_from(idx)?);
+        }
+        func_param_types.push(f.params.iter().map(|(_, vt)| *vt).collect());
+    }
+    let mut global_indices = BTreeMap::new();
+    let mut global_types = Vec::with_capacity(globals.len());
+    for (idx, g) in globals.iter().enumerate() {
+        if let Some(id) = &g.id {
+            global_indices.insert(id.clone(), u32::try_from(idx)?);
+        }
+        global_types.push(g.valtype);
+    }
+
+    let mut out = Vec::new();
+    out.push(dc_to_sh(DC_BEGIN_WASM_PROGRAM));
+
+    // Single-function module with default `"main"` / `"_start"` export and no globals/data segments
+    // emits the compact `1927 <wasm_routine> 1928` form.
+    if funcs.len() == 1
+        && globals.is_empty()
+        && datas.is_empty()
+        && let Some(only_fn) = funcs.first()
+        && matches!(
+            // Reason for fallback: unexported single function defaults to "main" export name.
+            only_fn.export_name.as_deref().unwrap_or("main"),
+            "main" | "_start"
+        )
+    {
+        emit_wasm_routine_shorthands(
+            only_fn,
+            &func_indices,
+            &func_param_types,
+            &global_indices,
+            &global_types,
+            &mut out,
+        )?;
+        out.push(dc_to_sh(DC_END_WASM_PROGRAM));
+        return Ok(out);
+    }
+
+    // Multi-member module emits an ordered key-value array (`Dc 559`..`Dc 560`)
+    out.push(dc_to_sh(DC_BEGIN_KV_MAP));
+    out.push(dc_to_sh(DC_TYPE_ANY));
+    out.push(dc_to_sh(DC_TYPE_ANY));
+
+    for d in datas {
+        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
+        push_identifier_shorthands(&d.name, &[], &mut out);
+        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
+        out.extend(encode_binary_data_shorthands(&d.bytes));
+        out.push(dc_to_sh(DC_END_KV_PAIR));
+    }
+
+    for (idx, g) in globals.iter().enumerate() {
+        let gname = g
+            .export_name
+            .clone()
+            .or_else(|| {
+                g.id.as_deref()
+                    .map(|s| s.trim_start_matches('$').to_owned())
+            })
+            // Reason for fallback: unnamed global defaults to synthetic global_{idx} identifier.
+            .unwrap_or_else(|| format!("global_{idx}"));
+        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
+        push_identifier_shorthands(
+            &gname,
+            &[g.valtype.to_shorthand()],
+            &mut out,
+        );
+        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
+        out.extend(encode_i64_dc_shorthands(g.init_val));
+        out.push(dc_to_sh(DC_END_KV_PAIR));
+    }
+
+    for (idx, f) in funcs.iter().enumerate() {
+        let fname = f
+            .export_name
+            .clone()
+            .or_else(|| {
+                f.id.as_deref()
+                    .map(|s| s.trim_start_matches('$').to_owned())
+            })
+            // Reason for fallback: unnamed function defaults to main for index 0 or func_{idx}.
+            .unwrap_or_else(|| {
+                if idx == 0 {
+                    "main".to_owned()
+                } else {
+                    format!("func_{idx}")
+                }
+            });
+        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
+        push_identifier_shorthands(&fname, &[], &mut out);
+        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
+        emit_wasm_routine_shorthands(
+            f,
+            &func_indices,
+            &func_param_types,
+            &global_indices,
+            &global_types,
+            &mut out,
+        )?;
+        out.push(dc_to_sh(DC_END_KV_PAIR));
+    }
+
+    out.push(dc_to_sh(DC_END_KV_MAP));
+    out.push(dc_to_sh(DC_END_WASM_PROGRAM));
+    Ok(out)
+}
+
+#[allow(
+    clippy::too_many_lines,
+    reason = "Parses WAT module declarations, optional @context(...) annotations, exports, and transitive helper reachability"
+)]
+fn compile_wat_entries_inner(
+    wat_src: &str,
+    preserve_context_directives: bool,
+) -> Result<Vec<(Vec<DcShorthand>, Vec<DcShorthand>)>> {
+    let tokens = tokenize_wat_inner(wat_src, preserve_context_directives)?;
     let sexprs = parse_sexprs(&tokens)?;
     ensure!(!sexprs.is_empty(), "Empty WAT source");
 
@@ -2097,7 +2361,11 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
         && let Some(list) = sexprs.first().and_then(SExpr::as_list)
         && list.first().and_then(SExpr::as_atom) == Some("module")
     {
-        let start = if list.get(1).and_then(SExpr::as_atom).is_some_and(|a| a.starts_with('$')) {
+        let start = if list
+            .get(1)
+            .and_then(SExpr::as_atom)
+            .is_some_and(|a| a.starts_with('$'))
+        {
             2
         } else {
             1
@@ -2109,15 +2377,17 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
     };
 
     let has_module_decls = module_items.iter().any(|item| {
-        item.as_list()
-            .and_then(|l| l.first())
-            .and_then(SExpr::as_atom)
-            .is_some_and(|tag| {
-                matches!(
-                    tag,
-                    "func" | "global" | "data" | "memory" | "export"
-                )
-            })
+        matches!(item, SExpr::ContextDirective(_))
+            || item
+                .as_list()
+                .and_then(|l| l.first())
+                .and_then(SExpr::as_atom)
+                .is_some_and(|tag| {
+                    matches!(
+                        tag,
+                        "func" | "global" | "data" | "memory" | "export"
+                    )
+                })
     });
 
     if !has_module_decls {
@@ -2130,7 +2400,7 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
             "Unclosed block/loop/if in bare WAT instruction stream"
         );
         out.push(dc_to_sh(DC_END_WASM_PROGRAM));
-        return Ok(out);
+        return Ok(vec![(Vec::new(), out)]);
     }
 
     let mut funcs = Vec::new();
@@ -2139,8 +2409,13 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
     let mut module_consts: BTreeMap<String, i64> = BTreeMap::new();
     let mut pending_func_exports: Vec<(String, String)> = Vec::new();
     let mut pending_global_exports: Vec<(String, String)> = Vec::new();
+    let mut pending_contexts: Vec<Vec<DcShorthand>> = Vec::new();
 
     for item in module_items {
+        if let SExpr::ContextDirective(ctx_tokens) = item {
+            pending_contexts.push(ctx_tokens.clone());
+            continue;
+        }
         let list = item
             .as_list()
             .context("Expected top-level S-expression inside WAT module")?;
@@ -2148,6 +2423,12 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
             .first()
             .and_then(SExpr::as_atom)
             .context("Expected keyword at start of WAT module member")?;
+        if tag != "func" {
+            ensure!(
+                pending_contexts.is_empty(),
+                "`; @context(...)` directive in WAT must immediately precede a `(func ...)` declaration, found `({tag} ...)`"
+            );
+        }
         match tag {
             "memory" => {
                 validate_memory_decl(list)?;
@@ -2156,7 +2437,8 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
                 parse_const_decl(list, &mut module_consts)?;
             }
             "func" => {
-                let f = parse_func_decl(list, funcs.len(), &module_consts)?;
+                let mut f = parse_func_decl(list, funcs.len(), &module_consts)?;
+                f.contexts = std::mem::take(&mut pending_contexts);
                 funcs.push(f);
             }
             "global" => {
@@ -2199,133 +2481,154 @@ pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
         }
     }
 
-    let mut func_indices = BTreeMap::new();
-    let mut func_param_types = Vec::with_capacity(funcs.len());
+    ensure!(
+        pending_contexts.is_empty(),
+        "Trailing `;; @context(...)` directive at end of WAT module without a following `(func ...)`"
+    );
+
+    let mut func_by_id = BTreeMap::new();
     for (idx, f) in funcs.iter().enumerate() {
         if let Some(id) = &f.id {
-            func_indices.insert(id.clone(), u32::try_from(idx)?);
+            func_by_id.insert(id.clone(), idx);
         }
-        func_param_types.push(f.params.iter().map(|(_, vt)| *vt).collect());
     }
-    let mut global_indices = BTreeMap::new();
-    let mut global_types = Vec::with_capacity(globals.len());
+    let mut global_by_id = BTreeMap::new();
     for (idx, g) in globals.iter().enumerate() {
         if let Some(id) = &g.id {
-            global_indices.insert(id.clone(), u32::try_from(idx)?);
+            global_by_id.insert(id.clone(), idx);
         }
-        global_types.push(g.valtype);
     }
 
     for (exp_name, target_ref) in pending_func_exports {
         let idx = if target_ref.starts_with('$') {
-            *func_indices.get(&target_ref).with_context(|| {
+            *func_by_id.get(&target_ref).with_context(|| {
                 format!("Unknown exported WAT function '{target_ref}'")
             })?
         } else {
-            parse_wat_u32(&target_ref)?
+            usize::try_from(parse_wat_u32(&target_ref)?)?
         };
-        if let Some(f) = funcs.get_mut(usize::try_from(idx)?) {
+        if let Some(f) = funcs.get_mut(idx) {
             f.export_name = Some(exp_name);
         }
     }
     for (exp_name, target_ref) in pending_global_exports {
         let idx = if target_ref.starts_with('$') {
-            *global_indices.get(&target_ref).with_context(|| {
+            *global_by_id.get(&target_ref).with_context(|| {
                 format!("Unknown exported WAT global '{target_ref}'")
             })?
         } else {
-            parse_wat_u32(&target_ref)?
+            usize::try_from(parse_wat_u32(&target_ref)?)?
         };
-        if let Some(g) = globals.get_mut(usize::try_from(idx)?) {
+        if let Some(g) = globals.get_mut(idx) {
             g.export_name = Some(exp_name);
         }
     }
 
-    let mut out = Vec::new();
-    out.push(dc_to_sh(DC_BEGIN_WASM_PROGRAM));
-
-    // Single-function module with default `"main"` / `"_start"` export and no globals/data segments
-    // emits the compact `1927 <wasm_routine> 1928` form.
-    if funcs.len() == 1
-        && globals.is_empty()
-        && datas.is_empty()
-        && let Some(only_fn) = funcs.first()
-        && matches!(
-            // Reason for fallback: unexported single function defaults to "main" export name.
-            only_fn.export_name.as_deref().unwrap_or("main"),
-            "main" | "_start"
-        )
-    {
-        emit_wasm_routine_shorthands(
-            only_fn,
-            &func_indices,
-            &func_param_types,
-            &global_indices,
-            &global_types,
-            &mut out,
-        )?;
-        out.push(dc_to_sh(DC_END_WASM_PROGRAM));
-        return Ok(out);
+    let has_any_context = funcs.iter().any(|f| !f.contexts.is_empty());
+    if !preserve_context_directives || !has_any_context {
+        let tokens = emit_parsed_wat_module(&funcs, &globals, &datas)?;
+        return Ok(vec![(Vec::new(), tokens)]);
     }
 
-    // Multi-member module emits an ordered key-value array (`Dc 559`..`Dc 560`)
-    out.push(dc_to_sh(DC_BEGIN_KV_MAP));
-    out.push(dc_to_sh(DC_TYPE_ANY));
-    out.push(dc_to_sh(DC_TYPE_ANY));
+    let mut entries = Vec::new();
+    for (entry_idx, entry_fn) in funcs.iter().enumerate() {
+        if entry_fn.contexts.is_empty() {
+            continue;
+        }
+        let mut reachable_funcs = std::collections::BTreeSet::new();
+        let mut reachable_globals = std::collections::BTreeSet::new();
+        let mut worklist = vec![entry_idx];
+        reachable_funcs.insert(entry_idx);
 
-    for (idx, d) in datas.iter().enumerate() {
-        let _ = idx;
-        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
-        push_identifier_shorthands(&d.name, &[], &mut out);
-        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
-        out.extend(encode_binary_data_shorthands(&d.bytes));
-        out.push(dc_to_sh(DC_END_KV_PAIR));
-    }
-
-    for (idx, g) in globals.iter().enumerate() {
-        let gname = g
-            .export_name
-            .clone()
-            .or_else(|| g.id.as_deref().map(|s| s.trim_start_matches('$').to_owned()))
-            // Reason for fallback: unnamed global defaults to synthetic global_{idx} identifier.
-            .unwrap_or_else(|| format!("global_{idx}"));
-        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
-        push_identifier_shorthands(&gname, &[g.valtype.to_shorthand()], &mut out);
-        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
-        out.extend(encode_i64_dc_shorthands(g.init_val));
-        out.push(dc_to_sh(DC_END_KV_PAIR));
-    }
-
-    for (idx, f) in funcs.iter().enumerate() {
-        let fname = f
-            .export_name
-            .clone()
-            .or_else(|| f.id.as_deref().map(|s| s.trim_start_matches('$').to_owned()))
-            // Reason for fallback: unnamed function defaults to main for index 0 or func_{idx}.
-            .unwrap_or_else(|| {
-                if idx == 0 {
-                    "main".to_owned()
-                } else {
-                    format!("func_{idx}")
+        while let Some(cur_idx) = worklist.pop() {
+            let Some(cur_fn) = funcs.get(cur_idx) else {
+                continue;
+            };
+            let mut shadowed = std::collections::BTreeSet::new();
+            for (pname_opt, _) in &cur_fn.params {
+                if let Some(pname) = pname_opt {
+                    shadowed.insert(pname.clone());
                 }
-            });
-        out.push(dc_to_sh(DC_BEGIN_KV_PAIR));
-        push_identifier_shorthands(&fname, &[], &mut out);
-        out.push(dc_to_sh(DC_LIST_ELEMENT_SEPARATOR));
-        emit_wasm_routine_shorthands(
-            f,
-            &func_indices,
-            &func_param_types,
-            &global_indices,
-            &global_types,
-            &mut out,
-        )?;
-        out.push(dc_to_sh(DC_END_KV_PAIR));
+            }
+            for (lname_opt, _) in &cur_fn.locals {
+                if let Some(lname) = lname_opt {
+                    shadowed.insert(lname.clone());
+                }
+            }
+            for cname in cur_fn.consts.keys() {
+                shadowed.insert(cname.clone());
+            }
+            collect_inline_const_names(&cur_fn.body, &mut shadowed);
+            collect_sexpr_block_labels(&cur_fn.body, &mut shadowed);
+
+            let mut direct_funcs = std::collections::BTreeSet::new();
+            collect_sexpr_dollar_refs(
+                &cur_fn.body,
+                &shadowed,
+                &func_by_id,
+                &global_by_id,
+                &mut direct_funcs,
+                &mut reachable_globals,
+            );
+            for f_idx in direct_funcs {
+                if reachable_funcs.insert(f_idx) {
+                    worklist.push(f_idx);
+                }
+            }
+        }
+
+        let mut sub_funcs = Vec::with_capacity(reachable_funcs.len());
+        let mut primary = entry_fn.clone();
+        primary.export_name = Some("main".to_owned());
+        sub_funcs.push(primary);
+        for &helper_idx in &reachable_funcs {
+            if helper_idx != entry_idx
+                && let Some(helper_fn) = funcs.get(helper_idx)
+            {
+                sub_funcs.push(helper_fn.clone());
+            }
+        }
+
+        let mut sub_globals = Vec::with_capacity(reachable_globals.len());
+        for &g_idx in &reachable_globals {
+            if let Some(g) = globals.get(g_idx) {
+                sub_globals.push(g.clone());
+            }
+        }
+
+        let prog_tokens =
+            emit_parsed_wat_module(&sub_funcs, &sub_globals, &datas)?;
+        for ctx in &entry_fn.contexts {
+            entries.push((ctx.clone(), prog_tokens.clone()));
+        }
     }
 
-    out.push(dc_to_sh(DC_END_KV_MAP));
-    out.push(dc_to_sh(DC_END_WASM_PROGRAM));
-    Ok(out)
+    Ok(entries)
+}
+
+/// Converts WebAssembly Text Format (`.wat`) source into a canonical `.WASM` Document
+/// Character shorthand sequence (`Dc 1927 "Begin WASM program"` .. `Dc 1928 "End WASM program"`).
+///
+/// # Errors
+/// Returns an error if the `.wat` source contains syntax errors or unknown instructions/identifiers.
+pub fn wat_to_dc_shorthands(wat_src: &str) -> Result<Vec<DcShorthand>> {
+    let mut entries = compile_wat_entries_inner(wat_src, false)?;
+    entries
+        .pop()
+        .map(|(_, tokens)| tokens)
+        .context("WAT compilation produced zero entries")
+}
+
+/// Compiles a staged `.wat` implementation file into one or more `(context_tokens, wasm_tokens)`
+/// pairs, splitting `;; @context(...)`-annotated `(func ...)` definitions into self-contained
+/// `.WASM` programs (`Dc 1927 "Begin WASM program"` .. `Dc 1928 "End WASM program"`).
+///
+/// # Errors
+/// Returns an error if the `.wat` source contains invalid syntax, directives, or instructions.
+pub fn wat_to_staged_dc_entries(
+    wat_src: &str,
+) -> Result<Vec<(Vec<DcShorthand>, Vec<DcShorthand>)>> {
+    compile_wat_entries_inner(wat_src, true)
 }
 
 /// Converts WebAssembly Text Format (`.wat`) source into a space-separated Dc shorthand string.
@@ -2452,6 +2755,8 @@ pub struct StagedDcImpl {
     pub rel_path: String,
     /// Target Short Dc (`DcShorthand::Short`) or Format Dc (`DcShorthand::Format`) implemented by this file.
     pub target: DcShorthand,
+    /// Optional `Dc 646 "In context of"` type/operation context shorthands qualifying this implementation.
+    pub context_tokens: Vec<DcShorthand>,
     /// Decomposition tag (`"semantic"` or `"equiv"`).
     pub decomp_tag: String,
     /// Compiled Dc shorthand tokens.
@@ -2459,13 +2764,24 @@ pub struct StagedDcImpl {
 }
 
 impl StagedDcImpl {
-    /// Formats this implementation as a `<semantic>...` or `<equiv>...` decomposition entry
-    /// compatible with `DcDefn::decompositions`.
+    /// Formats this implementation as a `<semantic>...`, `<semantic@ctx>...`, or `<equiv>...`
+    /// decomposition entry compatible with `DcDefn::decompositions`.
     #[must_use]
     pub fn to_decomposition_entry(&self) -> String {
         let joined: Vec<String> =
             self.tokens.iter().map(ToString::to_string).collect();
-        format!("<{}>{}", self.decomp_tag, joined.join(" "))
+        if self.context_tokens.is_empty() {
+            format!("<{}>{}", self.decomp_tag, joined.join(" "))
+        } else {
+            let ctx_joined: Vec<String> =
+                self.context_tokens.iter().map(ToString::to_string).collect();
+            format!(
+                "<{}@{}>{}",
+                self.decomp_tag,
+                ctx_joined.join(" "),
+                joined.join(" ")
+            )
+        }
     }
 }
 
@@ -2540,7 +2856,10 @@ pub fn load_staged_dc_impls_with_compiler(
 ) -> Result<(Vec<StagedDcImpl>, BTreeMap<String, Vec<u8>>)> {
     let mut impls: Vec<StagedDcImpl> = Vec::new();
     let mut raw_files: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    let mut seen_targets: BTreeMap<(String, String), String> = BTreeMap::new();
+    let mut seen_targets: BTreeMap<
+        (String, String, Vec<DcShorthand>),
+        String,
+    > = BTreeMap::new();
     let stagel3_sh = ctb_utilities::format_id::FormatId::StageL3.shorthand();
     let stager3_sh = ctb_utilities::format_id::FormatId::StageR3.shorthand();
 
@@ -2625,64 +2944,94 @@ pub fn load_staged_dc_impls_with_compiler(
             let target_key = target.to_string();
             let decomp_tag = extract_decomp_tag_override(src);
 
-            if let Some(prev_path) = seen_targets
-                .insert((target_key.clone(), decomp_tag.clone()), rel_path.clone())
-            {
-                bail!(
-                    "Duplicate <{decomp_tag}> implementation for {target_key} in '{rel_path}' and '{prev_path}'"
-                );
-            }
-
-            let tokens = match ext {
-                "wat" => wat_to_dc_shorthands(src)
-                    .with_context(|| format!("Failed to compile {rel_path}"))?,
-                "dcsh" => parse_dcsh_impl_tokens(src)
-                    .with_context(|| format!("Failed to parse {rel_path}"))?,
-                "sl3" => {
-                    let has_sl3_compiler = impls.iter().any(|prior| {
-                        prior.stage == ImplStage::Stage0
-                            && prior.target.to_string() == stagel3_sh
-                    });
-                    ensure!(
-                        has_sl3_compiler,
-                        "Cannot compile '{rel_path}': StageL 3 compiler ({stagel3_sh}) must be defined in stage_0_impls/ first"
-                    );
-                    let compiler = source_compiler.with_context(|| {
-                        format!(
-                            "Cannot compile '{rel_path}': no StageL 3 bootstrap execution hook was provided to load_staged_dc_impls_with_compiler"
-                        )
-                    })?;
-                    compiler(stage, ext, src, &impls)
-                        .with_context(|| format!("Failed to compile {rel_path}"))?
-                }
-                "sr3" => {
-                    let has_sr3_compiler = impls.iter().any(|prior| {
-                        prior.stage < stage
-                            && prior.target.to_string() == stager3_sh
-                    });
-                    ensure!(
-                        has_sr3_compiler,
-                        "Cannot compile '{rel_path}': StageR 3 compiler ({stager3_sh}) must be defined in stage_0_impls/ or stage_1_impls/ first"
-                    );
-                    let compiler = source_compiler.with_context(|| {
-                        format!(
-                            "Cannot compile '{rel_path}': no StageR 3 bootstrap execution hook was provided to load_staged_dc_impls_with_compiler"
-                        )
-                    })?;
-                    compiler(stage, ext, src, &impls)
-                        .with_context(|| format!("Failed to compile {rel_path}"))?
-                }
-                _ => bail!("Unhandled staged implementation extension '.{ext}'"),
-            };
+            let compiled_entries: Vec<(Vec<DcShorthand>, Vec<DcShorthand>)> =
+                match ext {
+                    "wat" => wat_to_staged_dc_entries(src)
+                        .with_context(|| format!("Failed to compile {rel_path}"))?,
+                    "dcsh" => vec![(
+                        Vec::new(),
+                        parse_dcsh_impl_tokens(src)
+                            .with_context(|| format!("Failed to parse {rel_path}"))?,
+                    )],
+                    "sl3" => {
+                        let has_sl3_compiler = impls.iter().any(|prior| {
+                            prior.stage == ImplStage::Stage0
+                                && prior.target.to_string() == stagel3_sh
+                        });
+                        ensure!(
+                            has_sl3_compiler,
+                            "Cannot compile '{rel_path}': StageL 3 compiler ({stagel3_sh}) must be defined in stage_0_impls/ first"
+                        );
+                        let compiler = source_compiler.with_context(|| {
+                            format!(
+                                "Cannot compile '{rel_path}': no StageL 3 bootstrap execution hook was provided to load_staged_dc_impls_with_compiler"
+                            )
+                        })?;
+                        vec![(
+                            Vec::new(),
+                            compiler(stage, ext, src, &impls).with_context(
+                                || format!("Failed to compile {rel_path}"),
+                            )?,
+                        )]
+                    }
+                    "sr3" => {
+                        let has_sr3_compiler = impls.iter().any(|prior| {
+                            prior.stage < stage
+                                && prior.target.to_string() == stager3_sh
+                        });
+                        ensure!(
+                            has_sr3_compiler,
+                            "Cannot compile '{rel_path}': StageR 3 compiler ({stager3_sh}) must be defined in stage_0_impls/ or stage_1_impls/ first"
+                        );
+                        let compiler = source_compiler.with_context(|| {
+                            format!(
+                                "Cannot compile '{rel_path}': no StageR 3 bootstrap execution hook was provided to load_staged_dc_impls_with_compiler"
+                            )
+                        })?;
+                        vec![(
+                            Vec::new(),
+                            compiler(stage, ext, src, &impls).with_context(
+                                || format!("Failed to compile {rel_path}"),
+                            )?,
+                        )]
+                    }
+                    _ => {
+                        bail!("Unhandled staged implementation extension '.{ext}'")
+                    }
+                };
 
             raw_files.insert(rel_path.clone(), bytes);
-            impls.push(StagedDcImpl {
-                stage,
-                rel_path,
-                target,
-                decomp_tag,
-                tokens,
-            });
+            for (context_tokens, tokens) in compiled_entries {
+                if let Some(prev_path) = seen_targets.insert(
+                    (
+                        target_key.clone(),
+                        decomp_tag.clone(),
+                        context_tokens.clone(),
+                    ),
+                    rel_path.clone(),
+                ) {
+                    let ctx_desc = if context_tokens.is_empty() {
+                        String::new()
+                    } else {
+                        let joined: Vec<String> = context_tokens
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect();
+                        format!(" @context({})", joined.join(" "))
+                    };
+                    bail!(
+                        "Duplicate <{decomp_tag}>{ctx_desc} implementation for {target_key} in '{rel_path}' and '{prev_path}'"
+                    );
+                }
+                impls.push(StagedDcImpl {
+                    stage,
+                    rel_path: rel_path.clone(),
+                    target,
+                    context_tokens,
+                    decomp_tag: decomp_tag.clone(),
+                    tokens,
+                });
+            }
         }
     }
 
@@ -2881,6 +3230,45 @@ mod tests {
             )
             .is_err()
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_wat_context_directives_and_helper_reachability() -> Result<()> {
+        let wat = r#"
+            (module
+              (memory (export "memory") 1)
+              (global $__heap_ptr (mut i32) (i32.const 256))
+
+              (func $_alloc (param $n i32) (result i32)
+                (local $p i32)
+                (set $p $__heap_ptr)
+                (global.set $__heap_ptr (i32.add $p $n))
+                (get $p))
+
+              ;; @context(f208)
+              ;; @context(f207)
+              (func $i32_u32 (param $a i32) (param $b i32) (result i32)
+                (i32.add $a $b))
+
+              ;; @context(2576 275)
+              (func $alloc_hdr (result i32)
+                (call $_alloc 16)))
+        "#;
+        let entries = wat_to_staged_dc_entries(wat)?;
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].0, vec![DcShorthand::Format(208)]);
+        assert_eq!(entries[1].0, vec![DcShorthand::Format(207)]);
+        assert_eq!(entries[0].1, entries[1].1);
+        // Single-function entry without helpers/globals emits compact `1927 260 ... 261 1928`.
+        assert_eq!(entries[0].1[1], dc_to_sh(DC_BEGIN_LITERAL));
+
+        assert_eq!(
+            entries[2].0,
+            vec![DcShorthand::Short(2576), DcShorthand::Short(275)]
+        );
+        // Entry reaching `$_alloc` and `$__heap_ptr` emits `1927 559 ... 560 1928`.
+        assert_eq!(entries[2].1[1], dc_to_sh(DC_BEGIN_KV_MAP));
         Ok(())
     }
 }

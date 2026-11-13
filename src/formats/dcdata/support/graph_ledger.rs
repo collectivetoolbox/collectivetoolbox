@@ -271,6 +271,12 @@ struct DesiredDatasetState {
         ((DcShorthand, DcShorthand, ValueSpec), DcShorthand),
         (ValueSpec, String),
     >,
+    /// `Dc 646 "In context of"` qualifiers attached to a multi-valued property's `584` (`Has a`) statement node:
+    /// `((subject, prop_token, value_spec), context_spec) -> comment`.
+    multi_property_contexts: BTreeMap<
+        ((DcShorthand, DcShorthand, ValueSpec), ValueSpec),
+        String,
+    >,
     /// Preferred replacements (`<prefer>`): `(subject, value_spec) -> comment`.
     preferred_replacements: BTreeMap<(DcShorthand, ValueSpec), String>,
     /// Direct 3-token binary statements: `(verb, subject, object_spec) -> comment`.
@@ -2651,6 +2657,26 @@ impl LedgerBuilder {
             }
         }
 
+        for (((subj, prop, val_spec), ctx_spec), _comment) in
+            &desired.multi_property_contexts
+        {
+            let val_tok = self.resolve_value_spec(val_spec)?;
+            let ctx_tok = self.resolve_value_spec(ctx_spec)?;
+            if let Some(&(has_a_id, _)) =
+                self.active_multi_props.get(&(*subj, *prop, val_tok))
+            {
+                let ctx_key = (
+                    sh(DC_IN_CONTEXT_OF),
+                    DcShorthand::Long(has_a_id),
+                    ctx_tok,
+                );
+                resolved_direct.insert(
+                    ctx_key,
+                    format!("In context of (l{has_a_id}, {ctx_tok})"),
+                );
+            }
+        }
+
         let existing_direct_keys: Vec<(DcShorthand, DcShorthand, DcShorthand)> =
             self.active_direct_stmts.keys().copied().collect();
         for key in existing_direct_keys {
@@ -3250,7 +3276,11 @@ fn compile_defn_statements(
         let Some((tag_raw, payload_raw)) = decomp.split_once('>') else {
             continue;
         };
-        let tag = tag_raw.trim_start_matches('<').trim();
+        let tag_inner = tag_raw.trim_start_matches('<').trim();
+        let (tag, ctx_raw_opt) = match tag_inner.split_once('@') {
+            Some((t, c)) => (t.trim(), Some(c.trim())),
+            None => (tag_inner, None),
+        };
         let payload = payload_raw.trim();
         if payload.is_empty() {
             continue;
@@ -3274,14 +3304,14 @@ fn compile_defn_statements(
         } else if all_shorthands && !payload_tokens.is_empty() {
             ValueSpec::ValueNode {
                 tokens: payload_tokens,
-                comment: format!("<{tag}> {payload}"),
+                comment: format!("<{tag_inner}> {payload}"),
             }
         } else if let Ok(expr) = parse_format_expr(payload)
             && !matches!(expr, FormatExpr::Dc(_) | FormatExpr::NamedType(_))
         {
             ValueSpec::FormatExprNode {
                 expr: Box::new(expr),
-                raw_comment: format!("<{tag}> {payload}"),
+                raw_comment: format!("<{tag_inner}> {payload}"),
             }
         } else {
             make_string_value_spec(payload)
@@ -3299,9 +3329,38 @@ fn compile_defn_statements(
                 "semantic" => DC_SEMANTIC_DECOMPOSITION,
                 _ => DC_COMPATIBILITY_DECOMPOSITION,
             };
+            if let Some(ctx_raw) = ctx_raw_opt
+                && !ctx_raw.is_empty()
+            {
+                let mut ctx_tokens = Vec::new();
+                for tok_str in ctx_raw.split_whitespace() {
+                    let parsed = DcShorthand::parse(tok_str).map_err(|e| {
+                        anyhow::anyhow!(
+                            "Invalid @context shorthand '{tok_str}' on {subj} <{tag_inner}>: {e}"
+                        )
+                    })?;
+                    ctx_tokens.push(parsed);
+                }
+                let ctx_spec = if ctx_tokens.len() == 1 {
+                    #[expect(
+                        clippy::expect_used,
+                        reason = "ctx_tokens.len() == 1 checked immediately above"
+                    )]
+                    ValueSpec::Direct(*ctx_tokens.first().expect("single ctx token"))
+                } else {
+                    ValueSpec::ValueNode {
+                        tokens: ctx_tokens,
+                        comment: format!("context {ctx_raw}"),
+                    }
+                };
+                state.multi_property_contexts.insert(
+                    ((subj, sh(decomp_dc), val_spec.clone()), ctx_spec),
+                    format!("{subj} <{tag_inner}> context"),
+                );
+            }
             state.multi_properties.insert(
                 (subj, sh(decomp_dc), val_spec),
-                format!("{subj} <{tag}> {payload}"),
+                format!("{subj} <{tag_inner}> {payload}"),
             );
         }
     }
@@ -5285,6 +5344,84 @@ mod tests {
         assert_eq!(re_stats.nodes_retracted, 0);
         assert_eq!(re_nodes, reconciled_nodes);
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_context_scoped_wasm_decompositions_roundtrip_and_query() -> Result<()> {
+        let mut op = sample_dc_defn(2544, "Sequence index read", "Get");
+        op.script = ".EL Routines".to_string();
+        op.decompositions = vec![
+            "<semantic@2576 f203>1927 260 262 280 f208 263 712 6 f199 128 7 261 1928".to_string(),
+            "<semantic@2576 275>1927 260 262 280 f208 263 712 6 f199 131 7 261 1928".to_string(),
+            "<semantic@f208>1927 260 262 280 f208 263 712 6 f199 135 7 261 1928".to_string(),
+        ];
+        let scripts = BTreeSet::from([".EL Routines".to_string()]);
+        let (nodes, stats) = update_ledger_in_memory(
+            Vec::new(),
+            std::slice::from_ref(&op),
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert!(stats.nodes_appended > 0);
+
+        let index = crate::seed_graph::SeedGraphIndex::from_nodes(nodes.clone());
+        // Unscoped lookup ignores `Dc 646 "In context of"` entries.
+        assert!(
+            index
+                .get_wasm_definition_tokens(DcShorthand::Short(2544))
+                .is_none()
+        );
+        // Single-token context (`f208`).
+        assert!(
+            index
+                .get_wasm_definition_tokens_in_context(
+                    DcShorthand::Short(2544),
+                    &[DcShorthand::Format(208)]
+                )
+                .is_some()
+        );
+        // Exact multi-token context (`2576 f203`) beats wildcard (`2576 275`).
+        let u8_toks = index
+            .get_wasm_definition_tokens_in_context(
+                DcShorthand::Short(2544),
+                &[DcShorthand::Short(2576), DcShorthand::Format(203)],
+            )
+            .expect("exact u8 list context");
+        let wild_toks = index
+            .get_wasm_definition_tokens_in_context(
+                DcShorthand::Short(2544),
+                &[
+                    DcShorthand::Short(2576),
+                    DcShorthand::Short(2576),
+                    DcShorthand::Format(203),
+                ],
+            )
+            .expect("wildcard nested list context");
+        assert_ne!(u8_toks, wild_toks);
+
+        // Lossless reconstruction of `<semantic@...>` entries and idempotent reconciliation.
+        let rec = index.reconstruct_dc_defns()?;
+        let rec_op = rec
+            .iter()
+            .find(|d| d.short_id == Some(2544))
+            .expect("reconstructed 2544");
+        let expected_set: BTreeSet<String> =
+            op.decompositions.iter().cloned().collect();
+        let actual_set: BTreeSet<String> =
+            rec_op.decompositions.iter().cloned().collect();
+        assert_eq!(actual_set, expected_set);
+
+        let (_, re_stats) = update_ledger_in_memory(
+            nodes,
+            std::slice::from_ref(&op),
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(re_stats.nodes_appended, 0);
+        assert_eq!(re_stats.nodes_retracted, 0);
         Ok(())
     }
 }
