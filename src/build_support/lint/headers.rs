@@ -28,7 +28,8 @@ use crate::license_consts::{
     AGPL_3_0_ONLY_COPYRIGHT_BLOCK, AGPL_COPYRIGHT_BLOCK, DEFAULT_AGPL_HEADER,
     DESCRIPTION_DETECTION, DETECTION_LICENSES_OTHER, FILE_ADDITIONAL_LICENSES,
     HASH_AGPL_HEADER, HASH_BSD_DARWIN_HEADER, PAN_MIT_HEADER,
-    SCHEME_GPL_HEADER, SPDX_HEADERS_DETECTION,
+    SCHEME_GPL_HEADER, SPDX_HEADERS_DETECTION, STAGEL_AGPL_HEADER,
+    WAT_AGPL_HEADER,
 };
 use anyhow::{Context, Result, bail};
 
@@ -111,6 +112,8 @@ pub fn find_files(
     docker_files: &mut Vec<PathBuf>,
     shell_files: &mut Vec<PathBuf>,
     python_files: &mut Vec<PathBuf>,
+    wat_files: &mut Vec<PathBuf>,
+    stagel_files: &mut Vec<PathBuf>,
     violations: &mut Vec<Violation>,
 ) -> Result<()> {
     find_files_internal(
@@ -121,10 +124,16 @@ pub fn find_files(
         docker_files,
         shell_files,
         python_files,
+        wat_files,
+        stagel_files,
         violations,
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "File discovery partitions workspace files by language category"
+)]
 fn find_files_internal(
     root: &Path,
     dir: &Path,
@@ -133,6 +142,8 @@ fn find_files_internal(
     docker_files: &mut Vec<PathBuf>,
     shell_files: &mut Vec<PathBuf>,
     python_files: &mut Vec<PathBuf>,
+    wat_files: &mut Vec<PathBuf>,
+    stagel_files: &mut Vec<PathBuf>,
     violations: &mut Vec<Violation>,
 ) -> Result<()> {
     for entry in fs::read_dir(dir)? {
@@ -153,6 +164,8 @@ fn find_files_internal(
                 docker_files,
                 shell_files,
                 python_files,
+                wat_files,
+                stagel_files,
                 violations,
             )?;
         } else {
@@ -170,6 +183,10 @@ fn find_files_internal(
                 python_files.push(path);
             } else if ext == Some("sh") || ext == Some("bash") {
                 shell_files.push(path);
+            } else if ext == Some("wat") {
+                wat_files.push(path);
+            } else if ext == Some("sl3") || ext == Some("sr3") {
+                stagel_files.push(path);
             } else if ext == Some("dockerfile")
                 || file_name == "Dockerfile"
                 || file_name.starts_with("Dockerfile.")
@@ -1450,6 +1467,127 @@ pub fn lint_shell_file(
     Ok(())
 }
 
+/// Shared validator for files that start directly with a line-commented
+/// AGPL-3.0-or-later license header (such as WAT and StageL 3 / StageR 3).
+fn lint_prefixed_agpl_file(
+    file_path: &Path,
+    allowed_licenses: &BTreeSet<String>,
+    violations: &mut Vec<Violation>,
+    expected_header: &str,
+    kind_label: &str,
+) -> Result<()> {
+    let content = fs::read_to_string(file_path)
+        .with_context(|| format!("failed to read {}", file_path.display()))?;
+    let normalized = normalize_newlines(&content);
+    if normalized.trim_start().is_empty() {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: 1,
+            message: "File is empty".to_string(),
+        });
+        return Ok(());
+    }
+
+    if !normalized.starts_with(expected_header) {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: 1,
+            message: format!(
+                "Missing or invalid AGPL license header in {kind_label} file"
+            ),
+        });
+        return Ok(());
+    }
+
+    if !allowed_licenses.contains("AGPL-3.0-or-later") {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: 1,
+            message: "License `AGPL-3.0-or-later` is not listed in Cargo.toml `license` field"
+                .to_string(),
+        });
+    }
+
+    Ok(())
+}
+
+/// Lint a single WAT file for the required `WAT_AGPL_HEADER`.
+pub fn lint_wat_file(
+    file_path: &Path,
+    allowed_licenses: &BTreeSet<String>,
+    violations: &mut Vec<Violation>,
+) -> Result<()> {
+    lint_prefixed_agpl_file(
+        file_path,
+        allowed_licenses,
+        violations,
+        WAT_AGPL_HEADER,
+        "WAT",
+    )
+}
+
+/// Lint a single StageL 3 / StageR 3 file for the required `STAGEL_AGPL_HEADER`.
+pub fn lint_stagel_file(
+    file_path: &Path,
+    allowed_licenses: &BTreeSet<String>,
+    violations: &mut Vec<Violation>,
+) -> Result<()> {
+    lint_prefixed_agpl_file(
+        file_path,
+        allowed_licenses,
+        violations,
+        STAGEL_AGPL_HEADER,
+        "StageL 3 / StageR 3",
+    )
+}
+
+/// Add AGPL headers to files using a shared prefixed header constant.
+fn add_prefixed_agpl_headers(
+    files: &[PathBuf],
+    workspace_root: &Path,
+    header: &str,
+    spdx_line: &str,
+    kind_label: &str,
+) -> Result<(usize, usize)> {
+    let mut modified_count: usize = 0;
+    let mut already_valid_count: usize = 0;
+
+    for file_path in files {
+        let content = fs::read_to_string(file_path).with_context(|| {
+            format!("failed to read {}", file_path.display())
+        })?;
+        let normalized = normalize_newlines(&content);
+        if normalized.starts_with(header) {
+            already_valid_count = already_valid_count.saturating_add(1);
+            continue;
+        }
+
+        let rest = normalized
+            .strip_prefix(spdx_line)
+            .map_or(normalized.as_str(), |after_spdx| {
+                after_spdx.trim_start_matches('\n')
+            });
+
+        let mut new_content = String::from(header);
+        new_content.push('\n');
+        if !rest.is_empty() {
+            new_content.push('\n');
+            new_content.push_str(rest);
+        }
+
+        fs::write(file_path, new_content).with_context(|| {
+            format!("failed to write {}", file_path.display())
+        })?;
+
+        let relative =
+            file_path.strip_prefix(workspace_root).unwrap_or(file_path);
+        println!("Added {kind_label} header to {}", relative.display());
+        modified_count = modified_count.saturating_add(1);
+    }
+
+    Ok((modified_count, already_valid_count))
+}
+
 /// Add Scheme headers to files that are missing them.
 fn add_scheme_headers(
     scm_files: &[PathBuf],
@@ -1720,6 +1858,8 @@ pub fn run(workspace_root: &Path, do_add_headers: bool) -> Result<()> {
     let mut docker_files = Vec::new();
     let mut shell_files = Vec::new();
     let mut python_files = Vec::new();
+    let mut wat_files = Vec::new();
+    let mut stagel_files = Vec::new();
     let mut violations = Vec::new();
 
     find_files(
@@ -1729,6 +1869,8 @@ pub fn run(workspace_root: &Path, do_add_headers: bool) -> Result<()> {
         &mut docker_files,
         &mut shell_files,
         &mut python_files,
+        &mut wat_files,
+        &mut stagel_files,
         &mut violations,
     )?;
 
@@ -1757,6 +1899,28 @@ pub fn run(workspace_root: &Path, do_add_headers: bool) -> Result<()> {
         println!("\nShell script header addition summary:");
         println!("  Modified: {shell_modified}");
         println!("  Already valid: {shell_valid}");
+
+        let (wat_modified, wat_valid) = add_prefixed_agpl_headers(
+            &wat_files,
+            workspace_root,
+            WAT_AGPL_HEADER,
+            ";; SPDX-License-Identifier: AGPL-3.0-or-later",
+            "WAT",
+        )?;
+        println!("\nWAT header addition summary:");
+        println!("  Modified: {wat_modified}");
+        println!("  Already valid: {wat_valid}");
+
+        let (stagel_modified, stagel_valid) = add_prefixed_agpl_headers(
+            &stagel_files,
+            workspace_root,
+            STAGEL_AGPL_HEADER,
+            ": SPDX-License-Identifier: AGPL-3.0-or-later",
+            "StageL 3 / StageR 3",
+        )?;
+        println!("\nStageL 3 / StageR 3 header addition summary:");
+        println!("  Modified: {stagel_modified}");
+        println!("  Already valid: {stagel_valid}");
         return Ok(());
     }
 
@@ -1785,23 +1949,33 @@ pub fn run(workspace_root: &Path, do_add_headers: bool) -> Result<()> {
             &mut violations,
         )?;
     }
+    for file_path in &wat_files {
+        lint_wat_file(file_path, &allowed_licenses, &mut violations)?;
+    }
+    for file_path in &stagel_files {
+        lint_stagel_file(file_path, &allowed_licenses, &mut violations)?;
+    }
 
     let total_files = rs_files
         .len()
         .saturating_add(scm_files.len())
         .saturating_add(docker_files.len())
         .saturating_add(python_files.len())
-        .saturating_add(shell_files.len());
+        .saturating_add(shell_files.len())
+        .saturating_add(wat_files.len())
+        .saturating_add(stagel_files.len());
 
     if violations.is_empty() {
         println!(
-            "header and docblock lint passed ({} files checked: {} Rust, {} Scheme, {} Dockerfile, {} Python, {} Shell)",
+            "header and docblock lint passed ({} files checked: {} Rust, {} Scheme, {} Dockerfile, {} Python, {} Shell, {} WAT, {} StageL)",
             total_files,
             rs_files.len(),
             scm_files.len(),
             docker_files.len(),
             python_files.len(),
-            shell_files.len()
+            shell_files.len(),
+            wat_files.len(),
+            stagel_files.len()
         );
         return Ok(());
     }
@@ -2327,6 +2501,8 @@ mod tests {
         let mut docker_files = Vec::new();
         let mut shell_files = Vec::new();
         let mut python_files = Vec::new();
+        let mut wat_files = Vec::new();
+        let mut stagel_files = Vec::new();
         let mut violations = Vec::new();
 
         find_files(
@@ -2336,6 +2512,8 @@ mod tests {
             &mut docker_files,
             &mut shell_files,
             &mut python_files,
+            &mut wat_files,
+            &mut stagel_files,
             &mut violations,
         )
         .unwrap();
@@ -2373,6 +2551,8 @@ mod tests {
         let mut docker_files = Vec::new();
         let mut shell_files = Vec::new();
         let mut python_files = Vec::new();
+        let mut wat_files = Vec::new();
+        let mut stagel_files = Vec::new();
         let mut violations = Vec::new();
 
         find_files(
@@ -2382,6 +2562,8 @@ mod tests {
             &mut docker_files,
             &mut shell_files,
             &mut python_files,
+            &mut wat_files,
+            &mut stagel_files,
             &mut violations,
         )
         .unwrap();
@@ -2486,6 +2668,8 @@ mod tests {
         let mut docker_files = Vec::new();
         let mut shell_files = Vec::new();
         let mut python_files = Vec::new();
+        let mut wat_files = Vec::new();
+        let mut stagel_files = Vec::new();
         let mut violations = Vec::new();
 
         find_files(
@@ -2495,6 +2679,8 @@ mod tests {
             &mut docker_files,
             &mut shell_files,
             &mut python_files,
+            &mut wat_files,
+            &mut stagel_files,
             &mut violations,
         )
         .unwrap();
@@ -2530,6 +2716,52 @@ mod tests {
             scm_files.is_empty(),
             "packaging/guix/generated must be skipped"
         );
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_wat_and_stagel_headers() {
+        let temp_dir = std::env::temp_dir()
+            .join(format!("test_wat_stagel_headers_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let mut allowed = BTreeSet::new();
+        allowed.insert("AGPL-3.0-or-later".to_string());
+
+        let wat_path = temp_dir.join("test.wat");
+        fs::write(&wat_path, format!("{WAT_AGPL_HEADER}\n\n(module)\n"))
+            .unwrap();
+        let mut wat_violations = Vec::new();
+        lint_wat_file(&wat_path, &allowed, &mut wat_violations).unwrap();
+        assert!(wat_violations.is_empty(), "valid WAT header should pass");
+
+        let bad_wat_path = temp_dir.join("bad.wat");
+        fs::write(
+            &bad_wat_path,
+            ";; SPDX-License-Identifier: AGPL-3.0-or-later\n(module)\n",
+        )
+        .unwrap();
+        let mut bad_wat_violations = Vec::new();
+        lint_wat_file(&bad_wat_path, &allowed, &mut bad_wat_violations)
+            .unwrap();
+        assert_eq!(bad_wat_violations.len(), 1);
+
+        let sl3_path = temp_dir.join("test.sl3");
+        fs::write(&sl3_path, format!("{STAGEL_AGPL_HEADER}\n\nns demo/mod.\n"))
+            .unwrap();
+        let mut sl3_violations = Vec::new();
+        lint_stagel_file(&sl3_path, &allowed, &mut sl3_violations).unwrap();
+        assert!(
+            sl3_violations.is_empty(),
+            "valid StageL 3 header should pass"
+        );
+
+        let bad_sr3_path = temp_dir.join("bad.sr3");
+        fs::write(&bad_sr3_path, ": missing header\nns demo/mod.\n").unwrap();
+        let mut bad_sr3_violations = Vec::new();
+        lint_stagel_file(&bad_sr3_path, &allowed, &mut bad_sr3_violations)
+            .unwrap();
+        assert_eq!(bad_sr3_violations.len(), 1);
 
         fs::remove_dir_all(&temp_dir).ok();
     }

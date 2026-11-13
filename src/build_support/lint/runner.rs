@@ -100,6 +100,8 @@ pub fn run_all(
     let mut docker_files = Vec::new();
     let mut shell_files = Vec::new();
     let mut python_files = Vec::new();
+    let mut wat_files = Vec::new();
+    let mut stagel_files = Vec::new();
     let mut discovery_header_violations = Vec::new();
 
     headers::find_files(
@@ -109,6 +111,8 @@ pub fn run_all(
         &mut docker_files,
         &mut shell_files,
         &mut python_files,
+        &mut wat_files,
+        &mut stagel_files,
         &mut discovery_header_violations,
     )?;
 
@@ -216,6 +220,50 @@ pub fn run_all(
                 if let Ok(mut lock) = parallel_io_errors.lock() {
                     lock.push(format!(
                         "failed to check Shell script {}: {:#}",
+                        f.display(),
+                        e
+                    ));
+                }
+            }
+        }
+    });
+
+    wat_files.par_iter().for_each(|f| {
+        let mut v = Vec::new();
+        match headers::lint_wat_file(f, &allowed_licenses, &mut v) {
+            Ok(()) => {
+                if !v.is_empty() {
+                    if let Ok(mut lock) = non_rs_violations.lock() {
+                        lock.extend(v);
+                    }
+                }
+            }
+            Err(e) => {
+                if let Ok(mut lock) = parallel_io_errors.lock() {
+                    lock.push(format!(
+                        "failed to check WAT file {}: {:#}",
+                        f.display(),
+                        e
+                    ));
+                }
+            }
+        }
+    });
+
+    stagel_files.par_iter().for_each(|f| {
+        let mut v = Vec::new();
+        match headers::lint_stagel_file(f, &allowed_licenses, &mut v) {
+            Ok(()) => {
+                if !v.is_empty() {
+                    if let Ok(mut lock) = non_rs_violations.lock() {
+                        lock.extend(v);
+                    }
+                }
+            }
+            Err(e) => {
+                if let Ok(mut lock) = parallel_io_errors.lock() {
+                    lock.push(format!(
+                        "failed to check StageL 3 / StageR 3 file {}: {:#}",
                         f.display(),
                         e
                     ));
