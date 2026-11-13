@@ -3333,25 +3333,49 @@ fn compile_defn_statements(
                 && !ctx_raw.is_empty()
             {
                 let mut ctx_tokens = Vec::new();
+                let mut first_ctx_err = None;
                 for tok_str in ctx_raw.split_whitespace() {
-                    let parsed = DcShorthand::parse(tok_str).map_err(|e| {
-                        anyhow::anyhow!(
-                            "Invalid @context shorthand '{tok_str}' on {subj} <{tag_inner}>: {e}"
-                        )
-                    })?;
-                    ctx_tokens.push(parsed);
+                    match DcShorthand::parse(tok_str) {
+                        Ok(parsed) => ctx_tokens.push(parsed),
+                        Err(e) => {
+                            first_ctx_err = Some((tok_str, e));
+                            break;
+                        }
+                    }
                 }
-                let ctx_spec = if ctx_tokens.len() == 1 {
+                let ctx_spec = if first_ctx_err.is_none()
+                    && ctx_tokens.len() == 1
+                {
                     #[expect(
                         clippy::expect_used,
                         reason = "ctx_tokens.len() == 1 checked immediately above"
                     )]
-                    ValueSpec::Direct(*ctx_tokens.first().expect("single ctx token"))
-                } else {
+                    ValueSpec::Direct(
+                        *ctx_tokens.first().expect("single ctx token"),
+                    )
+                } else if first_ctx_err.is_none() {
                     ValueSpec::ValueNode {
                         tokens: ctx_tokens,
                         comment: format!("context {ctx_raw}"),
                     }
+                } else if let Ok(expr) = parse_format_expr(ctx_raw)
+                    && !matches!(
+                        expr,
+                        FormatExpr::Dc(_) | FormatExpr::NamedType(_)
+                    )
+                {
+                    ValueSpec::FormatExprNode {
+                        expr: Box::new(expr),
+                        raw_comment: format!("context {ctx_raw}"),
+                    }
+                } else if let Some((tok_str, e)) = first_ctx_err {
+                    return Err(anyhow::anyhow!(
+                        "Invalid @context shorthand '{tok_str}' on {subj} <{tag_inner}>: {e}"
+                    ));
+                } else {
+                    unreachable!(
+                        "first_ctx_err is Some whenever shorthand parsing failed"
+                    );
                 };
                 state.multi_property_contexts.insert(
                     ((subj, sh(decomp_dc), val_spec.clone()), ctx_spec),
