@@ -24,8 +24,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! safe Rust using only `std` primitives: exact fixed-width integer types,
 //! checked/wrapping arithmetic, non-coercive conversions, stack `let mut`
 //! slots for non-captured locals (enabling Rust's own definite-assignment
-//! check), explicit capture cells for closures over `let` bindings, and an
-//! optional inline `test` runner catching deterministic `fault` traps.
+//! check), explicit capture cells for closures over `let` bindings, constant-
+//! stack defunctionalized tail-call trampolines across self, mutual, cross-
+//! module, and nested-capture calls, and an optional inline `test` runner
+//! catching deterministic `fault` traps.
 
 #[allow(
     unused_imports,
@@ -35,9 +37,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, Module, Param,
-    RoutineDecl, Span, StageLType, SymbolTarget, TestExpected, TopDecl,
-    TopValueDecl, TypedIntLit,
+    BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, Module,
+    RoutineDecl, StageLType, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
+    TypedIntLit,
 };
 use super::parser::parse_module;
 use super::validator::{
@@ -101,38 +103,36 @@ pub fn transpile_workspace_to_rust(
     workspace: &ValidatedWorkspace,
     options: &RustTranspileOptions,
 ) -> Result<String> {
-    let mut ns_to_mod_ident: HashMap<String, String> = HashMap::new();
-    let mut mod_idents = Vec::with_capacity(workspace.modules.len());
-
-    for (idx, vm) in workspace.modules.iter().enumerate() {
-        let ident = if let Some(ns) = &vm.namespace_key {
-            format!("sl_mod_{idx}_{}", sanitize_ident(ns))
-        } else {
-            format!("sl_mod_anon_{idx}")
-        };
-        if let Some(ns) = &vm.namespace_key {
-            ns_to_mod_ident.insert(ns.clone(), ident.clone());
-        }
-        mod_idents.push(ident);
-    }
-
-    let mut out = String::new();
-    emit_file_header(&mut out, options)?;
-    emit_runtime_prelude(&mut out)?;
-
+    let ws_index = WorkspaceRoutineIndex::build(workspace);
+    let mut trampolines = WorkspaceTrampolineRegistry::default();
+    let mut modules_buf = String::new();
     let mut test_calls = Vec::new();
+
     for (idx, vm) in workspace.modules.iter().enumerate() {
-        let mod_ident = mod_idents
+        let mod_ident = ws_index
+            .mod_idents
             .get(idx)
             .context("Internal module index mismatch")?;
-        let mut emitter = ModuleEmitter::new(vm, mod_ident, &ns_to_mod_ident)?;
-        emitter.emit_module(&mut out, options.emit_test_runner)?;
+        let mut emitter = ModuleEmitter::new(
+            idx,
+            vm,
+            mod_ident,
+            &ws_index,
+            &mut trampolines,
+        );
+        emitter.emit_module(&mut modules_buf, options.emit_test_runner)?;
         if options.emit_test_runner {
             for fn_name in emitter.emitted_test_fns {
                 test_calls.push(format!("{mod_ident}::{fn_name}()"));
             }
         }
     }
+
+    let mut out = String::new();
+    emit_file_header(&mut out, options)?;
+    emit_runtime_prelude(&mut out, &trampolines)?;
+    trampolines.emit_trampoline_defs(&mut out)?;
+    out.push_str(&modules_buf);
 
     if options.emit_test_runner {
         writeln!(out)?;
@@ -180,7 +180,11 @@ fn emit_file_header(out: &mut String, options: &RustTranspileOptions) -> Result<
     Ok(())
 }
 
-fn emit_runtime_prelude(out: &mut String) -> Result<()> {
+fn emit_runtime_prelude(
+    out: &mut String,
+    trampolines: &WorkspaceTrampolineRegistry,
+) -> Result<()> {
+    writeln!(out, "#[allow(dead_code)]")?;
     writeln!(out, "mod sl3_rt {{")?;
     writeln!(out, "    use std::cell::RefCell;")?;
     writeln!(out, "    use std::rc::Rc;")?;
@@ -188,6 +192,16 @@ fn emit_runtime_prelude(out: &mut String) -> Result<()> {
     writeln!(out)?;
     writeln!(out, "    pub type SlList<T> = Arc<[T]>;")?;
     writeln!(out, "    pub type SlCap<T> = Rc<RefCell<Option<T>>>;")?;
+    if !trampolines.value_groups.is_empty() {
+        writeln!(out)?;
+        writeln!(out, "    pub enum SlStep<T, C> {{")?;
+        writeln!(out, "        Done(T),")?;
+        writeln!(out, "        Tail(C),")?;
+        if trampolines.has_value_to_never_tail {
+            writeln!(out, "        TailNever(super::SlTailNever),")?;
+        }
+        writeln!(out, "    }}")?;
+    }
     writeln!(out)?;
     writeln!(out, "    #[derive(Debug, Clone)]")?;
     writeln!(out, "    struct SlBufInner<T> {{")?;
@@ -408,27 +422,461 @@ fn rust_type_copy_cheap(ty: &StageLType) -> bool {
     )
 }
 
+const MAX_INLINE_VARIANT_FIELDS: usize = 8;
+
+fn tail_variant_ident(idx: usize) -> String {
+    let (prefix, suffix) = match idx & 7 {
+        0 => ("Alpha", "P"),
+        1 => ("Bravo", "Q"),
+        2 => ("Charlie", "R"),
+        3 => ("Delta", "S"),
+        4 => ("Echo", "T"),
+        5 => ("Foxtrot", "U"),
+        6 => ("Golf", "V"),
+        _ => ("Hotel", "W"),
+    };
+    format!("{prefix}{idx}{suffix}")
+}
+
+fn format_variant_ctor(
+    enum_path: &str,
+    variant_ident: &str,
+    rendered_args: &[String],
+    boxed_struct_ident: Option<&str>,
+) -> String {
+    if rendered_args.is_empty() {
+        format!("{enum_path}::{variant_ident}")
+    } else if let Some(struct_ident) = boxed_struct_ident {
+        let fields: Vec<String> = rendered_args
+            .iter()
+            .enumerate()
+            .map(|(i, val)| format!("f{i}: {val}"))
+            .collect();
+        format!(
+            "{enum_path}::{variant_ident}(Box::new(super::{struct_ident} {{ {} }}))",
+            fields.join(", ")
+        )
+    } else {
+        format!(
+            "{enum_path}::{variant_ident}({})",
+            rendered_args.join(", ")
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum CalleeKey {
+    TopLevel { mod_idx: usize, routine_idx: usize },
+    Nested { mod_idx: usize, nested_id: usize },
+}
+
+#[derive(Debug, Clone)]
+struct TailVariantInfo {
+    variant_ident: String,
+    field_rust_types: Vec<String>,
+    trampoline_call_path: String,
+    callee_is_step: bool,
+    boxed_struct_ident: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ValueTailGroup {
+    group_id: usize,
+    ret_rust_ty: String,
+    variants: Vec<TailVariantInfo>,
+    by_callee: HashMap<CalleeKey, usize>,
+}
+
+#[derive(Debug, Default)]
+struct WorkspaceTrampolineRegistry {
+    value_groups: Vec<ValueTailGroup>,
+    group_by_rust_ty: HashMap<String, usize>,
+    has_never_trampoline: bool,
+    has_value_to_never_tail: bool,
+    never_variants: Vec<TailVariantInfo>,
+    never_by_callee: HashMap<CalleeKey, usize>,
+}
+
+impl WorkspaceTrampolineRegistry {
+    fn ensure_value_group(&mut self, ret_ty: &StageLType) -> usize {
+        let ret_rust_ty = rust_type(ret_ty);
+        if let Some(&gid) = self.group_by_rust_ty.get(&ret_rust_ty) {
+            return gid;
+        }
+        let gid = self.value_groups.len();
+        self.group_by_rust_ty.insert(ret_rust_ty.clone(), gid);
+        self.value_groups.push(ValueTailGroup {
+            group_id: gid,
+            ret_rust_ty,
+            variants: Vec::new(),
+            by_callee: HashMap::new(),
+        });
+        gid
+    }
+
+    fn ensure_never_group(&mut self) {
+        self.has_never_trampoline = true;
+    }
+
+    fn register_value_target(
+        &mut self,
+        ret_ty: &StageLType,
+        callee_key: CalleeKey,
+        trampoline_call_path: String,
+        callee_is_step: bool,
+        field_rust_types: Vec<String>,
+    ) -> Result<(usize, String, Option<String>)> {
+        let gid = self.ensure_value_group(ret_ty);
+        let group = self
+            .value_groups
+            .get_mut(gid)
+            .context("Internal trampoline value group index out of bounds")?;
+        if let Some(&v_idx) = group.by_callee.get(&callee_key) {
+            let existing = group
+                .variants
+                .get(v_idx)
+                .context("Internal trampoline variant index out of bounds")?;
+            return Ok((
+                gid,
+                existing.variant_ident.clone(),
+                existing.boxed_struct_ident.clone(),
+            ));
+        }
+        let v_idx = group.variants.len();
+        let variant_ident = tail_variant_ident(v_idx);
+        let boxed_struct_ident = if field_rust_types.len() > MAX_INLINE_VARIANT_FIELDS {
+            Some(format!("SlTailPayloadG{gid}V{v_idx}"))
+        } else {
+            None
+        };
+        group.by_callee.insert(callee_key, v_idx);
+        group.variants.push(TailVariantInfo {
+            variant_ident: variant_ident.clone(),
+            field_rust_types,
+            trampoline_call_path,
+            callee_is_step,
+            boxed_struct_ident: boxed_struct_ident.clone(),
+        });
+        Ok((gid, variant_ident, boxed_struct_ident))
+    }
+
+    fn register_never_target(
+        &mut self,
+        callee_key: CalleeKey,
+        trampoline_call_path: String,
+        callee_is_step: bool,
+        field_rust_types: Vec<String>,
+    ) -> Result<(String, Option<String>)> {
+        self.has_never_trampoline = true;
+        if let Some(&v_idx) = self.never_by_callee.get(&callee_key) {
+            let existing = self
+                .never_variants
+                .get(v_idx)
+                .context("Internal never-trampoline variant index out of bounds")?;
+            return Ok((
+                existing.variant_ident.clone(),
+                existing.boxed_struct_ident.clone(),
+            ));
+        }
+        let v_idx = self.never_variants.len();
+        let variant_ident = tail_variant_ident(v_idx);
+        let boxed_struct_ident = if field_rust_types.len() > MAX_INLINE_VARIANT_FIELDS {
+            Some(format!("SlTailPayloadNeverV{v_idx}"))
+        } else {
+            None
+        };
+        self.never_by_callee.insert(callee_key, v_idx);
+        self.never_variants.push(TailVariantInfo {
+            variant_ident: variant_ident.clone(),
+            field_rust_types,
+            trampoline_call_path,
+            callee_is_step,
+            boxed_struct_ident: boxed_struct_ident.clone(),
+        });
+        Ok((variant_ident, boxed_struct_ident))
+    }
+
+    fn emit_trampoline_defs(&self, out: &mut String) -> Result<()> {
+        if self.has_never_trampoline {
+            emit_enum_decl(out, "SlTailNever", &self.never_variants)?;
+            let any_step = self.never_variants.iter().any(|v| v.callee_is_step);
+            if self.never_variants.is_empty() {
+                writeln!(out, "fn sl_trampoline_never(call: SlTailNever) -> ! {{")?;
+                writeln!(out, "    match call {{}}")?;
+                writeln!(out, "}}")?;
+            } else if !any_step {
+                writeln!(out, "fn sl_trampoline_never(call: SlTailNever) -> ! {{")?;
+                writeln!(out, "    match call {{")?;
+                for v in &self.never_variants {
+                    emit_variant_dispatch_arm(out, "SlTailNever", v, false, "        ")?;
+                }
+                writeln!(out, "    }}")?;
+                writeln!(out, "}}")?;
+            } else {
+                writeln!(out, "fn sl_trampoline_never(mut call: SlTailNever) -> ! {{")?;
+                writeln!(out, "    loop {{")?;
+                writeln!(out, "        call = match call {{")?;
+                for v in &self.never_variants {
+                    emit_variant_dispatch_arm(
+                        out,
+                        "SlTailNever",
+                        v,
+                        false,
+                        "            ",
+                    )?;
+                }
+                writeln!(out, "        }};")?;
+                writeln!(out, "    }}")?;
+                writeln!(out, "}}")?;
+            }
+            writeln!(out)?;
+        }
+
+        for group in &self.value_groups {
+            let enum_name = format!("SlTailGroup{}", group.group_id);
+            let fn_name = format!("sl_trampoline_{}", group.group_id);
+            let ret_ty = &group.ret_rust_ty;
+            let is_unit = ret_ty == "()";
+            let ret_sig = if is_unit {
+                String::new()
+            } else {
+                format!(" -> {ret_ty}")
+            };
+            emit_enum_decl(out, &enum_name, &group.variants)?;
+            if group.variants.is_empty() {
+                writeln!(
+                    out,
+                    "fn {fn_name}(step: sl3_rt::SlStep<{ret_ty}, {enum_name}>){ret_sig} {{"
+                )?;
+                writeln!(out, "    match step {{")?;
+                if is_unit {
+                    writeln!(out, "        sl3_rt::SlStep::Done(()) => {{}}")?;
+                } else {
+                    writeln!(out, "        sl3_rt::SlStep::Done(val) => val,")?;
+                }
+                writeln!(out, "        sl3_rt::SlStep::Tail(call) => match call {{}},")?;
+                if self.has_value_to_never_tail {
+                    writeln!(
+                        out,
+                        "        sl3_rt::SlStep::TailNever(ncall) => sl_trampoline_never(ncall),"
+                    )?;
+                }
+                writeln!(out, "    }}")?;
+                writeln!(out, "}}")?;
+            } else {
+                writeln!(
+                    out,
+                    "fn {fn_name}(mut step: sl3_rt::SlStep<{ret_ty}, {enum_name}>){ret_sig} {{"
+                )?;
+                writeln!(out, "    loop {{")?;
+                writeln!(out, "        step = match step {{")?;
+                if is_unit {
+                    writeln!(out, "            sl3_rt::SlStep::Done(()) => return,")?;
+                } else {
+                    writeln!(out, "            sl3_rt::SlStep::Done(val) => return val,")?;
+                }
+                writeln!(out, "            sl3_rt::SlStep::Tail(call) => match call {{")?;
+                for v in &group.variants {
+                    emit_variant_dispatch_arm(
+                        out,
+                        &enum_name,
+                        v,
+                        !v.callee_is_step,
+                        "                ",
+                    )?;
+                }
+                writeln!(out, "            }},")?;
+                if self.has_value_to_never_tail {
+                    writeln!(
+                        out,
+                        "            sl3_rt::SlStep::TailNever(ncall) => sl_trampoline_never(ncall),"
+                    )?;
+                }
+                writeln!(out, "        }};")?;
+                writeln!(out, "    }}")?;
+                writeln!(out, "}}")?;
+            }
+            writeln!(out)?;
+        }
+
+        Ok(())
+    }
+}
+
+fn emit_enum_decl(
+    out: &mut String,
+    enum_name: &str,
+    variants: &[TailVariantInfo],
+) -> Result<()> {
+    for v in variants {
+        if let Some(ref struct_ident) = v.boxed_struct_ident {
+            writeln!(out, "struct {struct_ident} {{")?;
+            for (i, fty) in v.field_rust_types.iter().enumerate() {
+                writeln!(out, "    f{i}: {fty},")?;
+            }
+            writeln!(out, "}}")?;
+        }
+    }
+    if variants.is_empty() {
+        writeln!(out, "enum {enum_name} {{}}")?;
+        return Ok(());
+    }
+    writeln!(out, "enum {enum_name} {{")?;
+    for v in variants {
+        if v.field_rust_types.is_empty() {
+            writeln!(out, "    {},", v.variant_ident)?;
+        } else if let Some(ref struct_ident) = v.boxed_struct_ident {
+            writeln!(out, "    {}(Box<{struct_ident}>),", v.variant_ident)?;
+        } else {
+            writeln!(
+                out,
+                "    {}({}),",
+                v.variant_ident,
+                v.field_rust_types.join(", ")
+            )?;
+        }
+    }
+    writeln!(out, "}}")?;
+    Ok(())
+}
+
+fn emit_variant_dispatch_arm(
+    out: &mut String,
+    enum_name: &str,
+    v: &TailVariantInfo,
+    wrap_done: bool,
+    pad: &str,
+) -> Result<()> {
+    let arity = v.field_rust_types.len();
+    let arg_names: Vec<String> = (0..arity).map(|i| format!("a{i}")).collect();
+    let joined = arg_names.join(", ");
+    let raw_call = format!("{}({joined})", v.trampoline_call_path);
+    let rhs = if wrap_done {
+        format!("sl3_rt::SlStep::Done({raw_call})")
+    } else {
+        raw_call
+    };
+    if arity == 0 {
+        writeln!(out, "{pad}{enum_name}::{} => {rhs},", v.variant_ident)?;
+    } else if let Some(ref struct_ident) = v.boxed_struct_ident {
+        let bindings: Vec<String> = (0..arity).map(|i| format!("f{i}: a{i}")).collect();
+        writeln!(out, "{pad}{enum_name}::{}(boxed_args) => {{", v.variant_ident)?;
+        writeln!(
+            out,
+            "{pad}    let {struct_ident} {{ {} }} = *boxed_args;",
+            bindings.join(", ")
+        )?;
+        writeln!(out, "{pad}    {rhs}")?;
+        writeln!(out, "{pad}}}")?;
+    } else {
+        writeln!(
+            out,
+            "{pad}{enum_name}::{}({joined}) => {rhs},",
+            v.variant_ident
+        )?;
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct TopRoutineMeta {
+    mod_idx: usize,
+    routine_idx: usize,
+    mod_ident: String,
+    entry_fn: String,
+    step_fn: String,
+    is_step: bool,
+    sig: RoutineSig,
+}
+
+struct WorkspaceRoutineIndex {
+    mod_idents: Vec<String>,
+    ns_to_mod_idx: HashMap<String, usize>,
+    by_name: HashMap<(usize, String), TopRoutineMeta>,
+    by_dc: HashMap<(usize, DcChar), TopRoutineMeta>,
+}
+
+impl WorkspaceRoutineIndex {
+    fn build(workspace: &ValidatedWorkspace) -> Self {
+        let mut mod_idents = Vec::with_capacity(workspace.modules.len());
+        let mut ns_to_mod_idx = HashMap::new();
+        let mut by_name = HashMap::new();
+        let mut by_dc = HashMap::new();
+
+        for (mod_idx, vm) in workspace.modules.iter().enumerate() {
+            let mod_ident = if let Some(ns) = &vm.namespace_key {
+                ns_to_mod_idx.insert(ns.clone(), mod_idx);
+                format!("sl_mod_{mod_idx}_{}", sanitize_ident(ns))
+            } else {
+                format!("sl_mod_anon_{mod_idx}")
+            };
+
+            let mut routine_idx = 0usize;
+            for decl in &vm.module.items {
+                if let TopDecl::Routine(r) = decl {
+                    let san = sanitize_ident(&r.name);
+                    let entry_fn = format!("sl_fn_{san}");
+                    let step_fn = format!("__sl_step_top_{routine_idx}_{san}");
+                    let is_step = expr_has_tail_call(&r.body, true);
+                    let sig = RoutineSig {
+                        return_type: r.return_type.clone(),
+                        params: r.params.iter().map(|p| p.ty.clone()).collect(),
+                        is_pub: r.is_pub,
+                        dc_id: r.dc_id,
+                    };
+                    let meta = TopRoutineMeta {
+                        mod_idx,
+                        routine_idx,
+                        mod_ident: mod_ident.clone(),
+                        entry_fn,
+                        step_fn,
+                        is_step,
+                        sig,
+                    };
+                    by_name.insert((mod_idx, r.name.clone()), meta.clone());
+                    if let Some(dc) = r.dc_id {
+                        by_dc.insert((mod_idx, dc), meta);
+                    }
+                    routine_idx = routine_idx.saturating_add(1);
+                }
+            }
+            mod_idents.push(mod_ident);
+        }
+
+        Self {
+            mod_idents,
+            ns_to_mod_idx,
+            by_name,
+            by_dc,
+        }
+    }
+
+    fn mod_ident_by_ns(&self, namespace: &str) -> Result<&str> {
+        let &idx = self
+            .ns_to_mod_idx
+            .get(namespace)
+            .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
+        let ident = self
+            .mod_idents
+            .get(idx)
+            .context("Internal module index out of bounds")?;
+        Ok(ident.as_str())
+    }
+}
+
 #[derive(Debug, Clone)]
 enum VarStorage {
-    /// Stack variable (`let x` / param / foreach / non-captured local `const`).
+    /// Owned value (`let x` / param / foreach / non-captured local `const` /
+    /// immutable lexical value captured by a nested routine).
     Direct { rust_name: String, ty: StageLType },
-    /// Heap `SlCap<T>` shared across nested routine captures (`is_ref` when
-    /// received as `&SlCap<T>` parameter inside a nested routine).
-    CapCell {
-        rust_name: String,
-        ty: StageLType,
-        is_ref: bool,
-    },
-    /// Immutable value passed by reference `&T` into a nested routine.
-    ByRef { rust_name: String, ty: StageLType },
+    /// Heap `SlCap<T>` (`Rc<RefCell<Option<T>>>`) shared across nested captures.
+    CapCell { rust_name: String, ty: StageLType },
 }
 
 impl VarStorage {
     fn ty(&self) -> &StageLType {
         match self {
-            Self::Direct { ty, .. }
-            | Self::CapCell { ty, .. }
-            | Self::ByRef { ty, .. } => ty,
+            Self::Direct { ty, .. } | Self::CapCell { ty, .. } => ty,
         }
     }
 
@@ -441,30 +889,17 @@ impl VarStorage {
                     format!("{rust_name}.clone()")
                 }
             }
-            Self::CapCell {
-                rust_name, is_ref, ..
-            } => {
-                if *is_ref {
-                    format!("sl3_rt::cap_get({rust_name}, {sl_name:?})")
-                } else {
-                    format!("sl3_rt::cap_get(&{rust_name}, {sl_name:?})")
-                }
-            }
-            Self::ByRef { rust_name, ty } => {
-                if rust_type_copy_cheap(ty) {
-                    format!("*{rust_name}")
-                } else {
-                    format!("{rust_name}.clone()")
-                }
+            Self::CapCell { rust_name, .. } => {
+                format!("sl3_rt::cap_get(&{rust_name}, {sl_name:?})")
             }
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CapturePassKind {
     CapCell,
-    ImmRef,
+    ImmVal,
 }
 
 #[derive(Debug, Clone)]
@@ -475,11 +910,31 @@ struct CapturedArg {
     kind: CapturePassKind,
 }
 
+impl CapturedArg {
+    fn field_rust_type(&self) -> String {
+        let rty = rust_type(&self.ty);
+        match self.kind {
+            CapturePassKind::CapCell => format!("sl3_rt::SlCap<{rty}>"),
+            CapturePassKind::ImmVal => rty,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 enum RoutineTarget {
-    TopLevel { rust_path: String, sig: RoutineSig },
+    TopLevel {
+        callee_key: CalleeKey,
+        direct_call_path: String,
+        trampoline_call_path: String,
+        is_step: bool,
+        sig: RoutineSig,
+    },
     Nested {
-        rust_name: String,
+        callee_key: CalleeKey,
+        local_fn_name: String,
+        trampoline_call_path: String,
+        step_group_id: Option<usize>,
+        is_step: bool,
         sig: RoutineSig,
         captures: Vec<CapturedArg>,
     },
@@ -490,74 +945,97 @@ struct ScopeFrame {
     routines: HashMap<String, RoutineTarget>,
 }
 
+#[derive(Debug, Clone)]
+enum ActiveRoutineMode {
+    Direct,
+    Step {
+        ret_ty: StageLType,
+        /// `None` iff `ret_ty == StageLType::Never`.
+        group_id: Option<usize>,
+    },
+}
+
+struct ActiveRoutineCtx {
+    mode: ActiveRoutineMode,
+    var_scope_floor: usize,
+}
+
 struct ModuleEmitter<'a> {
+    mod_idx: usize,
     validated: &'a ValidatedModule,
     mod_ident: &'a str,
-    ns_to_mod_ident: &'a HashMap<String, String>,
+    ws_index: &'a WorkspaceRoutineIndex,
+    trampolines: &'a mut WorkspaceTrampolineRegistry,
     local_consts: HashMap<String, (String, StageLType)>,
     local_dc_consts: HashMap<DcChar, (String, StageLType)>,
-    local_routines: HashMap<String, (String, RoutineSig)>,
-    local_dc_routines: HashMap<DcChar, (String, RoutineSig)>,
     scopes: Vec<ScopeFrame>,
+    routine_ctx_stack: Vec<ActiveRoutineCtx>,
+    lifted_routines: Vec<String>,
     temp_counter: usize,
+    nested_routine_counter: usize,
     emitted_test_fns: Vec<String>,
 }
 
 impl<'a> ModuleEmitter<'a> {
     fn new(
+        mod_idx: usize,
         validated: &'a ValidatedModule,
         mod_ident: &'a str,
-        ns_to_mod_ident: &'a HashMap<String, String>,
-    ) -> Result<Self> {
+        ws_index: &'a WorkspaceRoutineIndex,
+        trampolines: &'a mut WorkspaceTrampolineRegistry,
+    ) -> Self {
         let mut local_consts = HashMap::new();
         let mut local_dc_consts = HashMap::new();
-        let mut local_routines = HashMap::new();
-        let mut local_dc_routines = HashMap::new();
 
         for decl in &validated.module.items {
-            match decl {
-                TopDecl::Value(v) => {
-                    let rname = format!("sl_c_{}", sanitize_ident(&v.name));
-                    local_consts.insert(v.name.clone(), (rname.clone(), v.ty.clone()));
-                    if let Some(dc) = v.dc_id {
-                        local_dc_consts.insert(dc, (rname, v.ty.clone()));
-                    }
+            if let TopDecl::Value(v) = decl {
+                let rname = format!("sl_c_{}", sanitize_ident(&v.name));
+                local_consts.insert(v.name.clone(), (rname.clone(), v.ty.clone()));
+                if let Some(dc) = v.dc_id {
+                    local_dc_consts.insert(dc, (rname, v.ty.clone()));
                 }
-                TopDecl::Routine(r) => {
-                    let rname = format!("sl_fn_{}", sanitize_ident(&r.name));
-                    let sig = RoutineSig {
-                        return_type: r.return_type.clone(),
-                        params: r.params.iter().map(|p| p.ty.clone()).collect(),
-                        is_pub: r.is_pub,
-                        dc_id: r.dc_id,
-                    };
-                    local_routines.insert(r.name.clone(), (rname.clone(), sig.clone()));
-                    if let Some(dc) = r.dc_id {
-                        local_dc_routines.insert(dc, (rname, sig));
-                    }
-                }
-                TopDecl::Comment(_) => {}
             }
         }
 
-        Ok(Self {
+        Self {
+            mod_idx,
             validated,
             mod_ident,
-            ns_to_mod_ident,
+            ws_index,
+            trampolines,
             local_consts,
             local_dc_consts,
-            local_routines,
-            local_dc_routines,
             scopes: Vec::new(),
+            routine_ctx_stack: Vec::new(),
+            lifted_routines: Vec::new(),
             temp_counter: 0,
+            nested_routine_counter: 0,
             emitted_test_fns: Vec::new(),
-        })
+        }
     }
 
     fn next_tmp(&mut self, prefix: &str) -> String {
         let id = self.temp_counter;
         self.temp_counter = self.temp_counter.saturating_add(1);
         format!("__sl_{prefix}_{id}")
+    }
+
+    fn next_nested_id(&mut self) -> usize {
+        let id = self.nested_routine_counter;
+        self.nested_routine_counter = self.nested_routine_counter.saturating_add(1);
+        id
+    }
+
+    fn current_routine_mode(&self) -> ActiveRoutineMode {
+        self.routine_ctx_stack
+            .last()
+            .map_or(ActiveRoutineMode::Direct, |ctx| ctx.mode.clone())
+    }
+
+    fn current_var_scope_floor(&self) -> usize {
+        self.routine_ctx_stack
+            .last()
+            .map_or(0, |ctx| ctx.var_scope_floor)
     }
 
     fn emit_module(&mut self, out: &mut String, emit_tests: bool) -> Result<()> {
@@ -576,9 +1054,11 @@ impl<'a> ModuleEmitter<'a> {
         }
 
         // Emit top-level routines.
+        let mut routine_idx = 0usize;
         for decl in &self.validated.module.items {
             if let TopDecl::Routine(r) = decl {
-                self.emit_top_routine(out, r)?;
+                self.emit_top_routine(out, routine_idx, r)?;
+                routine_idx = routine_idx.saturating_add(1);
             }
         }
 
@@ -590,6 +1070,10 @@ impl<'a> ModuleEmitter<'a> {
                     self.emit_routine_inline_tests(out, r)?;
                 }
             }
+        }
+
+        for lifted in &self.lifted_routines {
+            out.push_str(lifted);
         }
 
         writeln!(out, "}}")?;
@@ -608,10 +1092,83 @@ impl<'a> ModuleEmitter<'a> {
         Ok(())
     }
 
-    fn emit_top_routine(&mut self, out: &mut String, r: &RoutineDecl) -> Result<()> {
-        let vis = if r.is_pub { "pub " } else { "" };
-        let rname = format!("sl_fn_{}", sanitize_ident(&r.name));
-        self.emit_routine_fn(out, vis, &rname, r, &[], 1)
+    fn emit_top_routine(
+        &mut self,
+        out: &mut String,
+        routine_idx: usize,
+        r: &RoutineDecl,
+    ) -> Result<()> {
+        let vis = if r.is_pub { "pub " } else { "pub(super) " };
+        let san = sanitize_ident(&r.name);
+        let entry_name = format!("sl_fn_{san}");
+        let meta = self
+            .ws_index
+            .by_name
+            .get(&(self.mod_idx, r.name.clone()))
+            .context("Internal top-level routine metadata missing")?;
+
+        if !meta.is_step {
+            return self.emit_routine_fn(
+                out,
+                vis,
+                &entry_name,
+                r,
+                &[],
+                ActiveRoutineMode::Direct,
+                1,
+            );
+        }
+
+        let step_name = format!("__sl_step_top_{routine_idx}_{san}");
+        let group_id = if r.return_type == StageLType::Never {
+            self.trampolines.ensure_never_group();
+            None
+        } else {
+            Some(self.trampolines.ensure_value_group(&r.return_type))
+        };
+
+        self.emit_routine_fn(
+            out,
+            "pub(super) ",
+            &step_name,
+            r,
+            &[],
+            ActiveRoutineMode::Step {
+                ret_ty: r.return_type.clone(),
+                group_id,
+            },
+            1,
+        )?;
+
+        let mut sig_params = Vec::with_capacity(r.params.len());
+        let mut call_args = Vec::with_capacity(r.params.len());
+        for p in &r.params {
+            let vp = format!("sl_v_{}", sanitize_ident(&p.name));
+            sig_params.push(format!("{vp}: {}", rust_type(&p.ty)));
+            call_args.push(vp);
+        }
+        if sig_params.len() > 7 {
+            writeln!(out, "    #[allow(clippy::too_many_arguments)]")?;
+        }
+        if r.return_type == StageLType::Void {
+            writeln!(out, "    {vis}fn {entry_name}({}) {{", sig_params.join(", "))?;
+        } else {
+            writeln!(
+                out,
+                "    {vis}fn {entry_name}({}) -> {} {{",
+                sig_params.join(", "),
+                rust_type(&r.return_type)
+            )?;
+        }
+        let step_call = format!("{step_name}({})", call_args.join(", "));
+        if let Some(gid) = group_id {
+            writeln!(out, "        super::sl_trampoline_{gid}({step_call})")?;
+        } else {
+            writeln!(out, "        super::sl_trampoline_never({step_call})")?;
+        }
+        writeln!(out, "    }}")?;
+        writeln!(out)?;
+        Ok(())
     }
 
     fn emit_routine_fn(
@@ -621,11 +1178,10 @@ impl<'a> ModuleEmitter<'a> {
         rust_name: &str,
         r: &RoutineDecl,
         extra_captures: &[CapturedArg],
+        mode: ActiveRoutineMode,
         indent_level: usize,
     ) -> Result<()> {
         let ind = "    ".repeat(indent_level);
-        // If any nested routine inside `r.body` captures a formal param directly,
-        // pass `&sl_v_<param>` as ImmRef automatically cleanly via ByRef/Direct.
         let mut param_strs = Vec::new();
         let mut frame = ScopeFrame {
             vars: HashMap::new(),
@@ -649,21 +1205,20 @@ impl<'a> ModuleEmitter<'a> {
             let rty = rust_type(&cap.ty);
             match cap.kind {
                 CapturePassKind::CapCell => {
-                    param_strs.push(format!("{}: &sl3_rt::SlCap<{rty}>", cap.rust_param));
+                    param_strs.push(format!("{}: sl3_rt::SlCap<{rty}>", cap.rust_param));
                     frame.vars.insert(
                         cap.sl_name.clone(),
                         VarStorage::CapCell {
                             rust_name: cap.rust_param.clone(),
                             ty: cap.ty.clone(),
-                            is_ref: true,
                         },
                     );
                 }
-                CapturePassKind::ImmRef => {
-                    param_strs.push(format!("{}: &{rty}", cap.rust_param));
+                CapturePassKind::ImmVal => {
+                    param_strs.push(format!("{}: {rty}", cap.rust_param));
                     frame.vars.insert(
                         cap.sl_name.clone(),
-                        VarStorage::ByRef {
+                        VarStorage::Direct {
                             rust_name: cap.rust_param.clone(),
                             ty: cap.ty.clone(),
                         },
@@ -675,31 +1230,103 @@ impl<'a> ModuleEmitter<'a> {
         if !extra_captures.is_empty() {
             writeln!(out, "{ind}#[allow(clippy::only_used_in_recursion)]")?;
         }
-        if r.return_type == StageLType::Void {
-            writeln!(out, "{ind}{vis}fn {rust_name}({}) {{", param_strs.join(", "))?;
-        } else {
-            let ret_ty_str = rust_type(&r.return_type);
-            writeln!(
-                out,
-                "{ind}{vis}fn {rust_name}({}) -> {ret_ty_str} {{",
-                param_strs.join(", ")
-            )?;
+        if param_strs.len() > 7 {
+            writeln!(out, "{ind}#[allow(clippy::too_many_arguments)]")?;
         }
-
-        self.scopes.push(frame);
-        let body_ind = indent_level.saturating_add(1);
-        let is_void = r.return_type == StageLType::Void;
-        if let Expr::Block { stmts, .. } = &r.body {
-            let _ = self.emit_block_items(out, stmts, is_void, body_ind)?;
-        } else {
-            let (body_code, body_ty) = self.emit_expr(&r.body, body_ind)?;
-            let body_pad = "    ".repeat(body_ind);
-            if is_void && body_ty != StageLType::Never && !stmt_ends_without_semi(&r.body) {
-                writeln!(out, "{body_pad}{body_code};")?;
-            } else {
-                writeln!(out, "{body_pad}{body_code}")?;
+        match &mode {
+            ActiveRoutineMode::Direct => {
+                if r.return_type == StageLType::Void {
+                    writeln!(out, "{ind}{vis}fn {rust_name}({}) {{", param_strs.join(", "))?;
+                } else {
+                    let ret_ty_str = rust_type(&r.return_type);
+                    writeln!(
+                        out,
+                        "{ind}{vis}fn {rust_name}({}) -> {ret_ty_str} {{",
+                        param_strs.join(", ")
+                    )?;
+                }
+            }
+            ActiveRoutineMode::Step { ret_ty, group_id } => {
+                let step_ret_str = if let Some(gid) = group_id {
+                    format!(
+                        "sl3_rt::SlStep<{}, super::SlTailGroup{gid}>",
+                        rust_type(ret_ty)
+                    )
+                } else {
+                    String::from("super::SlTailNever")
+                };
+                writeln!(
+                    out,
+                    "{ind}{vis}fn {rust_name}({}) -> {step_ret_str} {{",
+                    param_strs.join(", ")
+                )?;
             }
         }
+
+        let var_scope_floor = self.scopes.len();
+        self.scopes.push(frame);
+        self.routine_ctx_stack.push(ActiveRoutineCtx {
+            mode: mode.clone(),
+            var_scope_floor,
+        });
+
+        let body_ind = indent_level.saturating_add(1);
+        match mode {
+            ActiveRoutineMode::Direct => {
+                let is_void = r.return_type == StageLType::Void;
+                if let Expr::Block { stmts, .. } = &r.body {
+                    let _ = self.emit_block_items(
+                        out,
+                        stmts,
+                        BlockEmitMode::Value {
+                            expect_void: is_void,
+                            is_fn_tail: true,
+                        },
+                        body_ind,
+                    )?;
+                } else {
+                    let body_expr = match &r.body {
+                        Expr::Return { value: Some(v), .. } => v.as_ref(),
+                        other => other,
+                    };
+                    if matches!(&r.body, Expr::Return { value: None, .. }) {
+                        // Bare `return.` as sole body of a void routine needs nothing.
+                    } else if matches!(body_expr, Expr::If { .. }) {
+                        let (body_code, _) =
+                            self.emit_direct_fn_tail_if(body_expr, is_void, body_ind)?;
+                        let body_pad = "    ".repeat(body_ind);
+                        writeln!(out, "{body_pad}{body_code}")?;
+                    } else {
+                        let (body_code, body_ty) = self.emit_expr(body_expr, body_ind)?;
+                        let body_pad = "    ".repeat(body_ind);
+                        if is_void
+                            && body_ty != StageLType::Never
+                            && !stmt_ends_without_semi(body_expr)
+                        {
+                            writeln!(out, "{body_pad}{body_code};")?;
+                        } else {
+                            writeln!(out, "{body_pad}{body_code}")?;
+                        }
+                    }
+                }
+            }
+            ActiveRoutineMode::Step { .. } => {
+                if let Expr::Block { stmts, .. } = &r.body {
+                    let _ = self.emit_block_items(
+                        out,
+                        stmts,
+                        BlockEmitMode::TailStep,
+                        body_ind,
+                    )?;
+                } else {
+                    let (step_code, _) = self.emit_tail_step_expr(&r.body, body_ind)?;
+                    let body_pad = "    ".repeat(body_ind);
+                    writeln!(out, "{body_pad}{step_code}")?;
+                }
+            }
+        }
+
+        let _ = self.routine_ctx_stack.pop();
         let _ = self.scopes.pop();
 
         writeln!(out, "{ind}}}")?;
@@ -741,10 +1368,19 @@ impl<'a> ModuleEmitter<'a> {
                         )?;
                     }
                     TestExpected::Fault(_) => {
-                        writeln!(
-                            out,
-                            "        sl3_rt::expect_fault(|| {{ let _ = {call_expr}; }}, {desc:?});"
-                        )?;
+                        if r.return_type == StageLType::Void
+                            || r.return_type == StageLType::Never
+                        {
+                            writeln!(
+                                out,
+                                "        sl3_rt::expect_fault(|| {{ {call_expr}; }}, {desc:?});"
+                            )?;
+                        } else {
+                            writeln!(
+                                out,
+                                "        sl3_rt::expect_fault(|| {{ let _ = {call_expr}; }}, {desc:?});"
+                            )?;
+                        }
                     }
                     TestExpected::Void(_) => {
                         writeln!(out, "        {call_expr};")?;
@@ -759,7 +1395,9 @@ impl<'a> ModuleEmitter<'a> {
     }
 
     fn lookup_var(&self, name: &str) -> Option<&VarStorage> {
-        for scope in self.scopes.iter().rev() {
+        let floor = self.current_var_scope_floor();
+        let active_scopes = self.scopes.get(floor..)?;
+        for scope in active_scopes.iter().rev() {
             if let Some(vs) = scope.vars.get(name) {
                 return Some(vs);
             }
@@ -769,9 +1407,27 @@ impl<'a> ModuleEmitter<'a> {
 
     fn visible_var_snapshot(&self) -> HashMap<String, VarStorage> {
         let mut map = HashMap::new();
+        let floor = self.current_var_scope_floor();
+        if let Some(active_scopes) = self.scopes.get(floor..) {
+            for scope in active_scopes {
+                for (k, v) in &scope.vars {
+                    map.insert(k.clone(), v.clone());
+                }
+            }
+        }
+        map
+    }
+
+    fn visible_nested_routine_captures(&self) -> HashMap<String, Vec<String>> {
+        let mut map = HashMap::new();
         for scope in &self.scopes {
-            for (k, v) in &scope.vars {
-                map.insert(k.clone(), v.clone());
+            for (rname, rtarget) in &scope.routines {
+                if let RoutineTarget::Nested { captures, .. } = rtarget {
+                    map.insert(
+                        rname.clone(),
+                        captures.iter().map(|c| c.sl_name.clone()).collect(),
+                    );
+                }
             }
         }
         map
@@ -785,49 +1441,109 @@ impl<'a> ModuleEmitter<'a> {
                         return Ok(rt.clone());
                     }
                 }
-                if let Some((rname, sig)) = self.local_routines.get(name) {
+                if let Some(meta) = self.ws_index.by_name.get(&(self.mod_idx, name.clone())) {
+                    let trampoline_call_path = if meta.is_step {
+                        format!("{}::{}", meta.mod_ident, meta.step_fn)
+                    } else {
+                        format!("{}::{}", meta.mod_ident, meta.entry_fn)
+                    };
                     return Ok(RoutineTarget::TopLevel {
-                        rust_path: rname.clone(),
-                        sig: sig.clone(),
+                        callee_key: CalleeKey::TopLevel {
+                            mod_idx: meta.mod_idx,
+                            routine_idx: meta.routine_idx,
+                        },
+                        direct_call_path: meta.entry_fn.clone(),
+                        trampoline_call_path,
+                        is_step: meta.is_step,
+                        sig: meta.sig.clone(),
                     });
                 }
                 if let Some(ImportedSymbol::Routine {
                     namespace,
                     original_name,
-                    sig,
+                    ..
                 }) = self.validated.imports.get(name)
                 {
-                    let mod_ident = self
-                        .ns_to_mod_ident
+                    let &target_mod_idx = self
+                        .ws_index
+                        .ns_to_mod_idx
                         .get(namespace)
                         .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
+                    let meta = self
+                        .ws_index
+                        .by_name
+                        .get(&(target_mod_idx, original_name.clone()))
+                        .with_context(|| {
+                            format!("Unknown imported routine '{namespace}::{original_name}'")
+                        })?;
+                    let trampoline_call_path = if meta.is_step {
+                        format!("{}::{}", meta.mod_ident, meta.step_fn)
+                    } else {
+                        format!("{}::{}", meta.mod_ident, meta.entry_fn)
+                    };
                     return Ok(RoutineTarget::TopLevel {
-                        rust_path: format!("super::{mod_ident}::sl_fn_{}", sanitize_ident(original_name)),
-                        sig: sig.clone(),
+                        callee_key: CalleeKey::TopLevel {
+                            mod_idx: meta.mod_idx,
+                            routine_idx: meta.routine_idx,
+                        },
+                        direct_call_path: format!("super::{}::{}", meta.mod_ident, meta.entry_fn),
+                        trampoline_call_path,
+                        is_step: meta.is_step,
+                        sig: meta.sig.clone(),
                     });
                 }
                 bail!("Unknown routine '{name}' during Rust transpilation")
             }
             SymbolTarget::Dc(dc) => {
-                if let Some((rname, sig)) = self.local_dc_routines.get(dc) {
+                if let Some(meta) = self.ws_index.by_dc.get(&(self.mod_idx, *dc)) {
+                    let trampoline_call_path = if meta.is_step {
+                        format!("{}::{}", meta.mod_ident, meta.step_fn)
+                    } else {
+                        format!("{}::{}", meta.mod_ident, meta.entry_fn)
+                    };
                     return Ok(RoutineTarget::TopLevel {
-                        rust_path: rname.clone(),
-                        sig: sig.clone(),
+                        callee_key: CalleeKey::TopLevel {
+                            mod_idx: meta.mod_idx,
+                            routine_idx: meta.routine_idx,
+                        },
+                        direct_call_path: meta.entry_fn.clone(),
+                        trampoline_call_path,
+                        is_step: meta.is_step,
+                        sig: meta.sig.clone(),
                     });
                 }
                 if let Some(ImportedSymbol::Routine {
                     namespace,
                     original_name,
-                    sig,
+                    ..
                 }) = self.validated.dc_imports.get(dc)
                 {
-                    let mod_ident = self
-                        .ns_to_mod_ident
+                    let &target_mod_idx = self
+                        .ws_index
+                        .ns_to_mod_idx
                         .get(namespace)
                         .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
+                    let meta = self
+                        .ws_index
+                        .by_name
+                        .get(&(target_mod_idx, original_name.clone()))
+                        .with_context(|| {
+                            format!("Unknown imported Dc routine '{namespace}::{original_name}'")
+                        })?;
+                    let trampoline_call_path = if meta.is_step {
+                        format!("{}::{}", meta.mod_ident, meta.step_fn)
+                    } else {
+                        format!("{}::{}", meta.mod_ident, meta.entry_fn)
+                    };
                     return Ok(RoutineTarget::TopLevel {
-                        rust_path: format!("super::{mod_ident}::sl_fn_{}", sanitize_ident(original_name)),
-                        sig: sig.clone(),
+                        callee_key: CalleeKey::TopLevel {
+                            mod_idx: meta.mod_idx,
+                            routine_idx: meta.routine_idx,
+                        },
+                        direct_call_path: format!("super::{}::{}", meta.mod_ident, meta.entry_fn),
+                        trampoline_call_path,
+                        is_step: meta.is_step,
+                        sig: meta.sig.clone(),
                     });
                 }
                 bail!("Unknown Dc routine '{dc}' during Rust transpilation")
@@ -856,10 +1572,7 @@ impl<'a> ModuleEmitter<'a> {
                     ..
                 }) = self.validated.imports.get(name)
                 {
-                    let mod_ident = self
-                        .ns_to_mod_ident
-                        .get(namespace)
-                        .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
+                    let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
                     let path = format!("super::{mod_ident}::sl_c_{}", sanitize_ident(original_name));
                     let expr = if rust_type_copy_cheap(ty) {
                         format!("*{path}")
@@ -886,10 +1599,7 @@ impl<'a> ModuleEmitter<'a> {
                     ..
                 }) = self.validated.dc_imports.get(dc)
                 {
-                    let mod_ident = self
-                        .ns_to_mod_ident
-                        .get(namespace)
-                        .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
+                    let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
                     let path = format!("super::{mod_ident}::sl_c_{}", sanitize_ident(original_name));
                     let expr = if rust_type_copy_cheap(ty) {
                         format!("*{path}")
@@ -901,6 +1611,222 @@ impl<'a> ModuleEmitter<'a> {
                 bail!("Unknown Dc value '{dc}' during Rust transpilation")
             }
         }
+    }
+
+    fn emit_call_operands(
+        &mut self,
+        args: &[Expr],
+        captures: &[CapturedArg],
+        indent_level: usize,
+    ) -> Result<OperandEval> {
+        let mut rendered = Vec::with_capacity(args.len().saturating_add(captures.len()));
+        for a in args {
+            let (ac, aty) = self.emit_expr(a, indent_level)?;
+            if aty == StageLType::Never {
+                return Ok(OperandEval::Diverged(prefix_prior_exprs(&rendered, &ac)));
+            }
+            rendered.push(ac);
+        }
+        for cap in captures {
+            let cur_vs = self
+                .lookup_var(&cap.sl_name)
+                .with_context(|| format!("Missing captured binding '{}'", cap.sl_name))?;
+            match (cur_vs, cap.kind) {
+                (VarStorage::CapCell { rust_name: rn, .. }, CapturePassKind::CapCell) => {
+                    rendered.push(format!("{rn}.clone()"));
+                }
+                (VarStorage::Direct { .. }, CapturePassKind::ImmVal) => {
+                    rendered.push(cur_vs.read_expr(&cap.sl_name));
+                }
+                _ => {
+                    bail!("Inconsistent capture storage for '{}'", cap.sl_name);
+                }
+            }
+        }
+        Ok(OperandEval::Ready(rendered))
+    }
+
+    fn emit_tail_step_expr(
+        &mut self,
+        expr: &Expr,
+        indent_level: usize,
+    ) -> Result<(String, StageLType)> {
+        match expr {
+            Expr::Call { target, args, .. } => {
+                let resolved = self.resolve_routine_target(target)?;
+                let (callee_key, trampoline_call_path, callee_is_step, sig, captures) =
+                    match resolved {
+                        RoutineTarget::TopLevel {
+                            callee_key,
+                            trampoline_call_path,
+                            is_step,
+                            sig,
+                            ..
+                        } => (callee_key, trampoline_call_path, is_step, sig, Vec::new()),
+                        RoutineTarget::Nested {
+                            callee_key,
+                            trampoline_call_path,
+                            is_step,
+                            sig,
+                            captures,
+                            ..
+                        } => (callee_key, trampoline_call_path, is_step, sig, captures),
+                    };
+
+                let rendered_args =
+                    match self.emit_call_operands(args, &captures, indent_level)? {
+                        OperandEval::Diverged(div_code) => {
+                            return Ok((div_code, StageLType::Never));
+                        }
+                        OperandEval::Ready(r) => r,
+                    };
+
+                let mut field_rust_types =
+                    Vec::with_capacity(sig.params.len().saturating_add(captures.len()));
+                for pty in &sig.params {
+                    field_rust_types.push(rust_type(pty));
+                }
+                for cap in &captures {
+                    field_rust_types.push(cap.field_rust_type());
+                }
+
+                if sig.return_type == StageLType::Never {
+                    let (variant_ident, boxed_struct) = self.trampolines.register_never_target(
+                        callee_key,
+                        trampoline_call_path,
+                        callee_is_step,
+                        field_rust_types,
+                    )?;
+                    let ncall = format_variant_ctor(
+                        "super::SlTailNever",
+                        &variant_ident,
+                        &rendered_args,
+                        boxed_struct.as_deref(),
+                    );
+                    match self.current_routine_mode() {
+                        ActiveRoutineMode::Step { group_id: None, .. } => {
+                            Ok((ncall, StageLType::Void))
+                        }
+                        ActiveRoutineMode::Step {
+                            group_id: Some(_), ..
+                        } => {
+                            self.trampolines.has_value_to_never_tail = true;
+                            Ok((format!("sl3_rt::SlStep::TailNever({ncall})"), StageLType::Void))
+                        }
+                        ActiveRoutineMode::Direct => {
+                            bail!("Internal error: emit_tail_step_expr invoked outside step routine")
+                        }
+                    }
+                } else {
+                    let (gid, variant_ident, boxed_struct) =
+                        self.trampolines.register_value_target(
+                            &sig.return_type,
+                            callee_key,
+                            trampoline_call_path,
+                            callee_is_step,
+                            field_rust_types,
+                        )?;
+                    let vcall = format_variant_ctor(
+                        &format!("super::SlTailGroup{gid}"),
+                        &variant_ident,
+                        &rendered_args,
+                        boxed_struct.as_deref(),
+                    );
+                    Ok((format!("sl3_rt::SlStep::Tail({vcall})"), StageLType::Void))
+                }
+            }
+            Expr::Block { stmts, .. } => {
+                let mut buf = String::from("{\n");
+                let ty = self.emit_block_items(
+                    &mut buf,
+                    stmts,
+                    BlockEmitMode::TailStep,
+                    indent_level.saturating_add(1),
+                )?;
+                let ind = "    ".repeat(indent_level);
+                write!(buf, "{ind}}}")?;
+                Ok((buf, ty))
+            }
+            Expr::If {
+                cond,
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                let (cond_code, cond_ty) = self.emit_expr(cond, indent_level)?;
+                if cond_ty == StageLType::Never {
+                    return Ok((cond_code, StageLType::Never));
+                }
+                let (then_block, then_ty) =
+                    self.emit_braced_tail_step_branch(then_branch, indent_level)?;
+                let (else_code, else_ty) = if matches!(else_branch.as_ref(), Expr::If { .. }) {
+                    self.emit_tail_step_expr(else_branch, indent_level)?
+                } else {
+                    self.emit_braced_tail_step_branch(else_branch, indent_level)?
+                };
+                let res_ty = if then_ty == StageLType::Never && else_ty == StageLType::Never {
+                    StageLType::Never
+                } else {
+                    StageLType::Void
+                };
+                let cond_clean = strip_matched_outer_parens(&cond_code);
+                Ok((
+                    format_if_expr(cond_clean, &then_block, &else_code, indent_level),
+                    res_ty,
+                ))
+            }
+            Expr::Return { value, .. } => {
+                if let Some(v) = value {
+                    self.emit_tail_step_expr(v, indent_level)
+                } else {
+                    Ok((String::from("sl3_rt::SlStep::Done(())"), StageLType::Void))
+                }
+            }
+            other => {
+                let (code, ty) = self.emit_expr(other, indent_level)?;
+                match ty {
+                    StageLType::Never => Ok((code, StageLType::Never)),
+                    StageLType::Void => {
+                        if stmt_ends_without_semi(other) {
+                            Ok((
+                                format!("{{ {code} sl3_rt::SlStep::Done(()) }}"),
+                                StageLType::Void,
+                            ))
+                        } else {
+                            Ok((
+                                format!("{{ {code}; sl3_rt::SlStep::Done(()) }}"),
+                                StageLType::Void,
+                            ))
+                        }
+                    }
+                    _ => Ok((format!("sl3_rt::SlStep::Done({code})"), StageLType::Void)),
+                }
+            }
+        }
+    }
+
+    fn emit_braced_tail_step_branch(
+        &mut self,
+        expr: &Expr,
+        indent_level: usize,
+    ) -> Result<(String, StageLType)> {
+        if let Expr::Block { stmts, .. } = expr {
+            let mut buf = String::from("{\n");
+            let ty = self.emit_block_items(
+                &mut buf,
+                stmts,
+                BlockEmitMode::TailStep,
+                indent_level.saturating_add(1),
+            )?;
+            let ind = "    ".repeat(indent_level);
+            write!(buf, "{ind}}}")?;
+            return Ok((buf, ty));
+        }
+        let body_ind = indent_level.saturating_add(1);
+        let (code, ty) = self.emit_tail_step_expr(expr, body_ind)?;
+        let ind = "    ".repeat(indent_level);
+        let inner_ind = "    ".repeat(body_ind);
+        Ok((format!("{{\n{inner_ind}{code}\n{ind}}}"), ty))
     }
 
     fn emit_expr(&mut self, expr: &Expr, indent_level: usize) -> Result<(String, StageLType)> {
@@ -916,7 +1842,10 @@ impl<'a> ModuleEmitter<'a> {
             Expr::List { elem_ty, elements, .. } => {
                 let mut codes = Vec::with_capacity(elements.len());
                 for el in elements {
-                    let (c, _) = self.emit_expr(el, indent_level)?;
+                    let (c, ety) = self.emit_expr(el, indent_level)?;
+                    if ety == StageLType::Never {
+                        return Ok((prefix_prior_exprs(&codes, &c), StageLType::Never));
+                    }
                     codes.push(c);
                 }
                 let r_elem = rust_type(elem_ty);
@@ -955,86 +1884,53 @@ impl<'a> ModuleEmitter<'a> {
                     VarStorage::Direct { rust_name, .. } => {
                         format!("{rust_name} = {val_code}")
                     }
-                    VarStorage::CapCell {
-                        rust_name, is_ref, ..
-                    } => {
-                        if is_ref {
-                            format!("sl3_rt::cap_set({rust_name}, {val_code})")
-                        } else {
-                            format!("sl3_rt::cap_set(&{rust_name}, {val_code})")
-                        }
-                    }
-                    VarStorage::ByRef { .. } => {
-                        bail!("Cannot mutate immutable by-ref captured binding '{name}'")
+                    VarStorage::CapCell { rust_name, .. } => {
+                        format!("sl3_rt::cap_set(&{rust_name}, {val_code})")
                     }
                 };
                 Ok((code, StageLType::Void))
             }
             Expr::Call { target, args, .. } => {
                 let resolved = self.resolve_routine_target(target)?;
-                let mut arg_codes = Vec::with_capacity(args.len());
-                let mut diverged = false;
-                for a in args {
-                    let (ac, aty) = self.emit_expr(a, indent_level)?;
-                    if aty == StageLType::Never {
-                        diverged = true;
-                    }
-                    arg_codes.push((ac, aty));
-                }
-                let _ = diverged;
                 match resolved {
-                    RoutineTarget::TopLevel { rust_path, sig } => {
-                        let rendered_args: Vec<String> =
-                            arg_codes.into_iter().map(|(c, _)| c).collect();
-                        Ok((
-                            format!("{rust_path}({})", rendered_args.join(", ")),
+                    RoutineTarget::TopLevel {
+                        direct_call_path,
+                        sig,
+                        ..
+                    } => match self.emit_call_operands(args, &[], indent_level)? {
+                        OperandEval::Diverged(div_code) => Ok((div_code, StageLType::Never)),
+                        OperandEval::Ready(rendered_args) => Ok((
+                            format!("{direct_call_path}({})", rendered_args.join(", ")),
                             sig.return_type,
-                        ))
-                    }
+                        )),
+                    },
                     RoutineTarget::Nested {
-                        rust_name,
+                        local_fn_name,
+                        step_group_id,
+                        is_step,
                         sig,
                         captures,
-                    } => {
-                        let mut rendered_args: Vec<String> =
-                            arg_codes.into_iter().map(|(c, _)| c).collect();
-                        for cap in captures {
-                            let cur_vs = self
-                                .lookup_var(&cap.sl_name)
-                                .with_context(|| {
-                                    format!("Missing captured binding '{}'", cap.sl_name)
-                                })?;
-                            match (cur_vs, cap.kind) {
-                                (
-                                    VarStorage::CapCell {
-                                        rust_name: rn,
-                                        is_ref,
-                                        ..
-                                    },
-                                    CapturePassKind::CapCell,
-                                ) => {
-                                    if *is_ref {
-                                        rendered_args.push(rn.clone());
-                                    } else {
-                                        rendered_args.push(format!("&{rn}"));
-                                    }
-                                }
-                                (VarStorage::Direct { rust_name: rn, .. }, CapturePassKind::ImmRef) => {
-                                    rendered_args.push(format!("&{rn}"));
-                                }
-                                (VarStorage::ByRef { rust_name: rn, .. }, CapturePassKind::ImmRef) => {
-                                    rendered_args.push(rn.clone());
-                                }
-                                _ => {
-                                    bail!("Inconsistent capture storage for '{}'", cap.sl_name);
-                                }
+                        ..
+                    } => match self.emit_call_operands(args, &captures, indent_level)? {
+                        OperandEval::Diverged(div_code) => Ok((div_code, StageLType::Never)),
+                        OperandEval::Ready(rendered_args) => {
+                            let raw_call =
+                                format!("{local_fn_name}({})", rendered_args.join(", "));
+                            if !is_step {
+                                Ok((raw_call, sig.return_type))
+                            } else if let Some(gid) = step_group_id {
+                                Ok((
+                                    format!("super::sl_trampoline_{gid}({raw_call})"),
+                                    sig.return_type,
+                                ))
+                            } else {
+                                Ok((
+                                    format!("super::sl_trampoline_never({raw_call})"),
+                                    StageLType::Never,
+                                ))
                             }
                         }
-                        Ok((
-                            format!("{rust_name}({})", rendered_args.join(", ")),
-                            sig.return_type,
-                        ))
-                    }
+                    },
                 }
             }
             Expr::Block { stmts, .. } => self.emit_block(stmts, indent_level),
@@ -1049,9 +1945,12 @@ impl<'a> ModuleEmitter<'a> {
                     return Ok((cond_code, StageLType::Never));
                 }
                 let (then_block, then_ty) =
-                    self.emit_braced_branch(then_branch, false, indent_level)?;
-                let (else_block, else_ty) =
-                    self.emit_braced_branch(else_branch, false, indent_level)?;
+                    self.emit_braced_branch(then_branch, false, false, indent_level)?;
+                let (else_code, else_ty) = if matches!(else_branch.as_ref(), Expr::If { .. }) {
+                    self.emit_expr(else_branch, indent_level)?
+                } else {
+                    self.emit_braced_branch(else_branch, false, false, indent_level)?
+                };
                 let res_ty = match (then_ty == StageLType::Never, else_ty == StageLType::Never) {
                     (true, true) => StageLType::Never,
                     (true, false) => else_ty,
@@ -1059,16 +1958,18 @@ impl<'a> ModuleEmitter<'a> {
                     (false, false) => then_ty,
                 };
                 let cond_clean = strip_matched_outer_parens(&cond_code);
-                let code = if else_block == "{}" {
-                    format!("if {cond_clean} {then_block}")
-                } else {
-                    format!("if {cond_clean} {then_block} else {else_block}")
-                };
-                Ok((code, res_ty))
+                Ok((
+                    format_if_expr(cond_clean, &then_block, &else_code, indent_level),
+                    res_ty,
+                ))
             }
             Expr::While { cond, body, .. } => {
-                let (cond_code, _) = self.emit_expr(cond, indent_level)?;
-                let (body_block, _) = self.emit_braced_branch(body, true, indent_level)?;
+                let (cond_code, cond_ty) = self.emit_expr(cond, indent_level)?;
+                if cond_ty == StageLType::Never {
+                    return Ok((cond_code, StageLType::Never));
+                }
+                let (body_block, _) =
+                    self.emit_braced_branch(body, true, false, indent_level)?;
                 let cond_clean = strip_matched_outer_parens(&cond_code);
                 let code = format!("while {cond_clean} {body_block}");
                 Ok((code, StageLType::Void))
@@ -1097,7 +1998,8 @@ impl<'a> ModuleEmitter<'a> {
                     },
                 );
                 self.scopes.push(frame);
-                let (body_block, _) = self.emit_braced_branch(body, true, indent_level)?;
+                let (body_block, _) =
+                    self.emit_braced_branch(body, true, false, indent_level)?;
                 let _ = self.scopes.pop();
 
                 let code =
@@ -1106,14 +2008,36 @@ impl<'a> ModuleEmitter<'a> {
             }
             Expr::Break { .. } => Ok((String::from("break"), StageLType::Never)),
             Expr::Continue { .. } => Ok((String::from("continue"), StageLType::Never)),
-            Expr::Return { value, .. } => {
-                if let Some(v) = value {
-                    let (vc, _) = self.emit_expr(v, indent_level)?;
-                    Ok((format!("return {vc}"), StageLType::Never))
-                } else {
-                    Ok((String::from("return"), StageLType::Never))
+            Expr::Return { value, .. } => match self.current_routine_mode() {
+                ActiveRoutineMode::Direct => {
+                    if let Some(v) = value {
+                        let (vc, vty) = self.emit_expr(v, indent_level)?;
+                        if vty == StageLType::Never {
+                            Ok((vc, StageLType::Never))
+                        } else {
+                            Ok((format!("return {vc}"), StageLType::Never))
+                        }
+                    } else {
+                        Ok((String::from("return"), StageLType::Never))
+                    }
                 }
-            }
+                ActiveRoutineMode::Step { .. } => {
+                    if let Some(v) = value {
+                        let (step_code, step_ty) =
+                            self.emit_tail_step_expr(v, indent_level)?;
+                        if step_ty == StageLType::Never {
+                            Ok((step_code, StageLType::Never))
+                        } else {
+                            Ok((format!("return {step_code}"), StageLType::Never))
+                        }
+                    } else {
+                        Ok((
+                            String::from("return sl3_rt::SlStep::Done(())"),
+                            StageLType::Never,
+                        ))
+                    }
+                }
+            },
             Expr::Fault { span } => {
                 let msg = format!("explicit fault trap at {span}");
                 Ok((format!("panic!({msg:?})"), StageLType::Never))
@@ -1146,6 +2070,7 @@ impl<'a> ModuleEmitter<'a> {
         &mut self,
         expr: &Expr,
         expect_void: bool,
+        is_fn_tail: bool,
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
         if let Expr::Block { stmts, .. } = expr {
@@ -1153,7 +2078,10 @@ impl<'a> ModuleEmitter<'a> {
             let ty = self.emit_block_items(
                 &mut buf,
                 stmts,
-                expect_void,
+                BlockEmitMode::Value {
+                    expect_void,
+                    is_fn_tail,
+                },
                 indent_level.saturating_add(1),
             )?;
             if buf == "{\n" {
@@ -1164,12 +2092,23 @@ impl<'a> ModuleEmitter<'a> {
             return Ok((buf, ty));
         }
         let body_ind = indent_level.saturating_add(1);
-        let (code, ty) = self.emit_expr(expr, body_ind)?;
         let ind = "    ".repeat(indent_level);
         let inner_ind = "    ".repeat(body_ind);
+        if is_fn_tail && matches!(expr, Expr::Return { value: None, .. }) {
+            return Ok((String::from("{}"), StageLType::Void));
+        }
+        let target_expr = if is_fn_tail {
+            match expr {
+                Expr::Return { value: Some(v), .. } => v.as_ref(),
+                other => other,
+            }
+        } else {
+            expr
+        };
+        let (code, ty) = self.emit_expr(target_expr, body_ind)?;
         if (expect_void || ty == StageLType::Void)
             && ty != StageLType::Never
-            && !stmt_ends_without_semi(expr)
+            && !stmt_ends_without_semi(target_expr)
         {
             Ok((format!("{{\n{inner_ind}{code};\n{ind}}}"), ty))
         } else {
@@ -1183,7 +2122,15 @@ impl<'a> ModuleEmitter<'a> {
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
         let mut buf = String::from("{\n");
-        let ty = self.emit_block_items(&mut buf, stmts, false, indent_level.saturating_add(1))?;
+        let ty = self.emit_block_items(
+            &mut buf,
+            stmts,
+            BlockEmitMode::Value {
+                expect_void: false,
+                is_fn_tail: false,
+            },
+            indent_level.saturating_add(1),
+        )?;
         if buf == "{\n" {
             return Ok((String::from("{}"), StageLType::Void));
         }
@@ -1196,7 +2143,7 @@ impl<'a> ModuleEmitter<'a> {
         &mut self,
         block_buf: &mut String,
         stmts: &[BlockItem],
-        expect_void: bool,
+        mode: BlockEmitMode,
         stmt_indent: usize,
     ) -> Result<StageLType> {
         let mut expr_stmts = Vec::new();
@@ -1205,12 +2152,17 @@ impl<'a> ModuleEmitter<'a> {
                 expr_stmts.push(e);
             }
         }
+        let inner_ind = "    ".repeat(stmt_indent);
         if expr_stmts.is_empty() {
+            if matches!(mode, BlockEmitMode::TailStep) {
+                writeln!(block_buf, "{inner_ind}sl3_rt::SlStep::Done(())")?;
+            }
             return Ok(StageLType::Void);
         }
 
         // Collect block-level declarations & capture plan.
-        let plan = analyze_block_captures(&expr_stmts);
+        let enclosing_caps = self.visible_nested_routine_captures();
+        let plan = analyze_block_captures(&expr_stmts, &enclosing_caps);
         let outer_snapshot = self.visible_var_snapshot();
 
         let mut frame = ScopeFrame {
@@ -1230,9 +2182,7 @@ impl<'a> ModuleEmitter<'a> {
             if let Some(vs) = outer_snapshot.get(cap_name) {
                 let kind = match vs {
                     VarStorage::CapCell { .. } => CapturePassKind::CapCell,
-                    VarStorage::Direct { .. } | VarStorage::ByRef { .. } => {
-                        CapturePassKind::ImmRef
-                    }
+                    VarStorage::Direct { .. } => CapturePassKind::ImmVal,
                 };
                 shared_captures.push(CapturedArg {
                     sl_name: cap_name.clone(),
@@ -1244,7 +2194,7 @@ impl<'a> ModuleEmitter<'a> {
         }
 
         // Local `let` variables or `const`s in THIS block that are captured by
-        // sibling nested routines use `SlCap<T>` pre-declared before nested fns.
+        // direct or descendant nested routines use `SlCap<T>` pre-declared upfront.
         let mut block_cap_decls: Vec<(String, StageLType)> = Vec::new();
         let mut local_cap_names: Vec<String> = plan.local_captured_vars.keys().cloned().collect();
         local_cap_names.sort();
@@ -1256,7 +2206,6 @@ impl<'a> ModuleEmitter<'a> {
                     VarStorage::CapCell {
                         rust_name: rname.clone(),
                         ty: ty.clone(),
-                        is_ref: false,
                     },
                 );
                 block_cap_decls.push((name.clone(), ty.clone()));
@@ -1269,8 +2218,12 @@ impl<'a> ModuleEmitter<'a> {
             }
         }
 
-        let mut routine_caps_list: Vec<(&RoutineDecl, Vec<CapturedArg>)> =
-            Vec::with_capacity(plan.nested_routines.len());
+        let mut routine_emit_list: Vec<(
+            &RoutineDecl,
+            Vec<CapturedArg>,
+            String,
+            ActiveRoutineMode,
+        )> = Vec::with_capacity(plan.nested_routines.len());
         for &r in &plan.nested_routines {
             let needed = plan.routine_captures.get(&r.name);
             let r_caps: Vec<CapturedArg> = shared_captures
@@ -1278,7 +2231,32 @@ impl<'a> ModuleEmitter<'a> {
                 .filter(|c| needed.is_some_and(|set| set.contains(&c.sl_name)))
                 .cloned()
                 .collect();
-            let rname = format!("sl_fn_{}", sanitize_ident(&r.name));
+            let nid = self.next_nested_id();
+            let san = sanitize_ident(&r.name);
+            let is_step = expr_has_tail_call(&r.body, true);
+            let (local_fn_name, step_group_id, nested_mode) = if is_step {
+                let gid = if r.return_type == StageLType::Never {
+                    self.trampolines.ensure_never_group();
+                    None
+                } else {
+                    Some(self.trampolines.ensure_value_group(&r.return_type))
+                };
+                (
+                    format!("__sl_step_nested_{nid}_{san}"),
+                    gid,
+                    ActiveRoutineMode::Step {
+                        ret_ty: r.return_type.clone(),
+                        group_id: gid,
+                    },
+                )
+            } else {
+                (
+                    format!("__sl_nfn_{nid}_{san}"),
+                    None,
+                    ActiveRoutineMode::Direct,
+                )
+            };
+            let trampoline_call_path = format!("{}::{local_fn_name}", self.mod_ident);
             let sig = RoutineSig {
                 return_type: r.return_type.clone(),
                 params: r.params.iter().map(|p| p.ty.clone()).collect(),
@@ -1288,17 +2266,22 @@ impl<'a> ModuleEmitter<'a> {
             frame.routines.insert(
                 r.name.clone(),
                 RoutineTarget::Nested {
-                    rust_name: rname,
+                    callee_key: CalleeKey::Nested {
+                        mod_idx: self.mod_idx,
+                        nested_id: nid,
+                    },
+                    local_fn_name: local_fn_name.clone(),
+                    trampoline_call_path,
+                    step_group_id,
+                    is_step,
                     sig,
                     captures: r_caps.clone(),
                 },
             );
-            routine_caps_list.push((r, r_caps));
+            routine_emit_list.push((r, r_caps, local_fn_name, nested_mode));
         }
 
         self.scopes.push(frame);
-
-        let inner_ind = "    ".repeat(stmt_indent);
 
         for (name, ty) in &block_cap_decls {
             let rname = format!("sl_v_{}", sanitize_ident(name));
@@ -1309,27 +2292,36 @@ impl<'a> ModuleEmitter<'a> {
             )?;
         }
 
-        for (r, r_caps) in &routine_caps_list {
-            let rname = format!("sl_fn_{}", sanitize_ident(&r.name));
+        for (r, r_caps, local_fn_name, nested_mode) in routine_emit_list {
+            let mut lifted_buf = String::new();
             self.emit_routine_fn(
-                block_buf,
-                "",
-                &rname,
+                &mut lifted_buf,
+                "pub(super) ",
+                &local_fn_name,
                 r,
-                r_caps,
-                stmt_indent,
+                &r_caps,
+                nested_mode,
+                1,
             )?;
+            self.lifted_routines.push(lifted_buf);
         }
 
         let mut result_ty = StageLType::Void;
         let mut terminated = false;
         let count = expr_stmts.len();
         for (idx, stmt) in expr_stmts.iter().enumerate() {
+            if terminated {
+                result_ty = StageLType::Never;
+                break;
+            }
             let is_last = idx.saturating_add(1) == count;
             match stmt {
                 Expr::RoutineDecl(_) => {
-                    if is_last && terminated {
-                        result_ty = StageLType::Never;
+                    if is_last {
+                        result_ty = StageLType::Void;
+                        if matches!(mode, BlockEmitMode::TailStep) {
+                            writeln!(block_buf, "{inner_ind}sl3_rt::SlStep::Done(())")?;
+                        }
                     }
                 }
                 Expr::Let { ty, name, init, .. } => {
@@ -1353,14 +2345,14 @@ impl<'a> ModuleEmitter<'a> {
                                     "{inner_ind}sl3_rt::cap_set(&{rname}, {init_code});"
                                 )?;
                             }
+                        } else if init_ty == StageLType::Never {
+                            writeln!(block_buf, "{inner_ind}{init_code};")?;
+                            terminated = true;
                         } else {
                             writeln!(
                                 block_buf,
                                 "{inner_ind}let {mut_kw}{rname}: {rty} = {init_code};"
                             )?;
-                            if init_ty == StageLType::Never {
-                                terminated = true;
-                            }
                             if let Some(top) = self.scopes.last_mut() {
                                 top.vars.insert(
                                     name.clone(),
@@ -1384,11 +2376,14 @@ impl<'a> ModuleEmitter<'a> {
                         }
                     }
                     if is_last {
-                        result_ty = if terminated {
-                            StageLType::Never
+                        if terminated {
+                            result_ty = StageLType::Never;
                         } else {
-                            StageLType::Void
-                        };
+                            result_ty = StageLType::Void;
+                            if matches!(mode, BlockEmitMode::TailStep) {
+                                writeln!(block_buf, "{inner_ind}sl3_rt::SlStep::Done(())")?;
+                            }
+                        }
                     }
                 }
                 Expr::Const { ty, name, value, .. } => {
@@ -1406,11 +2401,11 @@ impl<'a> ModuleEmitter<'a> {
                                 "{inner_ind}sl3_rt::cap_set(&{rname}, {val_code});"
                             )?;
                         }
+                    } else if val_ty == StageLType::Never {
+                        writeln!(block_buf, "{inner_ind}{val_code};")?;
+                        terminated = true;
                     } else {
                         writeln!(block_buf, "{inner_ind}let {rname}: {rty} = {val_code};")?;
-                        if val_ty == StageLType::Never {
-                            terminated = true;
-                        }
                         if let Some(top) = self.scopes.last_mut() {
                             top.vars.insert(
                                 name.clone(),
@@ -1422,40 +2417,84 @@ impl<'a> ModuleEmitter<'a> {
                         }
                     }
                     if is_last {
-                        result_ty = if terminated {
-                            StageLType::Never
+                        if terminated {
+                            result_ty = StageLType::Never;
                         } else {
-                            StageLType::Void
-                        };
+                            result_ty = StageLType::Void;
+                            if matches!(mode, BlockEmitMode::TailStep) {
+                                writeln!(block_buf, "{inner_ind}sl3_rt::SlStep::Done(())")?;
+                            }
+                        }
                     }
                 }
                 other => {
-                    let (code, ty) = self.emit_expr(other, stmt_indent)?;
-                    if ty == StageLType::Never {
-                        terminated = true;
-                    }
                     if is_last {
-                        result_ty = if terminated {
-                            StageLType::Never
-                        } else {
-                            ty.clone()
-                        };
-                        if (expect_void || ty == StageLType::Void)
-                            && ty != StageLType::Never
-                            && !stmt_ends_without_semi(other)
-                        {
-                            writeln!(block_buf, "{inner_ind}{code};")?;
-                        } else {
-                            writeln!(block_buf, "{inner_ind}{code}")?;
-                        }
-                    } else if ty == StageLType::Void || ty == StageLType::Never {
-                        if stmt_ends_without_semi(other) {
-                            writeln!(block_buf, "{inner_ind}{code}")?;
-                        } else {
-                            writeln!(block_buf, "{inner_ind}{code};")?;
+                        match mode {
+                            BlockEmitMode::TailStep => {
+                                let (step_code, step_ty) =
+                                    self.emit_tail_step_expr(other, stmt_indent)?;
+                                result_ty = if step_ty == StageLType::Never {
+                                    StageLType::Never
+                                } else {
+                                    StageLType::Void
+                                };
+                                writeln!(block_buf, "{inner_ind}{step_code}")?;
+                            }
+                            BlockEmitMode::Value {
+                                expect_void,
+                                is_fn_tail,
+                            } => {
+                                if is_fn_tail
+                                    && matches!(other, Expr::Return { value: None, .. })
+                                {
+                                    result_ty = StageLType::Void;
+                                } else if is_fn_tail
+                                    && matches!(other, Expr::If { .. })
+                                {
+                                    let (if_code, if_ty) = self.emit_direct_fn_tail_if(
+                                        other,
+                                        expect_void,
+                                        stmt_indent,
+                                    )?;
+                                    result_ty = if_ty;
+                                    writeln!(block_buf, "{inner_ind}{if_code}")?;
+                                } else {
+                                    let target_expr = if is_fn_tail {
+                                        match other {
+                                            Expr::Return { value: Some(v), .. } => v.as_ref(),
+                                            e => e,
+                                        }
+                                    } else {
+                                        other
+                                    };
+                                    let (code, ty) =
+                                        self.emit_expr(target_expr, stmt_indent)?;
+                                    result_ty = ty.clone();
+                                    if (expect_void || ty == StageLType::Void)
+                                        && ty != StageLType::Never
+                                        && !stmt_ends_without_semi(target_expr)
+                                    {
+                                        writeln!(block_buf, "{inner_ind}{code};")?;
+                                    } else {
+                                        writeln!(block_buf, "{inner_ind}{code}")?;
+                                    }
+                                }
+                            }
                         }
                     } else {
-                        writeln!(block_buf, "{inner_ind}let _ = {code};")?;
+                        let (code, ty) = self.emit_expr(other, stmt_indent)?;
+                        if ty == StageLType::Never {
+                            terminated = true;
+                        }
+                        if ty == StageLType::Void || ty == StageLType::Never {
+                            if stmt_ends_without_semi(other) {
+                                writeln!(block_buf, "{inner_ind}{code}")?;
+                            } else {
+                                writeln!(block_buf, "{inner_ind}{code};")?;
+                            }
+                        } else {
+                            writeln!(block_buf, "{inner_ind}let _ = {code};")?;
+                        }
                     }
                 }
             }
@@ -1509,10 +2548,22 @@ impl<'a> ModuleEmitter<'a> {
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
         let (l_code, l_ty) = self.emit_expr(left, indent_level)?;
-        let (r_code, r_ty) = self.emit_expr(right, indent_level)?;
+        if l_ty == StageLType::Never {
+            return Ok((l_code, StageLType::Never));
+        }
 
-        if l_ty == StageLType::Never && r_ty == StageLType::Never {
-            return Ok((format!("{{ let _ = {l_code}; {r_code} }}"), StageLType::Never));
+        if matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or) {
+            let (r_code, _) = self.emit_expr(right, indent_level)?;
+            let sym = if op == CoreBinaryOp::And { "&&" } else { "||" };
+            return Ok((format!("(({l_code}) {sym} ({r_code}))"), StageLType::B));
+        }
+
+        let (r_code, r_ty) = self.emit_expr(right, indent_level)?;
+        if r_ty == StageLType::Never {
+            return Ok((
+                prefix_prior_exprs(std::slice::from_ref(&l_code), &r_code),
+                StageLType::Never,
+            ));
         }
 
         match op {
@@ -1529,12 +2580,11 @@ impl<'a> ModuleEmitter<'a> {
                     CoreBinaryOp::Rem => "checked_rem",
                     _ => unreachable!("handled above"),
                 };
-                let res_ty = if l_ty == StageLType::Never { r_ty } else { l_ty };
                 let tmp = self.next_tmp("v");
                 let msg = format!("checked arithmetic fault in '{}'", op.keyword());
                 Ok((
                     format!("{{ let Some({tmp}) = ({l_code}).{method}({r_code}) else {{ panic!({msg:?}); }}; {tmp} }}"),
-                    res_ty,
+                    l_ty,
                 ))
             }
             CoreBinaryOp::WrapAdd | CoreBinaryOp::WrapSub | CoreBinaryOp::WrapMul => {
@@ -1544,8 +2594,7 @@ impl<'a> ModuleEmitter<'a> {
                     CoreBinaryOp::WrapMul => "wrapping_mul",
                     _ => unreachable!("handled above"),
                 };
-                let res_ty = if l_ty == StageLType::Never { r_ty } else { l_ty };
-                Ok((format!("({l_code}).{method}({r_code})"), res_ty))
+                Ok((format!("({l_code}).{method}({r_code})"), l_ty))
             }
             CoreBinaryOp::BitAnd | CoreBinaryOp::BitOr | CoreBinaryOp::BitXor => {
                 let sym = match op {
@@ -1554,8 +2603,7 @@ impl<'a> ModuleEmitter<'a> {
                     CoreBinaryOp::BitXor => "^",
                     _ => unreachable!("handled above"),
                 };
-                let res_ty = if l_ty == StageLType::Never { r_ty } else { l_ty };
-                Ok((format!("(({l_code}) {sym} ({r_code}))"), res_ty))
+                Ok((format!("(({l_code}) {sym} ({r_code}))"), l_ty))
             }
             CoreBinaryOp::Shl | CoreBinaryOp::Shr => {
                 let method = if op == CoreBinaryOp::Shl {
@@ -1564,9 +2612,6 @@ impl<'a> ModuleEmitter<'a> {
                     "checked_shr"
                 };
                 let tmp = self.next_tmp("sh");
-                if l_ty == StageLType::Never {
-                    return Ok((format!("{{ let _ = {l_code}; {r_code} }}"), StageLType::Never));
-                }
                 Ok((
                     format!("{{ let Some({tmp}) = ({l_code}).{method}({r_code}) else {{ panic!(\"shift count out of range\"); }}; {tmp} }}"),
                     l_ty,
@@ -1578,15 +2623,9 @@ impl<'a> ModuleEmitter<'a> {
                 } else {
                     "rotate_right"
                 };
-                if l_ty == StageLType::Never {
-                    return Ok((format!("{{ let _ = {l_code}; {r_code} }}"), StageLType::Never));
-                }
                 Ok((format!("({l_code}).{method}({r_code})"), l_ty))
             }
-            CoreBinaryOp::And | CoreBinaryOp::Or => {
-                let sym = if op == CoreBinaryOp::And { "&&" } else { "||" };
-                Ok((format!("(({l_code}) {sym} ({r_code}))"), StageLType::B))
-            }
+            CoreBinaryOp::And | CoreBinaryOp::Or => unreachable!("handled above"),
             CoreBinaryOp::Eq | CoreBinaryOp::Ne => {
                 let sym = if op == CoreBinaryOp::Eq { "==" } else { "!=" };
                 Ok((format!("(({l_code}) {sym} ({r_code}))"), StageLType::B))
@@ -1610,44 +2649,27 @@ impl<'a> ModuleEmitter<'a> {
                     format!("({l_code}).get({r_code})"),
                     (**inner).clone(),
                 )),
-                StageLType::Never => Ok((l_code, StageLType::Never)),
                 other => bail!("Invalid target '{other}' for 'get'"),
             },
-            CoreBinaryOp::Concat => {
-                let res_ty = if l_ty == StageLType::Never { r_ty } else { l_ty };
-                Ok((
-                    format!("sl3_rt::list_concat(&({l_code}), &({r_code}))"),
-                    res_ty,
-                ))
-            }
+            CoreBinaryOp::Concat => Ok((
+                format!("sl3_rt::list_concat(&({l_code}), &({r_code}))"),
+                l_ty,
+            )),
             CoreBinaryOp::BufFill => {
-                if l_ty == StageLType::Never {
-                    return Ok((l_code, StageLType::Never));
-                }
                 let r_elem = rust_type(&l_ty);
                 Ok((
                     format!("sl3_rt::SlBuf::<{r_elem}>::filled({l_code}, {r_code})"),
                     StageLType::Buf(Box::new(l_ty)),
                 ))
             }
-            CoreBinaryOp::BufPush => {
-                if l_ty == StageLType::Never || r_ty == StageLType::Never {
-                    return Ok((format!("{{ let _ = {l_code}; {r_code}; }}"), StageLType::Void));
-                }
-                Ok((
-                    format!("({l_code}).push({r_code})"),
-                    StageLType::Void,
-                ))
-            }
-            CoreBinaryOp::BufExtend => {
-                if l_ty == StageLType::Never || r_ty == StageLType::Never {
-                    return Ok((format!("{{ let _ = {l_code}; {r_code}; }}"), StageLType::Void));
-                }
-                Ok((
-                    format!("({l_code}).extend_list(&({r_code}))"),
-                    StageLType::Void,
-                ))
-            }
+            CoreBinaryOp::BufPush => Ok((
+                format!("({l_code}).push({r_code})"),
+                StageLType::Void,
+            )),
+            CoreBinaryOp::BufExtend => Ok((
+                format!("({l_code}).extend_list(&({r_code}))"),
+                StageLType::Void,
+            )),
         }
     }
 
@@ -1660,13 +2682,19 @@ impl<'a> ModuleEmitter<'a> {
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
         let (c1, t1) = self.emit_expr(first, indent_level)?;
-        let (c2, t2) = self.emit_expr(second, indent_level)?;
-        let (c3, t3) = self.emit_expr(third, indent_level)?;
         if t1 == StageLType::Never {
             return Ok((c1, StageLType::Never));
         }
-        if t2 == StageLType::Never || t3 == StageLType::Never {
-            return Ok((format!("{{ let _ = {c1}; let _ = {c2}; {c3} }}"), StageLType::Never));
+        let (c2, t2) = self.emit_expr(second, indent_level)?;
+        if t2 == StageLType::Never {
+            return Ok((
+                prefix_prior_exprs(std::slice::from_ref(&c1), &c2),
+                StageLType::Never,
+            ));
+        }
+        let (c3, t3) = self.emit_expr(third, indent_level)?;
+        if t3 == StageLType::Never {
+            return Ok((prefix_prior_exprs(&[c1, c2], &c3), StageLType::Never));
         }
         match op {
             CoreTernaryOp::Slice => Ok((
@@ -1688,7 +2716,7 @@ impl<'a> ModuleEmitter<'a> {
     ) -> Result<(String, StageLType)> {
         let (in_code, in_ty) = self.emit_expr(inner, indent_level)?;
         if in_ty == StageLType::Never {
-            return Ok((in_code, target_ty.clone()));
+            return Ok((in_code, StageLType::Never));
         }
         if &in_ty == target_ty {
             return Ok((in_code, target_ty.clone()));
@@ -1714,7 +2742,10 @@ impl<'a> ModuleEmitter<'a> {
         indent_level: usize,
     ) -> Result<(String, StageLType)> {
         let (in_code, in_ty) = self.emit_expr(inner, indent_level)?;
-        if in_ty == StageLType::Never || &in_ty == target_ty {
+        if in_ty == StageLType::Never {
+            return Ok((in_code, StageLType::Never));
+        }
+        if &in_ty == target_ty {
             return Ok((in_code, target_ty.clone()));
         }
         let r_target = rust_type(target_ty);
@@ -1723,6 +2754,95 @@ impl<'a> ModuleEmitter<'a> {
             target_ty.clone(),
         ))
     }
+
+    fn emit_direct_fn_tail_if(
+        &mut self,
+        expr: &Expr,
+        expect_void: bool,
+        indent_level: usize,
+    ) -> Result<(String, StageLType)> {
+        let Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } = expr
+        else {
+            bail!("Internal error: emit_direct_fn_tail_if requires Expr::If");
+        };
+        let (cond_code, cond_ty) = self.emit_expr(cond, indent_level)?;
+        if cond_ty == StageLType::Never {
+            return Ok((cond_code, StageLType::Never));
+        }
+        let (then_block, then_ty) =
+            self.emit_braced_branch(then_branch, expect_void, true, indent_level)?;
+        let (else_code, else_ty) = if matches!(else_branch.as_ref(), Expr::If { .. }) {
+            self.emit_direct_fn_tail_if(else_branch, expect_void, indent_level)?
+        } else {
+            self.emit_braced_branch(else_branch, expect_void, true, indent_level)?
+        };
+        let res_ty = match (then_ty == StageLType::Never, else_ty == StageLType::Never) {
+            (true, true) => StageLType::Never,
+            (true, false) => else_ty,
+            (false, true) => then_ty,
+            (false, false) => then_ty,
+        };
+        let cond_clean = strip_matched_outer_parens(&cond_code);
+        Ok((
+            format_if_expr(cond_clean, &then_block, &else_code, indent_level),
+            res_ty,
+        ))
+    }
+}
+
+fn format_if_expr(
+    cond_clean: &str,
+    then_block: &str,
+    else_code: &str,
+    indent_level: usize,
+) -> String {
+    if then_block == else_code {
+        if then_block == "{}" {
+            return format!("{{ let _: bool = {cond_clean}; }}");
+        }
+        if let Some(inner) = then_block
+            .strip_prefix('{')
+            .and_then(|s| s.strip_suffix('}'))
+        {
+            let inner_ind = "    ".repeat(indent_level.saturating_add(1));
+            return format!("{{\n{inner_ind}let _: bool = {cond_clean};{inner}}}");
+        }
+        return format!("{{ let _: bool = {cond_clean}; {then_block} }}");
+    }
+    if else_code == "{}" {
+        format!("if {cond_clean} {then_block}")
+    } else {
+        format!("if {cond_clean} {then_block} else {else_code}")
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum BlockEmitMode {
+    Value { expect_void: bool, is_fn_tail: bool },
+    TailStep,
+}
+
+enum OperandEval {
+    Ready(Vec<String>),
+    Diverged(String),
+}
+
+fn prefix_prior_exprs(prior: &[String], diverging: &str) -> String {
+    if prior.is_empty() {
+        return diverging.to_owned();
+    }
+    let mut out = String::from("{ ");
+    for p in prior {
+        let _ = write!(out, "let _ = {p}; ");
+    }
+    out.push_str(diverging);
+    out.push_str(" }");
+    out
 }
 
 fn is_lossless_widening(from: &StageLType, to: &StageLType) -> bool {
@@ -1819,7 +2939,103 @@ fn join_assign(a: Option<AssignState>, b: Option<AssignState>) -> AssignState {
     }
 }
 
-fn analyze_block_captures<'a>(stmts: &[&'a Expr]) -> BlockCapturePlan<'a> {
+/// Returns `true` iff `expr` contains at least one tail-position `Expr::Call`
+/// belonging to the current routine (excluding nested `RoutineDecl` bodies).
+fn expr_has_tail_call(expr: &Expr, in_tail: bool) -> bool {
+    match expr {
+        Expr::Call { args, .. } => {
+            in_tail || args.iter().any(|a| expr_has_tail_call(a, false))
+        }
+        Expr::Return { value: Some(v), .. } => expr_has_tail_call(v, true),
+        Expr::Return { value: None, .. } => false,
+        Expr::Block { stmts, .. } => {
+            let mut expr_stmts = Vec::new();
+            for item in stmts {
+                if let BlockItem::Expr(e) = item {
+                    expr_stmts.push(e);
+                }
+            }
+            let count = expr_stmts.len();
+            for (idx, stmt) in expr_stmts.iter().enumerate() {
+                let is_last = idx.saturating_add(1) == count;
+                match stmt {
+                    Expr::RoutineDecl(_) => {}
+                    Expr::Let { init: Some(ie), .. } => {
+                        if expr_has_tail_call(ie, false) {
+                            return true;
+                        }
+                    }
+                    Expr::Let { init: None, .. } => {}
+                    Expr::Const { value, .. } => {
+                        if expr_has_tail_call(value, false) {
+                            return true;
+                        }
+                    }
+                    other => {
+                        if expr_has_tail_call(other, in_tail && is_last) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            false
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            expr_has_tail_call(cond, false)
+                || expr_has_tail_call(then_branch, in_tail)
+                || expr_has_tail_call(else_branch, in_tail)
+        }
+        Expr::While { cond, body, .. } => {
+            expr_has_tail_call(cond, false) || expr_has_tail_call(body, false)
+        }
+        Expr::ForEach { list, body, .. } => {
+            expr_has_tail_call(list, false) || expr_has_tail_call(body, false)
+        }
+        Expr::Set { value, .. }
+        | Expr::Conv { expr: value, .. }
+        | Expr::Bitcast { expr: value, .. }
+        | Expr::Unary { operand: value, .. }
+        | Expr::BufNew {
+            capacity: value, ..
+        } => expr_has_tail_call(value, false),
+        Expr::List { elements, .. } => {
+            elements.iter().any(|e| expr_has_tail_call(e, false))
+        }
+        Expr::Binary { left, right, .. } => {
+            expr_has_tail_call(left, false) || expr_has_tail_call(right, false)
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            expr_has_tail_call(first, false)
+                || expr_has_tail_call(second, false)
+                || expr_has_tail_call(third, false)
+        }
+        Expr::RoutineDecl(_)
+        | Expr::Bool { .. }
+        | Expr::Int { .. }
+        | Expr::Bytes { .. }
+        | Expr::ValueRef { .. }
+        | Expr::Let { .. }
+        | Expr::Const { .. }
+        | Expr::Break { .. }
+        | Expr::Continue { .. }
+        | Expr::Fault { .. } => false,
+    }
+}
+
+fn analyze_block_captures<'a>(
+    stmts: &[&'a Expr],
+    enclosing_routine_captures: &HashMap<String, Vec<String>>,
+) -> BlockCapturePlan<'a> {
     let mut nested_routines = Vec::new();
     let mut local_decls: HashMap<String, StageLType> = HashMap::new();
     let mut assign_states: HashMap<String, AssignState> = HashMap::new();
@@ -1857,12 +3073,16 @@ fn analyze_block_captures<'a>(stmts: &[&'a Expr]) -> BlockCapturePlan<'a> {
         }
     }
 
-    // Collect variable references and sibling routine calls per nested routine,
-    // then compute transitive captures so sibling callers forward captures.
+    // Collect variable references and sibling/enclosing routine calls per
+    // nested routine, then compute transitive captures so callers forward all
+    // required lexical bindings.
     let mut routine_captures: HashMap<String, HashSet<String>> = HashMap::new();
     let mut routine_calls: HashMap<String, HashSet<String>> = HashMap::new();
     let nested_names: HashSet<String> = nested_routines.iter().map(|r| r.name.clone()).collect();
-    let mut all_refs_in_nested = HashSet::new();
+    let mut callable_nested_names = nested_names.clone();
+    for enc_name in enclosing_routine_captures.keys() {
+        callable_nested_names.insert(enc_name.clone());
+    }
 
     for r in &nested_routines {
         let mut bound = HashSet::new();
@@ -1871,11 +3091,19 @@ fn analyze_block_captures<'a>(stmts: &[&'a Expr]) -> BlockCapturePlan<'a> {
         }
         let mut direct_vars = HashSet::new();
         collect_free_var_refs(&r.body, &bound, &mut direct_vars);
-        for v in &direct_vars {
-            all_refs_in_nested.insert(v.clone());
-        }
         let mut called = HashSet::new();
-        collect_called_routine_names(&r.body, &nested_names, &mut called);
+        collect_called_routine_names(&r.body, &callable_nested_names, &mut called);
+        for callee in &called {
+            if !nested_names.contains(callee)
+                && let Some(enc_caps) = enclosing_routine_captures.get(callee)
+            {
+                for v in enc_caps {
+                    if !bound.contains(v) {
+                        direct_vars.insert(v.clone());
+                    }
+                }
+            }
+        }
         routine_captures.insert(r.name.clone(), direct_vars);
         routine_calls.insert(r.name.clone(), called);
     }
@@ -1906,13 +3134,43 @@ fn analyze_block_captures<'a>(stmts: &[&'a Expr]) -> BlockCapturePlan<'a> {
         }
     }
 
+    let mut all_refs_in_direct_nested = HashSet::new();
+    for vars in routine_captures.values() {
+        for v in vars {
+            all_refs_in_direct_nested.insert(v.clone());
+        }
+    }
+
     let mut local_captured_vars = HashMap::new();
     let mut all_captured_outer = HashSet::new();
-    for var_name in all_refs_in_nested {
+    for var_name in all_refs_in_direct_nested {
         if let Some(ty) = local_decls.get(&var_name) {
             local_captured_vars.insert(var_name, ty.clone());
         } else {
             all_captured_outer.insert(var_name);
+        }
+    }
+
+    // Also inspect child expressions (such as `if`/`do`/`while`/`foreach` blocks)
+    // for nested routines declared in inner scopes that reference or mutate
+    // local `let`/`const` bindings of THIS block, so they use `SlCap<T>` too.
+    if !local_decls.is_empty() {
+        let mut descendant_refs = HashSet::new();
+        for stmt in stmts {
+            if !matches!(stmt, Expr::RoutineDecl(_)) {
+                collect_descendant_routine_var_refs(
+                    stmt,
+                    &callable_nested_names,
+                    &routine_captures,
+                    enclosing_routine_captures,
+                    &mut descendant_refs,
+                );
+            }
+        }
+        for var_name in descendant_refs {
+            if let Some(ty) = local_decls.get(&var_name) {
+                local_captured_vars.insert(var_name, ty.clone());
+            }
         }
     }
 
@@ -1922,6 +3180,206 @@ fn analyze_block_captures<'a>(stmts: &[&'a Expr]) -> BlockCapturePlan<'a> {
         all_captured_outer,
         routine_captures,
         mutated_locals,
+    }
+}
+
+fn collect_descendant_routine_var_refs(
+    expr: &Expr,
+    callable_nested_names: &HashSet<String>,
+    sibling_captures: &HashMap<String, HashSet<String>>,
+    enclosing_captures: &HashMap<String, Vec<String>>,
+    out: &mut HashSet<String>,
+) {
+    match expr {
+        Expr::RoutineDecl(r) => {
+            let mut bound = HashSet::new();
+            for p in &r.params {
+                bound.insert(p.name.clone());
+            }
+            collect_free_var_refs(&r.body, &bound, out);
+            let mut called = HashSet::new();
+            collect_called_routine_names(&r.body, callable_nested_names, &mut called);
+            for callee in called {
+                if let Some(sib_set) = sibling_captures.get(&callee) {
+                    for v in sib_set {
+                        if !bound.contains(v) {
+                            out.insert(v.clone());
+                        }
+                    }
+                } else if let Some(enc_vec) = enclosing_captures.get(&callee) {
+                    for v in enc_vec {
+                        if !bound.contains(v) {
+                            out.insert(v.clone());
+                        }
+                    }
+                }
+            }
+        }
+        Expr::Set { value, .. }
+        | Expr::Conv { expr: value, .. }
+        | Expr::Bitcast { expr: value, .. }
+        | Expr::Unary { operand: value, .. }
+        | Expr::BufNew {
+            capacity: value, ..
+        }
+        | Expr::Const { value, .. } => {
+            collect_descendant_routine_var_refs(
+                value,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+        }
+        Expr::Let { init: Some(e), .. } | Expr::Return { value: Some(e), .. } => {
+            collect_descendant_routine_var_refs(
+                e,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+        }
+        Expr::Call { args, .. } => {
+            for a in args {
+                collect_descendant_routine_var_refs(
+                    a,
+                    callable_nested_names,
+                    sibling_captures,
+                    enclosing_captures,
+                    out,
+                );
+            }
+        }
+        Expr::List { elements, .. } => {
+            for e in elements {
+                collect_descendant_routine_var_refs(
+                    e,
+                    callable_nested_names,
+                    sibling_captures,
+                    enclosing_captures,
+                    out,
+                );
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for item in stmts {
+                if let BlockItem::Expr(e) = item {
+                    collect_descendant_routine_var_refs(
+                        e,
+                        callable_nested_names,
+                        sibling_captures,
+                        enclosing_captures,
+                        out,
+                    );
+                }
+            }
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_descendant_routine_var_refs(
+                cond,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+            collect_descendant_routine_var_refs(
+                then_branch,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+            collect_descendant_routine_var_refs(
+                else_branch,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+        }
+        Expr::While { cond, body, .. } => {
+            collect_descendant_routine_var_refs(
+                cond,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+            collect_descendant_routine_var_refs(
+                body,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+        }
+        Expr::ForEach { list, body, .. } => {
+            collect_descendant_routine_var_refs(
+                list,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+            collect_descendant_routine_var_refs(
+                body,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+        }
+        Expr::Binary { left, right, .. } => {
+            collect_descendant_routine_var_refs(
+                left,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+            collect_descendant_routine_var_refs(
+                right,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            collect_descendant_routine_var_refs(
+                first,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+            collect_descendant_routine_var_refs(
+                second,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+            collect_descendant_routine_var_refs(
+                third,
+                callable_nested_names,
+                sibling_captures,
+                enclosing_captures,
+                out,
+            );
+        }
+        _ => {}
     }
 }
 
@@ -2267,7 +3725,9 @@ fn topo_sort_top_values(items: &[TopDecl]) -> Vec<&TopValueDecl> {
 )]
 mod tests {
     use super::*;
-    use super::super::eval::run_module_inline_tests;
+    use super::super::eval::{
+        EvalConfig, StageLWorkspaceVm, run_module_inline_tests,
+    };
     use super::super::validator::{ModuleInput, parse_and_validate_workspace};
     use std::process::Command;
 
@@ -2327,33 +3787,62 @@ mod tests {
         );
 
         if execute_binary {
-            let bin_path = dir.path().join("smoke_bin");
+            for opt_level in ["0", "2"] {
+                let bin_path = dir.path().join(format!("smoke_bin_o{opt_level}"));
+                let compile_out = Command::new("rustc")
+                    .arg("--edition")
+                    .arg("2021")
+                    .arg("-C")
+                    .arg(format!("opt-level={opt_level}"))
+                    .arg("-D")
+                    .arg("warnings")
+                    .arg("-o")
+                    .arg(&bin_path)
+                    .arg(&rs_path)
+                    .output()
+                    .expect("invoke rustc");
+                assert!(
+                    compile_out.status.success(),
+                    "rustc (opt-level={opt_level}) failed:\n{}\n--- SOURCE ---\n{rust_src}",
+                    String::from_utf8_lossy(&compile_out.stderr)
+                );
+
+                // Run under a 512 KiB native stack cap (`ulimit -s 512`) so any
+                // non-trampolined deep tail call immediately overflows even on
+                // machines with large default OS stacks.
+                let exec_out = Command::new("sh")
+                    .arg("-c")
+                    .arg("ulimit -s 512 && exec \"$1\"")
+                    .arg("--")
+                    .arg(&bin_path)
+                    .output()
+                    .expect("run compiled rust smoke binary");
+                assert!(
+                    exec_out.status.success(),
+                    "compiled rust binary (opt-level={opt_level}) failed:\nstdout: {}\nstderr: {}",
+                    String::from_utf8_lossy(&exec_out.stdout),
+                    String::from_utf8_lossy(&exec_out.stderr)
+                );
+            }
+        } else {
+            let rlib_path = dir.path().join("libsmoke.rlib");
             let compile_out = Command::new("rustc")
                 .arg("--edition")
                 .arg("2021")
+                .arg("--crate-type=lib")
                 .arg("-C")
-                .arg("opt-level=2")
+                .arg("opt-level=0")
                 .arg("-D")
                 .arg("warnings")
                 .arg("-o")
-                .arg(&bin_path)
+                .arg(&rlib_path)
                 .arg(&rs_path)
                 .output()
-                .expect("invoke rustc");
+                .expect("invoke rustc lib");
             assert!(
                 compile_out.status.success(),
-                "rustc failed:\n{}\n--- SOURCE ---\n{rust_src}",
+                "rustc lib failed:\n{}\n--- SOURCE ---\n{rust_src}",
                 String::from_utf8_lossy(&compile_out.stderr)
-            );
-
-            let exec_out = Command::new(&bin_path)
-                .output()
-                .expect("run compiled rust smoke binary");
-            assert!(
-                exec_out.status.success(),
-                "compiled rust binary failed:\nstdout: {}\nstderr: {}",
-                String::from_utf8_lossy(&exec_out.stdout),
-                String::from_utf8_lossy(&exec_out.stderr)
             );
         }
     }
@@ -2530,5 +4019,340 @@ pub v/u32/useImports u32/inputVal
         )
         .expect_err("single module with imports must require workspace transpiler");
         assert!(err_single.to_string().contains("transpile_workspace_to_rust"));
+    }
+
+    #[crate::ctb_test]
+    fn test_rust_codegen_unoptimized_deep_tail_trampolines_and_captures() {
+        let src = r#"
+: Self tail recursion returning u64
+v/u64/sumDown u32/cnt u64/acc
+  test deep120k
+    in u32:120000 u64:0
+    out u64:7200060000.
+  if eq u32/cnt u32:0
+    u64/acc
+    sumDown sub u32/cnt u32:1 add u64/acc conv u32/cnt u64.
+
+: Non-step leaf routine tail-called at end of 3-way mutual recursion
+v/u32/directLeaf u32/val :: add u32/val u32:7.
+
+v/u32/triA u32/cnt u32/acc
+  test deepTri120k
+    in u32:120000 u32:0
+    out u32:240007.
+  if eq u32/cnt u32:0
+    directLeaf u32/acc
+    triB sub u32/cnt u32:1 add u32/acc u32:1.
+
+v/u32/triB u32/cnt u32/acc
+  if eq u32/cnt u32:0
+    directLeaf u32/acc
+    triC sub u32/cnt u32:1 add u32/acc u32:2.
+
+v/u32/triC u32/cnt u32/acc
+  if eq u32/cnt u32:0
+    directLeaf u32/acc
+    triA sub u32/cnt u32:1 add u32/acc u32:3.
+
+: Tail call via 'return CALL' inside while and foreach loops
+v/u32/loopEarlyTail u32/limit
+  test loopReturnTail
+    in u32:90000
+    out u32:180030.
+  let u32/idx u32:0.
+  while lt u32/idx u32:5 do
+    set u32/idx add u32/idx u32:1.
+    if eq u32/idx u32:3 do
+      foreach u32/item l/u32: u32:10 u32:20 :: do
+        if eq u32/item u32:20 do
+          return triA u32/limit add u32/idx u32/item.
+        :: do ::.
+      ::.
+    :: do ::.
+  ::.
+  u32:0.
+
+: Top-level -> nested and sibling mutual tail recursion with SlCap, ImmVal, l/u8, and buf/u8
+v/l/u8/nestedPingPong u32/steps u8/tagByte
+  test pingPong100k
+    in u32:100000 u8:33
+    out l/u8: u8:79 u8:75 u8:58 u8:33 u8:153 ::.
+  let u32/sharedHits u32:0.
+  let buf/u8/outBuf bufNew u8 u64:6.
+  const l/u8/prefixBytes b"OK:".
+  bufExtend buf/u8/outBuf l/u8/prefixBytes.
+  v/l/u8/pingStep u32/leftCount
+    if eq u32/leftCount u32:0 do
+      bufPush buf/u8/outBuf u8/tagByte.
+      bufPush buf/u8/outBuf conv rem u32/sharedHits u32:251 u8.
+      bufFreeze buf/u8/outBuf.
+    :: do
+      set u32/sharedHits add u32/sharedHits u32:1.
+      pongStep sub u32/leftCount u32:1.
+    ::.
+  v/l/u8/pongStep u32/leftCount
+    if eq u32/leftCount u32:0 do
+      pingStep u32:0.
+    :: do
+      set u32/sharedHits add u32/sharedHits u32:2.
+      pingStep sub u32/leftCount u32:1.
+    ::.
+  pingStep u32/steps.
+
+: Child if-block nested routine mutating outer let + doubly-nested routine tail-calling enclosing nested routine
+v/u32/enclosingAndChildBlockCaps u32/baseVal u32/steps
+  test doublyNested90k
+    in u32:5 u32:90000
+    out u32:90015.
+  let u32/tally u32:0.
+  if gt u32/baseVal u32:0 do
+    v/void/bumpFromIfBranch u32/deltaVal :: set u32/tally add u32/tally u32/deltaVal.
+    bumpFromIfBranch u32:10.
+  :: do
+    set u32/tally u32:1.
+  ::.
+  v/u32/outerLoop u32/cnt
+    if eq u32/cnt u32:0
+      add u32/baseVal u32/tally
+      do
+        set u32/tally add u32/tally u32:1.
+        v/u32/innerStep u32/nextCnt :: outerLoop sub u32/nextCnt u32:1.
+        innerStep u32/cnt.
+      ::.
+  outerLoop u32/steps.
+
+: Void-returning deep mutual tail recursion (both top-level and nested side-effecting)
+v/void/voidStepA u32/cnt
+  test void100k
+    in u32:100000
+    out.
+  if eq u32/cnt u32:0 do :: do
+    voidStepB sub u32/cnt u32:1.
+  ::.
+
+v/void/voidStepB u32/cnt
+  if eq u32/cnt u32:0 do
+    return.
+  :: do
+    voidStepA sub u32/cnt u32:1.
+  ::.
+
+v/u32/verifyVoidTail u32/steps
+  test ticks100k
+    in u32:100000
+    out u32:100000.
+  let u32/ticks u32:0.
+  v/void/voidTickA u32/cnt
+    if eq u32/cnt u32:0 do :: do
+      set u32/ticks add u32/ticks u32:1.
+      voidTickB sub u32/cnt u32:1.
+    ::.
+  v/void/voidTickB u32/cnt
+    if eq u32/cnt u32:0 do :: do
+      set u32/ticks add u32/ticks u32:1.
+      voidTickA sub u32/cnt u32:1.
+    ::.
+  voidTickA u32/steps.
+  u32/ticks.
+
+: Never-returning deep mutual tail recursion and Value -> Never tail transition
+v/never/haltNow u32/errCode :: fault.
+
+v/never/neverSpinA u32/cnt
+  test deepNeverFault
+    in u32:90000
+    out fault.
+  if eq u32/cnt u32:0
+    haltNow u32:1
+    neverSpinB sub u32/cnt u32:1.
+
+v/never/neverSpinB u32/cnt
+  if eq u32/cnt u32:0
+    haltNow u32:2
+    neverSpinA sub u32/cnt u32:1.
+
+v/u32/maybeNeverTail u32/modeFlag
+  test normalBranch
+    in u32:0
+    out u32:77
+  test neverBranch
+    in u32:1
+    out fault.
+  if eq u32/modeFlag u32:0
+    u32:77
+    neverSpinA u32:80000.
+
+: 10-parameter tail recursion exercising boxed tuple variant payloads (>8 fields)
+v/u32/wideTail10 u32/cnt u32/a1 u32/a2 u32/a3 u32/a4 u32/a5 u32/a6 u32/a7 u32/a8 u32/acc
+  test wide80k
+    in u32:80000 u32:3 u32:0 u32:0 u32:0 u32:0 u32:0 u32:0 u32:4 u32:0
+    out u32:80007.
+  if eq u32/cnt u32:0
+    add u32/acc add u32/a1 u32/a8
+    wideTail10 sub u32/cnt u32:1 u32/a2 u32/a3 u32/a4 u32/a5 u32/a6 u32/a7 u32/a8 u32/a1 add u32/acc u32:1.
+
+: Diverging ('never') operands inside conv, bitcast, list, binary, and call arguments
+v/u32/divergingExprSmoke u32/which
+  test okCase
+    in u32:0
+    out u32:19
+  test trapCase
+    in u32:2
+    out fault.
+  if eq u32/which u32:0
+    u32:19
+    if eq u32/which u32:1
+      conv haltNow u32:1 u32
+      if eq u32/which u32:2
+        add u32:5 bitcast haltNow u32:2 u32
+        if eq u32/which u32:3
+          directLeaf haltNow u32:3
+          do
+            let l/u32/deadList l/u32: u32:1 haltNow u32:4 u32:2 ::.
+            get l/u32/deadList u64:0.
+          ::.
+"#;
+
+        let ws = parse_and_validate_workspace(&[ModuleInput {
+            source_path: None,
+            source: src,
+        }])
+        .expect("validate tail-call module");
+        let vm = StageLWorkspaceVm::from_validated_workspace(
+            &ws,
+            EvalConfig {
+                compute_quota: 50_000_000,
+                max_call_depth: 64,
+            },
+        )
+        .expect("init VM");
+        let vm_report = vm.run_all_tests(&ws).expect("run VM inline tests");
+        assert_eq!(vm_report.ensure_all_passed().unwrap(), 13);
+
+        let rust_src = transpile_workspace_to_rust(
+            &ws,
+            &RustTranspileOptions {
+                standalone_smoke_harness: true,
+                emit_test_runner: true,
+            },
+        )
+        .expect("transpile tail-call module to Rust");
+
+        assert!(rust_src.contains("fn sl_trampoline_"));
+        assert!(rust_src.contains("fn sl_trampoline_never"));
+        run_rustc_and_clippy_smoke(&rust_src, true);
+    }
+
+    #[crate::ctb_test]
+    fn test_rust_codegen_cross_module_tail_chains_and_strict_lib_mode() {
+        let inputs = [
+            ModuleInput {
+                source_path: Some("chain/core.sl3"),
+                source: r#"ns chain/core.
+
+pub v/u32/coreEven u32/cnt u32/acc
+  if eq u32/cnt u32:0
+    u32/acc
+    coreOdd sub u32/cnt u32:1 add u32/acc u32:2.
+
+pub dc/256 v/u32/coreOdd u32/cnt u32/acc
+  if eq u32/cnt u32:0
+    u32/acc
+    coreEven sub u32/cnt u32:1 add u32/acc u32:1.
+"#,
+            },
+            ModuleInput {
+                source_path: Some("chain/mid.sl3"),
+                source: r#"ns chain/mid.
+use chain/core: coreEven as stepEven dc/256 ::.
+
+pub dc/257 v/u32/bounceMid u32/cnt u32/acc
+  if eq rem u32/cnt u32:2 u32:0
+    stepEven u32/cnt u32/acc
+    dc/256 u32/cnt u32/acc.
+"#,
+            },
+            ModuleInput {
+                source_path: Some("chain/entry.sl3"),
+                source: r#"ns chain/entry.
+use chain/mid: bounceMid as launchChain dc/257 ::.
+
+pub v/u32/runCrossModuleTail u32/cnt
+  test even100k
+    in u32:100000
+    out u32:150000
+  test odd100k1
+    in u32:100001
+    out u32:150001.
+  if eq rem u32/cnt u32:2 u32:0
+    launchChain u32/cnt u32:0
+    dc/257 u32/cnt u32:0.
+"#,
+            },
+        ];
+
+        let ws = parse_and_validate_workspace(&inputs).expect("validate cross-module chain");
+        let vm = StageLWorkspaceVm::from_validated_workspace(
+            &ws,
+            EvalConfig {
+                compute_quota: 20_000_000,
+                max_call_depth: 32,
+            },
+        )
+        .expect("init workspace VM");
+        let vm_report = vm.run_all_tests(&ws).expect("VM workspace tests");
+        assert_eq!(vm_report.ensure_all_passed().unwrap(), 2);
+
+        let rust_ws = transpile_workspace_to_rust(
+            &ws,
+            &RustTranspileOptions {
+                standalone_smoke_harness: true,
+                emit_test_runner: true,
+            },
+        )
+        .expect("transpile workspace");
+        run_rustc_and_clippy_smoke(&rust_ws, true);
+
+        // Also verify strict library output (`standalone_smoke_harness: false`,
+        // no crate-level `#![allow(...)]` attributes) compiles cleanly under
+        // both `clippy-driver -D warnings` and `rustc -C opt-level=0 -D warnings`.
+        let strict_lib_sl3 = r#"ns clean/strict_lib.
+
+pub v/u32/count_down u32/steps u32/acc
+  if eq u32/steps u32:0
+    u32/acc
+    count_down_alt sub u32/steps u32:1 add u32/acc u32:1.
+
+pub v/u32/count_down_alt u32/steps u32/acc
+  if eq u32/steps u32:0
+    do
+      v/u32/nested_finish u32/cur
+        if eq u32/cur u32:0 u32/acc nested_finish sub u32/cur u32:1.
+      nested_finish u32:3.
+    ::
+    count_down sub u32/steps u32:1 add u32/acc u32:2.
+
+pub v/void/spin_void u32/steps
+  if eq u32/steps u32:0 do :: do
+    spin_void sub u32/steps u32:1.
+  ::.
+
+pub v/never/abort_now :: fault.
+
+pub v/u32/guard_or_abort u32/val
+  if eq u32/val u32:0
+    abort_now
+    count_down u32/val u32:0.
+"#;
+        let strict_rust = transpile_sl3_source_to_rust(
+            strict_lib_sl3,
+            &RustTranspileOptions {
+                standalone_smoke_harness: false,
+                emit_test_runner: false,
+            },
+        )
+        .expect("transpile strict lib");
+        assert!(!strict_rust.contains("#![allow("));
+        run_rustc_and_clippy_smoke(&strict_rust, false);
     }
 }
