@@ -463,3 +463,9 @@ ordering, asynchronous events, and canonical raster output.
 
 9. **Pure / Compile-Time Constraint on Top-Level `const` and `pub` Value Initializers**:
    - Allowing `pub TYPE/name EXPR.` alongside `const TYPE/name EXPR.` works cleanly without parse ambiguity (value references use `TYPE/name` whereas 0-arg verb calls use bare `name`, and redundant `const v/...` is disallowed). Restricting top-level `const` / `pub` value initializers to pure, side-effect-free expressions with acyclic dependencies ensures deterministic, order-independent module loading and lets constants materialize directly as immutable graph value nodes.
+
+
+## 12 Nov 2026
+
+- **Compute-quota metering in transpiled Rust**: Unlike the interpreter in [eval.rs](file:///workspaces/ctoolbox/src/formats/stagel/stagel3/eval.rs), code emitted by [rust_codegen.rs](file:///workspaces/ctoolbox/src/formats/stagel/stagel3/rust_codegen.rs) executes natively without step-fuel accounting (so unbounded tail loops run until externally terminated rather than trapping on a step budget).
+- **Local `buf/T` parameters on tail-called routines**: StageL 3 static validation ([validator.rs](file:///workspaces/ctoolbox/src/formats/stagel/stagel3/validator.rs) and [sl3.md](file:///workspaces/ctoolbox/src/formats/stagel/docs/sl3.md#L165-L174)) restricts `buf/T` to uncaptured local bindings and forbids passing `buf/T` as routine parameters or captures, so `buf/T` never crosses tail-call boundaries; if future language layers (such as StageR 3 or EM3) introduce linear/region reference parameters, trampoline frames will need corresponding lifetime or handle lowering.
