@@ -359,6 +359,8 @@ echo "Running offline build..."
 # eventually though.
 if [[ "$ci_stage" == "prep" ]]; then
     ./build --release --offline --clean-targets --prep-only
+    echo "Regenerating CLI command documentation..."
+    cargo test --offline -p ctb-cli --lib -- test_all_cli_commands_help_and_generate_docs
 elif [[ "$ci_stage" == "platform" ]]; then
     ./build --release --offline --no-lints --no-docs --no-js-tests --clean-targets "$ci_platform"
 else
