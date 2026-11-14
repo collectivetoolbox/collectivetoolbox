@@ -768,8 +768,8 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
             .join("../dcdata/data-src");
         let std_files = discover_stagel_namespace_files(&data_dir)?;
         ensure!(
-            std_files.len() >= 7,
-            "Expected at least 7 Stage 1 stdlib .sl3 files, found {}",
+            std_files.len() >= 3,
+            "Expected at least 3 Stage 1 stdlib .sl3 files, found {}",
             std_files.len()
         );
         let inputs: Vec<ModuleInput<'_>> = std_files
@@ -796,16 +796,14 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
 
         // 2. Standalone `.sl3` AND encoded `Dc 2192..2193` Token-Dc module linking
         // `std/*` directly from `SeedGraphIndex::shared()` (including transitive
-        // private helper `std/bytes::matchesAt` and `std/assert::assert`, plus a
-        // direct `dc/l8589978243` call to `std/math/i32::mod` without `use`).
+        // private helper `std/bytes::matchesAt`, `std/assert::assert`, parameter-type
+        // implementation dispatch and typed constants across `u8`/`i32`/`u32`/`i64`/`u64`
+        // from unified `std/math` without `as` aliases, plus a direct `dc/l8589978243`
+        // call to `std/math::mod` `(i32, i32)`).
         let client_src = r#"
 use std/assert: assert ::.
 use std/bytes: explode implode ::.
-use std/math/i32: MIN as I32_MIN MAX as I32_MAX mod as mod32 canAdd as canAdd32 canSub as canSub32 canMul as canMul32 canDiv as canDiv32 ::.
-use std/math/i64: MIN as I64_MIN MAX as I64_MAX mod as mod64 canAdd as canAdd64 canSub as canSub64 canMul as canMul64 canDiv as canDiv64 ::.
-use std/math/u8: MAX as U8_MAX canAdd as canAddU8 canSub as canSubU8 canMul as canMulU8 canDiv as canDivU8 ::.
-use std/math/u32: MAX as U32_MAX canAdd as canAddU32 canSub as canSubU32 canMul as canMulU32 canDiv as canDivU32 ::.
-use std/math/u64: MAX as U64_MAX canAdd as canAddU64 canSub as canSubU64 canMul as canMulU64 canDiv as canDivU64 ::.
+use std/math: MIN MAX mod canAdd canSub canMul canDiv ::.
 
 v/l/u8/rejoinNormalize l/u8/raw
     test csvRoundtrip
@@ -830,18 +828,21 @@ v/b/exerciseAllStdMath
     test allChecksHold
         in.
         out true.
-    assert eq mod32 i32:-7 i32:3 i32:2.
-    assert eq dc/l8589978243 i32/I32_MIN i32:-1 i32:0.
-    assert eq dc/l8589978243 i32:-1 i32/I32_MIN i32/I32_MAX.
-    assert and not canAdd32 i32/I32_MAX i32:1 not canSub32 i32/I32_MIN i32:1.
-    assert and not canMul32 i32/I32_MIN i32:-1 not canDiv32 i32/I32_MIN i32:-1.
-    assert eq mod64 i64/I64_MIN i64:-1 i64:0.
-    assert eq mod64 i64:-1 i64/I64_MIN i64/I64_MAX.
-    assert and not canAdd64 i64/I64_MAX i64:1 not canSub64 i64/I64_MIN i64:1.
-    assert and not canMul64 i64/I64_MIN i64:-1 not canDiv64 i64/I64_MIN i64:-1.
-    assert and not canAddU8 u8/U8_MAX u8:1 and not canSubU8 u8:0 u8:1 and not canMulU8 u8:16 u8:16 not canDivU8 u8:1 u8:0.
-    assert and not canAddU32 u32/U32_MAX u32:1 and not canSubU32 u32:0 u32:1 and not canMulU32 u32:65536 u32:65536 not canDivU32 u32:1 u32:0.
-    assert and not canAddU64 u64/U64_MAX u64:1 and not canSubU64 u64:0 u64:1 and not canMulU64 u64:4294967296 u64:4294967296 not canDivU64 u64:1 u64:0.
+    assert eq mod i32:-7 i32:3 i32:2.
+    assert eq dc/l8589978243 i32/MIN i32:-1 i32:0.
+    assert eq dc/l8589978243 i32:-1 i32/MIN i32/MAX.
+    assert and not canAdd i32/MAX i32:1 not canSub i32/MIN i32:1.
+    assert and not canMul i32/MIN i32:-1 not canDiv i32/MIN i32:-1.
+    assert eq mod i64/MIN i64:-1 i64:0.
+    assert eq mod i64:-1 i64/MIN i64/MAX.
+    assert and not canAdd i64/MAX i64:1 not canSub i64/MIN i64:1.
+    assert and not canMul i64/MIN i64:-1 not canDiv i64/MIN i64:-1.
+    assert and eq u8/MIN u8:0 eq mod u8/MAX u8:10 u8:5.
+    assert and eq u32/MIN u32:0 eq mod u32/MAX u32:10 u32:5.
+    assert and eq u64/MIN u64:0 eq mod u64/MAX u64:10 u64:5.
+    assert and not canAdd u8/MAX u8:1 and not canSub u8/MIN u8:1 and not canMul u8:16 u8:16 not canDiv u8:1 u8:0.
+    assert and not canAdd u32/MAX u32:1 and not canSub u32/MIN u32:1 and not canMul u32:65536 u32:65536 not canDiv u32:1 u32:0.
+    assert and not canAdd u64/MAX u64:1 and not canSub u64/MIN u64:1 and not canMul u64:4294967296 u64:4294967296 not canDiv u64:1 u64:0.
     true.
 "#;
         let shared_idx = SeedGraphIndex::shared()?;

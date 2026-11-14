@@ -87,7 +87,7 @@ pub struct DiscoveredStagelFile {
     pub disk_path: PathBuf,
     /// Repository-relative path (`src/formats/dcdata/data-src/<stage>/<subpath>.sl3`).
     pub repo_rel_path: String,
-    /// Stage-relative PSR-4 path (`<subpath>.sl3`, e.g. `std/math/i32.sl3`).
+    /// Stage-relative PSR-4 path (`<subpath>.sl3`, e.g. `std/math.sl3`).
     pub psr4_rel_path: String,
     /// Raw file bytes.
     pub raw_bytes: Vec<u8>,

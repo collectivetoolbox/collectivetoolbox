@@ -3179,4 +3179,173 @@ v/u32/caller u32/n
         assert_eq!(vm.tail_calls.len(), 1);
         assert!(vm.tail_calls.contains(&(4, 5)));
     }
+
+    #[crate::ctb_test]
+    fn test_parameter_type_dispatch_and_typed_constants_validation() {
+        // 1. Positive: intra-module + cross-module `use` of overloaded routines
+        // and distinct-type constants, plus unambiguous single-definition `never` arg.
+        let lib_src = r#"
+ns demo/math.
+
+pub u8/UNIT u8:1.
+pub i32/UNIT i32:1.
+pub i64/UNIT i64:1.
+
+pub v/i32/stepAdd i32/x i32/y :: add i32/x i32/y.
+pub v/i64/stepAdd i64/x i64/y :: add i64/x i64/y.
+pub v/l/u8/stepAdd l/u8/prefix u64/take :: slice l/u8/prefix u64:0 u64/take.
+pub v/i32/solo i32/x :: i32/x.
+"#;
+        let caller_src = r#"
+ns demo/caller.
+use demo/math: UNIT stepAdd solo ::.
+
+v/u8/stepAdd u8/x u8/y :: add u8/x u8/y.
+
+pub v/b/checkAll b/abortEarly
+    if b/abortEarly
+        eq solo fault i32:0
+        do
+            const u8/res8 stepAdd u8:2 u8/UNIT.
+            const i32/res32 stepAdd i32:40 i32/UNIT.
+            const i64/res64 stepAdd i64:99 i64/UNIT.
+            const l/u8/resBytes stepAdd b"abcdef" u64:3.
+            and eq u8/res8 u8:3 and eq i32/res32 i32:41 and eq i64/res64 i64:100 eq l/u8/resBytes b"abc".
+        ::.
+"#;
+        let ws = parse_and_validate_workspace(&[
+            ModuleInput {
+                source_path: Some("demo/math.sl3"),
+                source: lib_src,
+            },
+            ModuleInput {
+                source_path: Some("demo/caller.sl3"),
+                source: caller_src,
+            },
+        ])
+        .expect("valid overloaded workspace should pass");
+        assert_eq!(ws.modules.len(), 2);
+
+        // 2. Return-type-only routine overload is rejected.
+        let ret_only_src = r#"
+v/i32/foo i32/x :: i32/x.
+v/i64/foo i32/x :: conv i32/x i64.
+"#;
+        let err = validate_module(&parse_module(ret_only_src).unwrap())
+            .expect_err("return-type-only overload must fail");
+        assert!(
+            err.to_string()
+                .contains("return-type-only overloading is disallowed"),
+            "Unexpected error: {err}"
+        );
+
+        // 3. Mismatched-arity intra-module routine overload is rejected.
+        let arity_mismatch_src = r#"
+v/i32/foo i32/x :: i32/x.
+v/i32/foo i32/x i32/y :: add i32/x i32/y.
+"#;
+        let err = parse_module(arity_mismatch_src)
+            .and_then(|m| validate_module(&m))
+            .expect_err("mismatched-arity overload must fail");
+        assert!(
+            err.to_string().contains("parameter count")
+                || err.to_string().contains("arity"),
+            "Unexpected error: {err}"
+        );
+
+        // 4. Mismatched-arity across `use` import + local routine is rejected.
+        let bad_import_arity = r#"
+ns demo/bad_arity.
+use demo/math: solo ::.
+
+v/i64/solo i64/x i64/y :: add i64/x i64/y.
+"#;
+        let err = parse_and_validate_workspace(&[
+            ModuleInput {
+                source_path: Some("demo/math.sl3"),
+                source: lib_src,
+            },
+            ModuleInput {
+                source_path: Some("demo/bad_arity.sl3"),
+                source: bad_import_arity,
+            },
+        ])
+        .expect_err("imported vs local arity mismatch must fail");
+        assert!(
+            err.to_string().contains("parameter count")
+                || err.to_string().contains("arity"),
+            "Unexpected error: {err}"
+        );
+
+        // 5. Ambiguous `never`-argument call across multiple overloads is rejected.
+        let ambiguous_never_src = r#"
+v/i32/pick i32/x i32/y :: add i32/x i32/y.
+v/i32/pick u32/x i32/y :: i32/y.
+v/i32/caller :: pick fault i32:1.
+"#;
+        let err = validate_module(&parse_module(ambiguous_never_src).unwrap())
+            .expect_err("ambiguous never argument must fail");
+        assert!(
+            err.to_string().contains("Ambiguous"),
+            "Unexpected error: {err}"
+        );
+
+        // 6. Unmatched concrete parameter tuple is rejected.
+        let no_match_src = r#"
+v/i32/pair i32/x i32/y :: add i32/x i32/y.
+v/i64/pair i64/x i64/y :: add i64/x i64/y.
+v/i64/caller :: pair i32:1 i64:2.
+"#;
+        let err = validate_module(&parse_module(no_match_src).unwrap())
+            .expect_err("unmatched overload parameter tuple must fail");
+        assert!(
+            err.to_string().contains("No matching overload"),
+            "Unexpected error: {err}"
+        );
+
+        // 7. Duplicate `(name, StageLType)` constant is rejected.
+        let dup_const_src = r#"
+const i32/K i32:1.
+const i32/K i32:2.
+"#;
+        let err = validate_module(&parse_module(dup_const_src).unwrap())
+            .expect_err("duplicate (name, type) constant must fail");
+        assert!(
+            err.to_string().contains("duplicates/shadows")
+                || err.to_string().contains("Duplicate"),
+            "Unexpected error: {err}"
+        );
+
+        // 8. Same identifier for both a constant and a routine is rejected.
+        let const_vs_routine_src = r#"
+const i32/clash i32:7.
+v/i32/clash i32/x :: i32/x.
+"#;
+        let err = parse_module(const_vs_routine_src)
+            .and_then(|m| validate_module(&m))
+            .expect_err("constant vs routine name collision must fail");
+        assert!(
+            err.to_string().contains("constant")
+                || err.to_string().contains("duplicates/shadows")
+                || err.to_string().contains("Duplicate")
+                || err.to_string().contains("conflicts"),
+            "Unexpected error: {err}"
+        );
+
+        // 9. Nested lexical routine overloading remains prohibited.
+        let nested_overload_src = r#"
+v/i32/outer i32/x
+    const v/i32/inner i32/a :: i32/a.
+    const v/i64/inner i64/a :: i64/a.
+    inner i32/x.
+"#;
+        let err = parse_module(nested_overload_src)
+            .and_then(|m| validate_module(&m))
+            .expect_err("nested lexical routine overloading must fail");
+        assert!(
+            err.to_string().contains("Duplicate")
+                || err.to_string().contains("re-declare"),
+            "Unexpected error: {err}"
+        );
+    }
 }

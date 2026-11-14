@@ -4758,11 +4758,20 @@ pub v/u32/guard_or_abort u32/val
         run_rustc_and_clippy_smoke(&std_rust, true);
 
         // Standalone `.sl3` linking `std/*` + direct `dc/l8589978237` from `SeedGraphIndex::shared()`
+        // without needing `as` import aliases across integer types.
         let linked_client_sl3 = r#"
 use std/bytes: explode implode ::.
-use std/math/i32: MIN as I32_MIN mod as mod32 canMul as canMul32 ::.
-use std/math/i64: MIN as I64_MIN mod as mod64 canMul as canMul64 ::.
-use std/math/u64: MAX as U64_MAX canAdd as canAddU64 ::.
+use std/math: MIN MAX mod canAdd canSub canMul canDiv ::.
+
+v/u32/stepCount u32/steps u32/acc
+    if eq u32/steps u32:0
+        u32/acc
+        stepCount sub u32/steps u32:1 add u32/acc u32:1.
+
+v/u64/stepCount u64/steps u64/acc
+    if eq u64/steps u64:0
+        u64/acc
+        stepCount sub u64/steps u64:1 add u64/acc u64:1.
 
 v/l/u8/roundtripJoin l/u8/s
     test roundtrip
@@ -4774,10 +4783,15 @@ v/b/checkLinkedMath
     test edgeBounds
         in.
         out true.
-    dc/l8589978237 eq mod32 i32/I32_MIN i32:-1 i32:0.
-    dc/l8589978237 eq mod64 i64/I64_MIN i64:-1 i64:0.
-    dc/l8589978237 and not canMul32 i32/I32_MIN i32:-1 not canMul64 i64/I64_MIN i64:-1.
-    dc/l8589978237 not canAddU64 u64/U64_MAX u64:1.
+    dc/l8589978237 and eq u8/MIN u8:0 eq mod u8:255 u8:10 u8:5.
+    dc/l8589978237 and eq u32/MIN u32:0 eq mod u32/MAX u32:10 u32:5.
+    dc/l8589978237 and eq u64/MIN u64:0 eq mod u64/MAX u64:10 u64:5.
+    dc/l8589978237 eq mod i32/MIN i32:-1 i32:0.
+    dc/l8589978237 eq mod i64/MIN i64:-1 i64:0.
+    dc/l8589978237 and not canMul i32/MIN i32:-1 not canMul i64/MIN i64:-1.
+    dc/l8589978237 and not canSub i32/MIN i32:1 not canDiv i64/MIN i64:-1.
+    dc/l8589978237 and not canAdd u8/MAX u8:1 not canAdd u64/MAX u64:1.
+    dc/l8589978237 and eq stepCount u32:5 u32:0 u32:5 eq stepCount u64:5 u64:0 u64:5.
     true.
 "#;
         let shared_idx =
