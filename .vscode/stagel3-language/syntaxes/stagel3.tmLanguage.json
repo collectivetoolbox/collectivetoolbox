@@ -166,8 +166,19 @@
                     }
                 },
                 {
+                    "match": "(?<![A-Za-z0-9_/:])((?i:do))([/?])?(?![A-Za-z0-9_/:?])",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.stagel3"
+                        },
+                        "2": {
+                            "name": "keyword.operator.try.stagel3"
+                        }
+                    }
+                },
+                {
                     "name": "keyword.control.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:if|while|foreach|break|continue|return|do|match|case|else|fault|unimplemented)(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])(?i:if|while|foreach|break|continue|return|nop|match|case|else|fault|unimplemented)(?![A-Za-z0-9_/:])"
                 },
                 {
                     "name": "keyword.declaration.stagel3",
@@ -178,8 +189,15 @@
         "operators": {
             "patterns": [
                 {
-                    "name": "support.function.builtin.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])(?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|trySub|tryMul|tryDiv|tryMod|tryTruncRem|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|field|with|isSome|isNone|unwrapOr|unwrapSome|isOk|isErr|unwrapOk|unwrapErr|assert)(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])((?i:add|sub|mul|div|rem|truncRem|mod|neg|wrapAdd|wrapSub|wrapMul|tryAdd|trySub|tryMul|tryDiv|tryMod|tryTruncRem|bitAnd|bitOr|bitXor|bitNot|shl|shr|rotl|rotr|clz|ctz|popcnt|not|and|or|eq|ne|lt|le|gt|ge|conv|bitcast|len|byteLen|get|slice|concat|explode|implode|bufNew|bufFill|bufPush|bufExtend|bufSet|bufFreeze|zl|wrap|unwrap|field|with|isSome|isNone|unwrapOr|unwrapSome|isOk|isErr|unwrapOk|unwrapErr|assert))([/?])?(?![A-Za-z0-9_/:?])",
+                    "captures": {
+                        "1": {
+                            "name": "support.function.builtin.stagel3"
+                        },
+                        "2": {
+                            "name": "keyword.operator.try.stagel3"
+                        }
+                    }
                 }
             ]
         },
@@ -225,7 +243,7 @@
                 },
                 {
                     "name": "variable.other.typed.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor))/([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)",
+                    "match": "(?<![A-Za-z0-9_/:])((?:(?i:l|buf|option|result)/)*)((?i:[ui](?:8|16|32|64|128|(?:n:[a-j]:)+)|b|t|s|dc|dcs|int|rat|view|cursor))/([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
                     "captures": {
                         "1": {
                             "name": "storage.type.container.stagel3"
@@ -235,6 +253,24 @@
                         },
                         "3": {
                             "name": "variable.other.stagel3"
+                        },
+                        "4": {
+                            "name": "keyword.operator.try.stagel3"
+                        }
+                    }
+                },
+                {
+                    "name": "variable.other.bare.stagel3",
+                    "match": "(?<![A-Za-z0-9_/:])(/)([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.accessor.slash.stagel3"
+                        },
+                        "2": {
+                            "name": "variable.other.stagel3"
+                        },
+                        "3": {
+                            "name": "keyword.operator.try.stagel3"
                         }
                     }
                 },
@@ -266,8 +302,15 @@
                     }
                 },
                 {
-                    "name": "entity.name.function.call.stagel3",
-                    "match": "(?<![A-Za-z0-9_/:])([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)(?![A-Za-z0-9_/:])"
+                    "match": "(?<![A-Za-z0-9_/:])([A-Za-z](?:[A-Za-z0-9]|(?:[nN]|(?i:char)):[A-Za-z]+:)*)([/?])?(?![A-Za-z0-9_/:?])",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.function.call.stagel3"
+                        },
+                        "2": {
+                            "name": "keyword.operator.try.stagel3"
+                        }
+                    }
                 }
             ]
         },
