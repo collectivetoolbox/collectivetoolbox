@@ -234,10 +234,7 @@ impl<'a> TokenCursor<'a> {
         let tok = self.next()?;
         if self.token_fills_role(tok, DcRole::BeginTypeDef) {
             let inner = self.next()?;
-            let vtype = if self.token_fills_role(inner, DcRole::TypeRoutine)
-                || self.token_fills_role(inner, DcRole::StagelListType)
-                || self.token_fills_role(inner, DcRole::StagelBufType)
-            {
+            let vtype = if self.token_fills_role(inner, DcRole::TypeRoutine) {
                 let mut depth = 1usize;
                 while let Some(peek_tok) = self.peek() {
                     if self.token_fills_role(peek_tok, DcRole::BeginTypeDef) {
@@ -254,11 +251,7 @@ impl<'a> TokenCursor<'a> {
                         let _ = self.next()?;
                     }
                 }
-                if self.token_fills_role(inner, DcRole::TypeRoutine) {
-                    WASM_VALTYPE_FUNCREF
-                } else {
-                    WASM_VALTYPE_I32
-                }
+                WASM_VALTYPE_FUNCREF
             } else {
                 map_format_token_to_valtype(inner, self.resolver)?
             };
@@ -8426,6 +8419,43 @@ mod tests {
             get_nested_list.is_some(),
             "Dc 2544 (get) must resolve `2576 2576 f208` via `2576 2576 275` wildcard"
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dcmstring_to_wasm_rejects_stagel_types_in_wasm_valtype() -> Result<()> {
+        // Routine `1927 260 262 280 262 2576 f208 263 263 712 6 f199 127 7 261 1928`
+        // attempts to use StageL list type `2576` (`l/i32`) as a `.WASM` return type.
+        // `.WASM` lowering must not depend on StageL Dcs (`2576`/`2577`).
+        let resolver = default_syntax_resolver();
+        for stagel_ty_short in [2576u32, 2577u32] {
+            let shorthands = [
+                DcShorthand::Short(1927),
+                DcShorthand::Short(260),
+                DcShorthand::Short(262),
+                DcShorthand::Short(280),
+                DcShorthand::Short(262),
+                DcShorthand::Short(stagel_ty_short),
+                DcShorthand::Format(208),
+                DcShorthand::Short(263),
+                DcShorthand::Short(263),
+                DcShorthand::Short(712),
+                DcShorthand::Short(6),
+                DcShorthand::Format(199),
+                DcShorthand::Short(127),
+                DcShorthand::Short(7),
+                DcShorthand::Short(261),
+                DcShorthand::Short(1928),
+            ];
+            let mut mstr = DcMstring::new();
+            for sh in shorthands {
+                mstr.push_char(DcChar::from_u128(sh.to_global_id()?));
+            }
+            assert!(
+                dcmstring_to_wasm_with_resolver(&mstr, resolver.as_ref()).is_err(),
+                "dcmstring_to_wasm must reject StageL Dc {stagel_ty_short} inside .WASM valtype"
+            );
+        }
         Ok(())
     }
 }
