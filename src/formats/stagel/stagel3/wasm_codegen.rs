@@ -41,8 +41,8 @@ pub use runner::{
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    Span, StageLType, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
-    TypedIntLit,
+    Span, StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
+    TopValueDecl, TypedIntLit,
 };
 use super::rust_codegen::{
     analyze_block_captures, sanitize_ident, stagel_params_slug,
@@ -54,8 +54,8 @@ use super::seed_linker::{
     validate_dc_tokens_with_seed_graph,
 };
 use super::validator::{
-    ImportedSymbol, ModuleInput, RoutineKey, RoutineSig, ValidatedModule,
-    ValidatedWorkspace, ValueKey,
+    ImportedSymbol, ModuleInput, RoutineKey, RoutineSig, StructDef,
+    ValidatedModule, ValidatedWorkspace, ValueKey,
 };
 use ctb_formats_dcdata::{DcChar, SeedGraphIndex};
 use ctb_formats_dcdata::dc::{
@@ -74,7 +74,7 @@ use ctb_formats_dcstring::DcMstring;
 use ctb_formats_dcstring::converters::wasm::dcmstring_to_wasm;
 use ctb_utilities::format_id::FormatId;
 use linker::{WasmFuncBuilder, WasmModuleLinker, WasmValType};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 const SHADOW_STACK_BYTES: i32 = 65_536;
 const SHADOW_CELL_BYTES: i32 = 16;
@@ -198,7 +198,9 @@ fn stagel_wasm_valtype(ty: &StageLType) -> Option<WasmValType> {
         | StageLType::I32
         | StageLType::U32
         | StageLType::List(_)
-        | StageLType::Buf(_) => Some(WasmValType::I32),
+        | StageLType::Buf(_)
+        | StageLType::Tuple(_)
+        | StageLType::Struct(_) => Some(WasmValType::I32),
         StageLType::I64 | StageLType::U64 => Some(WasmValType::I64),
         StageLType::Void | StageLType::Never => None,
     }
@@ -208,9 +210,14 @@ fn elem_storage_info(ty: &StageLType) -> Result<(u32, u32)> {
     // Returns (byte_stride, align_exp)
     match ty {
         StageLType::B | StageLType::U8 => Ok((1, 0)),
-        StageLType::I32 | StageLType::U32 | StageLType::List(_) => Ok((4, 2)),
+        StageLType::I32
+        | StageLType::U32
+        | StageLType::List(_)
+        | StageLType::Buf(_)
+        | StageLType::Tuple(_)
+        | StageLType::Struct(_) => Ok((4, 2)),
         StageLType::I64 | StageLType::U64 => Ok((8, 3)),
-        other => bail!("Type '{other}' cannot be stored in linear memory sequence"),
+        other => bail!("Type '{other}' cannot be stored in linear memory"),
     }
 }
 
@@ -231,18 +238,7 @@ fn scalar_format_gid(ty: &StageLType) -> Result<u128> {
 }
 
 fn type_slug(ty: &StageLType) -> String {
-    match ty {
-        StageLType::B => String::from("b"),
-        StageLType::U8 => String::from("u8"),
-        StageLType::I32 => String::from("i32"),
-        StageLType::U32 => String::from("u32"),
-        StageLType::I64 => String::from("i64"),
-        StageLType::U64 => String::from("u64"),
-        StageLType::Void => String::from("void"),
-        StageLType::Never => String::from("never"),
-        StageLType::List(inner) => format!("l_{}", type_slug(inner)),
-        StageLType::Buf(inner) => format!("buf_{}", type_slug(inner)),
-    }
+    stagel_type_slug(ty)
 }
 
 #[derive(Debug, Clone)]
@@ -343,7 +339,8 @@ struct WorkspaceWasmCompiler<'a> {
     top_routines_by_dc: HashMap<(usize, DcChar), TopRoutineEntry>,
     top_consts_by_key: HashMap<(usize, ValueKey), TopConstEntry>,
     top_consts_by_dc: HashMap<(usize, DcChar), TopConstEntry>,
-    list_eq_helpers: HashMap<StageLType, u32>,
+    struct_defs: BTreeMap<(Option<String>, String), StructDef>,
+    structural_eq_helpers: BTreeMap<StageLType, u32>,
     next_routine_uid: usize,
 }
 
@@ -389,6 +386,14 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         let mut top_routines_by_dc = HashMap::new();
         let mut top_consts_by_key = HashMap::new();
         let mut top_consts_by_dc = HashMap::new();
+        let mut struct_defs: BTreeMap<(Option<String>, String), StructDef> =
+            BTreeMap::new();
+
+        for vm in &workspace.modules {
+            for (k, sdef) in &vm.struct_defs {
+                struct_defs.entry(k.clone()).or_insert_with(|| sdef.clone());
+            }
+        }
 
         for (mod_idx, vm) in workspace.modules.iter().enumerate() {
             let mod_prefix = if let Some(ns) = &vm.namespace_key {
@@ -409,10 +414,11 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             for item in &vm.module.items {
                 match item {
                     TopDecl::Value(v) => {
-                        let vt = stagel_wasm_valtype(&v.ty).with_context(|| {
+                        let canon_ty = vm.canonicalize_type(&v.ty);
+                        let vt = stagel_wasm_valtype(&canon_ty).with_context(|| {
                             format!(
                                 "Top-level constant '{}' has non-storable type '{}'",
-                                v.name, v.ty
+                                v.name, canon_ty
                             )
                         })?;
                         let san = sanitize_ident(&v.name);
@@ -420,17 +426,21 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                         let global_idx = linker.ensure_global(&g_name, vt, 0)?;
                         let entry = TopConstEntry {
                             global_idx,
-                            ty: v.ty.clone(),
+                            ty: canon_ty,
                         };
                         top_consts_by_key
-                            .insert((mod_idx, ValueKey::from_decl(v)), entry.clone());
+                            .insert((mod_idx, vm.value_key(v)), entry.clone());
                         if let Some(dc) = v.dc_id {
                             top_consts_by_dc.insert((mod_idx, dc), entry);
                         }
                     }
                     TopDecl::Routine(r) => {
-                        let params: Vec<StageLType> =
-                            r.params.iter().map(|p| p.ty.clone()).collect();
+                        let params: Vec<StageLType> = r
+                            .params
+                            .iter()
+                            .map(|p| vm.canonicalize_type(&p.ty))
+                            .collect();
+                        let ret_ty = vm.canonicalize_type(&r.return_type);
                         let overloaded = routine_name_counts
                             .get(r.name.as_str())
                             .copied()
@@ -446,19 +456,19 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                         };
                         let func_idx = linker.reserve_routine(&f_name)?;
                         let sig = RoutineSig {
-                            return_type: r.return_type.clone(),
+                            return_type: ret_ty,
                             params,
                             is_pub: r.is_pub,
                             dc_id: r.dc_id,
                         };
                         let entry = TopRoutineEntry { func_idx, sig };
                         top_routines_by_key
-                            .insert((mod_idx, RoutineKey::from_decl(r)), entry.clone());
+                            .insert((mod_idx, vm.routine_key(r)), entry.clone());
                         if let Some(dc) = r.dc_id {
                             top_routines_by_dc.insert((mod_idx, dc), entry);
                         }
                     }
-                    TopDecl::Comment(_) => {}
+                    TopDecl::Struct(_) | TopDecl::Comment(_) => {}
                 }
             }
         }
@@ -475,9 +485,68 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             top_routines_by_dc,
             top_consts_by_key,
             top_consts_by_dc,
-            list_eq_helpers: HashMap::new(),
+            struct_defs,
+            structural_eq_helpers: BTreeMap::new(),
             next_routine_uid: 1,
         })
+    }
+
+    fn canon_type(
+        &self,
+        mod_idx: usize,
+        ty: &StageLType,
+    ) -> Result<StageLType> {
+        let vm = self
+            .workspace
+            .modules
+            .get(mod_idx)
+            .context("Invalid module index")?;
+        Ok(vm.canonicalize_type(ty))
+    }
+
+    fn composite_layout(
+        &self,
+        canon_ty: &StageLType,
+    ) -> Result<(u32, Vec<(u32, u32, u32, StageLType)>)> {
+        let slots: &[StageLType] = match canon_ty {
+            StageLType::Tuple(elems) => elems.as_slice(),
+            StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+                let sdef = self
+                    .struct_defs
+                    .get(&(namespace.clone(), name.clone()))
+                    .with_context(|| {
+                        format!(
+                            "Unknown struct '{namespace:?}::{name}' in WASM layout"
+                        )
+                    })?;
+                sdef.fields.as_slice()
+            }
+            other => {
+                bail!("Type '{other}' is not a positional struct or n-ary tuple")
+            }
+        };
+        if slots.is_empty() {
+            return Ok((0, Vec::new()));
+        }
+        let mut cur = 0u32;
+        let mut layout = Vec::with_capacity(slots.len());
+        for s in slots {
+            let (stride, align_exp) = elem_storage_info(s)?;
+            let mask = stride.saturating_sub(1);
+            let aligned = cur
+                .checked_add(mask)
+                .context("Composite slot alignment overflow")?
+                & !mask;
+            layout.push((aligned, stride, align_exp, s.clone()));
+            cur = aligned
+                .checked_add(stride)
+                .context("Composite total byte size overflow")?;
+        }
+        let total = cur
+            .checked_add(3)
+            .context("Composite trailing padding overflow")?
+            & !3;
+        Ok((total.max(4), layout))
     }
 
     fn alloc_routine_uid(&mut self) -> usize {
@@ -606,9 +675,15 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     .cloned()
                     .collect();
             for val_decl in &sorted {
+                let vkey = self
+                    .workspace
+                    .modules
+                    .get(mod_idx)
+                    .context("Invalid module index")?
+                    .value_key(val_decl);
                 let entry = self
                     .top_consts_by_key
-                    .get(&(mod_idx, ValueKey::from_decl(val_decl)))
+                    .get(&(mod_idx, vkey))
                     .cloned()
                     .context("Missing top-level constant entry")?;
                 let r_uid = self.alloc_routine_uid();
@@ -658,9 +733,15 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             .collect();
 
         for r in &routines {
+            let rkey = self
+                .workspace
+                .modules
+                .get(mod_idx)
+                .context("Invalid module index")?
+                .routine_key(r);
             let entry = self
                 .top_routines_by_key
-                .get(&(mod_idx, RoutineKey::from_decl(r)))
+                .get(&(mod_idx, rkey))
                 .cloned()
                 .context("Missing reserved top-level routine")?;
             self.emit_routine_body(
@@ -727,10 +808,11 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         for p in &r.params {
             let param_idx = u32::try_from(wasm_params.len())
                 .context("WASM parameter index exceeds u32")?;
-            let vt = stagel_wasm_valtype(&p.ty).with_context(|| {
+            let canon_pty = self.canon_type(mod_idx, &p.ty)?;
+            let vt = stagel_wasm_valtype(&canon_pty).with_context(|| {
                 format!(
                     "Parameter '{}' of '{}' has non-value type '{}'",
-                    p.name, r.name, p.ty
+                    p.name, r.name, canon_pty
                 )
             })?;
             wasm_params.push((sanitize_ident(&p.name), vt));
@@ -738,12 +820,13 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 p.name.clone(),
                 VarBinding::Local {
                     local_idx: param_idx,
-                    ty: p.ty.clone(),
+                    ty: canon_pty,
                 },
             );
         }
 
-        let ret_vt = stagel_wasm_valtype(&r.return_type);
+        let canon_ret = self.canon_type(mod_idx, &r.return_type)?;
+        let ret_vt = stagel_wasm_valtype(&canon_ret);
         let mut fb = WasmFuncBuilder::new(wasm_params, ret_vt);
 
         // Top-level routines ensure module constants are initialized on entry
@@ -781,7 +864,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             mod_idx,
             routine_uid,
             is_nested,
-            return_type: r.return_type.clone(),
+            return_type: canon_ret,
             entry_sp_local,
             caller_restore_sp_local,
             fb: &mut fb,
@@ -931,9 +1014,16 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 .collect();
 
             for r in &routines {
+                let rkey = self
+                    .workspace
+                    .modules
+                    .get(mod_idx)
+                    .context("Invalid module index")?
+                    .routine_key(r);
+                let canon_ret = self.canon_type(mod_idx, &r.return_type)?;
                 let target_entry = self
                     .top_routines_by_key
-                    .get(&(mod_idx, RoutineKey::from_decl(r)))
+                    .get(&(mod_idx, rkey))
                     .cloned()
                     .context("Missing routine entry for test")?;
                 for tb in &r.tests {
@@ -1001,13 +1091,13 @@ impl<'a> WorkspaceWasmCompiler<'a> {
 
                         if !diverged {
                             fctx.fb.call(target_entry.func_idx)?;
-                            if r.return_type == StageLType::Never {
+                            if canon_ret == StageLType::Never {
                                 fctx.fb.unreachable()?;
                             } else {
                                 match &tc.expected {
                                     TestExpected::Expr(exp_expr) => {
                                         let ret_vt =
-                                            stagel_wasm_valtype(&r.return_type)
+                                            stagel_wasm_valtype(&canon_ret)
                                                 .context("Expected value return type in test")?;
                                         let actual_loc =
                                             fctx.fb.alloc_local(ret_vt)?;
@@ -1023,7 +1113,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                                             fctx.fb.local_get(exp_loc)?;
                                             self.emit_eq_op(
                                                 &mut fctx,
-                                                &r.return_type,
+                                                &canon_ret,
                                                 false,
                                             )?;
                                             fctx.fb
@@ -1035,7 +1125,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                                         fctx.fb.global_set(passed_global)?;
                                     }
                                     TestExpected::Fault(_) => {
-                                        if stagel_wasm_valtype(&r.return_type)
+                                        if stagel_wasm_valtype(&canon_ret)
                                             .is_some()
                                         {
                                             fctx.fb.drop_op()?;
@@ -1157,7 +1247,27 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             }
             Expr::List {
                 elem_ty, elements, ..
-            } => self.emit_list_constructor(fctx, elem_ty, elements),
+            } => {
+                let canon_elem = self.canon_type(fctx.mod_idx, elem_ty)?;
+                self.emit_list_constructor(fctx, &canon_elem, elements)
+            }
+            Expr::TupleNew { elements, .. } => {
+                self.emit_tuple_constructor(fctx, elements)
+            }
+            Expr::StructNew {
+                target,
+                fields,
+                span,
+            } => self.emit_struct_constructor(fctx, target, fields, *span),
+            Expr::Field { base, index, .. } => {
+                self.emit_field_expr(fctx, base, *index)
+            }
+            Expr::With {
+                base,
+                index,
+                value,
+                ..
+            } => self.emit_with_expr(fctx, base, *index, value),
             Expr::BufNew {
                 elem_ty, capacity, ..
             } => {
@@ -1165,13 +1275,14 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 if cap_ty == StageLType::Never {
                     return Ok(StageLType::Never);
                 }
+                let canon_elem = self.canon_type(fctx.mod_idx, elem_ty)?;
                 let fn_idx = self.link_seq_or_buf_builtin(
                     DC_STAGEL_BUF_NEW,
                     DC_STAGEL_BUF_TYPE,
-                    elem_ty,
+                    &canon_elem,
                 )?;
                 fctx.fb.call(fn_idx)?;
-                Ok(StageLType::Buf(Box::new(elem_ty.clone())))
+                Ok(StageLType::Buf(Box::new(canon_elem)))
             }
             Expr::ValueRef { target, span, .. } => {
                 self.emit_value_ref(fctx, target, *span)
@@ -1422,6 +1533,192 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         Ok(StageLType::List(Box::new(elem_ty.clone())))
     }
 
+    fn emit_tuple_constructor(
+        &mut self,
+        fctx: &mut FuncEmitCtx<'_>,
+        elements: &[Expr],
+    ) -> Result<StageLType> {
+        let mut elem_locals = Vec::with_capacity(elements.len());
+        let mut elem_tys = Vec::with_capacity(elements.len());
+        for el_expr in elements {
+            let ety = self.emit_expr(fctx, el_expr, false)?;
+            if ety == StageLType::Never {
+                return Ok(StageLType::Never);
+            }
+            let canon_ety = self.canon_type(fctx.mod_idx, &ety)?;
+            let vt = stagel_wasm_valtype(&canon_ety)
+                .with_context(|| format!("Invalid tuple slot type '{canon_ety}'"))?;
+            let loc = fctx.fb.alloc_local(vt)?;
+            fctx.fb.local_set(loc)?;
+            elem_locals.push(loc);
+            elem_tys.push(canon_ety);
+        }
+        let tup_ty = StageLType::Tuple(elem_tys);
+        if elem_locals.is_empty() {
+            fctx.fb.i32_const(0)?;
+            return Ok(tup_ty);
+        }
+        self.emit_store_composite_slots(fctx, &tup_ty, &elem_locals)?;
+        Ok(tup_ty)
+    }
+
+    fn emit_struct_constructor(
+        &mut self,
+        fctx: &mut FuncEmitCtx<'_>,
+        target: &SymbolTarget,
+        fields: &[Expr],
+        span: Span,
+    ) -> Result<StageLType> {
+        let mut field_locals = Vec::with_capacity(fields.len());
+        for f_expr in fields {
+            let fty = self.emit_expr(fctx, f_expr, false)?;
+            if fty == StageLType::Never {
+                return Ok(StageLType::Never);
+            }
+            let vt = stagel_wasm_valtype(&fty)
+                .with_context(|| format!("Invalid struct field type '{fty}'"))?;
+            let loc = fctx.fb.alloc_local(vt)?;
+            fctx.fb.local_set(loc)?;
+            field_locals.push(loc);
+        }
+        let struct_ty = {
+            let vm = self
+                .workspace
+                .modules
+                .get(fctx.mod_idx)
+                .context("Invalid module index")?;
+            if let Some(ty) = vm.expr_types.get(&(span.line, span.col)) {
+                vm.canonicalize_type(ty)
+            } else {
+                let raw = match target {
+                    SymbolTarget::Ident(name) => {
+                        StageLType::Struct(StructTypeRef::Ident(name.clone()))
+                    }
+                    SymbolTarget::Dc(dc) => {
+                        StageLType::Struct(StructTypeRef::Dc(*dc))
+                    }
+                };
+                vm.canonicalize_type(&raw)
+            }
+        };
+        self.emit_store_composite_slots(fctx, &struct_ty, &field_locals)?;
+        Ok(struct_ty)
+    }
+
+    fn emit_store_composite_slots(
+        &mut self,
+        fctx: &mut FuncEmitCtx<'_>,
+        canon_ty: &StageLType,
+        slot_locals: &[u32],
+    ) -> Result<()> {
+        let (total_bytes, layout) = self.composite_layout(canon_ty)?;
+        let (alloc_idx, _) = self.linker.ensure_alloc_helper()?;
+        let total_i32 =
+            i32::try_from(total_bytes).context("Composite size exceeds i32")?;
+        let ptr_loc = fctx.fb.alloc_local(WasmValType::I32)?;
+        fctx.fb.i32_const(total_i32)?;
+        fctx.fb.call(alloc_idx)?;
+        fctx.fb.local_set(ptr_loc)?;
+
+        for ((offset, stride, align_exp, _), &val_loc) in
+            layout.iter().zip(slot_locals.iter())
+        {
+            fctx.fb.local_get(ptr_loc)?;
+            fctx.fb.local_get(val_loc)?;
+            match *stride {
+                1 => fctx.fb.i32_store8(u64::from(*offset))?,
+                4 => fctx.fb.i32_store(*align_exp, u64::from(*offset))?,
+                8 => fctx.fb.i64_store(*align_exp, u64::from(*offset))?,
+                other => bail!("Unsupported composite slot stride {other}"),
+            }
+        }
+        fctx.fb.local_get(ptr_loc)?;
+        Ok(())
+    }
+
+    fn emit_field_expr(
+        &mut self,
+        fctx: &mut FuncEmitCtx<'_>,
+        base: &Expr,
+        index: u32,
+    ) -> Result<StageLType> {
+        let base_ty = self.emit_expr(fctx, base, false)?;
+        if base_ty == StageLType::Never {
+            return Ok(StageLType::Never);
+        }
+        let canon_base = self.canon_type(fctx.mod_idx, &base_ty)?;
+        let (_, layout) = self.composite_layout(&canon_base)?;
+        let idx = usize::try_from(index).context("Field index exceeds usize")?;
+        let (offset, stride, align_exp, slot_ty) = layout
+            .get(idx)
+            .cloned()
+            .with_context(|| format!("Field index {index} out of bounds"))?;
+        match stride {
+            1 => fctx.fb.i32_load8_u(u64::from(offset))?,
+            4 => fctx.fb.i32_load(align_exp, u64::from(offset))?,
+            8 => fctx.fb.i64_load(align_exp, u64::from(offset))?,
+            other => bail!("Unsupported composite slot stride {other}"),
+        }
+        Ok(slot_ty)
+    }
+
+    fn emit_with_expr(
+        &mut self,
+        fctx: &mut FuncEmitCtx<'_>,
+        base: &Expr,
+        index: u32,
+        value: &Expr,
+    ) -> Result<StageLType> {
+        let base_ty = self.emit_expr(fctx, base, false)?;
+        if base_ty == StageLType::Never {
+            return Ok(StageLType::Never);
+        }
+        let base_loc = fctx.fb.alloc_local(WasmValType::I32)?;
+        fctx.fb.local_set(base_loc)?;
+
+        let val_ty = self.emit_expr(fctx, value, false)?;
+        if val_ty == StageLType::Never {
+            return Ok(StageLType::Never);
+        }
+        let val_vt = stagel_wasm_valtype(&val_ty)
+            .with_context(|| format!("Invalid 'with' slot value type '{val_ty}'"))?;
+        let val_loc = fctx.fb.alloc_local(val_vt)?;
+        fctx.fb.local_set(val_loc)?;
+
+        let canon_base = self.canon_type(fctx.mod_idx, &base_ty)?;
+        let (total_bytes, layout) = self.composite_layout(&canon_base)?;
+        let idx = usize::try_from(index).context("With index exceeds usize")?;
+        let (offset, stride, align_exp, _) = layout
+            .get(idx)
+            .cloned()
+            .with_context(|| format!("With index {index} out of bounds"))?;
+
+        let (alloc_idx, _) = self.linker.ensure_alloc_helper()?;
+        let total_i32 =
+            i32::try_from(total_bytes).context("Composite size exceeds i32")?;
+        let new_loc = fctx.fb.alloc_local(WasmValType::I32)?;
+        fctx.fb.i32_const(total_i32)?;
+        fctx.fb.call(alloc_idx)?;
+        fctx.fb.local_set(new_loc)?;
+
+        fctx.fb.local_get(new_loc)?;
+        fctx.fb.local_get(base_loc)?;
+        fctx.fb.i32_const(total_i32)?;
+        fctx.fb.memory_copy()?;
+
+        fctx.fb.local_get(new_loc)?;
+        fctx.fb.local_get(val_loc)?;
+        match stride {
+            1 => fctx.fb.i32_store8(u64::from(offset))?,
+            4 => fctx.fb.i32_store(align_exp, u64::from(offset))?,
+            8 => fctx.fb.i64_store(align_exp, u64::from(offset))?,
+            other => bail!("Unsupported composite slot stride {other}"),
+        }
+
+        fctx.fb.local_get(new_loc)?;
+        Ok(canon_base)
+    }
+
     fn emit_value_ref(
         &self,
         fctx: &mut FuncEmitCtx<'_>,
@@ -1565,8 +1862,9 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         name: &str,
         init: Option<&Expr>,
     ) -> Result<StageLType> {
-        let vt = stagel_wasm_valtype(ty)
-            .with_context(|| format!("Invalid 'let' variable type '{ty}'"))?;
+        let canon_ty = self.canon_type(fctx.mod_idx, ty)?;
+        let vt = stagel_wasm_valtype(&canon_ty)
+            .with_context(|| format!("Invalid 'let' variable type '{canon_ty}'"))?;
         // Check if pre-allocated as a captured `Cell` in the current block scope
         let pre_cell = fctx
             .scopes
@@ -1585,7 +1883,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 }
                 let tmp = fctx.fb.alloc_local(vt)?;
                 fctx.fb.local_set(tmp)?;
-                Self::emit_write_cell(fctx, cell_ptr_loc, ty, tmp)?;
+                Self::emit_write_cell(fctx, cell_ptr_loc, &canon_ty, tmp)?;
             }
             return Ok(StageLType::Void);
         }
@@ -1603,7 +1901,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 name.to_owned(),
                 VarBinding::Local {
                     local_idx: loc,
-                    ty: ty.clone(),
+                    ty: canon_ty,
                 },
             );
         }
@@ -1617,8 +1915,9 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         name: &str,
         value: &Expr,
     ) -> Result<StageLType> {
-        let vt = stagel_wasm_valtype(ty)
-            .with_context(|| format!("Invalid 'const' type '{ty}'"))?;
+        let canon_ty = self.canon_type(fctx.mod_idx, ty)?;
+        let vt = stagel_wasm_valtype(&canon_ty)
+            .with_context(|| format!("Invalid 'const' type '{canon_ty}'"))?;
         let vty = self.emit_expr(fctx, value, false)?;
         if vty == StageLType::Never {
             return Ok(StageLType::Never);
@@ -1630,7 +1929,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 name.to_owned(),
                 VarBinding::Local {
                     local_idx: loc,
-                    ty: ty.clone(),
+                    ty: canon_ty,
                 },
             );
         }
@@ -1707,6 +2006,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     || set_targets_deep.contains(name)
                     || init.is_none())
             {
+                let canon_ty = self.canon_type(fctx.mod_idx, ty)?;
                 let srt = self
                     .shadow_rt
                     .as_ref()
@@ -1719,7 +2019,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                     name.clone(),
                     VarBinding::Cell {
                         ptr_local_idx: ptr_loc,
-                        ty: ty.clone(),
+                        ty: canon_ty,
                     },
                 );
             }
@@ -1731,17 +2031,18 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         for stmt in &exprs {
             match stmt {
                 Expr::Let { name, ty, .. } | Expr::Const { name, ty, .. } => {
+                    let canon_ty = self.canon_type(fctx.mod_idx, ty)?;
                     if let Some(VarBinding::Cell { .. }) =
                         scope_layer.vars.get(name)
                     {
                         block_var_modes.insert(
                             name.clone(),
-                            (ty.clone(), CapturePassMode::CellPtr),
+                            (canon_ty, CapturePassMode::CellPtr),
                         );
-                    } else if let Some(vt) = stagel_wasm_valtype(ty) {
+                    } else if let Some(vt) = stagel_wasm_valtype(&canon_ty) {
                         block_var_modes.insert(
                             name.clone(),
-                            (ty.clone(), CapturePassMode::ImmVal(vt)),
+                            (canon_ty, CapturePassMode::ImmVal(vt)),
                         );
                     }
                 }
@@ -1788,9 +2089,13 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 }
             }
 
+            let mut canon_params = Vec::with_capacity(nr.params.len());
+            for p in &nr.params {
+                canon_params.push(self.canon_type(fctx.mod_idx, &p.ty)?);
+            }
             let sig = RoutineSig {
-                return_type: nr.return_type.clone(),
-                params: nr.params.iter().map(|p| p.ty.clone()).collect(),
+                return_type: self.canon_type(fctx.mod_idx, &nr.return_type)?,
+                params: canon_params,
                 is_pub: false,
                 dc_id: nr.dc_id,
             };
@@ -1946,9 +2251,10 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             return Ok(StageLType::Never);
         }
 
-        let elem_vt = stagel_wasm_valtype(elem_ty)
-            .with_context(|| format!("Invalid foreach element type '{elem_ty}'"))?;
-        let (stride, align_exp) = elem_storage_info(elem_ty)?;
+        let canon_elem = self.canon_type(fctx.mod_idx, elem_ty)?;
+        let elem_vt = stagel_wasm_valtype(&canon_elem)
+            .with_context(|| format!("Invalid foreach element type '{canon_elem}'"))?;
+        let (stride, align_exp) = elem_storage_info(&canon_elem)?;
         let stride_i32 =
             i32::try_from(stride).context("Element stride exceeds i32")?;
 
@@ -2012,7 +2318,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             elem_name.to_owned(),
             VarBinding::Local {
                 local_idx: elem_loc,
-                ty: elem_ty.clone(),
+                ty: canon_elem,
             },
         );
         fctx.scopes.push(iter_scope);
@@ -2641,12 +2947,13 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         if src_ty == StageLType::Never {
             return Ok(StageLType::Never);
         }
+        let canon_target = self.canon_type(fctx.mod_idx, target_ty)?;
         let src_gid = scalar_format_gid(&src_ty)?;
-        let dst_gid = scalar_format_gid(target_ty)?;
+        let dst_gid = scalar_format_gid(&canon_target)?;
         let key = format!(
             "__builtin_2541_{}_{}",
             type_slug(&src_ty),
-            type_slug(target_ty)
+            type_slug(&canon_target)
         );
         let fn_idx = self.linker.link_system_builtin(
             DC_CONVERT_OP.to_u128(),
@@ -2654,7 +2961,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             &key,
         )?;
         fctx.fb.call(fn_idx)?;
-        Ok(target_ty.clone())
+        Ok(canon_target)
     }
 
     fn emit_bitcast_expr(
@@ -2667,12 +2974,13 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         if src_ty == StageLType::Never {
             return Ok(StageLType::Never);
         }
+        let canon_target = self.canon_type(fctx.mod_idx, target_ty)?;
         let src_gid = scalar_format_gid(&src_ty)?;
-        let dst_gid = scalar_format_gid(target_ty)?;
+        let dst_gid = scalar_format_gid(&canon_target)?;
         let key = format!(
             "__builtin_2542_{}_{}",
             type_slug(&src_ty),
-            type_slug(target_ty)
+            type_slug(&canon_target)
         );
         let fn_idx = self.linker.link_system_builtin(
             DC_BITCAST_OP.to_u128(),
@@ -2680,7 +2988,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             &key,
         )?;
         fctx.fb.call(fn_idx)?;
-        Ok(target_ty.clone())
+        Ok(canon_target)
     }
 
     fn emit_eq_op(
@@ -2689,7 +2997,8 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         ty: &StageLType,
         negate: bool,
     ) -> Result<()> {
-        match ty {
+        let canon_ty = self.canon_type(fctx.mod_idx, ty)?;
+        match &canon_ty {
             StageLType::B
             | StageLType::U8
             | StageLType::I32
@@ -2697,86 +3006,125 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             | StageLType::I64
             | StageLType::U64 => {
                 let dc = if negate { DC_NE_OP } else { DC_EQ_OP };
-                let f = self.link_scalar_builtin(dc, ty)?;
+                let f = self.link_scalar_builtin(dc, &canon_ty)?;
                 fctx.fb.call(f)?;
                 Ok(())
             }
-            StageLType::List(inner) => match inner.as_ref() {
-                StageLType::B
-                | StageLType::U8
-                | StageLType::I32
-                | StageLType::U32
-                | StageLType::I64
-                | StageLType::U64 => {
-                    let dc = if negate { DC_NE_OP } else { DC_EQ_OP };
-                    let elem_gid = scalar_format_gid(inner)?;
-                    let key = format!(
-                        "__builtin_{}_l_{}",
-                        dc.to_u128(),
-                        type_slug(inner)
-                    );
-                    let f = self.linker.link_system_builtin(
-                        dc.to_u128(),
-                        &[DC_STAGEL_LIST_TYPE.to_u128(), elem_gid],
-                        &key,
-                    )?;
-                    fctx.fb.call(f)?;
-                    Ok(())
+            StageLType::List(inner)
+                if matches!(
+                    inner.as_ref(),
+                    StageLType::B
+                        | StageLType::U8
+                        | StageLType::I32
+                        | StageLType::U32
+                        | StageLType::I64
+                        | StageLType::U64
+                ) =>
+            {
+                let dc = if negate { DC_NE_OP } else { DC_EQ_OP };
+                let elem_gid = scalar_format_gid(inner)?;
+                let key = format!(
+                    "__builtin_{}_l_{}",
+                    dc.to_u128(),
+                    type_slug(inner)
+                );
+                let f = self.linker.link_system_builtin(
+                    dc.to_u128(),
+                    &[DC_STAGEL_LIST_TYPE.to_u128(), elem_gid],
+                    &key,
+                )?;
+                fctx.fb.call(f)?;
+                Ok(())
+            }
+            StageLType::Tuple(elems) if elems.is_empty() => {
+                fctx.fb.drop_op()?;
+                fctx.fb.drop_op()?;
+                fctx.fb.i32_const(i32::from(!negate))?;
+                Ok(())
+            }
+            StageLType::List(_)
+            | StageLType::Tuple(_)
+            | StageLType::Struct(_) => {
+                let eq_fn = self.ensure_structural_eq_helper(&canon_ty)?;
+                fctx.fb.call(eq_fn)?;
+                if negate {
+                    fctx.fb.i32_eqz()?;
                 }
-                StageLType::List(_) => {
-                    let eq_fn = self.ensure_nested_list_eq_helper(ty)?;
-                    fctx.fb.call(eq_fn)?;
-                    if negate {
-                        fctx.fb.i32_eqz()?;
-                    }
-                    Ok(())
-                }
-                other => bail!("Unsupported list equality element '{other}'"),
-            },
+                Ok(())
+            }
             other => bail!("Equality is not supported on '{other}'"),
         }
     }
 
-    fn ensure_nested_list_eq_helper(&mut self, list_ty: &StageLType) -> Result<u32> {
-        if let Some(&existing) = self.list_eq_helpers.get(list_ty) {
+    fn emit_inline_value_eq(
+        &mut self,
+        fb: &mut WasmFuncBuilder,
+        canon_ty: &StageLType,
+    ) -> Result<()> {
+        match canon_ty {
+            StageLType::B
+            | StageLType::U8
+            | StageLType::I32
+            | StageLType::U32
+            | StageLType::I64
+            | StageLType::U64 => {
+                let f = self.link_scalar_builtin(DC_EQ_OP, canon_ty)?;
+                fb.call(f)?;
+                Ok(())
+            }
+            StageLType::List(inner)
+                if matches!(
+                    inner.as_ref(),
+                    StageLType::B
+                        | StageLType::U8
+                        | StageLType::I32
+                        | StageLType::U32
+                        | StageLType::I64
+                        | StageLType::U64
+                ) =>
+            {
+                let elem_gid = scalar_format_gid(inner)?;
+                let key = format!(
+                    "__builtin_{}_l_{}",
+                    DC_EQ_OP.to_u128(),
+                    type_slug(inner)
+                );
+                let f = self.linker.link_system_builtin(
+                    DC_EQ_OP.to_u128(),
+                    &[DC_STAGEL_LIST_TYPE.to_u128(), elem_gid],
+                    &key,
+                )?;
+                fb.call(f)?;
+                Ok(())
+            }
+            StageLType::Tuple(elems) if elems.is_empty() => {
+                fb.drop_op()?;
+                fb.drop_op()?;
+                fb.i32_const(1)?;
+                Ok(())
+            }
+            StageLType::List(_)
+            | StageLType::Tuple(_)
+            | StageLType::Struct(_) => {
+                let f = self.ensure_structural_eq_helper(canon_ty)?;
+                fb.call(f)?;
+                Ok(())
+            }
+            other => bail!("Equality is not supported on '{other}'"),
+        }
+    }
+
+    fn ensure_structural_eq_helper(
+        &mut self,
+        canon_ty: &StageLType,
+    ) -> Result<u32> {
+        if let Some(&existing) = self.structural_eq_helpers.get(canon_ty) {
             return Ok(existing);
         }
-        let StageLType::List(inner_ty) = list_ty else {
-            bail!("Expected List type in ensure_nested_list_eq_helper");
-        };
 
-        let helper_name = format!("__sl_eq_{}", type_slug(list_ty));
+        let helper_name = format!("__sl_eq_{}", type_slug(canon_ty));
         let fn_idx = self.linker.reserve_routine(&helper_name)?;
-        self.list_eq_helpers.insert(list_ty.clone(), fn_idx);
-
-        // Ensure inner element equality helper/builtin is ready
-        let inner_eq_fn = match inner_ty.as_ref() {
-            StageLType::List(grand_inner) => match grand_inner.as_ref() {
-                StageLType::B
-                | StageLType::U8
-                | StageLType::I32
-                | StageLType::U32
-                | StageLType::I64
-                | StageLType::U64 => {
-                    let elem_gid = scalar_format_gid(grand_inner)?;
-                    let key = format!(
-                        "__builtin_{}_l_{}",
-                        DC_EQ_OP.to_u128(),
-                        type_slug(grand_inner)
-                    );
-                    self.linker.link_system_builtin(
-                        DC_EQ_OP.to_u128(),
-                        &[DC_STAGEL_LIST_TYPE.to_u128(), elem_gid],
-                        &key,
-                    )?
-                }
-                StageLType::List(_) => {
-                    self.ensure_nested_list_eq_helper(inner_ty)?
-                }
-                other => bail!("Unsupported nested list element '{other}'"),
-            },
-            other => bail!("Expected nested list element, found '{other}'"),
-        };
+        self.structural_eq_helpers.insert(canon_ty.clone(), fn_idx);
 
         let mut fb = WasmFuncBuilder::new(
             vec![
@@ -2787,67 +3135,120 @@ impl<'a> WorkspaceWasmCompiler<'a> {
         );
         let a_loc = 0u32;
         let b_loc = 1u32;
-        let len_loc = fb.alloc_local(WasmValType::I32)?;
-        let pa_loc = fb.alloc_local(WasmValType::I32)?;
-        let pb_loc = fb.alloc_local(WasmValType::I32)?;
-        let i_loc = fb.alloc_local(WasmValType::I32)?;
 
+        // Fast path: identical linear-memory pointer (`a == b`)
         fb.local_get(a_loc)?;
-        fb.i32_load(2, 4)?;
-        fb.local_tee(len_loc)?;
         fb.local_get(b_loc)?;
-        fb.i32_load(2, 4)?;
         fb.i32_eq()?;
-        fb.i32_eqz()?;
         fb.if_open(None)?;
-        fb.i32_const(0)?;
-        fb.return_op()?;
-        fb.end_op()?;
-
-        fb.local_get(a_loc)?;
-        fb.i32_load(2, 0)?;
-        fb.local_set(pa_loc)?;
-        fb.local_get(b_loc)?;
-        fb.i32_load(2, 0)?;
-        fb.local_set(pb_loc)?;
-        fb.i32_const(0)?;
-        fb.local_set(i_loc)?;
-
-        fb.block_open(None)?;
-        fb.loop_open(None)?;
-        fb.local_get(i_loc)?;
-        fb.local_get(len_loc)?;
-        fb.i32_ge_u()?;
-        fb.br_if(1)?;
-
-        fb.local_get(pa_loc)?;
-        fb.local_get(i_loc)?;
-        fb.i32_const(4)?;
-        fb.i32_mul()?;
-        fb.i32_add()?;
-        fb.i32_load(2, 0)?;
-
-        fb.local_get(pb_loc)?;
-        fb.local_get(i_loc)?;
-        fb.i32_const(4)?;
-        fb.i32_mul()?;
-        fb.i32_add()?;
-        fb.i32_load(2, 0)?;
-
-        fb.call(inner_eq_fn)?;
-        fb.i32_eqz()?;
-        fb.if_open(None)?;
-        fb.i32_const(0)?;
-        fb.return_op()?;
-        fb.end_op()?;
-
-        fb.local_get(i_loc)?;
         fb.i32_const(1)?;
-        fb.i32_add()?;
-        fb.local_set(i_loc)?;
-        fb.br(0)?;
+        fb.return_op()?;
         fb.end_op()?;
-        fb.end_op()?;
+
+        match canon_ty {
+            StageLType::List(inner_ty) => {
+                let (stride, align_exp) = elem_storage_info(inner_ty)?;
+                let stride_i32 = i32::try_from(stride)
+                    .context("Element stride exceeds i32")?;
+                let len_loc = fb.alloc_local(WasmValType::I32)?;
+                let pa_loc = fb.alloc_local(WasmValType::I32)?;
+                let pb_loc = fb.alloc_local(WasmValType::I32)?;
+                let i_loc = fb.alloc_local(WasmValType::I32)?;
+
+                fb.local_get(a_loc)?;
+                fb.i32_load(2, 4)?;
+                fb.local_tee(len_loc)?;
+                fb.local_get(b_loc)?;
+                fb.i32_load(2, 4)?;
+                fb.i32_eq()?;
+                fb.i32_eqz()?;
+                fb.if_open(None)?;
+                fb.i32_const(0)?;
+                fb.return_op()?;
+                fb.end_op()?;
+
+                fb.local_get(a_loc)?;
+                fb.i32_load(2, 0)?;
+                fb.local_set(pa_loc)?;
+                fb.local_get(b_loc)?;
+                fb.i32_load(2, 0)?;
+                fb.local_set(pb_loc)?;
+                fb.i32_const(0)?;
+                fb.local_set(i_loc)?;
+
+                fb.block_open(None)?;
+                fb.loop_open(None)?;
+                fb.local_get(i_loc)?;
+                fb.local_get(len_loc)?;
+                fb.i32_ge_u()?;
+                fb.br_if(1)?;
+
+                fb.local_get(pa_loc)?;
+                fb.local_get(i_loc)?;
+                fb.i32_const(stride_i32)?;
+                fb.i32_mul()?;
+                fb.i32_add()?;
+                match stride {
+                    1 => fb.i32_load8_u(0)?,
+                    4 => fb.i32_load(align_exp, 0)?,
+                    8 => fb.i64_load(align_exp, 0)?,
+                    other => bail!("Unsupported list eq stride {other}"),
+                }
+
+                fb.local_get(pb_loc)?;
+                fb.local_get(i_loc)?;
+                fb.i32_const(stride_i32)?;
+                fb.i32_mul()?;
+                fb.i32_add()?;
+                match stride {
+                    1 => fb.i32_load8_u(0)?,
+                    4 => fb.i32_load(align_exp, 0)?,
+                    8 => fb.i64_load(align_exp, 0)?,
+                    other => bail!("Unsupported list eq stride {other}"),
+                }
+
+                self.emit_inline_value_eq(&mut fb, inner_ty)?;
+                fb.i32_eqz()?;
+                fb.if_open(None)?;
+                fb.i32_const(0)?;
+                fb.return_op()?;
+                fb.end_op()?;
+
+                fb.local_get(i_loc)?;
+                fb.i32_const(1)?;
+                fb.i32_add()?;
+                fb.local_set(i_loc)?;
+                fb.br(0)?;
+                fb.end_op()?;
+                fb.end_op()?;
+            }
+            StageLType::Tuple(_) | StageLType::Struct(_) => {
+                let (_, layout) = self.composite_layout(canon_ty)?;
+                for (offset, stride, align_exp, slot_ty) in layout {
+                    fb.local_get(a_loc)?;
+                    match stride {
+                        1 => fb.i32_load8_u(u64::from(offset))?,
+                        4 => fb.i32_load(align_exp, u64::from(offset))?,
+                        8 => fb.i64_load(align_exp, u64::from(offset))?,
+                        other => bail!("Unsupported composite eq stride {other}"),
+                    }
+                    fb.local_get(b_loc)?;
+                    match stride {
+                        1 => fb.i32_load8_u(u64::from(offset))?,
+                        4 => fb.i32_load(align_exp, u64::from(offset))?,
+                        8 => fb.i64_load(align_exp, u64::from(offset))?,
+                        other => bail!("Unsupported composite eq stride {other}"),
+                    }
+                    self.emit_inline_value_eq(&mut fb, &slot_ty)?;
+                    fb.i32_eqz()?;
+                    fb.if_open(None)?;
+                    fb.i32_const(0)?;
+                    fb.return_op()?;
+                    fb.end_op()?;
+                }
+            }
+            other => bail!("Unsupported structural eq helper type '{other}'"),
+        }
 
         fb.i32_const(1)?;
         let toks = fb.into_routine_shorthands()?;
@@ -2883,7 +3284,10 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 ctx.push(scalar_format_gid(elem_ty)?);
                 type_slug(elem_ty)
             }
-            StageLType::List(_) => {
+            StageLType::List(_)
+            | StageLType::Tuple(_)
+            | StageLType::Struct(_)
+            | StageLType::Buf(_) => {
                 ctx.push(DC_STAGEL_LIST_TYPE.to_u128());
                 ctx.push(DC_TYPE_ANY.to_u128());
                 String::from("list_ptr")
@@ -2909,14 +3313,82 @@ impl<'a> WorkspaceWasmCompiler<'a> {
             Expr::Int { value, .. } => Ok(value.stage_l_type()),
             Expr::Bytes { .. } => Ok(StageLType::List(Box::new(StageLType::U8))),
             Expr::List { elem_ty, .. } => {
-                Ok(StageLType::List(Box::new(elem_ty.clone())))
+                Ok(StageLType::List(Box::new(
+                    self.canon_type(fctx.mod_idx, elem_ty)?,
+                )))
+            }
+            Expr::TupleNew { elements, .. } => {
+                let mut slot_tys = Vec::with_capacity(elements.len());
+                for el in elements {
+                    let ety = self.infer_expr_type(fctx, el)?;
+                    if ety == StageLType::Never {
+                        return Ok(StageLType::Never);
+                    }
+                    slot_tys.push(self.canon_type(fctx.mod_idx, &ety)?);
+                }
+                Ok(StageLType::Tuple(slot_tys))
+            }
+            Expr::StructNew {
+                target,
+                fields,
+                span,
+            } => {
+                for f in fields {
+                    if self.infer_expr_type(fctx, f)? == StageLType::Never {
+                        return Ok(StageLType::Never);
+                    }
+                }
+                let vm = self
+                    .workspace
+                    .modules
+                    .get(fctx.mod_idx)
+                    .context("Invalid module index")?;
+                if let Some(ty) = vm.expr_types.get(&(span.line, span.col)) {
+                    Ok(vm.canonicalize_type(ty))
+                } else {
+                    let raw = match target {
+                        SymbolTarget::Ident(name) => {
+                            StageLType::Struct(StructTypeRef::Ident(name.clone()))
+                        }
+                        SymbolTarget::Dc(dc) => {
+                            StageLType::Struct(StructTypeRef::Dc(*dc))
+                        }
+                    };
+                    Ok(vm.canonicalize_type(&raw))
+                }
+            }
+            Expr::Field { base, index, .. } => {
+                let base_ty = self.infer_expr_type(fctx, base)?;
+                if base_ty == StageLType::Never {
+                    return Ok(StageLType::Never);
+                }
+                let canon_base = self.canon_type(fctx.mod_idx, &base_ty)?;
+                let (_, layout) = self.composite_layout(&canon_base)?;
+                let idx =
+                    usize::try_from(*index).context("Field index exceeds usize")?;
+                let (_, _, _, slot_ty) = layout
+                    .get(idx)
+                    .cloned()
+                    .with_context(|| format!("Field index {index} out of bounds"))?;
+                Ok(slot_ty)
+            }
+            Expr::With { base, value, .. } => {
+                let base_ty = self.infer_expr_type(fctx, base)?;
+                if base_ty == StageLType::Never
+                    || self.infer_expr_type(fctx, value)? == StageLType::Never
+                {
+                    return Ok(StageLType::Never);
+                }
+                self.canon_type(fctx.mod_idx, &base_ty)
             }
             Expr::BufNew { elem_ty, .. } => {
-                Ok(StageLType::Buf(Box::new(elem_ty.clone())))
+                Ok(StageLType::Buf(Box::new(
+                    self.canon_type(fctx.mod_idx, elem_ty)?,
+                )))
             }
             Expr::ValueRef { ty, target, span } => {
                 if let Some(explicit_ty) = ty {
-                    return Ok(explicit_ty.clone());
+                    return self.canon_type(fctx.mod_idx, explicit_ty);
                 }
                 let vm = self
                     .workspace
@@ -2965,18 +3437,19 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 let mut temp_routines = HashMap::new();
                 for e in &exprs {
                     if let Expr::RoutineDecl(r) = e {
+                        let mut canon_params = Vec::with_capacity(r.params.len());
+                        for p in &r.params {
+                            canon_params.push(self.canon_type(fctx.mod_idx, &p.ty)?);
+                        }
                         temp_routines.insert(
                             r.name.clone(),
                             NestedRoutineEntry {
                                 func_idx: 0,
                                 declaring_routine_id: fctx.routine_uid,
                                 sig: RoutineSig {
-                                    return_type: r.return_type.clone(),
-                                    params: r
-                                        .params
-                                        .iter()
-                                        .map(|p| p.ty.clone())
-                                        .collect(),
+                                    return_type: self
+                                        .canon_type(fctx.mod_idx, &r.return_type)?,
+                                    params: canon_params,
                                     is_pub: false,
                                     dc_id: r.dc_id,
                                 },
@@ -3109,7 +3582,7 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 if self.infer_expr_type(fctx, inner)? == StageLType::Never {
                     return Ok(StageLType::Never);
                 }
-                Ok(target_ty.clone())
+                self.canon_type(fctx.mod_idx, target_ty)
             }
         }
     }
@@ -3220,7 +3693,7 @@ fn workspace_has_nested_routines(workspace: &ValidatedWorkspace) -> bool {
                         return true;
                     }
                 }
-                TopDecl::Comment(_) => {}
+                TopDecl::Struct(_) | TopDecl::Comment(_) => {}
             }
         }
     }
@@ -3257,13 +3730,22 @@ fn expr_contains_nested_routine(expr: &Expr) -> bool {
         | Expr::Set { value: e, .. }
         | Expr::Return { value: Some(e), .. }
         | Expr::Unary { operand: e, .. }
+        | Expr::Field { base: e, .. }
         | Expr::Conv { expr: e, .. }
         | Expr::Bitcast { expr: e, .. }
         | Expr::BufNew { capacity: e, .. } => expr_contains_nested_routine(e),
-        Expr::Call { args, .. } | Expr::List { elements: args, .. } => {
+        Expr::Call { args, .. }
+        | Expr::List { elements: args, .. }
+        | Expr::TupleNew { elements: args, .. }
+        | Expr::StructNew { fields: args, .. } => {
             args.iter().any(expr_contains_nested_routine)
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => {
             expr_contains_nested_routine(left)
                 || expr_contains_nested_routine(right)
         }
@@ -3319,15 +3801,24 @@ fn collect_set_targets_deep(expr: &Expr, out: &mut HashSet<String>) {
         | Expr::Const { value: e, .. }
         | Expr::Return { value: Some(e), .. }
         | Expr::Unary { operand: e, .. }
+        | Expr::Field { base: e, .. }
         | Expr::Conv { expr: e, .. }
         | Expr::Bitcast { expr: e, .. }
         | Expr::BufNew { capacity: e, .. } => collect_set_targets_deep(e, out),
-        Expr::Call { args, .. } | Expr::List { elements: args, .. } => {
+        Expr::Call { args, .. }
+        | Expr::List { elements: args, .. }
+        | Expr::TupleNew { elements: args, .. }
+        | Expr::StructNew { fields: args, .. } => {
             for arg in args {
                 collect_set_targets_deep(arg, out);
             }
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => {
             collect_set_targets_deep(left, out);
             collect_set_targets_deep(right, out);
         }

@@ -38,8 +38,8 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, Module,
-    RoutineDecl, Span, StageLType, SymbolTarget, TestExpected, TopDecl,
-    TopValueDecl, TypedIntLit,
+    RoutineDecl, Span, StageLType, StructTypeRef, SymbolTarget, TestExpected,
+    TopDecl, TopValueDecl, TypedIntLit,
 };
 use super::parser::parse_module;
 use super::seed_linker::{
@@ -47,11 +47,11 @@ use super::seed_linker::{
     parse_and_validate_workspace_with_seed_graph,
 };
 use super::validator::{
-    ImportedSymbol, ModuleInput, RoutineKey, RoutineSig, ValidatedModule,
-    ValidatedWorkspace, ValueKey, validate_module,
+    ImportedSymbol, ModuleInput, RoutineKey, RoutineSig, StructDef,
+    ValidatedModule, ValidatedWorkspace, ValueKey, validate_module,
 };
 use ctb_formats_dcdata::{DcChar, SeedGraphIndex};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write as _;
 
 /// Configuration options controlling StageL 3 -> Rust transpilation.
@@ -157,7 +157,7 @@ pub fn transpile_workspace_to_rust(
 
     let mut out = String::new();
     emit_file_header(&mut out, options)?;
-    emit_runtime_prelude(&mut out, &trampolines)?;
+    emit_runtime_prelude(&mut out, &trampolines, &ws_index)?;
     trampolines.emit_trampoline_defs(&mut out)?;
     out.push_str(&modules_buf);
 
@@ -210,6 +210,7 @@ fn emit_file_header(out: &mut String, options: &RustTranspileOptions) -> Result<
 fn emit_runtime_prelude(
     out: &mut String,
     trampolines: &WorkspaceTrampolineRegistry,
+    ws_index: &WorkspaceRoutineIndex,
 ) -> Result<()> {
     writeln!(out, "#[allow(dead_code)]")?;
     writeln!(out, "mod sl3_rt {{")?;
@@ -219,6 +220,44 @@ fn emit_runtime_prelude(
     writeln!(out)?;
     writeln!(out, "    pub type SlList<T> = Arc<[T]>;")?;
     writeln!(out, "    pub type SlCap<T> = Rc<RefCell<Option<T>>>;")?;
+    writeln!(out)?;
+    writeln!(out, "    #[derive(Debug, Clone, Copy, PartialEq, Eq)]")?;
+    writeln!(out, "    pub struct SlTuple0;")?;
+    for (elems, (tup_ident, contains_buf)) in &ws_index.large_tuples {
+        writeln!(out)?;
+        if *contains_buf {
+            writeln!(out, "    #[derive(Debug, Clone)]")?;
+        } else {
+            writeln!(out, "    #[derive(Debug, Clone, PartialEq, Eq)]")?;
+        }
+        let fields: Vec<String> = elems
+            .iter()
+            .map(|e| format!("pub {}", ws_index.rust_type_with_prefix(e, "")))
+            .collect();
+        writeln!(out, "    pub struct {tup_ident}({});", fields.join(", "))?;
+    }
+    for ((ns_opt, sname), (struct_ident, sdef)) in &ws_index.struct_defs {
+        writeln!(out)?;
+        match ns_opt {
+            Some(ns) => writeln!(out, "    // StageL struct {ns}::{sname}")?,
+            None => writeln!(out, "    // StageL struct {sname}")?,
+        }
+        if sdef
+            .fields
+            .iter()
+            .any(|f| type_contains_buf(f, &ws_index.struct_defs))
+        {
+            writeln!(out, "    #[derive(Debug, Clone)]")?;
+        } else {
+            writeln!(out, "    #[derive(Debug, Clone, PartialEq, Eq)]")?;
+        }
+        let fields: Vec<String> = sdef
+            .fields
+            .iter()
+            .map(|f| format!("pub {}", ws_index.rust_type_with_prefix(f, "")))
+            .collect();
+        writeln!(out, "    pub struct {struct_ident}({});", fields.join(", "))?;
+    }
     if !trampolines.value_groups.is_empty() {
         writeln!(out)?;
         writeln!(out, "    pub enum SlStep<T, C> {{")?;
@@ -395,6 +434,10 @@ fn emit_runtime_prelude(
     writeln!(out, "        *cell.borrow_mut() = Some(val);")?;
     writeln!(out, "    }}")?;
     writeln!(out)?;
+    writeln!(out, "    pub fn clone_ref<T: Clone>(val: &T) -> T {{")?;
+    writeln!(out, "        val.clone()")?;
+    writeln!(out, "    }}")?;
+    writeln!(out)?;
     writeln!(out, "    pub fn expect_fault<F: FnOnce()>(f: F, desc: &str) {{")?;
     writeln!(out, "        let prev = std::panic::take_hook();")?;
     writeln!(out, "        std::panic::set_hook(Box::new(|_| {{}}));")?;
@@ -421,32 +464,23 @@ pub(super) fn sanitize_ident(raw: &str) -> String {
     out
 }
 
-fn rust_type(ty: &StageLType) -> String {
-    match ty {
-        StageLType::B => String::from("bool"),
-        StageLType::U8 => String::from("u8"),
-        StageLType::I32 => String::from("i32"),
-        StageLType::U32 => String::from("u32"),
-        StageLType::I64 => String::from("i64"),
-        StageLType::U64 => String::from("u64"),
-        StageLType::Void => String::from("()"),
-        StageLType::Never => String::from("!"),
-        StageLType::List(inner) => format!("sl3_rt::SlList<{}>", rust_type(inner)),
-        StageLType::Buf(inner) => format!("sl3_rt::SlBuf<{}>", rust_type(inner)),
-    }
-}
-
 fn rust_type_copy_cheap(ty: &StageLType) -> bool {
-    matches!(
-        ty,
+    match ty {
         StageLType::B
-            | StageLType::U8
-            | StageLType::I32
-            | StageLType::U32
-            | StageLType::I64
-            | StageLType::U64
-            | StageLType::Void
-    )
+        | StageLType::U8
+        | StageLType::I32
+        | StageLType::U32
+        | StageLType::I64
+        | StageLType::U64
+        | StageLType::Void => true,
+        StageLType::Tuple(elems) => {
+            elems.len() <= 12 && elems.iter().all(rust_type_copy_cheap)
+        }
+        StageLType::Never
+        | StageLType::List(_)
+        | StageLType::Buf(_)
+        | StageLType::Struct(_) => false,
+    }
 }
 
 const MAX_INLINE_VARIANT_FIELDS: usize = 8;
@@ -525,8 +559,7 @@ struct WorkspaceTrampolineRegistry {
 }
 
 impl WorkspaceTrampolineRegistry {
-    fn ensure_value_group(&mut self, ret_ty: &StageLType) -> usize {
-        let ret_rust_ty = rust_type(ret_ty);
+    fn ensure_value_group(&mut self, ret_rust_ty: String) -> usize {
         if let Some(&gid) = self.group_by_rust_ty.get(&ret_rust_ty) {
             return gid;
         }
@@ -547,13 +580,13 @@ impl WorkspaceTrampolineRegistry {
 
     fn register_value_target(
         &mut self,
-        ret_ty: &StageLType,
+        ret_rust_ty: String,
         callee_key: CalleeKey,
         trampoline_call_path: String,
         callee_is_step: bool,
         field_rust_types: Vec<String>,
     ) -> Result<(usize, String, Option<String>)> {
-        let gid = self.ensure_value_group(ret_ty);
+        let gid = self.ensure_value_group(ret_rust_ty);
         let group = self
             .value_groups
             .get_mut(gid)
@@ -829,6 +862,29 @@ pub(super) fn stagel_type_slug(ty: &StageLType) -> String {
         StageLType::Never => String::from("never"),
         StageLType::List(inner) => format!("l0_{}", stagel_type_slug(inner)),
         StageLType::Buf(inner) => format!("buf0_{}", stagel_type_slug(inner)),
+        StageLType::Tuple(elems) => {
+            if elems.is_empty() {
+                String::from("tup0")
+            } else {
+                let parts: Vec<String> =
+                    elems.iter().map(stagel_type_slug).collect();
+                format!("tup{}_{}", elems.len(), parts.join("_"))
+            }
+        }
+        StageLType::Struct(sref) => match sref {
+            StructTypeRef::Canonical {
+                namespace: Some(ns),
+                name,
+            } => format!("st_ns_{}_{}", sanitize_ident(ns), sanitize_ident(name)),
+            StructTypeRef::Canonical {
+                namespace: None,
+                name,
+            } => format!("st_loc_{}", sanitize_ident(name)),
+            StructTypeRef::Ident(name) => format!("st_id_{}", sanitize_ident(name)),
+            StructTypeRef::Dc(dc) => {
+                format!("st_dc_{}", sanitize_ident(&dc.to_string()))
+            }
+        },
     }
 }
 
@@ -844,6 +900,200 @@ pub(super) fn stagel_params_slug(params: &[StageLType]) -> String {
     }
 }
 
+fn type_contains_buf(
+    ty: &StageLType,
+    struct_defs: &BTreeMap<(Option<String>, String), (String, StructDef)>,
+) -> bool {
+    type_contains_buf_inner(ty, struct_defs, &mut HashSet::new())
+}
+
+fn type_contains_buf_inner(
+    ty: &StageLType,
+    struct_defs: &BTreeMap<(Option<String>, String), (String, StructDef)>,
+    visited: &mut HashSet<(Option<String>, String)>,
+) -> bool {
+    match ty {
+        StageLType::Buf(_) => true,
+        StageLType::List(inner) => {
+            type_contains_buf_inner(inner, struct_defs, visited)
+        }
+        StageLType::Tuple(elems) => elems
+            .iter()
+            .any(|e| type_contains_buf_inner(e, struct_defs, visited)),
+        StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+            let key = (namespace.clone(), name.clone());
+            if !visited.insert(key.clone()) {
+                return false;
+            }
+            struct_defs.get(&key).is_some_and(|(_, sd)| {
+                sd.fields
+                    .iter()
+                    .any(|f| type_contains_buf_inner(f, struct_defs, visited))
+            })
+        }
+        _ => false,
+    }
+}
+
+fn collect_large_tuples_in_type(
+    ty: &StageLType,
+    out: &mut std::collections::BTreeSet<Vec<StageLType>>,
+) {
+    match ty {
+        StageLType::List(inner) | StageLType::Buf(inner) => {
+            collect_large_tuples_in_type(inner, out);
+        }
+        StageLType::Tuple(elems) => {
+            for e in elems {
+                collect_large_tuples_in_type(e, out);
+            }
+            if elems.len() > 12 {
+                out.insert(elems.clone());
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_large_tuples_in_expr(
+    expr: &Expr,
+    vm: &ValidatedModule,
+    out: &mut std::collections::BTreeSet<Vec<StageLType>>,
+) {
+    match expr {
+        Expr::List {
+            elem_ty, elements, ..
+        } => {
+            collect_large_tuples_in_type(&vm.canonicalize_type(elem_ty), out);
+            for e in elements {
+                collect_large_tuples_in_expr(e, vm, out);
+            }
+        }
+        Expr::TupleNew { elements, .. } => {
+            for e in elements {
+                collect_large_tuples_in_expr(e, vm, out);
+            }
+        }
+        Expr::StructNew { fields, .. } => {
+            for f in fields {
+                collect_large_tuples_in_expr(f, vm, out);
+            }
+        }
+        Expr::Field { base, .. } => collect_large_tuples_in_expr(base, vm, out),
+        Expr::With { base, value, .. } => {
+            collect_large_tuples_in_expr(base, vm, out);
+            collect_large_tuples_in_expr(value, vm, out);
+        }
+        Expr::BufNew {
+            elem_ty, capacity, ..
+        } => {
+            collect_large_tuples_in_type(&vm.canonicalize_type(elem_ty), out);
+            collect_large_tuples_in_expr(capacity, vm, out);
+        }
+        Expr::ValueRef { ty, .. } => {
+            if let Some(t) = ty {
+                collect_large_tuples_in_type(&vm.canonicalize_type(t), out);
+            }
+        }
+        Expr::Let { ty, init, .. } => {
+            collect_large_tuples_in_type(&vm.canonicalize_type(ty), out);
+            if let Some(ie) = init {
+                collect_large_tuples_in_expr(ie, vm, out);
+            }
+        }
+        Expr::Const { ty, value, .. } => {
+            collect_large_tuples_in_type(&vm.canonicalize_type(ty), out);
+            collect_large_tuples_in_expr(value, vm, out);
+        }
+        Expr::Set { ty, value, .. } => {
+            if let Some(t) = ty {
+                collect_large_tuples_in_type(&vm.canonicalize_type(t), out);
+            }
+            collect_large_tuples_in_expr(value, vm, out);
+        }
+        Expr::Call { args, .. } => {
+            for a in args {
+                collect_large_tuples_in_expr(a, vm, out);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for item in stmts {
+                if let BlockItem::Expr(e) = item {
+                    collect_large_tuples_in_expr(e, vm, out);
+                }
+            }
+        }
+        Expr::If {
+            cond,
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            collect_large_tuples_in_expr(cond, vm, out);
+            collect_large_tuples_in_expr(then_branch, vm, out);
+            collect_large_tuples_in_expr(else_branch, vm, out);
+        }
+        Expr::While { cond, body, .. } => {
+            collect_large_tuples_in_expr(cond, vm, out);
+            collect_large_tuples_in_expr(body, vm, out);
+        }
+        Expr::ForEach {
+            elem_ty,
+            list,
+            body,
+            ..
+        } => {
+            collect_large_tuples_in_type(&vm.canonicalize_type(elem_ty), out);
+            collect_large_tuples_in_expr(list, vm, out);
+            collect_large_tuples_in_expr(body, vm, out);
+        }
+        Expr::Return { value: Some(v), .. } => {
+            collect_large_tuples_in_expr(v, vm, out);
+        }
+        Expr::Unary { operand, .. } => {
+            collect_large_tuples_in_expr(operand, vm, out);
+        }
+        Expr::Binary { left, right, .. } => {
+            collect_large_tuples_in_expr(left, vm, out);
+            collect_large_tuples_in_expr(right, vm, out);
+        }
+        Expr::Ternary {
+            first,
+            second,
+            third,
+            ..
+        } => {
+            collect_large_tuples_in_expr(first, vm, out);
+            collect_large_tuples_in_expr(second, vm, out);
+            collect_large_tuples_in_expr(third, vm, out);
+        }
+        Expr::Conv {
+            expr: inner,
+            target_ty,
+            ..
+        }
+        | Expr::Bitcast {
+            expr: inner,
+            target_ty,
+            ..
+        } => {
+            collect_large_tuples_in_type(&vm.canonicalize_type(target_ty), out);
+            collect_large_tuples_in_expr(inner, vm, out);
+        }
+        Expr::RoutineDecl(r) => {
+            collect_large_tuples_in_type(
+                &vm.canonicalize_type(&r.return_type),
+                out,
+            );
+            for p in &r.params {
+                collect_large_tuples_in_type(&vm.canonicalize_type(&p.ty), out);
+            }
+            collect_large_tuples_in_expr(&r.body, vm, out);
+        }
+        _ => {}
+    }
+}
+
 struct WorkspaceRoutineIndex {
     mod_idents: Vec<String>,
     ns_to_mod_idx: HashMap<String, usize>,
@@ -851,6 +1101,8 @@ struct WorkspaceRoutineIndex {
     by_dc: HashMap<(usize, DcChar), TopRoutineMeta>,
     const_idents_by_key: HashMap<(usize, ValueKey), (String, StageLType)>,
     const_idents_by_dc: HashMap<(usize, DcChar), (String, StageLType)>,
+    struct_defs: BTreeMap<(Option<String>, String), (String, StructDef)>,
+    large_tuples: BTreeMap<Vec<StageLType>, (String, bool)>,
 }
 
 impl WorkspaceRoutineIndex {
@@ -861,6 +1113,27 @@ impl WorkspaceRoutineIndex {
         let mut by_dc = HashMap::new();
         let mut const_idents_by_key = HashMap::new();
         let mut const_idents_by_dc = HashMap::new();
+        let mut raw_structs: BTreeMap<(Option<String>, String), StructDef> =
+            BTreeMap::new();
+        let mut raw_large_tuples: std::collections::BTreeSet<Vec<StageLType>> =
+            std::collections::BTreeSet::new();
+
+        for vm in &workspace.modules {
+            for (k, sdef) in &vm.struct_defs {
+                raw_structs.entry(k.clone()).or_insert_with(|| sdef.clone());
+            }
+            for ty in vm.expr_types.values() {
+                collect_large_tuples_in_type(ty, &mut raw_large_tuples);
+            }
+        }
+
+        let mut struct_defs = BTreeMap::new();
+        for (idx, (k, sdef)) in raw_structs.into_iter().enumerate() {
+            for fty in &sdef.fields {
+                collect_large_tuples_in_type(fty, &mut raw_large_tuples);
+            }
+            struct_defs.insert(k, (format!("SlStruct{idx}"), sdef));
+        }
 
         for (mod_idx, vm) in workspace.modules.iter().enumerate() {
             let mod_ident = if let Some(ns) = &vm.namespace_key {
@@ -884,18 +1157,59 @@ impl WorkspaceRoutineIndex {
                     TopDecl::Value(v) => {
                         let san = sanitize_ident(&v.name);
                         let rname = format!("sl_c_{san}");
-                        let vkey = ValueKey::from_decl(v);
+                        let vkey = vm.value_key(v);
+                        let canon_ty = vm.canonicalize_type(&v.ty);
+                        collect_large_tuples_in_type(
+                            &canon_ty,
+                            &mut raw_large_tuples,
+                        );
+                        collect_large_tuples_in_expr(
+                            &v.value,
+                            vm,
+                            &mut raw_large_tuples,
+                        );
                         const_idents_by_key
-                            .insert((mod_idx, vkey), (rname.clone(), v.ty.clone()));
+                            .insert((mod_idx, vkey), (rname.clone(), canon_ty.clone()));
                         if let Some(dc) = v.dc_id {
                             const_idents_by_dc
-                                .insert((mod_idx, dc), (rname, v.ty.clone()));
+                                .insert((mod_idx, dc), (rname, canon_ty));
                         }
                     }
                     TopDecl::Routine(r) => {
                         let san = sanitize_ident(&r.name);
-                        let params: Vec<StageLType> =
-                            r.params.iter().map(|p| p.ty.clone()).collect();
+                        let params: Vec<StageLType> = r
+                            .params
+                            .iter()
+                            .map(|p| vm.canonicalize_type(&p.ty))
+                            .collect();
+                        let ret_ty = vm.canonicalize_type(&r.return_type);
+                        collect_large_tuples_in_type(&ret_ty, &mut raw_large_tuples);
+                        for pty in &params {
+                            collect_large_tuples_in_type(pty, &mut raw_large_tuples);
+                        }
+                        collect_large_tuples_in_expr(
+                            &r.body,
+                            vm,
+                            &mut raw_large_tuples,
+                        );
+                        for tb in &r.tests {
+                            for tc in &tb.cases {
+                                for inp in &tc.inputs {
+                                    collect_large_tuples_in_expr(
+                                        inp,
+                                        vm,
+                                        &mut raw_large_tuples,
+                                    );
+                                }
+                                if let TestExpected::Expr(exp) = &tc.expected {
+                                    collect_large_tuples_in_expr(
+                                        exp,
+                                        vm,
+                                        &mut raw_large_tuples,
+                                    );
+                                }
+                            }
+                        }
                         let overloaded = routine_name_counts
                             .get(r.name.as_str())
                             .copied()
@@ -910,7 +1224,7 @@ impl WorkspaceRoutineIndex {
                         let test_fn = format!("sl_run_tests_{san}{suffix}");
                         let is_step = expr_has_tail_call(&r.body, true);
                         let sig = RoutineSig {
-                            return_type: r.return_type.clone(),
+                            return_type: ret_ty,
                             params,
                             is_pub: r.is_pub,
                             dc_id: r.dc_id,
@@ -925,16 +1239,22 @@ impl WorkspaceRoutineIndex {
                             is_step,
                             sig,
                         };
-                        by_key.insert((mod_idx, RoutineKey::from_decl(r)), meta.clone());
+                        by_key.insert((mod_idx, vm.routine_key(r)), meta.clone());
                         if let Some(dc) = r.dc_id {
                             by_dc.insert((mod_idx, dc), meta);
                         }
                         routine_idx = routine_idx.saturating_add(1);
                     }
-                    TopDecl::Comment(_) => {}
+                    TopDecl::Struct(_) | TopDecl::Comment(_) => {}
                 }
             }
             mod_idents.push(mod_ident);
+        }
+
+        let mut large_tuples = BTreeMap::new();
+        for (idx, elems) in raw_large_tuples.into_iter().enumerate() {
+            let has_buf = elems.iter().any(|e| type_contains_buf(e, &struct_defs));
+            large_tuples.insert(elems, (format!("SlBigTuple{idx}"), has_buf));
         }
 
         Self {
@@ -944,6 +1264,71 @@ impl WorkspaceRoutineIndex {
             by_dc,
             const_idents_by_key,
             const_idents_by_dc,
+            struct_defs,
+            large_tuples,
+        }
+    }
+
+    fn rust_type(&self, ty: &StageLType) -> String {
+        self.rust_type_with_prefix(ty, "sl3_rt::")
+    }
+
+    fn rust_type_with_prefix(&self, ty: &StageLType, rt_prefix: &str) -> String {
+        match ty {
+            StageLType::B => String::from("bool"),
+            StageLType::U8 => String::from("u8"),
+            StageLType::I32 => String::from("i32"),
+            StageLType::U32 => String::from("u32"),
+            StageLType::I64 => String::from("i64"),
+            StageLType::U64 => String::from("u64"),
+            StageLType::Void => String::from("()"),
+            StageLType::Never => String::from("!"),
+            StageLType::List(inner) => {
+                format!(
+                    "{rt_prefix}SlList<{}>",
+                    self.rust_type_with_prefix(inner, rt_prefix)
+                )
+            }
+            StageLType::Buf(inner) => {
+                format!(
+                    "{rt_prefix}SlBuf<{}>",
+                    self.rust_type_with_prefix(inner, rt_prefix)
+                )
+            }
+            StageLType::Tuple(elems) => match elems.as_slice() {
+                [] => format!("{rt_prefix}SlTuple0"),
+                [single] => {
+                    format!("({},)", self.rust_type_with_prefix(single, rt_prefix))
+                }
+                many if many.len() <= 12 => {
+                    let parts: Vec<String> = many
+                        .iter()
+                        .map(|e| self.rust_type_with_prefix(e, rt_prefix))
+                        .collect();
+                    format!("({})", parts.join(", "))
+                }
+                many => {
+                    if let Some((ident, _)) = self.large_tuples.get(many) {
+                        format!("{rt_prefix}{ident}")
+                    } else {
+                        let parts: Vec<String> = many
+                            .iter()
+                            .map(|e| self.rust_type_with_prefix(e, rt_prefix))
+                            .collect();
+                        format!("({})", parts.join(", "))
+                    }
+                }
+            },
+            StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+                if let Some((ident, _)) =
+                    self.struct_defs.get(&(namespace.clone(), name.clone()))
+                {
+                    format!("{rt_prefix}{ident}")
+                } else {
+                    format!("{rt_prefix}SlUnknownStruct")
+                }
+            }
+            StageLType::Struct(_) => format!("{rt_prefix}SlUnresolvedStruct"),
         }
     }
 
@@ -962,9 +1347,11 @@ impl WorkspaceRoutineIndex {
 
 #[derive(Debug, Clone)]
 enum VarStorage {
-    /// Owned value (`let x` / param / foreach / non-captured local `const` /
+    /// Owned value (`let x` / param / Copy foreach / non-captured local `const` /
     /// immutable lexical value captured by a nested routine).
     Direct { rust_name: String, ty: StageLType },
+    /// Borrowed `&T` element binding in `foreach` over a `!Copy` list.
+    Ref { rust_name: String, ty: StageLType },
     /// Heap `SlCap<T>` (`Rc<RefCell<Option<T>>>`) shared across nested captures.
     CapCell { rust_name: String, ty: StageLType },
 }
@@ -972,7 +1359,7 @@ enum VarStorage {
 impl VarStorage {
     fn ty(&self) -> &StageLType {
         match self {
-            Self::Direct { ty, .. } | Self::CapCell { ty, .. } => ty,
+            Self::Direct { ty, .. } | Self::Ref { ty, .. } | Self::CapCell { ty, .. } => ty,
         }
     }
 
@@ -984,6 +1371,9 @@ impl VarStorage {
                 } else {
                     format!("{rust_name}.clone()")
                 }
+            }
+            Self::Ref { rust_name, .. } => {
+                format!("sl3_rt::clone_ref({rust_name})")
             }
             Self::CapCell { rust_name, .. } => {
                 format!("sl3_rt::cap_get(&{rust_name}, {sl_name:?})")
@@ -1007,8 +1397,8 @@ struct CapturedArg {
 }
 
 impl CapturedArg {
-    fn field_rust_type(&self) -> String {
-        let rty = rust_type(&self.ty);
+    fn field_rust_type(&self, ws_index: &WorkspaceRoutineIndex) -> String {
+        let rty = ws_index.rust_type(&self.ty);
         match self.kind {
             CapturePassKind::CapCell => format!("sl3_rt::SlCap<{rty}>"),
             CapturePassKind::ImmVal => rty,
@@ -1054,6 +1444,24 @@ enum ActiveRoutineMode {
 struct ActiveRoutineCtx {
     mode: ActiveRoutineMode,
     var_scope_floor: usize,
+}
+
+enum CompositeCtorKind {
+    RustTuple,
+    Named(String),
+}
+
+impl CompositeCtorKind {
+    fn format_args(&self, args: &[String]) -> String {
+        match self {
+            Self::RustTuple => match args {
+                [] => String::from("sl3_rt::SlTuple0"),
+                [single] => format!("({single},)"),
+                many => format!("({})", many.join(", ")),
+            },
+            Self::Named(path) => format!("{path}({})", args.join(", ")),
+        }
+    }
 }
 
 struct ModuleEmitter<'a> {
@@ -1121,6 +1529,75 @@ impl<'a> ModuleEmitter<'a> {
             .map_or(0, |ctx| ctx.var_scope_floor)
     }
 
+    fn canon_type(&self, ty: &StageLType) -> StageLType {
+        self.validated.canonicalize_type(ty)
+    }
+
+    fn rust_type(&self, ty: &StageLType) -> String {
+        let canon = self.canon_type(ty);
+        self.ws_index.rust_type(&canon)
+    }
+
+    fn slot_type(&self, base_ty: &StageLType, index: u32) -> Result<StageLType> {
+        let idx = usize::try_from(index).context("field index overflows usize")?;
+        let canon = self.canon_type(base_ty);
+        match &canon {
+            StageLType::Tuple(elems) => elems
+                .get(idx)
+                .cloned()
+                .with_context(|| format!("tuple slot index {index} out of bounds")),
+            StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+                let (_, sdef) = self
+                    .ws_index
+                    .struct_defs
+                    .get(&(namespace.clone(), name.clone()))
+                    .with_context(|| {
+                        format!("unknown struct '{namespace:?}::{name}' in Rust codegen")
+                    })?;
+                sdef.fields.get(idx).cloned().with_context(|| {
+                    format!("struct '{name}' slot index {index} out of bounds")
+                })
+            }
+            other => bail!("invalid base type '{other}' for positional slot access"),
+        }
+    }
+
+    fn composite_ctor_parts(
+        &self,
+        base_ty: &StageLType,
+    ) -> Result<(usize, CompositeCtorKind)> {
+        let canon = self.canon_type(base_ty);
+        match &canon {
+            StageLType::Tuple(elems) => {
+                let n = elems.len();
+                if n > 12 {
+                    let (ident, _) = self
+                        .ws_index
+                        .large_tuples
+                        .get(elems)
+                        .context("missing large tuple definition in workspace index")?;
+                    Ok((n, CompositeCtorKind::Named(format!("sl3_rt::{ident}"))))
+                } else {
+                    Ok((n, CompositeCtorKind::RustTuple))
+                }
+            }
+            StageLType::Struct(StructTypeRef::Canonical { namespace, name }) => {
+                let (ident, sdef) = self
+                    .ws_index
+                    .struct_defs
+                    .get(&(namespace.clone(), name.clone()))
+                    .with_context(|| {
+                        format!("missing struct '{namespace:?}::{name}' in workspace index")
+                    })?;
+                Ok((
+                    sdef.fields.len(),
+                    CompositeCtorKind::Named(format!("sl3_rt::{ident}")),
+                ))
+            }
+            other => bail!("invalid composite type '{other}' for 'with'"),
+        }
+    }
+
     fn emit_module(&mut self, out: &mut String, emit_tests: bool) -> Result<()> {
         if let Some(ns) = &self.validated.namespace_key {
             writeln!(out, "// Module namespace: {ns}")?;
@@ -1168,9 +1645,9 @@ impl<'a> ModuleEmitter<'a> {
         let (rname, _) = self
             .ws_index
             .const_idents_by_key
-            .get(&(self.mod_idx, ValueKey::from_decl(v)))
+            .get(&(self.mod_idx, self.validated.value_key(v)))
             .context("Internal top-level constant metadata missing")?;
-        let rty = rust_type(&v.ty);
+        let rty = self.rust_type(&v.ty);
         let (init_code, _init_ty) = self.emit_expr(&v.value, 2)?;
         let init_clean = strip_matched_outer_parens(&init_code);
         writeln!(
@@ -1190,7 +1667,7 @@ impl<'a> ModuleEmitter<'a> {
         let meta = self
             .ws_index
             .by_key
-            .get(&(self.mod_idx, RoutineKey::from_decl(r)))
+            .get(&(self.mod_idx, self.validated.routine_key(r)))
             .cloned()
             .context("Internal top-level routine metadata missing")?;
         let entry_name = &meta.entry_fn;
@@ -1208,11 +1685,12 @@ impl<'a> ModuleEmitter<'a> {
         }
 
         let step_name = &meta.step_fn;
-        let group_id = if r.return_type == StageLType::Never {
+        let canon_ret = self.canon_type(&r.return_type);
+        let group_id = if canon_ret == StageLType::Never {
             self.trampolines.ensure_never_group();
             None
         } else {
-            Some(self.trampolines.ensure_value_group(&r.return_type))
+            Some(self.trampolines.ensure_value_group(self.rust_type(&canon_ret)))
         };
 
         self.emit_routine_fn(
@@ -1222,7 +1700,7 @@ impl<'a> ModuleEmitter<'a> {
             r,
             &[],
             ActiveRoutineMode::Step {
-                ret_ty: r.return_type.clone(),
+                ret_ty: canon_ret.clone(),
                 group_id,
             },
             1,
@@ -1232,20 +1710,20 @@ impl<'a> ModuleEmitter<'a> {
         let mut call_args = Vec::with_capacity(r.params.len());
         for p in &r.params {
             let vp = format!("sl_v_{}", sanitize_ident(&p.name));
-            sig_params.push(format!("{vp}: {}", rust_type(&p.ty)));
+            sig_params.push(format!("{vp}: {}", self.rust_type(&p.ty)));
             call_args.push(vp);
         }
         if sig_params.len() > 7 {
             writeln!(out, "    #[allow(clippy::too_many_arguments)]")?;
         }
-        if r.return_type == StageLType::Void {
+        if canon_ret == StageLType::Void {
             writeln!(out, "    {vis}fn {entry_name}({}) {{", sig_params.join(", "))?;
         } else {
             writeln!(
                 out,
                 "    {vis}fn {entry_name}({}) -> {} {{",
                 sig_params.join(", "),
-                rust_type(&r.return_type)
+                self.rust_type(&canon_ret)
             )?;
         }
         let step_call = format!("{step_name}({})", call_args.join(", "));
@@ -1278,19 +1756,20 @@ impl<'a> ModuleEmitter<'a> {
 
         for p in &r.params {
             let vp = format!("sl_v_{}", sanitize_ident(&p.name));
-            let rty = rust_type(&p.ty);
+            let canon_pty = self.canon_type(&p.ty);
+            let rty = self.ws_index.rust_type(&canon_pty);
             param_strs.push(format!("{vp}: {rty}"));
             frame.vars.insert(
                 p.name.clone(),
                 VarStorage::Direct {
                     rust_name: vp,
-                    ty: p.ty.clone(),
+                    ty: canon_pty,
                 },
             );
         }
 
         for cap in extra_captures {
-            let rty = rust_type(&cap.ty);
+            let rty = self.rust_type(&cap.ty);
             match cap.kind {
                 CapturePassKind::CapCell => {
                     param_strs.push(format!("{}: sl3_rt::SlCap<{rty}>", cap.rust_param));
@@ -1326,7 +1805,7 @@ impl<'a> ModuleEmitter<'a> {
                 if r.return_type == StageLType::Void {
                     writeln!(out, "{ind}{vis}fn {rust_name}({}) {{", param_strs.join(", "))?;
                 } else {
-                    let ret_ty_str = rust_type(&r.return_type);
+                    let ret_ty_str = self.rust_type(&r.return_type);
                     writeln!(
                         out,
                         "{ind}{vis}fn {rust_name}({}) -> {ret_ty_str} {{",
@@ -1338,7 +1817,7 @@ impl<'a> ModuleEmitter<'a> {
                 let step_ret_str = if let Some(gid) = group_id {
                     format!(
                         "sl3_rt::SlStep<{}, super::SlTailGroup{gid}>",
-                        rust_type(ret_ty)
+                        self.rust_type(ret_ty)
                     )
                 } else {
                     String::from("super::SlTailNever")
@@ -1434,7 +1913,7 @@ impl<'a> ModuleEmitter<'a> {
         let meta = self
             .ws_index
             .by_key
-            .get(&(self.mod_idx, RoutineKey::from_decl(r)))
+            .get(&(self.mod_idx, self.validated.routine_key(r)))
             .context("Internal top-level routine metadata missing for tests")?;
         let fn_target = meta.entry_fn.clone();
         let test_fn = meta.test_fn.clone();
@@ -1666,41 +2145,47 @@ impl<'a> ModuleEmitter<'a> {
         }
     }
 
-    fn resolve_value_ref(
-        &self,
-        target: &SymbolTarget,
-        span: Span,
-    ) -> Result<(String, StageLType)> {
-        match target {
-            SymbolTarget::Ident(name) => {
-                if let Some(vs) = self.lookup_var(name) {
-                    return Ok((vs.read_expr(name), vs.ty().clone()));
-                }
-                if let Some(rv) =
-                    self.validated.resolved_values.get(&(span.line, span.col))
-                {
-                    let vkey = rv.value_key();
-                    let (path, ty) = if let Some(namespace) = &rv.namespace {
-                        let &target_mod_idx = self
-                            .ws_index
-                            .ns_to_mod_idx
-                            .get(namespace)
-                            .with_context(|| {
-                                format!("Unknown module namespace '{namespace}'")
-                            })?;
-                        let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
-                        let (rname, ty) = self
-                            .ws_index
-                            .const_idents_by_key
-                            .get(&(target_mod_idx, vkey))
-                            .with_context(|| {
-                                format!(
-                                    "Unknown imported constant '{namespace}::{}'",
-                                    rv.original_name
-                                )
-                            })?;
-                        (format!("super::{mod_ident}::{rname}"), ty.clone())
-                    } else {
+    fn try_place_path(&self, expr: &Expr) -> Result<Option<(String, StageLType)>> {
+        match expr {
+            Expr::ValueRef { target, span, .. } => match target {
+                SymbolTarget::Ident(name) => {
+                    if let Some(vs) = self.lookup_var(name) {
+                        return match vs {
+                            VarStorage::Direct { rust_name, ty }
+                            | VarStorage::Ref { rust_name, ty } => {
+                                Ok(Some((rust_name.clone(), ty.clone())))
+                            }
+                            VarStorage::CapCell { .. } => Ok(None),
+                        };
+                    }
+                    if let Some(rv) =
+                        self.validated.resolved_values.get(&(span.line, span.col))
+                    {
+                        let vkey = rv.value_key();
+                        if let Some(namespace) = &rv.namespace {
+                            let &target_mod_idx = self
+                                .ws_index
+                                .ns_to_mod_idx
+                                .get(namespace)
+                                .with_context(|| {
+                                    format!("Unknown module namespace '{namespace}'")
+                                })?;
+                            let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
+                            let (rname, ty) = self
+                                .ws_index
+                                .const_idents_by_key
+                                .get(&(target_mod_idx, vkey))
+                                .with_context(|| {
+                                    format!(
+                                        "Unknown imported constant '{namespace}::{}'",
+                                        rv.original_name
+                                    )
+                                })?;
+                            return Ok(Some((
+                                format!("super::{mod_ident}::{rname}"),
+                                ty.clone(),
+                            )));
+                        }
                         let (rname, ty) = self
                             .ws_index
                             .const_idents_by_key
@@ -1711,67 +2196,96 @@ impl<'a> ModuleEmitter<'a> {
                                     rv.original_name
                                 )
                             })?;
-                        (rname.clone(), ty.clone())
-                    };
-                    let expr = if rust_type_copy_cheap(&ty) {
-                        format!("*{path}")
-                    } else {
-                        format!("{path}.clone()")
-                    };
-                    return Ok((expr, ty));
+                        return Ok(Some((rname.clone(), ty.clone())));
+                    }
+                    Ok(None)
                 }
+                SymbolTarget::Dc(dc) => {
+                    if let Some((rname, ty)) =
+                        self.ws_index.const_idents_by_dc.get(&(self.mod_idx, *dc))
+                    {
+                        return Ok(Some((rname.clone(), ty.clone())));
+                    }
+                    if let Some(ImportedSymbol::Value {
+                        namespace,
+                        original_name,
+                        ty,
+                        ..
+                    }) = self.validated.dc_imports.get(dc)
+                    {
+                        let &target_mod_idx = self
+                            .ws_index
+                            .ns_to_mod_idx
+                            .get(namespace)
+                            .with_context(|| {
+                                format!("Unknown module namespace '{namespace}'")
+                            })?;
+                        let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
+                        let (rname, _) = self
+                            .ws_index
+                            .const_idents_by_dc
+                            .get(&(target_mod_idx, *dc))
+                            .or_else(|| {
+                                self.ws_index.const_idents_by_key.get(&(
+                                    target_mod_idx,
+                                    ValueKey {
+                                        name: original_name.clone(),
+                                        ty: ty.clone(),
+                                    },
+                                ))
+                            })
+                            .with_context(|| {
+                                format!(
+                                    "Unknown imported Dc constant '{namespace}::{original_name}'"
+                                )
+                            })?;
+                        return Ok(Some((
+                            format!("super::{mod_ident}::{rname}"),
+                            ty.clone(),
+                        )));
+                    }
+                    Ok(None)
+                }
+            },
+            Expr::Field { base, index, .. } => {
+                if let Some((base_place, base_ty)) = self.try_place_path(base)? {
+                    let slot_ty = self.slot_type(&base_ty, *index)?;
+                    return Ok(Some((format!("{base_place}.{index}"), slot_ty)));
+                }
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn resolve_value_ref(
+        &self,
+        target: &SymbolTarget,
+        span: Span,
+    ) -> Result<(String, StageLType)> {
+        if let SymbolTarget::Ident(name) = target
+            && let Some(vs) = self.lookup_var(name)
+        {
+            return Ok((vs.read_expr(name), vs.ty().clone()));
+        }
+        let dummy = Expr::ValueRef {
+            ty: None,
+            target: target.clone(),
+            span,
+        };
+        if let Some((path, ty)) = self.try_place_path(&dummy)? {
+            let expr = if rust_type_copy_cheap(&ty) {
+                format!("*{path}")
+            } else {
+                format!("{path}.clone()")
+            };
+            return Ok((expr, ty));
+        }
+        match target {
+            SymbolTarget::Ident(name) => {
                 bail!("Unknown value '{name}' at {span} during Rust transpilation")
             }
             SymbolTarget::Dc(dc) => {
-                if let Some((rname, ty)) =
-                    self.ws_index.const_idents_by_dc.get(&(self.mod_idx, *dc))
-                {
-                    let expr = if rust_type_copy_cheap(ty) {
-                        format!("*{rname}")
-                    } else {
-                        format!("{rname}.clone()")
-                    };
-                    return Ok((expr, ty.clone()));
-                }
-                if let Some(ImportedSymbol::Value {
-                    namespace,
-                    original_name,
-                    ty,
-                    ..
-                }) = self.validated.dc_imports.get(dc)
-                {
-                    let &target_mod_idx = self
-                        .ws_index
-                        .ns_to_mod_idx
-                        .get(namespace)
-                        .with_context(|| format!("Unknown module namespace '{namespace}'"))?;
-                    let mod_ident = self.ws_index.mod_ident_by_ns(namespace)?;
-                    let (rname, _) = self
-                        .ws_index
-                        .const_idents_by_dc
-                        .get(&(target_mod_idx, *dc))
-                        .or_else(|| {
-                            self.ws_index.const_idents_by_key.get(&(
-                                target_mod_idx,
-                                ValueKey {
-                                    name: original_name.clone(),
-                                    ty: ty.clone(),
-                                },
-                            ))
-                        })
-                        .with_context(|| {
-                            format!(
-                                "Unknown imported Dc constant '{namespace}::{original_name}'"
-                            )
-                        })?;
-                    let path = format!("super::{mod_ident}::{rname}");
-                    let expr = if rust_type_copy_cheap(ty) {
-                        format!("*{path}")
-                    } else {
-                        format!("{path}.clone()")
-                    };
-                    return Ok((expr, ty.clone()));
-                }
                 bail!("Unknown Dc value '{dc}' during Rust transpilation")
             }
         }
@@ -1799,7 +2313,10 @@ impl<'a> ModuleEmitter<'a> {
                 (VarStorage::CapCell { rust_name: rn, .. }, CapturePassKind::CapCell) => {
                     rendered.push(format!("{rn}.clone()"));
                 }
-                (VarStorage::Direct { .. }, CapturePassKind::ImmVal) => {
+                (
+                    VarStorage::Direct { .. } | VarStorage::Ref { .. },
+                    CapturePassKind::ImmVal,
+                ) => {
                     rendered.push(cur_vs.read_expr(&cap.sl_name));
                 }
                 _ => {
@@ -1848,10 +2365,10 @@ impl<'a> ModuleEmitter<'a> {
                 let mut field_rust_types =
                     Vec::with_capacity(sig.params.len().saturating_add(captures.len()));
                 for pty in &sig.params {
-                    field_rust_types.push(rust_type(pty));
+                    field_rust_types.push(self.rust_type(pty));
                 }
                 for cap in &captures {
-                    field_rust_types.push(cap.field_rust_type());
+                    field_rust_types.push(cap.field_rust_type(self.ws_index));
                 }
 
                 if sig.return_type == StageLType::Never {
@@ -1884,7 +2401,7 @@ impl<'a> ModuleEmitter<'a> {
                 } else {
                     let (gid, variant_ident, boxed_struct) =
                         self.trampolines.register_value_target(
-                            &sig.return_type,
+                            self.rust_type(&sig.return_type),
                             callee_key,
                             trampoline_call_path,
                             callee_is_step,
@@ -2016,13 +2533,122 @@ impl<'a> ModuleEmitter<'a> {
                     }
                     codes.push(strip_matched_outer_parens(&c).to_owned());
                 }
-                let r_elem = rust_type(elem_ty);
+                let canon_elem = self.canon_type(elem_ty);
+                let r_elem = self.ws_index.rust_type(&canon_elem);
                 let code = if codes.is_empty() {
                     format!("sl3_rt::list_from_vec::<{r_elem}>(Vec::new())")
                 } else {
                     format!("sl3_rt::list_from_vec::<{r_elem}>(vec![{}])", codes.join(", "))
                 };
-                Ok((code, StageLType::List(Box::new(elem_ty.clone()))))
+                Ok((code, StageLType::List(Box::new(canon_elem))))
+            }
+            Expr::TupleNew { elements, .. } => {
+                let mut codes = Vec::with_capacity(elements.len());
+                let mut elem_tys = Vec::with_capacity(elements.len());
+                for el in elements {
+                    let (c, ety) = self.emit_expr(el, indent_level)?;
+                    if ety == StageLType::Never {
+                        return Ok((prefix_prior_exprs(&codes, &c), StageLType::Never));
+                    }
+                    codes.push(strip_matched_outer_parens(&c).to_owned());
+                    elem_tys.push(self.canon_type(&ety));
+                }
+                let tup_ty = StageLType::Tuple(elem_tys);
+                let (_, ctor) = self.composite_ctor_parts(&tup_ty)?;
+                Ok((ctor.format_args(&codes), tup_ty))
+            }
+            Expr::StructNew {
+                target,
+                fields,
+                span,
+            } => {
+                let mut codes = Vec::with_capacity(fields.len());
+                for f in fields {
+                    let (c, fty) = self.emit_expr(f, indent_level)?;
+                    if fty == StageLType::Never {
+                        return Ok((prefix_prior_exprs(&codes, &c), StageLType::Never));
+                    }
+                    codes.push(strip_matched_outer_parens(&c).to_owned());
+                }
+                let struct_ty = if let Some(ty) =
+                    self.validated.expr_types.get(&(span.line, span.col))
+                {
+                    self.canon_type(ty)
+                } else {
+                    let raw = match target {
+                        SymbolTarget::Ident(name) => {
+                            StageLType::Struct(StructTypeRef::Ident(name.clone()))
+                        }
+                        SymbolTarget::Dc(dc) => {
+                            StageLType::Struct(StructTypeRef::Dc(*dc))
+                        }
+                    };
+                    self.canon_type(&raw)
+                };
+                let (_, ctor) = self.composite_ctor_parts(&struct_ty)?;
+                Ok((ctor.format_args(&codes), struct_ty))
+            }
+            Expr::Field { base, index, .. } => {
+                if let Some((place, base_ty)) = self.try_place_path(base)? {
+                    let slot_ty = self.slot_type(&base_ty, *index)?;
+                    let code = if rust_type_copy_cheap(&slot_ty) {
+                        format!("{place}.{index}")
+                    } else {
+                        format!("sl3_rt::clone_ref(&{place}.{index})")
+                    };
+                    return Ok((code, slot_ty));
+                }
+                let (base_code, base_ty) = self.emit_expr(base, indent_level)?;
+                if base_ty == StageLType::Never {
+                    return Ok((base_code, StageLType::Never));
+                }
+                let slot_ty = self.slot_type(&base_ty, *index)?;
+                let bc = strip_matched_outer_parens(&base_code);
+                let tmp = self.next_tmp("fb");
+                Ok((format!("{{ let {tmp} = {bc}; {tmp}.{index} }}"), slot_ty))
+            }
+            Expr::With {
+                base,
+                index,
+                value,
+                ..
+            } => {
+                let (base_code, base_ty) = self.emit_expr(base, indent_level)?;
+                if base_ty == StageLType::Never {
+                    return Ok((base_code, StageLType::Never));
+                }
+                let (val_code, val_ty) = self.emit_expr(value, indent_level)?;
+                if val_ty == StageLType::Never {
+                    return Ok((
+                        prefix_prior_exprs(std::slice::from_ref(&base_code), &val_code),
+                        StageLType::Never,
+                    ));
+                }
+                let canon_base_ty = self.canon_type(&base_ty);
+                let (arity, ctor) = self.composite_ctor_parts(&canon_base_ty)?;
+                let target_idx =
+                    usize::try_from(*index).context("with slot index overflows usize")?;
+                let bc = strip_matched_outer_parens(&base_code);
+                let vc = strip_matched_outer_parens(&val_code);
+                if arity == 1 {
+                    let built = ctor.format_args(std::slice::from_ref(&vc.to_owned()));
+                    return Ok((format!("{{ let _ = {bc}; {built} }}"), canon_base_ty));
+                }
+                let tmp_b = self.next_tmp("wb");
+                let tmp_v = self.next_tmp("wv");
+                let mut slot_exprs = Vec::with_capacity(arity);
+                for j in 0..arity {
+                    if j == target_idx {
+                        slot_exprs.push(tmp_v.clone());
+                    } else {
+                        slot_exprs.push(format!("{tmp_b}.{j}"));
+                    }
+                }
+                let built = ctor.format_args(&slot_exprs);
+                Ok((
+                    format!("{{ let {tmp_b} = {bc}; let {tmp_v} = {vc}; {built} }}"),
+                    canon_base_ty,
+                ))
             }
             Expr::BufNew { elem_ty, capacity, .. } => {
                 let (cap_code, cap_ty) = self.emit_expr(capacity, indent_level)?;
@@ -2030,10 +2656,11 @@ impl<'a> ModuleEmitter<'a> {
                     return Ok((cap_code, StageLType::Never));
                 }
                 let cap_clean = strip_matched_outer_parens(&cap_code);
-                let r_elem = rust_type(elem_ty);
+                let canon_elem = self.canon_type(elem_ty);
+                let r_elem = self.ws_index.rust_type(&canon_elem);
                 Ok((
                     format!("sl3_rt::SlBuf::<{r_elem}>::new_with_cap({cap_clean})"),
-                    StageLType::Buf(Box::new(elem_ty.clone())),
+                    StageLType::Buf(Box::new(canon_elem)),
                 ))
             }
             Expr::ValueRef { target, span, .. } => {
@@ -2056,6 +2683,9 @@ impl<'a> ModuleEmitter<'a> {
                 let code = match target_var {
                     VarStorage::Direct { rust_name, .. } => {
                         format!("{rust_name} = {val_clean}")
+                    }
+                    VarStorage::Ref { .. } => {
+                        bail!("Cannot assign via 'set' to immutable foreach binding '{name}'")
                     }
                     VarStorage::CapCell { rust_name, .. } => {
                         format!("sl3_rt::cap_set(&{rust_name}, {val_clean})")
@@ -2159,15 +2789,24 @@ impl<'a> ModuleEmitter<'a> {
                     return Ok((list_code, StageLType::Never));
                 }
                 let r_elem = format!("sl_v_{}", sanitize_ident(elem_name));
+                let canon_elem = self.canon_type(elem_ty);
+                let is_copy_elem = rust_type_copy_cheap(&canon_elem);
                 let mut frame = ScopeFrame {
                     vars: HashMap::new(),
                     routines: HashMap::new(),
                 };
                 frame.vars.insert(
                     elem_name.clone(),
-                    VarStorage::Direct {
-                        rust_name: r_elem.clone(),
-                        ty: elem_ty.clone(),
+                    if is_copy_elem {
+                        VarStorage::Direct {
+                            rust_name: r_elem.clone(),
+                            ty: canon_elem,
+                        }
+                    } else {
+                        VarStorage::Ref {
+                            rust_name: r_elem.clone(),
+                            ty: canon_elem,
+                        }
                     },
                 );
                 self.scopes.push(frame);
@@ -2176,8 +2815,14 @@ impl<'a> ModuleEmitter<'a> {
                 let _ = self.scopes.pop();
 
                 let list_clean = strip_matched_outer_parens(&list_code);
+                let tmp_list = self.next_tmp("fe");
+                let pat = if is_copy_elem {
+                    format!("&{r_elem}")
+                } else {
+                    r_elem
+                };
                 let code =
-                    format!("for {r_elem} in ({list_clean}).iter().cloned() {body_block}");
+                    format!("{{ let {tmp_list} = {list_clean}; for {pat} in {tmp_list}.iter() {body_block} }}");
                 Ok((code, StageLType::Void))
             }
             Expr::Break { .. } => Ok((String::from("break"), StageLType::Never)),
@@ -2361,7 +3006,9 @@ impl<'a> ModuleEmitter<'a> {
             if let Some(vs) = outer_snapshot.get(cap_name) {
                 let kind = match vs {
                     VarStorage::CapCell { .. } => CapturePassKind::CapCell,
-                    VarStorage::Direct { .. } => CapturePassKind::ImmVal,
+                    VarStorage::Direct { .. } | VarStorage::Ref { .. } => {
+                        CapturePassKind::ImmVal
+                    }
                 };
                 shared_captures.push(CapturedArg {
                     sl_name: cap_name.clone(),
@@ -2379,19 +3026,20 @@ impl<'a> ModuleEmitter<'a> {
         local_cap_names.sort();
         for name in local_cap_names {
             if let Some(ty) = plan.local_captured_vars.get(&name) {
+                let canon_ty = self.canon_type(ty);
                 let rname = format!("sl_v_{}", sanitize_ident(&name));
                 frame.vars.insert(
                     name.clone(),
                     VarStorage::CapCell {
                         rust_name: rname.clone(),
-                        ty: ty.clone(),
+                        ty: canon_ty.clone(),
                     },
                 );
-                block_cap_decls.push((name.clone(), ty.clone()));
+                block_cap_decls.push((name.clone(), canon_ty.clone()));
                 shared_captures.push(CapturedArg {
                     sl_name: name,
                     rust_param: rname,
-                    ty: ty.clone(),
+                    ty: canon_ty,
                     kind: CapturePassKind::CapCell,
                 });
             }
@@ -2413,18 +3061,19 @@ impl<'a> ModuleEmitter<'a> {
             let nid = self.next_nested_id();
             let san = sanitize_ident(&r.name);
             let is_step = expr_has_tail_call(&r.body, true);
+            let canon_ret = self.canon_type(&r.return_type);
             let (local_fn_name, step_group_id, nested_mode) = if is_step {
-                let gid = if r.return_type == StageLType::Never {
+                let gid = if canon_ret == StageLType::Never {
                     self.trampolines.ensure_never_group();
                     None
                 } else {
-                    Some(self.trampolines.ensure_value_group(&r.return_type))
+                    Some(self.trampolines.ensure_value_group(self.rust_type(&canon_ret)))
                 };
                 (
                     format!("__sl_step_nested_{nid}_{san}"),
                     gid,
                     ActiveRoutineMode::Step {
-                        ret_ty: r.return_type.clone(),
+                        ret_ty: canon_ret.clone(),
                         group_id: gid,
                     },
                 )
@@ -2437,8 +3086,8 @@ impl<'a> ModuleEmitter<'a> {
             };
             let trampoline_call_path = format!("{}::{local_fn_name}", self.mod_ident);
             let sig = RoutineSig {
-                return_type: r.return_type.clone(),
-                params: r.params.iter().map(|p| p.ty.clone()).collect(),
+                return_type: canon_ret,
+                params: r.params.iter().map(|p| self.canon_type(&p.ty)).collect(),
                 is_pub: false,
                 dc_id: None,
             };
@@ -2464,7 +3113,7 @@ impl<'a> ModuleEmitter<'a> {
 
         for (name, ty) in &block_cap_decls {
             let rname = format!("sl_v_{}", sanitize_ident(name));
-            let rty = rust_type(ty);
+            let rty = self.rust_type(ty);
             writeln!(
                 block_buf,
                 "{inner_ind}let {rname}: sl3_rt::SlCap<{rty}> = sl3_rt::cap_new();"
@@ -2506,7 +3155,8 @@ impl<'a> ModuleEmitter<'a> {
                 Expr::Let { ty, name, init, .. } => {
                     let is_cap = plan.local_captured_vars.contains_key(name);
                     let rname = format!("sl_v_{}", sanitize_ident(name));
-                    let rty = rust_type(ty);
+                    let canon_ty = self.canon_type(ty);
+                    let rty = self.ws_index.rust_type(&canon_ty);
                     let mut_kw = if plan.mutated_locals.contains(name) {
                         "mut "
                     } else {
@@ -2538,7 +3188,7 @@ impl<'a> ModuleEmitter<'a> {
                                     name.clone(),
                                     VarStorage::Direct {
                                         rust_name: rname,
-                                        ty: ty.clone(),
+                                        ty: canon_ty,
                                     },
                                 );
                             }
@@ -2550,7 +3200,7 @@ impl<'a> ModuleEmitter<'a> {
                                 name.clone(),
                                 VarStorage::Direct {
                                     rust_name: rname,
-                                    ty: ty.clone(),
+                                    ty: canon_ty,
                                 },
                             );
                         }
@@ -2569,7 +3219,8 @@ impl<'a> ModuleEmitter<'a> {
                 Expr::Const { ty, name, value, .. } => {
                     let is_cap = plan.local_captured_vars.contains_key(name);
                     let rname = format!("sl_v_{}", sanitize_ident(name));
-                    let rty = rust_type(ty);
+                    let canon_ty = self.canon_type(ty);
+                    let rty = self.ws_index.rust_type(&canon_ty);
                     let (val_code, val_ty) = self.emit_expr(value, stmt_indent)?;
                     let val_clean = strip_matched_outer_parens(&val_code);
                     if is_cap {
@@ -2592,7 +3243,7 @@ impl<'a> ModuleEmitter<'a> {
                                 name.clone(),
                                 VarStorage::Direct {
                                     rust_name: rname,
-                                    ty: ty.clone(),
+                                    ty: canon_ty,
                                 },
                             );
                         }
@@ -2844,10 +3495,11 @@ impl<'a> ModuleEmitter<'a> {
                 l_ty,
             )),
             CoreBinaryOp::BufFill => {
-                let r_elem = rust_type(&l_ty);
+                let canon_l = self.canon_type(&l_ty);
+                let r_elem = self.ws_index.rust_type(&canon_l);
                 Ok((
                     format!("sl3_rt::SlBuf::<{r_elem}>::filled({lc}, {rc})"),
-                    StageLType::Buf(Box::new(l_ty)),
+                    StageLType::Buf(Box::new(canon_l)),
                 ))
             }
             CoreBinaryOp::BufPush => Ok((
@@ -2909,20 +3561,21 @@ impl<'a> ModuleEmitter<'a> {
         if in_ty == StageLType::Never {
             return Ok((in_code, StageLType::Never));
         }
-        if &in_ty == target_ty {
-            return Ok((in_code, target_ty.clone()));
+        let canon_target = self.canon_type(target_ty);
+        if in_ty == canon_target {
+            return Ok((in_code, canon_target));
         }
         let ic = strip_matched_outer_parens(&in_code);
-        let r_target = rust_type(target_ty);
-        if is_lossless_widening(&in_ty, target_ty) {
-            Ok((format!("{r_target}::from({ic})"), target_ty.clone()))
+        let r_target = self.ws_index.rust_type(&canon_target);
+        if is_lossless_widening(&in_ty, &canon_target) {
+            Ok((format!("{r_target}::from({ic})"), canon_target))
         } else {
             let tmp = self.next_tmp("cv");
             Ok((
                 format!(
                     "{{ let Ok({tmp}) = {r_target}::try_from({ic}) else {{ panic!(\"conv overflow\"); }}; {tmp} }}"
                 ),
-                target_ty.clone(),
+                canon_target,
             ))
         }
     }
@@ -2937,14 +3590,15 @@ impl<'a> ModuleEmitter<'a> {
         if in_ty == StageLType::Never {
             return Ok((in_code, StageLType::Never));
         }
-        if &in_ty == target_ty {
-            return Ok((in_code, target_ty.clone()));
+        let canon_target = self.canon_type(target_ty);
+        if in_ty == canon_target {
+            return Ok((in_code, canon_target));
         }
         let ic = strip_matched_outer_parens(&in_code);
-        let r_target = rust_type(target_ty);
+        let r_target = self.ws_index.rust_type(&canon_target);
         Ok((
             format!("{r_target}::from_le_bytes(({ic}).to_le_bytes())"),
-            target_ty.clone(),
+            canon_target,
         ))
     }
 
@@ -3081,6 +3735,7 @@ fn strip_matched_outer_parens(expr: &str) -> &str {
     {
         let mut depth = 0usize;
         let mut closes_early = false;
+        let mut has_top_comma = false;
         let mut in_string = false;
         let mut escaped = false;
         for ch in inner.chars() {
@@ -3096,18 +3751,22 @@ fn strip_matched_outer_parens(expr: &str) -> &str {
             }
             match ch {
                 '"' => in_string = true,
-                '(' => depth = depth.saturating_add(1),
-                ')' => {
+                '(' | '[' | '{' => depth = depth.saturating_add(1),
+                ')' | ']' | '}' => {
                     if depth == 0 {
                         closes_early = true;
                         break;
                     }
                     depth = depth.saturating_sub(1);
                 }
+                ',' if depth == 0 => {
+                    has_top_comma = true;
+                    break;
+                }
                 _ => {}
             }
         }
-        if in_string || closes_early || depth != 0 {
+        if in_string || closes_early || has_top_comma || depth != 0 {
             break;
         }
         cur = inner.trim();
@@ -3212,15 +3871,21 @@ fn expr_has_tail_call(expr: &Expr, in_tail: bool) -> bool {
         | Expr::Conv { expr: value, .. }
         | Expr::Bitcast { expr: value, .. }
         | Expr::Unary { operand: value, .. }
+        | Expr::Field { base: value, .. }
         | Expr::BufNew {
             capacity: value, ..
         } => expr_has_tail_call(value, false),
-        Expr::List { elements, .. } => {
-            elements.iter().any(|e| expr_has_tail_call(e, false))
-        }
-        Expr::Binary { left, right, .. } => {
-            expr_has_tail_call(left, false) || expr_has_tail_call(right, false)
-        }
+        Expr::List { elements, .. }
+        | Expr::TupleNew { elements, .. }
+        | Expr::StructNew {
+            fields: elements, ..
+        } => elements.iter().any(|e| expr_has_tail_call(e, false)),
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => expr_has_tail_call(left, false) || expr_has_tail_call(right, false),
         Expr::Ternary {
             first,
             second,
@@ -3432,6 +4097,7 @@ fn collect_descendant_routine_var_refs(
         | Expr::Conv { expr: value, .. }
         | Expr::Bitcast { expr: value, .. }
         | Expr::Unary { operand: value, .. }
+        | Expr::Field { base: value, .. }
         | Expr::BufNew {
             capacity: value, ..
         }
@@ -3464,7 +4130,11 @@ fn collect_descendant_routine_var_refs(
                 );
             }
         }
-        Expr::List { elements, .. } => {
+        Expr::List { elements, .. }
+        | Expr::TupleNew { elements, .. }
+        | Expr::StructNew {
+            fields: elements, ..
+        } => {
             for e in elements {
                 collect_descendant_routine_var_refs(
                     e,
@@ -3548,7 +4218,12 @@ fn collect_descendant_routine_var_refs(
                 out,
             );
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => {
             collect_descendant_routine_var_refs(
                 left,
                 callable_nested_names,
@@ -3616,6 +4291,7 @@ fn collect_called_routine_names(
         | Expr::Conv { expr: value, .. }
         | Expr::Bitcast { expr: value, .. }
         | Expr::Unary { operand: value, .. }
+        | Expr::Field { base: value, .. }
         | Expr::BufNew {
             capacity: value, ..
         }
@@ -3625,7 +4301,11 @@ fn collect_called_routine_names(
         Expr::Let { init: Some(e), .. } | Expr::Return { value: Some(e), .. } => {
             collect_called_routine_names(e, sibling_names, out);
         }
-        Expr::List { elements, .. } => {
+        Expr::List { elements, .. }
+        | Expr::TupleNew { elements, .. }
+        | Expr::StructNew {
+            fields: elements, ..
+        } => {
             for e in elements {
                 collect_called_routine_names(e, sibling_names, out);
             }
@@ -3655,7 +4335,12 @@ fn collect_called_routine_names(
             collect_called_routine_names(list, sibling_names, out);
             collect_called_routine_names(body, sibling_names, out);
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => {
             collect_called_routine_names(left, sibling_names, out);
             collect_called_routine_names(right, sibling_names, out);
         }
@@ -3693,7 +4378,11 @@ fn track_assign_expr(
                 }
             }
         }
-        Expr::List { elements, .. } => {
+        Expr::List { elements, .. }
+        | Expr::TupleNew { elements, .. }
+        | Expr::StructNew {
+            fields: elements, ..
+        } => {
             for e in elements {
                 track_assign_expr(e, shadowed, states, in_loop);
             }
@@ -3701,6 +4390,9 @@ fn track_assign_expr(
         Expr::BufNew { capacity, .. }
         | Expr::Conv { expr: capacity, .. }
         | Expr::Bitcast { expr: capacity, .. }
+        | Expr::Field {
+            base: capacity, ..
+        }
         | Expr::Unary {
             operand: capacity, ..
         } => {
@@ -3765,7 +4457,12 @@ fn track_assign_expr(
         Expr::Return { value: Some(e), .. } => {
             track_assign_expr(e, shadowed, states, in_loop);
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => {
             track_assign_expr(left, shadowed, states, in_loop);
             track_assign_expr(right, shadowed, states, in_loop);
         }
@@ -3801,7 +4498,11 @@ fn collect_free_var_refs(
             }
             collect_free_var_refs(value, bound, out);
         }
-        Expr::List { elements, .. } => {
+        Expr::List { elements, .. }
+        | Expr::TupleNew { elements, .. }
+        | Expr::StructNew {
+            fields: elements, ..
+        } => {
             for e in elements {
                 collect_free_var_refs(e, bound, out);
             }
@@ -3809,6 +4510,9 @@ fn collect_free_var_refs(
         Expr::BufNew { capacity, .. }
         | Expr::Conv { expr: capacity, .. }
         | Expr::Bitcast { expr: capacity, .. }
+        | Expr::Field {
+            base: capacity, ..
+        }
         | Expr::Unary { operand: capacity, .. } => {
             collect_free_var_refs(capacity, bound, out);
         }
@@ -3862,7 +4566,12 @@ fn collect_free_var_refs(
             loop_bound.insert(elem_name.clone());
             collect_free_var_refs(body, &loop_bound, out);
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => {
             collect_free_var_refs(left, bound, out);
             collect_free_var_refs(right, bound, out);
         }
@@ -3901,7 +4610,11 @@ fn collect_top_value_deps(
         Expr::Set { value, .. } => {
             collect_top_value_deps(value, bound, ident_out, dc_out);
         }
-        Expr::List { elements, .. } => {
+        Expr::List { elements, .. }
+        | Expr::TupleNew { elements, .. }
+        | Expr::StructNew {
+            fields: elements, ..
+        } => {
             for e in elements {
                 collect_top_value_deps(e, bound, ident_out, dc_out);
             }
@@ -3909,6 +4622,9 @@ fn collect_top_value_deps(
         Expr::BufNew { capacity, .. }
         | Expr::Conv { expr: capacity, .. }
         | Expr::Bitcast { expr: capacity, .. }
+        | Expr::Field {
+            base: capacity, ..
+        }
         | Expr::Unary { operand: capacity, .. } => {
             collect_top_value_deps(capacity, bound, ident_out, dc_out);
         }
@@ -3994,7 +4710,12 @@ fn collect_top_value_deps(
             loop_bound.insert(elem_name.clone());
             collect_top_value_deps(body, &loop_bound, ident_out, dc_out);
         }
-        Expr::Binary { left, right, .. } => {
+        Expr::Binary { left, right, .. }
+        | Expr::With {
+            base: left,
+            value: right,
+            ..
+        } => {
             collect_top_value_deps(left, bound, ident_out, dc_out);
             collect_top_value_deps(right, bound, ident_out, dc_out);
         }
@@ -4802,5 +5523,139 @@ v/b/checkLinkedMath
         )
         .expect("transpile client linked from SeedGraphIndex::shared()");
         run_rustc_and_clippy_smoke(&linked_rust, true);
+    }
+
+    #[crate::ctb_test]
+    fn test_rust_codegen_tuples_and_positional_structs() {
+        let inputs = [
+            ModuleInput {
+                source_path: Some("geo/shapes.sl3"),
+                source: r#"ns geo/shapes.
+
+pub struct point :: i32 i32.
+pub struct tree :: point l/tree l/u8.
+
+pub point/origin structNew point: i32:0 i32:0 ::.
+
+pub v/point/shiftPoint point/p i32/dx i32/dy
+    with
+        with /p u32:0 add field /p u32:0 /dx
+        u32:1
+        add field /p u32:1 /dy.
+
+pub v/i32/sumTree tree/node
+    do
+        let i32/total add field field /node u32:0 u32:0 field field /node u32:0 u32:1.
+        foreach tree/child field /node u32:1 do
+            set /total add /total sumTree /child.
+        ::.
+        /total.
+    ::.
+"#,
+            },
+            ModuleInput {
+                source_path: Some("app/tup_struct_runner.sl3"),
+                source: r#"ns app/tup_struct_runner.
+use geo/shapes: point as pt tree origin shiftPoint sumTree ::.
+
+struct singleSlot :: l/u8.
+struct bufHolder :: buf/u32 u32.
+
+v/pt/walkTail u32/steps pt/cur
+    if eq /steps u32:0
+        /cur
+        walkTail sub /steps u32:1 shiftPoint /cur i32:1 i32:2.
+
+pub v/b/verifyTuplesAndStructs
+    test fullSuite
+        in.
+        out true.
+    : 0-tuple, 1-tuple, 3-tuple, and 13-tuple (>12 arity)
+    let tup: ::/unitTup tupNew: ::.
+    if ne /unitTup tupNew: :: fault nop.
+    let tup: l/u8 ::/oneTup tupNew: b"hi" ::.
+    let tup: l/u8 ::/oneTup2 with /oneTup u32:0 b"bye".
+    if ne field /oneTup u32:0 b"hi" fault nop.
+    if ne field /oneTup2 u32:0 b"bye" fault nop.
+    let tup: u8 i32 l/u8 ::/tri tupNew: u8:7 i32:-5 b"tag" ::.
+    let tup: u8 i32 l/u8 ::/triUpdated with /tri u32:1 i32:42.
+    if ne field /tri u32:1 i32:-5 fault nop.
+    if ne field /triUpdated u32:1 i32:42 fault nop.
+    if ne field /triUpdated u32:2 b"tag" fault nop.
+    let tup: u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 ::/big13
+        tupNew: u32:1 u32:2 u32:3 u32:4 u32:5 u32:6 u32:7 u32:8 u32:9 u32:10 u32:11 u32:12 u32:13 ::.
+    let tup: u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 u32 ::/big13Mod
+        with /big13 u32:12 u32:99.
+    if ne field /big13Mod u32:12 u32:99 fault nop.
+
+    : Left-to-right evaluation of 'with' when value expression mutates base variable
+    let pt/mutBase structNew pt: i32:10 i32:20 ::.
+    let pt/fromOld with /mutBase u32:1 do
+        set /mutBase structNew pt: i32:999 i32:888 ::.
+        i32:30.
+    ::.
+    if ne /fromOld structNew pt: i32:10 i32:30 :: fault nop.
+    if ne /mutBase structNew pt: i32:999 i32:888 :: fault nop.
+
+    : Single-slot struct 'with' + rvalue field projection
+    let singleSlot/ss with structNew singleSlot: b"a" :: u32:0 b"b".
+    if ne field /ss u32:0 b"b" fault nop.
+
+    : Private struct containing buf/u32 and buf/pt
+    let bufHolder/bh structNew bufHolder: bufNew u32 u64:4 u32:7 ::.
+    bufPush field /bh u32:0 u32:55.
+    if ne get field /bh u32:0 u64:0 u32:55 fault nop.
+    let buf/pt/ptBuf bufNew pt u64:2.
+    bufPush /ptBuf /origin.
+    bufPush /ptBuf walkTail u32:50000 /origin.
+    let l/pt/frozenPts bufFreeze /ptBuf.
+    if ne get /frozenPts u64:1 structNew pt: i32:50000 i32:100000 :: fault nop.
+
+    : Recursive tree struct + structural equality
+    let tree/leafA structNew tree: structNew pt: i32:1 i32:2 :: l/tree: :: b"a" ::.
+    let tree/leafB structNew tree: structNew pt: i32:3 i32:4 :: l/tree: :: b"b" ::.
+    let tree/root structNew tree: structNew pt: i32:5 i32:6 :: l/tree: /leafA /leafB :: b"root" ::.
+    if ne sumTree /root i32:21 fault nop.
+    eq /root with /root u32:2 b"root".
+"#,
+            },
+        ];
+
+        let ws = parse_and_validate_workspace(&inputs).expect("validate tuple/struct ws");
+        let vm = StageLWorkspaceVm::from_validated_workspace(
+            &ws,
+            EvalConfig {
+                compute_quota: 25_000_000,
+                max_call_depth: 32,
+            },
+        )
+        .expect("init VM");
+        let vm_report = vm.run_all_tests(&ws).expect("VM tuple/struct tests");
+        assert_eq!(vm_report.ensure_all_passed().unwrap(), 1);
+
+        let rust_ws = transpile_workspace_to_rust(
+            &ws,
+            &RustTranspileOptions {
+                standalone_smoke_harness: true,
+                emit_test_runner: true,
+            },
+        )
+        .expect("transpile tuple/struct ws");
+        run_rustc_and_clippy_smoke(&rust_ws, true);
+
+        let strict_lib = transpile_sl3_source_to_rust(
+            r#"ns clean/tuples_and_structs.
+pub struct pair_i32 :: i32 i32.
+pub v/tup: ::/unit_tup :: tupNew: ::.
+pub v/pair_i32/swap_pair pair_i32/inp
+    with with /inp u32:0 field /inp u32:1 u32:1 field /inp u32:0.
+"#,
+            &RustTranspileOptions {
+                standalone_smoke_harness: false,
+                emit_test_runner: false,
+            },
+        )
+        .expect("transpile strict lib with structs/tuples");
+        run_rustc_and_clippy_smoke(&strict_lib, false);
     }
 }

@@ -1073,4 +1073,146 @@ v/u32/checkV2 u32/x
         ensure!(rep_head.ensure_all_passed()? == 1, "HEAD v2 WASM test failed");
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_wasm_tuples_and_positional_structs_equivalence_and_dc_tokens()
+    -> Result<()> {
+        use ctb_formats_dcdata::stagel_dc_alloc::{
+            DiscoveredStagelFile, reconcile_stagel_and_csv_in_memory,
+        };
+        use ctb_formats_dcdata::wat::ImplStage;
+        use std::collections::BTreeSet;
+        use std::path::PathBuf;
+
+        let geo_src = r#"ns geo/shapes.
+
+pub struct point :: u8 i32 i64.
+pub struct tree :: point l/tree l/u8.
+
+pub point/origin structNew point: u8:1 i32:0 i64:0 ::.
+
+pub v/point/shiftPoint point/p i32/dx i64/dz
+    with
+        with /p u32:1 add field /p u32:1 /dx
+        u32:2
+        add field /p u32:2 /dz.
+
+pub v/i64/sumTree tree/node
+    do
+        let i64/total add conv field field /node u32:0 u32:1 i64 field field /node u32:0 u32:2.
+        foreach tree/child field /node u32:1 do
+            set /total add /total sumTree /child.
+        ::.
+        /total.
+    ::.
+"#;
+
+        let mut files = vec![DiscoveredStagelFile {
+            stage: ImplStage::Stage1,
+            disk_path: PathBuf::from("geo/shapes.sl3"),
+            repo_rel_path: "src/formats/dcdata/data-src/stage_1_impls/geo/shapes.sl3"
+                .to_owned(),
+            psr4_rel_path: "geo/shapes.sl3".to_owned(),
+            raw_bytes: geo_src.as_bytes().to_vec(),
+            source: geo_src.to_owned(),
+        }];
+        let (nodes, alloc, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut files,
+            &[],
+            &[],
+            &BTreeSet::new(),
+            None,
+        )?;
+        ensure!(
+            alloc.entities_allocated == 5,
+            "Expected 2 structs + 1 value + 2 routines allocated, got {}",
+            alloc.entities_allocated
+        );
+        let idx = SeedGraphIndex::from_nodes(nodes);
+
+        let app_src = r#"
+use geo/shapes: point as pt tree origin shiftPoint sumTree ::.
+
+struct bufBox :: buf/i32 u32.
+
+v/pt/walkTail u32/steps pt/cur
+    if eq /steps u32:0
+        /cur
+        walkTail sub /steps u32:1 shiftPoint /cur i32:2 i64:3.
+
+v/b/checkTuplesStructsAndCaptures
+    test fullCheck
+        in.
+        out true.
+    : 0-tuple, 1-tuple, mixed-alignment 4-tuple, and nested list/buf of tuples/structs
+    let tup: ::/u0 tupNew: ::.
+    if ne /u0 tupNew: :: fault nop.
+    let tup: u8 i64 b l/u8 ::/mix tupNew: u8:9 i64:-777 true b"tag" ::.
+    let tup: u8 i64 b l/u8 ::/mix2 with /mix u32:1 i64:424242.
+    if ne field /mix u32:1 i64:-777 fault nop.
+    if ne field /mix2 u32:0 u8:9 fault nop.
+    if ne field /mix2 u32:1 i64:424242 fault nop.
+    if ne field /mix2 u32:2 true fault nop.
+    if ne field /mix2 u32:3 b"tag" fault nop.
+    if eq /mix /mix2 fault nop.
+
+    : Left-to-right evaluation of 'with' when value expression mutates base variable AND captured cell
+    let pt/capPt /origin.
+    const v/void/resetCap :: set /capPt structNew pt: u8:99 i32:888 i64:999 ::.
+    let pt/updated with /capPt u32:1 do
+        resetCap.
+        i32:50.
+    ::.
+    if ne /updated structNew pt: u8:1 i32:50 i64:0 :: fault nop.
+    if ne /capPt structNew pt: u8:99 i32:888 i64:999 :: fault nop.
+
+    : Private struct with buf/i32 + buf/pt + return_call tail recursion
+    let bufBox/bb structNew bufBox: bufNew i32 u64:2 u32:7 ::.
+    bufPush field /bb u32:0 i32:-19.
+    if ne get field /bb u32:0 u64:0 i32:-19 fault nop.
+    let buf/pt/pb bufNew pt u64:2.
+    bufPush /pb /origin.
+    bufPush /pb walkTail u32:20000 /origin.
+    let l/pt/pts bufFreeze /pb.
+    if ne get /pts u64:1 structNew pt: u8:1 i32:40000 i64:60000 :: fault nop.
+
+    : Recursive tree struct + structural equality
+    let tree/leafA structNew tree: structNew pt: u8:1 i32:2 i64:3 :: l/tree: :: b"a" ::.
+    let tree/leafB structNew tree: structNew pt: u8:1 i32:4 i64:5 :: l/tree: :: b"b" ::.
+    let tree/root structNew tree: structNew pt: u8:1 i32:6 i64:7 :: l/tree: /leafA /leafB :: b"root" ::.
+    if ne sumTree /root i64:27 fault nop.
+    if ne /root with /root u32:2 b"root" fault nop.
+    if eq /root with /root u32:2 b"diff" fault nop.
+    true.
+"#;
+
+        let eval_rep =
+            crate::stagel3::seed_linker::eval_sl3_inline_tests_with_seed_graph(
+                app_src, &idx,
+            )?;
+        ensure!(eval_rep.ensure_all_passed()? == 1, "Eval tuple/struct test failed");
+
+        let wasm_rep = run_sl3_inline_tests_wasm_with_seed_graph(
+            app_src,
+            &idx,
+            WasmTestConfig::default(),
+        )?;
+        ensure!(wasm_rep.ensure_all_passed()? == 1, "WASM tuple/struct test failed");
+
+        let dc_tokens =
+            crate::stagel3::seed_linker::sl3_to_dc_tokens_with_seed_graph(
+                app_src, &idx,
+            )?;
+        let tok_wasm_rep = run_dc_tokens_inline_tests_wasm_with_seed_graph(
+            &dc_tokens,
+            &idx,
+            WasmTestConfig::default(),
+        )?;
+        ensure!(
+            tok_wasm_rep.ensure_all_passed()? == 1,
+            "Token-Dc WASM tuple/struct test failed"
+        );
+        Ok(())
+    }
 }
