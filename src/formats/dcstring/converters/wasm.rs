@@ -3283,6 +3283,12 @@ impl DcWasmSession {
         Ok(())
     }
 
+    /// Returns `true` if this session is attached to a [`SharedWasmTaskQuota`].
+    #[must_use]
+    pub const fn has_shared_task_quota(&self) -> bool {
+        self.shared_task_quota.is_some()
+    }
+
     /// Builder-style method attaching a [`SharedWasmTaskQuota`].
     ///
     /// # Errors
@@ -4141,11 +4147,17 @@ pub fn run_dc_wasm_pure_conversion_with_resolver_and_quota(
     let most_recent = resolver
         .seed_graph()
         .and_then(ctb_formats_dcdata::seed_graph::SeedGraphIndex::system_block_most_recent_node_id);
-    let mut session = DcWasmSession::from_dc_wasm_with_resolver(
+    let limits = if let Some(ref shared) = shared_quota {
+        shared.active_limits()?
+    } else {
+        DcWasmResourceLimits::default()
+    };
+    let mut session = DcWasmSession::from_dc_wasm_with_limits(
         wasm_doc,
         input,
         most_recent,
         resolver,
+        limits,
     )?;
     if let Some(shared) = shared_quota {
         session.set_shared_task_quota(shared)?;
@@ -4285,6 +4297,36 @@ fn expand_graph_wasm_shorthands(
                     node.id
                 );
             }
+            if sg.get_entity_class(node_id).is_some() {
+                if let Some((opt_node_id, helper_tokens)) =
+                    sg.resolve_wasm_helper_shorthand(sh)?
+                {
+                    ensure!(
+                        visited_shorthands.insert(sh),
+                        "Cycle detected while expanding graph WASM helper shorthand {sh}"
+                    );
+                    if let Some(nid) = opt_node_id {
+                        ensure!(
+                            visited_nodes.insert(nid),
+                            "Cycle detected while expanding graph WASM helper node l{nid}"
+                        );
+                    }
+                    let child_tokens = strip_nested_wasm_program_delimiters(
+                        helper_tokens,
+                        wasm_prog_depth,
+                        resolver,
+                    );
+                    frames.push(WasmExpansionFrame {
+                        iter: child_tokens.iter(),
+                        node_id: opt_node_id,
+                        shorthand: Some(sh),
+                    });
+                    continue;
+                }
+                bail!(
+                    "Graph entity l{node_id} has no active WASM decomposition in the System graph snapshot"
+                );
+            }
             ensure!(
                 visited_nodes.insert(node.id),
                 "Cycle detected while expanding graph WASM helper node l{}",
@@ -4381,6 +4423,21 @@ fn expand_graph_wasm_shorthands(
         out_doc.push_char(DcChar::from_u128(gid));
     }
     Ok(())
+}
+
+/// Expands a slice of [`ctb_storage_minimal::shorthand::DcShorthand`] graph WASM tokens
+/// (resolving nested helper shorthands and standalone `Routine` entities) into an executable
+/// [`DcMstring`] Dc-WASM document.
+///
+/// # Errors
+/// Returns an error if any helper shorthand or graph reference fails to resolve or forms a cycle.
+pub fn expand_graph_wasm_shorthands_to_dcmstring(
+    wasm_shorthands: &[ctb_storage_minimal::shorthand::DcShorthand],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<DcMstring> {
+    let mut wasm_doc = DcMstring::new();
+    expand_graph_wasm_shorthands(wasm_shorthands, resolver, &mut wasm_doc)?;
+    Ok(wasm_doc)
 }
 
 /// Runs a pure-compute Dc-WASM conversion from a slice of [`ctb_storage_minimal::shorthand::DcShorthand`]

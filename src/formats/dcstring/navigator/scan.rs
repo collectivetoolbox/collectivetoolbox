@@ -779,6 +779,91 @@ impl<'a> DcDocumentNavigator<'a> {
         if !resolver.is_splice_trigger_token(first_dc.to_u128()) {
             return Ok(None);
         }
+        if first_dc.fills_role_with(DcRole::ResolveToPin, resolver) {
+            let saved = self.save_checkpoint();
+            let saved_diag_len = self.diagnostics.len();
+            let res = (|| -> Result<Option<u64>> {
+                self.cursor = after_first;
+                self.clear_spliced_tokens();
+                let mut pin_ctx = super::eval::SyntaxEvalContext::new(
+                    resolver,
+                    Some(first_dc.to_u128()),
+                );
+                pin_ctx.policy.clone_from(policy);
+                let matched_pin = self.eval_term_single(
+                    &SyntaxTerm::NamedConstruct {
+                        name: "pin_description".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    },
+                    &mut pin_ctx,
+                )?;
+                if !matched_pin
+                    || pin_ctx.has_errors
+                    || self.cursor <= after_first
+                {
+                    return Ok(None);
+                }
+                let after_pin = self.cursor;
+                let pin_u128s = self.read_tokens_in_span(DcByteSpan::new(
+                    after_first,
+                    after_pin,
+                ))?;
+                let pin_chars: Vec<DcChar> =
+                    pin_u128s.into_iter().map(DcChar::from_u128).collect();
+                let Ok(pin_node_id) =
+                    super::eval::extract_pin_node_id_from_pin_description(
+                        &pin_chars, resolver, None,
+                    )
+                else {
+                    return Ok(None);
+                };
+                let Ok(pinned_res) =
+                    super::eval::resolve_pinned_syntax_resolver(
+                        resolver,
+                        pin_node_id,
+                    )
+                else {
+                    return Ok(None);
+                };
+                if let Some(splice_end) = self.scan_splice_invocation_at(
+                    after_pin,
+                    policy,
+                    pinned_res.as_ref(),
+                )? && splice_end > after_pin
+                {
+                    return Ok(Some(splice_end));
+                }
+                for construct_name in ["value", "atom_dc"] {
+                    self.cursor = after_pin;
+                    self.clear_spliced_tokens();
+                    let mut op_ctx = super::eval::SyntaxEvalContext::new(
+                        pinned_res.as_ref(),
+                        Some(first_dc.to_u128()),
+                    );
+                    op_ctx.policy.clone_from(policy);
+                    if self.eval_term_single(
+                        &SyntaxTerm::NamedConstruct {
+                            name: construct_name.to_owned(),
+                            subtype: None,
+                            capture_var: None,
+                        },
+                        &mut op_ctx,
+                    )? && !op_ctx.has_errors
+                        && self.cursor > after_pin
+                    {
+                        return Ok(Some(self.cursor));
+                    }
+                }
+                Ok(None)
+            })();
+            self.restore_checkpoint(saved);
+            self.diagnostics.truncate(saved_diag_len);
+            if let Some(end) = res? {
+                return Ok(Some(end));
+            }
+            return Ok(None);
+        }
         if let Some(target) = CharTarget::from_u128(first_dc.to_u128()) {
             if let Some(closer_u128) = resolver.closer_for_opener(&target) {
                 if let Ok((closer_start, after_closer, is_spliced)) = self

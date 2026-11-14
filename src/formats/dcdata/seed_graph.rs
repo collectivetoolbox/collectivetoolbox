@@ -48,8 +48,8 @@ use crate::dc::{
     DC_BIDIRECTIONAL_CLASS, DC_BOOLEAN_TRUE, DC_CANONICAL_DECOMPOSITION,
     DC_CANONICAL_NAME, DC_CHARACTER_GENERAL_CATEGORY, DC_CHARACTER_SCRIPT,
     DC_COLLECTIVE_TOOLBOX_DC_CSV_SEED_DATABASE,
-    DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DC_GENERAL_CATEGORY,
-    DC_DECLARE_CONST, DC_DECLARE_PUB,
+    DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
+    DC_DC_GENERAL_CATEGORY, DC_DECLARE_CONST, DC_DECLARE_PUB,
     DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
     DC_END_LIST, DC_ENTITY_TYPE,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
@@ -57,8 +57,8 @@ use crate::dc::{
     DC_MANUAL_ENTRY,
     DC_PATTERN_REPLACEMENT, DC_PREFERRED, DC_PROGRAMMATIC_IDENTIFIER,
     DC_REPLACEMENT, DC_RETRACTS, DC_SEMANTIC_DECOMPOSITION, DC_SUPERSEDES,
-    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ANY, DC_TYPE_ROUTINE,
-    DC_UNICODE_SCRIPT, DcChar,
+    DC_SYNTAX_RULE, DC_THIS_ELEMENT, DC_TYPE_ANY, DC_TYPE_CONVERSION,
+    DC_TYPE_ROUTINE, DC_UNICODE_SCRIPT, DcChar,
 };
 use crate::graph_ledger::{
     LedgerNode, SeedEntityKey, decode_ctbnbdl_bundle,
@@ -1867,6 +1867,36 @@ impl SeedGraphIndex {
                     if !visited_nodes.insert(node_id) {
                         continue;
                     }
+                    if self.entity_class_by_id.contains_key(&node_id) {
+                        for prop_dc in [
+                            DC_CANONICAL_DECOMPOSITION,
+                            DC_DECOMPOSITION,
+                            DC_SEMANTIC_DECOMPOSITION,
+                        ] {
+                            for entry in
+                                self.get_multi_properties(tok, sh(prop_dc))
+                            {
+                                if let DcShorthand::Long(val_id) = entry.value {
+                                    if !visited_nodes.insert(val_id) {
+                                        continue;
+                                    }
+                                    if let Some(val_node) = self
+                                        .get_active_node(val_id)
+                                        .or_else(|| self.get_node(val_id))
+                                        && self
+                                            .tokens_are_wasm_helper_or_definition_inner(
+                                                &val_node.tokens,
+                                                visited_nodes,
+                                                visited_shorthands,
+                                            )
+                                    {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                        continue;
+                    }
                     let node_opt = self
                         .get_active_node(node_id)
                         .or_else(|| self.get_node(node_id));
@@ -2284,6 +2314,75 @@ impl SeedGraphIndex {
     #[must_use]
     pub fn get_entity_class(&self, entity_id: u128) -> Option<DcShorthand> {
         self.entity_class_by_id.get(&entity_id).copied()
+    }
+
+    /// Resolves the active standalone converter `Routine` entity (`Dc 280`) in this snapshot
+    /// whose `Dc 595 "Data format or type description"` is `[Dc 302 "Type conversion", src, dst]`,
+    /// returning `(routine_entity_id, wasm_tokens)` for its active `.WASM` decomposition.
+    ///
+    /// When multiple active converter routines match `(src, dst)`, routines marked with
+    /// `Dc 570 "Preferred"` (either on the entity or on its decomposition statement) take
+    /// precedence, breaking ties deterministically by ascending `routine_entity_id`.
+    ///
+    /// # Errors
+    /// Returns an error if a matching active converter routine's `.WASM` target node was
+    /// retracted, references an unsupported graph block, or exceeds the pinned System graph snapshot.
+    pub fn resolve_active_converter_routine(
+        &self,
+        src: DcShorthand,
+        dst: DcShorthand,
+    ) -> Result<Option<(u128, &[DcShorthand])>> {
+        let expected_format_tokens = [sh(DC_TYPE_CONVERSION), src, dst];
+        let mut candidates: Vec<(bool, u128, &[DcShorthand])> = Vec::new();
+        for (&entity_id, &class_tok) in &self.entity_class_by_id {
+            if class_tok != sh(DC_TYPE_ROUTINE) {
+                continue;
+            }
+            if let Some(pin_id) = self.system_block_most_recent_node_id
+                && entity_id > pin_id
+            {
+                continue;
+            }
+            let subj = DcShorthand::Long(entity_id);
+            let Some(DcShorthand::Long(fmt_node_id)) =
+                self.get_single_property(subj, sh(DC_DATA_FORMAT_DESCRIPTION))
+            else {
+                continue;
+            };
+            let Some(fmt_node) = self.get_active_node(fmt_node_id) else {
+                continue;
+            };
+            if fmt_node.tokens.as_slice() != expected_format_tokens {
+                continue;
+            }
+            let Some((_, wasm_tokens)) =
+                self.resolve_wasm_helper_shorthand(subj)?
+            else {
+                continue;
+            };
+            let entity_pref = self.has_direct_statement(
+                sh(DC_HAS_A),
+                subj,
+                sh(DC_PREFERRED),
+            );
+            let decomp_pref = [
+                DC_CANONICAL_DECOMPOSITION,
+                DC_DECOMPOSITION,
+                DC_SEMANTIC_DECOMPOSITION,
+            ]
+            .into_iter()
+            .any(|prop_dc| {
+                self.get_multi_properties(subj, sh(prop_dc))
+                    .iter()
+                    .any(|e| e.preferred_id.is_some())
+            });
+            let is_preferred = entity_pref || decomp_pref;
+            candidates.push((!is_preferred, entity_id, wasm_tokens));
+        }
+        candidates.sort_by_key(|&(not_pref, id, _)| (not_pref, id));
+        Ok(candidates
+            .first()
+            .map(|&(_, entity_id, wasm_tokens)| (entity_id, wasm_tokens)))
     }
 
     /// Expands interned pure-Unicode string value node references (`DcShorthand::Long(child_id)`

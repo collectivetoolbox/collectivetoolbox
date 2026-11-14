@@ -192,6 +192,18 @@ impl SharedWasmTaskQuota {
         }
     }
 
+    /// Returns a snapshot of the active [`DcWasmResourceLimits`] enforced by this shared task quota.
+    ///
+    /// # Errors
+    /// Returns an error if the shared quota mutex is poisoned.
+    pub fn active_limits(&self) -> Result<DcWasmResourceLimits> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| anyhow!("SharedWasmTaskQuota mutex poisoned"))?;
+        Ok(guard.active_limits)
+    }
+
     /// Increases the shared compute quota by `additional_units` and advances `grant_epoch`.
     ///
     /// # Errors

@@ -44,7 +44,8 @@
         "dbaeumer.vscode-eslint",
         "bradlc.vscode-tailwindcss",
         "rust-lang.rust-analyzer",
-        "${containerWorkspaceFolder}/.vscode/stagel3-language-0.0.1.vsix"
+        "${containerWorkspaceFolder}/.vscode/stagel3-language-0.0.1.vsix",
+        "undefined_publisher.stagel3-language"
       ]
     }
   }

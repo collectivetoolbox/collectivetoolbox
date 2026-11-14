@@ -271,6 +271,528 @@ impl DcExpressionEvaluator for SharedQuotaDcExpressionEvaluator {
     }
 }
 
+pub(crate) fn resolve_pinned_syntax_resolver(
+    base_resolver: &dyn SyntaxRuleResolver,
+    pin_node_id: u128,
+) -> Result<Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>> {
+    use ctb_formats_dcdata::global_graph_layout::{
+        SYSTEM_REGION_END, SYSTEM_REGION_START,
+        unsupported_graph_block_description,
+    };
+    use ctb_formats_dcdata::seed_graph::SeedGraphIndex;
+    use ctb_formats_dcdata::syntax::DatasetRuleResolver;
+
+    if let Some(block_desc) = unsupported_graph_block_description(pin_node_id) {
+        bail!(
+            "Unsupported graph block pin in Dc 641: node ID l{pin_node_id} targets {block_desc}"
+        );
+    }
+    ensure!(
+        (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&pin_node_id),
+        "Invalid System-block most recent node ID {pin_node_id} for Dc 641: expected System block range {SYSTEM_REGION_START}..={SYSTEM_REGION_END}"
+    );
+    if let Some(sg) = base_resolver.seed_graph()
+        && !sg.is_bundled_origin_node(SYSTEM_REGION_START)
+    {
+        let head_id = sg
+            .system_block_most_recent_node_id()
+            .max(sg.nodes().iter().map(|n| n.id).max())
+            .context(
+                "Cannot resolve Dc 641 pin against an empty System graph",
+            )?;
+        ensure!(
+            pin_node_id <= head_id,
+            "Document pin Dc 641 requires a newer System graph snapshot than the local graph (l{pin_node_id} > l{head_id})"
+        );
+        let pinned_sg = Arc::new(SeedGraphIndex::from_nodes_at_most_recent(
+            sg.nodes().to_vec(),
+            pin_node_id,
+        ));
+        return Ok(Arc::new(DatasetRuleResolver::from_seed_graph(&pinned_sg)?));
+    }
+    ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(pin_node_id)
+}
+
+pub(crate) fn extract_pin_node_id_from_pin_description(
+    pin_tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<crate::converters::wasm::SharedWasmTaskQuota>,
+) -> Result<u128> {
+    let first = pin_tokens
+        .first()
+        .copied()
+        .context("Empty pin_description in ResolveToPin")?;
+    ensure!(
+        first.fills_role_with(
+            DcRole::GlobalGraphSystemBlockMostRecentNodeId,
+            resolver
+        ),
+        "Unsupported pin_description opener {first} in ResolveToPin (expected Dc 641)"
+    );
+    // Reason for fallback: missing operand after Dc 641 produces an empty slice rejected below.
+    let operand_slice = pin_tokens.get(1..).unwrap_or(&[]);
+    let second = operand_slice
+        .first()
+        .copied()
+        .context("Missing System-block node ID operand after Dc 641")?;
+    if second.fills_role_with(DcRole::Escape, resolver) {
+        ensure!(
+            operand_slice.len() == 2,
+            "Trailing tokens in escaped Dc 641 atom_dc operand"
+        );
+        let escaped = operand_slice
+            .get(1)
+            .copied()
+            .context("Dangling escape in Dc 641 atom_dc operand")?;
+        return Ok(escaped.to_u128());
+    }
+    if second.fills_role_with(DcRole::EvaluateValueAsAtom, resolver) {
+        // Reason for fallback: missing operand after Dc 616 produces an empty slice rejected below.
+        let inner_expr = operand_slice.get(1..).unwrap_or(&[]);
+        let eval_doc = eval_expression_for_requirement_impl(
+            inner_expr,
+            &ValueRequirement::NamedConstruct {
+                name: "value",
+                subtype: None,
+            },
+            resolver,
+            shared_quota,
+        )?
+        .context("Dc 616 inside Dc 641 pin_description failed to evaluate")?;
+        let DcEvaluatedValue::Document(mstr) = eval_doc else {
+            bail!(
+                "Dc 616 inside Dc 641 pin_description must evaluate to a Document value"
+            );
+        };
+        let chars: Vec<DcChar> = mstr.to_dc_string()?.chars().collect();
+        ensure!(
+            chars.len() == 1,
+            "Dc 616 inside Dc 641 pin_description must evaluate to 1 atom Dc, got {} tokens",
+            chars.len()
+        );
+        let pin_ch = chars
+            .first()
+            .copied()
+            .context("Empty evaluated Dc 641 pin")?;
+        return Ok(pin_ch.to_u128());
+    }
+    ensure!(
+        operand_slice.len() == 1,
+        "Unexpected trailing tokens in Dc 641 pin_description"
+    );
+    Ok(second.to_u128())
+}
+
+fn split_resolve_to_pin_operands(
+    tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<crate::converters::wasm::SharedWasmTaskQuota>,
+) -> Result<(
+    Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>,
+    Vec<DcChar>,
+)> {
+    let mut rest_mstr = DcMstring::new();
+    for &tok in tokens.iter().skip(1) {
+        rest_mstr.push_char(tok);
+    }
+    let mut nav = DcDocumentNavigator::from_mstr(&rest_mstr);
+    let mut ctx = SyntaxEvalContext::new(resolver, None);
+    if let Some(ref shared) = shared_quota {
+        ctx.evaluator = Some(Arc::new(
+            SharedQuotaDcExpressionEvaluator::with_shared_task_quota(
+                shared.clone(),
+            ),
+        ));
+    }
+    let matched_pin = nav.eval_term_single(
+        &SyntaxTerm::NamedConstruct {
+            name: "pin_description".to_owned(),
+            subtype: None,
+            capture_var: None,
+        },
+        &mut ctx,
+    )?;
+    ensure!(
+        matched_pin && !ctx.has_errors && nav.position() > 0,
+        "ResolveToPin requires a valid leading [pin_description]"
+    );
+    let pin_end = nav.position();
+    let pin_u128s = nav.read_tokens_in_span(DcByteSpan::new(0, pin_end))?;
+    let pin_chars: Vec<DcChar> =
+        pin_u128s.into_iter().map(DcChar::from_u128).collect();
+    let pin_node_id = extract_pin_node_id_from_pin_description(
+        &pin_chars,
+        resolver,
+        shared_quota,
+    )?;
+    let pinned_res = resolve_pinned_syntax_resolver(resolver, pin_node_id)?;
+    let total_len = u64::try_from(rest_mstr.len())?;
+    ensure!(
+        pin_end < total_len,
+        "ResolveToPin is missing its target ([value] | [atom_dc]) operand"
+    );
+    let operand_u128s =
+        nav.read_tokens_in_span(DcByteSpan::new(pin_end, total_len))?;
+    let operand_chars: Vec<DcChar> =
+        operand_u128s.into_iter().map(DcChar::from_u128).collect();
+    Ok((pinned_res, operand_chars))
+}
+
+fn strip_leading_dc_comment_frames<'a>(
+    mut chars: &'a [DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<&'a [DcChar]> {
+    while let Some(&first) = chars.first() {
+        let end_role = if first
+            .fills_role_with(DcRole::BeginSingleLineComment, resolver)
+            || first.fills_role_with(
+                DcRole::BeginSingleLineCommentNewLine,
+                resolver,
+            ) {
+            Some(DcRole::EndSingleLineComment)
+        } else if first.fills_role_with(DcRole::BeginBlockComment, resolver)
+            || first.fills_role_with(DcRole::BeginBlockCommentNewLine, resolver)
+        {
+            Some(DcRole::EndBlockComment)
+        } else {
+            None
+        };
+        let Some(closer_role) = end_role else {
+            break;
+        };
+        let mut idx = 1usize;
+        let mut closed = false;
+        while let Some(&ch) = chars.get(idx) {
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                idx = idx.saturating_add(2);
+                continue;
+            }
+            idx = idx.saturating_add(1);
+            if ch.fills_role_with(closer_role, resolver) {
+                closed = true;
+                break;
+            }
+        }
+        ensure!(closed, "Unterminated comment frame in target Dc document");
+        // Reason for fallback: idx == chars.len() yields an empty trailing slice.
+        chars = chars.get(idx..).unwrap_or(&[]);
+    }
+    Ok(chars)
+}
+
+fn eval_convert_dc_string_to_wasm(
+    call_tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<crate::converters::wasm::SharedWasmTaskQuota>,
+) -> Result<DcMstring> {
+    use ctb_storage_minimal::shorthand::DcShorthand;
+
+    let head_dc = call_tokens
+        .first()
+        .copied()
+        .context("Empty ConvertDcStringToWasm invocation")?;
+    // Reason for fallback: missing argument slice yields empty slice rejected below.
+    let raw_arg = call_tokens.get(1..).unwrap_or(&[]);
+    ensure!(
+        !raw_arg.is_empty(),
+        "ConvertDcStringToWasm requires a [string] argument"
+    );
+
+    let unwrapped_arg = if raw_arg
+        .first()
+        .is_some_and(|c| c.fills_role_with(DcRole::BeginParameter, resolver))
+    {
+        ensure!(
+            raw_arg.len() >= 2
+                && raw_arg.last().is_some_and(|c| {
+                    c.fills_role_with(DcRole::EndParameter, resolver)
+                }),
+            "Unclosed parameter container in ConvertDcStringToWasm"
+        );
+        // Reason for fallback: slice bounds >= 2 were verified immediately above.
+        raw_arg
+            .get(1..raw_arg.len().saturating_sub(1))
+            .unwrap_or(&[])
+    } else {
+        raw_arg
+    };
+    ensure!(
+        !unwrapped_arg.is_empty(),
+        "ConvertDcStringToWasm parameter is empty"
+    );
+
+    let normalized_call: Vec<DcChar> = if unwrapped_arg
+        .first()
+        .is_some_and(|c| c.fills_role_with(DcRole::BeginLiteral, resolver))
+    {
+        call_tokens.to_vec()
+    } else {
+        let evaluated = eval_expression_for_requirement_impl(
+            unwrapped_arg,
+            &ValueRequirement::NamedConstruct {
+                name: "string",
+                subtype: None,
+            },
+            resolver,
+            shared_quota.clone(),
+        )?
+        .context(
+            "ConvertDcStringToWasm operand did not evaluate to a [string]",
+        )?;
+        let DcEvaluatedValue::Document(str_doc) = evaluated else {
+            bail!(
+                "ConvertDcStringToWasm operand must evaluate to a Document [string]"
+            );
+        };
+        let mut rebuilt = vec![head_dc];
+        for ch in str_doc.to_dc_string()?.chars() {
+            rebuilt.push(ch);
+        }
+        rebuilt
+    };
+
+    let string_slice = if normalized_call
+        .get(1)
+        .is_some_and(|c| c.fills_role_with(DcRole::BeginParameter, resolver))
+    {
+        // Reason for fallback: parameter wrapper bounds were checked above.
+        normalized_call
+            .get(2..normalized_call.len().saturating_sub(1))
+            .unwrap_or(&[])
+    } else {
+        // Reason for fallback: normalized_call always starts with head_dc followed by string tokens.
+        normalized_call.get(1..).unwrap_or(&[])
+    };
+    ensure!(
+        tokens_match_named_construct_with_resolver(
+            string_slice,
+            "string",
+            resolver,
+        )?,
+        "ConvertDcStringToWasm requires a valid [string] literal argument"
+    );
+
+    let unescaped_doc = if let Some(wasm_shorthands) =
+        resolver.resolve_wasm_definition_tokens(head_dc.to_u128())
+    {
+        crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
+            wasm_shorthands,
+            &normalized_call,
+            resolver,
+            shared_quota.clone(),
+        )?
+    } else {
+        let mut lit_mstr = DcMstring::new();
+        for &tok in string_slice {
+            lit_mstr.push_char(tok);
+        }
+        let policy = DcProjectionPolicy::strict();
+        let mut nav = DcDocumentNavigator::from_mstr(&lit_mstr);
+        let mut arena = crate::DcSyntaxArena::new();
+        nav.parse_document_into_arena_with_resolver(
+            &mut arena, &policy, resolver,
+        )?;
+        let root = *arena
+            .roots()
+            .first()
+            .context("Missing ConvertDcStringToWasm string literal")?;
+        let (_, decoded) = arena
+            .decode_literal_with_resolver(root, resolver)
+            .context("ConvertDcStringToWasm argument is not a literal")?;
+        decoded
+    };
+
+    let raw_target_chars: Vec<DcChar> =
+        unescaped_doc.to_dc_string()?.chars().collect();
+    let mut body_chars =
+        strip_leading_dc_comment_frames(&raw_target_chars, resolver)?;
+    ensure!(
+        !body_chars.is_empty(),
+        "ConvertDcStringToWasm target document contains no executable tokens"
+    );
+
+    if body_chars.first().is_some_and(|c| {
+        c.fills_role_with(
+            DcRole::GlobalGraphSystemBlockMostRecentNodeId,
+            resolver,
+        )
+    }) {
+        let mut nav_mstr = DcMstring::new();
+        for &tok in body_chars {
+            nav_mstr.push_char(tok);
+        }
+        let mut nav = DcDocumentNavigator::from_mstr(&nav_mstr);
+        let mut ctx = SyntaxEvalContext::new(resolver, None);
+        let matched_pin = nav.eval_term_single(
+            &SyntaxTerm::NamedConstruct {
+                name: "pin_description".to_owned(),
+                subtype: None,
+                capture_var: None,
+            },
+            &mut ctx,
+        )?;
+        ensure!(
+            matched_pin && !ctx.has_errors && nav.position() > 0,
+            "Invalid leading [pin_description] inside target Dc document"
+        );
+        let pin_end = nav.position();
+        let pin_u128s = nav.read_tokens_in_span(DcByteSpan::new(0, pin_end))?;
+        let pin_tokens: Vec<DcChar> =
+            pin_u128s.into_iter().map(DcChar::from_u128).collect();
+        let inner_pin_id = extract_pin_node_id_from_pin_description(
+            &pin_tokens,
+            resolver,
+            shared_quota.clone(),
+        )?;
+        if let Some(sg) = resolver.seed_graph()
+            && let Some(wm) = sg.system_block_most_recent_node_id()
+        {
+            ensure!(
+                inner_pin_id <= wm,
+                "Inner document Dc 641 pin l{inner_pin_id} exceeds active pinned System graph snapshot l{wm}"
+            );
+        }
+        // Reason for fallback: exhausted slice after pin_tokens.len() is rejected immediately below.
+        let after_pin = body_chars.get(pin_tokens.len()..).unwrap_or(&[]);
+        body_chars = strip_leading_dc_comment_frames(after_pin, resolver)?;
+        ensure!(
+            !body_chars.is_empty(),
+            "Target Dc document contains only a pin_description and no body"
+        );
+    }
+
+    let first_body = body_chars
+        .first()
+        .copied()
+        .context("Empty target Dc document body")?;
+
+    if first_body.fills_role_with(DcRole::BeginWasmProgram, resolver)
+        || tokens_match_named_construct_with_resolver(
+            body_chars, "Routine", resolver,
+        )?
+    {
+        let body_shorthands: Vec<DcShorthand> = body_chars
+            .iter()
+            .map(|c| DcShorthand::from_global_id(c.to_u128()))
+            .collect();
+        return crate::converters::wasm::expand_graph_wasm_shorthands_to_dcmstring(
+            &body_shorthands,
+            resolver,
+        );
+    }
+
+    if body_chars.len() == 1 {
+        let single_sh = DcShorthand::from_global_id(first_body.to_u128());
+        if let Some(sg) = resolver.seed_graph() {
+            if let Some((_, wasm_tokens)) =
+                sg.resolve_wasm_helper_shorthand(single_sh)?
+            {
+                return crate::converters::wasm::expand_graph_wasm_shorthands_to_dcmstring(
+                    wasm_tokens,
+                    resolver,
+                );
+            }
+        } else if let Some(wasm_tokens) =
+            resolver.resolve_wasm_definition_tokens(first_body.to_u128())
+        {
+            return crate::converters::wasm::expand_graph_wasm_shorthands_to_dcmstring(
+                wasm_tokens,
+                resolver,
+            );
+        }
+    }
+
+    let Some(sg) = resolver.seed_graph() else {
+        bail!(
+            "ConvertDcStringToWasm requires a SeedGraphIndex snapshot to resolve converter routines for {first_body}"
+        );
+    };
+    let src_sh = DcShorthand::from_global_id(first_body.to_u128());
+    let dst_sh = DcShorthand::from_global_id(
+        ctb_formats_dcdata::dc::DC_BEGIN_WASM_PROGRAM.to_u128(),
+    );
+    let Some((_converter_id, converter_wasm_tokens)) =
+        sg.resolve_active_converter_routine(src_sh, dst_sh)?
+    else {
+        bail!(
+            "No active converter routine ([Dc 302 {src_sh} {dst_sh}]) found in System graph snapshot"
+        );
+    };
+
+    let raw_wasm_doc =
+        crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
+            converter_wasm_tokens,
+            body_chars,
+            resolver,
+            shared_quota,
+        )?;
+    let out_chars: Vec<DcChar> = raw_wasm_doc.to_dc_string()?.chars().collect();
+    let is_wasm_prog = out_chars
+        .first()
+        .is_some_and(|c| c.fills_role_with(DcRole::BeginWasmProgram, resolver))
+        && out_chars.last().is_some_and(|c| {
+            c.fills_role_with(DcRole::EndWasmProgram, resolver)
+        });
+    let is_wasm_routine = is_wasm_prog
+        || tokens_match_named_construct_with_resolver(
+            &out_chars, "Routine", resolver,
+        )?;
+    ensure!(
+        is_wasm_routine,
+        "Converter routine for {src_sh} -> {dst_sh} did not emit a valid Dc-WASM program (Dc 1927..Dc 1928)"
+    );
+    let out_shorthands: Vec<DcShorthand> = out_chars
+        .iter()
+        .map(|c| DcShorthand::from_global_id(c.to_u128()))
+        .collect();
+    crate::converters::wasm::expand_graph_wasm_shorthands_to_dcmstring(
+        &out_shorthands,
+        resolver,
+    )
+}
+
+fn tokens_satisfy_value_requirement(
+    tokens: &[DcChar],
+    requirement: &ValueRequirement<'_>,
+    resolver: &dyn SyntaxRuleResolver,
+    shared_quota: Option<crate::converters::wasm::SharedWasmTaskQuota>,
+) -> Result<bool> {
+    let mut mstr = DcMstring::new();
+    for &tok in tokens {
+        mstr.push_char(tok);
+    }
+    let mut nav = DcDocumentNavigator::from_mstr(&mstr);
+    let mut ctx = SyntaxEvalContext::new(resolver, None);
+    if let Some(shared) = shared_quota {
+        ctx.evaluator = Some(Arc::new(
+            SharedQuotaDcExpressionEvaluator::with_shared_task_quota(shared),
+        ));
+    }
+    let target_term = match requirement {
+        ValueRequirement::NamedConstruct { name, subtype } => {
+            SyntaxTerm::NamedConstruct {
+                name: (*name).to_owned(),
+                subtype: subtype.cloned(),
+                capture_var: None,
+            }
+        }
+        ValueRequirement::TypeToken(tok) => {
+            let Some(target) = CharTarget::from_u128(tok.to_u128()) else {
+                return Ok(false);
+            };
+            SyntaxTerm::CharRef(target)
+        }
+        ValueRequirement::ConstructOpener(op) => {
+            let Some(target) = CharTarget::from_u128(op.to_u128()) else {
+                return Ok(false);
+            };
+            SyntaxTerm::CharRef(target)
+        }
+    };
+    let ok = nav.eval_term_single(&target_term, &mut ctx)?;
+    Ok(ok && !ctx.has_errors && nav.position() == u64::try_from(mstr.len())?)
+}
+
 fn eval_expression_for_requirement_impl(
     expr_tokens: &[DcChar],
     requirement: &ValueRequirement<'_>,
@@ -280,6 +802,42 @@ fn eval_expression_for_requirement_impl(
         let Some(first) = expr_tokens.first() else {
             return Ok(None);
         };
+        if first.fills_role_with(DcRole::ResolveToPin, resolver) {
+            let (pinned_res, operand_tokens) = split_resolve_to_pin_operands(
+                expr_tokens,
+                resolver,
+                shared_quota.clone(),
+            )?;
+            if let Some(val) = eval_expression_for_requirement_impl(
+                &operand_tokens,
+                requirement,
+                pinned_res.as_ref(),
+                shared_quota.clone(),
+            )? {
+                return Ok(Some(val));
+            }
+            if tokens_satisfy_value_requirement(
+                &operand_tokens,
+                requirement,
+                pinned_res.as_ref(),
+                shared_quota,
+            )? {
+                let mut doc = DcMstring::new();
+                for &tok in &operand_tokens {
+                    doc.push_char(tok);
+                }
+                return Ok(Some(DcEvaluatedValue::Document(doc)));
+            }
+            return Ok(None);
+        }
+        if first.fills_role_with(DcRole::ConvertDcStringToWasm, resolver) {
+            let wasm_doc = eval_convert_dc_string_to_wasm(
+                expr_tokens,
+                resolver,
+                shared_quota,
+            )?;
+            return Ok(Some(DcEvaluatedValue::Document(wasm_doc)));
+        }
         if first.fills_role_with(DcRole::LangSay, resolver) {
             let output = eval_stream_splice_impl(expr_tokens, resolver, shared_quota)?
                 .context("lang.say did not produce an evaluated document")?;
@@ -436,6 +994,56 @@ fn eval_stream_splice_impl(
         let Some(first) = call_tokens.first() else {
             return Ok(None);
         };
+        if first.fills_role_with(DcRole::ResolveToPin, resolver) {
+            let (pinned_res, operand_tokens) = split_resolve_to_pin_operands(
+                call_tokens,
+                resolver,
+                shared_quota.clone(),
+            )?;
+            if let Some(spliced) = eval_stream_splice_impl(
+                &operand_tokens,
+                pinned_res.as_ref(),
+                shared_quota.clone(),
+            )? {
+                return Ok(Some(spliced));
+            }
+            if let Some(DcEvaluatedValue::Document(doc)) =
+                eval_expression_for_requirement_impl(
+                    &operand_tokens,
+                    &ValueRequirement::NamedConstruct {
+                        name: "value",
+                        subtype: None,
+                    },
+                    pinned_res.as_ref(),
+                    shared_quota,
+                )?
+            {
+                return Ok(Some(doc.to_dc_string()?.chars().collect()));
+            }
+            if tokens_match_named_construct_with_resolver(
+                &operand_tokens,
+                "value",
+                pinned_res.as_ref(),
+            )? || tokens_match_named_construct_with_resolver(
+                &operand_tokens,
+                "atom_dc",
+                pinned_res.as_ref(),
+            )? {
+                return Ok(Some(operand_tokens));
+            }
+            bail!(
+                "ResolveToPin target operand did not match [value] or [atom_dc] under pinned System graph snapshot"
+            );
+        }
+        if first.fills_role_with(DcRole::ConvertDcStringToWasm, resolver) {
+            let wasm_doc = eval_convert_dc_string_to_wasm(
+                call_tokens,
+                resolver,
+                shared_quota,
+            )?;
+            let dc_str = wasm_doc.to_dc_string()?;
+            return Ok(Some(dc_str.chars().collect()));
+        }
         let wasm_definition = resolver.resolve_wasm_definition_tokens(first.to_u128());
         if first.fills_role_with(DcRole::LangSay, resolver)
             && wasm_definition.is_none()

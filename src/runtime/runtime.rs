@@ -545,6 +545,212 @@ impl SystemSupervisorAdmission {
             supervisor_entry_dc,
         )
     }
+
+    /// Scans `doc` Dc-by-Dc (skipping escaped tokens, literal strings, identifiers, binary
+    /// payloads, and source comments) to locate the first unquoted `[pin_description]`
+    /// (`Dc 641` System-block revision pin), returning `(pin_tokens, pin_node_id)`.
+    ///
+    /// # Errors
+    /// Returns an error if `doc` contains invalid DcTF bytes or a malformed `[pin_description]`.
+    pub fn scan_first_pin_description(
+        doc: &DcMstr,
+        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+    ) -> Result<Option<(Vec<DcChar>, u128)>> {
+        use ctb_formats_dcdata::dc_char::DcCharExt;
+        use ctb_formats_dcdata::global_graph_layout::{
+            SYSTEM_REGION_END, SYSTEM_REGION_START,
+            unsupported_graph_block_description,
+        };
+        use ctb_formats_dcdata::syntax::{DcRole, SyntaxTerm};
+        use ctb_formats_dcstring::{
+            DcByteSpan, DcDocumentNavigator, SyntaxEvalContext,
+        };
+
+        let chars: Vec<DcChar> = doc.to_dc_string()?.chars().collect();
+        let mut idx = 0usize;
+        while let Some(&ch) = chars.get(idx) {
+            if ch.fills_role_with(DcRole::Escape, resolver) {
+                idx = idx.saturating_add(2);
+                continue;
+            }
+            let skip_closer_role = if ch
+                .fills_role_with(DcRole::BeginLiteral, resolver)
+            {
+                Some(DcRole::EndLiteral)
+            } else if ch.fills_role_with(DcRole::BeginIdentifier, resolver) {
+                Some(DcRole::EndIdentifier)
+            } else if ch
+                .fills_role_with(DcRole::StartEncapsulationBinary, resolver)
+            {
+                Some(DcRole::EndEncapsulation)
+            } else if ch
+                .fills_role_with(DcRole::BeginSingleLineComment, resolver)
+                || ch.fills_role_with(
+                    DcRole::BeginSingleLineCommentNewLine,
+                    resolver,
+                )
+            {
+                Some(DcRole::EndSingleLineComment)
+            } else if ch.fills_role_with(DcRole::BeginBlockComment, resolver)
+                || ch
+                    .fills_role_with(DcRole::BeginBlockCommentNewLine, resolver)
+            {
+                Some(DcRole::EndBlockComment)
+            } else {
+                None
+            };
+            if let Some(closer_role) = skip_closer_role {
+                idx = idx.saturating_add(1);
+                while let Some(&inner_ch) = chars.get(idx) {
+                    if inner_ch.fills_role_with(DcRole::Escape, resolver) {
+                        idx = idx.saturating_add(2);
+                        continue;
+                    }
+                    idx = idx.saturating_add(1);
+                    if inner_ch.fills_role_with(closer_role, resolver) {
+                        break;
+                    }
+                }
+                continue;
+            }
+            if ch.fills_role_with(
+                DcRole::GlobalGraphSystemBlockMostRecentNodeId,
+                resolver,
+            ) {
+                let mut tail_mstr = DcMstring::new();
+                for &tok in chars.get(idx..).into_iter().flatten() {
+                    tail_mstr.push_char(tok);
+                }
+                let mut nav = DcDocumentNavigator::from_mstr(&tail_mstr);
+                let mut ctx = SyntaxEvalContext::new(resolver, None);
+                let matched = nav.eval_term_single(
+                    &SyntaxTerm::NamedConstruct {
+                        name: "pin_description".to_owned(),
+                        subtype: None,
+                        capture_var: None,
+                    },
+                    &mut ctx,
+                )?;
+                ensure!(
+                    matched && !ctx.has_errors && nav.position() > 0,
+                    "Malformed [pin_description] starting at Dc 641 in document"
+                );
+                let pin_end = nav.position();
+                let pin_u128s =
+                    nav.read_tokens_in_span(DcByteSpan::new(0, pin_end))?;
+                let pin_tokens: Vec<DcChar> =
+                    pin_u128s.into_iter().map(DcChar::from_u128).collect();
+                let second = pin_tokens.get(1).copied().context(
+                    "Missing System-block node ID operand after Dc 641",
+                )?;
+                let pin_id = if second.fills_role_with(DcRole::Escape, resolver)
+                {
+                    pin_tokens
+                        .get(2)
+                        .copied()
+                        .context("Dangling escape in Dc 641 pin_description")?
+                        .to_u128()
+                } else {
+                    second.to_u128()
+                };
+                if let Some(block_desc) =
+                    unsupported_graph_block_description(pin_id)
+                {
+                    bail!(
+                        "Unsupported graph block pin in Dc 641: node ID l{pin_id} targets {block_desc}"
+                    );
+                }
+                ensure!(
+                    (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&pin_id),
+                    "Invalid System-block most recent node ID {pin_id} for Dc 641: expected System block range {SYSTEM_REGION_START}..={SYSTEM_REGION_END}"
+                );
+                return Ok(Some((pin_tokens, pin_id)));
+            }
+            idx = idx.saturating_add(1);
+        }
+        Ok(None)
+    }
+
+    /// Quotes `doc` as a typed Dc `[string]` literal (`Dc 260 "Begin literal value"`,
+    /// `Dc 262 "Begin type definition"`, `Dc 264 "Built-in type identifier: String"`,
+    /// `Dc 263 "End type definition"`, escaped payload, `Dc 261 "End literal value"`).
+    ///
+    /// # Errors
+    /// Returns an error if `doc` contains malformed DcTF bytes.
+    pub fn quote_dc_document_as_string_literal(
+        doc: &DcMstr,
+        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+    ) -> Result<Vec<DcChar>> {
+        use ctb_formats_dcdata::dc_char::DcCharExt;
+        use ctb_formats_dcdata::syntax::DcRole;
+
+        let chars: Vec<DcChar> = doc.to_dc_string()?.chars().collect();
+        let mut out = Vec::with_capacity(chars.len().saturating_add(6));
+        out.push(dc::DC_BEGIN_LITERAL);
+        out.push(dc::DC_BEGIN_TYPE_DEF);
+        out.push(dc::DC_TYPE_STRING);
+        out.push(dc::DC_END_TYPE_DEF);
+        for ch in chars {
+            if ch.fills_role_with(DcRole::Escape, resolver)
+                || ch.fills_role_with(DcRole::EndLiteral, resolver)
+            {
+                out.push(dc::DC_ESCAPE);
+            }
+            out.push(ch);
+        }
+        out.push(dc::DC_END_LITERAL);
+        Ok(out)
+    }
+
+    /// Compiles an arbitrary executable Dc document `doc` into a `Dc 1927`..`Dc 1928` Dc-WASM
+    /// program by evaluating `[Dc 1938 <pin_description> [Dc 2608 <quoted_doc>]]` (or unpinned
+    /// `[Dc 2608 <quoted_doc>]`) under `shared_quota`, ensuring compilation runs under the
+    /// exact same resource quotas as target execution.
+    ///
+    /// # Errors
+    /// Returns an error if `doc` attempts privilege elevation, fails pin/converter resolution,
+    /// traps during compilation, or exhausts `shared_quota`.
+    pub fn compile_dc_document_to_wasm_with_shared_quota(
+        &self,
+        doc: &DcMstr,
+        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+        shared_quota: ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota,
+    ) -> Result<(DcMstring, Option<u128>)> {
+        use ctb_formats_dcstring::{
+            DcExpressionEvaluator, SharedQuotaDcExpressionEvaluator,
+        };
+
+        Self::verify_ordinary_dc_document_cannot_elevate(
+            doc,
+            self.resolution.entry_dc,
+        )?;
+        let opt_pin = Self::scan_first_pin_description(doc, resolver)?;
+        let quoted_doc =
+            Self::quote_dc_document_as_string_literal(doc, resolver)?;
+        let mut dispatch_tokens =
+            Vec::with_capacity(quoted_doc.len().saturating_add(6));
+        let pin_id = if let Some((pin_tokens, id)) = opt_pin {
+            dispatch_tokens.push(dc::DC_RESOLVE_TO_PIN);
+            dispatch_tokens.extend(pin_tokens);
+            Some(id)
+        } else {
+            None
+        };
+        dispatch_tokens.push(dc::DC_CONVERT_DC_STRING_TO_WASM);
+        dispatch_tokens.extend(quoted_doc);
+
+        let evaluator = SharedQuotaDcExpressionEvaluator::with_shared_task_quota(
+            shared_quota,
+        );
+        let wasm_chars = evaluator
+            .eval_stream_splice(&dispatch_tokens, resolver)?
+            .context("ConvertDcStringToWasm did not produce a Dc-WASM program")?;
+        let mut wasm_doc = DcMstring::new();
+        for ch in wasm_chars {
+            wasm_doc.push_char(ch);
+        }
+        Ok((wasm_doc, pin_id))
+    }
 }
 
 /// Native Document Character runtime value.
@@ -1188,7 +1394,9 @@ impl ExecutionContext {
     where
         F: FnMut(&Privilege, PermissionDecision, &DcMstr) -> Result<DcMstring>,
     {
-        if let Some(adm) = &self.supervisor_admission {
+        if let Some(adm) = &self.supervisor_admission
+            && !session.has_shared_task_quota()
+        {
             session.set_resource_limits(adm.compiled_limits);
         }
         let fallback_limits = session.resource_limits();
@@ -1520,6 +1728,196 @@ impl ExecutionContext {
                 Ok(Self::default_capability_response(decision))
             },
         )
+    }
+
+    /// Compiles and executes an arbitrary ordinary Dc document `ordinary_doc` through the
+    /// `Dc 1936` execution kernel pipeline (`[Dc 1938 <pin> [Dc 2608 <quoted_doc>]]`), sharing
+    /// one [`ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota`] across both
+    /// compilation (`Dc 2608` + any graph converter routine) and target `.WASM` execution.
+    ///
+    /// # Errors
+    /// Returns an error if `ordinary_doc` attempts privilege elevation, fails compilation/assembly,
+    /// or fails capability handling.
+    pub fn execute_dc_document_default_with_trace(
+        &mut self,
+        ordinary_doc: &DcMstr,
+        input: &DcMstr,
+        resolver: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver,
+    ) -> Result<WasmExecutionTrace> {
+        use ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota;
+
+        let adm = if let Some(existing) = &self.supervisor_admission {
+            existing.clone()
+        } else {
+            let default_adm =
+                SystemSupervisorAdmission::admit_execution_kernel_default()?;
+            self.supervisor_admission = Some(default_adm.clone());
+            default_adm
+        };
+        let mut active_limits = adm.compiled_limits;
+        let mut compile_events = Vec::new();
+        let mut compile_trace_bytes = 0usize;
+
+        let (wasm_doc, opt_pin_id, shared_quota) = loop {
+            let shared_quota = SharedWasmTaskQuota::new(active_limits);
+            match adm.compile_dc_document_to_wasm_with_shared_quota(
+                ordinary_doc,
+                resolver,
+                shared_quota.clone(),
+            ) {
+                Ok((wasm_doc, opt_pin_id)) => {
+                    break (wasm_doc, opt_pin_id, shared_quota);
+                }
+                Err(err) => {
+                    if let Some(
+                        WasmResourceInterruption::ComputeQuotaExhausted {
+                            limit,
+                        },
+                    ) = err.downcast_ref::<WasmResourceInterruption>().cloned()
+                    {
+                        let decision =
+                            self.request_permission(&Privilege::ExcessiveCompute);
+                        if self
+                            .push_trace_event_bounded(
+                                &mut compile_events,
+                                &mut compile_trace_bytes,
+                                active_limits.max_trace_bytes,
+                                0,
+                                WasmTraceEvent::ResourceInterruption {
+                                    after_logical_steps: 0,
+                                    interruption: Some(
+                                        WasmResourceInterruption::ComputeQuotaExhausted {
+                                            limit,
+                                        },
+                                    ),
+                                    decision,
+                                },
+                            )
+                            .is_err()
+                        {
+                            return Ok(self.build_trace(
+                                None,
+                                active_limits,
+                                WasmExecutionResult {
+                                    output: DcMstring::new(),
+                                    frames: Vec::new(),
+                                    broke_out_early: true,
+                                },
+                                compile_events,
+                                compile_trace_bytes,
+                                None,
+                            ));
+                        }
+                        if decision == PermissionDecision::Allow {
+                            active_limits.max_instructions_per_step =
+                                active_limits
+                                    .max_instructions_per_step
+                                    .saturating_add(
+                                        self.compute_quota_grant.max(1),
+                                    );
+                            continue;
+                        }
+                        return Ok(self.build_trace(
+                            None,
+                            active_limits,
+                            WasmExecutionResult {
+                                output: DcMstring::new(),
+                                frames: Vec::new(),
+                                broke_out_early: true,
+                            },
+                            compile_events,
+                            compile_trace_bytes,
+                            None,
+                        ));
+                    }
+                    if err.downcast_ref::<WasmResourceInterruption>().is_some() {
+                        return Ok(self.handle_session_error_into_trace(
+                            None,
+                            active_limits,
+                            err,
+                            0,
+                            Vec::new(),
+                            compile_events,
+                            compile_trace_bytes,
+                            None,
+                        ));
+                    }
+                    return Err(err);
+                }
+            }
+        };
+
+        let most_recent_id = opt_pin_id.or_else(|| {
+            resolver.seed_graph().and_then(
+                ctb_formats_dcdata::seed_graph::SeedGraphIndex::system_block_most_recent_node_id,
+            )
+        });
+        let exec_pinned = if let Some(pin_id) = opt_pin_id {
+            if let Some(sg) = resolver.seed_graph()
+                && !sg.is_bundled_origin_node(
+                    ctb_formats_dcdata::global_graph_layout::SYSTEM_REGION_START,
+                )
+            {
+                let pinned_sg = std::sync::Arc::new(
+                    SeedGraphIndex::from_nodes_at_most_recent(
+                        sg.nodes().to_vec(),
+                        pin_id,
+                    ),
+                );
+                Some(std::sync::Arc::new(
+                    ctb_formats_dcdata::syntax::DatasetRuleResolver::from_seed_graph(
+                        &pinned_sg,
+                    )?,
+                ))
+            } else {
+                Some(ctb_formats_dcdata::syntax::syntax_resolver_at_most_recent(
+                    pin_id,
+                )?)
+            }
+        } else {
+            None
+        };
+        let exec_res: &dyn ctb_formats_dcdata::syntax::SyntaxRuleResolver =
+            if let Some(ref pinned) = exec_pinned {
+                pinned.as_ref()
+            } else {
+                resolver
+            };
+
+        let mut session = match DcWasmSession::from_dc_wasm_with_limits(
+            &wasm_doc,
+            input,
+            most_recent_id,
+            exec_res,
+            active_limits,
+        )
+        .and_then(|s| s.with_shared_task_quota(shared_quota))
+        {
+            Ok(s) => s,
+            Err(err) => {
+                if err.downcast_ref::<WasmResourceInterruption>().is_some() {
+                    return Ok(self.handle_session_error_into_trace(
+                        None,
+                        active_limits,
+                        err,
+                        0,
+                        Vec::new(),
+                        compile_events,
+                        compile_trace_bytes,
+                        None,
+                    ));
+                }
+                return Err(err);
+            }
+        };
+
+        let mut trace =
+            self.execute_wasm_session_default_with_trace(&mut session, input)?;
+        if !compile_events.is_empty() {
+            compile_events.extend(trace.events);
+            trace.events = compile_events;
+        }
+        Ok(trace)
     }
 
     /// Verifies that an ordinary Dc-WASM document does not attempt to elevate to System
@@ -3918,6 +4316,433 @@ mod tests {
             tokens: Vec::new(),
             comment: String::new(),
         });
+        Ok(())
+    }
+
+    fn build_minimal_constant_output_wasm_doc(
+        output_byte: u8,
+        spin_iters: u32,
+    ) -> Result<DcMstring> {
+        let spin_wat = if spin_iters == 0 {
+            String::new()
+        } else {
+            format!(
+                "(local $i i32)\n    (set $i {spin_iters})\n    (block $done (loop $lp (br_if $done (i32.eqz $i)) (set $i (i32.sub $i 1)) (br $lp)))"
+            )
+        };
+        let wat = format!(
+            r#"(module
+  (memory (export "memory") 1)
+  (func (export "_start") (result i32)
+    {spin_wat}
+    (i32.store8 256 {output_byte})
+    (i32.store 8 256)
+    (i32.store 12 1)
+    (i32.const 0)))"#
+        );
+        let shorthands =
+            ctb_formats_dcdata::wat::parse_wat_module_to_dc_shorthands(&wat)?;
+        let mut doc = DcMstring::new();
+        for sh in shorthands {
+            doc.push_char(DcChar::from_u128(sh.to_global_id()?));
+        }
+        Ok(doc)
+    }
+
+    fn build_converter_emitting_constant_wasm_shorthands(
+        target_wasm_doc: &DcMstr,
+        spin_iters: u32,
+    ) -> Result<Vec<DcShorthand>> {
+        let raw_dctf = target_wasm_doc
+            .as_bytes()
+            .get(21..)
+            .context("Missing DcMM header on target_wasm_doc")?;
+        let mut stores = String::new();
+        for (idx, &b) in raw_dctf.iter().enumerate() {
+            let addr = 512usize.saturating_add(idx);
+            stores.push_str(&format!("    (i32.store8 {addr} {b})\n"));
+        }
+        let spin_wat = if spin_iters == 0 {
+            String::new()
+        } else {
+            format!(
+                "    (local $i i32)\n    (set $i {spin_iters})\n    (block $done (loop $lp (br_if $done (i32.eqz $i)) (set $i (i32.sub $i 1)) (br $lp)))\n"
+            )
+        };
+        let wat = format!(
+            r#"(module
+  (memory (export "memory") 1)
+  (func (export "_start") (result i32)
+{spin_wat}{stores}    (i32.store 8 512)
+    (i32.store 12 {})
+    (i32.const 0)))"#,
+            raw_dctf.len()
+        );
+        ctb_formats_dcdata::wat::parse_wat_module_to_dc_shorthands(&wat)
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_2608_convert_dc_string_to_wasm_and_dc_1938_resolve_to_pin()
+    -> Result<()> {
+        use ctb_formats_dcdata::syntax::DatasetRuleResolver;
+
+        let shared_sg = SeedGraphIndex::shared()?;
+        let default_res = ctb_formats_dcdata::syntax::default_syntax_resolver();
+
+        // 1. `scan_first_pin_description` ignores Dc 641 inside comments and literals.
+        let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
+        let mut commented_doc = DcMstring::new();
+        commented_doc.push_char(dc::DC_BEGIN_SINGLE_LINE_COMMENT);
+        commented_doc
+            .push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        commented_doc.push_char(DcChar::from_u128(head_pin));
+        commented_doc.push_char(dc::DC_END_SINGLE_LINE_COMMENT);
+        commented_doc.push_char(dc::DC_BEGIN_LITERAL);
+        commented_doc.push_char(dc::DC_BEGIN_TYPE_DEF);
+        commented_doc.push_char(dc::DC_TYPE_STRING);
+        commented_doc.push_char(dc::DC_END_TYPE_DEF);
+        commented_doc
+            .push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        commented_doc.push_char(DcChar::from_u128(head_pin));
+        commented_doc.push_char(dc::DC_END_LITERAL);
+        assert_eq!(
+            SystemSupervisorAdmission::scan_first_pin_description(
+                &commented_doc,
+                default_res.as_ref()
+            )?,
+            None
+        );
+
+        // 2. Construct an in-memory graph snapshot extending `shared_sg` with two revisions
+        //    of a standalone `[Dc 302 2192 1927]` converter routine (`pin_v1 < pin_v2`).
+        let mut nodes = shared_sg.nodes().to_vec();
+        let mut next_id = head_pin.checked_add(1).unwrap();
+        let mut alloc_node = |tokens: Vec<DcShorthand>| -> u128 {
+            let id = next_id;
+            next_id += 1;
+            nodes.push(LedgerNode {
+                id,
+                tokens,
+                comment: String::new(),
+            });
+            id
+        };
+
+        let wasm_v1 = build_minimal_constant_output_wasm_doc(b'A', 0)?;
+        let wasm_v2 = build_minimal_constant_output_wasm_doc(b'B', 0)?;
+        let conv_wasm_v1 =
+            build_converter_emitting_constant_wasm_shorthands(&wasm_v1, 0)?;
+        let conv_wasm_v2 =
+            build_converter_emitting_constant_wasm_shorthands(&wasm_v2, 0)?;
+
+        let fmt_node_id = alloc_node(vec![
+            DcShorthand::Short(302),
+            DcShorthand::Short(2192),
+            DcShorthand::Short(1927),
+        ]);
+        let conv_ent_v1 = alloc_node(vec![
+            DcShorthand::Short(586),
+            DcShorthand::Short(615),
+            DcShorthand::Short(280),
+        ]);
+        let fmt_has_a_v1 = alloc_node(vec![
+            DcShorthand::Short(584),
+            DcShorthand::Long(conv_ent_v1),
+            DcShorthand::Short(595),
+        ]);
+        let _fmt_val_v1 = alloc_node(vec![
+            DcShorthand::Short(610),
+            DcShorthand::Long(fmt_has_a_v1),
+            DcShorthand::Long(fmt_node_id),
+        ]);
+        let wasm_node_v1 = alloc_node(conv_wasm_v1);
+        let decomp_has_a_v1 = alloc_node(vec![
+            DcShorthand::Short(584),
+            DcShorthand::Long(conv_ent_v1),
+            DcShorthand::Short(611),
+        ]);
+        let _decomp_val_v1 = alloc_node(vec![
+            DcShorthand::Short(610),
+            DcShorthand::Long(decomp_has_a_v1),
+            DcShorthand::Long(wasm_node_v1),
+        ]);
+        let pin_v1 = next_id - 1;
+
+        // Revision 2 adds a Preferred (`Dc 570`) standalone converter routine for `2192 -> 1927`.
+        let conv_ent_v2 = alloc_node(vec![
+            DcShorthand::Short(586),
+            DcShorthand::Short(615),
+            DcShorthand::Short(280),
+        ]);
+        let fmt_has_a_v2 = alloc_node(vec![
+            DcShorthand::Short(584),
+            DcShorthand::Long(conv_ent_v2),
+            DcShorthand::Short(595),
+        ]);
+        let _fmt_val_v2 = alloc_node(vec![
+            DcShorthand::Short(610),
+            DcShorthand::Long(fmt_has_a_v2),
+            DcShorthand::Long(fmt_node_id),
+        ]);
+        let wasm_node_v2 = alloc_node(conv_wasm_v2);
+        let decomp_has_a_v2 = alloc_node(vec![
+            DcShorthand::Short(584),
+            DcShorthand::Long(conv_ent_v2),
+            DcShorthand::Short(611),
+        ]);
+        let _decomp_val_v2 = alloc_node(vec![
+            DcShorthand::Short(610),
+            DcShorthand::Long(decomp_has_a_v2),
+            DcShorthand::Long(wasm_node_v2),
+        ]);
+        let _pref_v2 = alloc_node(vec![
+            DcShorthand::Short(584),
+            DcShorthand::Long(decomp_has_a_v2),
+            DcShorthand::Short(570),
+        ]);
+        let pin_v2 = next_id - 1;
+
+        let custom_sg = std::sync::Arc::new(SeedGraphIndex::from_nodes(nodes));
+        let custom_res = DatasetRuleResolver::from_seed_graph(&custom_sg)?;
+        let empty_in = DcMstring::new();
+
+        // Pinned to `pin_v1` -> executes converter V1 -> outputs "A"
+        let mut doc_v1 = DcMstring::new();
+        doc_v1.push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc_v1.push_char(DcChar::from_u128(pin_v1));
+        doc_v1.push_char(dc::DC_BEGIN_MODULE);
+        doc_v1.push_char(dc::DC_END_MODULE);
+        let mut env_v1 = ExecutionContext::new(false);
+        let trace_v1 = env_v1.execute_dc_document_default_with_trace(
+            &doc_v1,
+            &empty_in,
+            &custom_res,
+        )?;
+        assert_eq!(trace_v1.result.output.to_dc_string()?.to_string(), "A");
+
+        // Pinned to `pin_v2` (and unpinned) -> executes preferred converter V2 -> outputs "B"
+        let mut doc_v2 = DcMstring::new();
+        doc_v2.push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc_v2.push_char(DcChar::from_u128(pin_v2));
+        doc_v2.push_char(dc::DC_BEGIN_MODULE);
+        doc_v2.push_char(dc::DC_END_MODULE);
+        let mut env_v2 = ExecutionContext::new(false);
+        let trace_v2 = env_v2.execute_dc_document_default_with_trace(
+            &doc_v2,
+            &empty_in,
+            &custom_res,
+        )?;
+        assert_eq!(trace_v2.result.output.to_dc_string()?.to_string(), "B");
+
+        let mut doc_unpinned = DcMstring::new();
+        doc_unpinned.push_char(dc::DC_BEGIN_MODULE);
+        doc_unpinned.push_char(dc::DC_END_MODULE);
+        let mut env_unpinned = ExecutionContext::new(false);
+        let trace_unpinned = env_unpinned
+            .execute_dc_document_default_with_trace(
+                &doc_unpinned,
+                &empty_in,
+                &custom_res,
+            )?;
+        assert_eq!(
+            trace_unpinned.result.output.to_dc_string()?.to_string(),
+            "B"
+        );
+
+        // Future pin `pin_v2 + 1` -> rejected!
+        let mut doc_future = DcMstring::new();
+        doc_future
+            .push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc_future.push_char(DcChar::from_u128(pin_v2 + 1));
+        doc_future.push_char(dc::DC_BEGIN_MODULE);
+        doc_future.push_char(dc::DC_END_MODULE);
+        let mut env_future = ExecutionContext::new(false);
+        assert!(
+            env_future
+                .execute_dc_document_default_with_trace(
+                    &doc_future,
+                    &empty_in,
+                    &custom_res,
+                )
+                .is_err()
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_1936_shared_quota_across_compilation_and_execution() -> Result<()>
+    {
+        use ctb_formats_dcdata::syntax::DatasetRuleResolver;
+
+        let shared_sg = SeedGraphIndex::shared()?;
+        let head_pin = shared_sg.system_block_most_recent_node_id().unwrap();
+        let mut nodes = shared_sg.nodes().to_vec();
+        let mut next_id = head_pin.checked_add(1).unwrap();
+        let mut alloc_node = |tokens: Vec<DcShorthand>| -> u128 {
+            let id = next_id;
+            next_id += 1;
+            nodes.push(LedgerNode {
+                id,
+                tokens,
+                comment: String::new(),
+            });
+            id
+        };
+
+        // Target WASM spins 80 iterations; converter spins 80 iterations.
+        let target_wasm = build_minimal_constant_output_wasm_doc(b'Q', 80)?;
+        let conv_wasm = build_converter_emitting_constant_wasm_shorthands(
+            &target_wasm,
+            80,
+        )?;
+        let fmt_node_id = alloc_node(vec![
+            DcShorthand::Short(302),
+            DcShorthand::Short(2192),
+            DcShorthand::Short(1927),
+        ]);
+        let conv_ent = alloc_node(vec![
+            DcShorthand::Short(586),
+            DcShorthand::Short(615),
+            DcShorthand::Short(280),
+        ]);
+        let fmt_has_a = alloc_node(vec![
+            DcShorthand::Short(584),
+            DcShorthand::Long(conv_ent),
+            DcShorthand::Short(595),
+        ]);
+        let _fmt_val = alloc_node(vec![
+            DcShorthand::Short(610),
+            DcShorthand::Long(fmt_has_a),
+            DcShorthand::Long(fmt_node_id),
+        ]);
+        let wasm_node = alloc_node(conv_wasm);
+        let decomp_has_a = alloc_node(vec![
+            DcShorthand::Short(584),
+            DcShorthand::Long(conv_ent),
+            DcShorthand::Short(611),
+        ]);
+        let _decomp_val = alloc_node(vec![
+            DcShorthand::Short(610),
+            DcShorthand::Long(decomp_has_a),
+            DcShorthand::Long(wasm_node),
+        ]);
+        let pin = next_id - 1;
+
+        let custom_sg = std::sync::Arc::new(SeedGraphIndex::from_nodes(nodes));
+        let custom_res = DatasetRuleResolver::from_seed_graph(&custom_sg)?;
+        let empty_in = DcMstring::new();
+
+        let mut doc = DcMstring::new();
+        doc.push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
+        doc.push_char(DcChar::from_u128(pin));
+        doc.push_char(dc::DC_BEGIN_MODULE);
+        doc.push_char(dc::DC_END_MODULE);
+
+        // Measure standalone target execution cost:
+        let mut probe_session = DcWasmSession::from_dc_wasm_with_resolver(
+            &target_wasm,
+            &empty_in,
+            Some(pin),
+            &custom_res,
+        )?;
+        let _ = probe_session.step()?;
+        let exec_cost = probe_session.total_instructions_executed();
+        assert!(exec_cost > 100);
+
+        // Measure compilation cost via SharedWasmTaskQuota:
+        let default_adm =
+            SystemSupervisorAdmission::admit_execution_kernel_default()?;
+        let probe_quota =
+            ctb_formats_dcstring::converters::wasm::SharedWasmTaskQuota::new(
+                DcWasmResourceLimits::default(),
+            );
+        let _ = default_adm.compile_dc_document_to_wasm_with_shared_quota(
+            &doc,
+            &custom_res,
+            probe_quota.clone(),
+        )?;
+        let compile_cost = probe_quota
+            .with_lock(|st| st.total_instructions_executed)?;
+        assert!(
+            compile_cost > 200,
+            "Both Dc 2608 unescaping and converter routine must consume metered quota (got {compile_cost})"
+        );
+
+        // 1. Budget smaller than `compile_cost`: interrupts with ComputeQuotaExhausted during compilation!
+        let mut tiny_limits = DcWasmResourceLimits::default();
+        tiny_limits.max_instructions_per_step = compile_cost / 2;
+        let tiny_adm = SystemSupervisorAdmission::admit_execution_kernel(
+            tiny_limits,
+            DcWasmWatchdogLimits::default(),
+        )?;
+        let mut env_compile_exhaust = ExecutionContext::new(false)
+            .with_supervisor_admission(tiny_adm)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Deny,
+            );
+        let trace_compile_exhaust = env_compile_exhaust
+            .execute_dc_document_default_with_trace(
+                &doc,
+                &empty_in,
+                &custom_res,
+            )?;
+        assert!(trace_compile_exhaust.result.broke_out_early);
+        assert!(matches!(
+            trace_compile_exhaust.events.first(),
+            Some(WasmTraceEvent::ResourceInterruption {
+                interruption: Some(
+                    WasmResourceInterruption::ComputeQuotaExhausted { .. }
+                ),
+                decision: PermissionDecision::Deny,
+                ..
+            })
+        ));
+
+        // 2. Budget large enough for `compile_cost` OR `exec_cost` individually,
+        //    but smaller than `compile_cost + exec_cost`: compilation succeeds, then
+        //    target execution exhausts the shared remaining quota!
+        let mid_budget = compile_cost + (exec_cost / 2);
+        assert!(mid_budget > exec_cost);
+        let mut mid_limits = DcWasmResourceLimits::default();
+        mid_limits.max_instructions_per_step = mid_budget;
+        let mid_adm = SystemSupervisorAdmission::admit_execution_kernel(
+            mid_limits,
+            DcWasmWatchdogLimits::default(),
+        )?;
+        let mut env_mid_deny = ExecutionContext::new(false)
+            .with_supervisor_admission(mid_adm.clone())
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Deny,
+            );
+        let trace_mid_deny = env_mid_deny
+            .execute_dc_document_default_with_trace(
+                &doc,
+                &empty_in,
+                &custom_res,
+            )?;
+        assert!(trace_mid_deny.result.broke_out_early);
+
+        // Granting `Allow` on `ExcessiveCompute` resumes and finishes cleanly!
+        let mut env_mid_allow = ExecutionContext::new(false)
+            .with_supervisor_admission(mid_adm)
+            .with_compute_quota_grant(exec_cost)
+            .with_privilege_decision(
+                Privilege::ExcessiveCompute,
+                PermissionDecision::Allow,
+            );
+        let trace_mid_allow = env_mid_allow
+            .execute_dc_document_default_with_trace(
+                &doc,
+                &empty_in,
+                &custom_res,
+            )?;
+        assert!(!trace_mid_allow.result.broke_out_early);
+        assert_eq!(
+            trace_mid_allow.result.output.to_dc_string()?.to_string(),
+            "Q"
+        );
         Ok(())
     }
 }

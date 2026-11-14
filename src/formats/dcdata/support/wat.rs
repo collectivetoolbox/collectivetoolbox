@@ -29,12 +29,12 @@ use crate::utilities::*;
 
 use crate::dc::{
     DC_BASE64_PADDING, DC_BEGIN_IDENTIFIER, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
-    DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_TYPE_DEF, DC_BEGIN_WASM_PROGRAM,
-    DC_END_ENCAPSULATION_BINARY, DC_END_IDENTIFIER, DC_END_KV_MAP,
-    DC_END_KV_PAIR, DC_END_LIST, DC_END_LITERAL, DC_END_TYPE_DEF,
-    DC_END_WASM_PROGRAM, DC_LIST_ELEMENT_SEPARATOR, DC_NEGATIVE,
-    DC_OPTIONAL_ABSENT, DC_START_ENCAPSULATION_BINARY, DC_TYPE_ANY,
-    DC_TYPE_ROUTINE, DC_WASM_START,
+    DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_MODULE, DC_BEGIN_TYPE_DEF,
+    DC_BEGIN_WASM_PROGRAM, DC_END_ENCAPSULATION_BINARY, DC_END_IDENTIFIER,
+    DC_END_KV_MAP, DC_END_KV_PAIR, DC_END_LIST, DC_END_LITERAL,
+    DC_END_TYPE_DEF, DC_END_WASM_PROGRAM, DC_LIST_ELEMENT_SEPARATOR,
+    DC_NEGATIVE, DC_OPTIONAL_ABSENT, DC_START_ENCAPSULATION_BINARY,
+    DC_TYPE_ANY, DC_TYPE_ROUTINE, DC_WASM_START,
 };
 use crate::dc_char::DcChar;
 use crate::dc_number_minimal::{dc_base64_digit_to_char, u128_to_dc_number_chars};
@@ -2746,15 +2746,32 @@ pub type StagedSourceCompiler<'a> = dyn Fn(
     ) -> Result<Vec<DcShorthand>>
     + 'a;
 
-/// One compiled Dc or Format implementation loaded from `stage_0_impls/`, `stage_1_impls/`, or `impls/`.
+/// Parsed leading comment directives for a staged implementation file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StagedHeaderDirectives {
+    /// Decomposition tag (`"semantic"` or `"equiv"`).
+    pub decomp_tag: String,
+    /// Optional 1-based line and System-block entity ID from `@dc l<id>`.
+    pub dc_entity: Option<(usize, u128)>,
+    /// Optional 1-based line and `(src, dst)` shorthands from `@converts(<src> <dst>)`.
+    pub converts: Option<(usize, DcShorthand, DcShorthand)>,
+}
+
+/// One compiled Dc, Format, or standalone converter Routine implementation loaded from
+/// `stage_0_impls/`, `stage_1_impls/`, or `impls/`.
 #[derive(Debug, Clone)]
 pub struct StagedDcImpl {
     /// Stage folder from which this implementation was loaded.
     pub stage: ImplStage,
     /// Repository-relative path (`src/formats/dcdata/data-src/...`).
     pub rel_path: String,
-    /// Target Short Dc (`DcShorthand::Short`) or Format Dc (`DcShorthand::Format`) implemented by this file.
+    /// Target Short Dc (`DcShorthand::Short`), Format Dc (`DcShorthand::Format`), or standalone
+    /// System-block Routine entity (`DcShorthand::Long`) implemented by this file.
     pub target: DcShorthand,
+    /// Optional `(src, dst)` conversion signature declared via `@converts(<src> <dst>)` on a
+    /// standalone converter/compiler routine entity (`Dc 280 "Built-in type identifier: Routine"`
+    /// with `Dc 595 "Data format or type description"` `[Dc 302 "Type conversion" <src> <dst>]`).
+    pub converts: Option<(DcShorthand, DcShorthand)>,
     /// Optional `Dc 646 "In context of"` type/operation context shorthands qualifying this implementation.
     pub context_tokens: Vec<DcShorthand>,
     /// Decomposition tag (`"semantic"` or `"equiv"`).
@@ -2793,11 +2810,11 @@ fn parse_target_from_stem(stem: &str, rel_path: &str) -> Result<DcShorthand> {
         .trim();
     ensure!(
         !prefix.is_empty(),
-        "Implementation file '{rel_path}' must start with a short Dc or format shorthand (e.g. '1936_kernel.wat' or 'f656_stagel3.wat')"
+        "Implementation file '{rel_path}' must start with a short Dc or format shorthand (e.g. '1936_kernel.wat'), or declare '@converts(<src> <dst>)'"
     );
     let parsed = DcShorthand::parse(prefix).map_err(|e| {
         anyhow!(
-            "Implementation file '{rel_path}' stem prefix '{prefix}' is not a valid Dc shorthand: {e}"
+            "Implementation file '{rel_path}' stem prefix '{prefix}' is not a valid Dc shorthand ({e}); add ';; @converts(<src> <dst>)' if this is a standalone converter routine"
         )
     })?;
     match parsed {
@@ -2808,24 +2825,102 @@ fn parse_target_from_stem(stem: &str, rel_path: &str) -> Result<DcShorthand> {
     }
 }
 
-fn extract_decomp_tag_override(src: &str) -> String {
-    for line in src.lines().take(10) {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed
+pub(crate) fn parse_staged_header_directives(
+    src: &str,
+    rel_path: &str,
+) -> Result<StagedHeaderDirectives> {
+    use ctb_storage_minimal::global_graph_layout::{
+        SYSTEM_REGION_END, SYSTEM_REGION_START,
+    };
+
+    let mut decomp_tag = "semantic".to_owned();
+    let mut dc_entity: Option<(usize, u128)> = None;
+    let mut converts: Option<(usize, DcShorthand, DcShorthand)> = None;
+
+    for (line_idx, raw_line) in src.lines().enumerate() {
+        let one_based = line_idx.saturating_add(1);
+        let trimmed = raw_line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let comment_opt = trimmed
             .strip_prefix(";;")
             .or_else(|| trimmed.strip_prefix('#'))
             .or_else(|| trimmed.strip_prefix(": "))
-        {
-            let comment = rest.trim();
-            if comment.contains("@decomp(equiv)") {
-                return "equiv".to_owned();
-            }
-            if comment.contains("@decomp(semantic)") {
-                return "semantic".to_owned();
-            }
+            .or_else(|| (trimmed == ":").then_some(""));
+        let Some(rest) = comment_opt else {
+            break;
+        };
+        let comment = rest.trim();
+        if comment.contains("@decomp(equiv)") {
+            decomp_tag = "equiv".to_owned();
+        } else if comment.contains("@decomp(semantic)") {
+            decomp_tag = "semantic".to_owned();
+        }
+        if let Some(after_dc) = comment.strip_prefix("@dc") {
+            let arg = after_dc.trim();
+            ensure!(
+                !arg.is_empty() && !arg.contains(char::is_whitespace),
+                "Invalid '@dc' directive at {rel_path}:{one_based}: expected '@dc l<id>'"
+            );
+            ensure!(
+                dc_entity.is_none(),
+                "Duplicate '@dc' directive at {rel_path}:{one_based}"
+            );
+            let parsed = DcShorthand::parse(arg).map_err(|e| {
+                anyhow!(
+                    "Invalid '@dc {arg}' shorthand at {rel_path}:{one_based}: {e}"
+                )
+            })?;
+            let DcShorthand::Long(nid) = parsed else {
+                bail!(
+                    "'@dc {parsed}' at {rel_path}:{one_based} must be a System-block 'l<id>' node ID"
+                );
+            };
+            ensure!(
+                (SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&nid),
+                "'@dc l{nid}' at {rel_path}:{one_based} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+            );
+            dc_entity = Some((one_based, nid));
+        } else if let Some(after_conv) = comment.strip_prefix("@converts(") {
+            let inner = after_conv
+                .strip_suffix(')')
+                .with_context(|| {
+                    format!(
+                        "Malformed '@converts(...)' directive at {rel_path}:{one_based}: missing closing ')'"
+                    )
+                })?
+                .trim();
+            ensure!(
+                converts.is_none(),
+                "Duplicate '@converts(...)' directive at {rel_path}:{one_based}"
+            );
+            let parts: Vec<&str> = inner.split_whitespace().collect();
+            ensure!(
+                parts.len() == 2,
+                "Invalid '@converts({inner})' at {rel_path}:{one_based}: expected exactly two Dc shorthands '@converts(<src> <dst>)'"
+            );
+            let src_raw = parts.first().copied().context("Missing @converts src")?;
+            let dst_raw = parts.get(1).copied().context("Missing @converts dst")?;
+            let src_sh = DcShorthand::parse(src_raw).map_err(|e| {
+                anyhow!(
+                    "Invalid source shorthand '{src_raw}' in '@converts' at {rel_path}:{one_based}: {e}"
+                )
+            })?;
+            let dst_sh = DcShorthand::parse(dst_raw).map_err(|e| {
+                anyhow!(
+                    "Invalid destination shorthand '{dst_raw}' in '@converts' at {rel_path}:{one_based}: {e}"
+                )
+            })?;
+            converts = Some((one_based, src_sh, dst_sh));
         }
     }
-    "semantic".to_owned()
+
+    Ok(StagedHeaderDirectives {
+        decomp_tag,
+        dc_entity,
+        converts,
+    })
 }
 
 /// Loads and compiles all staged implementation files under `data_dir`
@@ -2940,9 +3035,39 @@ pub fn load_staged_dc_impls_with_compiler(
                 .and_then(|s| s.to_str())
                 // Reason for fallback: files without stem default to entire file name.
                 .unwrap_or(file_name);
-            let target = parse_target_from_stem(stem, &rel_path)?;
+            let directives = parse_staged_header_directives(src, &rel_path)?;
+            let (target, converts) = match (
+                directives.converts,
+                directives.dc_entity,
+            ) {
+                (Some((conv_line, src_sh, dst_sh)), Some((_, nid))) => {
+                    ensure!(
+                        parse_target_from_stem(stem, &rel_path).is_err(),
+                        "Standalone '@converts({src_sh} {dst_sh})' file '{rel_path}' must use a descriptive stem (e.g. 'stagel3_to_wasm.wat'), not a Short or Format Dc stem"
+                    );
+                    (DcShorthand::Long(nid), Some((src_sh, dst_sh)))
+                }
+                (Some((conv_line, src_sh, dst_sh)), None) => {
+                    bail!(
+                        "Standalone '@converts({src_sh} {dst_sh})' file '{rel_path}' (line {conv_line}) is missing '@dc l<id>'; run validate-data-tables --write to allocate an entity ID"
+                    );
+                }
+                (None, Some((dc_line, nid))) => {
+                    bail!(
+                        "'@dc l{nid}' at {rel_path}:{dc_line} is only permitted on standalone '@converts(<src> <dst>)' converter files in {} (Short/Format targets use filename stems)",
+                        stage.dir_name()
+                    );
+                }
+                (None, None) => (parse_target_from_stem(stem, &rel_path)?, None),
+            };
             let target_key = target.to_string();
-            let decomp_tag = extract_decomp_tag_override(src);
+            let decomp_tag = directives.decomp_tag;
+            let sh_begin_module = dc_to_sh(DC_BEGIN_MODULE);
+            let sh_begin_wasm = dc_to_sh(DC_BEGIN_WASM_PROGRAM);
+            let stagel3_fmt_sh = DcShorthand::parse(&stagel3_sh)
+                .context("Invalid StageL3 format shorthand")?;
+            let stager3_fmt_sh = DcShorthand::parse(&stager3_sh)
+                .context("Invalid StageR3 format shorthand")?;
 
             let compiled_entries: Vec<(Vec<DcShorthand>, Vec<DcShorthand>)> =
                 match ext {
@@ -2956,11 +3081,21 @@ pub fn load_staged_dc_impls_with_compiler(
                     "sl3" => {
                         let has_sl3_compiler = impls.iter().any(|prior| {
                             prior.stage == ImplStage::Stage0
-                                && prior.target.to_string() == stagel3_sh
+                                && (prior.target == stagel3_fmt_sh
+                                    || prior.converts
+                                        == Some((
+                                            sh_begin_module,
+                                            sh_begin_wasm,
+                                        ))
+                                    || prior.converts
+                                        == Some((
+                                            stagel3_fmt_sh,
+                                            sh_begin_wasm,
+                                        )))
                         });
                         ensure!(
                             has_sl3_compiler,
-                            "Cannot compile '{rel_path}': StageL 3 compiler ({stagel3_sh}) must be defined in stage_0_impls/ first"
+                            "Cannot compile '{rel_path}': StageL 3 compiler (@converts(2192 1927) or {stagel3_sh}) must be defined in stage_0_impls/ first"
                         );
                         let compiler = source_compiler.with_context(|| {
                             format!(
@@ -2977,11 +3112,16 @@ pub fn load_staged_dc_impls_with_compiler(
                     "sr3" => {
                         let has_sr3_compiler = impls.iter().any(|prior| {
                             prior.stage < stage
-                                && prior.target.to_string() == stager3_sh
+                                && (prior.target == stager3_fmt_sh
+                                    || prior.converts
+                                        == Some((
+                                            stager3_fmt_sh,
+                                            sh_begin_wasm,
+                                        )))
                         });
                         ensure!(
                             has_sr3_compiler,
-                            "Cannot compile '{rel_path}': StageR 3 compiler ({stager3_sh}) must be defined in stage_0_impls/ or stage_1_impls/ first"
+                            "Cannot compile '{rel_path}': StageR 3 compiler (@converts({stager3_sh} 1927) or {stager3_sh}) must be defined in stage_0_impls/ or stage_1_impls/ first"
                         );
                         let compiler = source_compiler.with_context(|| {
                             format!(
@@ -3027,6 +3167,7 @@ pub fn load_staged_dc_impls_with_compiler(
                     stage,
                     rel_path: rel_path.clone(),
                     target,
+                    converts,
                     context_tokens,
                     decomp_tag: decomp_tag.clone(),
                     tokens,
@@ -3269,6 +3410,44 @@ mod tests {
         );
         // Entry reaching `$_alloc` and `$__heap_ptr` emits `1927 559 ... 560 1928`.
         assert_eq!(entries[2].1[1], dc_to_sh(DC_BEGIN_KV_MAP));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_load_staged_dc_impls_supports_standalone_converter_routines() -> Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let s0 = tmp.path().join("stage_0_impls");
+        let s1 = tmp.path().join("stage_1_impls");
+        std::fs::create_dir_all(&s0)?;
+        std::fs::create_dir_all(&s1)?;
+
+        // Missing `@dc` on `@converts` must fail until allocated.
+        std::fs::write(
+            s0.join("stagel3_to_wasm.wat"),
+            ";; @converts(2192 1927)\n(module (func (export \"main\") (result i32) (i32.const 0)))\n",
+        )?;
+        assert!(load_staged_dc_impls(tmp.path()).is_err());
+
+        // With `@dc l8589935000` + `@converts(2192 1927)`, loads as standalone Long target and unlocks `.sl3` in Stage 1.
+        std::fs::write(
+            s0.join("stagel3_to_wasm.wat"),
+            ";; @dc l8589935000\n;; @converts(2192 1927)\n(module (func (export \"main\") (result i32) (i32.const 0)))\n",
+        )?;
+        std::fs::write(s1.join("256_say.sl3"), "v/void/say :: do ::.\n")?;
+
+        let (loaded, _raw) = load_staged_dc_impls_with_compiler(
+            tmp.path(),
+            Some(&|_stage, _ext, _src, _prior| {
+                Ok(vec![DcShorthand::Short(1927), DcShorthand::Short(1928)])
+            }),
+        )?;
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded[0].target, DcShorthand::Long(8_589_935_000));
+        assert_eq!(
+            loaded[0].converts,
+            Some((DcShorthand::Short(2192), DcShorthand::Short(1927)))
+        );
+        assert_eq!(loaded[1].target, DcShorthand::Short(256));
         Ok(())
     }
 }

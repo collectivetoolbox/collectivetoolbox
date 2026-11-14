@@ -36,10 +36,12 @@ use ctb_storage_minimal::global_graph_layout::{
 use ctb_storage_minimal::shorthand::DcShorthand;
 
 use crate::dc::{
-    DC_BEGIN_WASM_PROGRAM, DC_CANONICAL_DECOMPOSITION, DC_DECOMPOSITION,
-    DC_IN_CONTEXT_OF, DC_PROGRAMMATIC_IDENTIFIER, DC_SEMANTIC_DECOMPOSITION,
-    DC_TYPE_ROUTINE, DcChar,
+    DC_BEGIN_WASM_PROGRAM, DC_CANONICAL_DECOMPOSITION,
+    DC_DATA_FORMAT_DESCRIPTION, DC_DECOMPOSITION, DC_IN_CONTEXT_OF,
+    DC_PROGRAMMATIC_IDENTIFIER, DC_SEMANTIC_DECOMPOSITION, DC_TYPE_ROUTINE,
+    DcChar,
 };
+use crate::format_spec::FormatExpr;
 use crate::graph_ledger::{
     DesiredDatasetState, LedgerNode, LedgerUpdateStats, ValueSpec,
     allocate_stagel_entities_in_memory, allocate_stagel_entities_in_repo,
@@ -443,9 +445,208 @@ fn insert_dc_directives_into_source(
     Ok(out)
 }
 
-/// Verifies that no `.sl3` namespace files in `repo_root` have missing `: @dc l<id>` directives.
+#[derive(Debug, Clone)]
+struct DiscoveredStandaloneConverterFile {
+    disk_path: PathBuf,
+    repo_rel_path: String,
+    ext: String,
+    source: String,
+    converts_line: usize,
+    src_sh: DcShorthand,
+    dst_sh: DcShorthand,
+    dc_entity: Option<u128>,
+}
+
+fn discover_standalone_converter_files(
+    data_src_dir: &Path,
+) -> Result<Vec<DiscoveredStandaloneConverterFile>> {
+    let mut out = Vec::new();
+    for stage in [ImplStage::Stage0, ImplStage::Stage1, ImplStage::Stage2] {
+        let dir_path = data_src_dir.join(stage.dir_name());
+        if !dir_path.exists() {
+            continue;
+        }
+        let mut entries: Vec<_> = std::fs::read_dir(&dir_path)
+            .with_context(|| {
+                format!("Failed to read directory {}", dir_path.display())
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        entries.sort_by_key(std::fs::DirEntry::file_name);
+        for entry in entries {
+            let path = entry.path();
+            if path.is_dir() {
+                continue;
+            }
+            let Some(file_name) = path.file_name().and_then(|n| n.to_str())
+            else {
+                continue;
+            };
+            if file_name.starts_with('.') || file_name.ends_with(".md") {
+                continue;
+            }
+            // Reason for fallback: extensionless files map to "".
+            let ext = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_owned();
+            let rel_path = format!(
+                "src/formats/dcdata/data-src/{}/{file_name}",
+                stage.dir_name()
+            );
+            let raw_bytes = std::fs::read(&path)
+                .with_context(|| format!("Failed to read {}", path.display()))?;
+            let source = String::from_utf8(raw_bytes).with_context(|| {
+                format!("Implementation file {rel_path} is not valid UTF-8")
+            })?;
+            let directives =
+                crate::wat::parse_staged_header_directives(&source, &rel_path)?;
+            if let Some((conv_line, src_sh, dst_sh)) = directives.converts {
+                out.push(DiscoveredStandaloneConverterFile {
+                    disk_path: path,
+                    repo_rel_path: rel_path,
+                    ext,
+                    source,
+                    converts_line: conv_line,
+                    src_sh,
+                    dst_sh,
+                    dc_entity: directives.dc_entity.map(|(_, nid)| nid),
+                });
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn insert_staged_dc_directive_at_line(
+    original: &str,
+    ext: &str,
+    one_based_line: usize,
+    entity_id: u128,
+) -> Result<String> {
+    let prefix = match ext {
+        "wat" => ";; @dc l",
+        "dcsh" => "# @dc l",
+        _ => ": @dc l",
+    };
+    let lines: Vec<&str> = original.split('\n').collect();
+    ensure!(
+        one_based_line >= 1 && one_based_line <= lines.len(),
+        "Invalid directive insertion line {one_based_line} (file has {} lines)",
+        lines.len()
+    );
+    let mut out = String::with_capacity(original.len().saturating_add(32));
+    for (idx, &raw_line) in lines.iter().enumerate() {
+        let cur = idx.saturating_add(1);
+        if cur == one_based_line {
+            out.push_str(prefix);
+            out.push_str(&entity_id.to_string());
+            if raw_line.ends_with('\r') {
+                out.push_str("\r\n");
+            } else {
+                out.push('\n');
+            }
+        }
+        out.push_str(raw_line);
+        if idx.saturating_add(1) < lines.len() {
+            out.push('\n');
+        }
+    }
+    Ok(out)
+}
+
+fn assign_and_update_standalone_converter_dc_ids(
+    repo_root: &Path,
+) -> Result<StagelAllocStats> {
+    let data_dir = repo_root.join("src/formats/dcdata/data-src");
+    let conv_files = discover_standalone_converter_files(&data_dir)?;
+    let unassigned: Vec<&DiscoveredStandaloneConverterFile> = conv_files
+        .iter()
+        .filter(|f| f.dc_entity.is_none())
+        .collect();
+    if unassigned.is_empty() {
+        return Ok(StagelAllocStats::default());
+    }
+
+    // Dry-run compile each unassigned standalone converter BEFORE allocating permanent ledger nodes.
+    for (idx, cf) in unassigned.iter().enumerate() {
+        let placeholder_id =
+            SYSTEM_REGION_END.saturating_sub(u128::try_from(idx)?);
+        let preview = insert_staged_dc_directive_at_line(
+            &cf.source,
+            &cf.ext,
+            cf.converts_line,
+            placeholder_id,
+        )?;
+        let _ = crate::wat::parse_staged_header_directives(
+            &preview,
+            &cf.repo_rel_path,
+        )?;
+        if cf.ext == "wat" {
+            let _ = crate::wat::wat_to_staged_dc_entries(&preview)
+                .with_context(|| {
+                    format!("Failed to compile {}", cf.repo_rel_path)
+                })?;
+        }
+    }
+
+    let specs: Vec<(ValueSpec, String)> = unassigned
+        .iter()
+        .map(|cf| {
+            (
+                ValueSpec::Direct(sh(DC_TYPE_ROUTINE)),
+                format!(
+                    "{} (@converts {} -> {})",
+                    cf.repo_rel_path, cf.src_sh, cf.dst_sh
+                ),
+            )
+        })
+        .collect();
+    let allocated_ids = allocate_stagel_entities_in_repo(repo_root, &specs)?;
+    ensure!(
+        allocated_ids.len() == unassigned.len(),
+        "Allocated entity count {} did not match unassigned converter count {}",
+        allocated_ids.len(),
+        unassigned.len()
+    );
+
+    for (cf, &entity_id) in unassigned.iter().zip(allocated_ids.iter()) {
+        let updated = insert_staged_dc_directive_at_line(
+            &cf.source,
+            &cf.ext,
+            cf.converts_line,
+            entity_id,
+        )?;
+        std::fs::write(&cf.disk_path, updated.as_bytes()).with_context(|| {
+            format!(
+                "Failed to write updated converter file {}",
+                cf.repo_rel_path
+            )
+        })?;
+    }
+
+    Ok(StagelAllocStats {
+        entities_allocated: allocated_ids.len(),
+        files_updated: unassigned.len(),
+    })
+}
+
+/// Verifies that no `.sl3` namespace files or standalone `@converts(...)` files in `repo_root`
+/// have missing `@dc l<id>` directives.
 pub fn check_stagel_files_need_no_dc_updates(repo_root: &Path) -> Result<()> {
     let data_dir = repo_root.join("src/formats/dcdata/data-src");
+    let conv_files = discover_standalone_converter_files(&data_dir)?;
+    for cf in &conv_files {
+        if cf.dc_entity.is_none() {
+            bail!(
+                "Standalone converter '@converts({} {})' in {} (line {}) is missing '@dc l<id>'; run validate-data-tables --write to allocate IDs",
+                cf.src_sh,
+                cf.dst_sh,
+                cf.repo_rel_path,
+                cf.converts_line
+            );
+        }
+    }
     let files = discover_stagel_namespace_files(&data_dir)?;
     let (workspace, ns_to_file_idx) =
         parse_validate_and_test_stagel_files(&files)?;
@@ -467,15 +668,16 @@ pub fn check_stagel_files_need_no_dc_updates(repo_root: &Path) -> Result<()> {
 }
 
 /// Allocates permanent System-block `l<id>` entity nodes (`586 615 <class>`) for any
-/// unassigned top-level declarations in `stage_1_impls/**/*.sl3` and `impls/**/*.sl3`
-/// and writes `: @dc l<id>` directives back into those `.sl3` files on disk.
+/// unassigned standalone `@converts(...)` files and top-level declarations in
+/// `stage_1_impls/**/*.sl3` and `impls/**/*.sl3`, writing `@dc l<id>` directives back to disk.
 pub fn assign_and_update_stagel_dc_ids(
     repo_root: &Path,
 ) -> Result<StagelAllocStats> {
+    let conv_stats = assign_and_update_standalone_converter_dc_ids(repo_root)?;
     let data_dir = repo_root.join("src/formats/dcdata/data-src");
     let mut files = discover_stagel_namespace_files(&data_dir)?;
     if files.is_empty() {
-        return Ok(StagelAllocStats::default());
+        return Ok(conv_stats);
     }
     let (workspace, ns_to_file_idx) =
         parse_validate_and_test_stagel_files(&files)?;
@@ -485,7 +687,7 @@ pub fn assign_and_update_stagel_dc_ids(
         &ns_to_file_idx,
     )?;
     if unassigned.is_empty() {
-        return Ok(StagelAllocStats::default());
+        return Ok(conv_stats);
     }
 
     // Dry-run inserting placeholder System-region `: @dc l<id>` directives and
@@ -577,8 +779,12 @@ pub fn assign_and_update_stagel_dc_ids(
     }
 
     Ok(StagelAllocStats {
-        entities_allocated: allocated_ids.len(),
-        files_updated: updated_sources.len(),
+        entities_allocated: conv_stats
+            .entities_allocated
+            .saturating_add(allocated_ids.len()),
+        files_updated: conv_stats
+            .files_updated
+            .saturating_add(updated_sources.len()),
     })
 }
 
@@ -1183,14 +1389,108 @@ pub(crate) fn compile_stagel_files_into_desired_state(
     Ok(())
 }
 
-/// Discovers `.sl3` namespace modules under `data_dir`, records their SHA-256 digests in
-/// `pinned_input_sha256s`, and compiles their System-graph entities and Token-Dc decompositions
-/// into `desired`.
+/// Emits standalone `@converts(<src> <dst>)` routine entities (`Dc 280 "Built-in type identifier: Routine"`)
+/// and their `Dc 595 "Data format or type description"` `[Dc 302 "Type conversion" <src> <dst>]`
+/// and `.WASM` / Token-Dc decompositions into `desired`.
+pub(crate) fn compile_standalone_staged_impls_into_desired_state(
+    staged_impls: &[crate::wat::StagedDcImpl],
+    desired: &mut DesiredDatasetState,
+) -> Result<()> {
+    for staged in staged_impls {
+        let (DcShorthand::Long(entity_id), Some((src_sh, dst_sh))) =
+            (staged.target, staged.converts)
+        else {
+            continue;
+        };
+        if let Some((existing_spec, prev_label)) =
+            desired.allocated_entities.get(&entity_id)
+            && *existing_spec != ValueSpec::Direct(sh(DC_TYPE_ROUTINE))
+        {
+            bail!(
+                "Entity ID l{entity_id} in {} conflicts with '{prev_label}'",
+                staged.rel_path
+            );
+        }
+        let label =
+            format!("{} (@converts {src_sh} -> {dst_sh})", staged.rel_path);
+        desired.allocated_entities.insert(
+            entity_id,
+            (ValueSpec::Direct(sh(DC_TYPE_ROUTINE)), label.clone()),
+        );
+
+        let subj_sh = DcShorthand::Long(entity_id);
+        let fmt_expr = FormatExpr::Convert(
+            Box::new(FormatExpr::Dc(src_sh)),
+            Box::new(FormatExpr::Dc(dst_sh)),
+        );
+        desired.single_properties.insert(
+            (subj_sh, sh(DC_DATA_FORMAT_DESCRIPTION)),
+            (
+                ValueSpec::FormatExprNode {
+                    expr: Box::new(fmt_expr),
+                    raw_comment: format!("{subj_sh} format spec {src_sh} > {dst_sh}"),
+                },
+                format!("Format spec ({subj_sh}: {src_sh} > {dst_sh})"),
+            ),
+        );
+
+        let decomp_dc = if staged.decomp_tag == "equiv" {
+            DC_CANONICAL_DECOMPOSITION
+        } else {
+            DC_SEMANTIC_DECOMPOSITION
+        };
+        let val_spec = if staged.tokens.len() == 1
+            && let Some(&only) = staged.tokens.first()
+        {
+            ValueSpec::Direct(only)
+        } else {
+            ValueSpec::ValueNode {
+                tokens: staged.tokens.clone(),
+                comment: format!(
+                    "<{}> {} ({src_sh} > {dst_sh})",
+                    staged.decomp_tag, staged.rel_path
+                ),
+            }
+        };
+        if !staged.context_tokens.is_empty() {
+            let ctx_spec = if staged.context_tokens.len() == 1
+                && let Some(&only_ctx) = staged.context_tokens.first()
+            {
+                ValueSpec::Direct(only_ctx)
+            } else {
+                let joined: Vec<String> = staged
+                    .context_tokens
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect();
+                ValueSpec::ValueNode {
+                    tokens: staged.context_tokens.clone(),
+                    comment: format!("context {}", joined.join(" ")),
+                }
+            };
+            desired.multi_property_contexts.insert(
+                ((subj_sh, sh(decomp_dc), val_spec.clone()), ctx_spec),
+                format!("{subj_sh} <{}> context", staged.decomp_tag),
+            );
+        }
+        desired.multi_properties.insert(
+            (subj_sh, sh(decomp_dc), val_spec),
+            format!("{subj_sh} <{}> ({label})", staged.decomp_tag),
+        );
+    }
+    Ok(())
+}
+
+/// Discovers `.sl3` namespace modules and standalone `@converts(...)` converter files under
+/// `data_dir`, records their SHA-256 digests in `pinned_input_sha256s`, and compiles their
+/// System-graph entities and decompositions into `desired`.
 pub(crate) fn compile_repo_stagel_into_desired_state(
     data_dir: &Path,
     desired: &mut DesiredDatasetState,
     pinned_input_sha256s: &mut BTreeMap<String, String>,
 ) -> Result<()> {
+    let (staged_impls, _) = crate::wat::load_staged_dc_impls(data_dir)?;
+    compile_standalone_staged_impls_into_desired_state(&staged_impls, desired)?;
     let files = discover_stagel_namespace_files(data_dir)?;
     for f in &files {
         pinned_input_sha256s.insert(
@@ -1491,6 +1791,21 @@ pub fn validate_stagel_and_system_graph_in_repo(
     if let Ok((staged_impls, _)) = crate::wat::load_staged_dc_impls(data_src_dir)
     {
         for imp in staged_impls {
+            if let DcShorthand::Long(entity_id) = imp.target
+                && imp.converts.is_some()
+                && index.get_entity_class(entity_id)
+                    != Some(sh(DC_TYPE_ROUTINE))
+            {
+                report.add_error(
+                    &imp.rel_path,
+                    None,
+                    Some("@dc"),
+                    format!(
+                        "Standalone converter '@dc l{entity_id}' does not exist as an active Routine (Dc 280) entity node in assets/data/graph/*.ctbnodes"
+                    ),
+                    Some("Run ./scripts/validate-data-tables to reconcile the System graph ledger"),
+                );
+            }
             if imp.stage == ImplStage::Stage0 {
                 stage0_targets.insert(imp.target);
             }

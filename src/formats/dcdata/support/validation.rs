@@ -2591,7 +2591,84 @@ pub fn attach_staged_dc_impls_to_defns(
     known_format_ids: Option<&HashSet<usize>>,
     report: &mut ValidationReport,
 ) {
+    use ctb_storage_minimal::global_graph_layout::{
+        SYSTEM_REGION_END, SYSTEM_REGION_START,
+    };
     use ctb_storage_minimal::shorthand::DcShorthand;
+
+    let check_endpoint = |sh: DcShorthand,
+                          role_label: &str,
+                          rel_path: &str,
+                          dc_slice: &[DcDefn],
+                          fmt_slice: Option<&[DcDefn]>,
+                          known_fids: Option<&HashSet<usize>>,
+                          rep: &mut ValidationReport| {
+        match sh {
+            DcShorthand::Short(sid) => {
+                let sid_usize = usize::try_from(sid).ok();
+                if !dc_slice
+                    .iter()
+                    .any(|d| d.format.is_none() && d.short_id == sid_usize)
+                {
+                    rep.add_error(
+                        rel_path,
+                        None,
+                        Some("@converts"),
+                        format!(
+                            "Standalone '@converts' {role_label} targets unknown Short Dc ID {sid}"
+                        ),
+                        Some("Ensure the Short Dc ID is defined in categories/*.csv"),
+                    );
+                }
+            }
+            DcShorthand::Format(fid) => {
+                let exists = if let Some(fdefs) = fmt_slice {
+                    fdefs
+                        .iter()
+                        .any(|d| d.format.is_some() && d.short_id == Some(fid))
+                } else if let Some(fset) = known_fids {
+                    fset.contains(&fid)
+                } else {
+                    true
+                };
+                if !exists {
+                    rep.add_error(
+                        rel_path,
+                        None,
+                        Some("@converts"),
+                        format!(
+                            "Standalone '@converts' {role_label} targets unknown Format Dc f{fid}"
+                        ),
+                        Some("Ensure the Format Dc is defined in categories/formats/*.csv"),
+                    );
+                }
+            }
+            DcShorthand::Long(nid) => {
+                if !(SYSTEM_REGION_START..=SYSTEM_REGION_END).contains(&nid) {
+                    rep.add_error(
+                        rel_path,
+                        None,
+                        Some("@converts"),
+                        format!(
+                            "Standalone '@converts' {role_label} l{nid} is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+                        ),
+                        None,
+                    );
+                }
+            }
+            other => {
+                rep.add_error(
+                    rel_path,
+                    None,
+                    Some("@converts"),
+                    format!(
+                        "Unsupported '@converts' {role_label} shorthand '{other}'"
+                    ),
+                    Some("Use a Short, Format, or System-block Long Dc shorthand"),
+                );
+            }
+        }
+    };
 
     for staged in staged_impls {
         match staged.target {
@@ -2652,13 +2729,49 @@ pub fn attach_staged_dc_impls_to_defns(
                     );
                 }
             }
+            DcShorthand::Long(entity_id) if staged.converts.is_some() => {
+                if !(SYSTEM_REGION_START..=SYSTEM_REGION_END)
+                    .contains(&entity_id)
+                {
+                    report.add_error(
+                        &staged.rel_path,
+                        None,
+                        Some("@dc"),
+                        format!(
+                            "Standalone converter '@dc l{entity_id}' is outside System region ({SYSTEM_REGION_START}..={SYSTEM_REGION_END})"
+                        ),
+                        None,
+                    );
+                }
+                if let Some((src_sh, dst_sh)) = staged.converts {
+                    let fmt_ref = format_defns.as_deref().map(|s| &*s);
+                    check_endpoint(
+                        src_sh,
+                        "source",
+                        &staged.rel_path,
+                        dc_defns,
+                        fmt_ref,
+                        known_format_ids,
+                        report,
+                    );
+                    check_endpoint(
+                        dst_sh,
+                        "destination",
+                        &staged.rel_path,
+                        dc_defns,
+                        fmt_ref,
+                        known_format_ids,
+                        report,
+                    );
+                }
+            }
             other => {
                 report.add_error(
                     &staged.rel_path,
                     None,
                     Some("wat"),
                     format!("Unsupported staged implementation target '{other}'"),
-                    Some("Use a Short Dc stem (e.g. 1936_...) or Format stem (e.g. f656_...)"),
+                    Some("Use a Short Dc stem (e.g. 1936_...), Format stem (e.g. f656_...), or '@dc l<id>' + '@converts(<src> <dst>)'"),
                 );
             }
         }
