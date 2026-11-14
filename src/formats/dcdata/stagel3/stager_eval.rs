@@ -438,7 +438,14 @@ fn eval_match(
     let (variant_name, payload_opt): (String, Option<Value>) = match sval {
         Value::Option(None) => (String::from("none"), None),
         Value::Option(Some(inner)) => (String::from("some"), Some(*inner)),
-        Value::Result(Ok(inner)) => (String::from("ok"), Some(*inner)),
+        Value::Result(Ok(inner)) => (
+            String::from("ok"),
+            if *inner == Value::Void {
+                None
+            } else {
+                Some(*inner)
+            },
+        ),
         Value::Result(Err(tag)) => {
             (String::from("err"), Some(Value::Error(tag)))
         }
@@ -1376,5 +1383,267 @@ fn eval_total_conv(
             Some(v) => ok_res(v),
             None => err_res(StageRErrorTag::Overflow),
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use super::super::ast::StageDialect;
+    use super::super::validator::ModuleInput;
+
+    #[crate::ctb_test]
+    fn test_stager_eval_i128_u128_int_rat_and_shifts() -> Result<()> {
+        let src = r#"ns eval/nums.
+
+pub v/b/checkWideLimits
+    test checks i128 u128 overflow and mod truncRem MIN -1
+        in.
+        out true
+    const i128/min i128:-170141183460469231731687303715884105728.
+    const b/ok1 eq neg /min result/i128:err error:overflow.
+    const b/ok2 eq div /min i128:-1 result/i128:err error:overflow.
+    const b/ok3 eq mod /min i128:-1 result/i128:ok i128:0.
+    const b/ok4 eq truncRem /min i128:-1 result/i128:ok i128:0.
+    const b/ok5 eq sub u128:0 u128:1 result/u128:err error:overflow.
+    const b/ok6 eq shl u32:1 u32:31 result/u32:ok u32:2147483648.
+    const b/ok7 eq shl u32:1 u32:32 result/u32:err error:overflow.
+    const b/ok8 eq shr u128:8 u32:127 result/u128:ok u128:0.
+    const b/ok9 eq shr u128:8 u32:128 result/u128:err error:overflow.
+    and /ok1 and /ok2 and /ok3 and /ok4 and /ok5 and /ok6 and /ok7 and /ok8 /ok9.
+
+pub v/result/b/checkBigIntAndRat
+    test checks arbitrary int and canonical rational arithmetic
+        in.
+        out result/b:ok true
+    const int/big mul int:100000000000000000000000000000 int:200000000000000000000000000000.
+    const b/okInt and
+        eq /big int:20000000000000000000000000000000000000000000000000000000000
+        eq div int:5 int:0 result/int:err error:divisionByZero.
+    const rat/r1 makeRat? int:6 int:-4.
+    const rat/r2 makeRat? int:-3 int:2.
+    const rat/r3 add makeRat? int:1 int:3 makeRat? int:1 int:6.
+    const rat/half makeRat? int:1 int:2.
+    const b/badDen eq makeRat int:1 int:0 result/rat:err error:divisionByZero.
+    result/b:ok and /okInt and eq /r1 /r2 and eq /r3 /half /badDen.
+"#;
+        let report = run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 2);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_eval_euclidean_mod_vs_trunc_rem_and_exact_conv()
+    -> Result<()> {
+        let src = r#"ns eval/modconv.
+
+pub v/result/b/checkModAndTruncRem
+    test checks euclidean mod vs truncRem across signed operands
+        in.
+        out result/b:ok true
+    const i32/m1 mod? i32:-7 i32:3.
+    const i32/m2 mod? i32:-7 i32:-3.
+    const i32/t1 truncRem? i32:-7 i32:3.
+    const i32/t2 truncRem? i32:-7 i32:-3.
+    const i32/m0 mod? i32:5 i32:-1.
+    const i32/t0 truncRem? i32:5 i32:-1.
+    const b/okMod and eq /m1 i32:2 and eq /m2 i32:2 eq /m0 i32:0.
+    const b/okRem and eq /t1 i32:-1 and eq /t2 i32:-1 eq /t0 i32:0.
+    result/b:ok and /okMod /okRem.
+
+pub v/result/b/checkExactConv
+    test checks exact value-preserving conv rules
+        in.
+        out result/b:ok true
+    const rat/exactIntRat makeRat? int:6 int:2.
+    const rat/nonIntRat makeRat? int:5 int:2.
+    const int/fromRat conv? /exactIntRat int.
+    const b/okExact eq /fromRat int:3.
+    const b/failNonInt eq conv /nonIntRat int result/int:err error:overflow.
+    const b/okNarrow eq conv int:255 u8 result/u8:ok u8:255.
+    const b/failRange eq conv int:256 u8 result/u8:err error:overflow.
+    const rat/wide conv int:-42 rat.
+    const b/okWide eq /wide makeRat? int:-42 int:1.
+    result/b:ok and /okExact and /failNonInt and /okNarrow and /failRange /okWide.
+"#;
+        let report = run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 2);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_eval_dc_dcs_s_explode_implode_get_slice_and_bufset()
+    -> Result<()> {
+        let src = r#"ns eval/strings.
+
+pub v/result/b/checkDcAndStrings
+    test checks dcFromU128 dcsFromS sFromDcs byteLen and explode implode
+        in.
+        out result/b:ok true
+    const dc/cu100 dcFromU128? u128:256.
+    const dc/c256 dcFromU128? u128:1114368.
+    const b/okDc and eq /cu100 dc:u100 and eq /c256 dc:256 eq u128FromDc /c256 u128:1114368.
+    const b/badSurrogate eq dcFromU128 u128:55296 result/dc:err error:invalidDc.
+
+    const dcs/pure dcsFromS? "hi @256@".
+    const b/okLen and eq len /pure u64:4 eq get /pure u64:3 option/dc:some dc:256.
+    const b/okOob and eq get /pure u64:9 option/dc:none eq slice /pure u64:3 u64:1 option/dcs:none.
+    const dcs/sl slice? /pure u64:1 u64:3.
+    const s/back sFromDcs /sl.
+    const b/okRound eq /back "i ".
+
+    : Embedded valid Base64 binary run Dc 203..204 (21-byte header + 3 payload bytes = 24 bytes)
+    const s/withBin "pre:@203@@127@@127@@127@@127@@204@:post".
+    const b/binRejected eq dcsFromS /withBin result/dcs:err error:invalidEncoding.
+    const u64/blen byteLen /withBin.
+    const l/s/parts explode ":" /withBin.
+    const s/rejoined implode ":" /parts.
+    const l/s/chars explode "" "a@256@@203@@127@@127@@127@@127@@204@".
+    const b/okBinSplit and eq /rejoined /withBin and eq len /parts u64:3 and eq len /chars u64:3 eq get /parts u64:1 option/s:some "@203@@127@@127@@127@@127@@204@".
+
+    const l/i32/ints l/i32: i32:10 i32:20 i32:30 ::.
+    const l/l/i32/iParts explode l/i32: i32:20 :: /ints.
+    const b/okIntList and eq implode l/i32: i32:20 :: /iParts /ints eq len /iParts u64:2.
+
+    let buf/i32/mbuf bufFill i32:0 u64:2.
+    const b/okSet0 eq bufSet /mbuf u64:0 i32:11 result/void:ok nop.
+    const b/okMatchSet
+        match bufSet /mbuf u64:1 i32:99
+            case ok true.
+            case err error/_ev false.
+        ::.
+    const b/badSet eq bufSet /mbuf u64:5 i32:1 result/void:err error:outOfBounds.
+    const l/i32/frozen bufFreeze /mbuf.
+    const b/okFrozen and eq get /frozen u64:0 option/i32:some i32:11 eq get /frozen u64:1 option/i32:some i32:99.
+
+    result/b:ok and /okDc and /badSurrogate and /okLen and /okOob and /okRound and /binRejected and gt /blen u64:24 and /okBinSplit and /okIntList and /okSet0 and /okMatchSet and /badSet /okFrozen.
+"#;
+        let report = run_sr3_module_inline_tests(src)?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+
+        // Also test runtime `err error:frozenBuffer` directly on a frozen Value::Buf handle.
+        let frozen_buf = Value::Buf(std::rc::Rc::new(std::cell::RefCell::new(
+            crate::stagel3::eval::BufStorage {
+                elems: vec![Value::I32(1)],
+                frozen: true,
+            },
+        )));
+        let sig = eval_stager_ternary(
+            StageRTernaryOp::TotalBufSet,
+            frozen_buf,
+            Value::U64(0),
+            Value::I32(7),
+            Span { line: 1, col: 1 },
+        )?;
+        assert!(matches!(
+            sig,
+            EvalSignal::Value(Value::Result(Err(StageRErrorTag::FrozenBuffer)))
+        ));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_eval_propagate_match_tail_trampoline_and_resource_traps()
+    -> Result<()> {
+        let src = r#"ns eval/control.
+
+enum step
+    int/done.
+    int/next.
+
+v/option/i32/optPropagate option/i32/x
+    const i32/unw /x?.
+    option/i32:some wrapAdd /unw i32:1.
+
+v/result/i32/optToRes option/i32/x
+    const i32/unw /x/.
+    result/i32:ok /unw.
+
+v/int/countRec step/st int/acc
+    match /st
+        case done int/fin /fin.
+        case next int/n if le /n int:0
+            countRec step:done /acc int:0
+            countRec step:next sub /n int:1 add /acc /n.
+    ::.
+
+pub v/int/tailMatchSum int/n
+    test deep match tail call with tight max_call_depth
+        in int:500
+        out int:125250
+    countRec step:next /n int:0.
+
+pub v/b/checkPropagation
+    test verifies option and result propagation conversions
+        in.
+        out true
+    const b/o1 eq optPropagate option/i32:none option/i32:none.
+    const b/o2 eq optToRes option/i32:none result/i32:err error:unexpectedNone.
+    const b/o3 eq optToRes option/i32:some i32:7 result/i32:ok i32:7.
+    and /o1 and /o2 /o3.
+"#;
+        let report = run_sr3_module_inline_tests_with_config(
+            src,
+            EvalConfig {
+                compute_quota: 2_000_000,
+                max_call_depth: 16,
+                ..EvalConfig::default()
+            },
+        )?;
+        assert_eq!(report.ensure_all_passed()?, 2);
+
+        // Verify `max_bigint_bits` and `max_seq_elems` cleanly trap (`EvalSignal::Fault`).
+        let big_trap = r#"ns eval/bigtrap.
+pub v/int/boom
+    test bigint trap
+        in.
+        out int:0
+    mul int:1000000000000 int:1000000000000.
+"#;
+        let big_rep = run_sr3_module_inline_tests_with_config(
+            big_trap,
+            EvalConfig {
+                max_bigint_bits: 32,
+                ..EvalConfig::default()
+            },
+        )?;
+        let big_err = big_rep.ensure_all_passed().unwrap_err().to_string();
+        assert!(big_err.contains("max_bigint_bits"), "got: {big_err}");
+
+        let seq_trap = r#"ns eval/seqtrap.
+pub v/u64/boom
+    test seq trap
+        in.
+        out u64:0
+    let buf/u8/mbuf bufFill u8:1 u64:16.
+    len bufFreeze /mbuf.
+"#;
+        let seq_rep = run_sr3_workspace_inline_tests_with_config(
+            &[ModuleInput {
+                source_path: Some("eval/seqtrap.sr3"),
+                source: seq_trap,
+            }],
+            EvalConfig {
+                max_seq_elems: 4,
+                ..EvalConfig::default()
+            },
+        )?;
+        let seq_err = seq_rep.ensure_all_passed().unwrap_err().to_string();
+        assert!(
+            seq_err.contains("max_seq_elems") || seq_err.contains("capacity"),
+            "got: {seq_err}"
+        );
+        let _ = StageDialect::StageR3;
+        Ok(())
     }
 }

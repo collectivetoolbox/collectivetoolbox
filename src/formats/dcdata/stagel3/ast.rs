@@ -256,8 +256,9 @@ impl StageLType {
     pub fn can_be_element(&self) -> bool {
         match self {
             Self::Void | Self::Never | Self::Buf(_) => false,
-            Self::List(inner) | Self::Option(inner) | Self::Result(inner) => {
-                inner.can_be_element()
+            Self::List(inner) | Self::Option(inner) => inner.can_be_element(),
+            Self::Result(inner) => {
+                **inner == Self::Void || inner.can_be_element()
             }
             Self::Tuple(elems) => elems.iter().all(Self::can_be_element),
             Self::B
@@ -314,9 +315,8 @@ impl StageLType {
             | Self::Error
             | Self::Struct(_)
             | Self::Nominal(_) => true,
-            Self::List(inner) | Self::Option(inner) | Self::Result(inner) => {
-                inner.supports_eq()
-            }
+            Self::List(inner) | Self::Option(inner) => inner.supports_eq(),
+            Self::Result(inner) => **inner == Self::Void || inner.supports_eq(),
             Self::Tuple(elems) => elems.iter().all(Self::supports_eq),
             Self::Void
             | Self::Never

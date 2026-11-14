@@ -2155,10 +2155,12 @@ impl<'a> StageRValidator<'a> {
             | StageLType::Buf(_)
             | StageLType::View
             | StageLType::Cursor => false,
-            StageLType::List(inner)
-            | StageLType::Option(inner)
-            | StageLType::Result(inner) => {
+            StageLType::List(inner) | StageLType::Option(inner) => {
                 self.type_supports_eq_rec(inner, visiting)
+            }
+            StageLType::Result(inner) => {
+                **inner == StageLType::Void
+                    || self.type_supports_eq_rec(inner, visiting)
             }
             StageLType::Tuple(elems) => elems
                 .iter()
@@ -2990,7 +2992,9 @@ impl<'a> StageRValidator<'a> {
             Expr::ResultOk { ok_ty, value, span } => {
                 let canon_ok =
                     self.check_and_canonicalize_type(ok_ty, false, *span)?;
-                check_stager_value_type_shape(&canon_ok, *span)?;
+                if canon_ok != StageLType::Void {
+                    check_stager_value_type_shape(&canon_ok, *span)?;
+                }
                 let vty = self.check_subexpr(value, state, ctx)?;
                 ensure!(
                     types_compatible(&vty, &canon_ok),
@@ -3002,7 +3006,9 @@ impl<'a> StageRValidator<'a> {
             Expr::ResultErr { ok_ty, error, span } => {
                 let canon_ok =
                     self.check_and_canonicalize_type(ok_ty, false, *span)?;
-                check_stager_value_type_shape(&canon_ok, *span)?;
+                if canon_ok != StageLType::Void {
+                    check_stager_value_type_shape(&canon_ok, *span)?;
+                }
                 let ety = self.check_subexpr(error, state, ctx)?;
                 ensure!(
                     types_compatible(&ety, &StageLType::Error),
@@ -4312,7 +4318,14 @@ impl<'a> StageRValidator<'a> {
                 vec![("none", None), ("some", Some(inner.clone()))]
             }
             MatchDomain::Result(ok_ty) => vec![
-                ("ok", Some(ok_ty.clone())),
+                (
+                    "ok",
+                    if *ok_ty == StageLType::Void {
+                        None
+                    } else {
+                        Some(ok_ty.clone())
+                    },
+                ),
                 ("err", Some(StageLType::Error)),
             ],
             MatchDomain::Error => StageRErrorTag::all_keywords()
@@ -5329,5 +5342,311 @@ where
             );
             Ok(lty.clone())
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::super::parser::parse_sr3_module;
+    use super::super::validator::{
+        ModuleInput, parse_and_validate_stager_workspace, validate_module,
+    };
+    use super::*;
+
+    fn validate_sr3(src: &str) -> Result<ValidatedModule> {
+        let parsed = parse_sr3_module(src)?;
+        validate_module(&parsed)
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_validator_match_exhaustiveness_and_definite_assignment()
+    -> Result<()> {
+        // Exhaustive match across option, enum, and all 8 error tags, plus
+        // definite assignment along every non-never arm and 0-variant enum.
+        let valid = r#"ns demo/matchok.
+
+enum emptyEnum ::.
+
+enum color
+    red.
+    i32/rgb.
+
+v/never/absurd emptyEnum/e :: match /e ::.
+
+v/i32/allArms color/c option/i32/opt error/e result/void/rv
+    let i32/assigned.
+    match /c
+        case red set /assigned i32:1.
+        case rgb i32/val set /assigned /val.
+    ::.
+    const i32/optVal
+        match /opt
+            case none i32:0.
+            case some i32/x /x.
+        ::.
+    const i32/rvVal
+        match /rv
+            case ok i32:0.
+            case err error/_ev i32:1.
+        ::.
+    const i32/errVal
+        match /e
+            case overflow i32:1.
+            case divisionByZero i32:2.
+            case outOfBounds i32:3.
+            case invalidEncoding i32:4.
+            case invalidDc i32:5.
+            case unexpectedNone i32:6.
+            case frozenBuffer i32:7.
+            case parseFailure i32:8.
+        ::.
+    wrapAdd /assigned wrapAdd /optVal wrapAdd /rvVal /errVal.
+"#;
+        validate_sr3(valid)?;
+
+        // Definite assignment fails when one arm omits `set`.
+        let missing_assign = r#"ns demo/badassign.
+v/i32/f option/i32/opt
+    let i32/x.
+    match /opt
+        case none nop.
+        case some i32/val set /x /val.
+    ::.
+    /x.
+"#;
+        assert!(validate_sr3(missing_assign).is_err());
+
+        // `result/void` `ok` arm must not take a payload binding.
+        let bad_res_void_bind = r#"ns demo/badresvoid.
+v/i32/f result/void/rv
+    match /rv
+        case ok i32/x /x.
+        case err error/_ev i32:0.
+    ::.
+"#;
+        assert!(validate_sr3(bad_res_void_bind).is_err());
+
+        // Missing error tag, missing enum variant, duplicate arm, and redundant else fail.
+        let missing_err_tag = r#"ns demo/misserr.
+v/i32/f error/e
+    match /e
+        case overflow i32:1.
+        case divisionByZero i32:2.
+    ::.
+"#;
+        assert!(validate_sr3(missing_err_tag).is_err());
+
+        let dup_arm = r#"ns demo/duparm.
+v/i32/f option/i32/opt
+    match /opt
+        case none i32:0.
+        case none i32:1.
+        case some i32/x /x.
+    ::.
+"#;
+        assert!(validate_sr3(dup_arm).is_err());
+
+        let redundant_else = r#"ns demo/redelse.
+v/i32/f option/i32/opt
+    match /opt
+        case none i32:0.
+        case some i32/x /x.
+        else i32:2.
+    ::.
+"#;
+        assert!(validate_sr3(redundant_else).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_validator_recursive_cycles_and_encapsulation() -> Result<()> {
+        // Direct struct cycle and mutual brand/struct cycle must fail, even
+        // through option/T (since only l/T and buf/T heap-indirect).
+        let direct_cycle = r#"ns demo/cycledirect.
+struct bad
+    option/bad/next.
+"#;
+        assert!(validate_sr3(direct_cycle).is_err());
+
+        let mutual_cycle = r#"ns demo/cyclemut.
+brand bWrap/wrapped.
+struct bWrap
+    wrapped/inner.
+"#;
+        assert!(validate_sr3(mutual_cycle).is_err());
+
+        // List-guarded recursion on both named struct and enum is valid!
+        let valid_rec = r#"ns demo/recok.
+pub struct tree
+    i32/val.
+    l/tree/children.
+pub enum ast
+    leaf.
+    l/ast/seq.
+"#;
+        validate_sr3(valid_rec)?;
+
+        // Module-opaque `type` allows wrap/unwrap inside its defining module,
+        // rejects external wrap/unwrap across `use`, while `brand` allows both.
+        let def_mod = r#"ns demo/opaque.
+pub type u64/secretId.
+pub brand u64/publicTag.
+
+pub v/secretId/make u64/n :: wrap /n secretId.
+pub v/u64/expose secretId/sec :: unwrap /sec.
+"#;
+        let ok_caller = r#"ns demo/user.
+use demo/opaque: secretId publicTag make expose ::.
+
+pub v/u64/useBoth u64/x
+    const secretId/sec make /x.
+    const publicTag/pubVal wrap /x publicTag.
+    add expose /sec unwrap /pubVal.
+"#;
+        // Note: `add` on u64 returns result/u64, keep signature aligned:
+        let ok_caller_fixed = ok_caller.replace("pub v/u64/useBoth", "pub v/result/u64/useBoth");
+        parse_and_validate_stager_workspace(&[
+            ModuleInput {
+                source_path: Some("demo/opaque.sr3"),
+                source: def_mod,
+            },
+            ModuleInput {
+                source_path: Some("demo/user.sr3"),
+                source: &ok_caller_fixed,
+            },
+        ])?;
+
+        let bad_wrap_caller = r#"ns demo/badwrap.
+use demo/opaque: secretId ::.
+v/secretId/forge u64/x :: wrap /x secretId.
+"#;
+        assert!(
+            parse_and_validate_stager_workspace(&[
+                ModuleInput {
+                    source_path: Some("demo/opaque.sr3"),
+                    source: def_mod,
+                },
+                ModuleInput {
+                    source_path: Some("demo/badwrap.sr3"),
+                    source: bad_wrap_caller,
+                },
+            ])
+            .is_err()
+        );
+
+        let bad_unwrap_caller = r#"ns demo/badunwrap.
+use demo/opaque: secretId make ::.
+v/u64/leak u64/x :: unwrap make /x.
+"#;
+        assert!(
+            parse_and_validate_stager_workspace(&[
+                ModuleInput {
+                    source_path: Some("demo/opaque.sr3"),
+                    source: def_mod,
+                },
+                ModuleInput {
+                    source_path: Some("demo/badunwrap.sr3"),
+                    source: bad_unwrap_caller,
+                },
+            ])
+            .is_err()
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_validator_totality_buffers_and_conv_rules() -> Result<()> {
+        // `*StageLInternal` is blocked in Stage 2 (`impls/`) .sl3 modules too.
+        let stage1_internal = r#"ns demo/internal.
+pub v/u32/fStageLInternal :: u32:1.
+"#;
+        let stage2_caller = r#"ns demo/s2.
+use demo/internal: fStageLInternal ::.
+pub v/u32/g :: fStageLInternal.
+"#;
+        assert!(
+            parse_and_validate_stager_workspace(&[
+                ModuleInput {
+                    source_path: Some("stage_1_impls/demo/internal.sl3"),
+                    source: stage1_internal,
+                },
+                ModuleInput {
+                    source_path: Some("impls/demo/s2.sl3"),
+                    source: stage2_caller,
+                },
+            ])
+            .is_err()
+        );
+        // Allowed inside Stage 1 (`stage_1_impls/`):
+        let stage1_caller = r#"ns demo/s1.
+use demo/internal: fStageLInternal ::.
+pub v/u32/g :: fStageLInternal.
+"#;
+        parse_and_validate_stager_workspace(&[
+            ModuleInput {
+                source_path: Some("stage_1_impls/demo/internal.sl3"),
+                source: stage1_internal,
+            },
+            ModuleInput {
+                source_path: Some("stage_1_impls/demo/s1.sl3"),
+                source: stage1_caller,
+            },
+        ])?;
+
+        // `.sr3` rejects `fault` and `unwrapSome`, and requires `result`/`option`
+        // for partial arithmetic/indexing plus `conv` narrowing.
+        assert!(parse_sr3_module("ns demo/f.\nv/i32/f :: fault.\n").is_err());
+        assert!(parse_sr3_module("ns demo/u.\nv/i32/f option/i32/x :: unwrapSome /x.\n").is_err());
+
+        let wrong_div_ret = r#"ns demo/p1.
+v/i32/bad i32/a i32/b :: div /a /b.
+"#;
+        assert!(validate_sr3(wrong_div_ret).is_err());
+
+        let wrong_narrow_conv = r#"ns demo/c1.
+v/u32/bad i32/x :: conv /x u32.
+"#;
+        assert!(validate_sr3(wrong_narrow_conv).is_err());
+
+        // Widening `conv` (`u8 -> i32 -> i128 -> int -> rat`) is directly typed!
+        let valid_conv = r#"ns demo/c2.
+v/rat/widen u8/x :: conv conv conv conv /x i32 i128 int rat.
+v/result/i64/narrow rat/r :: conv /r i64.
+"#;
+        validate_sr3(valid_conv)?;
+
+        // Linear `buf/T`: `bufSet` after `bufFreeze` fails statically, as does
+        // placing `buf/T` in a `pub struct` or `l/buf/T`!
+        let use_after_freeze = r#"ns demo/b1.
+v/result/void/bad :: do
+    let buf/i32/mbuf bufNew i32 u64:2.
+    const l/i32/frozen bufFreeze /mbuf.
+    const u64/_len len /frozen.
+    bufSet /mbuf u64:0 i32:9.
+::.
+"#;
+        assert!(validate_sr3(use_after_freeze).is_err());
+
+        let pub_struct_buf = r#"ns demo/b2.
+pub struct leaky
+    buf/u8/raw.
+"#;
+        assert!(validate_sr3(pub_struct_buf).is_err());
+
+        let list_of_buf = r#"ns demo/b3.
+v/u64/bad l/buf/u8/xs :: len /xs.
+"#;
+        assert!(validate_sr3(list_of_buf).is_err());
+        Ok(())
     }
 }

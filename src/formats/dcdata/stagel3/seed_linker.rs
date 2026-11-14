@@ -1118,6 +1118,29 @@ fn assemble_topo_sorted_modules_with_seed_graph(
             continue;
         }
         let sh = DcShorthand::from_global_id(dc.to_u128());
+        if let Some(ns_segs) = seed_graph.resolve_stagel_entity_namespace(sh)? {
+            let ns_key = ns_segs.join("/");
+            if !caller_ns_set.contains(&ns_key)
+                && !synth_ns_modules.contains_key(&ns_key)
+            {
+                let (ext_mod, _) = reconstruct_external_namespace_module(
+                    seed_graph,
+                    &ns_segs,
+                    "<direct dc import>",
+                    &mut dc_owners,
+                )?;
+                let mut ext_refs = Vec::new();
+                collect_dc_refs_in_module(&ext_mod, &mut ext_refs);
+                for r_dc in ext_refs {
+                    dc_worklist.push_back(r_dc);
+                }
+                collect_locally_defined_dcs(&ext_mod, &mut local_dcs);
+                synth_ns_modules.insert(ns_key, ext_mod);
+            }
+            if local_dcs.contains(&dc) || dc_owners.contains_key(&dc) {
+                continue;
+            }
+        }
         let Some((_, entry)) = decode_graph_stagel_entry(seed_graph, sh)?
         else {
             checked_missing_dcs.insert(dc);
@@ -1401,8 +1424,15 @@ fn parse_source_with_seed_graph_context(
                 && let Ok((_, orig_name, kind)) =
                     prepare_graph_top_decl(raw_decl, None, dc)
             {
+                // Reason for fallback: Standalone non-namespaced graph decompositions have no FilePath context and use a synthetic per-Dc module key.
+                let ns_key = seed_graph
+                    .resolve_stagel_entity_namespace(sh)?
+                    .map_or_else(
+                        || format!("$graph_dc_{sh}"),
+                        |segs| segs.join("/"),
+                    );
                 let owner = GraphDcOwner {
-                    namespace_key: format!("$graph_dc_{sh}"),
+                    namespace_key: ns_key,
                     original_name: orig_name,
                     kind,
                 };
@@ -2027,4 +2057,256 @@ pub fn bundle_dc_module_for_wasm_converter(
     out.push(DC_END_KV_MAP);
     out.extend(module_stream);
     Ok(out)
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::support::graph_ledger::single_valued_property_set;
+    use crate::support::stagel_dc_alloc::{
+        DiscoveredStagelFile, ImplStage, reconcile_stagel_and_csv_in_memory,
+    };
+    use std::collections::BTreeSet;
+    use std::path::PathBuf;
+
+    fn make_mem_file(
+        stage: ImplStage,
+        psr4_rel: &str,
+        src: &str,
+    ) -> DiscoveredStagelFile {
+        DiscoveredStagelFile {
+            stage,
+            disk_path: PathBuf::from(psr4_rel),
+            repo_rel_path: format!(
+                "src/formats/dcdata/data-src/{}/{psr4_rel}",
+                stage.dir_name()
+            ),
+            psr4_rel_path: psr4_rel.to_owned(),
+            raw_bytes: src.as_bytes().to_vec(),
+            source: src.to_owned(),
+        }
+    }
+
+    fn extract_assigned_dc_shorthand(
+        source: &str,
+        decl_prefix: &str,
+    ) -> Result<String> {
+        let lines: Vec<&str> = source.lines().collect();
+        for pair in lines.windows(2) {
+            if pair[1].trim_start().starts_with(decl_prefix) {
+                let dc = pair[0]
+                    .trim()
+                    .strip_prefix(": @dc ")
+                    .with_context(|| {
+                        format!(
+                            "Missing ': @dc ' comment above '{decl_prefix}' (saw '{}')",
+                            pair[0]
+                        )
+                    })?;
+                return Ok(dc.to_owned());
+            }
+        }
+        bail!("Declaration '{decl_prefix}' not found in reconciled source")
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_workspace_linking_and_dc_token_roundtrip() -> Result<()> {
+        let scripts = BTreeSet::new();
+        let mut files = vec![
+            make_mem_file(
+                ImplStage::Stage1,
+                "std/base_vals.sl3",
+                concat!(
+                    "ns std/base_vals.\n\n",
+                    "pub u64/BASE_OFFSET u64:10.\n",
+                    "pub v/u64/addBase u64/x\n",
+                    "    wrapAdd /x /BASE_OFFSET.\n",
+                ),
+            ),
+            make_mem_file(
+                ImplStage::Stage2,
+                "impls_demo/shapes.sr3",
+                concat!(
+                    "ns impls_demo/shapes.\n",
+                    "use std/base_vals: addBase ::.\n\n",
+                    "pub brand u64/meter.\n",
+                    "pub type u64/nonZero.\n",
+                    "pub struct rect :: meter/w meter/h.\n",
+                    "pub enum shape\n",
+                    "    empty.\n",
+                    "    rect/boxShape.\n\n",
+                    "pub rect/UNIT_SQUARE structNew rect: w wrap u64:1 meter h wrap u64:1 meter ::.\n\n",
+                    "pub v/result/nonZero/mkNz u64/n\n",
+                    "    if eq /n u64:0\n",
+                    "        result/nonZero:err error:parseFailure\n",
+                    "        result/nonZero:ok wrap /n nonZero.\n\n",
+                    "pub v/u64/areaPlusBase shape/sh\n",
+                    "    match /sh\n",
+                    "        case empty addBase u64:0.\n",
+                    "        case boxShape rect/r addBase wrapMul unwrap field /r w unwrap field /r h.\n",
+                    "    ::.\n",
+                ),
+            ),
+        ];
+
+        let (nodes, _alloc, _stats) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        let shapes_src = &files[1].source;
+        let meter_dc = extract_assigned_dc_shorthand(shapes_src, "pub brand u64/meter")?;
+        let nz_dc = extract_assigned_dc_shorthand(shapes_src, "pub type u64/nonZero")?;
+        let rect_dc = extract_assigned_dc_shorthand(shapes_src, "pub struct rect")?;
+        let shape_dc = extract_assigned_dc_shorthand(shapes_src, "pub enum shape")?;
+        let unit_sq_dc =
+            extract_assigned_dc_shorthand(shapes_src, "pub rect/UNIT_SQUARE")?;
+        let mk_nz_dc =
+            extract_assigned_dc_shorthand(shapes_src, "pub v/result/nonZero/mkNz")?;
+        let area_dc =
+            extract_assigned_dc_shorthand(shapes_src, "pub v/u64/areaPlusBase")?;
+
+        let single_props = single_valued_property_set();
+        let idx = SeedGraphIndex::from_nodes_with_single_props(nodes, &single_props);
+
+        // 1. Direct `dc/<shorthand>` imports (no `use` header) across brand,
+        //    opaque type, named struct, enum, const, and routines + Token-Dc roundtrip.
+        let dc_only_caller = format!(
+            concat!(
+                "ns app/dc_caller.\n\n",
+                "pub v/result/u64/runDc u64/raw\n",
+                "    test runs direct Dc imports across nominal types and Stage1 dep\n",
+                "        in u64:3\n",
+                "        out result/u64:ok u64:27\n",
+                "    const dc/{nz}/_checked dc/{mknz}? /raw.\n",
+                "    const dc/{rect}/r1 structNew dc/{rect}: w wrap u64:3 dc/{meter} h wrap u64:2 dc/{meter} ::.\n",
+                "    const dc/{shape}/s1 dc/{shape}:boxShape /r1.\n",
+                "    const u64/a1 dc/{area} /s1.\n",
+                "    const u64/a2 dc/{area} dc/{shape}:boxShape /dc/{unit_sq}.\n",
+                "    result/u64:ok wrapAdd /a1 /a2.\n",
+            ),
+            meter = meter_dc,
+            nz = nz_dc,
+            rect = rect_dc,
+            shape = shape_dc,
+            unit_sq = unit_sq_dc,
+            mknz = mk_nz_dc,
+            area = area_dc,
+        );
+        let tokens = sr3_to_dc_tokens_with_seed_graph(&dc_only_caller, &idx)?;
+        let dc_ws = validate_dc_tokens_with_seed_graph(&tokens, &idx)?;
+        assert_eq!(dc_ws.modules.len(), 3);
+        let dc_report = eval_sr3_inline_tests_with_seed_graph(&dc_only_caller, &idx)?;
+        assert_eq!(dc_report.ensure_all_passed()?, 1);
+
+        // 2. Multi-module `.sr3` workspace (`use` + direct `dc/<shorthand>` combined)
+        let helper_src = concat!(
+            "ns app/helper.\n",
+            "use impls_demo/shapes: meter rect shape areaPlusBase ::.\n\n",
+            "pub v/u64/scaledArea rect/r u64/k\n",
+            "    wrapMul areaPlusBase shape:boxShape /r /k.\n",
+        );
+        let main_src = format!(
+            concat!(
+                "ns app/main.\n",
+                "use app/helper: scaledArea ::.\n",
+                "use impls_demo/shapes: meter rect ::.\n\n",
+                "pub v/result/u64/compute u64/w u64/h\n",
+                "    test combines multi-module use and direct dc linking\n",
+                "        in u64:4 u64:5\n",
+                "        out result/u64:ok u64:41\n",
+                "    const dc/{nz}/_nz dc/{mknz}? /w.\n",
+                "    const rect/r structNew rect: w wrap /w meter h wrap /h meter ::.\n",
+                "    const u64/scaled scaledArea /r u64:1.\n",
+                "    const u64/base dc/{area} dc/{shape}:empty.\n",
+                "    result/u64:ok wrapAdd wrapAdd /scaled /base unwrap field /dc/{unit_sq} w.\n",
+            ),
+            nz = nz_dc,
+            mknz = mk_nz_dc,
+            area = area_dc,
+            shape = shape_dc,
+            unit_sq = unit_sq_dc,
+        );
+        let inputs = [
+            ModuleInput {
+                source_path: Some("app/helper.sr3"),
+                source: helper_src,
+            },
+            ModuleInput {
+                source_path: Some("app/main.sr3"),
+                source: &main_src,
+            },
+        ];
+        let ws = parse_and_validate_stager_workspace_with_seed_graph(&inputs, &idx)?;
+        assert_eq!(ws.modules.len(), 4);
+        let ws_report =
+            eval_stager_workspace_inline_tests_with_seed_graph(&inputs, &idx)?;
+        assert_eq!(ws_report.ensure_all_passed()?, 1);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager_shared_seed_graph_import_and_stage1_internal_gating()
+    -> Result<()> {
+        let seed_graph = SeedGraphIndex::shared()?;
+
+        // Positive: StageR 3 module imports public non-internal `std/math::u8Max`
+        // both via `use std/math:` and direct `u8/dc/l8589978265`.
+        let good_src = r#"ns app/math_ok.
+use std/math: u8Max ::.
+
+pub v/b/checkMax
+    test imports public u8Max from shared seed graph
+        in.
+        out true
+    eq /u8Max u8/dc/l8589978265.
+"#;
+        let rep = eval_sr3_inline_tests_with_seed_graph(good_src, &seed_graph)?;
+        assert_eq!(rep.ensure_all_passed()?, 1);
+
+        // Negative: StageR 3 cannot import `*StageLInternal` via `use`...
+        let bad_use_src = r#"ns app/math_bad_use.
+use std/math: modStageLInternal ::.
+
+pub v/u8/bad u8/a u8/rhs
+    modStageLInternal /a /rhs.
+"#;
+        let err_use =
+            parse_and_validate_sr3_module_with_seed_graph(bad_use_src, &seed_graph)
+                .unwrap_err()
+                .to_string();
+        assert!(
+            err_use.contains("StageL-internal"),
+            "Expected StageL-internal error for 'use', got: {err_use}"
+        );
+
+        // ...or bypass gating via direct `dc/<shorthand>` (`u8/modStageLInternal` = l8589978542).
+        let bad_dc_src = r#"ns app/math_bad_dc.
+
+pub v/u8/bad
+    dc/l8589978542 u8:7 u8:3.
+"#;
+        let err_dc =
+            parse_and_validate_sr3_module_with_seed_graph(bad_dc_src, &seed_graph)
+                .unwrap_err()
+                .to_string();
+        assert!(
+            err_dc.contains("StageL-internal"),
+            "Expected StageL-internal error for 'dc/...', got: {err_dc}"
+        );
+        Ok(())
+    }
 }

@@ -2803,6 +2803,71 @@ impl SeedGraphIndex {
         Ok(exports)
     }
 
+    /// Resolves the declared PSR-4 StageL/StageR namespace segments (`f229` `"File path"`
+    /// context on `Dc 574 "Programmatic identifier"`) for an exported StageL/StageR entity
+    /// `subj`, returning `Ok(None)` when `subj` has no `FilePath`-contextualized programmatic
+    /// identifier in the active snapshot.
+    pub fn resolve_stagel_entity_namespace(
+        &self,
+        subj: DcShorthand,
+    ) -> Result<Option<Vec<String>>> {
+        if let DcShorthand::Long(subj_id) = subj {
+            if let Some(block_desc) =
+                ctb_storage_minimal::global_graph_layout::unsupported_graph_block_description(
+                    subj_id,
+                )
+            {
+                bail!(
+                    "Graph StageL entity {subj} references unsupported graph block ({block_desc})"
+                );
+            }
+            if let Some(pin_id) = self.system_block_most_recent_node_id
+                && subj_id > pin_id
+            {
+                bail!(
+                    "Graph StageL entity {subj} exceeds pinned System graph snapshot l{pin_id}"
+                );
+            }
+        }
+        let sh_prog_ident = sh(DC_PROGRAMMATIC_IDENTIFIER);
+        let sh_in_ctx = sh(DC_IN_CONTEXT_OF);
+        let Some(&(has_a_id, _, _)) =
+            self.active_single_props.get(&(subj, sh_prog_ident))
+        else {
+            return Ok(None);
+        };
+        let ctx_objs =
+            self.get_direct_objects(sh_in_ctx, DcShorthand::Long(has_a_id));
+        for &ctx_obj in ctx_objs {
+            let DcShorthand::Long(ctx_id) = ctx_obj else {
+                continue;
+            };
+            let Some(ctx_node) = self.get_active_node(ctx_id) else {
+                continue;
+            };
+            let expanded = self.expand_interned_unicode_runs(&ctx_node.tokens);
+            let mut dc_chars = Vec::with_capacity(expanded.len());
+            let mut all_valid = true;
+            for tok in expanded {
+                if let Ok(gid) = tok.to_global_id() {
+                    dc_chars.push(DcChar::from_u128(gid));
+                } else {
+                    all_valid = false;
+                    break;
+                }
+            }
+            if all_valid
+                && let Ok(segs) =
+                    crate::stagel3::dc_tokens::decode_filepath_dc_tokens(
+                        &dc_chars,
+                    )
+            {
+                return Ok(Some(segs));
+            }
+        }
+        Ok(None)
+    }
+
     /// Returns `true` if `source` is a trusted Collective Toolbox seed graph provenance source:
     /// `Dc 636 "Collective Toolbox Dc CSV seed database"` or `Dc 637 "Manual entry"`.
     #[must_use]

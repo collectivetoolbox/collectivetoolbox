@@ -537,6 +537,17 @@ pub fn parse_and_validate_workspace_with_dialect(
 
     for (idx, inp) in inputs.iter().enumerate() {
         let dialect = dialect_for_source_path(inp.source_path, default_dialect);
+        if let Some(src_path) = inp.source_path
+            && dialect == StageDialect::StageR3
+            && src_path
+                .replace('\\', "/")
+                .split('/')
+                .any(|seg| seg == "stage_1_impls")
+        {
+            bail!(
+                "Stage 1 ('stage_1_impls/') only allows StageL 3 (.sl3/.sli3) modules, not StageR 3 ('{src_path}')"
+            );
+        }
         dialects.push(dialect);
         let (ns_opt, uses) =
             scan_module_header_paths_with_dialect(inp.source, dialect)?;

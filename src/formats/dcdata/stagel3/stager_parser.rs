@@ -199,6 +199,9 @@ fn match_stager_shared_core_binary_op(word: &str) -> Option<CoreBinaryOp> {
         "gt" => Some(CoreBinaryOp::Gt),
         "ge" => Some(CoreBinaryOp::Ge),
         "concat" => Some(CoreBinaryOp::Concat),
+        "wrapAdd" => Some(CoreBinaryOp::WrapAdd),
+        "wrapSub" => Some(CoreBinaryOp::WrapSub),
+        "wrapMul" => Some(CoreBinaryOp::WrapMul),
         "bufFill" => Some(CoreBinaryOp::BufFill),
         "bufPush" => Some(CoreBinaryOp::BufPush),
         "bufExtend" => Some(CoreBinaryOp::BufExtend),
@@ -211,9 +214,6 @@ fn is_forbidden_stagel_partial_op(word: &str) -> bool {
         word,
         "fault"
             | "rem"
-            | "wrapAdd"
-            | "wrapSub"
-            | "wrapMul"
             | "bitcast"
             | "unimplemented"
             | "unwrapSome"

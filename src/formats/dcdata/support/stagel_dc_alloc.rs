@@ -239,6 +239,16 @@ fn parse_validate_and_test_stagel_files(
         ));
     }
 
+    for f in files {
+        if f.stage == ImplStage::Stage1 {
+            ensure!(
+                f.psr4_rel_path.ends_with(".sl3"),
+                "Stage 1 module '{}' must be a StageL 3 .sl3 file",
+                f.repo_rel_path
+            );
+        }
+    }
+
     let inputs: Vec<ModuleInput<'_>> = files
         .iter()
         .map(|f| ModuleInput {
@@ -274,6 +284,11 @@ fn parse_validate_and_test_stagel_files(
         })?;
         let file_meta = files.get(file_idx).context("Invalid file index")?;
         if file_meta.stage == ImplStage::Stage1 {
+            ensure!(
+                vm.module.dialect == StageDialect::StageL3,
+                "Stage 1 module '{}' cannot use StageR 3 dialect",
+                file_meta.repo_rel_path
+            );
             for u in &vm.module.uses {
                 let target_ns = u.path.join("/");
                 if let Some(&dep_idx) = ns_to_file_idx.get(&target_ns)
@@ -2854,6 +2869,118 @@ pub v/b/runCheck
                 caller_src, &idx,
             )?;
         assert_eq!(report.ensure_all_passed()?, 1);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_stager3_dc_alloc_and_stage_gating() -> Result<()> {
+        let scripts = BTreeSet::new();
+        let mut files = vec![make_mem_file(
+            ImplStage::Stage2,
+            "impls_demo/model.sr3",
+            concat!(
+                "ns impls_demo/model.\n\n",
+                "pub brand u64/meter.\n",
+                "pub type u64/nonZero.\n",
+                "pub struct rect :: meter/w meter/h.\n",
+                "pub enum shape\n",
+                "    empty.\n",
+                "    rect/boxShape.\n\n",
+                "pub rect/UNIT_SQUARE structNew rect: w wrap u64:1 meter h wrap u64:1 meter ::.\n\n",
+                "pub v/result/nonZero/mkNz u64/n\n",
+                "    if eq /n u64:0\n",
+                "        result/nonZero:err error:parseFailure\n",
+                "        result/nonZero:ok wrap /n nonZero.\n\n",
+                "pub v/u64/area shape/sh\n",
+                "    test computes box area\n",
+                "        in shape:boxShape structNew rect: w wrap u64:3 meter h wrap u64:4 meter ::\n",
+                "        out u64:12\n",
+                "    match /sh\n",
+                "        case empty u64:0.\n",
+                "        case boxShape rect/r wrapMul unwrap field /r w unwrap field /r h.\n",
+                "    ::.\n",
+            ),
+        )];
+
+        // 1. Two-pass assignment puts `: @dc l<id>` on every StageR decl (`brand`, `type`, `struct`, `enum`, const, routine)
+        let (nodes1, alloc1) = assign_stagel_dc_ids_in_memory(Vec::new(), &mut files)?;
+        assert_eq!(alloc1.entities_allocated, 7);
+        assert_eq!(alloc1.files_updated, 1);
+        assert_eq!(files[0].source.matches(": @dc l").count(), 7);
+
+        // 2. Initial full reconciliation appends statement/decomposition nodes with zero new entity IDs;
+        //    re-running reconciliation on the resulting state is a 100% no-op.
+        let (nodes2, alloc2, stats2) = reconcile_stagel_and_csv_in_memory(
+            nodes1,
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc2.entities_allocated, 0);
+        assert_eq!(alloc2.files_updated, 0);
+        assert!(stats2.nodes_appended > 0);
+
+        let (nodes3, alloc3, stats3) = reconcile_stagel_and_csv_in_memory(
+            nodes2.clone(),
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        assert_eq!(alloc3.entities_allocated, 0);
+        assert_eq!(alloc3.files_updated, 0);
+        assert_eq!(stats3.nodes_appended, 0);
+        assert_eq!(stats3.nodes_superseded, 0);
+        assert_eq!(stats3.nodes_retracted, 0);
+        assert_eq!(nodes2, nodes3);
+
+        let mut desired = DesiredDatasetState::default();
+        compile_stagel_files_into_desired_state(&files, &mut desired)?;
+        assert!(
+            desired.multi_properties.keys().any(|(_, prop, spec)| {
+                *prop == sh(DC_CANONICAL_DECOMPOSITION)
+                    && matches!(
+                        spec,
+                        ValueSpec::ValueNode { tokens, .. }
+                            if tokens.contains(&crate::DcShorthand::Short(2224))
+                    )
+            }),
+            "Expected compiled StageR 3 named struct Token-Dc decomposition (Dc 2224)"
+        );
+        let mod_tokens = crate::stagel3::dc_tokens::sr3_to_dc_tokens(&files[0].source)?;
+        assert_eq!(mod_tokens.first(), Some(&crate::dc::DC_BEGIN_STAGER_MODULE));
+
+        // 3. Reconstructed SeedGraphIndex links and executes an external `.sr3` caller
+        let single_props = single_valued_property_set();
+        let idx = SeedGraphIndex::from_nodes_with_single_props(nodes3, &single_props);
+        let caller_sr3 = r#"ns app/use_model.
+use impls_demo/model: nonZero rect shape UNIT_SQUARE area mkNz ::.
+
+pub v/result/u64/runCheck
+    test links graph StageR nominal types
+        in.
+        out result/u64:ok u64:2
+    const nonZero/_nz mkNz? u64:5.
+    const shape/sq shape:boxShape /UNIT_SQUARE.
+    result/u64:ok wrapAdd area /sq u64:1.
+"#;
+        let report =
+            crate::stagel3::seed_linker::eval_sr3_inline_tests_with_seed_graph(
+                caller_sr3,
+                &idx,
+            )?;
+        assert_eq!(report.ensure_all_passed()?, 1);
+
+        // 4. Stage 1 (`stage_1_impls/`) must reject `.sr3` files!
+        let mut stage1_bad = vec![make_mem_file(
+            ImplStage::Stage1,
+            "bad/stage1.sr3",
+            "ns bad/stage1.\npub brand u32/m.\n",
+        )];
+        assert!(assign_stagel_dc_ids_in_memory(Vec::new(), &mut stage1_bad).is_err());
         Ok(())
     }
 }
