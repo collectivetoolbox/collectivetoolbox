@@ -66,7 +66,7 @@ pub use ctb_storage_minimal::shorthand::{
 };
 pub use dcts::{
     DctsOptions, dclist_to_dcts, dclist_to_dcts_string_with_options,
-    dclist_to_dcts_with_options,
+    dclist_to_dcts_with_options, parse_dcts_strict_to_dc_chars,
 };
 
 pub use ctb_formats_unicode::describe_general_category;
@@ -113,9 +113,11 @@ pub use dc_char::{DcChar, DcCharExt, is_type_token};
 pub use dc_def::{DcDefn, FormatDetails};
 pub use dc_number_minimal::{
     dc_base64_char_to_digit, dc_base64_char_to_digit_with_resolver,
-    dc_base64_digit_to_char, is_dc_base64_encapsulation_char,
+    dc_base64_digit_to_char, integer_to_dc_number_chars,
+    is_dc_base64_encapsulation_char,
     is_dc_base64_encapsulation_char_with_resolver, read_dc_number_u128,
-    read_dc_number_u128_with_resolver, u128_to_dc_number_chars,
+    read_dc_number_u128_with_resolver, read_typed_dc_integer,
+    read_typed_dc_integer_with_resolver, u128_to_dc_number_chars,
     u128_to_dc_number_short,
 };
 pub use format::{

@@ -344,6 +344,23 @@ fn rewrite_type_to_struct_dcs(
                 }
             }
             StageLType::Struct(other) => StageLType::Struct(other.clone()),
+            StageLType::Option(inner) => {
+                StageLType::Option(Box::new(map_canon(inner, struct_dcs)))
+            }
+            StageLType::Result(inner) => {
+                StageLType::Result(Box::new(map_canon(inner, struct_dcs)))
+            }
+            StageLType::I128
+            | StageLType::U128
+            | StageLType::Int
+            | StageLType::Rat
+            | StageLType::Dc
+            | StageLType::Dcs
+            | StageLType::S
+            | StageLType::Error
+            | StageLType::View
+            | StageLType::Cursor
+            | StageLType::Nominal(_) => ty.clone(),
         }
     }
     let canon = vm.canonicalize_type(ty);
@@ -373,6 +390,11 @@ pub(crate) fn class_value_spec_for_top_decl(decl: &TopDecl) -> Result<ValueSpec>
         }
         TopDecl::Comment(_) => {
             bail!("Standalone comment does not have a graph entity class")
+        }
+        TopDecl::BrandType(_)
+        | TopDecl::NamedStruct(_)
+        | TopDecl::Enum(_) => {
+            bail!("StageR 3 declaration graph entity class is not yet wired")
         }
     }
 }
@@ -423,6 +445,11 @@ fn collect_unassigned_and_validate_assigned_dcs(
                     (s.name.as_str(), s.span, s.dc_id, s.pub_dc_syntax)
                 }
                 TopDecl::Comment(_) => continue,
+                TopDecl::BrandType(_)
+                | TopDecl::NamedStruct(_)
+                | TopDecl::Enum(_) => {
+                    bail!("StageR 3 `: @dc` allocation is not yet wired")
+                }
             };
             let loc_desc = format!("{} ({ns_key}::{name})", fmeta.repo_rel_path);
 
@@ -1027,6 +1054,9 @@ fn rewrite_top_decl_refs_to_dc(
             span: s.span,
         }),
         TopDecl::Comment(c) => TopDecl::Comment(c.clone()),
+        TopDecl::BrandType(_) | TopDecl::NamedStruct(_) | TopDecl::Enum(_) => {
+            decl.clone()
+        }
     }
 }
 
@@ -1387,6 +1417,25 @@ fn rewrite_expr_refs(
             value: Box::new(rewrite_expr_refs(value, maps, shadows)),
             span: *span,
         },
+        Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::NamedStructNew { .. }
+        | Expr::EnumVariant { .. }
+        | Expr::OptionNone { .. }
+        | Expr::OptionSome { .. }
+        | Expr::ResultOk { .. }
+        | Expr::ResultErr { .. }
+        | Expr::ErrorTag { .. }
+        | Expr::NamedField { .. }
+        | Expr::NamedWith { .. }
+        | Expr::WrapNominal { .. }
+        | Expr::UnwrapNominal { .. }
+        | Expr::Match { .. }
+        | Expr::Propagate { .. }
+        | Expr::StageRUnary { .. }
+        | Expr::StageRBinary { .. }
+        | Expr::StageRTernary { .. }
+        | Expr::TotalConv { .. } => expr.clone(),
     }
 }
 
@@ -1458,6 +1507,11 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                     })?;
                 }
                 TopDecl::Comment(_) => {}
+                TopDecl::BrandType(_)
+                | TopDecl::NamedStruct(_)
+                | TopDecl::Enum(_) => {
+                    bail!("StageR 3 desired state compilation is not yet wired");
+                }
             }
         }
 
@@ -1555,6 +1609,11 @@ pub(crate) fn compile_stagel_files_into_desired_state(
                     s.dc_id.context("Missing Dc on validated StageL struct")?,
                 ),
                 TopDecl::Comment(_) => continue,
+                TopDecl::BrandType(_)
+                | TopDecl::NamedStruct(_)
+                | TopDecl::Enum(_) => {
+                    bail!("StageR 3 desired state compilation is not yet wired");
+                }
             };
 
             let subj_sh = DcShorthand::from_global_id(item_dc.to_u128());
@@ -1932,7 +1991,10 @@ pub fn validate_stagel_and_system_graph_in_repo(
                 TopDecl::Routine(r) => (r.pub_dc_syntax, r.dc_id, r.span),
                 TopDecl::Value(v) => (v.pub_dc_syntax, v.dc_id, v.span),
                 TopDecl::Struct(s) => (s.pub_dc_syntax, s.dc_id, s.span),
-                TopDecl::Comment(_) => continue,
+                TopDecl::Comment(_)
+                | TopDecl::BrandType(_)
+                | TopDecl::NamedStruct(_)
+                | TopDecl::Enum(_) => continue,
             };
             if pub_dc_syntax && let Some(dc) = dc_opt {
                 match DcShorthand::from_global_id(dc.to_u128()) {
@@ -1992,7 +2054,10 @@ pub fn validate_stagel_and_system_graph_in_repo(
                 TopDecl::Struct(s) => {
                     (s.name.as_str(), s.pub_dc_syntax, s.dc_id, s.span)
                 }
-                TopDecl::Comment(_) => continue,
+                TopDecl::Comment(_)
+                | TopDecl::BrandType(_)
+                | TopDecl::NamedStruct(_)
+                | TopDecl::Enum(_) => continue,
             };
             if !pub_dc_syntax
                 && let Some(dc) = dc_opt

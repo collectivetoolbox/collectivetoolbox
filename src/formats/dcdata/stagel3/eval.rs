@@ -107,13 +107,21 @@ pub enum Value {
 }
 
 impl Value {
-    fn from_typed_int(lit: TypedIntLit) -> Self {
+    fn from_typed_int(lit: &TypedIntLit) -> Result<Self> {
         match lit {
-            TypedIntLit::U8(v) => Self::U8(v),
-            TypedIntLit::I32(v) => Self::I32(v),
-            TypedIntLit::U32(v) => Self::U32(v),
-            TypedIntLit::I64(v) => Self::I64(v),
-            TypedIntLit::U64(v) => Self::U64(v),
+            TypedIntLit::U8(v) => Ok(Self::U8(*v)),
+            TypedIntLit::I32(v) => Ok(Self::I32(*v)),
+            TypedIntLit::U32(v) => Ok(Self::U32(*v)),
+            TypedIntLit::I64(v) => Ok(Self::I64(*v)),
+            TypedIntLit::U64(v) => Ok(Self::U64(*v)),
+            TypedIntLit::I128(_)
+            | TypedIntLit::U128(_)
+            | TypedIntLit::Int(_) => {
+                bail!(
+                    "StageR 3 integer literal '{}' requires stager_eval",
+                    lit.display_literal()
+                )
+            }
         }
     }
 
@@ -441,6 +449,11 @@ impl StageLWorkspaceVm {
             for decl in &vm.module.items {
                 match decl {
                     TopDecl::Comment(_) | TopDecl::Struct(_) => {}
+                    TopDecl::BrandType(_)
+                    | TopDecl::NamedStruct(_)
+                    | TopDecl::Enum(_) => {
+                        bail!("StageR 3 declaration requires stager_eval");
+                    }
                     TopDecl::Value(v) => {
                         let vkey = vm.value_key(v);
                         if let Some(dc) = v.dc_id {
@@ -814,7 +827,7 @@ impl StageLWorkspaceVm {
         match expr {
             Expr::Bool { value, .. } => Ok(EvalSignal::Value(Value::Bool(*value))),
             Expr::Int { value, .. } => {
-                Ok(EvalSignal::Value(Value::from_typed_int(*value)))
+                Ok(EvalSignal::Value(Value::from_typed_int(value)?))
             }
             Expr::Bytes { value, .. } => {
                 let elems = value.iter().copied().map(Value::U8).collect();
@@ -1385,6 +1398,30 @@ impl StageLWorkspaceVm {
                         bail!("Invalid operand {other:?} for 'with' at {span}")
                     }
                 }
+            }
+            Expr::DctsString { .. }
+            | Expr::DcLit { .. }
+            | Expr::NamedStructNew { .. }
+            | Expr::EnumVariant { .. }
+            | Expr::OptionNone { .. }
+            | Expr::OptionSome { .. }
+            | Expr::ResultOk { .. }
+            | Expr::ResultErr { .. }
+            | Expr::ErrorTag { .. }
+            | Expr::NamedField { .. }
+            | Expr::NamedWith { .. }
+            | Expr::WrapNominal { .. }
+            | Expr::UnwrapNominal { .. }
+            | Expr::Match { .. }
+            | Expr::Propagate { .. }
+            | Expr::StageRUnary { .. }
+            | Expr::StageRBinary { .. }
+            | Expr::StageRTernary { .. }
+            | Expr::TotalConv { .. } => {
+                bail!(
+                    "StageR 3 expression requires stager_eval at {}",
+                    expr.span()
+                )
             }
         }
     }

@@ -34,10 +34,17 @@ use anyhow::{Result, anyhow, bail};
 
 use crate::dc::{
     DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER,
+    DC_NEGATIVE,
 };
 use crate::dc_char::{DcChar, DcCharExt};
-use crate::syntax::{DcRole, SyntaxRuleResolver};
+use crate::syntax::{DcRole, SyntaxRuleResolver, default_syntax_resolver};
 use ctb_utilities::DC_INTEGER;
+use ctb_utilities::format_id::FormatId;
+use malachite::{
+    Integer, Natural,
+    base::num::basic::traits::Zero,
+    base::num::conversion::traits::PowerOf2Digits,
+};
 
 /// Converts a 6-bit Base64 numeral value (0..=63) or padding sentinel (64) into
 /// its corresponding Base64 encapsulation `DcChar`.
@@ -248,6 +255,140 @@ pub fn read_dc_number_u128_with_resolver(
     ensure!(found_end, "Unclosed Dc number: missing Dc 7 (End number)");
     ensure!(digit_count > 0, "Dc number has no digits");
     Ok((val, idx))
+}
+
+fn validate_int_for_format(
+    val: &Integer,
+    fmt: Option<FormatId>,
+) -> Result<DcChar> {
+    let resolved = fmt.unwrap_or(FormatId::Integer);
+    let in_range = match resolved {
+        FormatId::Integer => true,
+        FormatId::U8 => u8::try_from(val).is_ok(),
+        FormatId::I8 => i8::try_from(val).is_ok(),
+        FormatId::U16 => u16::try_from(val).is_ok(),
+        FormatId::I16 => i16::try_from(val).is_ok(),
+        FormatId::U32 => u32::try_from(val).is_ok(),
+        FormatId::I32 => i32::try_from(val).is_ok(),
+        FormatId::U64 => u64::try_from(val).is_ok(),
+        FormatId::I64 => i64::try_from(val).is_ok(),
+        FormatId::U128 => u128::try_from(val).is_ok(),
+        FormatId::I128 => i128::try_from(val).is_ok(),
+        other => {
+            bail!("Unsupported integer FormatId {other:?} in DcNumber");
+        }
+    };
+    anyhow::ensure!(
+        in_range,
+        "Integer value {val} is out of range for FormatId {resolved:?}"
+    );
+    resolved
+        .dc_char()
+        .with_context(|| format!("FormatId {resolved:?} has no DcChar"))
+}
+
+/// Encodes an arbitrary-precision `malachite::Integer` into canonical `DcNumber`
+/// `DcChar` tokens `[Dc 6, <format_dc>, (optional Dc 11), <base64 digits>, Dc 7]`.
+pub fn integer_to_dc_number_chars(
+    val: &Integer,
+    fmt: Option<FormatId>,
+) -> Result<Vec<DcChar>> {
+    let fmt_dc = validate_int_for_format(val, fmt)?;
+    let is_negative = *val < Integer::ZERO;
+    let abs = val.unsigned_abs_ref();
+    let b64_digits: Vec<u8> = if *abs == Natural::ZERO {
+        vec![0]
+    } else {
+        abs.to_power_of_2_digits_desc(6u64)
+    };
+    let mut out = Vec::with_capacity(
+        b64_digits
+            .len()
+            .saturating_add(if is_negative { 4 } else { 3 }),
+    );
+    out.push(DC_BEGIN_NUMBER);
+    out.push(fmt_dc);
+    if is_negative {
+        out.push(DC_NEGATIVE);
+    }
+    for d in b64_digits {
+        out.push(dc_base64_digit_to_char(d));
+    }
+    out.push(DC_END_NUMBER);
+    Ok(out)
+}
+
+/// Reads an arbitrary-precision signed integer from a `DcNumber` token slice
+/// (`[Dc 6, <format_dc>, (optional sign), <base64 digits>+, Dc 7]`).
+pub fn read_typed_dc_integer_with_resolver(
+    tokens: &[DcChar],
+    resolver: &dyn SyntaxRuleResolver,
+) -> Result<(Option<FormatId>, Integer, usize)> {
+    let Some(&first) = tokens.first() else {
+        bail!("Empty token stream reading typed Dc integer");
+    };
+    anyhow::ensure!(
+        resolver.token_fills_role(first.to_u128(), DcRole::BeginNumber),
+        "Expected Dc 6 (Begin number), found {first}"
+    );
+    let fmt_dc = *tokens
+        .get(1)
+        .context("Unexpected end of Dc number after Dc 6")?;
+    let fmt = if let Some(f) = FormatId::from_dc_id(fmt_dc.to_u128()) {
+        f
+    } else if resolver.is_equivalent_to(fmt_dc.to_u128(), DC_INTEGER.to_u128())
+    {
+        FormatId::Integer
+    } else {
+        bail!("Expected integer format Dc after Dc 6, found {fmt_dc}");
+    };
+
+    let mut idx = 2usize;
+    let mut is_negative = false;
+    if let Some(&sign_tok) = tokens.get(idx) {
+        if resolver.token_fills_role(sign_tok.to_u128(), DcRole::Negative) {
+            is_negative = true;
+            idx = idx.saturating_add(1);
+        } else if resolver
+            .token_fills_role(sign_tok.to_u128(), DcRole::Positive)
+        {
+            idx = idx.saturating_add(1);
+        }
+    }
+
+    let mut digits: Vec<u8> = Vec::new();
+    let mut found_end = false;
+    while let Some(&tok) = tokens.get(idx) {
+        idx = idx.saturating_add(1);
+        if resolver.token_fills_role(tok.to_u128(), DcRole::EndNumber) {
+            found_end = true;
+            break;
+        }
+        let digit = dc_base64_char_to_digit_with_resolver(tok, resolver)?;
+        anyhow::ensure!(
+            digit < 64,
+            "Invalid Base64 digit {digit} in DcNumber integer"
+        );
+        digits.push(digit);
+    }
+
+    anyhow::ensure!(found_end, "Unclosed Dc number: missing Dc 7 (End number)");
+    anyhow::ensure!(!digits.is_empty(), "Dc number has no digits");
+
+    let nat = Natural::from_power_of_2_digits_desc(6u64, digits.into_iter())
+        .context("Failed to reconstruct Natural from Base64 digits")?;
+    let val = Integer::from_sign_and_abs(!is_negative, nat);
+    let _ = validate_int_for_format(&val, Some(fmt))?;
+    Ok((Some(fmt), val, idx))
+}
+
+/// Convenience wrapper for [`read_typed_dc_integer_with_resolver`] using the
+/// default dataset syntax resolver.
+pub fn read_typed_dc_integer(
+    tokens: &[DcChar],
+) -> Result<(Option<FormatId>, Integer, usize)> {
+    let resolver = default_syntax_resolver();
+    read_typed_dc_integer_with_resolver(tokens, resolver.as_ref())
 }
 
 #[cfg(test)]

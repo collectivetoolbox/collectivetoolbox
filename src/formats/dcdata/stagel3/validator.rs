@@ -35,8 +35,9 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, ImportTarget,
-    Module, PositionalStructDecl, RoutineDecl, Span, StageLType, StructTypeRef,
-    SymbolTarget, TestExpected, TopDecl, TopValueDecl, format_dc_shorthand,
+    Module, PositionalStructDecl, RoutineDecl, Span, StageDialect, StageLType,
+    StructTypeRef, SymbolTarget, TestExpected, TopDecl, TopValueDecl,
+    format_dc_shorthand,
 };
 use super::parser::{parse_module_with_imports, scan_module_header_paths};
 use crate::{DcChar, DcShorthand};
@@ -295,6 +296,23 @@ impl ValidatedModule {
                 }
             }
             StageLType::Struct(StructTypeRef::Canonical { .. }) => ty.clone(),
+            StageLType::Option(inner) => {
+                StageLType::Option(Box::new(self.canonicalize_type(inner)))
+            }
+            StageLType::Result(inner) => {
+                StageLType::Result(Box::new(self.canonicalize_type(inner)))
+            }
+            StageLType::I128
+            | StageLType::U128
+            | StageLType::Int
+            | StageLType::Rat
+            | StageLType::Dc
+            | StageLType::Dcs
+            | StageLType::S
+            | StageLType::Error
+            | StageLType::View
+            | StageLType::Cursor
+            | StageLType::Nominal(_) => ty.clone(),
         }
     }
 
@@ -852,6 +870,21 @@ fn canonicalize_type_with_maps(
             );
             Ok(ty.clone())
         }
+        StageLType::Option(_)
+        | StageLType::Result(_)
+        | StageLType::I128
+        | StageLType::U128
+        | StageLType::Int
+        | StageLType::Rat
+        | StageLType::Dc
+        | StageLType::Dcs
+        | StageLType::S
+        | StageLType::Error
+        | StageLType::View
+        | StageLType::Cursor
+        | StageLType::Nominal(_) => {
+            bail!("StageR 3 type '{ty}' is not valid in StageL 3 validator at {span}")
+        }
     }
 }
 
@@ -962,6 +995,21 @@ fn check_type_well_formed(
         }
         StageLType::Struct(_) => {
             bail!("Uncanonicalized struct type '{}' at {span}", ty.display_name())
+        }
+        StageLType::Option(_)
+        | StageLType::Result(_)
+        | StageLType::I128
+        | StageLType::U128
+        | StageLType::Int
+        | StageLType::Rat
+        | StageLType::Dc
+        | StageLType::Dcs
+        | StageLType::S
+        | StageLType::Error
+        | StageLType::View
+        | StageLType::Cursor
+        | StageLType::Nominal(_) => {
+            bail!("StageR 3 type '{}' is not supported in StageL 3 validator at {span}", ty.display_name())
         }
     }
 }
@@ -1090,6 +1138,10 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     extra_dc_imports: &HashMap<DcChar, ImportedSymbol>,
     forbid_stagel_internal: bool,
 ) -> Result<ValidatedModule> {
+    ensure!(
+        module.dialect == StageDialect::StageL3,
+        "StageR 3 modules must be validated by stager_validator (not yet wired)"
+    );
     let namespace_key = module.namespace.as_ref().map(|segs| segs.join("/"));
     let mut exports = NamespaceExports::default();
     let mut imports: HashMap<String, Vec<ImportedSymbol>> = HashMap::new();
@@ -1549,6 +1601,11 @@ pub fn validate_module_with_registry_and_dc_imports_and_options(
     for decl in &module.items {
         match decl {
             TopDecl::Comment(_) | TopDecl::Struct(_) => {}
+            TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_) => {
+                bail!("StageR 3 declaration is not supported in StageL 3 validator");
+            }
             TopDecl::Value(v) => {
                 if forbid_stagel_internal && is_stagel_internal_name(&v.name) {
                     bail!(
@@ -1969,7 +2026,20 @@ impl<'a> Validator<'a> {
                         sdef.fields.iter().all(|f| visit(f, struct_defs, visited))
                     })
                 }
-                StageLType::Struct(_) => false,
+                StageLType::Struct(_)
+                | StageLType::Option(_)
+                | StageLType::Result(_)
+                | StageLType::I128
+                | StageLType::U128
+                | StageLType::Int
+                | StageLType::Rat
+                | StageLType::Dc
+                | StageLType::Dcs
+                | StageLType::S
+                | StageLType::Error
+                | StageLType::View
+                | StageLType::Cursor
+                | StageLType::Nominal(_) => false,
             }
         }
         let mut visited = HashSet::new();
@@ -3618,6 +3688,30 @@ impl<'a> Validator<'a> {
                         "'with' requires tuple or positional struct operand, found '{other}' at {span}"
                     ),
                 }
+            }
+            Expr::DctsString { .. }
+            | Expr::DcLit { .. }
+            | Expr::NamedStructNew { .. }
+            | Expr::EnumVariant { .. }
+            | Expr::OptionNone { .. }
+            | Expr::OptionSome { .. }
+            | Expr::ResultOk { .. }
+            | Expr::ResultErr { .. }
+            | Expr::ErrorTag { .. }
+            | Expr::NamedField { .. }
+            | Expr::NamedWith { .. }
+            | Expr::WrapNominal { .. }
+            | Expr::UnwrapNominal { .. }
+            | Expr::Match { .. }
+            | Expr::Propagate { .. }
+            | Expr::StageRUnary { .. }
+            | Expr::StageRBinary { .. }
+            | Expr::StageRTernary { .. }
+            | Expr::TotalConv { .. } => {
+                bail!(
+                    "StageR 3 expression is not supported in StageL 3 validator at {}",
+                    expr.span()
+                )
             }
         }
     }

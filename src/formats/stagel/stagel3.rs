@@ -31,23 +31,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+pub use ctb_formats_dcdata::stagel3::ast::StageDialect;
 pub use ctb_formats_dcdata::stagel3::{
-    ast, dc_tokens, eval, parser, seed_linker, validator,
+    ast, dc_tokens, eval, parser, seed_linker, stager_strings, validator,
 };
 pub mod rust_codegen;
 pub mod wasm_codegen;
-
-/// Dialect selector controlling which string literal prefixes are accepted
-/// during normalization into the 32-character intermediate alphabet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StageDialect {
-    /// StageL 3 (`.sl3` -> `.sli3`): accepts `t"..."` (`letters`) and `b"..."`
-    /// (`l/u8` byte) literals; rejects bare `"..."` Dcts literals.
-    StageL3,
-    /// StageR 3 (`.sr3` -> `.sri3`): accepts `t"..."`, `b"..."`, and bare
-    /// `"..."` (`s` / Dcts) literals.
-    StageR3,
-}
 
 /// Returns `true` iff `b` belongs to the 32-character StageL 3 intermediate
 /// alphabet (`A-Z`, `/`, `:`, `' '`, `'\n'`, `'"'`, `'.'`).

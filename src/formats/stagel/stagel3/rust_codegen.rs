@@ -38,8 +38,8 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, Module,
-    RoutineDecl, Span, StageLType, StructTypeRef, SymbolTarget, TestExpected,
-    TopDecl, TopValueDecl, TypedIntLit,
+    RoutineDecl, Span, StageDialect, StageLType, StructTypeRef, SymbolTarget,
+    TestExpected, TopDecl, TopValueDecl, TypedIntLit,
 };
 use super::parser::parse_module;
 use super::seed_linker::{
@@ -104,6 +104,10 @@ pub fn transpile_module_to_rust(
     module: &Module,
     options: &RustTranspileOptions,
 ) -> Result<String> {
+    ensure!(
+        module.dialect == StageDialect::StageL3,
+        "Direct Rust codegen from StageR 3 (.sr3) is not yet implemented"
+    );
     let validated = validate_module(module)?;
     transpile_validated_module_to_rust(&validated, options)
 }
@@ -130,6 +134,12 @@ pub fn transpile_workspace_to_rust(
     workspace: &ValidatedWorkspace,
     options: &RustTranspileOptions,
 ) -> Result<String> {
+    for vm in &workspace.modules {
+        ensure!(
+            vm.module.dialect == StageDialect::StageL3,
+            "Direct Rust codegen from StageR 3 (.sr3) is not yet implemented"
+        );
+    }
     let ws_index = WorkspaceRoutineIndex::build(workspace);
     let mut trampolines = WorkspaceTrampolineRegistry::default();
     let mut modules_buf = String::new();
@@ -479,7 +489,20 @@ fn rust_type_copy_cheap(ty: &StageLType) -> bool {
         StageLType::Never
         | StageLType::List(_)
         | StageLType::Buf(_)
-        | StageLType::Struct(_) => false,
+        | StageLType::Struct(_)
+        | StageLType::I128
+        | StageLType::U128
+        | StageLType::Int
+        | StageLType::Rat
+        | StageLType::Dc
+        | StageLType::Dcs
+        | StageLType::S
+        | StageLType::Error
+        | StageLType::View
+        | StageLType::Cursor
+        | StageLType::Option(_)
+        | StageLType::Result(_)
+        | StageLType::Nominal(_) => false,
     }
 }
 
@@ -885,6 +908,32 @@ pub(super) fn stagel_type_slug(ty: &StageLType) -> String {
                 format!("st_dc_{}", sanitize_ident(&dc.to_string()))
             }
         },
+        StageLType::I128 => String::from("i128"),
+        StageLType::U128 => String::from("u128"),
+        StageLType::Int => String::from("int"),
+        StageLType::Rat => String::from("rat"),
+        StageLType::Dc => String::from("dc"),
+        StageLType::Dcs => String::from("dcs"),
+        StageLType::S => String::from("s"),
+        StageLType::Error => String::from("error"),
+        StageLType::View => String::from("view"),
+        StageLType::Cursor => String::from("cursor"),
+        StageLType::Option(inner) => format!("opt_{}", stagel_type_slug(inner)),
+        StageLType::Result(inner) => format!("res_{}", stagel_type_slug(inner)),
+        StageLType::Nominal(sref) => match sref {
+            StructTypeRef::Canonical {
+                namespace: Some(ns),
+                name,
+            } => format!("nom_ns_{}_{}", sanitize_ident(ns), sanitize_ident(name)),
+            StructTypeRef::Canonical {
+                namespace: None,
+                name,
+            } => format!("nom_loc_{}", sanitize_ident(name)),
+            StructTypeRef::Ident(name) => format!("nom_id_{}", sanitize_ident(name)),
+            StructTypeRef::Dc(dc) => {
+                format!("nom_dc_{}", sanitize_ident(&dc.to_string()))
+            }
+        },
     }
 }
 
@@ -1245,7 +1294,11 @@ impl WorkspaceRoutineIndex {
                         }
                         routine_idx = routine_idx.saturating_add(1);
                     }
-                    TopDecl::Struct(_) | TopDecl::Comment(_) => {}
+                    TopDecl::Struct(_)
+                    | TopDecl::Comment(_)
+                    | TopDecl::BrandType(_)
+                    | TopDecl::NamedStruct(_)
+                    | TopDecl::Enum(_) => {}
                 }
             }
             mod_idents.push(mod_ident);
@@ -1329,6 +1382,21 @@ impl WorkspaceRoutineIndex {
                 }
             }
             StageLType::Struct(_) => format!("{rt_prefix}SlUnresolvedStruct"),
+            StageLType::I128
+            | StageLType::U128
+            | StageLType::Int
+            | StageLType::Rat
+            | StageLType::Dc
+            | StageLType::Dcs
+            | StageLType::S
+            | StageLType::Error
+            | StageLType::View
+            | StageLType::Cursor
+            | StageLType::Option(_)
+            | StageLType::Result(_)
+            | StageLType::Nominal(_) => {
+                format!("{rt_prefix}SlUnsupportedStageRType")
+            }
         }
     }
 
@@ -2519,7 +2587,7 @@ impl<'a> ModuleEmitter<'a> {
             Expr::Bool { value, .. } => {
                 Ok((if *value { "true" } else { "false" }.to_owned(), StageLType::B))
             }
-            Expr::Int { value, .. } => Ok((emit_int_lit(*value), value.stage_l_type())),
+            Expr::Int { value, .. } => Ok((emit_int_lit(value)?, value.stage_l_type())),
             Expr::Bytes { value, .. } => {
                 let code = format!("sl3_rt::bytes_lit(&{})", format_u8_slice_lit(value));
                 Ok((code, StageLType::List(Box::new(StageLType::U8))))
@@ -2883,6 +2951,27 @@ impl<'a> ModuleEmitter<'a> {
                 target_ty,
                 ..
             } => self.emit_bitcast(inner, target_ty, indent_level),
+            Expr::DctsString { .. }
+            | Expr::DcLit { .. }
+            | Expr::NamedStructNew { .. }
+            | Expr::EnumVariant { .. }
+            | Expr::OptionNone { .. }
+            | Expr::OptionSome { .. }
+            | Expr::ResultOk { .. }
+            | Expr::ResultErr { .. }
+            | Expr::ErrorTag { .. }
+            | Expr::NamedField { .. }
+            | Expr::NamedWith { .. }
+            | Expr::WrapNominal { .. }
+            | Expr::UnwrapNominal { .. }
+            | Expr::Match { .. }
+            | Expr::Propagate { .. }
+            | Expr::StageRUnary { .. }
+            | Expr::StageRBinary { .. }
+            | Expr::StageRTernary { .. }
+            | Expr::TotalConv { .. } => {
+                bail!("Direct Rust codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 
@@ -3701,25 +3790,33 @@ fn is_lossless_widening(from: &StageLType, to: &StageLType) -> bool {
     )
 }
 
-fn emit_int_lit(lit: TypedIntLit) -> String {
+fn emit_int_lit(lit: &TypedIntLit) -> Result<String> {
     match lit {
-        TypedIntLit::U8(v) => format!("{v}u8"),
+        TypedIntLit::U8(v) => Ok(format!("{v}u8")),
         TypedIntLit::I32(v) => {
-            if v == i32::MIN {
-                String::from("i32::MIN")
+            if *v == i32::MIN {
+                Ok(String::from("i32::MIN"))
             } else {
-                format!("{v}i32")
+                Ok(format!("{v}i32"))
             }
         }
-        TypedIntLit::U32(v) => format!("{v}u32"),
+        TypedIntLit::U32(v) => Ok(format!("{v}u32")),
         TypedIntLit::I64(v) => {
-            if v == i64::MIN {
-                String::from("i64::MIN")
+            if *v == i64::MIN {
+                Ok(String::from("i64::MIN"))
             } else {
-                format!("{v}i64")
+                Ok(format!("{v}i64"))
             }
         }
-        TypedIntLit::U64(v) => format!("{v}u64"),
+        TypedIntLit::U64(v) => Ok(format!("{v}u64")),
+        TypedIntLit::I128(_)
+        | TypedIntLit::U128(_)
+        | TypedIntLit::Int(_) => {
+            bail!(
+                "Direct Rust codegen from StageR 3 (.sr3) integer literal '{}' is not yet implemented",
+                lit.display_literal()
+            )
+        }
     }
 }
 
@@ -3907,6 +4004,8 @@ fn expr_has_tail_call(expr: &Expr, in_tail: bool) -> bool {
         | Expr::Continue { .. }
         | Expr::Fault { .. }
         | Expr::Nop { .. } => false,
+        // StageR 3 expressions are rejected before Rust codegen begins.
+        _ => false,
     }
 }
 

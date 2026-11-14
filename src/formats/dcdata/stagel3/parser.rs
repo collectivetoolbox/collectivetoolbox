@@ -34,8 +34,8 @@ use crate::utilities::*;
 use super::ast::{
     BlockItem, Comment, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr,
     ImportTarget, Module, Param, PositionalStructDecl, RoutineDecl, Span,
-    StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase, TestExpected,
-    TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
+    StageDialect, StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase,
+    TestExpected, TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
     parse_dc_shorthand,
 };
 use crate::DcChar;
@@ -1308,6 +1308,7 @@ impl Parser {
 
         let _ = self.verb_scopes.pop();
         Ok(Module {
+            dialect: StageDialect::StageL3,
             namespace,
             uses,
             leading_comments,

@@ -3136,6 +3136,7 @@ dependencies = [
  "ctb-storage-minimal",
  "ctb-utilities",
  "include_dir",
+ "malachite",
  "regex",
  "serde",
  "serde_json",

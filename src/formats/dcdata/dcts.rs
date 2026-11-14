@@ -120,6 +120,63 @@ pub fn dclist_to_dcts(dclist: &[u128]) -> Vec<u8> {
     dclist_to_dcts_with_options(dclist, DctsOptions::default())
 }
 
+/// Parses strict Dcts text (`&[u8]`) into a sequence of [`DcChar`]s.
+///
+/// Unlike lenient display converters, every `@...@` token must either be `@@`
+/// (literal `'@'`) or a valid [`crate::DcShorthand`] encoding a scalar Document
+/// Character outside the surrogate range `0xD800..=0xDFFF` (or `L<id>` local
+/// graph reference expanded to `Dc 296` followed by a `DcNumber`). Unclosed
+/// `@` delimiters, malformed shorthands, surrogates, and invalid UTF-8 return
+/// an error.
+pub fn parse_dcts_strict_to_dc_chars(bytes: &[u8]) -> Result<Vec<DcChar>> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|err| anyhow::anyhow!("Invalid UTF-8 in Dcts string: {err}"))?;
+    let mut out = Vec::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch != '@' {
+            out.push(DcChar(u128::from(u32::from(ch))));
+            continue;
+        }
+        let mut token = String::new();
+        let mut closed = false;
+        for inner in chars.by_ref() {
+            if inner == '@' {
+                closed = true;
+                break;
+            }
+            token.push(inner);
+        }
+        anyhow::ensure!(
+            closed,
+            "Unclosed '@' shorthand escape in Dcts string"
+        );
+        if token.is_empty() {
+            out.push(DcChar(u128::from(u32::from(b'@'))));
+            continue;
+        }
+        let shorthand = crate::DcShorthand::parse(&token)?;
+        match shorthand {
+            crate::DcShorthand::Local(local_id) => {
+                out.push(crate::dc::DC_LOCAL_NODE);
+                let val = malachite::Integer::from(local_id);
+                out.extend(crate::dc_number_minimal::integer_to_dc_number_chars(
+                    &val, None,
+                )?);
+            }
+            other => {
+                let gid = other.to_global_id()?;
+                anyhow::ensure!(
+                    !(0xD800..=0xDFFF).contains(&gid),
+                    "Invalid surrogate Document Character U+{gid:04X} in Dcts string"
+                );
+                out.push(DcChar(gid));
+            }
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

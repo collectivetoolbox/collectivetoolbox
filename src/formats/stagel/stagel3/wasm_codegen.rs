@@ -53,8 +53,8 @@ pub use runner::{
 
 use super::ast::{
     BlockItem, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr, RoutineDecl,
-    Span, StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
-    TopValueDecl, TypedIntLit,
+    Span, StageDialect, StageLType, StructTypeRef, SymbolTarget, TestExpected,
+    TopDecl, TopValueDecl, TypedIntLit,
 };
 use super::rust_codegen::{
     analyze_block_captures, sanitize_ident, stagel_params_slug,
@@ -199,6 +199,12 @@ pub(crate) fn compile_workspace_internal(
     workspace: &ValidatedWorkspace,
     emit_test_dispatcher: bool,
 ) -> Result<(DcMstring, Vec<CompiledTestMeta>)> {
+    for vm in &workspace.modules {
+        ensure!(
+            vm.module.dialect == StageDialect::StageL3,
+            "Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented"
+        );
+    }
     let mut compiler = WorkspaceWasmCompiler::new(workspace)?;
     compiler.compile_all(emit_test_dispatcher)
 }
@@ -214,7 +220,21 @@ fn stagel_wasm_valtype(ty: &StageLType) -> Option<WasmValType> {
         | StageLType::Tuple(_)
         | StageLType::Struct(_) => Some(WasmValType::I32),
         StageLType::I64 | StageLType::U64 => Some(WasmValType::I64),
-        StageLType::Void | StageLType::Never => None,
+        StageLType::Void
+        | StageLType::Never
+        | StageLType::I128
+        | StageLType::U128
+        | StageLType::Int
+        | StageLType::Rat
+        | StageLType::Dc
+        | StageLType::Dcs
+        | StageLType::S
+        | StageLType::Error
+        | StageLType::View
+        | StageLType::Cursor
+        | StageLType::Option(_)
+        | StageLType::Result(_)
+        | StageLType::Nominal(_) => None,
     }
 }
 
@@ -481,6 +501,11 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                         }
                     }
                     TopDecl::Struct(_) | TopDecl::Comment(_) => {}
+                    TopDecl::BrandType(_)
+                    | TopDecl::NamedStruct(_)
+                    | TopDecl::Enum(_) => {
+                        bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented");
+                    }
                 }
             }
         }
@@ -1240,15 +1265,20 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 Ok(StageLType::B)
             }
             Expr::Int { value, .. } => {
-                match *value {
-                    TypedIntLit::U8(v) => fctx.fb.i32_const(i32::from(v))?,
-                    TypedIntLit::I32(v) => fctx.fb.i32_const(v)?,
+                match value {
+                    TypedIntLit::U8(v) => fctx.fb.i32_const(i32::from(*v))?,
+                    TypedIntLit::I32(v) => fctx.fb.i32_const(*v)?,
                     TypedIntLit::U32(v) => {
                         fctx.fb.i32_const(i32::from_le_bytes(v.to_le_bytes()))?;
                     }
-                    TypedIntLit::I64(v) => fctx.fb.i64_const(v)?,
+                    TypedIntLit::I64(v) => fctx.fb.i64_const(*v)?,
                     TypedIntLit::U64(v) => {
                         fctx.fb.i64_const(i64::from_le_bytes(v.to_le_bytes()))?;
+                    }
+                    TypedIntLit::I128(_)
+                    | TypedIntLit::U128(_)
+                    | TypedIntLit::Int(_) => {
+                        bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
                     }
                 }
                 Ok(value.stage_l_type())
@@ -1404,6 +1434,27 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 target_ty,
                 ..
             } => self.emit_bitcast_expr(fctx, inner, target_ty),
+            Expr::DctsString { .. }
+            | Expr::DcLit { .. }
+            | Expr::NamedStructNew { .. }
+            | Expr::EnumVariant { .. }
+            | Expr::OptionNone { .. }
+            | Expr::OptionSome { .. }
+            | Expr::ResultOk { .. }
+            | Expr::ResultErr { .. }
+            | Expr::ErrorTag { .. }
+            | Expr::NamedField { .. }
+            | Expr::NamedWith { .. }
+            | Expr::WrapNominal { .. }
+            | Expr::UnwrapNominal { .. }
+            | Expr::Match { .. }
+            | Expr::Propagate { .. }
+            | Expr::StageRUnary { .. }
+            | Expr::StageRBinary { .. }
+            | Expr::StageRTernary { .. }
+            | Expr::TotalConv { .. } => {
+                bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 
@@ -3596,6 +3647,27 @@ impl<'a> WorkspaceWasmCompiler<'a> {
                 }
                 self.canon_type(fctx.mod_idx, target_ty)
             }
+            Expr::DctsString { .. }
+            | Expr::DcLit { .. }
+            | Expr::NamedStructNew { .. }
+            | Expr::EnumVariant { .. }
+            | Expr::OptionNone { .. }
+            | Expr::OptionSome { .. }
+            | Expr::ResultOk { .. }
+            | Expr::ResultErr { .. }
+            | Expr::ErrorTag { .. }
+            | Expr::NamedField { .. }
+            | Expr::NamedWith { .. }
+            | Expr::WrapNominal { .. }
+            | Expr::UnwrapNominal { .. }
+            | Expr::Match { .. }
+            | Expr::Propagate { .. }
+            | Expr::StageRUnary { .. }
+            | Expr::StageRBinary { .. }
+            | Expr::StageRTernary { .. }
+            | Expr::TotalConv { .. } => {
+                bail!("Direct WebAssembly codegen from StageR 3 (.sr3) is not yet implemented")
+            }
         }
     }
 
@@ -3705,7 +3777,11 @@ fn workspace_has_nested_routines(workspace: &ValidatedWorkspace) -> bool {
                         return true;
                     }
                 }
-                TopDecl::Struct(_) | TopDecl::Comment(_) => {}
+                TopDecl::Struct(_)
+                | TopDecl::Comment(_)
+                | TopDecl::BrandType(_)
+                | TopDecl::NamedStruct(_)
+                | TopDecl::Enum(_) => {}
             }
         }
     }

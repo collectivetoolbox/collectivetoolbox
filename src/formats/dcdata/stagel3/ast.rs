@@ -17,7 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Abstract syntax tree definitions for StageL 3 (`f656` `.sl3`).
+//! Abstract syntax tree definitions for StageL 3 (`f656` `.sl3`) and
+//! StageR 3 (`f657` `.sr3`).
 
 #[allow(
     unused_imports,
@@ -28,7 +29,18 @@ use crate::utilities::*;
 
 use crate::DcChar;
 use crate::DcShorthand;
+use malachite::Integer;
 use std::fmt;
+
+/// Dialect selector controlling StageL 3 vs StageR 3 source normalization,
+/// parsing, validation, and Token Dc serialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StageDialect {
+    /// StageL 3 (`.sl3` `f656` / `.sli3` `f659`): minimal systems substrate.
+    StageL3,
+    /// StageR 3 (`.sr3` `f657` / `.sri3` `f660`): strictly total nominal dialect.
+    StageR3,
+}
 
 /// 1-based source location used in parser and validator diagnostics.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -86,12 +98,38 @@ pub enum StageLType {
     Buf(Box<StageLType>),
     /// Anonymous fixed-slot `n`-ary tuple (`tup: T1 T2 ... ::`, `Dc 2672`).
     Tuple(Vec<StageLType>),
-    /// Declared positional `struct` type (`name` or `dc/<shorthand>`, `Dc 2673`).
+    /// Declared positional or named `struct` type (`name` or `dc/<shorthand>`, `Dc 2673`).
     Struct(StructTypeRef),
+    /// Fixed-width 128-bit signed integer (`i128`, `f212`).
+    I128,
+    /// Fixed-width 128-bit unsigned integer (`u128`, `f211`).
+    U128,
+    /// Arbitrary-precision signed integer (`int`, `f199`).
+    Int,
+    /// Arbitrary-precision canonical reduced rational (`rat`, `f345`).
+    Rat,
+    /// Validated 128-bit Document Character scalar (`dc`, `Dc 640`).
+    Dc,
+    /// Pure Document Character sequence (`dcs`, `Dc 264`).
+    Dcs,
+    /// Mixed-mode Document Character + binary string (`s` / `DcMst`, `f484`).
+    S,
+    /// Structured StageR 3 diagnostic error value (`error`, `Dc 2676`).
+    Error,
+    /// Immutable bounds-checked streaming extent handle (`view`, `Dc 2677`).
+    View,
+    /// Immutable value-typed extent stream cursor (`cursor`, `Dc 2678`).
+    Cursor,
+    /// Parameterized optional value type (`option/T`, `Dc 2674`).
+    Option(Box<StageLType>),
+    /// Parameterized fallible result type (`result/T`, `Dc 2675`).
+    Result(Box<StageLType>),
+    /// Declared StageR 3 nominal brand, module-opaque type, or enum (`Dc 2679`).
+    Nominal(StructTypeRef),
 }
 
 impl StageLType {
-    /// Formats this type in canonical StageL 3 notation (`u32`, `l/u8`, etc.).
+    /// Formats this type in canonical StageL/StageR 3 notation (`u32`, `l/u8`, etc.).
     #[must_use]
     pub fn display_name(&self) -> String {
         match self {
@@ -101,10 +139,22 @@ impl StageLType {
             Self::U32 => String::from("u32"),
             Self::I64 => String::from("i64"),
             Self::U64 => String::from("u64"),
+            Self::I128 => String::from("i128"),
+            Self::U128 => String::from("u128"),
+            Self::Int => String::from("int"),
+            Self::Rat => String::from("rat"),
+            Self::Dc => String::from("dc"),
+            Self::Dcs => String::from("dcs"),
+            Self::S => String::from("s"),
+            Self::Error => String::from("error"),
+            Self::View => String::from("view"),
+            Self::Cursor => String::from("cursor"),
             Self::Void => String::from("void"),
             Self::Never => String::from("never"),
             Self::List(inner) => format!("l/{}", inner.display_name()),
             Self::Buf(inner) => format!("buf/{}", inner.display_name()),
+            Self::Option(inner) => format!("option/{}", inner.display_name()),
+            Self::Result(inner) => format!("result/{}", inner.display_name()),
             Self::Tuple(elems) => {
                 if elems.is_empty() {
                     String::from("tup: ::")
@@ -114,16 +164,21 @@ impl StageLType {
                     format!("tup: {} ::", inner.join(" "))
                 }
             }
-            Self::Struct(StructTypeRef::Ident(name)) => name.clone(),
-            Self::Struct(StructTypeRef::Dc(dc)) => {
+            Self::Struct(StructTypeRef::Ident(name))
+            | Self::Nominal(StructTypeRef::Ident(name)) => name.clone(),
+            Self::Struct(StructTypeRef::Dc(dc))
+            | Self::Nominal(StructTypeRef::Dc(dc)) => {
                 format!("dc/{}", format_dc_shorthand(*dc))
             }
-            Self::Struct(StructTypeRef::Canonical { name, .. }) => name.clone(),
+            Self::Struct(StructTypeRef::Canonical { name, .. })
+            | Self::Nominal(StructTypeRef::Canonical { name, .. }) => {
+                name.clone()
+            }
         }
     }
 
-    /// Returns `true` for fixed-width integer types (`u8`, `i32`, `u32`, `i64`,
-    /// `u64`).
+    /// Returns `true` for StageL 3 fixed-width integer types (`u8`, `i32`, `u32`,
+    /// `i64`, `u64`).
     #[must_use]
     pub const fn is_integer(&self) -> bool {
         matches!(
@@ -132,10 +187,42 @@ impl StageLType {
         )
     }
 
-    /// Returns `true` for signed integer types (`i32`, `i64`).
+    /// Returns `true` for StageR 3 fixed-width integer types (`u8`, `i32`, `u32`,
+    /// `i64`, `u64`, `i128`, `u128`).
+    #[must_use]
+    pub const fn is_stager_fixed_int(&self) -> bool {
+        matches!(
+            self,
+            Self::U8
+                | Self::I32
+                | Self::U32
+                | Self::I64
+                | Self::U64
+                | Self::I128
+                | Self::U128
+        )
+    }
+
+    /// Returns `true` for all StageR 3 numeric types (`u8..=u128`, `int`, `rat`).
+    #[must_use]
+    pub const fn is_stager_numeric(&self) -> bool {
+        self.is_stager_fixed_int() || matches!(self, Self::Int | Self::Rat)
+    }
+
+    /// Returns `true` for StageL 3 signed integer types (`i32`, `i64`).
     #[must_use]
     pub const fn is_signed_int(&self) -> bool {
         matches!(self, Self::I32 | Self::I64)
+    }
+
+    /// Returns `true` for StageR 3 signed numeric types supporting `neg` /
+    /// signed operations (`i32`, `i64`, `i128`, `int`, `rat`).
+    #[must_use]
+    pub const fn is_stager_signed(&self) -> bool {
+        matches!(
+            self,
+            Self::I32 | Self::I64 | Self::I128 | Self::Int | Self::Rat
+        )
     }
 
     /// Returns `true` for unsigned integer types (`u8`, `u32`, `u64`).
@@ -144,13 +231,21 @@ impl StageLType {
         matches!(self, Self::U8 | Self::U32 | Self::U64)
     }
 
-    /// Returns the bit width for integer types.
+    /// Returns `true` for StageR 3 unsigned fixed-width integer types (`u8`, `u32`,
+    /// `u64`, `u128`).
+    #[must_use]
+    pub const fn is_stager_unsigned_int(&self) -> bool {
+        matches!(self, Self::U8 | Self::U32 | Self::U64 | Self::U128)
+    }
+
+    /// Returns the bit width for fixed-width integer types (`8`, `32`, `64`, `128`).
     #[must_use]
     pub const fn bit_width(&self) -> Option<u32> {
         match self {
             Self::U8 => Some(8),
             Self::I32 | Self::U32 => Some(32),
             Self::I64 | Self::U64 => Some(64),
+            Self::I128 | Self::U128 => Some(128),
             _ => None,
         }
     }
@@ -161,7 +256,9 @@ impl StageLType {
     pub fn can_be_element(&self) -> bool {
         match self {
             Self::Void | Self::Never | Self::Buf(_) => false,
-            Self::List(inner) => inner.can_be_element(),
+            Self::List(inner) | Self::Option(inner) | Self::Result(inner) => {
+                inner.can_be_element()
+            }
             Self::Tuple(elems) => elems.iter().all(Self::can_be_element),
             Self::B
             | Self::U8
@@ -169,7 +266,18 @@ impl StageLType {
             | Self::U32
             | Self::I64
             | Self::U64
-            | Self::Struct(_) => true,
+            | Self::I128
+            | Self::U128
+            | Self::Int
+            | Self::Rat
+            | Self::Dc
+            | Self::Dcs
+            | Self::S
+            | Self::Error
+            | Self::View
+            | Self::Cursor
+            | Self::Struct(_)
+            | Self::Nominal(_) => true,
         }
     }
 
@@ -178,7 +286,9 @@ impl StageLType {
     pub fn is_or_contains_buf(&self) -> bool {
         match self {
             Self::Buf(_) => true,
-            Self::List(inner) => inner.is_or_contains_buf(),
+            Self::List(inner) | Self::Option(inner) | Self::Result(inner) => {
+                inner.is_or_contains_buf()
+            }
             Self::Tuple(elems) => elems.iter().any(Self::is_or_contains_buf),
             _ => false,
         }
@@ -194,10 +304,25 @@ impl StageLType {
             | Self::U32
             | Self::I64
             | Self::U64
-            | Self::Struct(_) => true,
-            Self::List(inner) => inner.supports_eq(),
+            | Self::I128
+            | Self::U128
+            | Self::Int
+            | Self::Rat
+            | Self::Dc
+            | Self::Dcs
+            | Self::S
+            | Self::Error
+            | Self::Struct(_)
+            | Self::Nominal(_) => true,
+            Self::List(inner) | Self::Option(inner) | Self::Result(inner) => {
+                inner.supports_eq()
+            }
             Self::Tuple(elems) => elems.iter().all(Self::supports_eq),
-            Self::Void | Self::Never | Self::Buf(_) => false,
+            Self::Void
+            | Self::Never
+            | Self::Buf(_)
+            | Self::View
+            | Self::Cursor => false,
         }
     }
 
@@ -227,9 +352,11 @@ pub struct Comment {
     pub span: Span,
 }
 
-/// Complete StageL 3 module AST.
+/// Complete StageL 3 or StageR 3 module AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Module {
+    /// Language dialect (`StageL3` or `StageR3`).
+    pub dialect: StageDialect,
     /// Optional PSR-4 namespace path (`ns path/to/mod.`).
     pub namespace: Option<Vec<String>>,
     /// Explicit namespace imports (`use path/to/mod: ... ::.`).
@@ -317,11 +444,109 @@ pub struct PositionalStructDecl {
     pub span: Span,
 }
 
+/// StageR 3 nominal brand or module-opaque type declaration
+/// (`[pub [dc/<shorthand>]] (brand | type) BASE_TYPE/name.`, `Dc 2223`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BrandTypeDecl {
+    /// `true` for `pub brand` / `pub type`.
+    pub is_pub: bool,
+    /// `true` when written using inline `pub dc/<shorthand> ...`.
+    pub pub_dc_syntax: bool,
+    /// `false` for transparent `brand`, `true` for module-opaque `type`.
+    pub is_opaque: bool,
+    /// Assigned graph identity (from `pub dc/<sh>` or `: @dc <sh>`).
+    pub dc_id: Option<DcChar>,
+    /// Underlying representation type.
+    pub inner_ty: StageLType,
+    /// Declared nominal type identifier.
+    pub name: String,
+    /// Comments preceding this declaration.
+    pub comments_before: Vec<Comment>,
+    /// Source location.
+    pub span: Span,
+}
+
+/// One typed named field inside a [`NamedStructDecl`] (`Dc 2226`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NamedFieldDecl {
+    /// Static field type.
+    pub ty: StageLType,
+    /// Field identifier.
+    pub name: String,
+    /// Comments preceding this field line.
+    pub comments_before: Vec<Comment>,
+    /// Source location.
+    pub span: Span,
+}
+
+/// StageR 3 module-level immutable named-field `struct` declaration
+/// (`Dc 2224..2225`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NamedStructDecl {
+    /// `true` for `pub struct`.
+    pub is_pub: bool,
+    /// `true` when written using inline `pub dc/<shorthand> struct ...`.
+    pub pub_dc_syntax: bool,
+    /// Assigned graph identity (from `pub dc/<sh>` or `: @dc <sh>`).
+    pub dc_id: Option<DcChar>,
+    /// Named struct identifier.
+    pub name: String,
+    /// Declared named fields (`fields.len() >= 1`).
+    pub fields: Vec<NamedFieldDecl>,
+    /// `true` if written in inline `:: T1/f1 T2/f2 .` header syntax.
+    pub inline_body: bool,
+    /// Comments preceding this declaration.
+    pub comments_before: Vec<Comment>,
+    /// Source location.
+    pub span: Span,
+}
+
+/// One variant declaration inside an [`EnumDecl`] (`Dc 2232`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumVariantDecl {
+    /// Variant identifier.
+    pub name: String,
+    /// Optional variant payload type (`None` for unit variant).
+    pub payload: Option<StageLType>,
+    /// Comments preceding this variant line.
+    pub comments_before: Vec<Comment>,
+    /// Source location.
+    pub span: Span,
+}
+
+/// StageR 3 module-level closed tagged-union `enum` declaration
+/// (`Dc 2230..2231`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumDecl {
+    /// `true` for `pub enum`.
+    pub is_pub: bool,
+    /// `true` when written using inline `pub dc/<shorthand> enum ...`.
+    pub pub_dc_syntax: bool,
+    /// Assigned graph identity (from `pub dc/<sh>` or `: @dc <sh>`).
+    pub dc_id: Option<DcChar>,
+    /// Enum identifier.
+    pub name: String,
+    /// Variant declarations (`0` variants allowed for uninhabited `never` enums).
+    pub variants: Vec<EnumVariantDecl>,
+    /// `true` if written in inline `:: ... .` header syntax.
+    pub inline_body: bool,
+    /// Comments preceding this declaration.
+    pub comments_before: Vec<Comment>,
+    /// Source location.
+    pub span: Span,
+}
+
 /// Module-level item.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TopDecl {
-    /// Top-level `struct` or `pub struct` positional struct declaration.
+    /// Top-level StageL 3 `struct` or `pub struct` positional struct declaration.
     Struct(PositionalStructDecl),
+    /// Top-level StageR 3 `brand` or opaque `type` declaration.
+    BrandType(BrandTypeDecl),
+    /// Top-level StageR 3 named-field `struct` declaration.
+    NamedStruct(NamedStructDecl),
+    /// Top-level StageR 3 tagged-union `enum` declaration.
+    Enum(EnumDecl),
     /// Top-level `const` or `pub` immutable value.
     Value(TopValueDecl),
     /// Top-level `v/...` or `pub v/...` routine.
@@ -401,8 +626,8 @@ pub struct RoutineDecl {
     pub span: Span,
 }
 
-/// Typed integer literal in StageL 3.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Typed integer literal in StageL 3 and StageR 3.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypedIntLit {
     /// `u8:<N>`
     U8(u8),
@@ -414,32 +639,245 @@ pub enum TypedIntLit {
     I64(i64),
     /// `u64:<N>`
     U64(u64),
+    /// `i128:<N>`
+    I128(i128),
+    /// `u128:<N>`
+    U128(u128),
+    /// `int:<N>` (arbitrary-precision signed integer)
+    Int(Integer),
 }
 
 impl TypedIntLit {
-    /// Returns the StageL 3 static type of this literal.
+    /// Returns the StageL/StageR 3 static type of this literal.
     #[must_use]
-    pub const fn stage_l_type(self) -> StageLType {
+    pub fn stage_l_type(&self) -> StageLType {
         match self {
             Self::U8(_) => StageLType::U8,
             Self::I32(_) => StageLType::I32,
             Self::U32(_) => StageLType::U32,
             Self::I64(_) => StageLType::I64,
             Self::U64(_) => StageLType::U64,
+            Self::I128(_) => StageLType::I128,
+            Self::U128(_) => StageLType::U128,
+            Self::Int(_) => StageLType::Int,
         }
     }
 
     /// Formats this literal in canonical `type:value` syntax.
     #[must_use]
-    pub fn display_literal(self) -> String {
+    pub fn display_literal(&self) -> String {
         match self {
             Self::U8(v) => format!("u8:{v}"),
             Self::I32(v) => format!("i32:{v}"),
             Self::U32(v) => format!("u32:{v}"),
             Self::I64(v) => format!("i64:{v}"),
             Self::U64(v) => format!("u64:{v}"),
+            Self::I128(v) => format!("i128:{v}"),
+            Self::U128(v) => format!("u128:{v}"),
+            Self::Int(v) => format!("int:{v}"),
         }
     }
+}
+
+/// Canonical built-in diagnostic error tags for StageR 3 `error:<tag>` values
+/// (`Dc 2238`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum StageRErrorTag {
+    /// Fixed-width overflow or shift count >= bit width (`overflow`).
+    Overflow,
+    /// Division, modulo, or `makeRat` with zero divisor/denominator (`divisionByZero`).
+    DivisionByZero,
+    /// Out-of-bounds buffer set (`outOfBounds`).
+    OutOfBounds,
+    /// Mutation or duplicate freeze of a frozen `buf/T` (`frozenBuffer`).
+    FrozenBuffer,
+    /// Mixed-mode `s` -> `dcs` conversion failed due to binary run (`invalidEncoding`).
+    InvalidEncoding,
+    /// Surrogate or invalid Document Character in `dcFromU128` (`invalidDc`).
+    InvalidDc,
+    /// Textual parse failure (`parseFailure`).
+    ParseFailure,
+}
+
+impl StageRErrorTag {
+    /// Returns the camelCase keyword suffix for `error:<tag>`.
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Overflow => "overflow",
+            Self::DivisionByZero => "divisionByZero",
+            Self::OutOfBounds => "outOfBounds",
+            Self::FrozenBuffer => "frozenBuffer",
+            Self::InvalidEncoding => "invalidEncoding",
+            Self::InvalidDc => "invalidDc",
+            Self::ParseFailure => "parseFailure",
+        }
+    }
+
+    /// Parses a camelCase error tag suffix after `error:`.
+    #[must_use]
+    pub fn from_keyword(raw: &str) -> Option<Self> {
+        match raw {
+            "overflow" => Some(Self::Overflow),
+            "divisionByZero" => Some(Self::DivisionByZero),
+            "outOfBounds" => Some(Self::OutOfBounds),
+            "frozenBuffer" => Some(Self::FrozenBuffer),
+            "invalidEncoding" => Some(Self::InvalidEncoding),
+            "invalidDc" => Some(Self::InvalidDc),
+            "parseFailure" => Some(Self::ParseFailure),
+            _ => None,
+        }
+    }
+
+    /// Returns all canonical `error` variant keywords for exhaustive `match`.
+    #[must_use]
+    pub const fn all_keywords() -> &'static [&'static str] {
+        &[
+            "overflow",
+            "divisionByZero",
+            "outOfBounds",
+            "frozenBuffer",
+            "invalidEncoding",
+            "invalidDc",
+            "parseFailure",
+        ]
+    }
+}
+
+/// Unary built-in operator specific to StageR 3 (`Dc 2559..2572`, `Dc 2610..2613`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StageRUnaryOp {
+    /// Total checked negation (`neg`, `Dc 2559`).
+    TotalNeg,
+    /// Option present predicate (`isSome`, `Dc 2566`).
+    IsSome,
+    /// Option absent predicate (`isNone`, `Dc 2567`).
+    IsNone,
+    /// Result success predicate (`isOk`, `Dc 2568`).
+    IsOk,
+    /// Result error predicate (`isErr`, `Dc 2569`).
+    IsErr,
+    /// Mixed-mode `s` payload byte length (`byteLen`, `Dc 2572`).
+    ByteLen,
+    /// Fallible `u128 -> result/dc` validation (`dcFromU128`, `Dc 2610`).
+    DcFromU128,
+    /// Infallible `dc -> u128` extraction (`u128FromDc`, `Dc 2611`).
+    U128FromDc,
+    /// Fallible `s -> result/dcs` validation (`dcsFromS`, `Dc 2612`).
+    DcsFromS,
+    /// Infallible `dcs -> s` widening (`sFromDcs`, `Dc 2613`).
+    SFromDcs,
+}
+
+impl StageRUnaryOp {
+    /// Returns the canonical keyword in `.sr3` notation.
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::TotalNeg => "neg",
+            Self::IsSome => "isSome",
+            Self::IsNone => "isNone",
+            Self::IsOk => "isOk",
+            Self::IsErr => "isErr",
+            Self::ByteLen => "byteLen",
+            Self::DcFromU128 => "dcFromU128",
+            Self::U128FromDc => "u128FromDc",
+            Self::DcsFromS => "dcsFromS",
+            Self::SFromDcs => "sFromDcs",
+        }
+    }
+}
+
+/// Binary built-in operator specific to StageR 3 (`Dc 2553..2571`, `Dc 2609`,
+/// `Dc 2614..2615`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StageRBinaryOp {
+    /// Total checked/exact addition (`add`, `Dc 2553`).
+    TotalAdd,
+    /// Total checked/exact subtraction (`sub`, `Dc 2554`).
+    TotalSub,
+    /// Total checked/exact multiplication (`mul`, `Dc 2555`).
+    TotalMul,
+    /// Total truncating/exact division (`div`, `Dc 2556`).
+    TotalDiv,
+    /// Total Euclidean modulo (`mod`, `Dc 2557`).
+    TotalMod,
+    /// Total truncating remainder (`truncRem`, `Dc 2558`).
+    TotalTruncRem,
+    /// Total checked left shift (`shl`, `Dc 2560`).
+    TotalShl,
+    /// Total checked right shift (`shr`, `Dc 2561`).
+    TotalShr,
+    /// Total indexed element access returning `option/Elem` (`get`, `Dc 2563`).
+    TotalGet,
+    /// Unwrap `option/T` or `result/T` with fallback value (`unwrapOr`, `Dc 2570`).
+    UnwrapOr,
+    /// Convert `option/T` with `error` into `result/T` (`okOr`, `Dc 2571`).
+    OkOr,
+    /// Construct canonical reduced `rat` from `(int, int)` (`makeRat`, `Dc 2609`).
+    MakeRat,
+    /// Split sequence by separator (`explode`, `Dc 2614`).
+    Explode,
+    /// Join sequences with separator (`implode`, `Dc 2615`).
+    Implode,
+}
+
+impl StageRBinaryOp {
+    /// Returns the canonical keyword in `.sr3` notation.
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::TotalAdd => "add",
+            Self::TotalSub => "sub",
+            Self::TotalMul => "mul",
+            Self::TotalDiv => "div",
+            Self::TotalMod => "mod",
+            Self::TotalTruncRem => "truncRem",
+            Self::TotalShl => "shl",
+            Self::TotalShr => "shr",
+            Self::TotalGet => "get",
+            Self::UnwrapOr => "unwrapOr",
+            Self::OkOr => "okOr",
+            Self::MakeRat => "makeRat",
+            Self::Explode => "explode",
+            Self::Implode => "implode",
+        }
+    }
+}
+
+/// Ternary built-in operator specific to StageR 3 (`Dc 2564..2565`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum StageRTernaryOp {
+    /// Total sub-sequence slice returning `option/Seq` (`slice`, `Dc 2564`).
+    TotalSlice,
+    /// Total checked mutable buffer overwrite returning `result/void` (`bufSet`, `Dc 2565`).
+    TotalBufSet,
+}
+
+impl StageRTernaryOp {
+    /// Returns the canonical keyword in `.sr3` notation.
+    #[must_use]
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::TotalSlice => "slice",
+            Self::TotalBufSet => "bufSet",
+        }
+    }
+}
+
+/// One `case <variant> [<TYPE>/<binding>] <BODY>` arm inside `Expr::Match` (`Dc 2458`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchArm {
+    /// Matched variant name (`none`/`some`, `ok`/`err`, error tag, or enum variant).
+    pub variant: String,
+    /// Optional payload binding `(TYPE, name, span)` (`None` for unit variant).
+    pub binding: Option<(StageLType, String, Span)>,
+    /// Arm body expression.
+    pub body: Expr,
+    /// Comments preceding this arm.
+    pub comments_before: Vec<Comment>,
+    /// Source location of `case`.
+    pub span: Span,
 }
 
 /// Target identifier or resolved Dc reference in `TYPE/name` (`Dc 2202`).
@@ -867,6 +1305,184 @@ pub enum Expr {
         /// Source location.
         span: Span,
     },
+    /// StageR 3 strict Dcts mixed-mode string literal (`"..."` of type `s`,
+    /// `Dc 260..Dc 261`).
+    DctsString {
+        /// Canonical Dcts string text between quotes (preserves `@...@` escapes).
+        raw_dcts: String,
+        /// Strictly decoded Document Character sequence.
+        value: Vec<DcChar>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 standalone Document Character scalar literal (`dc:<shorthand>`,
+    /// encoded as `Dc 260 262 640 263 <atom_dc> 261`).
+    DcLit {
+        /// Non-surrogate Document Character scalar.
+        value: DcChar,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 named-field `struct` constructor (`structNew Name: f e ... ::`,
+    /// `Dc 2227..2228`).
+    NamedStructNew {
+        /// Referenced named struct identifier or resolved Dc anchor.
+        target: SymbolTarget,
+        /// Named field initializers (`(field_name, value_expr, field_span)`).
+        fields: Vec<(String, Expr, Span)>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 closed `enum` variant constructor (`Enum:variant [EXPR]`,
+    /// `Dc 2233`).
+    EnumVariant {
+        /// Target enum type reference.
+        enum_ty: StructTypeRef,
+        /// Variant name.
+        variant: String,
+        /// Optional variant payload expression.
+        payload: Option<Box<Expr>>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 `option/T:none` value (`Dc 2234`).
+    OptionNone {
+        /// Element type `T`.
+        inner_ty: StageLType,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 `option/T:some EXPR` value (`Dc 2235`).
+    OptionSome {
+        /// Element type `T`.
+        inner_ty: StageLType,
+        /// Present payload expression.
+        value: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 `result/T:ok EXPR` value (`Dc 2236`).
+    ResultOk {
+        /// Success type `T`.
+        ok_ty: StageLType,
+        /// Success payload expression.
+        value: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 `result/T:err EXPR` value (`Dc 2237`).
+    ResultErr {
+        /// Success type `T`.
+        ok_ty: StageLType,
+        /// Error expression of type `error`.
+        error: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 built-in diagnostic error tag (`error:<tag>`, `Dc 2238`).
+    ErrorTag {
+        /// Canonical error variant tag.
+        tag: StageRErrorTag,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 named field projection (`field EXPR fieldName`, `Dc 2549`).
+    NamedField {
+        /// Named-struct expression.
+        base: Box<Expr>,
+        /// Field name.
+        field: String,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 functional named field update (`with EXPR fieldName VALUE`,
+    /// `Dc 2550`).
+    NamedWith {
+        /// Base named-struct expression.
+        base: Box<Expr>,
+        /// Field name.
+        field: String,
+        /// Replacement field value expression.
+        value: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 nominal wrap (`wrap EXPR TargetType`, `Dc 2551`).
+    WrapNominal {
+        /// Underlying representation expression.
+        expr: Box<Expr>,
+        /// Target brand or module-opaque type.
+        target_ty: StageLType,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 nominal unwrap (`unwrap EXPR`, `Dc 2552`).
+    UnwrapNominal {
+        /// Nominal brand or module-opaque expression.
+        expr: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 shallow exhaustive `match` expression (`Dc 2456..2458`).
+    Match {
+        /// Scrutinee expression (`enum`, `option/T`, `result/T`, or `error`).
+        scrutinee: Box<Expr>,
+        /// Ordered explicit `case` arms.
+        arms: Vec<MatchArm>,
+        /// Optional trailing `else` fallback arm.
+        fallback: Option<Box<Expr>>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 trailing `/` (`?`) early-return propagation (`Dc 2459`).
+    Propagate {
+        /// Fallible sub-expression (`option/T` or `result/T`).
+        expr: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 total/string/scalar unary operator.
+    StageRUnary {
+        /// Operator kind.
+        op: StageRUnaryOp,
+        /// Operand expression.
+        operand: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 total/checked/string binary operator.
+    StageRBinary {
+        /// Operator kind.
+        op: StageRBinaryOp,
+        /// First operand expression.
+        left: Box<Expr>,
+        /// Second operand expression.
+        right: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 total ternary operator (`slice`, `bufSet`).
+    StageRTernary {
+        /// Operator kind.
+        op: StageRTernaryOp,
+        /// First operand expression.
+        first: Box<Expr>,
+        /// Second operand expression.
+        second: Box<Expr>,
+        /// Third operand expression.
+        third: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// StageR 3 numeric conversion (`conv EXPR TARGET_TYPE`, `Dc 2562`).
+    TotalConv {
+        /// Source numeric expression.
+        expr: Box<Expr>,
+        /// Destination numeric type.
+        target_ty: StageLType,
+        /// Source location.
+        span: Span,
+    },
 }
 
 impl Expr {
@@ -901,7 +1517,26 @@ impl Expr {
             | Self::Binary { span, .. }
             | Self::Ternary { span, .. }
             | Self::Conv { span, .. }
-            | Self::Bitcast { span, .. } => *span,
+            | Self::Bitcast { span, .. }
+            | Self::DctsString { span, .. }
+            | Self::DcLit { span, .. }
+            | Self::NamedStructNew { span, .. }
+            | Self::EnumVariant { span, .. }
+            | Self::OptionNone { span, .. }
+            | Self::OptionSome { span, .. }
+            | Self::ResultOk { span, .. }
+            | Self::ResultErr { span, .. }
+            | Self::ErrorTag { span, .. }
+            | Self::NamedField { span, .. }
+            | Self::NamedWith { span, .. }
+            | Self::WrapNominal { span, .. }
+            | Self::UnwrapNominal { span, .. }
+            | Self::Match { span, .. }
+            | Self::Propagate { span, .. }
+            | Self::StageRUnary { span, .. }
+            | Self::StageRBinary { span, .. }
+            | Self::StageRTernary { span, .. }
+            | Self::TotalConv { span, .. } => *span,
             Self::RoutineDecl(r) => r.span,
         }
     }

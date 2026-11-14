@@ -40,8 +40,8 @@ use crate::{DcChar, DcShorthand};
 
 use super::ast::{
     BlockItem, Expr, ImportTarget, Module, PositionalStructDecl, RoutineDecl,
-    Span, StageLType, StructTypeRef, SymbolTarget, TestExpected, TopDecl,
-    TopValueDecl,
+    Span, StageDialect, StageLType, StructTypeRef, SymbolTarget, TestExpected,
+    TopDecl, TopValueDecl,
 };
 use super::dc_tokens::{
     decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens_at_line,
@@ -164,8 +164,11 @@ fn prepare_graph_top_decl(
             let fields = s.fields.clone();
             Ok((decl, orig_name, GraphOwnerKind::Struct { fields }))
         }
-        TopDecl::Comment(_) => {
-            bail!("Decoded StageL graph item for {target_dc} cannot be a bare comment")
+        TopDecl::Comment(_)
+        | TopDecl::BrandType(_)
+        | TopDecl::NamedStruct(_)
+        | TopDecl::Enum(_) => {
+            bail!("Decoded StageL/StageR graph item for {target_dc} is not supported here")
         }
     }
 }
@@ -251,7 +254,10 @@ fn extract_decl_from_module(
                     non_comment_items.push(item);
                 }
             }
-            TopDecl::Comment(_) => {}
+            TopDecl::Comment(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_) => {}
         }
     }
     if name_matches.len() == 1
@@ -272,7 +278,10 @@ fn extract_decl_from_module(
 
 fn collect_dc_refs_in_type(ty: &StageLType, out: &mut Vec<DcChar>) {
     match ty {
-        StageLType::List(inner) | StageLType::Buf(inner) => {
+        StageLType::List(inner)
+        | StageLType::Buf(inner)
+        | StageLType::Option(inner)
+        | StageLType::Result(inner) => {
             collect_dc_refs_in_type(inner, out);
         }
         StageLType::Tuple(elems) => {
@@ -280,7 +289,8 @@ fn collect_dc_refs_in_type(ty: &StageLType, out: &mut Vec<DcChar>) {
                 collect_dc_refs_in_type(el, out);
             }
         }
-        StageLType::Struct(StructTypeRef::Dc(dc)) => {
+        StageLType::Struct(StructTypeRef::Dc(dc))
+        | StageLType::Nominal(StructTypeRef::Dc(dc)) => {
             out.push(*dc);
         }
         _ => {}
@@ -297,7 +307,10 @@ fn collect_dc_refs_in_module(module: &Module, out: &mut Vec<DcChar>) {
     }
     for decl in &module.items {
         match decl {
-            TopDecl::Comment(_) => {}
+            TopDecl::Comment(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_) => {}
             TopDecl::Struct(PositionalStructDecl { fields, .. }) => {
                 for f in fields {
                     collect_dc_refs_in_type(f, out);
@@ -476,6 +489,25 @@ fn collect_dc_refs_in_expr(expr: &Expr, out: &mut Vec<DcChar>) {
             collect_dc_refs_in_expr(base, out);
             collect_dc_refs_in_expr(value, out);
         }
+        Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::NamedStructNew { .. }
+        | Expr::EnumVariant { .. }
+        | Expr::OptionNone { .. }
+        | Expr::OptionSome { .. }
+        | Expr::ResultOk { .. }
+        | Expr::ResultErr { .. }
+        | Expr::ErrorTag { .. }
+        | Expr::NamedField { .. }
+        | Expr::NamedWith { .. }
+        | Expr::WrapNominal { .. }
+        | Expr::UnwrapNominal { .. }
+        | Expr::Match { .. }
+        | Expr::Propagate { .. }
+        | Expr::StageRUnary { .. }
+        | Expr::StageRBinary { .. }
+        | Expr::StageRTernary { .. }
+        | Expr::TotalConv { .. } => {}
     }
 }
 
@@ -497,7 +529,10 @@ fn collect_locally_defined_dcs(module: &Module, out: &mut HashSet<DcChar>) {
                     out.insert(dc);
                 }
             }
-            TopDecl::Comment(_) => {}
+            TopDecl::Comment(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_) => {}
         }
     }
 }
@@ -591,6 +626,7 @@ fn reconstruct_external_namespace_module(
     }
 
     let module = Module {
+        dialect: StageDialect::StageL3,
         leading_comments: Vec::new(),
         namespace: Some(ns_segs.to_vec()),
         uses: Vec::new(),
@@ -773,6 +809,7 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                 );
                 (
                     Module {
+                        dialect: StageDialect::StageL3,
                         leading_comments: Vec::new(),
                         namespace: Some(vec![synth_ns_seg.clone()]),
                         uses: Vec::new(),
@@ -851,7 +888,10 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                                 matched = true;
                             }
                         }
-                        TopDecl::Comment(_) => {}
+                        TopDecl::Comment(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_) => {}
                     }
                 }
                 if !matched {
@@ -908,7 +948,10 @@ fn assemble_topo_sorted_modules_with_seed_graph(
                                 matched = true;
                                 break;
                             }
-                            TopDecl::Comment(_) => {}
+                            TopDecl::Comment(_)
+            | TopDecl::BrandType(_)
+            | TopDecl::NamedStruct(_)
+            | TopDecl::Enum(_) => {}
                         }
                     }
                 }

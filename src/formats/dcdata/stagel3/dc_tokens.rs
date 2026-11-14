@@ -35,8 +35,8 @@ use crate::utilities::*;
 use super::ast::{
     BlockItem, Comment, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr,
     ImportTarget, Module, Param, PositionalStructDecl, RoutineDecl, Span,
-    StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase, TestExpected,
-    TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
+    StageDialect, StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase,
+    TestExpected, TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
     format_dc_shorthand,
 };
 use super::parser::parse_module;
@@ -128,6 +128,10 @@ pub fn strip_comment_frames(tokens: &[DcChar]) -> Vec<DcChar> {
 /// Encodes a parsed StageL 3 `Module` AST into a canonical StageL Token Dc
 /// stream matching the `el.csv` and `README-named-types.csv` syntax rules.
 pub fn encode_module_to_dc_tokens(module: &Module) -> Result<Vec<DcChar>> {
+    ensure!(
+        module.dialect == StageDialect::StageL3,
+        "StageR 3 module Token Dc encoding is not yet wired"
+    );
     let mut out = Vec::new();
     out.push(DC_BEGIN_MODULE);
 
@@ -241,6 +245,11 @@ fn push_top_decl(out: &mut Vec<DcChar>, item: &TopDecl) -> Result<()> {
         }
         TopDecl::Comment(c) => {
             push_comment(out, c);
+        }
+        TopDecl::BrandType(_)
+        | TopDecl::NamedStruct(_)
+        | TopDecl::Enum(_) => {
+            bail!("StageR 3 declaration Token Dc encoding is not yet wired");
         }
     }
     Ok(())
@@ -391,25 +400,49 @@ fn push_stagel_type(out: &mut Vec<DcChar>, ty: &StageLType) -> Result<()> {
                 StructTypeRef::Dc(dc) => push_atom_dc(out, *dc),
             }
         }
+        StageLType::I128
+        | StageLType::U128
+        | StageLType::Int
+        | StageLType::Rat
+        | StageLType::Dc
+        | StageLType::Dcs
+        | StageLType::S
+        | StageLType::Error
+        | StageLType::View
+        | StageLType::Cursor
+        | StageLType::Option(_)
+        | StageLType::Result(_)
+        | StageLType::Nominal(_) => {
+            bail!("StageR 3 type '{ty}' Token Dc encoding is not yet wired");
+        }
     }
     Ok(())
 }
 
-fn push_typed_int(out: &mut Vec<DcChar>, lit: TypedIntLit) -> Result<()> {
+fn push_typed_int(out: &mut Vec<DcChar>, lit: &TypedIntLit) -> Result<()> {
     let (fmt, is_neg, mag): (FormatId, bool, u128) = match lit {
-        TypedIntLit::U8(v) => (FormatId::U8, false, u128::from(v)),
-        TypedIntLit::U32(v) => (FormatId::U32, false, u128::from(v)),
-        TypedIntLit::U64(v) => (FormatId::U64, false, u128::from(v)),
+        TypedIntLit::U8(v) => (FormatId::U8, false, u128::from(*v)),
+        TypedIntLit::U32(v) => (FormatId::U32, false, u128::from(*v)),
+        TypedIntLit::U64(v) => (FormatId::U64, false, u128::from(*v)),
+        TypedIntLit::U128(v) => (FormatId::U128, false, *v),
         TypedIntLit::I32(v) => (
             FormatId::I32,
-            v < 0,
+            *v < 0,
             u128::from(v.unsigned_abs()),
         ),
         TypedIntLit::I64(v) => (
             FormatId::I64,
-            v < 0,
+            *v < 0,
             u128::from(v.unsigned_abs()),
         ),
+        TypedIntLit::I128(v) => (FormatId::I128, *v < 0, v.unsigned_abs()),
+        TypedIntLit::Int(v) => {
+            out.extend(crate::integer_to_dc_number_chars(
+                v,
+                Some(FormatId::Integer),
+            )?);
+            return Ok(());
+        }
     };
     let mut num_chars = u128_to_dc_number_chars(mag);
     let fmt_dc = format_dc_char_opt(fmt)?;
@@ -568,7 +601,7 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
                 DC_BOOLEAN_FALSE
             });
         }
-        Expr::Int { value, .. } => push_typed_int(out, *value)?,
+        Expr::Int { value, .. } => push_typed_int(out, value)?,
         Expr::Bytes { value, .. } => push_binary_bytes(out, value)?,
         Expr::List {
             elem_ty, elements, ..
@@ -768,6 +801,27 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
             out.push(DC_BITCAST_OP);
             push_expr(out, expr)?;
             push_stagel_type(out, target_ty)?;
+        }
+        Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::NamedStructNew { .. }
+        | Expr::EnumVariant { .. }
+        | Expr::OptionNone { .. }
+        | Expr::OptionSome { .. }
+        | Expr::ResultOk { .. }
+        | Expr::ResultErr { .. }
+        | Expr::ErrorTag { .. }
+        | Expr::NamedField { .. }
+        | Expr::NamedWith { .. }
+        | Expr::WrapNominal { .. }
+        | Expr::UnwrapNominal { .. }
+        | Expr::Match { .. }
+        | Expr::Propagate { .. }
+        | Expr::StageRUnary { .. }
+        | Expr::StageRBinary { .. }
+        | Expr::StageRTernary { .. }
+        | Expr::TotalConv { .. } => {
+            bail!("StageR 3 expression Token Dc encoding is not yet wired");
         }
     }
     Ok(())
@@ -1019,6 +1073,7 @@ impl<'a> Decoder<'a> {
         }
 
         Ok(Module {
+            dialect: StageDialect::StageL3,
             namespace,
             uses,
             leading_comments,
@@ -2229,6 +2284,11 @@ fn write_top_decl(out: &mut String, item: &TopDecl) -> Result<()> {
         TopDecl::Comment(c) => {
             write_comment_line(out, 0, c)?;
         }
+        TopDecl::BrandType(_)
+        | TopDecl::NamedStruct(_)
+        | TopDecl::Enum(_) => {
+            bail!("StageR 3 declaration formatting is not yet wired");
+        }
     }
     Ok(())
 }
@@ -2604,6 +2664,27 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
             write_expr(out, expr, indent)?;
             write!(out, " {target_ty}")?;
         }
+        Expr::DctsString { .. }
+        | Expr::DcLit { .. }
+        | Expr::NamedStructNew { .. }
+        | Expr::EnumVariant { .. }
+        | Expr::OptionNone { .. }
+        | Expr::OptionSome { .. }
+        | Expr::ResultOk { .. }
+        | Expr::ResultErr { .. }
+        | Expr::ErrorTag { .. }
+        | Expr::NamedField { .. }
+        | Expr::NamedWith { .. }
+        | Expr::WrapNominal { .. }
+        | Expr::UnwrapNominal { .. }
+        | Expr::Match { .. }
+        | Expr::Propagate { .. }
+        | Expr::StageRUnary { .. }
+        | Expr::StageRBinary { .. }
+        | Expr::StageRTernary { .. }
+        | Expr::TotalConv { .. } => {
+            bail!("StageR 3 expression formatting is not yet wired");
+        }
     }
     Ok(())
 }
@@ -2841,7 +2922,10 @@ v/void/voidRoutine u32/inputVal
                 TopDecl::Struct(s) => s.dc_id,
                 TopDecl::Value(v) => v.dc_id,
                 TopDecl::Routine(r) => r.dc_id,
-                TopDecl::Comment(_) => None,
+                TopDecl::Comment(_)
+                | TopDecl::BrandType(_)
+                | TopDecl::NamedStruct(_)
+                | TopDecl::Enum(_) => None,
             })
             .collect();
         assert_eq!(
