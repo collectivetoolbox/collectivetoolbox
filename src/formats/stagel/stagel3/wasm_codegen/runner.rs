@@ -754,4 +754,300 @@ v/u32/bufSetOobAndExplicitFault b/triggerFault u64/idx
         );
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_wasm_stage1_stdlib_inline_suites_and_live_seed_graph_linking()
+    -> Result<()> {
+        use crate::stagel3::eval::run_validated_workspace_inline_tests;
+        use ctb_formats_dcdata::stagel_dc_alloc::discover_stagel_namespace_files;
+        use std::path::Path;
+
+        // 1. Run all inline `test` suites across every `stage_1_impls/std/**/*.sl3`
+        // file in both the reference evaluator and the Dc-WASM compiler/runtime.
+        let data_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../dcdata/data-src");
+        let std_files = discover_stagel_namespace_files(&data_dir)?;
+        ensure!(
+            std_files.len() >= 7,
+            "Expected at least 7 Stage 1 stdlib .sl3 files, found {}",
+            std_files.len()
+        );
+        let inputs: Vec<ModuleInput<'_>> = std_files
+            .iter()
+            .map(|f| ModuleInput {
+                source_path: Some(f.psr4_rel_path.as_str()),
+                source: f.source.as_str(),
+            })
+            .collect();
+        let std_ws = parse_and_validate_workspace(&inputs)?;
+        let eval_std_rep = run_validated_workspace_inline_tests(&std_ws)?;
+        let eval_std_passed = eval_std_rep.ensure_all_passed()?;
+        ensure!(
+            eval_std_passed >= 100,
+            "Expected >= 100 Stage 1 stdlib inline test cases, ran {eval_std_passed}"
+        );
+        let wasm_std_rep =
+            run_workspace_inline_tests_wasm(&std_ws, WasmTestConfig::default())?;
+        let wasm_std_passed = wasm_std_rep.ensure_all_passed()?;
+        ensure!(
+            wasm_std_passed == eval_std_passed,
+            "WASM Stage 1 stdlib test count ({wasm_std_passed}) != eval ({eval_std_passed})"
+        );
+
+        // 2. Standalone `.sl3` AND encoded `Dc 2192..2193` Token-Dc module linking
+        // `std/*` directly from `SeedGraphIndex::shared()` (including transitive
+        // private helper `std/bytes::matchesAt` and `std/assert::assert`, plus a
+        // direct `dc/l8589978243` call to `std/math/i32::mod` without `use`).
+        let client_src = r#"
+use std/assert: assert ::.
+use std/bytes: explode implode ::.
+use std/math/i32: MIN as I32_MIN MAX as I32_MAX mod as mod32 canAdd as canAdd32 canSub as canSub32 canMul as canMul32 canDiv as canDiv32 ::.
+use std/math/i64: MIN as I64_MIN MAX as I64_MAX mod as mod64 canAdd as canAdd64 canSub as canSub64 canMul as canMul64 canDiv as canDiv64 ::.
+use std/math/u8: MAX as U8_MAX canAdd as canAddU8 canSub as canSubU8 canMul as canMulU8 canDiv as canDivU8 ::.
+use std/math/u32: MAX as U32_MAX canAdd as canAddU32 canSub as canSubU32 canMul as canMulU32 canDiv as canDivU32 ::.
+use std/math/u64: MAX as U64_MAX canAdd as canAddU64 canSub as canSubU64 canMul as canMulU64 canDiv as canDivU64 ::.
+
+v/l/u8/rejoinNormalize l/u8/raw
+    test csvRoundtrip
+        in b"alpha,,beta,gamma"
+        out b"alpha|empty|beta|gamma".
+    test emptySepTraps
+        in b"TRAP"
+        out fault.
+    if eq l/u8/raw b"TRAP"
+        return implode b"|" explode b"" l/u8/raw
+        do ::.
+    let l/l/u8/pieces explode b"," l/u8/raw.
+    let buf/l/u8/mapped bufNew l/u8 len l/l/u8/pieces.
+    foreach l/u8/part l/l/u8/pieces do
+        if eq len l/u8/part u64:0
+            bufPush buf/l/u8/mapped b"empty"
+            bufPush buf/l/u8/mapped l/u8/part.
+    ::.
+    implode b"|" bufFreeze buf/l/u8/mapped.
+
+v/b/exerciseAllStdMath
+    test allChecksHold
+        in.
+        out true.
+    assert eq mod32 i32:-7 i32:3 i32:2.
+    assert eq dc/l8589978243 i32/I32_MIN i32:-1 i32:0.
+    assert eq dc/l8589978243 i32:-1 i32/I32_MIN i32/I32_MAX.
+    assert and not canAdd32 i32/I32_MAX i32:1 not canSub32 i32/I32_MIN i32:1.
+    assert and not canMul32 i32/I32_MIN i32:-1 not canDiv32 i32/I32_MIN i32:-1.
+    assert eq mod64 i64/I64_MIN i64:-1 i64:0.
+    assert eq mod64 i64:-1 i64/I64_MIN i64/I64_MAX.
+    assert and not canAdd64 i64/I64_MAX i64:1 not canSub64 i64/I64_MIN i64:1.
+    assert and not canMul64 i64/I64_MIN i64:-1 not canDiv64 i64/I64_MIN i64:-1.
+    assert and not canAddU8 u8/U8_MAX u8:1 and not canSubU8 u8:0 u8:1 and not canMulU8 u8:16 u8:16 not canDivU8 u8:1 u8:0.
+    assert and not canAddU32 u32/U32_MAX u32:1 and not canSubU32 u32:0 u32:1 and not canMulU32 u32:65536 u32:65536 not canDivU32 u32:1 u32:0.
+    assert and not canAddU64 u64/U64_MAX u64:1 and not canSubU64 u64:0 u64:1 and not canMulU64 u64:4294967296 u64:4294967296 not canDivU64 u64:1 u64:0.
+    true.
+"#;
+        let shared_idx = SeedGraphIndex::shared()?;
+        let eval_client =
+            crate::stagel3::seed_linker::eval_sl3_inline_tests_with_seed_graph(
+                client_src,
+                shared_idx,
+            )?;
+        ensure!(eval_client.ensure_all_passed()? == 3, "Expected 3 client tests");
+        let wasm_client =
+            run_sl3_inline_tests_wasm(client_src, WasmTestConfig::default())?;
+        ensure!(wasm_client.ensure_all_passed()? == 3, "Expected 3 WASM client tests");
+
+        let client_tokens =
+            crate::stagel3::seed_linker::sl3_to_dc_tokens_with_seed_graph(
+                client_src,
+                shared_idx,
+            )?;
+        let tok_client = run_dc_tokens_inline_tests_wasm(
+            &client_tokens,
+            WasmTestConfig::default(),
+        )?;
+        ensure!(
+            tok_client.ensure_all_passed()? == 3,
+            "Expected 3 Token-Dc WASM client tests"
+        );
+
+        // Pure converter `v/l/u8/step l/u8/input` linking `std/bytes` from `SeedGraphIndex::shared()`
+        let converter_src = r#"
+use std/bytes: explode implode ::.
+
+v/l/u8/step l/u8/input
+    implode b"::" explode b"//" l/u8/input.
+"#;
+        let converted = compile_and_run_pure_converter_sl3(
+            converter_src,
+            &ascii_dcmstring("a/b//c"),
+        )?;
+        ensure!(
+            converted == ascii_dcmstring("a::b::::c"),
+            "Pure converter with linked std/bytes produced unexpected output"
+        );
+
+        // 3. Historical asset-bundle pin prior to Stage 1 stdlib (`l8589978236`)
+        // must not see `std/bytes`, while future pins beyond `HEAD` fail cleanly.
+        let pre_std_idx =
+            SeedGraphIndex::load_at_most_recent_from_asset_bundle(8_589_978_236)?;
+        ensure!(
+            run_sl3_inline_tests_wasm_with_seed_graph(
+                client_src,
+                &pre_std_idx,
+                WasmTestConfig::default(),
+            )
+            .is_err(),
+            "Historical snapshot prior to Stage 1 stdlib must reject std/* imports"
+        );
+        let head_id = SeedGraphIndex::shared()?
+            .system_block_most_recent_node_id()
+            .context("Expected System block HEAD node ID")?;
+        ensure!(
+            SeedGraphIndex::load_at_most_recent_from_asset_bundle(
+                head_id.saturating_add(1)
+            )
+            .is_err(),
+            "Future Dc 641 pin beyond HEAD must fail"
+        );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_wasm_seed_graph_historical_snapshot_pin_supersession_and_retraction()
+    -> Result<()> {
+        use ctb_formats_dcdata::stagel_dc_alloc::{
+            DiscoveredStagelFile, reconcile_stagel_and_csv_in_memory,
+        };
+        use ctb_formats_dcdata::wat::ImplStage;
+        use std::collections::BTreeSet;
+        use std::path::PathBuf;
+
+        let scripts = BTreeSet::new();
+        let v1_lib_src = concat!(
+            "ns demo/ver.\n\n",
+            "v/u32/privScale u32/x :: mul u32/x u32:2.\n\n",
+            "pub v/u32/versioned u32/x :: add privScale u32/x u32:10.\n\n",
+            "pub v/u32/doomed u32/x :: add u32/x u32:7.\n",
+        );
+        let mut files = vec![DiscoveredStagelFile {
+            stage: ImplStage::Stage1,
+            disk_path: PathBuf::from("demo/ver.sl3"),
+            repo_rel_path: "src/formats/dcdata/data-src/stage_1_impls/demo/ver.sl3"
+                .to_owned(),
+            psr4_rel_path: "demo/ver.sl3".to_owned(),
+            raw_bytes: v1_lib_src.as_bytes().to_vec(),
+            source: v1_lib_src.to_owned(),
+        }];
+
+        let (nodes_v1, alloc1, _) = reconcile_stagel_and_csv_in_memory(
+            Vec::new(),
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        ensure!(alloc1.entities_allocated == 3, "Expected 3 allocated entities");
+        let idx_v1 = SeedGraphIndex::from_nodes(nodes_v1.clone());
+        let pin_v1 = idx_v1
+            .system_block_most_recent_node_id()
+            .context("Expected pin_v1")?;
+
+        // Supersede `versioned` (`+ 10` -> `+ 90`) via `Dc 591` and remove `doomed`
+        // (`Dc 592` retraction), keeping `: @dc l<id>` anchors intact!
+        let mut kept_lines = Vec::new();
+        let lines: Vec<&str> = files[0].source.lines().collect();
+        let mut idx = 0usize;
+        while idx < lines.len() {
+            if idx + 1 < lines.len()
+                && lines[idx].starts_with(": @dc ")
+                && lines[idx + 1].contains("v/u32/doomed")
+            {
+                idx += 2;
+                continue;
+            }
+            kept_lines.push(lines[idx]);
+            idx += 1;
+        }
+        let v2_lib_src = kept_lines
+            .join("\n")
+            .replace("u32:10.", "u32:90.");
+        files[0].source = format!("{v2_lib_src}\n");
+        files[0].raw_bytes = files[0].source.as_bytes().to_vec();
+
+        let (nodes_head, alloc2, stats2) = reconcile_stagel_and_csv_in_memory(
+            nodes_v1,
+            &mut files,
+            &[],
+            &[],
+            &scripts,
+            None,
+        )?;
+        ensure!(alloc2.entities_allocated == 0, "Expected 0 new allocations on edit");
+        ensure!(stats2.nodes_superseded >= 1, "Expected Dc 591 supersession");
+        ensure!(stats2.nodes_retracted >= 1, "Expected Dc 592 retraction");
+
+        let idx_pinned_at_v1 =
+            SeedGraphIndex::from_nodes_at_most_recent(nodes_head.clone(), pin_v1);
+        let idx_head = SeedGraphIndex::from_nodes(nodes_head);
+
+        let caller_v1_expect = r#"
+use demo/ver: versioned doomed ::.
+
+v/u32/checkV1 u32/x
+    test v1Behavior
+        in u32:5
+        out u32:32.
+    add versioned u32/x doomed u32/x.
+"#;
+        let rep_pinned = run_sl3_inline_tests_wasm_with_seed_graph(
+            caller_v1_expect,
+            &idx_pinned_at_v1,
+            WasmTestConfig::default(),
+        )?;
+        ensure!(rep_pinned.ensure_all_passed()? == 1, "Pinned v1 WASM test failed");
+
+        let caller_v1_tokens =
+            crate::stagel3::seed_linker::sl3_to_dc_tokens_with_seed_graph(
+                caller_v1_expect,
+                &idx_pinned_at_v1,
+            )?;
+        let tok_pinned = run_dc_tokens_inline_tests_wasm_with_seed_graph(
+            &caller_v1_tokens,
+            &idx_pinned_at_v1,
+            WasmTestConfig::default(),
+        )?;
+        ensure!(
+            tok_pinned.ensure_all_passed()? == 1,
+            "Pinned v1 Token-Dc WASM test failed"
+        );
+
+        // At HEAD, `doomed` was retracted (`Dc 592`), so importing/calling it must fail!
+        ensure!(
+            run_sl3_inline_tests_wasm_with_seed_graph(
+                caller_v1_expect,
+                &idx_head,
+                WasmTestConfig::default(),
+            )
+            .is_err(),
+            "Retracted export 'doomed' must fail to link against HEAD"
+        );
+
+        // And at HEAD, `versioned` executes the superseded v2 body (`5 * 2 + 90 == 100`)!
+        let caller_v2_expect = r#"
+use demo/ver: versioned ::.
+
+v/u32/checkV2 u32/x
+    test v2Behavior
+        in u32:5
+        out u32:100.
+    versioned u32/x.
+"#;
+        let rep_head = run_sl3_inline_tests_wasm_with_seed_graph(
+            caller_v2_expect,
+            &idx_head,
+            WasmTestConfig::default(),
+        )?;
+        ensure!(rep_head.ensure_all_passed()? == 1, "HEAD v2 WASM test failed");
+        Ok(())
+    }
 }

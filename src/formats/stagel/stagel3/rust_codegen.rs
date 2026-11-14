@@ -1116,9 +1116,10 @@ impl<'a> ModuleEmitter<'a> {
         let rname = format!("sl_c_{}", sanitize_ident(&v.name));
         let rty = rust_type(&v.ty);
         let (init_code, _init_ty) = self.emit_expr(&v.value, 2)?;
+        let init_clean = strip_matched_outer_parens(&init_code);
         writeln!(
             out,
-            "    {vis}static {rname}: std::sync::LazyLock<{rty}> = std::sync::LazyLock::new(|| {init_code});"
+            "    {vis}static {rname}: std::sync::LazyLock<{rty}> = std::sync::LazyLock::new(|| {init_clean});"
         )?;
         Ok(())
     }
@@ -1329,14 +1330,15 @@ impl<'a> ModuleEmitter<'a> {
                         writeln!(out, "{body_pad}{body_code}")?;
                     } else {
                         let (body_code, body_ty) = self.emit_expr(body_expr, body_ind)?;
+                        let body_clean = strip_matched_outer_parens(&body_code);
                         let body_pad = "    ".repeat(body_ind);
                         if is_void
                             && body_ty != StageLType::Never
                             && !stmt_ends_without_semi(body_expr)
                         {
-                            writeln!(out, "{body_pad}{body_code};")?;
+                            writeln!(out, "{body_pad}{body_clean};")?;
                         } else {
-                            writeln!(out, "{body_pad}{body_code}")?;
+                            writeln!(out, "{body_pad}{body_clean}")?;
                         }
                     }
                 }
@@ -1381,7 +1383,7 @@ impl<'a> ModuleEmitter<'a> {
                 let mut arg_codes = Vec::with_capacity(tc.inputs.len());
                 for inp in &tc.inputs {
                     let (code, _) = self.emit_expr(inp, 2)?;
-                    arg_codes.push(code);
+                    arg_codes.push(strip_matched_outer_parens(&code).to_owned());
                 }
                 let call_expr = format!("{fn_target}({})", arg_codes.join(", "));
                 let desc = format!(
@@ -1391,8 +1393,9 @@ impl<'a> ModuleEmitter<'a> {
                 match &tc.expected {
                     TestExpected::Expr(exp) => {
                         let (exp_code, _) = self.emit_expr(exp, 2)?;
+                        let exp_clean = strip_matched_outer_parens(&exp_code);
                         writeln!(out, "        let __actual = {call_expr};")?;
-                        writeln!(out, "        let __expected = {exp_code};")?;
+                        writeln!(out, "        let __expected = {exp_clean};")?;
                         writeln!(
                             out,
                             "        assert_eq!(__actual, __expected, \"StageL test failed: {desc}\");"
@@ -1656,7 +1659,7 @@ impl<'a> ModuleEmitter<'a> {
             if aty == StageLType::Never {
                 return Ok(OperandEval::Diverged(prefix_prior_exprs(&rendered, &ac)));
             }
-            rendered.push(ac);
+            rendered.push(strip_matched_outer_parens(&ac).to_owned());
         }
         for cap in captures {
             let cur_vs = self
@@ -1815,22 +1818,23 @@ impl<'a> ModuleEmitter<'a> {
             }
             other => {
                 let (code, ty) = self.emit_expr(other, indent_level)?;
+                let clean = strip_matched_outer_parens(&code);
                 match ty {
-                    StageLType::Never => Ok((code, StageLType::Never)),
+                    StageLType::Never => Ok((clean.to_owned(), StageLType::Never)),
                     StageLType::Void => {
                         if stmt_ends_without_semi(other) {
                             Ok((
-                                format!("{{ {code} sl3_rt::SlStep::Done(()) }}"),
+                                format!("{{ {clean} sl3_rt::SlStep::Done(()) }}"),
                                 StageLType::Void,
                             ))
                         } else {
                             Ok((
-                                format!("{{ {code}; sl3_rt::SlStep::Done(()) }}"),
+                                format!("{{ {clean}; sl3_rt::SlStep::Done(()) }}"),
                                 StageLType::Void,
                             ))
                         }
                     }
-                    _ => Ok((format!("sl3_rt::SlStep::Done({code})"), StageLType::Void)),
+                    _ => Ok((format!("sl3_rt::SlStep::Done({clean})"), StageLType::Void)),
                 }
             }
         }
@@ -1877,7 +1881,7 @@ impl<'a> ModuleEmitter<'a> {
                     if ety == StageLType::Never {
                         return Ok((prefix_prior_exprs(&codes, &c), StageLType::Never));
                     }
-                    codes.push(c);
+                    codes.push(strip_matched_outer_parens(&c).to_owned());
                 }
                 let r_elem = rust_type(elem_ty);
                 let code = if codes.is_empty() {
@@ -1892,9 +1896,10 @@ impl<'a> ModuleEmitter<'a> {
                 if cap_ty == StageLType::Never {
                     return Ok((cap_code, StageLType::Never));
                 }
+                let cap_clean = strip_matched_outer_parens(&cap_code);
                 let r_elem = rust_type(elem_ty);
                 Ok((
-                    format!("sl3_rt::SlBuf::<{r_elem}>::new_with_cap({cap_code})"),
+                    format!("sl3_rt::SlBuf::<{r_elem}>::new_with_cap({cap_clean})"),
                     StageLType::Buf(Box::new(elem_ty.clone())),
                 ))
             }
@@ -1911,12 +1916,13 @@ impl<'a> ModuleEmitter<'a> {
                 if val_ty == StageLType::Never {
                     return Ok((val_code, StageLType::Never));
                 }
+                let val_clean = strip_matched_outer_parens(&val_code);
                 let code = match target_var {
                     VarStorage::Direct { rust_name, .. } => {
-                        format!("{rust_name} = {val_code}")
+                        format!("{rust_name} = {val_clean}")
                     }
                     VarStorage::CapCell { rust_name, .. } => {
-                        format!("sl3_rt::cap_set(&{rust_name}, {val_code})")
+                        format!("sl3_rt::cap_set(&{rust_name}, {val_clean})")
                     }
                 };
                 Ok((code, StageLType::Void))
@@ -2033,8 +2039,9 @@ impl<'a> ModuleEmitter<'a> {
                     self.emit_braced_branch(body, true, false, indent_level)?;
                 let _ = self.scopes.pop();
 
+                let list_clean = strip_matched_outer_parens(&list_code);
                 let code =
-                    format!("for {r_elem} in ({list_code}).iter().cloned() {body_block}");
+                    format!("for {r_elem} in ({list_clean}).iter().cloned() {body_block}");
                 Ok((code, StageLType::Void))
             }
             Expr::Break { .. } => Ok((String::from("break"), StageLType::Never)),
@@ -2043,10 +2050,11 @@ impl<'a> ModuleEmitter<'a> {
                 ActiveRoutineMode::Direct => {
                     if let Some(v) = value {
                         let (vc, vty) = self.emit_expr(v, indent_level)?;
+                        let vc_clean = strip_matched_outer_parens(&vc);
                         if vty == StageLType::Never {
-                            Ok((vc, StageLType::Never))
+                            Ok((vc_clean.to_owned(), StageLType::Never))
                         } else {
-                            Ok((format!("return {vc}"), StageLType::Never))
+                            Ok((format!("return {vc_clean}"), StageLType::Never))
                         }
                     } else {
                         Ok((String::from("return"), StageLType::Never))
@@ -2137,13 +2145,14 @@ impl<'a> ModuleEmitter<'a> {
             expr
         };
         let (code, ty) = self.emit_expr(target_expr, body_ind)?;
+        let clean = strip_matched_outer_parens(&code);
         if (expect_void || ty == StageLType::Void)
             && ty != StageLType::Never
             && !stmt_ends_without_semi(target_expr)
         {
-            Ok((format!("{{\n{inner_ind}{code};\n{ind}}}"), ty))
+            Ok((format!("{{\n{inner_ind}{clean};\n{ind}}}"), ty))
         } else {
-            Ok((format!("{{\n{inner_ind}{code}\n{ind}}}"), ty))
+            Ok((format!("{{\n{inner_ind}{clean}\n{ind}}}"), ty))
         }
     }
 
@@ -2366,23 +2375,24 @@ impl<'a> ModuleEmitter<'a> {
                     };
                     if let Some(init_expr) = init {
                         let (init_code, init_ty) = self.emit_expr(init_expr, stmt_indent)?;
+                        let init_clean = strip_matched_outer_parens(&init_code);
                         if is_cap {
                             if init_ty == StageLType::Never {
-                                writeln!(block_buf, "{inner_ind}{init_code};")?;
+                                writeln!(block_buf, "{inner_ind}{init_clean};")?;
                                 terminated = true;
                             } else {
                                 writeln!(
                                     block_buf,
-                                    "{inner_ind}sl3_rt::cap_set(&{rname}, {init_code});"
+                                    "{inner_ind}sl3_rt::cap_set(&{rname}, {init_clean});"
                                 )?;
                             }
                         } else if init_ty == StageLType::Never {
-                            writeln!(block_buf, "{inner_ind}{init_code};")?;
+                            writeln!(block_buf, "{inner_ind}{init_clean};")?;
                             terminated = true;
                         } else {
                             writeln!(
                                 block_buf,
-                                "{inner_ind}let {mut_kw}{rname}: {rty} = {init_code};"
+                                "{inner_ind}let {mut_kw}{rname}: {rty} = {init_clean};"
                             )?;
                             if let Some(top) = self.scopes.last_mut() {
                                 top.vars.insert(
@@ -2422,21 +2432,22 @@ impl<'a> ModuleEmitter<'a> {
                     let rname = format!("sl_v_{}", sanitize_ident(name));
                     let rty = rust_type(ty);
                     let (val_code, val_ty) = self.emit_expr(value, stmt_indent)?;
+                    let val_clean = strip_matched_outer_parens(&val_code);
                     if is_cap {
                         if val_ty == StageLType::Never {
-                            writeln!(block_buf, "{inner_ind}{val_code};")?;
+                            writeln!(block_buf, "{inner_ind}{val_clean};")?;
                             terminated = true;
                         } else {
                             writeln!(
                                 block_buf,
-                                "{inner_ind}sl3_rt::cap_set(&{rname}, {val_code});"
+                                "{inner_ind}sl3_rt::cap_set(&{rname}, {val_clean});"
                             )?;
                         }
                     } else if val_ty == StageLType::Never {
-                        writeln!(block_buf, "{inner_ind}{val_code};")?;
+                        writeln!(block_buf, "{inner_ind}{val_clean};")?;
                         terminated = true;
                     } else {
-                        writeln!(block_buf, "{inner_ind}let {rname}: {rty} = {val_code};")?;
+                        writeln!(block_buf, "{inner_ind}let {rname}: {rty} = {val_clean};")?;
                         if let Some(top) = self.scopes.last_mut() {
                             top.vars.insert(
                                 name.clone(),
@@ -2500,31 +2511,33 @@ impl<'a> ModuleEmitter<'a> {
                                     };
                                     let (code, ty) =
                                         self.emit_expr(target_expr, stmt_indent)?;
+                                    let clean = strip_matched_outer_parens(&code);
                                     result_ty = ty.clone();
                                     if (expect_void || ty == StageLType::Void)
                                         && ty != StageLType::Never
                                         && !stmt_ends_without_semi(target_expr)
                                     {
-                                        writeln!(block_buf, "{inner_ind}{code};")?;
+                                        writeln!(block_buf, "{inner_ind}{clean};")?;
                                     } else {
-                                        writeln!(block_buf, "{inner_ind}{code}")?;
+                                        writeln!(block_buf, "{inner_ind}{clean}")?;
                                     }
                                 }
                             }
                         }
                     } else {
                         let (code, ty) = self.emit_expr(other, stmt_indent)?;
+                        let clean = strip_matched_outer_parens(&code);
                         if ty == StageLType::Never {
                             terminated = true;
                         }
                         if ty == StageLType::Void || ty == StageLType::Never {
                             if stmt_ends_without_semi(other) {
-                                writeln!(block_buf, "{inner_ind}{code}")?;
+                                writeln!(block_buf, "{inner_ind}{clean}")?;
                             } else {
-                                writeln!(block_buf, "{inner_ind}{code};")?;
+                                writeln!(block_buf, "{inner_ind}{clean};")?;
                             }
                         } else {
-                            writeln!(block_buf, "{inner_ind}let _ = {code};")?;
+                            writeln!(block_buf, "{inner_ind}let _ = {clean};")?;
                         }
                     }
                 }
@@ -2545,25 +2558,26 @@ impl<'a> ModuleEmitter<'a> {
         if op_ty == StageLType::Never {
             return Ok((op_code, StageLType::Never));
         }
+        let oc = strip_matched_outer_parens(&op_code);
         match op {
             CoreUnaryOp::Neg => {
                 let code = format!(
-                    "{{ let Some(__neg_v) = ({op_code}).checked_neg() else {{ panic!(\"checked neg overflow\"); }}; __neg_v }}"
+                    "{{ let Some(__neg_v) = ({oc}).checked_neg() else {{ panic!(\"checked neg overflow\"); }}; __neg_v }}"
                 );
                 Ok((code, op_ty))
             }
-            CoreUnaryOp::BitNot | CoreUnaryOp::Not => Ok((format!("!({op_code})"), op_ty)),
-            CoreUnaryOp::Clz => Ok((format!("({op_code}).leading_zeros()"), StageLType::U32)),
-            CoreUnaryOp::Ctz => Ok((format!("({op_code}).trailing_zeros()"), StageLType::U32)),
-            CoreUnaryOp::Popcnt => Ok((format!("({op_code}).count_ones()"), StageLType::U32)),
+            CoreUnaryOp::BitNot | CoreUnaryOp::Not => Ok((format!("!({oc})"), op_ty)),
+            CoreUnaryOp::Clz => Ok((format!("({oc}).leading_zeros()"), StageLType::U32)),
+            CoreUnaryOp::Ctz => Ok((format!("({oc}).trailing_zeros()"), StageLType::U32)),
+            CoreUnaryOp::Popcnt => Ok((format!("({oc}).count_ones()"), StageLType::U32)),
             CoreUnaryOp::Len => match &op_ty {
-                StageLType::List(_) => Ok((format!("sl3_rt::list_len(&({op_code}))"), StageLType::U64)),
-                StageLType::Buf(_) => Ok((format!("({op_code}).len()"), StageLType::U64)),
+                StageLType::List(_) => Ok((format!("sl3_rt::list_len(&({oc}))"), StageLType::U64)),
+                StageLType::Buf(_) => Ok((format!("({oc}).len()"), StageLType::U64)),
                 other => bail!("Invalid operand type '{other}' for 'len'"),
             },
             CoreUnaryOp::BufFreeze => match &op_ty {
                 StageLType::Buf(inner) => Ok((
-                    format!("({op_code}).freeze()"),
+                    format!("({oc}).freeze()"),
                     StageLType::List(inner.clone()),
                 )),
                 other => bail!("Invalid operand type '{other}' for 'bufFreeze'"),
@@ -2582,11 +2596,13 @@ impl<'a> ModuleEmitter<'a> {
         if l_ty == StageLType::Never {
             return Ok((l_code, StageLType::Never));
         }
+        let lc = strip_matched_outer_parens(&l_code);
 
         if matches!(op, CoreBinaryOp::And | CoreBinaryOp::Or) {
             let (r_code, _) = self.emit_expr(right, indent_level)?;
+            let rc = strip_matched_outer_parens(&r_code);
             let sym = if op == CoreBinaryOp::And { "&&" } else { "||" };
-            return Ok((format!("(({l_code}) {sym} ({r_code}))"), StageLType::B));
+            return Ok((format!("(({lc}) {sym} ({rc}))"), StageLType::B));
         }
 
         let (r_code, r_ty) = self.emit_expr(right, indent_level)?;
@@ -2596,6 +2612,7 @@ impl<'a> ModuleEmitter<'a> {
                 StageLType::Never,
             ));
         }
+        let rc = strip_matched_outer_parens(&r_code);
 
         match op {
             CoreBinaryOp::Add
@@ -2614,7 +2631,7 @@ impl<'a> ModuleEmitter<'a> {
                 let tmp = self.next_tmp("v");
                 let msg = format!("checked arithmetic fault in '{}'", op.keyword());
                 Ok((
-                    format!("{{ let Some({tmp}) = ({l_code}).{method}({r_code}) else {{ panic!({msg:?}); }}; {tmp} }}"),
+                    format!("{{ let Some({tmp}) = ({lc}).{method}({rc}) else {{ panic!({msg:?}); }}; {tmp} }}"),
                     l_ty,
                 ))
             }
@@ -2625,7 +2642,7 @@ impl<'a> ModuleEmitter<'a> {
                     CoreBinaryOp::WrapMul => "wrapping_mul",
                     _ => unreachable!("handled above"),
                 };
-                Ok((format!("({l_code}).{method}({r_code})"), l_ty))
+                Ok((format!("({lc}).{method}({rc})"), l_ty))
             }
             CoreBinaryOp::BitAnd | CoreBinaryOp::BitOr | CoreBinaryOp::BitXor => {
                 let sym = match op {
@@ -2634,7 +2651,7 @@ impl<'a> ModuleEmitter<'a> {
                     CoreBinaryOp::BitXor => "^",
                     _ => unreachable!("handled above"),
                 };
-                Ok((format!("(({l_code}) {sym} ({r_code}))"), l_ty))
+                Ok((format!("(({lc}) {sym} ({rc}))"), l_ty))
             }
             CoreBinaryOp::Shl | CoreBinaryOp::Shr => {
                 let method = if op == CoreBinaryOp::Shl {
@@ -2644,7 +2661,7 @@ impl<'a> ModuleEmitter<'a> {
                 };
                 let tmp = self.next_tmp("sh");
                 Ok((
-                    format!("{{ let Some({tmp}) = ({l_code}).{method}({r_code}) else {{ panic!(\"shift count out of range\"); }}; {tmp} }}"),
+                    format!("{{ let Some({tmp}) = ({lc}).{method}({rc}) else {{ panic!(\"shift count out of range\"); }}; {tmp} }}"),
                     l_ty,
                 ))
             }
@@ -2654,12 +2671,12 @@ impl<'a> ModuleEmitter<'a> {
                 } else {
                     "rotate_right"
                 };
-                Ok((format!("({l_code}).{method}({r_code})"), l_ty))
+                Ok((format!("({lc}).{method}({rc})"), l_ty))
             }
             CoreBinaryOp::And | CoreBinaryOp::Or => unreachable!("handled above"),
             CoreBinaryOp::Eq | CoreBinaryOp::Ne => {
                 let sym = if op == CoreBinaryOp::Eq { "==" } else { "!=" };
-                Ok((format!("(({l_code}) {sym} ({r_code}))"), StageLType::B))
+                Ok((format!("(({lc}) {sym} ({rc}))"), StageLType::B))
             }
             CoreBinaryOp::Lt | CoreBinaryOp::Le | CoreBinaryOp::Gt | CoreBinaryOp::Ge => {
                 let sym = match op {
@@ -2669,36 +2686,36 @@ impl<'a> ModuleEmitter<'a> {
                     CoreBinaryOp::Ge => ">=",
                     _ => unreachable!("handled above"),
                 };
-                Ok((format!("(({l_code}) {sym} ({r_code}))"), StageLType::B))
+                Ok((format!("(({lc}) {sym} ({rc}))"), StageLType::B))
             }
             CoreBinaryOp::Get => match &l_ty {
                 StageLType::List(inner) => Ok((
-                    format!("sl3_rt::list_get(&({l_code}), {r_code})"),
+                    format!("sl3_rt::list_get(&({lc}), {rc})"),
                     (**inner).clone(),
                 )),
                 StageLType::Buf(inner) => Ok((
-                    format!("({l_code}).get({r_code})"),
+                    format!("({lc}).get({rc})"),
                     (**inner).clone(),
                 )),
                 other => bail!("Invalid target '{other}' for 'get'"),
             },
             CoreBinaryOp::Concat => Ok((
-                format!("sl3_rt::list_concat(&({l_code}), &({r_code}))"),
+                format!("sl3_rt::list_concat(&({lc}), &({rc}))"),
                 l_ty,
             )),
             CoreBinaryOp::BufFill => {
                 let r_elem = rust_type(&l_ty);
                 Ok((
-                    format!("sl3_rt::SlBuf::<{r_elem}>::filled({l_code}, {r_code})"),
+                    format!("sl3_rt::SlBuf::<{r_elem}>::filled({lc}, {rc})"),
                     StageLType::Buf(Box::new(l_ty)),
                 ))
             }
             CoreBinaryOp::BufPush => Ok((
-                format!("({l_code}).push({r_code})"),
+                format!("({lc}).push({rc})"),
                 StageLType::Void,
             )),
             CoreBinaryOp::BufExtend => Ok((
-                format!("({l_code}).extend_list(&({r_code}))"),
+                format!("({lc}).extend_list(&({rc}))"),
                 StageLType::Void,
             )),
         }
@@ -2727,13 +2744,16 @@ impl<'a> ModuleEmitter<'a> {
         if t3 == StageLType::Never {
             return Ok((prefix_prior_exprs(&[c1, c2], &c3), StageLType::Never));
         }
+        let c1c = strip_matched_outer_parens(&c1);
+        let c2c = strip_matched_outer_parens(&c2);
+        let c3c = strip_matched_outer_parens(&c3);
         match op {
             CoreTernaryOp::Slice => Ok((
-                format!("sl3_rt::list_slice(&({c1}), {c2}, {c3})"),
+                format!("sl3_rt::list_slice(&({c1c}), {c2c}, {c3c})"),
                 t1,
             )),
             CoreTernaryOp::BufSet => Ok((
-                format!("({c1}).set({c2}, {c3})"),
+                format!("({c1c}).set({c2c}, {c3c})"),
                 StageLType::Void,
             )),
         }
@@ -2752,14 +2772,15 @@ impl<'a> ModuleEmitter<'a> {
         if &in_ty == target_ty {
             return Ok((in_code, target_ty.clone()));
         }
+        let ic = strip_matched_outer_parens(&in_code);
         let r_target = rust_type(target_ty);
         if is_lossless_widening(&in_ty, target_ty) {
-            Ok((format!("{r_target}::from({in_code})"), target_ty.clone()))
+            Ok((format!("{r_target}::from({ic})"), target_ty.clone()))
         } else {
             let tmp = self.next_tmp("cv");
             Ok((
                 format!(
-                    "{{ let Ok({tmp}) = {r_target}::try_from({in_code}) else {{ panic!(\"conv overflow\"); }}; {tmp} }}"
+                    "{{ let Ok({tmp}) = {r_target}::try_from({ic}) else {{ panic!(\"conv overflow\"); }}; {tmp} }}"
                 ),
                 target_ty.clone(),
             ))
@@ -2779,9 +2800,10 @@ impl<'a> ModuleEmitter<'a> {
         if &in_ty == target_ty {
             return Ok((in_code, target_ty.clone()));
         }
+        let ic = strip_matched_outer_parens(&in_code);
         let r_target = rust_type(target_ty);
         Ok((
-            format!("{r_target}::from_le_bytes(({in_code}).to_le_bytes())"),
+            format!("{r_target}::from_le_bytes(({ic}).to_le_bytes())"),
             target_ty.clone(),
         ))
     }
@@ -2914,11 +2936,26 @@ fn format_u8_slice_lit(bytes: &[u8]) -> String {
 
 fn strip_matched_outer_parens(expr: &str) -> &str {
     let mut cur = expr.trim();
-    while let Some(inner) = cur.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+    while cur != "()"
+        && let Some(inner) = cur.strip_prefix('(').and_then(|s| s.strip_suffix(')'))
+    {
         let mut depth = 0usize;
         let mut closes_early = false;
+        let mut in_string = false;
+        let mut escaped = false;
         for ch in inner.chars() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if ch == '\\' {
+                    escaped = true;
+                } else if ch == '"' {
+                    in_string = false;
+                }
+                continue;
+            }
             match ch {
+                '"' => in_string = true,
                 '(' => depth = depth.saturating_add(1),
                 ')' => {
                     if depth == 0 {
@@ -2930,10 +2967,10 @@ fn strip_matched_outer_parens(expr: &str) -> &str {
                 _ => {}
             }
         }
-        if closes_early || depth != 0 {
+        if in_string || closes_early || depth != 0 {
             break;
         }
-        cur = inner;
+        cur = inner.trim();
     }
     cur
 }
@@ -4385,5 +4422,70 @@ pub v/u32/guard_or_abort u32/val
         .expect("transpile strict lib");
         assert!(!strict_rust.contains("#![allow("));
         run_rustc_and_clippy_smoke(&strict_rust, false);
+    }
+
+    #[crate::ctb_test]
+    fn test_rust_codegen_stage1_stdlib_and_seed_graph_linking() {
+        use ctb_formats_dcdata::stagel_dc_alloc::discover_stagel_namespace_files;
+        use std::path::Path;
+
+        let data_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../dcdata/data-src");
+        let std_files =
+            discover_stagel_namespace_files(&data_dir).expect("discover stdlib");
+        let inputs: Vec<ModuleInput<'_>> = std_files
+            .iter()
+            .map(|f| ModuleInput {
+                source_path: Some(f.psr4_rel_path.as_str()),
+                source: f.source.as_str(),
+            })
+            .collect();
+        let std_ws =
+            parse_and_validate_workspace(&inputs).expect("validate stdlib ws");
+        let std_rust = transpile_workspace_to_rust(
+            &std_ws,
+            &RustTranspileOptions {
+                standalone_smoke_harness: true,
+                emit_test_runner: true,
+            },
+        )
+        .expect("transpile Stage 1 stdlib workspace to Rust");
+        run_rustc_and_clippy_smoke(&std_rust, true);
+
+        // Standalone `.sl3` linking `std/*` + direct `dc/l8589978237` from `SeedGraphIndex::shared()`
+        let linked_client_sl3 = r#"
+use std/bytes: explode implode ::.
+use std/math/i32: MIN as I32_MIN mod as mod32 canMul as canMul32 ::.
+use std/math/i64: MIN as I64_MIN mod as mod64 canMul as canMul64 ::.
+use std/math/u64: MAX as U64_MAX canAdd as canAddU64 ::.
+
+v/l/u8/roundtripJoin l/u8/s
+    test roundtrip
+        in b",a,,b,"
+        out b",a,,b,".
+    implode b"," explode b"," l/u8/s.
+
+v/b/checkLinkedMath
+    test edgeBounds
+        in.
+        out true.
+    dc/l8589978237 eq mod32 i32/I32_MIN i32:-1 i32:0.
+    dc/l8589978237 eq mod64 i64/I64_MIN i64:-1 i64:0.
+    dc/l8589978237 and not canMul32 i32/I32_MIN i32:-1 not canMul64 i64/I64_MIN i64:-1.
+    dc/l8589978237 not canAddU64 u64/U64_MAX u64:1.
+    true.
+"#;
+        let shared_idx =
+            SeedGraphIndex::shared().expect("load SeedGraphIndex::shared()");
+        let linked_rust = transpile_sl3_source_to_rust_with_seed_graph(
+            linked_client_sl3,
+            shared_idx,
+            &RustTranspileOptions {
+                standalone_smoke_harness: true,
+                emit_test_runner: true,
+            },
+        )
+        .expect("transpile client linked from SeedGraphIndex::shared()");
+        run_rustc_and_clippy_smoke(&linked_rust, true);
     }
 }

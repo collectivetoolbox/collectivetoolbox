@@ -44,7 +44,7 @@ use super::ast::{
 };
 use super::dc_tokens::{
     decode_module_from_dc_tokens, decode_top_decl_from_dc_tokens,
-    strip_comment_frames,
+    encode_module_to_dc_tokens, strip_comment_frames,
 };
 use super::eval::{
     TestSuiteReport, run_validated_workspace_inline_tests,
@@ -974,6 +974,63 @@ pub fn parse_and_validate_workspace_with_seed_graph(
     }
 
     link_parsed_modules_with_seed_graph(ordered_callers, seed_graph)
+}
+
+/// Parses a single `.sl3` source file using imported routine arities resolved
+/// from `seed_graph` (both `use` namespaces and direct `dc/<shorthand>` calls).
+pub fn parse_module_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Module> {
+    let (ns_opt, uses) = scan_module_header_paths(source)?;
+    let ns_key = ns_opt.as_ref().map(|segs| segs.join("/"));
+    // Reason for fallback: Anonymous caller modules format as '<anonymous>' in diagnostics.
+    let caller_label = ns_key.as_deref().unwrap_or("<anonymous>");
+    let mut pre_ns_exports: HashMap<String, NamespaceExports> = HashMap::new();
+    let mut dummy_owners: HashMap<DcChar, GraphDcOwner> = HashMap::new();
+    for u in &uses {
+        let target_key = u.join("/");
+        if pre_ns_exports.contains_key(&target_key) {
+            continue;
+        }
+        let (_, ext_exports) = reconstruct_external_namespace_module(
+            seed_graph,
+            u,
+            caller_label,
+            &mut dummy_owners,
+        )?;
+        pre_ns_exports.insert(target_key, ext_exports);
+    }
+    let mut arities =
+        collect_use_verb_arities_from_source(source, &pre_ns_exports)?;
+    for (dc_word, dc) in scan_direct_dc_words(source)? {
+        if arities.contains_key(&dc_word) {
+            continue;
+        }
+        let sh = DcShorthand::from_global_id(dc.to_u128());
+        if let Some((_, entry)) = decode_graph_stagel_entry(seed_graph, sh)? {
+            let decl_opt = match entry {
+                EitherDeclOrModule::Decl(d) => Some(d),
+                EitherDeclOrModule::Module(m) => {
+                    extract_decl_from_module(m, dc, None, sh).ok()
+                }
+            };
+            if let Some(TopDecl::Routine(r)) = decl_opt {
+                arities.insert(dc_word, r.params.len());
+            }
+        }
+    }
+    parse_module_with_imports(source, &arities)
+}
+
+/// Converts StageL 3 `.sl3` source (resolving external `use` and `dc/<shorthand>`
+/// routine arities against `seed_graph`) into canonical StageL Token Dcs.
+pub fn sl3_to_dc_tokens_with_seed_graph(
+    source: &str,
+    seed_graph: &SeedGraphIndex,
+) -> Result<Vec<DcChar>> {
+    let module = parse_module_with_seed_graph(source, seed_graph)?;
+    encode_module_to_dc_tokens(&module)
 }
 
 /// Parses and validates a single `.sl3` source file against `seed_graph`.

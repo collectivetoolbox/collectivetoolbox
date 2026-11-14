@@ -1,8 +1,8 @@
 # StageL 3 Specification (`f656` `.sl3` / `f659` `.sli3`)
 
 **Implementation Status**: `Partially Implemented`
-- **Implemented**: Format registrations (`FormatId::StageL3` `f656` `.sl3`, `FormatId::StageL3Intermediate` `f659` `.sli3`, `FormatId::Boolean` `f1424`, `FormatId::Void` `f1425`, and `FormatId::Never` `f1426`), shared `.EL` and `.EL StageL` base Token Dc repertoire (`Dc 2192 "Begin module"`..`Dc 2214 "End code block"`, `Dc 2448 "If conditional"`..`Dc 2454 "Fault trap"`, `Dc 2512 "Add operation"`..`Dc 2546 "Concatenate sequences operation"`, and `Dc 2576 "StageL list type"`..`Dc 2585 "StageL buffer freeze"`), literal-aware 32-character normalizer (`src/formats/stagel/stagel3.rs`), normalized fixture (`src/formats/stagel/fixtures/sl3/`), staged bootstrap loader support (`src/formats/dcdata/support/wat.rs`), and `tinywasm` constant-stack tail-call execution (`return_call` / `return_call_indirect`).
-- **Pending Work**: Bidirectional `.sl3 <-> StageL Token Dcs` tokenizer/decompiler & `: @dc` auto-allocator, static type & definite-assignment validator, inline `test` runner, StageL built-in `.WASM` definitions, StageL standard library modules (`mod`, `can*`, `explode`, `implode`, `assert` in `stage_1_impls/std/`), and the Stage 0 StageL-Dc-to-WASM transpiler (`src/formats/dcdata/data-src/stage_0_impls/f656_*.wat`).
+- **Implemented**: Format registrations (`FormatId::StageL3` `f656` `.sl3`, `FormatId::StageL3Intermediate` `f659` `.sli3`, `FormatId::Boolean` `f1424`, `FormatId::Void` `f1425`, and `FormatId::Never` `f1426`), shared `.EL` and `.EL StageL` base Token Dc repertoire (`Dc 2192 "Begin module"`..`Dc 2214 "End code block"`, `Dc 2448 "If conditional"`..`Dc 2454 "Fault trap"`, `Dc 2512 "Add operation"`..`Dc 2546 "Concatenate sequences operation"`, and `Dc 2576 "StageL list type"`..`Dc 2585 "StageL buffer freeze"`), literal-aware 32-character normalizer (`src/formats/stagel/stagel3.rs`), normalized fixture (`src/formats/stagel/fixtures/sl3/`), lossless `.sl3 <-> StageL Token Dcs` tokenizer/decompiler (`src/formats/dcdata/stagel3/dc_tokens.rs`), `: @dc l<id>` ledger auto-allocator & PSR-4 System-graph Token-Dc emitter (`src/formats/dcdata/support/stagel_dc_alloc.rs`), static type & definite-assignment validator (`src/formats/dcdata/stagel3/validator.rs`), `SeedGraphIndex` snapshot Token-Dc linker (`src/formats/dcdata/stagel3/seed_linker.rs`), reference evaluator (`src/formats/dcdata/stagel3/eval.rs`), Rust transpiler (`src/formats/stagel/stagel3/rust_codegen.rs`), host Dc-WASM compiler & inline `test` runner (`src/formats/stagel/stagel3/wasm_codegen.rs`), all 39 Stage 0 `.wat` built-in `.WASM` primitives (`src/formats/dcdata/data-src/stage_0_impls/`), Stage 1 standard library modules (`src/formats/dcdata/data-src/stage_1_impls/std/{assert,bytes,math/{i32,i64,u8,u32,u64}}.sl3`), staged bootstrap loader support (`src/formats/dcdata/support/wat.rs`), and `tinywasm` constant-stack tail-call execution (`return_call` / `return_call_indirect`).
+- **Pending Work**: Self-hosted Stage 0 `.wat` StageL-Dc-to-WASM transpiler (`src/formats/dcdata/data-src/stage_0_impls/f656_*.wat`).
 
 ---
 
@@ -112,8 +112,8 @@ At file top level, all declarations are immutable (`let` and `set` are local-blo
 | Declaration Scope & Form | Visibility | Graph Node Allocation |
 | :--- | :--- | :--- |
 | **Nested `const v/RET/name ...`** (inside a verb or `do ... ::` block) | Enclosing block | **No separate Dc** (compiled inside enclosing verb's Dc; shares lexical frame) |
-| **Top-level `v/...` or `const TYPE/name ...`** | File-private | **Dedicated System-region Dc (`l<id>`)** |
-| **Top-level `pub v/...` or `pub TYPE/name ...`** | Exported from `ns` | **Dedicated System-region Dc (`l<id>`)** + `Dc 646 "In context of"` namespace & `Dc 574 "Programmatic identifier"` |
+| **Top-level `v/...` or `const TYPE/name ...`** | File-private | **Dedicated System-region Dc (`l<id>`)** (`Dc 586 "Is an instance of"` `Dc 615 "Enclosing document"` `<type>` + `Dc 611 "Canonical decomposition"`) |
+| **Top-level `pub v/...` or `pub TYPE/name ...`** | Exported from `ns` | **Dedicated System-region Dc (`l<id>`)** + `Dc 584 "Has a"` `Dc 574 "Programmatic identifier"` qualified by `Dc 646 "In context of"` namespace filepath |
 | **Top-level `pub dc/<id> ...`** (or `<id>_*.sl3` root file) | Exported / Global Dc | **Attaches `Dc 611 "Canonical decomposition"` to pre-assigned Short/Format Dc `<id>`** |
 
 #### Auto-Assigned `: @dc <shorthand>` Directive Comments
@@ -190,8 +190,8 @@ Invalid checked arithmetic (overflow, division/remainder by zero, or signed `MIN
 - `neg X` (`Dc 2517 "Negate operation"`) -> `T -> T` (signed `i32`, `i64` only; faults on `i32::MIN` / `i64::MIN`).
 - Explicit modular two's-complement wrapping arithmetic (`2^width`, never faulting; needed for hashing, PRNGs, and multi-limb StageR `i128`/`u128`/`int` lowering):
   - `wrapAdd X Y` (`Dc 2518 "Wrapping add operation"`), `wrapSub X Y` (`Dc 2519 "Wrapping subtract operation"`), `wrapMul X Y` (`Dc 2520 "Wrapping multiply operation"`) -> `(T, T) -> T`.
-- **Standard library arithmetic (`stage_1_impls/std/math.sl3`, not core Token Dcs)**:
-  - Signed Euclidean modulus (`mod`, yielding `0 <= (a mod b) < |b|` for `b != 0` and `MIN mod -1 == 0`) and non-faulting pre-check predicates (`canAdd`, `canSub`, `canMul`, `canDiv`) are pure library verbs implemented in terms of `rem`, `div`, and comparisons.
+- **Standard library arithmetic (`stage_1_impls/std/math/{i32,i64,u8,u32,u64}.sl3`, not core Token Dcs)**:
+  - Signed Euclidean modulus (`mod` in `std/math/{i32,i64}.sl3`, yielding `0 <= (mod lhs rhs) < |rhs|` for `rhs != 0`, `mod MIN -1 == 0`, and `mod -1 MIN == MAX`), bounds constants (`MIN`, `MAX`), and non-faulting pre-check predicates (`canAdd`, `canSub`, `canMul`, `canDiv`) are pure StageL 3 library items implemented over `rem`, `div`, wrapping operations, and comparisons.
 
 ### 6.2 Bitwise, Shift, Rotate, and Bit-Count Operations (`u8`, `i32`, `u32`, `i64`, `u64`)
 - `bitAnd X Y` (`Dc 2521 "Bitwise AND operation"`), `bitOr X Y` (`Dc 2522 "Bitwise OR operation"`), `bitXor X Y` (`Dc 2523 "Bitwise XOR operation"`) -> `(T, T) -> T`
@@ -226,8 +226,8 @@ All 20 numeric widening/narrowing conversions and 4 same-width bit reinterpretat
   - `bufExtend BUF LIST` (`Dc 2583 "StageL buffer extend"`) -> `void` (bulk `memcpy` append of `l/T`; faults if `BUF` is frozen)
   - `bufSet BUF IDX VAL` (`Dc 2584 "StageL buffer set"`) -> `void` (`O(1)` in-place element write at `IDX < len BUF`; faults if out of bounds or frozen)
   - `bufFreeze BUF` (`Dc 2585 "StageL buffer freeze"`) -> `l/T` (`O(1)` zero-copy conversion to immutable `l/T`, marking `BUF` frozen so later mutations fault)
-- **Standard library sequence & assertion helpers (`stage_1_impls/std/`, not core Token Dcs)**:
-  - `explode` and `implode` (linear-time byte/sequence splitting and joining built over `slice`, `bufNew`, `bufExtend`, and `bufFreeze` with non-empty separator validation and empty-piece retention so `implode sep (explode sep x) == x`) and `assert COND` (`if COND do :: fault`) live in `stage_1_impls/std/`.
+- **Standard library sequence & assertion helpers (`stage_1_impls/std/{bytes,assert}.sl3`, not core Token Dcs)**:
+  - `explode` and `implode` in `stage_1_impls/std/bytes.sl3` (linear-time byte-slice splitting and joining built over `slice`, `bufNew`, `bufPush`, `bufExtend`, and `bufFreeze` with non-empty separator validation and empty-piece retention so `implode sep (explode sep x) == x`) and `assert` in `stage_1_impls/std/assert.sl3` (`if b/cond do :: fault`) are emitted into the System graph as StageL Token Dcs.
 
 ---
 
@@ -257,4 +257,4 @@ Every compiled StageL 3 `.WASM` program executes inside `DcWasmSession` (`src/fo
 
 ### Entry Convention & Stage 0 Built-in Linking
 - A StageL 3 program used as a staged Dc/format implementation defines `v/l/u8/step l/u8/input` or `v/l/u8/main l/u8/input` (operating on raw DcTF/byte payload slices) or exports `_start` / `step` / `main () -> i32` returning Dc-WASM `StatusCode` (`0 = Complete`, `1 = YieldFrame`, `2 = RequestCapability`), writing the result slice descriptor to `MB_OUT_PTR` (`8..12`) and `MB_OUT_LEN` (`12..16`).
-- All 39 non-short-circuiting StageL 3 built-in operators and `buf/T` primitives (`Dc 2512 "Add operation"`..`Dc 2532 "Logical NOT operation"`, `Dc 2535 "Equal comparison"`..`Dc 2546 "Concatenate sequences operation"`, and `Dc 2580 "StageL buffer new"`..`Dc 2585 "StageL buffer freeze"`) have readable Stage 0 `.wat` implementations in `src/formats/dcdata/data-src/stage_0_impls/`, emitted into the System graph as `Dc 646 "In context of"` `.WASM` definitions and linked by `src/formats/stagel/stagel3/wasm_codegen.rs`. The self-hosted Stage 0 `.wat` StageL-Dc-to-WASM transpiler (`stage_0_impls/f656_*.wat`) and Stage 1 `stage_1_impls/std/` library modules remain pending.
+- All 39 non-short-circuiting StageL 3 built-in operators and `buf/T` primitives (`Dc 2512 "Add operation"`..`Dc 2532 "Logical NOT operation"`, `Dc 2535 "Equal comparison"`..`Dc 2546 "Concatenate sequences operation"`, and `Dc 2580 "StageL buffer new"`..`Dc 2585 "StageL buffer freeze"`) have readable Stage 0 `.wat` implementations in `src/formats/dcdata/data-src/stage_0_impls/`, emitted into the System graph as `Dc 646 "In context of"` `.WASM` definitions, and Stage 1 standard library namespaces (`src/formats/dcdata/data-src/stage_1_impls/std/`) are emitted as lossless StageL Token Dcs and linked directly from `SeedGraphIndex` snapshots by `src/formats/dcdata/stagel3/seed_linker.rs` across the evaluator, Rust transpiler, and `src/formats/stagel/stagel3/wasm_codegen.rs`. The self-hosted Stage 0 `.wat` StageL-Dc-to-WASM transpiler (`stage_0_impls/f656_*.wat`) remains pending.

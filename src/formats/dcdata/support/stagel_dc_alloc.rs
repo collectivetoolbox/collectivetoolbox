@@ -1576,8 +1576,8 @@ mod tests {
             "base".to_owned(),
         ])?;
         assert_eq!(base_exports.len(), 2);
-        let compute_sh = *base_exports.get("compute").unwrap();
-        let offset_sh = *base_exports.get("OFFSET").unwrap();
+        let compute_sh = *base_exports.get("compute").context("missing compute")?;
+        let offset_sh = *base_exports.get("OFFSET").context("missing OFFSET")?;
         let (_, compute_tokens) = idx1
             .resolve_stagel_decomposition_tokens(compute_sh)?
             .unwrap();
@@ -1642,7 +1642,7 @@ mod tests {
             "caller".to_owned(),
         ])?;
         assert!(!caller_exports.contains_key("run"));
-        let execute_sh = *caller_exports.get("execute").unwrap();
+        let execute_sh = *caller_exports.get("execute").context("missing execute")?;
 
         // 5. Delete `caller.sl3` completely -> retracts `execute_sh` via `Dc 592`!
         files.pop();
