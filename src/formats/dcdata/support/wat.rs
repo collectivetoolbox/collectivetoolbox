@@ -3118,7 +3118,7 @@ mod tests {
               (const $MB_IN_PTR 0)
               (const $MB_OUT_PTR 8)
               (const $CFG_BASE 64)
-              (const $CFG_FUEL 68)
+              (const $CFG_COMPUTE_QUOTA 68)
               (func (export "_start") (result i32)
                 (local $ptr i32)
                 (local $val i32)
@@ -3126,7 +3126,7 @@ mod tests {
                 (when (i32.ge_u $ptr $CFG_BASE) (unreachable))
                 (set $val (i32.load8_u offset=$CFG_BASE $ptr))
                 (i32.store $MB_OUT_PTR (i32.add $val 1))
-                (i64.store align=1 $CFG_FUEL 1000000)
+                (i64.store align=1 $CFG_COMPUTE_QUOTA 1000000)
                 (i32.const 0)))
         "#;
         assert_eq!(

@@ -20,7 +20,7 @@
 ;;
 ;; Reads an optional 76-byte execution configuration record from the linear-memory
 ;; mailbox (or synthesizes the canonical default configuration when the input slice
-;; is empty), validates the header version and nonzero fuel/call-depth budgets, and
+;; is empty), validates the header version and nonzero compute_quota/call-depth budgets, and
 ;; writes the validated 76-byte configuration record to the output mailbox.
 (module
   (memory (export "memory") 1)
@@ -35,7 +35,7 @@
   (const $CFG_BASE            64)
   (const $CFG_LEN             76)
   (const $CFG_VERSION         64)
-  (const $CFG_FUEL_BUDGET     68)
+  (const $CFG_COMPUTE_QUOTA_BUDGET     68)
   (const $CFG_CALL_DEPTH      76)
   (const $CFG_MAX_NODES       84)
   (const $CFG_MEMORY_PAGES    92)
@@ -64,7 +64,7 @@
       (then
         ;; Empty input: populate default 76-byte kernel configuration record.
         (i32.store $CFG_VERSION 1)
-        (i64.store align=1 $CFG_FUEL_BUDGET     1000000)
+        (i64.store align=1 $CFG_COMPUTE_QUOTA_BUDGET     1000000)
         (i64.store align=1 $CFG_CALL_DEPTH      256)
         (i64.store align=1 $CFG_MAX_NODES       -1)
         (i64.store align=1 $CFG_MEMORY_PAGES    65536)
@@ -96,9 +96,9 @@
             (br $decode_loop)))
         (when (i32.ne $idx $CFG_LEN) (unreachable))))
 
-    ;; Validate configuration invariants (version == 1, fuel > 0, call_depth > 0).
+    ;; Validate configuration invariants (version == 1, compute_quota > 0, call_depth > 0).
     (when (i32.ne (i32.load $CFG_VERSION) 1) (unreachable))
-    (when (i64.eqz (i64.load align=1 $CFG_FUEL_BUDGET)) (unreachable))
+    (when (i64.eqz (i64.load align=1 $CFG_COMPUTE_QUOTA_BUDGET)) (unreachable))
     (when (i64.eqz (i64.load align=1 $CFG_CALL_DEPTH)) (unreachable))
 
     ;; Encode validated 76-byte configuration record to the output slice at $out_ptr.
