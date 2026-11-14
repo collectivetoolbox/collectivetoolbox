@@ -68,6 +68,10 @@ pub enum StageLType {
     List(Box<StageLType>),
     /// Mutable lexical builder buffer (`buf/T`, `Dc 2577`).
     Buf(Box<StageLType>),
+    /// Anonymous fixed-slot `n`-ary tuple (`tup: T1 T2 ... ::`, `Dc 2672`).
+    Tuple(Vec<StageLType>),
+    /// Declared positional `struct` type (`name` or `dc/<shorthand>`, `Dc 2673`).
+    Struct(SymbolTarget),
 }
 
 impl StageLType {
@@ -85,6 +89,19 @@ impl StageLType {
             Self::Never => String::from("never"),
             Self::List(inner) => format!("l/{}", inner.display_name()),
             Self::Buf(inner) => format!("buf/{}", inner.display_name()),
+            Self::Tuple(elems) => {
+                if elems.is_empty() {
+                    String::from("tup: ::")
+                } else {
+                    let inner: Vec<String> =
+                        elems.iter().map(Self::display_name).collect();
+                    format!("tup: {} ::", inner.join(" "))
+                }
+            }
+            Self::Struct(SymbolTarget::Ident(name)) => name.clone(),
+            Self::Struct(SymbolTarget::Dc(dc)) => {
+                format!("dc/{}", format_dc_shorthand(*dc))
+            }
         }
     }
 
@@ -128,23 +145,29 @@ impl StageLType {
         match self {
             Self::Void | Self::Never | Self::Buf(_) => false,
             Self::List(inner) => inner.can_be_element(),
-            Self::B | Self::U8 | Self::I32 | Self::U32 | Self::I64 | Self::U64 => {
-                true
-            }
+            Self::Tuple(elems) => elems.iter().all(Self::can_be_element),
+            Self::B
+            | Self::U8
+            | Self::I32
+            | Self::U32
+            | Self::I64
+            | Self::U64
+            | Self::Struct(_) => true,
         }
     }
 
-    /// Returns `true` if `self` is a `buf/T` type or contains one.
+    /// Returns `true` if `self` is a `buf/T` type or syntactically contains one.
     #[must_use]
     pub fn is_or_contains_buf(&self) -> bool {
         match self {
             Self::Buf(_) => true,
             Self::List(inner) => inner.is_or_contains_buf(),
+            Self::Tuple(elems) => elems.iter().any(Self::is_or_contains_buf),
             _ => false,
         }
     }
 
-    /// Returns `true` if `eq` / `ne` are defined for values of this type.
+    /// Returns `true` if `eq` / `ne` are syntactically defined for values of this type.
     #[must_use]
     pub fn supports_eq(&self) -> bool {
         match self {
@@ -153,8 +176,10 @@ impl StageLType {
             | Self::I32
             | Self::U32
             | Self::I64
-            | Self::U64 => true,
+            | Self::U64
+            | Self::Struct(_) => true,
             Self::List(inner) => inner.supports_eq(),
+            Self::Tuple(elems) => elems.iter().all(Self::supports_eq),
             Self::Void | Self::Never | Self::Buf(_) => false,
         }
     }
@@ -253,9 +278,33 @@ pub struct TopValueDecl {
     pub span: Span,
 }
 
+/// Module-level immutable positional `struct` declaration
+/// (`[pub [dc/<shorthand>]] struct name :: T1 T2 ... .`, `Dc 2217..2218`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PositionalStructDecl {
+    /// `true` for `pub struct`, `false` for module-private `struct`.
+    pub is_pub: bool,
+    /// `true` when written using inline `pub dc/<shorthand> struct ...`.
+    pub pub_dc_syntax: bool,
+    /// Assigned graph identity (from `pub dc/<sh>` or `: @dc <sh>`).
+    pub dc_id: Option<DcChar>,
+    /// Positional struct identifier.
+    pub name: String,
+    /// Ordered positional slot types (`fields.len() >= 1`).
+    pub fields: Vec<StageLType>,
+    /// `true` if written in inline `:: T1 T2 ... .` header syntax.
+    pub inline_body: bool,
+    /// Comments preceding this declaration.
+    pub comments_before: Vec<Comment>,
+    /// Source location.
+    pub span: Span,
+}
+
 /// Module-level item.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TopDecl {
+    /// Top-level `struct` or `pub struct` positional struct declaration.
+    Struct(PositionalStructDecl),
     /// Top-level `const` or `pub` immutable value.
     Value(TopValueDecl),
     /// Top-level `v/...` or `pub v/...` routine.
@@ -583,6 +632,42 @@ pub enum Expr {
         /// Source location.
         span: Span,
     },
+    /// Anonymous fixed-slot `n`-ary tuple constructor (`tupNew: e1 e2 ::`, `Dc 2215..2216`).
+    TupleNew {
+        /// Ordered slot expressions.
+        elements: Vec<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// Positional `struct` constructor (`structNew name: e1 e2 ::`, `Dc 2219..2220`).
+    StructNew {
+        /// Referenced positional `struct` identifier or Dc anchor.
+        target: SymbolTarget,
+        /// Ordered positional slot expressions (`fields.len() >= 1`).
+        fields: Vec<Expr>,
+        /// Source location.
+        span: Span,
+    },
+    /// Positional zero-based slot projection (`field EXPR u32:IDX`, `Dc 2547`).
+    Field {
+        /// Tuple or positional `struct` expression.
+        base: Box<Expr>,
+        /// Zero-based compile-time slot index.
+        index: u32,
+        /// Source location.
+        span: Span,
+    },
+    /// Functional positional slot update (`with EXPR u32:IDX NEW_EXPR`, `Dc 2548`).
+    With {
+        /// Base tuple or positional `struct` expression.
+        base: Box<Expr>,
+        /// Zero-based compile-time slot index.
+        index: u32,
+        /// Replacement slot expression.
+        value: Box<Expr>,
+        /// Source location.
+        span: Span,
+    },
     /// Mutable empty buffer constructor (`bufNew T cap`, `Dc 2580`).
     BufNew {
         /// Buffer element type `T`.
@@ -776,6 +861,10 @@ impl Expr {
             | Self::Int { span, .. }
             | Self::Bytes { span, .. }
             | Self::List { span, .. }
+            | Self::TupleNew { span, .. }
+            | Self::StructNew { span, .. }
+            | Self::Field { span, .. }
+            | Self::With { span, .. }
             | Self::BufNew { span, .. }
             | Self::ValueRef { span, .. }
             | Self::Let { span, .. }

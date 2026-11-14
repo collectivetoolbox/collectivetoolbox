@@ -34,42 +34,45 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, Comment, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr,
-    ImportTarget, Module, Param, RoutineDecl, Span, StageLType, SymbolTarget,
-    TestBlock, TestCase, TestExpected, TopDecl, TopValueDecl, TypedIntLit,
-    UseImport, UseImportItem, format_dc_shorthand,
+    ImportTarget, Module, Param, PositionalStructDecl, RoutineDecl, Span,
+    StageLType, SymbolTarget, TestBlock, TestCase, TestExpected, TopDecl,
+    TopValueDecl, TypedIntLit, UseImport, UseImportItem, format_dc_shorthand,
 };
 use super::parser::parse_module;
 use crate::dc::{
     DC_ADD_OP, DC_ASSIGN_SET, DC_BASE64_PADDING, DC_BEGIN_CODE_BLOCK,
     DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_IDENTIFIER, DC_BEGIN_LIST,
-    DC_BEGIN_LITERAL, DC_BEGIN_MODULE, DC_BEGIN_NUMBER, DC_BEGIN_ROUTINE_CALL,
-    DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
+    DC_BEGIN_LITERAL, DC_BEGIN_MODULE, DC_BEGIN_NUMBER,
+    DC_BEGIN_POSITIONAL_STRUCT_DECL, DC_BEGIN_POSITIONAL_STRUCT_VALUE,
+    DC_BEGIN_ROUTINE_CALL, DC_BEGIN_ROUTINE_DECL, DC_BEGIN_SINGLE_LINE_COMMENT,
     DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE, DC_BEGIN_STAGEL_LIST,
-    DC_BEGIN_TEST_BLOCK, DC_BEGIN_TEST_CASE, DC_BEGIN_TYPE_DEF,
+    DC_BEGIN_TEST_BLOCK, DC_BEGIN_TEST_CASE, DC_BEGIN_TUPLE, DC_BEGIN_TYPE_DEF,
     DC_BEGIN_USE_IMPORT, DC_BIT_AND_OP, DC_BIT_NOT_OP, DC_BIT_OR_OP,
     DC_BIT_XOR_OP, DC_BITCAST_OP, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
     DC_BREAK_LOOP, DC_CLZ_OP, DC_CONTINUE_LOOP, DC_CONVERT_OP, DC_CTZ_OP,
     DC_DECLARE_CONST, DC_DECLARE_LET, DC_DECLARE_PUB, DC_DIV_OP,
     DC_END_CODE_BLOCK, DC_END_ENCAPSULATION_BINARY,
-    DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER,
-    DC_END_LIST, DC_END_LITERAL, DC_END_MODULE, DC_END_NUMBER,
+    DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER, DC_END_LIST,
+    DC_END_LITERAL, DC_END_MODULE, DC_END_NUMBER,
+    DC_END_POSITIONAL_STRUCT_DECL, DC_END_POSITIONAL_STRUCT_VALUE,
     DC_END_ROUTINE_CALL, DC_END_ROUTINE_DECL, DC_END_SINGLE_LINE_COMMENT,
-    DC_END_STAGEL_LIST, DC_END_TEST_BLOCK, DC_END_TEST_CASE, DC_END_TYPE_DEF,
-    DC_END_USE_IMPORT, DC_EQ_OP, DC_ESCAPE, DC_EVALUATE_VALUE_AS_ATOM,
-    DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER, DC_FOR_EACH, DC_GE_OP, DC_GT_OP,
-    DC_IF_CONDITIONAL, DC_LE_OP, DC_LOGICAL_AND_OP, DC_LOGICAL_NOT_OP,
-    DC_LOGICAL_OR_OP, DC_LT_OP, DC_MUL_OP, DC_NAMESPACE_DECL, DC_NE_OP,
-    DC_NEG_OP, DC_NEGATIVE, DC_NO_OP, DC_OPTIONAL_ABSENT, DC_POPCNT_OP,
-    DC_REM_OP,
-    DC_RETURN_ROUTINE, DC_ROTL_OP, DC_ROTR_OP, DC_ROUTINE_PARAM,
-    DC_SEQ_CONCAT_OP, DC_SEQ_GET_OP, DC_SEQ_LEN_OP, DC_SEQ_SLICE_OP,
-    DC_SHL_OP, DC_SHR_OP, DC_STAGEL_BUF_EXTEND, DC_STAGEL_BUF_FILL,
-    DC_STAGEL_BUF_FREEZE, DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_PUSH,
-    DC_STAGEL_BUF_SET, DC_STAGEL_BUF_TYPE, DC_STAGEL_LIST_TYPE,
-    DC_START_ENCAPSULATION_BINARY, DC_SUB_OP, DC_TEST_EXPECTED_OUT,
-    DC_TYPE_INTERSECTION, DC_TYPE_STRING, DC_TYPED_VALUE_REF,
-    DC_USE_IMPORT_ITEM, DC_WHILE_LOOP, DC_WRAP_ADD_OP, DC_WRAP_MUL_OP,
-    DC_WRAP_SUB_OP,
+    DC_END_STAGEL_LIST, DC_END_TEST_BLOCK, DC_END_TEST_CASE, DC_END_TUPLE,
+    DC_END_TYPE_DEF, DC_END_USE_IMPORT, DC_EQ_OP, DC_ESCAPE,
+    DC_EVALUATE_VALUE_AS_ATOM, DC_FAULT_TRAP, DC_FILE_PATH_DELIMITER,
+    DC_FOR_EACH, DC_GE_OP, DC_GET_POSITIONAL_FIELD_OP, DC_GT_OP,
+    DC_IF_CONDITIONAL, DC_LE_OP, DC_LIST_ELEMENT_SEPARATOR, DC_LOGICAL_AND_OP,
+    DC_LOGICAL_NOT_OP, DC_LOGICAL_OR_OP, DC_LT_OP, DC_MUL_OP,
+    DC_NAMESPACE_DECL, DC_NE_OP, DC_NEG_OP, DC_NEGATIVE, DC_NO_OP,
+    DC_OPTIONAL_ABSENT, DC_POPCNT_OP, DC_REM_OP, DC_RETURN_ROUTINE, DC_ROTL_OP,
+    DC_ROTR_OP, DC_ROUTINE_PARAM, DC_SEQ_CONCAT_OP, DC_SEQ_GET_OP,
+    DC_SEQ_LEN_OP, DC_SEQ_SLICE_OP, DC_SHL_OP, DC_SHR_OP,
+    DC_STAGEL_BUF_EXTEND, DC_STAGEL_BUF_FILL, DC_STAGEL_BUF_FREEZE,
+    DC_STAGEL_BUF_NEW, DC_STAGEL_BUF_PUSH, DC_STAGEL_BUF_SET,
+    DC_STAGEL_BUF_TYPE, DC_STAGEL_LIST_TYPE, DC_START_ENCAPSULATION_BINARY,
+    DC_SUB_OP, DC_TEST_EXPECTED_OUT, DC_TYPE_ANY, DC_TYPE_INTERSECTION,
+    DC_TYPE_STRING, DC_TYPE_STRUCT, DC_TYPE_TUPLE, DC_TYPED_VALUE_REF,
+    DC_USE_IMPORT_ITEM, DC_WHILE_LOOP, DC_WITH_POSITIONAL_FIELD_OP,
+    DC_WRAP_ADD_OP, DC_WRAP_MUL_OP, DC_WRAP_SUB_OP,
 };
 use crate::dc_number_minimal::{
     dc_base64_char_to_digit_with_resolver, dc_base64_digit_to_char,
@@ -196,6 +199,28 @@ pub fn encode_stagel_type_dc_tokens(ty: &StageLType) -> Result<Vec<DcChar>> {
 
 fn push_top_decl(out: &mut Vec<DcChar>, item: &TopDecl) -> Result<()> {
     match item {
+        TopDecl::Struct(s) => {
+            ensure!(
+                !s.fields.is_empty(),
+                "Positional struct '{}' must have at least one slot type",
+                s.name
+            );
+            for comment in &s.comments_before {
+                push_comment(out, comment);
+            }
+            out.push(DC_BEGIN_POSITIONAL_STRUCT_DECL);
+            out.push(if s.is_pub {
+                DC_BOOLEAN_TRUE
+            } else {
+                DC_BOOLEAN_FALSE
+            });
+            push_optional_atom_dc(out, s.dc_id);
+            push_identifier(out, &s.name)?;
+            for fty in &s.fields {
+                push_stagel_type(out, fty)?;
+            }
+            out.push(DC_END_POSITIONAL_STRUCT_DECL);
+        }
         TopDecl::Value(val) => {
             for comment in &val.comments_before {
                 push_comment(out, comment);
@@ -340,6 +365,27 @@ fn push_stagel_type(out: &mut Vec<DcChar>, ty: &StageLType) -> Result<()> {
         StageLType::Buf(inner) => {
             out.push(DC_STAGEL_BUF_TYPE);
             push_stagel_type(out, inner)?;
+        }
+        StageLType::Tuple(elems) => {
+            out.push(DC_TYPE_TUPLE);
+            out.push(DC_BEGIN_LIST);
+            out.push(DC_BEGIN_TYPE_DEF);
+            out.push(DC_TYPE_ANY);
+            out.push(DC_END_TYPE_DEF);
+            for (idx, el) in elems.iter().enumerate() {
+                if idx > 0 {
+                    out.push(DC_LIST_ELEMENT_SEPARATOR);
+                }
+                push_stagel_type(out, el)?;
+            }
+            out.push(DC_END_LIST);
+        }
+        StageLType::Struct(target) => {
+            out.push(DC_TYPE_STRUCT);
+            match target {
+                SymbolTarget::Ident(n) => push_identifier(out, n)?,
+                SymbolTarget::Dc(dc) => push_atom_dc(out, *dc),
+            }
         }
     }
     Ok(())
@@ -529,6 +575,47 @@ fn push_expr(out: &mut Vec<DcChar>, expr: &Expr) -> Result<()> {
                 push_expr(out, el)?;
             }
             out.push(DC_END_STAGEL_LIST);
+        }
+        Expr::TupleNew { elements, .. } => {
+            out.push(DC_BEGIN_TUPLE);
+            let len_u128 = u128::try_from(elements.len())
+                .context("Tuple arity exceeds u128")?;
+            out.extend(u128_to_dc_number_chars(len_u128));
+            for (idx, el) in elements.iter().enumerate() {
+                if idx > 0 {
+                    out.push(DC_LIST_ELEMENT_SEPARATOR);
+                }
+                push_expr(out, el)?;
+            }
+            out.push(DC_END_TUPLE);
+        }
+        Expr::StructNew { target, fields, .. } => {
+            ensure!(
+                !fields.is_empty(),
+                "Positional struct constructor must have at least one slot expression"
+            );
+            out.push(DC_BEGIN_POSITIONAL_STRUCT_VALUE);
+            match target {
+                SymbolTarget::Ident(n) => push_identifier(out, n)?,
+                SymbolTarget::Dc(dc) => push_atom_dc(out, *dc),
+            }
+            for f in fields {
+                push_expr(out, f)?;
+            }
+            out.push(DC_END_POSITIONAL_STRUCT_VALUE);
+        }
+        Expr::Field { base, index, .. } => {
+            out.push(DC_GET_POSITIONAL_FIELD_OP);
+            push_expr(out, base)?;
+            push_typed_int(out, TypedIntLit::U32(*index))?;
+        }
+        Expr::With {
+            base, index, value, ..
+        } => {
+            out.push(DC_WITH_POSITIONAL_FIELD_OP);
+            push_expr(out, base)?;
+            push_typed_int(out, TypedIntLit::U32(*index))?;
+            push_expr(out, value)?;
         }
         Expr::BufNew {
             elem_ty, capacity, ..
@@ -964,6 +1051,63 @@ impl<'a> Decoder<'a> {
                 comments_before,
                 span: sp,
             }))
+        } else if self
+            .resolver
+            .token_fills_role(tok.to_u128(), DcRole::BeginPositionalStructDecl)
+        {
+            self.pos = self.pos.saturating_add(1);
+            let vis_tok =
+                self.next("Expected boolean visibility inside Dc 2217")?;
+            let is_pub = if self
+                .resolver
+                .token_fills_role(vis_tok.to_u128(), DcRole::BooleanTrue)
+            {
+                true
+            } else if self
+                .resolver
+                .token_fills_role(vis_tok.to_u128(), DcRole::BooleanFalse)
+            {
+                false
+            } else {
+                bail!("Expected boolean visibility in Dc 2217, found {vis_tok}");
+            };
+            let dc_id = self.read_optional_atom_dc()?;
+            let pub_dc_syntax = is_pub
+                && dc_id.is_some_and(|d| {
+                    matches!(
+                        DcShorthand::from_global_id(d.to_u128()),
+                        DcShorthand::Short(_) | DcShorthand::Format(_)
+                    )
+                });
+            let name = self.read_identifier()?;
+            let mut fields = Vec::new();
+            loop {
+                let next = self
+                    .peek()
+                    .context("Unclosed Dc 2217 positional struct declaration")?;
+                if self.resolver.token_fills_role(
+                    next.to_u128(),
+                    DcRole::EndPositionalStructDecl,
+                ) {
+                    self.pos = self.pos.saturating_add(1);
+                    break;
+                }
+                fields.push(self.read_stagel_type()?);
+            }
+            ensure!(
+                !fields.is_empty(),
+                "Decoded Dc 2217 positional struct '{name}' has zero slot types"
+            );
+            Ok(TopDecl::Struct(PositionalStructDecl {
+                is_pub,
+                pub_dc_syntax,
+                dc_id,
+                name,
+                fields,
+                inline_body: true,
+                comments_before,
+                span: sp,
+            }))
         } else if tok == DC_BEGIN_ROUTINE_DECL {
             let r = self.read_routine(comments_before)?;
             Ok(TopDecl::Routine(r))
@@ -1122,13 +1266,131 @@ impl<'a> Decoder<'a> {
         }
     }
 
+    fn peek_starts_stagel_or_general_type(&self) -> bool {
+        let Some(tok) = self.peek() else {
+            return false;
+        };
+        let u = tok.to_u128();
+        tok.is_format()
+            || self.resolver.token_fills_role(u, DcRole::BeginTypeDef)
+            || self.resolver.token_fills_role(u, DcRole::StagelListType)
+            || self.resolver.token_fills_role(u, DcRole::StagelBufType)
+            || self.resolver.token_fills_role(u, DcRole::TypeTuple)
+            || self.resolver.token_fills_role(u, DcRole::TypeStruct)
+    }
+
+    fn skip_one_type_or_stagel_type(&mut self) -> Result<()> {
+        let Some(tok) = self.peek() else {
+            bail!("Expected [type] or [stagel_type], found EOF");
+        };
+        if self
+            .resolver
+            .token_fills_role(tok.to_u128(), DcRole::BeginTypeDef)
+        {
+            let mut depth = 1usize;
+            self.pos = self.pos.saturating_add(1);
+            while depth > 0 {
+                let t = self.next("Unclosed Dc 262..Dc 263 type definition")?;
+                if t == DC_ESCAPE {
+                    let _ = self.next("Expected escaped token inside Dc 262")?;
+                    continue;
+                }
+                if self
+                    .resolver
+                    .token_fills_role(t.to_u128(), DcRole::BeginTypeDef)
+                {
+                    depth = depth.saturating_add(1);
+                } else if self
+                    .resolver
+                    .token_fills_role(t.to_u128(), DcRole::EndTypeDef)
+                {
+                    depth = depth.saturating_sub(1);
+                }
+            }
+            return Ok(());
+        }
+        let _ = self.read_stagel_type()?;
+        Ok(())
+    }
+
     fn read_stagel_type(&mut self) -> Result<StageLType> {
         let tok = self.next("Expected StageL type token")?;
-        if tok == DC_STAGEL_LIST_TYPE {
+        let u = tok.to_u128();
+        if self.resolver.token_fills_role(u, DcRole::BeginTypeDef) {
+            let inner = self.read_stagel_type()?;
+            let close = self.next("Expected Dc 263 EndTypeDef")?;
+            ensure!(
+                self.resolver
+                    .token_fills_role(close.to_u128(), DcRole::EndTypeDef),
+                "Expected Dc 263 EndTypeDef, found {close}"
+            );
+            return Ok(inner);
+        }
+        if self.resolver.token_fills_role(u, DcRole::StagelListType) {
             return Ok(StageLType::List(Box::new(self.read_stagel_type()?)));
         }
-        if tok == DC_STAGEL_BUF_TYPE {
+        if self.resolver.token_fills_role(u, DcRole::StagelBufType) {
             return Ok(StageLType::Buf(Box::new(self.read_stagel_type()?)));
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeTuple) {
+            let list_open =
+                self.next("Expected Dc 310 BeginList after TypeTuple")?;
+            ensure!(
+                self.resolver
+                    .token_fills_role(list_open.to_u128(), DcRole::BeginList),
+                "Expected Dc 310 BeginList after TypeTuple, found {list_open}"
+            );
+            if self.peek().is_some_and(|p| {
+                self.resolver
+                    .token_fills_role(p.to_u128(), DcRole::BeginNumber)
+            }) {
+                let _ = self.read_u128_number()?;
+            }
+            // Skip mandatory `[type]` header on `Dc 310 BeginList`.
+            self.skip_one_type_or_stagel_type()?;
+            let mut elems = Vec::new();
+            let mut expect_elem = true;
+            loop {
+                let next =
+                    self.peek().context("Unclosed Dc 310 TypeTuple list")?;
+                if self
+                    .resolver
+                    .token_fills_role(next.to_u128(), DcRole::EndList)
+                {
+                    self.pos = self.pos.saturating_add(1);
+                    break;
+                }
+                if self.resolver.token_fills_role(
+                    next.to_u128(),
+                    DcRole::ListElementSeparator,
+                ) {
+                    ensure!(
+                        !expect_elem,
+                        "Unexpected separator in TypeTuple slot list"
+                    );
+                    self.pos = self.pos.saturating_add(1);
+                    expect_elem = true;
+                    continue;
+                }
+                ensure!(
+                    expect_elem,
+                    "Missing Dc 312 separator between TypeTuple slot types"
+                );
+                elems.push(self.read_stagel_type()?);
+                expect_elem = false;
+            }
+            return Ok(StageLType::Tuple(elems));
+        }
+        if self.resolver.token_fills_role(u, DcRole::TypeStruct) {
+            let target = if self.peek().is_some_and(|p| {
+                self.resolver
+                    .token_fills_role(p.to_u128(), DcRole::BeginIdentifier)
+            }) {
+                SymbolTarget::Ident(self.read_identifier()?)
+            } else {
+                SymbolTarget::Dc(self.read_atom_dc()?)
+            };
+            return Ok(StageLType::Struct(target));
         }
         if tok == format_dc_char_opt(FormatId::Boolean)? {
             return Ok(StageLType::B);
@@ -1155,6 +1417,21 @@ impl<'a> Decoder<'a> {
             return Ok(StageLType::Never);
         }
         bail!("Unrecognized StageL type Token Dc {tok}")
+    }
+
+    fn read_u128_number(&mut self) -> Result<u128> {
+        let slice_u128: Vec<u128> = self
+            .tokens
+            .get(self.pos..)
+            .context("Expected Dc 6..Dc 7 number, found EOF")?
+            .iter()
+            .copied()
+            .map(DcChar::to_u128)
+            .collect();
+        let (val_u128, consumed) =
+            read_dc_number_u128_with_resolver(&slice_u128, self.resolver)?;
+        self.pos = self.pos.saturating_add(consumed);
+        Ok(val_u128)
     }
 
     fn read_typed_int(&mut self) -> Result<TypedIntLit> {
@@ -1445,6 +1722,116 @@ impl<'a> Decoder<'a> {
             return Ok(Expr::List {
                 elem_ty,
                 elements,
+                span: sp,
+            });
+        }
+        if self
+            .resolver
+            .token_fills_role(tok.to_u128(), DcRole::BeginTuple)
+        {
+            self.pos = self.pos.saturating_add(1);
+            let len_u128 = self.read_u128_number()?;
+            let expected_len = usize::try_from(len_u128)
+                .context("Tuple length exceeds usize")?;
+            // Skip up to `expected_len` optional slot-type headers (`([type] | [stagel_type])*`).
+            let mut skipped_types = 0usize;
+            while skipped_types < expected_len
+                && self.peek_starts_stagel_or_general_type()
+            {
+                self.skip_one_type_or_stagel_type()?;
+                skipped_types = skipped_types.saturating_add(1);
+            }
+            let mut elements = Vec::with_capacity(expected_len);
+            if expected_len > 0 {
+                for idx in 0..expected_len {
+                    if idx > 0 {
+                        let sep =
+                            self.next("Expected Dc 312 separator inside Dc 2215")?;
+                        ensure!(
+                            self.resolver.token_fills_role(
+                                sep.to_u128(),
+                                DcRole::ListElementSeparator
+                            ),
+                            "Expected Dc 312 separator inside Dc 2215, found {sep}"
+                        );
+                    }
+                    elements.push(self.read_expr()?);
+                }
+            }
+            let close = self.next("Expected Dc 2216 EndTuple")?;
+            ensure!(
+                self.resolver
+                    .token_fills_role(close.to_u128(), DcRole::EndTuple),
+                "Expected Dc 2216 EndTuple, found {close}"
+            );
+            return Ok(Expr::TupleNew { elements, span: sp });
+        }
+        if self.resolver.token_fills_role(
+            tok.to_u128(),
+            DcRole::BeginPositionalStructValue,
+        ) {
+            self.pos = self.pos.saturating_add(1);
+            let target = if self.peek().is_some_and(|p| {
+                self.resolver
+                    .token_fills_role(p.to_u128(), DcRole::BeginIdentifier)
+            }) {
+                SymbolTarget::Ident(self.read_identifier()?)
+            } else {
+                SymbolTarget::Dc(self.read_atom_dc()?)
+            };
+            let mut fields = Vec::new();
+            loop {
+                let next = self
+                    .peek()
+                    .context("Unclosed Dc 2219 positional struct value")?;
+                if self.resolver.token_fills_role(
+                    next.to_u128(),
+                    DcRole::EndPositionalStructValue,
+                ) {
+                    self.pos = self.pos.saturating_add(1);
+                    break;
+                }
+                fields.push(self.read_expr()?);
+            }
+            ensure!(
+                !fields.is_empty(),
+                "Decoded Dc 2219 positional struct value has zero slot expressions"
+            );
+            return Ok(Expr::StructNew {
+                target,
+                fields,
+                span: sp,
+            });
+        }
+        if self
+            .resolver
+            .token_fills_role(tok.to_u128(), DcRole::GetPositionalFieldOp)
+        {
+            self.pos = self.pos.saturating_add(1);
+            let base = Box::new(self.read_expr()?);
+            let idx_u128 = self.read_u128_number()?;
+            let index = u32::try_from(idx_u128)
+                .context("Positional field index exceeds u32")?;
+            return Ok(Expr::Field {
+                base,
+                index,
+                span: sp,
+            });
+        }
+        if self
+            .resolver
+            .token_fills_role(tok.to_u128(), DcRole::WithPositionalFieldOp)
+        {
+            self.pos = self.pos.saturating_add(1);
+            let base = Box::new(self.read_expr()?);
+            let idx_u128 = self.read_u128_number()?;
+            let index = u32::try_from(idx_u128)
+                .context("Positional field index exceeds u32")?;
+            let value = Box::new(self.read_expr()?);
+            return Ok(Expr::With {
+                base,
+                index,
+                value,
                 span: sp,
             });
         }
@@ -1786,6 +2173,33 @@ pub fn format_top_decl_to_sl3(decl: &TopDecl) -> Result<String> {
 
 fn write_top_decl(out: &mut String, item: &TopDecl) -> Result<()> {
     match item {
+        TopDecl::Struct(s) => {
+            for c in &s.comments_before {
+                write_comment_line(out, 0, c)?;
+            }
+            write_dc_directive_if_needed(out, 0, s.dc_id, s.pub_dc_syntax)?;
+            if s.is_pub {
+                write!(out, "pub ")?;
+                if s.pub_dc_syntax {
+                    if let Some(dc) = s.dc_id {
+                        write!(out, "dc/{} ", format_dc_shorthand(dc))?;
+                    }
+                }
+            }
+            write!(out, "struct {}", s.name)?;
+            if s.inline_body {
+                write!(out, " ::")?;
+                for fty in &s.fields {
+                    write!(out, " {fty}")?;
+                }
+                writeln!(out, ".")?;
+            } else {
+                writeln!(out)?;
+                for fty in &s.fields {
+                    writeln!(out, "    {fty}.")?;
+                }
+            }
+        }
         TopDecl::Value(v) => {
             for c in &v.comments_before {
                 write_comment_line(out, 0, c)?;
@@ -1983,6 +2397,40 @@ fn write_expr(out: &mut String, expr: &Expr, indent: usize) -> Result<()> {
                 write_expr(out, el, indent)?;
             }
             out.push_str(" ::");
+        }
+        Expr::TupleNew { elements, .. } => {
+            out.push_str("tupNew:");
+            for el in elements {
+                out.push(' ');
+                write_expr(out, el, indent)?;
+            }
+            out.push_str(" ::");
+        }
+        Expr::StructNew { target, fields, .. } => {
+            match target {
+                SymbolTarget::Ident(n) => write!(out, "structNew {n}:")?,
+                SymbolTarget::Dc(dc) => {
+                    write!(out, "structNew dc/{}:", format_dc_shorthand(*dc))?;
+                }
+            }
+            for f in fields {
+                out.push(' ');
+                write_expr(out, f, indent)?;
+            }
+            out.push_str(" ::");
+        }
+        Expr::Field { base, index, .. } => {
+            out.push_str("field ");
+            write_expr(out, base, indent)?;
+            write!(out, " u32:{index}")?;
+        }
+        Expr::With {
+            base, index, value, ..
+        } => {
+            out.push_str("with ");
+            write_expr(out, base, indent)?;
+            write!(out, " u32:{index} ")?;
+            write_expr(out, value, indent)?;
         }
         Expr::BufNew {
             elem_ty, capacity, ..
@@ -2195,6 +2643,15 @@ mod tests {
             (DC_BEGIN_CODE_BLOCK, DC_END_CODE_BLOCK),
             (DC_BEGIN_TEST_BLOCK, DC_END_TEST_BLOCK),
             (DC_BEGIN_TEST_CASE, DC_END_TEST_CASE),
+            (DC_BEGIN_TUPLE, DC_END_TUPLE),
+            (
+                DC_BEGIN_POSITIONAL_STRUCT_DECL,
+                DC_END_POSITIONAL_STRUCT_DECL,
+            ),
+            (
+                DC_BEGIN_POSITIONAL_STRUCT_VALUE,
+                DC_END_POSITIONAL_STRUCT_VALUE,
+            ),
         ];
         for &tok in &stripped {
             if let Some((_, closer)) = pairs.iter().find(|(o, _)| *o == tok) {
@@ -2377,6 +2834,7 @@ v/void/voidRoutine u32/inputVal
             .items
             .iter()
             .filter_map(|it| match it {
+                TopDecl::Struct(s) => s.dc_id,
                 TopDecl::Value(v) => v.dc_id,
                 TopDecl::Routine(r) => r.dc_id,
                 TopDecl::Comment(_) => None,

@@ -33,9 +33,9 @@ use crate::utilities::*;
 
 use super::ast::{
     BlockItem, Comment, CoreBinaryOp, CoreTernaryOp, CoreUnaryOp, Expr,
-    ImportTarget, Module, Param, RoutineDecl, Span, StageLType, SymbolTarget,
-    TestBlock, TestCase, TestExpected, TopDecl, TopValueDecl, TypedIntLit,
-    UseImport, UseImportItem, parse_dc_shorthand,
+    ImportTarget, Module, Param, PositionalStructDecl, RoutineDecl, Span,
+    StageLType, SymbolTarget, TestBlock, TestCase, TestExpected, TopDecl,
+    TopValueDecl, TypedIntLit, UseImport, UseImportItem, parse_dc_shorthand,
 };
 use crate::DcChar;
 use std::collections::HashMap;
@@ -57,6 +57,7 @@ enum LexKind {
 struct LexToken {
     kind: LexKind,
     span: Span,
+    end_col: usize,
 }
 
 fn hex_nibble(b: u8) -> Option<u8> {
@@ -115,22 +116,24 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
             }
             b'.' | b';' => {
                 let span = Span { line, col };
+                idx = idx.saturating_add(1);
+                col = col.saturating_add(1);
                 tokens.push(LexToken {
                     kind: LexKind::Dot,
                     span,
+                    end_col: col,
                 });
-                idx = idx.saturating_add(1);
-                col = col.saturating_add(1);
                 only_spaces_on_line = false;
             }
             b'}' => {
                 let span = Span { line, col };
+                idx = idx.saturating_add(1);
+                col = col.saturating_add(1);
                 tokens.push(LexToken {
                     kind: LexKind::DoubleColon,
                     span,
+                    end_col: col,
                 });
-                idx = idx.saturating_add(1);
-                col = col.saturating_add(1);
                 only_spaces_on_line = false;
             }
             b':' if only_spaces_on_line
@@ -164,17 +167,19 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
                         dc_directive,
                     },
                     span,
+                    end_col: col,
                 });
                 only_spaces_on_line = false;
             }
             b':' if bytes.get(idx.saturating_add(1)) == Some(&b':') => {
                 let span = Span { line, col };
+                idx = idx.saturating_add(2);
+                col = col.saturating_add(2);
                 tokens.push(LexToken {
                     kind: LexKind::DoubleColon,
                     span,
+                    end_col: col,
                 });
-                idx = idx.saturating_add(2);
-                col = col.saturating_add(2);
                 only_spaces_on_line = false;
             }
             b'"' => {
@@ -190,6 +195,7 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
                 tokens.push(LexToken {
                     kind: LexKind::Bytes(payload),
                     span,
+                    end_col: col,
                 });
                 only_spaces_on_line = false;
             }
@@ -233,6 +239,7 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
                 tokens.push(LexToken {
                     kind: LexKind::Word(word.to_owned()),
                     span,
+                    end_col: col,
                 });
                 only_spaces_on_line = false;
             }
@@ -347,6 +354,12 @@ fn is_reserved_keyword(word: &str) -> bool {
             | "const"
             | "let"
             | "set"
+            | "struct"
+            | "tup"
+            | "tupNew"
+            | "structNew"
+            | "field"
+            | "with"
             | "test"
             | "in"
             | "out"
@@ -443,8 +456,18 @@ fn parse_type_segments(segs: &[&str], span: Span) -> Result<StageLType> {
             "u64" => Ok(StageLType::U64),
             "void" => Ok(StageLType::Void),
             "never" => Ok(StageLType::Never),
+            other if is_valid_ident(other) && !is_reserved_keyword(other) => {
+                Ok(StageLType::Struct(SymbolTarget::Ident(other.to_owned())))
+            }
             other => bail!("Unknown StageL type '{other}' at {span}"),
         };
+    }
+    if head == "dc" && tail.len() == 1 {
+        let sh = *tail
+            .first()
+            .with_context(|| format!("Missing Dc shorthand in type at {span}"))?;
+        let dc = parse_dc_shorthand(sh)?;
+        return Ok(StageLType::Struct(SymbolTarget::Dc(dc)));
     }
     match head {
         "l" => Ok(StageLType::List(Box::new(parse_type_segments(tail, span)?))),
@@ -455,9 +478,96 @@ fn parse_type_segments(segs: &[&str], span: Span) -> Result<StageLType> {
     }
 }
 
-fn parse_standalone_type(word: &str, span: Span) -> Result<StageLType> {
-    let segs: Vec<&str> = word.split('/').collect();
-    parse_type_segments(&segs, span)
+fn parse_tup_type_outer_ctors(word: &str) -> Option<Vec<&str>> {
+    let prefix = word.strip_suffix(':')?;
+    let segs: Vec<&str> = prefix.split('/').collect();
+    if segs.last() != Some(&"tup") {
+        return None;
+    }
+    let outer = segs.get(..segs.len().saturating_sub(1))?;
+    if outer.iter().all(|&s| s == "l" || s == "buf") {
+        Some(outer.to_vec())
+    } else {
+        None
+    }
+}
+
+fn wrap_outer_type_ctors(mut ty: StageLType, outer: &[&str]) -> StageLType {
+    for &ctor in outer.iter().rev() {
+        ty = if ctor == "l" {
+            StageLType::List(Box::new(ty))
+        } else {
+            StageLType::Buf(Box::new(ty))
+        };
+    }
+    ty
+}
+
+fn skip_non_dc_comments(tokens: &[LexToken], pos: &mut usize) -> Result<()> {
+    while let Some(tok) = tokens.get(*pos) {
+        let LexKind::Comment { dc_directive, .. } = &tok.kind else {
+            break;
+        };
+        ensure!(
+            dc_directive.is_none(),
+            "': @dc' directive comment at {} is only allowed directly above top-level declarations",
+            tok.span
+        );
+        *pos = pos.saturating_add(1);
+    }
+    Ok(())
+}
+
+fn parse_tuple_type_tail_from_tokens(
+    tokens: &[LexToken],
+    pos: &mut usize,
+    open_span: Span,
+    outer_ctors: &[&str],
+) -> Result<(StageLType, LexToken)> {
+    let mut elems = Vec::new();
+    let close_tok = loop {
+        skip_non_dc_comments(tokens, pos)?;
+        let next = tokens.get(*pos).with_context(|| {
+            format!("Unclosed 'tup:' type starting at {open_span}")
+        })?;
+        if matches!(next.kind, LexKind::DoubleColon) {
+            let ct = next.clone();
+            *pos = pos.saturating_add(1);
+            break ct;
+        }
+        let (elem_ty, _) =
+            parse_type_from_tokens(tokens, pos, "tuple slot type")?;
+        elems.push(elem_ty);
+    };
+    let ty = wrap_outer_type_ctors(StageLType::Tuple(elems), outer_ctors);
+    Ok((ty, close_tok))
+}
+
+fn parse_type_from_tokens(
+    tokens: &[LexToken],
+    pos: &mut usize,
+    ctx_desc: &str,
+) -> Result<(StageLType, LexToken)> {
+    skip_non_dc_comments(tokens, pos)?;
+    let tok = tokens
+        .get(*pos)
+        .with_context(|| format!("Expected {ctx_desc}, found EOF"))?
+        .clone();
+    let LexKind::Word(ref w) = tok.kind else {
+        bail!("Expected {ctx_desc} at {}, found {:?}", tok.span, tok.kind);
+    };
+    *pos = pos.saturating_add(1);
+    if let Some(outer_ctors) = parse_tup_type_outer_ctors(w) {
+        return parse_tuple_type_tail_from_tokens(
+            tokens,
+            pos,
+            tok.span,
+            &outer_ctors,
+        );
+    }
+    let segs: Vec<&str> = w.split('/').collect();
+    let ty = parse_type_segments(&segs, tok.span)?;
+    Ok((ty, tok))
 }
 
 fn parse_typed_name(word: &str, span: Span) -> Result<(StageLType, String)> {
@@ -474,20 +584,89 @@ fn parse_typed_name(word: &str, span: Span) -> Result<(StageLType, String)> {
     Ok((ty, name.to_owned()))
 }
 
-fn parse_optional_typed_name(
-    word: &str,
-    span: Span,
-) -> Result<(Option<StageLType>, String)> {
-    if let Some(name) = word.strip_prefix('/') {
+fn parse_typed_name_from_tokens(
+    tokens: &[LexToken],
+    pos: &mut usize,
+    ctx_desc: &str,
+) -> Result<(StageLType, String, Span)> {
+    skip_non_dc_comments(tokens, pos)?;
+    let tok = tokens
+        .get(*pos)
+        .with_context(|| format!("Expected 'TYPE/name' {ctx_desc}, found EOF"))?
+        .clone();
+    let LexKind::Word(ref tw) = tok.kind else {
+        bail!("Expected 'TYPE/name' {ctx_desc} at {}", tok.span);
+    };
+    if parse_tup_type_outer_ctors(tw).is_some() {
+        let (ty, close_tok) = parse_type_from_tokens(tokens, pos, ctx_desc)?;
+        let name_tok = tokens
+            .get(*pos)
+            .with_context(|| {
+                format!("Expected '/name' immediately after '{ty}' at {}", close_tok.span)
+            })?
+            .clone();
+        ensure!(
+            name_tok.span.line == close_tok.span.line
+                && name_tok.span.col == close_tok.end_col,
+            "Expected '/name' attached with no whitespace after '{ty}' at {}",
+            close_tok.span
+        );
+        let LexKind::Word(ref nw) = name_tok.kind else {
+            bail!(
+                "Expected '/name' immediately after '{ty}' at {}",
+                name_tok.span
+            );
+        };
+        let name = nw.strip_prefix('/').with_context(|| {
+            format!(
+                "Expected '/name' immediately after '{ty}' at {}, found '{nw}'",
+                name_tok.span
+            )
+        })?;
         ensure!(
             !name.contains('/'),
-            "Expected '/name' or 'TYPE/name' identifier at {span}, found '{word}'"
+            "Expected single binding name after '{ty}/' at {}, found '{nw}'",
+            name_tok.span
         );
-        check_user_ident(name, span, "binding")?;
-        return Ok((None, name.to_owned()));
+        check_user_ident(name, name_tok.span, "binding")?;
+        *pos = pos.saturating_add(1);
+        return Ok((ty, name.to_owned(), tok.span));
     }
-    let (ty, name) = parse_typed_name(word, span)?;
-    Ok((Some(ty), name))
+    *pos = pos.saturating_add(1);
+    let (ty, name) = parse_typed_name(tw, tok.span)?;
+    Ok((ty, name, tok.span))
+}
+
+fn parse_optional_typed_name_from_tokens(
+    tokens: &[LexToken],
+    pos: &mut usize,
+    ctx_desc: &str,
+) -> Result<(Option<StageLType>, String, Span)> {
+    skip_non_dc_comments(tokens, pos)?;
+    let tok = tokens
+        .get(*pos)
+        .with_context(|| {
+            format!("Expected '/name' or 'TYPE/name' {ctx_desc}, found EOF")
+        })?
+        .clone();
+    let LexKind::Word(ref tw) = tok.kind else {
+        bail!(
+            "Expected '/name' or 'TYPE/name' {ctx_desc} at {}",
+            tok.span
+        );
+    };
+    if let Some(name) = tw.strip_prefix('/') {
+        ensure!(
+            !name.contains('/'),
+            "Expected '/name' or 'TYPE/name' identifier at {}, found '{tw}'",
+            tok.span
+        );
+        check_user_ident(name, tok.span, "binding")?;
+        *pos = pos.saturating_add(1);
+        return Ok((None, name.to_owned(), tok.span));
+    }
+    let (ty, name, sp) = parse_typed_name_from_tokens(tokens, pos, ctx_desc)?;
+    Ok((Some(ty), name, sp))
 }
 
 fn parse_value_ref_word(
@@ -544,6 +723,71 @@ fn parse_routine_sig_token(
     Ok((return_type, name.to_owned()))
 }
 
+fn parse_routine_sig_from_tokens(
+    tokens: &[LexToken],
+    pos: &mut usize,
+) -> Result<(StageLType, String, Span)> {
+    let sig_tok = tokens
+        .get(*pos)
+        .context("Expected routine signature 'v/RETURN/name'")?
+        .clone();
+    let LexKind::Word(ref sig_word) = sig_tok.kind else {
+        bail!(
+            "Expected routine signature 'v/RETURN/name' at {}",
+            sig_tok.span
+        );
+    };
+    if let Some(after_v) = sig_word.strip_prefix("v/")
+        && let Some(outer_ctors) = parse_tup_type_outer_ctors(after_v)
+    {
+        *pos = pos.saturating_add(1);
+        let (return_type, close_tok) = parse_tuple_type_tail_from_tokens(
+            tokens,
+            pos,
+            sig_tok.span,
+            &outer_ctors,
+        )?;
+        let name_tok = tokens
+            .get(*pos)
+            .with_context(|| {
+                format!(
+                    "Expected '/name' immediately after routine return type '{return_type}' at {}",
+                    close_tok.span
+                )
+            })?
+            .clone();
+        ensure!(
+            name_tok.span.line == close_tok.span.line
+                && name_tok.span.col == close_tok.end_col,
+            "Expected '/name' attached with no whitespace after routine return type '{return_type}' at {}",
+            close_tok.span
+        );
+        let LexKind::Word(ref nw) = name_tok.kind else {
+            bail!(
+                "Expected '/name' after routine return type at {}",
+                name_tok.span
+            );
+        };
+        let name = nw.strip_prefix('/').with_context(|| {
+            format!(
+                "Expected '/name' after routine return type at {}, found '{nw}'",
+                name_tok.span
+            )
+        })?;
+        ensure!(
+            !name.contains('/'),
+            "Invalid routine name '{nw}' at {}",
+            name_tok.span
+        );
+        check_user_ident(name, name_tok.span, "routine")?;
+        *pos = pos.saturating_add(1);
+        return Ok((return_type, name.to_owned(), sig_tok.span));
+    }
+    let (return_type, name) = parse_routine_sig_token(sig_word, sig_tok.span)?;
+    *pos = pos.saturating_add(1);
+    Ok((return_type, name, sig_tok.span))
+}
+
 fn parse_typed_int_literal(
     word: &str,
     span: Span,
@@ -595,7 +839,8 @@ fn parse_list_opener(word: &str, span: Span) -> Result<Option<StageLType>> {
         return Ok(None);
     };
     let segs: Vec<&str> = prefix.split('/').collect();
-    if segs.first() == Some(&"l") && segs.len() >= 2 {
+    if segs.first() == Some(&"l") && segs.len() >= 2 && segs.last() != Some(&"tup")
+    {
         let elem_segs = segs.get(1..).with_context(|| {
             format!("Missing list element type in '{word}' at {span}")
         })?;
@@ -710,6 +955,8 @@ pub(crate) fn scan_direct_dc_words(
     for tok in tokens {
         if let LexKind::Word(w) = tok.kind
             && let Some(sh) = w.strip_prefix("dc/")
+            && !sh.contains('/')
+            && !sh.ends_with(':')
         {
             let dc = parse_dc_shorthand(sh)?;
             out.push((w, dc));
@@ -1195,35 +1442,39 @@ impl Parser {
                 w,
                 first_tok.span
             ),
+            "struct" => {
+                let s = self.parse_struct_decl(
+                    false,
+                    false,
+                    dc_directive,
+                    comments_before,
+                    first_tok.span,
+                )?;
+                Ok(TopDecl::Struct(s))
+            }
             "const" => {
                 if let Some(next_tok) = self.peek_at(self.pos.saturating_add(1)) {
-                    if matches!(&next_tok.kind, LexKind::Word(nw) if nw.starts_with("v/"))
-                    {
-                        bail!(
-                            "Redundant 'const' before top-level '{}' at {}; bare top-level 'v/...' is already an implicit private const",
-                            match &next_tok.kind {
-                                LexKind::Word(s) => s.as_str(),
-                                _ => "",
-                            },
-                            first_tok.span
-                        );
+                    if let LexKind::Word(nw) = &next_tok.kind {
+                        if nw.starts_with("v/") {
+                            bail!(
+                                "Redundant 'const' before top-level '{nw}' at {}; bare top-level 'v/...' is already an implicit private const",
+                                first_tok.span
+                            );
+                        }
+                        if nw == "struct" {
+                            bail!(
+                                "Redundant 'const' before 'struct' at {}; write 'struct name ...'",
+                                first_tok.span
+                            );
+                        }
                     }
                 }
                 self.pos = self.pos.saturating_add(1);
-                let val_tok = self
-                    .peek()
-                    .with_context(|| {
-                        format!("Expected 'TYPE/name' after 'const' at {}", first_tok.span)
-                    })?
-                    .clone();
-                let LexKind::Word(tw) = val_tok.kind else {
-                    bail!(
-                        "Expected 'TYPE/name' after 'const' at {}",
-                        val_tok.span
-                    );
-                };
-                let (ty, name) = parse_typed_name(&tw, val_tok.span)?;
-                self.pos = self.pos.saturating_add(1);
+                let (ty, name, _) = parse_typed_name_from_tokens(
+                    &self.tokens,
+                    &mut self.pos,
+                    "after 'const'",
+                )?;
                 let value = self.parse_expr(false)?;
                 self.expect_dot("after top-level 'const' declaration")?;
                 Ok(TopDecl::Value(TopValueDecl {
@@ -1247,7 +1498,7 @@ impl Parser {
                     .clone();
                 let LexKind::Word(ref nw) = next_tok.kind else {
                     bail!(
-                        "Expected 'v/...', 'TYPE/name', or 'dc/<shorthand>' after 'pub' at {}",
+                        "Expected 'struct', 'v/...', 'TYPE/name', or 'dc/<shorthand>' after 'pub' at {}",
                         next_tok.span
                     );
                 };
@@ -1257,7 +1508,10 @@ impl Parser {
                         next_tok.span
                     );
                 }
-                let sh_opt = nw.strip_prefix("dc/").map(str::to_string);
+                let sh_opt = nw
+                    .strip_prefix("dc/")
+                    .filter(|s| !s.contains('/') && !s.ends_with(':'))
+                    .map(str::to_string);
                 let (pub_dc_syntax, dc_id, decl_tok) =
                     if let Some(sh) = sh_opt {
                         ensure!(
@@ -1283,11 +1537,20 @@ impl Parser {
 
                 let LexKind::Word(dw) = &decl_tok.kind else {
                     bail!(
-                        "Expected 'v/...' or 'TYPE/name' after 'pub' at {}",
+                        "Expected 'struct', 'v/...', or 'TYPE/name' after 'pub' at {}",
                         decl_tok.span
                     );
                 };
-                if dw.starts_with("v/") {
+                if dw == "struct" {
+                    let s = self.parse_struct_decl(
+                        true,
+                        pub_dc_syntax,
+                        dc_id,
+                        comments_before,
+                        first_tok.span,
+                    )?;
+                    Ok(TopDecl::Struct(s))
+                } else if dw.starts_with("v/") {
                     let routine = self.parse_routine_decl(
                         true,
                         pub_dc_syntax,
@@ -1297,8 +1560,11 @@ impl Parser {
                     )?;
                     Ok(TopDecl::Routine(routine))
                 } else {
-                    let (ty, name) = parse_typed_name(dw, decl_tok.span)?;
-                    self.pos = self.pos.saturating_add(1);
+                    let (ty, name, _) = parse_typed_name_from_tokens(
+                        &self.tokens,
+                        &mut self.pos,
+                        "after 'pub'",
+                    )?;
                     let value = self.parse_expr(false)?;
                     self.expect_dot("after 'pub' constant declaration")?;
                     Ok(TopDecl::Value(TopValueDecl {
@@ -1324,10 +1590,127 @@ impl Parser {
                 Ok(TopDecl::Routine(routine))
             }
             other => bail!(
-                "Unexpected top-level token '{other}' at {}; only `ns`, `use`, `pub`, `const`, and `v/...` are permitted at top level",
+                "Unexpected top-level token '{other}' at {}; only `ns`, `use`, `pub`, `const`, `struct`, and `v/...` are permitted at top level",
                 first_tok.span
             ),
         }
+    }
+
+    fn parse_struct_decl(
+        &mut self,
+        is_pub: bool,
+        pub_dc_syntax: bool,
+        dc_id: Option<DcChar>,
+        comments_before: Vec<Comment>,
+        decl_span: Span,
+    ) -> Result<PositionalStructDecl> {
+        let kw_tok = self
+            .peek()
+            .context("Expected 'struct'")?
+            .clone();
+        self.pos = self.pos.saturating_add(1);
+        let name_tok = self
+            .peek()
+            .with_context(|| {
+                format!("Expected struct identifier after 'struct' at {}", kw_tok.span)
+            })?
+            .clone();
+        let LexKind::Word(name) = name_tok.kind else {
+            bail!(
+                "Expected struct identifier after 'struct' at {}",
+                name_tok.span
+            );
+        };
+        check_user_ident(&name, name_tok.span, "struct")?;
+        self.pos = self.pos.saturating_add(1);
+
+        let mut fields = Vec::new();
+        let inline_body = if matches!(
+            self.peek().map(|t| &t.kind),
+            Some(LexKind::DoubleColon)
+        ) {
+            self.pos = self.pos.saturating_add(1);
+            loop {
+                let _ = self.consume_comments(false)?;
+                let next = self.peek().with_context(|| {
+                    format!(
+                        "Expected '.' closing inline 'struct {name}' starting at {decl_span}"
+                    )
+                })?;
+                if matches!(next.kind, LexKind::Dot) {
+                    break;
+                }
+                let (fty, _) = parse_type_from_tokens(
+                    &self.tokens,
+                    &mut self.pos,
+                    "positional struct slot type",
+                )?;
+                fields.push(fty);
+            }
+            self.expect_dot("after inline 'struct' declaration")?;
+            true
+        } else {
+            let decl_col = decl_span.col;
+            let expected_body_col = decl_col.saturating_add(4);
+            loop {
+                let _ = self.consume_comments_indented_past(decl_col, false)?;
+                let Some(tok) = self.peek().cloned() else {
+                    break;
+                };
+                if tok.span.col <= decl_col {
+                    break;
+                }
+                ensure!(
+                    tok.span.col == expected_body_col,
+                    "Invalid indentation at {} inside 'struct {name}' (expected column {expected_body_col}, found column {})",
+                    tok.span,
+                    tok.span.col
+                );
+                let mut line_fields = 0usize;
+                loop {
+                    let _ =
+                        self.consume_comments_indented_past(decl_col, false)?;
+                    let Some(ntok) = self.peek() else {
+                        bail!(
+                            "Expected '.' after field type inside 'struct {name}' at {}",
+                            tok.span
+                        );
+                    };
+                    if matches!(ntok.kind, LexKind::Dot) {
+                        self.pos = self.pos.saturating_add(1);
+                        break;
+                    }
+                    let (fty, _) = parse_type_from_tokens(
+                        &self.tokens,
+                        &mut self.pos,
+                        "positional struct slot type",
+                    )?;
+                    fields.push(fty);
+                    line_fields = line_fields.saturating_add(1);
+                }
+                ensure!(
+                    line_fields > 0,
+                    "Empty field statement at {} inside 'struct {name}'",
+                    tok.span
+                );
+            }
+            false
+        };
+
+        ensure!(
+            !fields.is_empty(),
+            "Positional 'struct {name}' at {decl_span} must declare at least one slot type"
+        );
+        Ok(PositionalStructDecl {
+            is_pub,
+            pub_dc_syntax,
+            dc_id,
+            name,
+            fields,
+            inline_body,
+            comments_before,
+            span: decl_span,
+        })
     }
 
     fn parse_routine_decl(
@@ -1338,40 +1721,27 @@ impl Parser {
         comments_before: Vec<Comment>,
         decl_col: usize,
     ) -> Result<RoutineDecl> {
-        let sig_tok = self
-            .peek()
-            .context("Expected routine signature 'v/RETURN/name'")?
-            .clone();
-        let LexKind::Word(sig_word) = sig_tok.kind else {
-            bail!(
-                "Expected routine signature 'v/RETURN/name' at {}",
-                sig_tok.span
-            );
-        };
-        let (return_type, name) = parse_routine_sig_token(&sig_word, sig_tok.span)?;
-        self.pos = self.pos.saturating_add(1);
+        let (return_type, name, sig_span) =
+            parse_routine_sig_from_tokens(&self.tokens, &mut self.pos)?;
 
         let mut params = Vec::new();
         while let Some(tok) = self.peek().cloned() {
             if matches!(tok.kind, LexKind::DoubleColon) {
                 break;
             }
-            if tok.span.line != sig_tok.span.line {
+            if tok.span.line != sig_span.line {
                 break;
             }
-            let LexKind::Word(pw) = tok.kind else {
-                bail!(
-                    "Expected parameter 'TYPE/name' on routine header at {}",
-                    tok.span
-                );
-            };
-            let (ty, pname) = parse_typed_name(&pw, tok.span)?;
+            let (ty, pname, pspan) = parse_typed_name_from_tokens(
+                &self.tokens,
+                &mut self.pos,
+                "on routine header",
+            )?;
             params.push(Param {
                 ty,
                 name: pname,
-                span: tok.span,
+                span: pspan,
             });
-            self.pos = self.pos.saturating_add(1);
         }
 
         let mut inline_body = false;
@@ -1396,7 +1766,7 @@ impl Parser {
                         bail!(
                             "Routine '{}' at {} has an empty body (or body not indented past column {})",
                             name,
-                            sig_tok.span,
+                            sig_span,
                             decl_col
                         );
                     }
@@ -1419,7 +1789,7 @@ impl Parser {
                     );
                     break tok.span.col;
                 } else {
-                    bail!("Routine '{}' at {} reached EOF without body", name, sig_tok.span);
+                    bail!("Routine '{}' at {} reached EOF without body", name, sig_span);
                 }
             };
 
@@ -1493,11 +1863,11 @@ impl Parser {
                 stmt_count > 0,
                 "Routine '{}' at {} must have at least one body expression or statement",
                 name,
-                sig_tok.span
+                sig_span
             );
             Expr::Block {
                 stmts: body_items,
-                span: sig_tok.span,
+                span: sig_span,
             }
         };
 
@@ -1512,7 +1882,7 @@ impl Parser {
             body,
             inline_body,
             comments_before,
-            span: sig_tok.span,
+            span: sig_span,
         })
     }
 
@@ -1758,6 +2128,9 @@ impl Parser {
             "fault" => return Ok(Expr::Fault { span }),
             "nop" => return Ok(Expr::Nop { span }),
             "pub" => bail!("'pub' at {span} is only allowed at module top level"),
+            "struct" => bail!(
+                "'struct' declaration at {span} is only allowed at module top level"
+            ),
             "ns" | "use" => bail!("'{word}' at {span} is only allowed at module header"),
             "return" => {
                 let value = if enclosing_is_void {
@@ -1768,20 +2141,19 @@ impl Parser {
                 return Ok(Expr::Return { value, span });
             }
             "let" => {
-                let target = self
-                    .peek()
-                    .with_context(|| format!("Expected 'TYPE/name' after 'let' at {span}"))?
-                    .clone();
-                let LexKind::Word(tw) = target.kind else {
-                    bail!("Expected 'TYPE/name' after 'let' at {}", target.span);
-                };
-                if tw.starts_with("v/") {
+                if let Some(target) = self.peek()
+                    && let LexKind::Word(tw) = &target.kind
+                    && tw.starts_with("v/")
+                {
                     bail!(
                         "Nested routine declarations use 'const {tw} ...', not 'let' at {span}"
                     );
                 }
-                let (ty, name) = parse_typed_name(&tw, target.span)?;
-                self.pos = self.pos.saturating_add(1);
+                let (ty, name, _) = parse_typed_name_from_tokens(
+                    &self.tokens,
+                    &mut self.pos,
+                    "after 'let'",
+                )?;
                 let init = if let Some(next) = self.peek_skip_comments() {
                     if matches!(next.kind, LexKind::Dot | LexKind::DoubleColon)
                     {
@@ -1800,23 +2172,19 @@ impl Parser {
                 });
             }
             "const" => {
-                let target = self
-                    .peek()
-                    .with_context(|| format!("Expected 'TYPE/name' after 'const' at {span}"))?
-                    .clone();
-                let LexKind::Word(tw) = target.kind else {
-                    bail!(
-                        "Expected 'TYPE/name' after 'const' at {}",
-                        target.span
-                    );
-                };
-                if tw.starts_with("v/") {
+                if let Some(target) = self.peek()
+                    && let LexKind::Word(tw) = &target.kind
+                    && tw.starts_with("v/")
+                {
                     bail!(
                         "Nested routine declaration 'const {tw}' at {span} is only allowed as a direct statement inside a routine or 'do ... ::' block"
                     );
                 }
-                let (ty, name) = parse_typed_name(&tw, target.span)?;
-                self.pos = self.pos.saturating_add(1);
+                let (ty, name, _) = parse_typed_name_from_tokens(
+                    &self.tokens,
+                    &mut self.pos,
+                    "after 'const'",
+                )?;
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
                 return Ok(Expr::Const {
                     dc_id: None,
@@ -1827,25 +2195,19 @@ impl Parser {
                 });
             }
             "set" => {
-                let target = self
-                    .peek()
-                    .with_context(|| {
-                        format!("Expected '/name' or 'TYPE/name' after 'set' at {span}")
-                    })?
-                    .clone();
-                let LexKind::Word(tw) = target.kind else {
-                    bail!(
-                        "Expected '/name' or 'TYPE/name' after 'set' at {}",
-                        target.span
-                    );
-                };
-                if tw.starts_with("v/") {
+                if let Some(target) = self.peek()
+                    && let LexKind::Word(tw) = &target.kind
+                    && tw.starts_with("v/")
+                {
                     bail!(
                         "Routine '{tw}' cannot be mutated with 'set' at {span}"
                     );
                 }
-                let (ty, name) = parse_optional_typed_name(&tw, target.span)?;
-                self.pos = self.pos.saturating_add(1);
+                let (ty, name, _) = parse_optional_typed_name_from_tokens(
+                    &self.tokens,
+                    &mut self.pos,
+                    "after 'set'",
+                )?;
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
                 return Ok(Expr::Set {
                     ty,
@@ -1872,20 +2234,11 @@ impl Parser {
                 return Ok(Expr::While { cond, body, span });
             }
             "foreach" => {
-                let bind_tok = self
-                    .peek()
-                    .with_context(|| {
-                        format!("Expected 'T/elem' after 'foreach' at {span}")
-                    })?
-                    .clone();
-                let LexKind::Word(bw) = bind_tok.kind else {
-                    bail!(
-                        "Expected 'T/elem' after 'foreach' at {}",
-                        bind_tok.span
-                    );
-                };
-                let (elem_ty, elem_name) = parse_typed_name(&bw, bind_tok.span)?;
-                self.pos = self.pos.saturating_add(1);
+                let (elem_ty, elem_name, _) = parse_typed_name_from_tokens(
+                    &self.tokens,
+                    &mut self.pos,
+                    "after 'foreach'",
+                )?;
                 let list = Box::new(self.parse_expr(enclosing_is_void)?);
                 let body = Box::new(self.parse_expr(enclosing_is_void)?);
                 return Ok(Expr::ForEach {
@@ -1920,6 +2273,100 @@ impl Parser {
                 return Ok(Expr::BufNew {
                     elem_ty,
                     capacity,
+                    span,
+                });
+            }
+            "tupNew" => {
+                bail!("Expected ':' after 'tupNew' (write 'tupNew: ... ::') at {span}");
+            }
+            "tupNew:" => {
+                let mut elements = Vec::new();
+                loop {
+                    let _ = self.consume_comments(false)?;
+                    let next = self
+                        .peek()
+                        .with_context(|| {
+                            format!("Unclosed 'tupNew:' constructor starting at {span}")
+                        })?
+                        .clone();
+                    if matches!(next.kind, LexKind::DoubleColon) {
+                        self.pos = self.pos.saturating_add(1);
+                        break;
+                    }
+                    elements.push(self.parse_expr(enclosing_is_void)?);
+                }
+                return Ok(Expr::TupleNew { elements, span });
+            }
+            "structNew" => {
+                let target_tok = self
+                    .peek()
+                    .with_context(|| {
+                        format!("Expected '<struct>:' after 'structNew' at {span}")
+                    })?
+                    .clone();
+                let LexKind::Word(raw_target) = target_tok.kind else {
+                    bail!(
+                        "Expected '<struct>:' after 'structNew' at {}",
+                        target_tok.span
+                    );
+                };
+                let target_prefix = raw_target.strip_suffix(':').with_context(|| {
+                    format!(
+                        "Expected ':' ending struct name in 'structNew {raw_target}' at {}",
+                        target_tok.span
+                    )
+                })?;
+                let target = if let Some(sh) = target_prefix.strip_prefix("dc/") {
+                    SymbolTarget::Dc(parse_dc_shorthand(sh)?)
+                } else {
+                    check_user_ident(
+                        target_prefix,
+                        target_tok.span,
+                        "structNew target",
+                    )?;
+                    SymbolTarget::Ident(target_prefix.to_owned())
+                };
+                self.pos = self.pos.saturating_add(1);
+                let mut fields = Vec::new();
+                loop {
+                    let _ = self.consume_comments(false)?;
+                    let next = self
+                        .peek()
+                        .with_context(|| {
+                            format!(
+                                "Unclosed 'structNew {raw_target}' constructor starting at {span}"
+                            )
+                        })?
+                        .clone();
+                    if matches!(next.kind, LexKind::DoubleColon) {
+                        self.pos = self.pos.saturating_add(1);
+                        break;
+                    }
+                    fields.push(self.parse_expr(enclosing_is_void)?);
+                }
+                ensure!(
+                    !fields.is_empty(),
+                    "'structNew {raw_target}' at {span} must supply at least one positional slot expression"
+                );
+                return Ok(Expr::StructNew {
+                    target,
+                    fields,
+                    span,
+                });
+            }
+            "field" => {
+                let base = Box::new(self.parse_expr(enclosing_is_void)?);
+                let index = self.parse_u32_slot_index(span, "field")?;
+                return Ok(Expr::Field { base, index, span });
+            }
+            "with" => {
+                let base = Box::new(self.parse_expr(enclosing_is_void)?);
+                let index = self.parse_u32_slot_index(span, "with")?;
+                let value = Box::new(self.parse_expr(enclosing_is_void)?);
+                return Ok(Expr::With {
+                    base,
+                    index,
+                    value,
                     span,
                 });
             }
@@ -1980,6 +2427,90 @@ impl Parser {
             });
         }
 
+        if parse_tup_type_outer_ctors(word).is_some() {
+            // Rewind past the opening `tup:` / `l/tup:` / `buf/tup:` token so
+            // `parse_type_from_tokens` consumes the full multi-token type up
+            // through its closing `::`.
+            self.pos = self.pos.saturating_sub(1);
+            let (ty, close_tok) = parse_type_from_tokens(
+                &self.tokens,
+                &mut self.pos,
+                "tuple type",
+            )?;
+            let next_tok = self
+                .peek()
+                .with_context(|| {
+                    format!(
+                        "Expected '/name', '/dc/<shorthand>', or ':' immediately after '{ty}' at {}",
+                        close_tok.span
+                    )
+                })?
+                .clone();
+            ensure!(
+                next_tok.span.line == close_tok.span.line
+                    && next_tok.span.col == close_tok.end_col,
+                "Expected '/name', '/dc/<shorthand>', or ':' attached with no whitespace after '{ty}' at {}",
+                close_tok.span
+            );
+            let LexKind::Word(ref suffix_word) = next_tok.kind else {
+                bail!(
+                    "Expected '/name', '/dc/<shorthand>', or ':' immediately after '{ty}' at {}",
+                    next_tok.span
+                );
+            };
+            if suffix_word == ":" {
+                let StageLType::List(elem_ty) = ty else {
+                    bail!(
+                        "Unexpected ':' list constructor suffix after non-list type '{ty}' at {}",
+                        next_tok.span
+                    );
+                };
+                self.pos = self.pos.saturating_add(1);
+                let mut elements = Vec::new();
+                loop {
+                    let _ = self.consume_comments(false)?;
+                    let next = self
+                        .peek()
+                        .with_context(|| {
+                            format!("Unclosed list literal starting at {span}")
+                        })?
+                        .clone();
+                    if matches!(next.kind, LexKind::DoubleColon) {
+                        self.pos = self.pos.saturating_add(1);
+                        break;
+                    }
+                    elements.push(self.parse_expr(enclosing_is_void)?);
+                }
+                return Ok(Expr::List {
+                    elem_ty: *elem_ty,
+                    elements,
+                    span,
+                });
+            }
+            let target = if let Some(sh) = suffix_word.strip_prefix("/dc/") {
+                SymbolTarget::Dc(parse_dc_shorthand(sh)?)
+            } else if let Some(name) = suffix_word.strip_prefix('/') {
+                ensure!(
+                    !name.contains('/'),
+                    "Expected '/name' or '/dc/<shorthand>' after '{ty}' at {}, found '{suffix_word}'",
+                    next_tok.span
+                );
+                check_user_ident(name, next_tok.span, "binding")?;
+                SymbolTarget::Ident(name.to_owned())
+            } else {
+                bail!(
+                    "Expected '/name' or '/dc/<shorthand>' immediately after '{ty}' at {}, found '{suffix_word}'",
+                    next_tok.span
+                );
+            };
+            self.pos = self.pos.saturating_add(1);
+            return Ok(Expr::ValueRef {
+                ty: Some(ty),
+                target,
+                span,
+            });
+        }
+
         if word.starts_with("v/") {
             bail!(
                 "Nested routine declaration '{word}' at {span} must be prefixed with 'const' inside a block (write 'const {word} ...')"
@@ -1987,7 +2518,9 @@ impl Parser {
         }
 
         if word.contains('/') {
-            if let Some(sh) = word.strip_prefix("dc/") {
+            if let Some(sh) = word.strip_prefix("dc/")
+                && !sh.contains('/')
+            {
                 let dc = parse_dc_shorthand(sh)?;
                 let arity = self.lookup_verb_arity(word).with_context(|| {
                     format!(
@@ -2023,25 +2556,44 @@ impl Parser {
         })
     }
 
+    fn parse_u32_slot_index(
+        &mut self,
+        op_span: Span,
+        op_name: &str,
+    ) -> Result<u32> {
+        let _ = self.consume_comments(false)?;
+        let tok = self
+            .peek()
+            .with_context(|| {
+                format!("Expected 'u32:<index>' slot index for '{op_name}' at {op_span}")
+            })?
+            .clone();
+        let LexKind::Word(w) = tok.kind else {
+            bail!(
+                "Expected 'u32:<index>' slot index for '{op_name}' at {}",
+                tok.span
+            );
+        };
+        let Some(TypedIntLit::U32(idx)) = parse_typed_int_literal(&w, tok.span)?
+        else {
+            bail!(
+                "Expected 'u32:<index>' compile-time slot index for '{op_name}' at {}, found '{w}'",
+                tok.span
+            );
+        };
+        self.pos = self.pos.saturating_add(1);
+        Ok(idx)
+    }
+
     fn parse_type_operand(
         &mut self,
         op_span: Span,
         op_name: &str,
     ) -> Result<StageLType> {
-        let tok = self
-            .peek()
-            .with_context(|| {
-                format!("Expected StageL type operand for '{op_name}' at {op_span}")
-            })?
-            .clone();
-        let LexKind::Word(w) = tok.kind else {
-            bail!(
-                "Expected StageL type operand for '{op_name}' at {}",
-                tok.span
-            );
-        };
-        self.pos = self.pos.saturating_add(1);
-        parse_standalone_type(&w, tok.span)
+        let _ = op_span;
+        let desc = format!("StageL type operand for '{op_name}'");
+        let (ty, _) = parse_type_from_tokens(&self.tokens, &mut self.pos, &desc)?;
+        Ok(ty)
     }
 
     fn parse_do_block(
@@ -2147,7 +2699,10 @@ impl Parser {
                             ..
                         }) = self.tokens.get(j)
                         {
-                            if nw.starts_with("dc/") {
+                            if let Some(sh) = nw.strip_prefix("dc/")
+                                && !sh.contains('/')
+                                && !sh.ends_with(':')
+                            {
                                 j = j.saturating_add(1);
                             }
                         }
@@ -2246,7 +2801,7 @@ impl Parser {
                     block_depth = block_depth.saturating_sub(1);
                     i = i.saturating_add(1);
                 }
-                LexKind::Word(w) if w == "do" || w.starts_with("l/") && w.ends_with(':') => {
+                LexKind::Word(w) if w == "do" || w.ends_with(':') => {
                     block_depth = block_depth.saturating_add(1);
                     i = i.saturating_add(1);
                 }
@@ -2289,24 +2844,22 @@ impl Parser {
         &self,
         sig_idx: usize,
     ) -> Result<(String, usize, usize)> {
-        let sig_tok = self
-            .tokens
-            .get(sig_idx)
-            .context("Expected routine signature")?;
-        let LexKind::Word(sw) = &sig_tok.kind else {
-            bail!("Expected routine signature at {}", sig_tok.span);
-        };
-        let (_ret, name) = parse_routine_sig_token(sw, sig_tok.span)?;
+        let mut j = sig_idx;
+        let (_ret, name, sig_span) =
+            parse_routine_sig_from_tokens(&self.tokens, &mut j)?;
         let mut arity = 0usize;
-        let mut j = sig_idx.saturating_add(1);
         while let Some(tok) = self.tokens.get(j) {
             if matches!(tok.kind, LexKind::DoubleColon)
-                || tok.span.line != sig_tok.span.line
+                || tok.span.line != sig_span.line
             {
                 break;
             }
+            let _ = parse_typed_name_from_tokens(
+                &self.tokens,
+                &mut j,
+                "on routine header",
+            )?;
             arity = arity.saturating_add(1);
-            j = j.saturating_add(1);
         }
         Ok((name, arity, j))
     }
@@ -2329,10 +2882,7 @@ impl Parser {
                 let mut frames = vec![SkipFrame::InlineVerb];
                 while let Some(t) = self.tokens.get(i) {
                     match &t.kind {
-                        LexKind::Word(w)
-                            if w == "do"
-                                || (w.starts_with("l/") && w.ends_with(':')) =>
-                        {
+                        LexKind::Word(w) if w == "do" || w.ends_with(':') => {
                             frames.push(SkipFrame::Block);
                             i = i.saturating_add(1);
                         }
