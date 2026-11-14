@@ -36,15 +36,22 @@ use super::ast::{
     ImportTarget, Module, Param, PositionalStructDecl, RoutineDecl, Span,
     StageDialect, StageLType, StructTypeRef, SymbolTarget, TestBlock, TestCase,
     TestExpected, TopDecl, TopValueDecl, TypedIntLit, UseImport, UseImportItem,
-    parse_dc_shorthand,
+    format_dc_shorthand, parse_dc_shorthand,
 };
+use super::stager_parser::{StageRImportContext, StageRTypeKind};
 use crate::DcChar;
-use std::collections::HashMap;
+use malachite::Integer;
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum LexKind {
+pub(super) enum LexKind {
     Word(String),
     Bytes(Vec<u8>),
+    DctsString {
+        raw_dcts: String,
+        value: Vec<DcChar>,
+    },
     Dot,
     DoubleColon,
     Comment {
@@ -55,10 +62,10 @@ enum LexKind {
 }
 
 #[derive(Debug, Clone)]
-struct LexToken {
-    kind: LexKind,
-    span: Span,
-    end_col: usize,
+pub(super) struct LexToken {
+    pub(super) kind: LexKind,
+    pub(super) span: Span,
+    pub(super) end_col: usize,
 }
 
 fn hex_nibble(b: u8) -> Option<u8> {
@@ -70,7 +77,14 @@ fn hex_nibble(b: u8) -> Option<u8> {
     }
 }
 
-fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
+pub(super) fn tokenize_with_dialect(
+    input: &str,
+    dialect: StageDialect,
+) -> Result<Vec<LexToken>> {
+    let dialect_name = match dialect {
+        StageDialect::StageL3 => "StageL 3",
+        StageDialect::StageR3 => "StageR 3",
+    };
     let bytes = input.as_bytes();
     let mut tokens = Vec::new();
     let mut idx = 0usize;
@@ -108,11 +122,11 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
                 col = col.saturating_add(1);
             }
             b'\t' => {
-                bail!("Tab character at {line}:{col} is disallowed in StageL 3");
+                bail!("Tab character at {line}:{col} is disallowed in {dialect_name}");
             }
             b'{' => {
                 bail!(
-                    "Opening brace '{{' at {line}:{col} is disallowed in StageL 3"
+                    "Opening brace '{{' at {line}:{col} is disallowed in {dialect_name}"
                 );
             }
             b'.' | b';' => {
@@ -184,15 +198,35 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
                 only_spaces_on_line = false;
             }
             b'"' => {
-                bail!(
-                    "Bare string literal '\"...\"' at {line}:{col} belongs to StageR 3; use b\"...\" in StageL 3"
-                );
+                let span = Span { line, col };
+                match dialect {
+                    StageDialect::StageL3 => {
+                        bail!(
+                            "Bare string literal '\"...\"' at {line}:{col} belongs to StageR 3; use b\"...\" in StageL 3"
+                        );
+                    }
+                    StageDialect::StageR3 => {
+                        idx = idx.saturating_add(1);
+                        col = col.saturating_add(1);
+                        let kind = super::stager_parser::lex_dcts_literal(
+                            bytes, &mut idx, &mut col, line,
+                        )?;
+                        tokens.push(LexToken {
+                            kind,
+                            span,
+                            end_col: col,
+                        });
+                        only_spaces_on_line = false;
+                    }
+                }
             }
             b'b' if bytes.get(idx.saturating_add(1)) == Some(&b'"') => {
                 let span = Span { line, col };
                 idx = idx.saturating_add(2);
                 col = col.saturating_add(2);
-                let payload = parse_byte_literal(bytes, &mut idx, &mut col, line)?;
+                let payload = parse_quoted_literal_bytes(
+                    bytes, &mut idx, &mut col, line, false, "b\"...\"",
+                )?;
                 tokens.push(LexToken {
                     kind: LexKind::Bytes(payload),
                     span,
@@ -202,7 +236,7 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
             }
             b't' | b'T' if bytes.get(idx.saturating_add(1)) == Some(&b'"') => {
                 bail!(
-                    "Letters literal 't\"...\"' at {line}:{col} is not in the base StageL 3 Token Dc repertoire; use b\"...\" (l/u8)"
+                    "Letters literal 't\"...\"' at {line}:{col} is not in the {dialect_name} Step 1a Token Dc repertoire"
                 );
             }
             _ => {
@@ -250,7 +284,7 @@ fn tokenize_sl3(input: &str) -> Result<Vec<LexToken>> {
     Ok(tokens)
 }
 
-fn parse_dc_directive_comment(text: &str) -> Result<Option<DcChar>> {
+pub(super) fn parse_dc_directive_comment(text: &str) -> Result<Option<DcChar>> {
     let trimmed = text.trim();
     if let Some(rest) = trimmed.strip_prefix("@dc") {
         let arg = rest.trim();
@@ -268,11 +302,13 @@ fn parse_dc_directive_comment(text: &str) -> Result<Option<DcChar>> {
     Ok(None)
 }
 
-fn parse_byte_literal(
+pub(super) fn parse_quoted_literal_bytes(
     bytes: &[u8],
     idx: &mut usize,
     col: &mut usize,
     line: usize,
+    allow_raw_utf8: bool,
+    literal_label: &str,
 ) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     while let Some(&b) = bytes.get(*idx) {
@@ -281,11 +317,11 @@ fn parse_byte_literal(
         match b {
             b'"' => return Ok(out),
             b'\r' | b'\n' => {
-                bail!("Unescaped newline in b\"...\" literal on line {line}");
+                bail!("Unescaped newline in {literal_label} literal on line {line}");
             }
             b'/' => {
                 let esc = *bytes.get(*idx).with_context(|| {
-                    format!("Truncated '/' escape in b\"...\" on line {line}")
+                    format!("Truncated '/' escape in {literal_label} on line {line}")
                 })?;
                 *idx = idx.saturating_add(1);
                 *col = col.saturating_add(1);
@@ -320,21 +356,22 @@ fn parse_byte_literal(
                         out.push((n0 << 4) | n1);
                     }
                     other => bail!(
-                        "Invalid escape '/{}' in StageL 3 b\"...\" literal on line {line}",
+                        "Invalid escape '/{}' in {literal_label} literal on line {line}",
                         char::from(other)
                     ),
                 }
             }
             0x20..=0x7E => out.push(b),
+            0x80..=0xFF if allow_raw_utf8 => out.push(b),
             other => bail!(
-                "Disallowed raw byte 0x{other:02X} inside b\"...\" literal on line {line}; use /xHH"
+                "Disallowed raw byte 0x{other:02X} inside {literal_label} literal on line {line}; use /xHH"
             ),
         }
     }
-    bail!("Unclosed b\"...\" literal on line {line}")
+    bail!("Unclosed {literal_label} literal on line {line}")
 }
 
-fn is_valid_ident(name: &str) -> bool {
+pub(super) fn is_valid_ident(name: &str) -> bool {
     let mut chars = name.chars();
     let Some(first) = chars.next() else {
         return false;
@@ -345,11 +382,13 @@ fn is_valid_ident(name: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-fn is_reserved_keyword(word: &str) -> bool {
-    matches!(
+pub(super) fn is_reserved_keyword_for(
+    word: &str,
+    dialect: StageDialect,
+) -> bool {
+    let is_shared = matches!(
         word,
-        "ns"
-            | "use"
+        "ns" | "use"
             | "as"
             | "pub"
             | "const"
@@ -428,24 +467,103 @@ fn is_reserved_keyword(word: &str) -> bool {
             | "bufExtend"
             | "slice"
             | "bufSet"
-    )
+    );
+    if is_shared {
+        return true;
+    }
+    if dialect == StageDialect::StageR3 {
+        return matches!(
+            word,
+            "brand"
+                | "type"
+                | "enum"
+                | "match"
+                | "case"
+                | "else"
+                | "wrap"
+                | "unwrap"
+                | "i128"
+                | "u128"
+                | "int"
+                | "rat"
+                | "dcs"
+                | "s"
+                | "view"
+                | "cursor"
+                | "option"
+                | "result"
+                | "error"
+                | "mod"
+                | "truncRem"
+                | "isSome"
+                | "isNone"
+                | "isOk"
+                | "isErr"
+                | "unwrapOr"
+                | "okOr"
+                | "byteLen"
+                | "makeRat"
+                | "dcFromU128"
+                | "u128FromDc"
+                | "dcsFromS"
+                | "sFromDcs"
+                | "explode"
+                | "implode"
+                | "unimplemented"
+                | "unwrapSome"
+                | "unwrapOk"
+                | "unwrapErr"
+        );
+    }
+    false
 }
 
-fn check_user_ident(name: &str, span: Span, role: &str) -> Result<()> {
+pub(super) fn check_user_ident_for(
+    name: &str,
+    span: Span,
+    role: &str,
+    dialect: StageDialect,
+) -> Result<()> {
     ensure!(
         is_valid_ident(name),
         "Invalid {role} identifier '{name}' at {span}"
     );
     ensure!(
-        !is_reserved_keyword(name),
+        !is_reserved_keyword_for(name, dialect),
         "Reserved keyword '{name}' cannot be used as {role} identifier at {span}"
     );
     Ok(())
 }
 
-fn parse_type_segments(segs: &[&str], span: Span) -> Result<StageLType> {
+pub(super) struct TypeParseCtx<'a> {
+    pub(super) dialect: StageDialect,
+    pub(super) types_by_name: &'a HashMap<String, StageRTypeKind>,
+    pub(super) types_by_dc: &'a HashMap<DcChar, StageRTypeKind>,
+}
+
+impl TypeParseCtx<'static> {
+    pub(super) fn stage_l() -> Self {
+        static EMPTY_NAMES: std::sync::LazyLock<
+            HashMap<String, StageRTypeKind>,
+        > = std::sync::LazyLock::new(HashMap::new);
+        static EMPTY_DCS: std::sync::LazyLock<
+            HashMap<DcChar, StageRTypeKind>,
+        > = std::sync::LazyLock::new(HashMap::new);
+        Self {
+            dialect: StageDialect::StageL3,
+            types_by_name: &EMPTY_NAMES,
+            types_by_dc: &EMPTY_DCS,
+        }
+    }
+}
+
+pub(super) fn parse_type_segments_with_ctx(
+    segs: &[&str],
+    span: Span,
+    ctx: &TypeParseCtx<'_>,
+) -> Result<StageLType> {
     let Some((&head, tail)) = segs.split_first() else {
-        bail!("Empty StageL type at {span}");
+        bail!("Empty type at {span}");
     };
     if tail.is_empty() {
         return match head {
@@ -457,10 +575,58 @@ fn parse_type_segments(segs: &[&str], span: Span) -> Result<StageLType> {
             "u64" => Ok(StageLType::U64),
             "void" => Ok(StageLType::Void),
             "never" => Ok(StageLType::Never),
-            other if is_valid_ident(other) && !is_reserved_keyword(other) => {
-                Ok(StageLType::Struct(StructTypeRef::Ident(other.to_owned())))
+            "i128" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::I128)
             }
-            other => bail!("Unknown StageL type '{other}' at {span}"),
+            "u128" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::U128)
+            }
+            "int" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::Int)
+            }
+            "rat" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::Rat)
+            }
+            "dc" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::Dc)
+            }
+            "dcs" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::Dcs)
+            }
+            "s" if ctx.dialect == StageDialect::StageR3 => Ok(StageLType::S),
+            "error" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::Error)
+            }
+            "view" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::View)
+            }
+            "cursor" if ctx.dialect == StageDialect::StageR3 => {
+                Ok(StageLType::Cursor)
+            }
+            other
+                if is_valid_ident(other)
+                    && !is_reserved_keyword_for(other, ctx.dialect) =>
+            {
+                if ctx.dialect == StageDialect::StageR3 {
+                    match ctx.types_by_name.get(other) {
+                        Some(StageRTypeKind::NamedStruct) => {
+                            Ok(StageLType::Struct(StructTypeRef::Ident(
+                                other.to_owned(),
+                            )))
+                        }
+                        Some(StageRTypeKind::Nominal) | None => {
+                            Ok(StageLType::Nominal(StructTypeRef::Ident(
+                                other.to_owned(),
+                            )))
+                        }
+                    }
+                } else {
+                    Ok(StageLType::Struct(StructTypeRef::Ident(
+                        other.to_owned(),
+                    )))
+                }
+            }
+            other => bail!("Unknown type '{other}' at {span}"),
         };
     }
     if head == "dc" && tail.len() == 1 {
@@ -468,43 +634,77 @@ fn parse_type_segments(segs: &[&str], span: Span) -> Result<StageLType> {
             .first()
             .with_context(|| format!("Missing Dc shorthand in type at {span}"))?;
         let dc = parse_dc_shorthand(sh)?;
+        if ctx.dialect == StageDialect::StageR3 {
+            return match ctx.types_by_dc.get(&dc) {
+                Some(StageRTypeKind::NamedStruct) => {
+                    Ok(StageLType::Struct(StructTypeRef::Dc(dc)))
+                }
+                Some(StageRTypeKind::Nominal) | None => {
+                    Ok(StageLType::Nominal(StructTypeRef::Dc(dc)))
+                }
+            };
+        }
         return Ok(StageLType::Struct(StructTypeRef::Dc(dc)));
     }
     match head {
-        "l" => Ok(StageLType::List(Box::new(parse_type_segments(tail, span)?))),
-        "buf" => {
-            Ok(StageLType::Buf(Box::new(parse_type_segments(tail, span)?)))
+        "l" => Ok(StageLType::List(Box::new(parse_type_segments_with_ctx(
+            tail, span, ctx,
+        )?))),
+        "buf" => Ok(StageLType::Buf(Box::new(parse_type_segments_with_ctx(
+            tail, span, ctx,
+        )?))),
+        "option" if ctx.dialect == StageDialect::StageR3 => {
+            Ok(StageLType::Option(Box::new(parse_type_segments_with_ctx(
+                tail, span, ctx,
+            )?)))
+        }
+        "result" if ctx.dialect == StageDialect::StageR3 => {
+            Ok(StageLType::Result(Box::new(parse_type_segments_with_ctx(
+                tail, span, ctx,
+            )?)))
         }
         other => bail!("Unknown compound type constructor '{other}' at {span}"),
     }
 }
 
-fn parse_tup_type_outer_ctors(word: &str) -> Option<Vec<&str>> {
+pub(super) fn parse_tup_type_outer_ctors_for(
+    word: &str,
+    dialect: StageDialect,
+) -> Option<Vec<&str>> {
     let prefix = word.strip_suffix(':')?;
     let segs: Vec<&str> = prefix.split('/').collect();
     if segs.last() != Some(&"tup") {
         return None;
     }
     let outer = segs.get(..segs.len().saturating_sub(1))?;
-    if outer.iter().all(|&s| s == "l" || s == "buf") {
-        Some(outer.to_vec())
-    } else {
-        None
-    }
+    let ok = outer.iter().all(|&s| {
+        s == "l"
+            || s == "buf"
+            || (dialect == StageDialect::StageR3
+                && (s == "option" || s == "result"))
+    });
+    if ok { Some(outer.to_vec()) } else { None }
 }
 
-fn wrap_outer_type_ctors(mut ty: StageLType, outer: &[&str]) -> StageLType {
+pub(super) fn wrap_outer_type_ctors(
+    mut ty: StageLType,
+    outer: &[&str],
+) -> StageLType {
     for &ctor in outer.iter().rev() {
-        ty = if ctor == "l" {
-            StageLType::List(Box::new(ty))
-        } else {
-            StageLType::Buf(Box::new(ty))
+        ty = match ctor {
+            "l" => StageLType::List(Box::new(ty)),
+            "buf" => StageLType::Buf(Box::new(ty)),
+            "option" => StageLType::Option(Box::new(ty)),
+            _ => StageLType::Result(Box::new(ty)),
         };
     }
     ty
 }
 
-fn skip_non_dc_comments(tokens: &[LexToken], pos: &mut usize) -> Result<()> {
+pub(super) fn skip_non_dc_comments(
+    tokens: &[LexToken],
+    pos: &mut usize,
+) -> Result<()> {
     while let Some(tok) = tokens.get(*pos) {
         let LexKind::Comment { dc_directive, .. } = &tok.kind else {
             break;
@@ -519,11 +719,12 @@ fn skip_non_dc_comments(tokens: &[LexToken], pos: &mut usize) -> Result<()> {
     Ok(())
 }
 
-fn parse_tuple_type_tail_from_tokens(
+pub(super) fn parse_tuple_type_tail_from_tokens_with_ctx(
     tokens: &[LexToken],
     pos: &mut usize,
     open_span: Span,
     outer_ctors: &[&str],
+    ctx: &TypeParseCtx<'_>,
 ) -> Result<(StageLType, LexToken)> {
     let mut elems = Vec::new();
     let close_tok = loop {
@@ -536,18 +737,23 @@ fn parse_tuple_type_tail_from_tokens(
             *pos = pos.saturating_add(1);
             break ct;
         }
-        let (elem_ty, _) =
-            parse_type_from_tokens(tokens, pos, "tuple slot type")?;
+        let (elem_ty, _) = parse_type_from_tokens_with_ctx(
+            tokens,
+            pos,
+            "tuple slot type",
+            ctx,
+        )?;
         elems.push(elem_ty);
     };
     let ty = wrap_outer_type_ctors(StageLType::Tuple(elems), outer_ctors);
     Ok((ty, close_tok))
 }
 
-fn parse_type_from_tokens(
+pub(super) fn parse_type_from_tokens_with_ctx(
     tokens: &[LexToken],
     pos: &mut usize,
     ctx_desc: &str,
+    ctx: &TypeParseCtx<'_>,
 ) -> Result<(StageLType, LexToken)> {
     skip_non_dc_comments(tokens, pos)?;
     let tok = tokens
@@ -558,20 +764,25 @@ fn parse_type_from_tokens(
         bail!("Expected {ctx_desc} at {}, found {:?}", tok.span, tok.kind);
     };
     *pos = pos.saturating_add(1);
-    if let Some(outer_ctors) = parse_tup_type_outer_ctors(w) {
-        return parse_tuple_type_tail_from_tokens(
+    if let Some(outer_ctors) = parse_tup_type_outer_ctors_for(w, ctx.dialect) {
+        return parse_tuple_type_tail_from_tokens_with_ctx(
             tokens,
             pos,
             tok.span,
             &outer_ctors,
+            ctx,
         );
     }
     let segs: Vec<&str> = w.split('/').collect();
-    let ty = parse_type_segments(&segs, tok.span)?;
+    let ty = parse_type_segments_with_ctx(&segs, tok.span, ctx)?;
     Ok((ty, tok))
 }
 
-fn parse_typed_name(word: &str, span: Span) -> Result<(StageLType, String)> {
+pub(super) fn parse_typed_name_with_ctx(
+    word: &str,
+    span: Span,
+    ctx: &TypeParseCtx<'_>,
+) -> Result<(StageLType, String)> {
     let segs: Vec<&str> = word.split('/').collect();
     ensure!(
         segs.len() >= 2,
@@ -580,15 +791,16 @@ fn parse_typed_name(word: &str, span: Span) -> Result<(StageLType, String)> {
     let Some((&name, type_segs)) = segs.split_last() else {
         bail!("Invalid typed identifier '{word}' at {span}");
     };
-    check_user_ident(name, span, "binding")?;
-    let ty = parse_type_segments(type_segs, span)?;
+    check_user_ident_for(name, span, "binding", ctx.dialect)?;
+    let ty = parse_type_segments_with_ctx(type_segs, span, ctx)?;
     Ok((ty, name.to_owned()))
 }
 
-fn parse_typed_name_from_tokens(
+pub(super) fn parse_typed_name_from_tokens_with_ctx(
     tokens: &[LexToken],
     pos: &mut usize,
     ctx_desc: &str,
+    ctx: &TypeParseCtx<'_>,
 ) -> Result<(StageLType, String, Span)> {
     skip_non_dc_comments(tokens, pos)?;
     let tok = tokens
@@ -598,8 +810,9 @@ fn parse_typed_name_from_tokens(
     let LexKind::Word(ref tw) = tok.kind else {
         bail!("Expected 'TYPE/name' {ctx_desc} at {}", tok.span);
     };
-    if parse_tup_type_outer_ctors(tw).is_some() {
-        let (ty, close_tok) = parse_type_from_tokens(tokens, pos, ctx_desc)?;
+    if parse_tup_type_outer_ctors_for(tw, ctx.dialect).is_some() {
+        let (ty, close_tok) =
+            parse_type_from_tokens_with_ctx(tokens, pos, ctx_desc, ctx)?;
         let name_tok = tokens
             .get(*pos)
             .with_context(|| {
@@ -629,19 +842,20 @@ fn parse_typed_name_from_tokens(
             "Expected single binding name after '{ty}/' at {}, found '{nw}'",
             name_tok.span
         );
-        check_user_ident(name, name_tok.span, "binding")?;
+        check_user_ident_for(name, name_tok.span, "binding", ctx.dialect)?;
         *pos = pos.saturating_add(1);
         return Ok((ty, name.to_owned(), tok.span));
     }
     *pos = pos.saturating_add(1);
-    let (ty, name) = parse_typed_name(tw, tok.span)?;
+    let (ty, name) = parse_typed_name_with_ctx(tw, tok.span, ctx)?;
     Ok((ty, name, tok.span))
 }
 
-fn parse_optional_typed_name_from_tokens(
+pub(super) fn parse_optional_typed_name_from_tokens_with_ctx(
     tokens: &[LexToken],
     pos: &mut usize,
     ctx_desc: &str,
+    ctx: &TypeParseCtx<'_>,
 ) -> Result<(Option<StageLType>, String, Span)> {
     skip_non_dc_comments(tokens, pos)?;
     let tok = tokens
@@ -662,17 +876,19 @@ fn parse_optional_typed_name_from_tokens(
             "Expected '/name' or 'TYPE/name' identifier at {}, found '{tw}'",
             tok.span
         );
-        check_user_ident(name, tok.span, "binding")?;
+        check_user_ident_for(name, tok.span, "binding", ctx.dialect)?;
         *pos = pos.saturating_add(1);
         return Ok((None, name.to_owned(), tok.span));
     }
-    let (ty, name, sp) = parse_typed_name_from_tokens(tokens, pos, ctx_desc)?;
+    let (ty, name, sp) =
+        parse_typed_name_from_tokens_with_ctx(tokens, pos, ctx_desc, ctx)?;
     Ok((Some(ty), name, sp))
 }
 
-fn parse_value_ref_word(
+pub(super) fn parse_value_ref_word_with_ctx(
     word: &str,
     span: Span,
+    ctx: &TypeParseCtx<'_>,
 ) -> Result<(Option<StageLType>, SymbolTarget)> {
     if let Some(sh) = word.strip_prefix("/dc/") {
         let dc = parse_dc_shorthand(sh)?;
@@ -683,7 +899,7 @@ fn parse_value_ref_word(
             !name.contains('/'),
             "Expected '/name' or '/dc/<shorthand>' at {span}, found '{word}'"
         );
-        check_user_ident(name, span, "binding")?;
+        check_user_ident_for(name, span, "binding", ctx.dialect)?;
         return Ok((None, SymbolTarget::Ident(name.to_owned())));
     }
     let segs: Vec<&str> = word.split('/').collect();
@@ -696,17 +912,18 @@ fn parse_value_ref_word(
             .last()
             .copied()
             .with_context(|| format!("Missing Dc shorthand in '{word}' at {span}"))?;
-        let ty = parse_type_segments(type_segs, span)?;
+        let ty = parse_type_segments_with_ctx(type_segs, span, ctx)?;
         let dc = parse_dc_shorthand(sh)?;
         return Ok((Some(ty), SymbolTarget::Dc(dc)));
     }
-    let (ty, name) = parse_typed_name(word, span)?;
+    let (ty, name) = parse_typed_name_with_ctx(word, span, ctx)?;
     Ok((Some(ty), SymbolTarget::Ident(name)))
 }
 
-fn parse_routine_sig_token(
+fn parse_routine_sig_token_with_ctx(
     word: &str,
     span: Span,
+    ctx: &TypeParseCtx<'_>,
 ) -> Result<(StageLType, String)> {
     let segs: Vec<&str> = word.split('/').collect();
     ensure!(
@@ -716,17 +933,18 @@ fn parse_routine_sig_token(
     let Some((&name, prefix)) = segs.split_last() else {
         bail!("Invalid routine signature '{word}' at {span}");
     };
-    check_user_ident(name, span, "routine")?;
+    check_user_ident_for(name, span, "routine", ctx.dialect)?;
     let ret_segs = prefix.get(1..).with_context(|| {
         format!("Missing return type in routine signature '{word}' at {span}")
     })?;
-    let return_type = parse_type_segments(ret_segs, span)?;
+    let return_type = parse_type_segments_with_ctx(ret_segs, span, ctx)?;
     Ok((return_type, name.to_owned()))
 }
 
-fn parse_routine_sig_from_tokens(
+fn parse_routine_sig_from_tokens_with_ctx(
     tokens: &[LexToken],
     pos: &mut usize,
+    ctx: &TypeParseCtx<'_>,
 ) -> Result<(StageLType, String, Span)> {
     let sig_tok = tokens
         .get(*pos)
@@ -739,15 +957,18 @@ fn parse_routine_sig_from_tokens(
         );
     };
     if let Some(after_v) = sig_word.strip_prefix("v/")
-        && let Some(outer_ctors) = parse_tup_type_outer_ctors(after_v)
+        && let Some(outer_ctors) =
+            parse_tup_type_outer_ctors_for(after_v, ctx.dialect)
     {
         *pos = pos.saturating_add(1);
-        let (return_type, close_tok) = parse_tuple_type_tail_from_tokens(
-            tokens,
-            pos,
-            sig_tok.span,
-            &outer_ctors,
-        )?;
+        let (return_type, close_tok) =
+            parse_tuple_type_tail_from_tokens_with_ctx(
+                tokens,
+                pos,
+                sig_tok.span,
+                &outer_ctors,
+                ctx,
+            )?;
         let name_tok = tokens
             .get(*pos)
             .with_context(|| {
@@ -780,18 +1001,20 @@ fn parse_routine_sig_from_tokens(
             "Invalid routine name '{nw}' at {}",
             name_tok.span
         );
-        check_user_ident(name, name_tok.span, "routine")?;
+        check_user_ident_for(name, name_tok.span, "routine", ctx.dialect)?;
         *pos = pos.saturating_add(1);
         return Ok((return_type, name.to_owned(), sig_tok.span));
     }
-    let (return_type, name) = parse_routine_sig_token(sig_word, sig_tok.span)?;
+    let (return_type, name) =
+        parse_routine_sig_token_with_ctx(sig_word, sig_tok.span, ctx)?;
     *pos = pos.saturating_add(1);
     Ok((return_type, name, sig_tok.span))
 }
 
-fn parse_typed_int_literal(
+pub(super) fn parse_typed_int_literal_for(
     word: &str,
     span: Span,
+    dialect: StageDialect,
 ) -> Result<Option<TypedIntLit>> {
     let Some((ty_part, val_part)) = word.split_once(':') else {
         return Ok(None);
@@ -830,12 +1053,39 @@ fn parse_typed_int_literal(
             })?;
             TypedIntLit::U64(v)
         }
+        "i128" if dialect == StageDialect::StageR3 => {
+            let v: i128 = val_part.parse().with_context(|| {
+                format!("Invalid i128 literal '{word}' at {span}")
+            })?;
+            TypedIntLit::I128(v)
+        }
+        "u128" if dialect == StageDialect::StageR3 => {
+            let v: u128 = val_part.parse().with_context(|| {
+                format!("Invalid u128 literal '{word}' at {span}")
+            })?;
+            TypedIntLit::U128(v)
+        }
+        "int" if dialect == StageDialect::StageR3 => {
+            let digits = val_part.strip_prefix('-').unwrap_or(val_part);
+            ensure!(
+                !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()),
+                "Invalid int literal '{word}' at {span}"
+            );
+            let v = Integer::from_str(val_part).map_err(|()| {
+                anyhow::anyhow!("Invalid int literal '{word}' at {span}")
+            })?;
+            TypedIntLit::Int(v)
+        }
         _ => return Ok(None),
     };
     Ok(Some(lit))
 }
 
-fn parse_list_opener(word: &str, span: Span) -> Result<Option<StageLType>> {
+pub(super) fn parse_list_opener_with_ctx(
+    word: &str,
+    span: Span,
+    ctx: &TypeParseCtx<'_>,
+) -> Result<Option<StageLType>> {
     let Some(prefix) = word.strip_suffix(':') else {
         return Ok(None);
     };
@@ -845,7 +1095,7 @@ fn parse_list_opener(word: &str, span: Span) -> Result<Option<StageLType>> {
         let elem_segs = segs.get(1..).with_context(|| {
             format!("Missing list element type in '{word}' at {span}")
         })?;
-        let elem_ty = parse_type_segments(elem_segs, span)?;
+        let elem_ty = parse_type_segments_with_ctx(elem_segs, span, ctx)?;
         return Ok(Some(elem_ty));
     }
     Ok(None)
@@ -868,7 +1118,7 @@ fn parse_namespace_segments(raw: &str, span: Span) -> Result<Vec<String>> {
     Ok(out)
 }
 
-fn match_unary_op(word: &str) -> Option<CoreUnaryOp> {
+pub(super) fn match_unary_op(word: &str) -> Option<CoreUnaryOp> {
     match word {
         "neg" => Some(CoreUnaryOp::Neg),
         "bitNot" => Some(CoreUnaryOp::BitNot),
@@ -882,7 +1132,7 @@ fn match_unary_op(word: &str) -> Option<CoreUnaryOp> {
     }
 }
 
-fn match_binary_op(word: &str) -> Option<CoreBinaryOp> {
+pub(super) fn match_binary_op(word: &str) -> Option<CoreBinaryOp> {
     match word {
         "add" => Some(CoreBinaryOp::Add),
         "sub" => Some(CoreBinaryOp::Sub),
@@ -916,7 +1166,7 @@ fn match_binary_op(word: &str) -> Option<CoreBinaryOp> {
     }
 }
 
-fn match_ternary_op(word: &str) -> Option<CoreTernaryOp> {
+pub(super) fn match_ternary_op(word: &str) -> Option<CoreTernaryOp> {
     match word {
         "slice" => Some(CoreTernaryOp::Slice),
         "bufSet" => Some(CoreTernaryOp::BufSet),
@@ -936,13 +1186,52 @@ pub fn parse_module_with_imports(
     source: &str,
     imported_verb_arities: &HashMap<String, usize>,
 ) -> Result<Module> {
-    let tokens = tokenize_sl3(source)?;
+    let tokens = tokenize_with_dialect(source, StageDialect::StageL3)?;
     let mut parser = Parser {
+        dialect: StageDialect::StageL3,
         tokens,
         pos: 0,
         verb_scopes: vec![imported_verb_arities.clone()],
+        stager_types_by_name: HashMap::new(),
+        stager_types_by_dc: HashMap::new(),
+        stager_enum_variants: HashMap::new(),
     };
     parser.parse_module()
+}
+
+/// Parses a StageR 3 `.sr3` module source without external `use` imports.
+pub fn parse_sr3_module(source: &str) -> Result<Module> {
+    parse_sr3_module_with_imports(source, &StageRImportContext::default())
+}
+
+/// Parses a StageR 3 `.sr3` module using imported verb arities, type kinds,
+/// and enum variant payload arities.
+pub fn parse_sr3_module_with_imports(
+    source: &str,
+    imports: &StageRImportContext,
+) -> Result<Module> {
+    let tokens = tokenize_with_dialect(source, StageDialect::StageR3)?;
+    let mut parser = Parser {
+        dialect: StageDialect::StageR3,
+        tokens,
+        pos: 0,
+        verb_scopes: vec![imports.verb_arities.clone()],
+        stager_types_by_name: imports.type_kinds_by_name.clone(),
+        stager_types_by_dc: imports.type_kinds_by_dc.clone(),
+        stager_enum_variants: imports.enum_variants.clone(),
+    };
+    parser.parse_module()
+}
+
+/// Parses a `.sl3` or `.sr3` module source according to `dialect`.
+pub fn parse_module_with_dialect(
+    source: &str,
+    dialect: StageDialect,
+) -> Result<Module> {
+    match dialect {
+        StageDialect::StageL3 => parse_module(source),
+        StageDialect::StageR3 => parse_sr3_module(source),
+    }
 }
 
 /// Scans `.sl3` source tokens for direct `dc/<shorthand>` words so callers
@@ -951,27 +1240,77 @@ pub fn parse_module_with_imports(
 pub(crate) fn scan_direct_dc_words(
     source: &str,
 ) -> Result<Vec<(String, DcChar)>> {
-    let tokens = tokenize_sl3(source)?;
+    scan_direct_dc_words_with_dialect(source, StageDialect::StageL3)
+}
+
+/// Scans `.sl3` or `.sr3` source tokens for `dc/<shorthand>` references.
+pub(crate) fn scan_direct_dc_words_with_dialect(
+    source: &str,
+    dialect: StageDialect,
+) -> Result<Vec<(String, DcChar)>> {
+    let tokens = tokenize_with_dialect(source, dialect)?;
     let mut out = Vec::new();
     for tok in tokens {
-        if let LexKind::Word(w) = tok.kind
-            && let Some(sh) = w.strip_prefix("dc/")
-            && !sh.contains('/')
-            && !sh.ends_with(':')
-        {
-            let dc = parse_dc_shorthand(sh)?;
-            out.push((w, dc));
+        if let LexKind::Word(w) = tok.kind {
+            if let Some(sh) = w.strip_prefix("dc/")
+                && !sh.contains('/')
+                && !sh.ends_with(':')
+            {
+                let trimmed = if dialect == StageDialect::StageR3 {
+                    let no_prop = sh.trim_end_matches(['?', '/']);
+                    if let Some((base_sh, _)) = no_prop.split_once(':') {
+                        base_sh
+                    } else {
+                        no_prop
+                    }
+                } else {
+                    sh
+                };
+                if let Ok(dc) = parse_dc_shorthand(trimmed) {
+                    out.push((format!("dc/{trimmed}"), dc));
+                } else if dialect == StageDialect::StageL3 {
+                    let dc = parse_dc_shorthand(sh)?;
+                    out.push((w, dc));
+                }
+            } else if dialect == StageDialect::StageR3 {
+                let segs: Vec<&str> = w.split('/').collect();
+                for pair in segs.windows(2) {
+                    if let [prev, raw_sh] = pair
+                        && *prev == "dc"
+                    {
+                        let no_prop = raw_sh.trim_end_matches(['?', '/']);
+                        let base_sh =
+                            if let Some((b, _)) = no_prop.split_once(':') {
+                                b
+                            } else {
+                                no_prop
+                            };
+                        if let Ok(dc) = parse_dc_shorthand(base_sh) {
+                            out.push((format!("dc/{base_sh}"), dc));
+                        }
+                    }
+                }
+            }
         }
     }
     Ok(out)
 }
 
-/// Extracts only the optional `ns` path and `use` namespace paths from raw `.sl3`
-/// source (header pre-scan for topological multi-module ordering).
+/// Extracts only the optional `ns` path and `use` namespace paths from raw
+/// `.sl3` source (header pre-scan for topological multi-module ordering).
 pub fn scan_module_header_paths(
     source: &str,
 ) -> Result<(Option<Vec<String>>, Vec<Vec<String>>)> {
-    let tokens = tokenize_sl3(source)?;
+    scan_module_header_paths_with_dialect(source, StageDialect::StageL3)
+}
+
+/// Extracts only the optional `ns` path and `use` namespace paths from raw
+/// `.sl3` or `.sr3` source.
+pub fn scan_module_header_paths_with_dialect(
+    source: &str,
+    dialect: StageDialect,
+) -> Result<(Option<Vec<String>>, Vec<Vec<String>>)> {
+    let tokens = tokenize_with_dialect(source, dialect)?;
     let mut p = 0usize;
     let mut ns = None;
     let mut uses = Vec::new();
@@ -1037,27 +1376,97 @@ pub fn scan_module_header_paths(
     Ok((ns, uses))
 }
 
-struct PendingComments {
-    comments: Vec<Comment>,
-    dc_directive: Option<DcChar>,
+pub(super) struct PendingComments {
+    pub(super) comments: Vec<Comment>,
+    pub(super) dc_directive: Option<DcChar>,
 }
 
-struct Parser {
-    tokens: Vec<LexToken>,
-    pos: usize,
-    verb_scopes: Vec<HashMap<String, usize>>,
+pub(super) struct Parser {
+    pub(super) dialect: StageDialect,
+    pub(super) tokens: Vec<LexToken>,
+    pub(super) pos: usize,
+    pub(super) verb_scopes: Vec<HashMap<String, usize>>,
+    pub(super) stager_types_by_name: HashMap<String, StageRTypeKind>,
+    pub(super) stager_types_by_dc: HashMap<DcChar, StageRTypeKind>,
+    pub(super) stager_enum_variants:
+        HashMap<StructTypeRef, HashMap<String, bool>>,
 }
 
 impl Parser {
-    fn peek_at(&self, idx: usize) -> Option<&LexToken> {
+    pub(super) fn type_ctx(&self) -> TypeParseCtx<'_> {
+        TypeParseCtx {
+            dialect: self.dialect,
+            types_by_name: &self.stager_types_by_name,
+            types_by_dc: &self.stager_types_by_dc,
+        }
+    }
+
+    pub(super) fn parse_type_from_tokens(
+        &mut self,
+        ctx_desc: &str,
+    ) -> Result<(StageLType, LexToken)> {
+        let ctx = TypeParseCtx {
+            dialect: self.dialect,
+            types_by_name: &self.stager_types_by_name,
+            types_by_dc: &self.stager_types_by_dc,
+        };
+        parse_type_from_tokens_with_ctx(&self.tokens, &mut self.pos, ctx_desc, &ctx)
+    }
+
+    pub(super) fn parse_typed_name_from_tokens(
+        &mut self,
+        ctx_desc: &str,
+    ) -> Result<(StageLType, String, Span)> {
+        let ctx = TypeParseCtx {
+            dialect: self.dialect,
+            types_by_name: &self.stager_types_by_name,
+            types_by_dc: &self.stager_types_by_dc,
+        };
+        parse_typed_name_from_tokens_with_ctx(
+            &self.tokens,
+            &mut self.pos,
+            ctx_desc,
+            &ctx,
+        )
+    }
+
+    pub(super) fn parse_optional_typed_name_from_tokens(
+        &mut self,
+        ctx_desc: &str,
+    ) -> Result<(Option<StageLType>, String, Span)> {
+        let ctx = TypeParseCtx {
+            dialect: self.dialect,
+            types_by_name: &self.stager_types_by_name,
+            types_by_dc: &self.stager_types_by_dc,
+        };
+        parse_optional_typed_name_from_tokens_with_ctx(
+            &self.tokens,
+            &mut self.pos,
+            ctx_desc,
+            &ctx,
+        )
+    }
+
+    pub(super) fn parse_routine_sig_from_tokens(
+        &mut self,
+    ) -> Result<(StageLType, String, Span)> {
+        let ctx = TypeParseCtx {
+            dialect: self.dialect,
+            types_by_name: &self.stager_types_by_name,
+            types_by_dc: &self.stager_types_by_dc,
+        };
+        parse_routine_sig_from_tokens_with_ctx(&self.tokens, &mut self.pos, &ctx)
+    }
+
+    pub(super) fn peek_at(&self, idx: usize) -> Option<&LexToken> {
         self.tokens.get(idx)
     }
 
-    fn peek(&self) -> Option<&LexToken> {
+    pub(super) fn peek(&self) -> Option<&LexToken> {
         self.tokens.get(self.pos)
     }
 
-    fn peek_skip_comments(&self) -> Option<&LexToken> {
+    pub(super) fn peek_skip_comments(&self) -> Option<&LexToken> {
         let mut i = self.pos;
         while let Some(tok) = self.tokens.get(i) {
             if !matches!(tok.kind, LexKind::Comment { .. }) {
@@ -1068,11 +1477,14 @@ impl Parser {
         None
     }
 
-    fn consume_comments(&mut self, allow_dc: bool) -> Result<PendingComments> {
+    pub(super) fn consume_comments(
+        &mut self,
+        allow_dc: bool,
+    ) -> Result<PendingComments> {
         self.consume_comments_indented_past(0, allow_dc)
     }
 
-    fn consume_comments_indented_past(
+    pub(super) fn consume_comments_indented_past(
         &mut self,
         min_exclusive_col: usize,
         allow_dc: bool,
@@ -1118,7 +1530,7 @@ impl Parser {
         })
     }
 
-    fn expect_dot(&mut self, context_desc: &str) -> Result<Span> {
+    pub(super) fn expect_dot(&mut self, context_desc: &str) -> Result<Span> {
         while let Some(tok) = self.peek() {
             if matches!(tok.kind, LexKind::Comment { .. }) {
                 let pc = self.consume_comments(false)?;
@@ -1141,7 +1553,7 @@ impl Parser {
         Ok(tok.span)
     }
 
-    fn lookup_verb_arity(&self, name: &str) -> Option<usize> {
+    pub(super) fn lookup_verb_arity(&self, name: &str) -> Option<usize> {
         for scope in self.verb_scopes.iter().rev() {
             if let Some(&arity) = scope.get(name) {
                 return Some(arity);
@@ -1252,6 +1664,9 @@ impl Parser {
         mut carry_comments: Vec<Comment>,
         mut carry_dc: Option<DcChar>,
     ) -> Result<Module> {
+        if self.dialect == StageDialect::StageR3 {
+            self.prescan_sr3_module_declarations(self.pos)?;
+        }
         let top_sigs = self.prescan_module_verb_arities(self.pos)?;
         let mut scope = self
             .verb_scopes
@@ -1286,7 +1701,7 @@ impl Parser {
                 if let Some(dc) = carry_dc {
                     bail!(
                         "Dangling ': @dc {}' directive at EOF without declaration",
-                        super::ast::format_dc_shorthand(dc)
+                        format_dc_shorthand(dc)
                     );
                 }
                 for c in carry_comments {
@@ -1308,7 +1723,7 @@ impl Parser {
 
         let _ = self.verb_scopes.pop();
         Ok(Module {
-            dialect: StageDialect::StageL3,
+            dialect: self.dialect,
             namespace,
             uses,
             leading_comments,
@@ -1369,7 +1784,12 @@ impl Parser {
             let target = if let Some(sh) = item_word.strip_prefix("dc/") {
                 ImportTarget::Dc(parse_dc_shorthand(sh)?)
             } else {
-                check_user_ident(&item_word, next.span, "imported item")?;
+                check_user_ident_for(
+                    &item_word,
+                    next.span,
+                    "imported item",
+                    self.dialect,
+                )?;
                 ImportTarget::Name(item_word)
             };
             let alias = if let Some(after) = self.peek_skip_comments().cloned() {
@@ -1388,7 +1808,12 @@ impl Parser {
                             alias_tok.span
                         );
                     };
-                    check_user_ident(&alias_word, alias_tok.span, "import alias")?;
+                    check_user_ident_for(
+                        &alias_word,
+                        alias_tok.span,
+                        "import alias",
+                        self.dialect,
+                    )?;
                     self.pos = self.pos.saturating_add(1);
                     Some(alias_word)
                 } else {
@@ -1444,15 +1869,73 @@ impl Parser {
                 w,
                 first_tok.span
             ),
-            "struct" => {
-                let s = self.parse_struct_decl(
+            "brand" => {
+                ensure!(
+                    self.dialect == StageDialect::StageR3,
+                    "'brand' declaration at {} belongs to StageR 3 (.sr3)",
+                    first_tok.span
+                );
+                let b = self.parse_brand_type_decl(
+                    false,
+                    false,
+                    dc_directive,
+                    false,
+                    comments_before,
+                    first_tok.span,
+                )?;
+                Ok(TopDecl::BrandType(b))
+            }
+            "type" => {
+                ensure!(
+                    self.dialect == StageDialect::StageR3,
+                    "'type' declaration at {} belongs to StageR 3 (.sr3)",
+                    first_tok.span
+                );
+                let b = self.parse_brand_type_decl(
+                    false,
+                    false,
+                    dc_directive,
+                    true,
+                    comments_before,
+                    first_tok.span,
+                )?;
+                Ok(TopDecl::BrandType(b))
+            }
+            "enum" => {
+                ensure!(
+                    self.dialect == StageDialect::StageR3,
+                    "'enum' declaration at {} belongs to StageR 3 (.sr3)",
+                    first_tok.span
+                );
+                let e = self.parse_enum_decl(
                     false,
                     false,
                     dc_directive,
                     comments_before,
                     first_tok.span,
                 )?;
-                Ok(TopDecl::Struct(s))
+                Ok(TopDecl::Enum(e))
+            }
+            "struct" => {
+                if self.dialect == StageDialect::StageR3 {
+                    let s = self.parse_named_struct_decl(
+                        false,
+                        false,
+                        dc_directive,
+                        comments_before,
+                        first_tok.span,
+                    )?;
+                    Ok(TopDecl::NamedStruct(s))
+                } else {
+                    let s = self.parse_struct_decl(
+                        false,
+                        false,
+                        dc_directive,
+                        comments_before,
+                        first_tok.span,
+                    )?;
+                    Ok(TopDecl::Struct(s))
+                }
             }
             "const" => {
                 if let Some(next_tok) = self.peek_at(self.pos.saturating_add(1)) {
@@ -1463,20 +1946,20 @@ impl Parser {
                                 first_tok.span
                             );
                         }
-                        if nw == "struct" {
+                        if matches!(
+                            nw.as_str(),
+                            "struct" | "brand" | "type" | "enum"
+                        ) {
                             bail!(
-                                "Redundant 'const' before 'struct' at {}; write 'struct name ...'",
+                                "Redundant 'const' before '{nw}' at {}; write '{nw} ...'",
                                 first_tok.span
                             );
                         }
                     }
                 }
                 self.pos = self.pos.saturating_add(1);
-                let (ty, name, _) = parse_typed_name_from_tokens(
-                    &self.tokens,
-                    &mut self.pos,
-                    "after 'const'",
-                )?;
+                let (ty, name, _) =
+                    self.parse_typed_name_from_tokens("after 'const'")?;
                 let value = self.parse_expr(false)?;
                 self.expect_dot("after top-level 'const' declaration")?;
                 Ok(TopDecl::Value(TopValueDecl {
@@ -1500,7 +1983,7 @@ impl Parser {
                     .clone();
                 let LexKind::Word(ref nw) = next_tok.kind else {
                     bail!(
-                        "Expected 'struct', 'v/...', 'TYPE/name', or 'dc/<shorthand>' after 'pub' at {}",
+                        "Expected declaration or 'dc/<shorthand>' after 'pub' at {}",
                         next_tok.span
                     );
                 };
@@ -1539,19 +2022,74 @@ impl Parser {
 
                 let LexKind::Word(dw) = &decl_tok.kind else {
                     bail!(
-                        "Expected 'struct', 'v/...', or 'TYPE/name' after 'pub' at {}",
+                        "Expected declaration after 'pub' at {}",
                         decl_tok.span
                     );
                 };
-                if dw == "struct" {
-                    let s = self.parse_struct_decl(
+                if dw == "brand" {
+                    ensure!(
+                        self.dialect == StageDialect::StageR3,
+                        "'pub brand' at {} belongs to StageR 3 (.sr3)",
+                        decl_tok.span
+                    );
+                    let b = self.parse_brand_type_decl(
+                        true,
+                        pub_dc_syntax,
+                        dc_id,
+                        false,
+                        comments_before,
+                        first_tok.span,
+                    )?;
+                    Ok(TopDecl::BrandType(b))
+                } else if dw == "type" {
+                    ensure!(
+                        self.dialect == StageDialect::StageR3,
+                        "'pub type' at {} belongs to StageR 3 (.sr3)",
+                        decl_tok.span
+                    );
+                    let b = self.parse_brand_type_decl(
+                        true,
+                        pub_dc_syntax,
+                        dc_id,
+                        true,
+                        comments_before,
+                        first_tok.span,
+                    )?;
+                    Ok(TopDecl::BrandType(b))
+                } else if dw == "enum" {
+                    ensure!(
+                        self.dialect == StageDialect::StageR3,
+                        "'pub enum' at {} belongs to StageR 3 (.sr3)",
+                        decl_tok.span
+                    );
+                    let e = self.parse_enum_decl(
                         true,
                         pub_dc_syntax,
                         dc_id,
                         comments_before,
                         first_tok.span,
                     )?;
-                    Ok(TopDecl::Struct(s))
+                    Ok(TopDecl::Enum(e))
+                } else if dw == "struct" {
+                    if self.dialect == StageDialect::StageR3 {
+                        let s = self.parse_named_struct_decl(
+                            true,
+                            pub_dc_syntax,
+                            dc_id,
+                            comments_before,
+                            first_tok.span,
+                        )?;
+                        Ok(TopDecl::NamedStruct(s))
+                    } else {
+                        let s = self.parse_struct_decl(
+                            true,
+                            pub_dc_syntax,
+                            dc_id,
+                            comments_before,
+                            first_tok.span,
+                        )?;
+                        Ok(TopDecl::Struct(s))
+                    }
                 } else if dw.starts_with("v/") {
                     let routine = self.parse_routine_decl(
                         true,
@@ -1562,11 +2100,8 @@ impl Parser {
                     )?;
                     Ok(TopDecl::Routine(routine))
                 } else {
-                    let (ty, name, _) = parse_typed_name_from_tokens(
-                        &self.tokens,
-                        &mut self.pos,
-                        "after 'pub'",
-                    )?;
+                    let (ty, name, _) =
+                        self.parse_typed_name_from_tokens("after 'pub'")?;
                     let value = self.parse_expr(false)?;
                     self.expect_dot("after 'pub' constant declaration")?;
                     Ok(TopDecl::Value(TopValueDecl {
@@ -1623,7 +2158,7 @@ impl Parser {
                 name_tok.span
             );
         };
-        check_user_ident(&name, name_tok.span, "struct")?;
+        check_user_ident_for(&name, name_tok.span, "struct", self.dialect)?;
         self.pos = self.pos.saturating_add(1);
 
         let mut fields = Vec::new();
@@ -1642,11 +2177,8 @@ impl Parser {
                 if matches!(next.kind, LexKind::Dot) {
                     break;
                 }
-                let (fty, _) = parse_type_from_tokens(
-                    &self.tokens,
-                    &mut self.pos,
-                    "positional struct slot type",
-                )?;
+                let (fty, _) =
+                    self.parse_type_from_tokens("positional struct slot type")?;
                 fields.push(fty);
             }
             self.expect_dot("after inline 'struct' declaration")?;
@@ -1682,11 +2214,8 @@ impl Parser {
                         self.pos = self.pos.saturating_add(1);
                         break;
                     }
-                    let (fty, _) = parse_type_from_tokens(
-                        &self.tokens,
-                        &mut self.pos,
-                        "positional struct slot type",
-                    )?;
+                    let (fty, _) = self
+                        .parse_type_from_tokens("positional struct slot type")?;
                     fields.push(fty);
                     line_fields = line_fields.saturating_add(1);
                 }
@@ -1724,7 +2253,7 @@ impl Parser {
         decl_col: usize,
     ) -> Result<RoutineDecl> {
         let (return_type, name, sig_span) =
-            parse_routine_sig_from_tokens(&self.tokens, &mut self.pos)?;
+            self.parse_routine_sig_from_tokens()?;
 
         let mut params = Vec::new();
         while let Some(tok) = self.peek().cloned() {
@@ -1734,11 +2263,8 @@ impl Parser {
             if tok.span.line != sig_span.line {
                 break;
             }
-            let (ty, pname, pspan) = parse_typed_name_from_tokens(
-                &self.tokens,
-                &mut self.pos,
-                "on routine header",
-            )?;
+            let (ty, pname, pspan) =
+                self.parse_typed_name_from_tokens("on routine header")?;
             params.push(Param {
                 ty,
                 name: pname,
@@ -1982,6 +2508,11 @@ impl Parser {
                                 &etok.kind,
                                 LexKind::Word(fw) if fw == "fault"
                             ) {
+                                ensure!(
+                                    self.dialect == StageDialect::StageL3,
+                                    "'out fault' in 'test' blocks is forbidden in StageR 3 at {} (use 'out result/...:err ...' or 'out option/...:none')",
+                                    etok.span
+                                );
                                 self.pos = self.pos.saturating_add(1);
                                 if let Some(d) = self.peek() {
                                     if matches!(d.kind, LexKind::Dot) {
@@ -2093,11 +2624,11 @@ impl Parser {
         Ok(expr)
     }
 
-    fn parse_expr(&mut self, enclosing_is_void: bool) -> Result<Expr> {
+    pub(super) fn parse_expr(&mut self, enclosing_is_void: bool) -> Result<Expr> {
         let _ = self.consume_comments(false)?;
         let tok = self
             .peek()
-            .context("Expected StageL 3 expression, found EOF")?
+            .context("Expected expression, found EOF")?
             .clone();
         self.pos = self.pos.saturating_add(1);
 
@@ -2106,41 +2637,59 @@ impl Parser {
                 value: payload.clone(),
                 span: tok.span,
             }),
+            LexKind::DctsString { raw_dcts, value } => Ok(Expr::DctsString {
+                raw_dcts: raw_dcts.clone(),
+                value: value.clone(),
+                span: tok.span,
+            }),
             LexKind::Dot | LexKind::DoubleColon => {
                 bail!("Unexpected delimiter {:?} where expression was expected at {}", tok.kind, tok.span);
             }
             LexKind::Comment { .. } => {
                 unreachable!("Comments consumed above")
             }
-            LexKind::Word(word) => self.parse_word_expr(word, tok.span, enclosing_is_void),
+            LexKind::Word(word) => {
+                if self.dialect == StageDialect::StageR3 {
+                    self.parse_stager_word_expr(
+                        word,
+                        tok.span,
+                        enclosing_is_void,
+                    )
+                } else {
+                    self.parse_word_expr(word, tok.span, enclosing_is_void)
+                }
+            }
         }
     }
 
-    fn parse_word_expr(
+    pub(super) fn parse_shared_keyword_expr(
         &mut self,
         word: &str,
         span: Span,
         enclosing_is_void: bool,
-    ) -> Result<Expr> {
+    ) -> Result<Option<Expr>> {
         match word {
-            "true" => return Ok(Expr::Bool { value: true, span }),
-            "false" => return Ok(Expr::Bool { value: false, span }),
-            "break" => return Ok(Expr::Break { span }),
-            "continue" => return Ok(Expr::Continue { span }),
-            "fault" => return Ok(Expr::Fault { span }),
-            "nop" => return Ok(Expr::Nop { span }),
-            "pub" => bail!("'pub' at {span} is only allowed at module top level"),
+            "true" => Ok(Some(Expr::Bool { value: true, span })),
+            "false" => Ok(Some(Expr::Bool { value: false, span })),
+            "break" => Ok(Some(Expr::Break { span })),
+            "continue" => Ok(Some(Expr::Continue { span })),
+            "nop" => Ok(Some(Expr::Nop { span })),
+            "pub" => {
+                bail!("'pub' at {span} is only allowed at module top level")
+            }
             "struct" => bail!(
                 "'struct' declaration at {span} is only allowed at module top level"
             ),
-            "ns" | "use" => bail!("'{word}' at {span} is only allowed at module header"),
+            "ns" | "use" => {
+                bail!("'{word}' at {span} is only allowed at module header")
+            }
             "return" => {
                 let value = if enclosing_is_void {
                     None
                 } else {
                     Some(Box::new(self.parse_expr(false)?))
                 };
-                return Ok(Expr::Return { value, span });
+                Ok(Some(Expr::Return { value, span }))
             }
             "let" => {
                 if let Some(target) = self.peek()
@@ -2151,11 +2700,8 @@ impl Parser {
                         "Nested routine declarations use 'const {tw} ...', not 'let' at {span}"
                     );
                 }
-                let (ty, name, _) = parse_typed_name_from_tokens(
-                    &self.tokens,
-                    &mut self.pos,
-                    "after 'let'",
-                )?;
+                let (ty, name, _) =
+                    self.parse_typed_name_from_tokens("after 'let'")?;
                 let init = if let Some(next) = self.peek_skip_comments() {
                     if matches!(next.kind, LexKind::Dot | LexKind::DoubleColon)
                     {
@@ -2166,12 +2712,12 @@ impl Parser {
                 } else {
                     None
                 };
-                return Ok(Expr::Let {
+                Ok(Some(Expr::Let {
                     ty,
                     name,
                     init,
                     span,
-                });
+                }))
             }
             "const" => {
                 if let Some(target) = self.peek()
@@ -2182,19 +2728,16 @@ impl Parser {
                         "Nested routine declaration 'const {tw}' at {span} is only allowed as a direct statement inside a routine or 'do ... ::' block"
                     );
                 }
-                let (ty, name, _) = parse_typed_name_from_tokens(
-                    &self.tokens,
-                    &mut self.pos,
-                    "after 'const'",
-                )?;
+                let (ty, name, _) =
+                    self.parse_typed_name_from_tokens("after 'const'")?;
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::Const {
+                Ok(Some(Expr::Const {
                     dc_id: None,
                     ty,
                     name,
                     value,
                     span,
-                });
+                }))
             }
             "set" => {
                 if let Some(target) = self.peek()
@@ -2205,78 +2748,54 @@ impl Parser {
                         "Routine '{tw}' cannot be mutated with 'set' at {span}"
                     );
                 }
-                let (ty, name, _) = parse_optional_typed_name_from_tokens(
-                    &self.tokens,
-                    &mut self.pos,
-                    "after 'set'",
-                )?;
+                let (ty, name, _) =
+                    self.parse_optional_typed_name_from_tokens("after 'set'")?;
                 let value = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::Set {
+                Ok(Some(Expr::Set {
                     ty,
                     name,
                     value,
                     span,
-                });
+                }))
             }
-            "do" => return self.parse_do_block(span, enclosing_is_void),
+            "do" => Ok(Some(self.parse_do_block(span, enclosing_is_void)?)),
             "if" => {
                 let cond = Box::new(self.parse_expr(enclosing_is_void)?);
                 let then_branch = Box::new(self.parse_expr(enclosing_is_void)?);
                 let else_branch = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::If {
+                Ok(Some(Expr::If {
                     cond,
                     then_branch,
                     else_branch,
                     span,
-                });
+                }))
             }
             "while" => {
                 let cond = Box::new(self.parse_expr(enclosing_is_void)?);
                 let body = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::While { cond, body, span });
+                Ok(Some(Expr::While { cond, body, span }))
             }
             "foreach" => {
-                let (elem_ty, elem_name, _) = parse_typed_name_from_tokens(
-                    &self.tokens,
-                    &mut self.pos,
-                    "after 'foreach'",
-                )?;
+                let (elem_ty, elem_name, _) =
+                    self.parse_typed_name_from_tokens("after 'foreach'")?;
                 let list = Box::new(self.parse_expr(enclosing_is_void)?);
                 let body = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::ForEach {
+                Ok(Some(Expr::ForEach {
                     elem_ty,
                     elem_name,
                     list,
                     body,
                     span,
-                });
-            }
-            "conv" => {
-                let expr = Box::new(self.parse_expr(enclosing_is_void)?);
-                let target_ty = self.parse_type_operand(span, "conv")?;
-                return Ok(Expr::Conv {
-                    expr,
-                    target_ty,
-                    span,
-                });
-            }
-            "bitcast" => {
-                let expr = Box::new(self.parse_expr(enclosing_is_void)?);
-                let target_ty = self.parse_type_operand(span, "bitcast")?;
-                return Ok(Expr::Bitcast {
-                    expr,
-                    target_ty,
-                    span,
-                });
+                }))
             }
             "bufNew" => {
                 let elem_ty = self.parse_type_operand(span, "bufNew")?;
                 let capacity = Box::new(self.parse_expr(enclosing_is_void)?);
-                return Ok(Expr::BufNew {
+                Ok(Some(Expr::BufNew {
                     elem_ty,
                     capacity,
                     span,
-                });
+                }))
             }
             "tupNew" => {
                 bail!("Expected ':' after 'tupNew' (write 'tupNew: ... ::') at {span}");
@@ -2297,7 +2816,42 @@ impl Parser {
                     }
                     elements.push(self.parse_expr(enclosing_is_void)?);
                 }
-                return Ok(Expr::TupleNew { elements, span });
+                Ok(Some(Expr::TupleNew { elements, span }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn parse_word_expr(
+        &mut self,
+        word: &str,
+        span: Span,
+        enclosing_is_void: bool,
+    ) -> Result<Expr> {
+        if let Some(expr) =
+            self.parse_shared_keyword_expr(word, span, enclosing_is_void)?
+        {
+            return Ok(expr);
+        }
+        match word {
+            "fault" => return Ok(Expr::Fault { span }),
+            "conv" => {
+                let expr = Box::new(self.parse_expr(enclosing_is_void)?);
+                let target_ty = self.parse_type_operand(span, "conv")?;
+                return Ok(Expr::Conv {
+                    expr,
+                    target_ty,
+                    span,
+                });
+            }
+            "bitcast" => {
+                let expr = Box::new(self.parse_expr(enclosing_is_void)?);
+                let target_ty = self.parse_type_operand(span, "bitcast")?;
+                return Ok(Expr::Bitcast {
+                    expr,
+                    target_ty,
+                    span,
+                });
             }
             "structNew" => {
                 let target_tok = self
@@ -2321,10 +2875,11 @@ impl Parser {
                 let target = if let Some(sh) = target_prefix.strip_prefix("dc/") {
                     SymbolTarget::Dc(parse_dc_shorthand(sh)?)
                 } else {
-                    check_user_ident(
+                    check_user_ident_for(
                         target_prefix,
                         target_tok.span,
                         "structNew target",
+                        self.dialect,
                     )?;
                     SymbolTarget::Ident(target_prefix.to_owned())
                 };
@@ -2402,11 +2957,24 @@ impl Parser {
             });
         }
 
-        if let Some(lit) = parse_typed_int_literal(word, span)? {
+        self.parse_shared_tail_word_expr(word, span, enclosing_is_void)
+    }
+
+    pub(super) fn parse_shared_tail_word_expr(
+        &mut self,
+        word: &str,
+        span: Span,
+        enclosing_is_void: bool,
+    ) -> Result<Expr> {
+        if let Some(lit) =
+            parse_typed_int_literal_for(word, span, self.dialect)?
+        {
             return Ok(Expr::Int { value: lit, span });
         }
 
-        if let Some(elem_ty) = parse_list_opener(word, span)? {
+        if let Some(elem_ty) =
+            parse_list_opener_with_ctx(word, span, &self.type_ctx())?
+        {
             let mut elements = Vec::new();
             loop {
                 let _ = self.consume_comments(false)?;
@@ -2429,21 +2997,18 @@ impl Parser {
             });
         }
 
-        if parse_tup_type_outer_ctors(word).is_some() {
-            // Rewind past the opening `tup:` / `l/tup:` / `buf/tup:` token so
-            // `parse_type_from_tokens` consumes the full multi-token type up
-            // through its closing `::`.
+        if parse_tup_type_outer_ctors_for(word, self.dialect).is_some() {
+            // Rewind past the opening `tup:` / `l/tup:` / `buf/tup:` /
+            // `option/tup:` / `result/tup:` token so
+            // `parse_type_from_tokens_with_ctx` consumes the full multi-token
+            // type up through its closing `::`.
             self.pos = self.pos.saturating_sub(1);
-            let (ty, close_tok) = parse_type_from_tokens(
-                &self.tokens,
-                &mut self.pos,
-                "tuple type",
-            )?;
+            let (ty, close_tok) = self.parse_type_from_tokens("tuple type")?;
             let next_tok = self
                 .peek()
                 .with_context(|| {
                     format!(
-                        "Expected '/name', '/dc/<shorthand>', or ':' immediately after '{ty}' at {}",
+                        "Expected '/name', '/dc/<shorthand>', or constructor suffix immediately after '{ty}' at {}",
                         close_tok.span
                     )
                 })?
@@ -2451,15 +3016,67 @@ impl Parser {
             ensure!(
                 next_tok.span.line == close_tok.span.line
                     && next_tok.span.col == close_tok.end_col,
-                "Expected '/name', '/dc/<shorthand>', or ':' attached with no whitespace after '{ty}' at {}",
+                "Expected '/name', '/dc/<shorthand>', or constructor suffix attached with no whitespace after '{ty}' at {}",
                 close_tok.span
             );
             let LexKind::Word(ref suffix_word) = next_tok.kind else {
                 bail!(
-                    "Expected '/name', '/dc/<shorthand>', or ':' immediately after '{ty}' at {}",
+                    "Expected '/name', '/dc/<shorthand>', or constructor suffix immediately after '{ty}' at {}",
                     next_tok.span
                 );
             };
+            if self.dialect == StageDialect::StageR3
+                && let Some(ctor_base) = suffix_word.strip_prefix(':')
+            {
+                let (ctor_kind, suffix_prop_count) =
+                    super::stager_parser::strip_trailing_prop(ctor_base);
+                if ctor_kind.is_empty() {
+                    let StageLType::List(elem_ty) = ty else {
+                        bail!(
+                            "Unexpected ':' list constructor suffix after non-list type '{ty}' at {}",
+                            next_tok.span
+                        );
+                    };
+                    ensure!(
+                        suffix_prop_count == 0,
+                        "Unexpected trailing propagation on list constructor at {}",
+                        next_tok.span
+                    );
+                    self.pos = self.pos.saturating_add(1);
+                    let mut elements = Vec::new();
+                    loop {
+                        let _ = self.consume_comments(false)?;
+                        let next = self
+                            .peek()
+                            .with_context(|| {
+                                format!("Unclosed list literal starting at {span}")
+                            })?
+                            .clone();
+                        if matches!(next.kind, LexKind::DoubleColon) {
+                            self.pos = self.pos.saturating_add(1);
+                            break;
+                        }
+                        elements.push(self.parse_expr(enclosing_is_void)?);
+                    }
+                    return Ok(Expr::List {
+                        elem_ty: *elem_ty,
+                        elements,
+                        span,
+                    });
+                }
+                self.pos = self.pos.saturating_add(1);
+                let ctor_expr = self.parse_stager_compound_ctor(
+                    ty,
+                    ctor_kind,
+                    span,
+                    enclosing_is_void,
+                )?;
+                return Ok(super::stager_parser::wrap_propagate(
+                    ctor_expr,
+                    suffix_prop_count,
+                    span,
+                ));
+            }
             if suffix_word == ":" {
                 let StageLType::List(elem_ty) = ty else {
                     bail!(
@@ -2489,15 +3106,27 @@ impl Parser {
                     span,
                 });
             }
-            let target = if let Some(sh) = suffix_word.strip_prefix("/dc/") {
+            let (raw_target_word, suffix_prop_count) =
+                if self.dialect == StageDialect::StageR3 {
+                    super::stager_parser::strip_trailing_prop(suffix_word)
+                } else {
+                    (suffix_word.as_str(), 0usize)
+                };
+            let target = if let Some(sh) = raw_target_word.strip_prefix("/dc/")
+            {
                 SymbolTarget::Dc(parse_dc_shorthand(sh)?)
-            } else if let Some(name) = suffix_word.strip_prefix('/') {
+            } else if let Some(name) = raw_target_word.strip_prefix('/') {
                 ensure!(
                     !name.contains('/'),
                     "Expected '/name' or '/dc/<shorthand>' after '{ty}' at {}, found '{suffix_word}'",
                     next_tok.span
                 );
-                check_user_ident(name, next_tok.span, "binding")?;
+                check_user_ident_for(
+                    name,
+                    next_tok.span,
+                    "binding",
+                    self.dialect,
+                )?;
                 SymbolTarget::Ident(name.to_owned())
             } else {
                 bail!(
@@ -2506,11 +3135,16 @@ impl Parser {
                 );
             };
             self.pos = self.pos.saturating_add(1);
-            return Ok(Expr::ValueRef {
+            let val_expr = Expr::ValueRef {
                 ty: Some(ty),
                 target,
                 span,
-            });
+            };
+            return Ok(super::stager_parser::wrap_propagate(
+                val_expr,
+                suffix_prop_count,
+                span,
+            ));
         }
 
         if word.starts_with("v/") {
@@ -2522,6 +3156,8 @@ impl Parser {
         if word.contains('/') {
             if let Some(sh) = word.strip_prefix("dc/")
                 && !sh.contains('/')
+                && (self.dialect == StageDialect::StageL3
+                    || parse_dc_shorthand(sh).is_ok())
             {
                 let dc = parse_dc_shorthand(sh)?;
                 let arity = self.lookup_verb_arity(word).with_context(|| {
@@ -2539,11 +3175,12 @@ impl Parser {
                     span,
                 });
             }
-            let (ty, target) = parse_value_ref_word(word, span)?;
+            let (ty, target) =
+                parse_value_ref_word_with_ctx(word, span, &self.type_ctx())?;
             return Ok(Expr::ValueRef { ty, target, span });
         }
 
-        check_user_ident(word, span, "routine call")?;
+        check_user_ident_for(word, span, "routine call", self.dialect)?;
         let arity = self.lookup_verb_arity(word).with_context(|| {
             format!("Unknown routine '{word}' at {span}")
         })?;
@@ -2558,7 +3195,7 @@ impl Parser {
         })
     }
 
-    fn parse_u32_slot_index(
+    pub(super) fn parse_u32_slot_index(
         &mut self,
         op_span: Span,
         op_name: &str,
@@ -2576,7 +3213,8 @@ impl Parser {
                 tok.span
             );
         };
-        let Some(TypedIntLit::U32(idx)) = parse_typed_int_literal(&w, tok.span)?
+        let Some(TypedIntLit::U32(idx)) =
+            parse_typed_int_literal_for(&w, tok.span, self.dialect)?
         else {
             bail!(
                 "Expected 'u32:<index>' compile-time slot index for '{op_name}' at {}, found '{w}'",
@@ -2587,18 +3225,18 @@ impl Parser {
         Ok(idx)
     }
 
-    fn parse_type_operand(
+    pub(super) fn parse_type_operand(
         &mut self,
         op_span: Span,
         op_name: &str,
     ) -> Result<StageLType> {
         let _ = op_span;
-        let desc = format!("StageL type operand for '{op_name}'");
-        let (ty, _) = parse_type_from_tokens(&self.tokens, &mut self.pos, &desc)?;
+        let desc = format!("type operand for '{op_name}'");
+        let (ty, _) = self.parse_type_from_tokens(&desc)?;
         Ok(ty)
     }
 
-    fn parse_do_block(
+    pub(super) fn parse_do_block(
         &mut self,
         span: Span,
         enclosing_is_void: bool,
@@ -2803,7 +3441,12 @@ impl Parser {
                     block_depth = block_depth.saturating_sub(1);
                     i = i.saturating_add(1);
                 }
-                LexKind::Word(w) if w == "do" || w.ends_with(':') => {
+                LexKind::Word(w)
+                    if super::stager_parser::opens_double_colon_block(
+                        w,
+                        self.dialect,
+                    ) =>
+                {
                     block_depth = block_depth.saturating_add(1);
                     i = i.saturating_add(1);
                 }
@@ -2846,9 +3489,10 @@ impl Parser {
         &self,
         sig_idx: usize,
     ) -> Result<(String, usize, usize)> {
+        let ctx = self.type_ctx();
         let mut j = sig_idx;
         let (_ret, name, sig_span) =
-            parse_routine_sig_from_tokens(&self.tokens, &mut j)?;
+            parse_routine_sig_from_tokens_with_ctx(&self.tokens, &mut j, &ctx)?;
         let mut arity = 0usize;
         while let Some(tok) = self.tokens.get(j) {
             if matches!(tok.kind, LexKind::DoubleColon)
@@ -2856,10 +3500,11 @@ impl Parser {
             {
                 break;
             }
-            let _ = parse_typed_name_from_tokens(
+            let _ = parse_typed_name_from_tokens_with_ctx(
                 &self.tokens,
                 &mut j,
                 "on routine header",
+                &ctx,
             )?;
             arity = arity.saturating_add(1);
         }
@@ -2884,7 +3529,12 @@ impl Parser {
                 let mut frames = vec![SkipFrame::InlineVerb];
                 while let Some(t) = self.tokens.get(i) {
                     match &t.kind {
-                        LexKind::Word(w) if w == "do" || w.ends_with(':') => {
+                        LexKind::Word(w)
+                            if super::stager_parser::opens_double_colon_block(
+                                w,
+                                self.dialect,
+                            ) =>
+                        {
                             frames.push(SkipFrame::Block);
                             i = i.saturating_add(1);
                         }

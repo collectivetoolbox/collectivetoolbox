@@ -26,5 +26,6 @@ pub mod dc_tokens;
 pub mod eval;
 pub mod parser;
 pub mod seed_linker;
+pub mod stager_parser;
 pub mod stager_strings;
 pub mod validator;
