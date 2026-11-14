@@ -474,6 +474,42 @@ pub const DC_END_POSITIONAL_STRUCT_DECL: DcChar = DcChar::from_short(2218);
 pub const DC_BEGIN_POSITIONAL_STRUCT_VALUE: DcChar = DcChar::from_short(2219);
 /// Terminates a positional struct value constructor begun by Dc 2219. (Dc 2220).
 pub const DC_END_POSITIONAL_STRUCT_VALUE: DcChar = DcChar::from_short(2220);
+/// Begins a tokenized StageR 3 module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (Dc 2221).
+pub const DC_BEGIN_STAGER_MODULE: DcChar = DcChar::from_short(2221);
+/// Terminates a StageR 3 module begun by Dc 2221. (Dc 2222).
+pub const DC_END_STAGER_MODULE: DcChar = DcChar::from_short(2222);
+/// Declares a nominal single-type wrapper with export visibility boolean, module-opacity boolean (false for transparent brand, true for module-opaque type), optional assigned graph Dc identity, underlying representation type, and identifier. (Dc 2223).
+pub const DC_DECLARE_BRAND_TYPE: DcChar = DcChar::from_short(2223);
+/// Declares an immutable named-field struct with export visibility boolean, optional assigned graph Dc identity, struct identifier, and one or more named field declarations. (Dc 2224).
+pub const DC_BEGIN_NAMED_STRUCT_DECL: DcChar = DcChar::from_short(2224);
+/// Terminates a named struct declaration begun by Dc 2224. (Dc 2225).
+pub const DC_END_NAMED_STRUCT_DECL: DcChar = DcChar::from_short(2225);
+/// Declares one named field of a Dc 2224 struct with its static field type and field identifier. (Dc 2226).
+pub const DC_NAMED_STRUCT_FIELD_DECL: DcChar = DcChar::from_short(2226);
+/// Evaluates named field initializers in source order and constructs an instance of the referenced named struct. (Dc 2227).
+pub const DC_BEGIN_NAMED_STRUCT_VALUE: DcChar = DcChar::from_short(2227);
+/// Terminates a named struct value constructor begun by Dc 2227. (Dc 2228).
+pub const DC_END_NAMED_STRUCT_VALUE: DcChar = DcChar::from_short(2228);
+/// Initializes one named field within a Dc 2227 struct value constructor with its field identifier and value expression. (Dc 2229).
+pub const DC_NAMED_STRUCT_FIELD_INIT: DcChar = DcChar::from_short(2229);
+/// Declares a closed nominal tagged-union enum with export visibility boolean, optional assigned graph Dc identity, enum identifier, and zero or more variant declarations. (Dc 2230).
+pub const DC_BEGIN_ENUM_DECL: DcChar = DcChar::from_short(2230);
+/// Terminates an enum declaration begun by Dc 2230. (Dc 2231).
+pub const DC_END_ENUM_DECL: DcChar = DcChar::from_short(2231);
+/// Declares one variant of a Dc 2230 enum with an optional payload type (absent for unit variants) and variant identifier. (Dc 2232).
+pub const DC_ENUM_VARIANT_DECL: DcChar = DcChar::from_short(2232);
+/// Constructs a value of the referenced enum with the specified variant identifier and optional payload expression. (Dc 2233).
+pub const DC_ENUM_VARIANT_VALUE: DcChar = DcChar::from_short(2233);
+/// Constructs the absent none variant of option/T for the specified payload type T. (Dc 2234).
+pub const DC_OPTION_NONE_VALUE: DcChar = DcChar::from_short(2234);
+/// Constructs the present some variant of option/T for the specified payload type T and payload expression. (Dc 2235).
+pub const DC_OPTION_SOME_VALUE: DcChar = DcChar::from_short(2235);
+/// Constructs the success ok variant of result/T for the specified success type T and payload expression. (Dc 2236).
+pub const DC_RESULT_OK_VALUE: DcChar = DcChar::from_short(2236);
+/// Constructs the failure err variant of result/T for the specified success type T and error-typed operand expression. (Dc 2237).
+pub const DC_RESULT_ERR_VALUE: DcChar = DcChar::from_short(2237);
+/// Constructs a structured diagnostic error value identified by its tag identifier. (Dc 2238).
+pub const DC_ERROR_TAG_VALUE: DcChar = DcChar::from_short(2238);
 /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (Dc 2448).
 pub const DC_IF_CONDITIONAL: DcChar = DcChar::from_short(2448);
 /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (Dc 2449).
@@ -490,6 +526,14 @@ pub const DC_RETURN_ROUTINE: DcChar = DcChar::from_short(2453);
 pub const DC_FAULT_TRAP: DcChar = DcChar::from_short(2454);
 /// Evaluates to the unit value without side effects (type Void). (Dc 2455).
 pub const DC_NO_OP: DcChar = DcChar::from_short(2455);
+/// Evaluates a tagged scrutinee expression (enum, option/T, or result/T) and dispatches to the matching Dc 2458 case arm or optional trailing fallback expression. (Dc 2456).
+pub const DC_BEGIN_MATCH: DcChar = DcChar::from_short(2456);
+/// Terminates a match expression begun by Dc 2456. (Dc 2457).
+pub const DC_END_MATCH: DcChar = DcChar::from_short(2457);
+/// Defines one variant arm of a Dc 2456 match expression with variant tag identifier, optional payload binding type, optional payload binding identifier, and arm body expression. (Dc 2458).
+pub const DC_MATCH_CASE_ARM: DcChar = DcChar::from_short(2458);
+/// Unwraps ok/some from a result/T or option/T operand expression, or returns early from the enclosing routine on err/none. (Dc 2459).
+pub const DC_PROPAGATE_OP: DcChar = DcChar::from_short(2459);
 /// Checked numeric addition of two operands of matching type; faults on overflow. (Dc 2512).
 pub const DC_ADD_OP: DcChar = DcChar::from_short(2512);
 /// Checked subtraction of the second operand from the first operand; faults on overflow. (Dc 2513).
@@ -564,6 +608,54 @@ pub const DC_SEQ_CONCAT_OP: DcChar = DcChar::from_short(2546);
 pub const DC_GET_POSITIONAL_FIELD_OP: DcChar = DcChar::from_short(2547);
 /// Evaluates the base tuple or positional struct expression then the replacement expression, returning a new value with the zero-based slot replaced. (Dc 2548).
 pub const DC_WITH_POSITIONAL_FIELD_OP: DcChar = DcChar::from_short(2548);
+/// Projects the named field specified by the second identifier operand from the first named-struct expression. (Dc 2549).
+pub const DC_GET_NAMED_FIELD_OP: DcChar = DcChar::from_short(2549);
+/// Evaluates the base named-struct expression then the replacement expression, returning a new struct value with the named field replaced. (Dc 2550).
+pub const DC_WITH_NAMED_FIELD_OP: DcChar = DcChar::from_short(2550);
+/// Wraps an underlying representation expression into the target brand or in-module opaque nominal type. (Dc 2551).
+pub const DC_WRAP_NOMINAL_OP: DcChar = DcChar::from_short(2551);
+/// Extracts the underlying representation value from a brand or in-module opaque nominal value expression. (Dc 2552).
+pub const DC_UNWRAP_NOMINAL_OP: DcChar = DcChar::from_short(2552);
+/// Total numeric addition: returns result/T on bounded fixed-width integers (err on overflow) and exact T on arbitrary-precision int and rat. (Dc 2553).
+pub const DC_TOTAL_ADD_OP: DcChar = DcChar::from_short(2553);
+/// Total numeric subtraction: returns result/T on bounded fixed-width integers (err on overflow) and exact T on arbitrary-precision int and rat. (Dc 2554).
+pub const DC_TOTAL_SUB_OP: DcChar = DcChar::from_short(2554);
+/// Total numeric multiplication: returns result/T on bounded fixed-width integers (err on overflow) and exact T on arbitrary-precision int and rat. (Dc 2555).
+pub const DC_TOTAL_MUL_OP: DcChar = DcChar::from_short(2555);
+/// Total numeric division: returns result/T (err on zero divisor, or signed MIN / -1 on fixed-width integers; truncating toward zero on integers, exact reduced quotient on rat). (Dc 2556).
+pub const DC_TOTAL_DIV_OP: DcChar = DcChar::from_short(2556);
+/// Total Euclidean modulo on integers: returns result/T with remainder r satisfying 0 <= r < |rhs| (err on zero divisor; ok 0 for signed MIN mod -1). (Dc 2557).
+pub const DC_TOTAL_MOD_OP: DcChar = DcChar::from_short(2557);
+/// Total truncating remainder on integers: returns result/T matching truncating division (err on zero divisor; ok 0 for signed MIN truncRem -1). (Dc 2558).
+pub const DC_TOTAL_TRUNC_REM_OP: DcChar = DcChar::from_short(2558);
+/// Total arithmetic negation: returns result/T on bounded signed integers (err on two's-complement MIN) and exact T on int and rat. (Dc 2559).
+pub const DC_TOTAL_NEG_OP: DcChar = DcChar::from_short(2559);
+/// Total bitwise left shift of a fixed-width integer by a u32 bit count, returning result/T (err if count >= bit width). (Dc 2560).
+pub const DC_TOTAL_SHL_OP: DcChar = DcChar::from_short(2560);
+/// Total bitwise right shift of a fixed-width integer by a u32 bit count (logical on unsigned, arithmetic on signed), returning result/T (err if count >= bit width). (Dc 2561).
+pub const DC_TOTAL_SHR_OP: DcChar = DcChar::from_short(2561);
+/// Converts the first numeric operand to the target type: infallible T when strictly widening, or result/T when narrowing or bounds-checked. (Dc 2562).
+pub const DC_TOTAL_CONVERT_OP: DcChar = DcChar::from_short(2562);
+/// Reads the element of a sequence or buffer at a zero-based u64 index, returning option/Elem (none when out of bounds). (Dc 2563).
+pub const DC_TOTAL_SEQ_GET_OP: DcChar = DcChar::from_short(2563);
+/// Extracts half-open sub-sequence [start..end) using u64 indices, returning option/Seq (none unless start <= end <= length). (Dc 2564).
+pub const DC_TOTAL_SEQ_SLICE_OP: DcChar = DcChar::from_short(2564);
+/// Overwrites a linear un-frozen StageR buffer at a zero-based u64 index, returning result/void (err outOfBounds when index >= length). (Dc 2565).
+pub const DC_TOTAL_BUF_SET_OP: DcChar = DcChar::from_short(2565);
+/// Tests whether an option/T operand holds a present some value. (Dc 2566).
+pub const DC_OPTION_IS_SOME_OP: DcChar = DcChar::from_short(2566);
+/// Tests whether an option/T operand is none. (Dc 2567).
+pub const DC_OPTION_IS_NONE_OP: DcChar = DcChar::from_short(2567);
+/// Tests whether a result/T operand holds a success ok value. (Dc 2568).
+pub const DC_RESULT_IS_OK_OP: DcChar = DcChar::from_short(2568);
+/// Tests whether a result/T operand holds a failure err value. (Dc 2569).
+pub const DC_RESULT_IS_ERR_OP: DcChar = DcChar::from_short(2569);
+/// Evaluates an option/T or result/T expression and a fallback T expression, returning the unwrapped payload or the fallback value. (Dc 2570).
+pub const DC_UNWRAP_OR_OP: DcChar = DcChar::from_short(2570);
+/// Converts an option/T operand into result/T, mapping some v to ok v and none to err of the second error operand. (Dc 2571).
+pub const DC_OPTION_OK_OR_OP: DcChar = DcChar::from_short(2571);
+/// Returns the encoded DcMixed payload byte length of an s (DcMst) value as a u64. (Dc 2572).
+pub const DC_BYTE_LEN_OP: DcChar = DcChar::from_short(2572);
 /// Parameterized immutable value-semantics StageL list type l/T over element type T. (Dc 2576).
 pub const DC_STAGEL_LIST_TYPE: DcChar = DcChar::from_short(2576);
 /// Parameterized mutable local StageL buffer type buf/T over element type T for linear-time construction and O(1) indexed updates. (Dc 2577).
@@ -586,10 +678,36 @@ pub const DC_STAGEL_BUF_SET: DcChar = DcChar::from_short(2584);
 pub const DC_STAGEL_BUF_FREEZE: DcChar = DcChar::from_short(2585);
 /// Compiles the quoted Dc document inside [string] (Dc 260..Dc 261) into an executable WASM program (Dc 1927..Dc 1928) without executing the target program. (Dc 2608).
 pub const DC_CONVERT_DC_STRING_TO_WASM: DcChar = DcChar::from_short(2608);
+/// Constructs a canonical reduced rational rat from numerator int and denominator int, returning result/rat (err divisionByZero when denominator is 0). (Dc 2609).
+pub const DC_MAKE_RAT_OP: DcChar = DcChar::from_short(2609);
+/// Validates a raw u128 scalar value as a legal Document Character, returning result/dc (err invalidDc on unpaired surrogates or invalid codepoints). (Dc 2610).
+pub const DC_DC_FROM_U128_OP: DcChar = DcChar::from_short(2610);
+/// Extracts the raw 128-bit numeric identifier of a dc value as an infallible u128. (Dc 2611).
+pub const DC_U128_FROM_DC_OP: DcChar = DcChar::from_short(2611);
+/// Validates that an s (DcMst) value contains no encapsulated binary runs, returning result/dcs (err invalidEncoding if binary segments are present). (Dc 2612).
+pub const DC_DCS_FROM_S_OP: DcChar = DcChar::from_short(2612);
+/// Widens a pure-character dcs string infallibly into a mixed-mode s (DcMst) string. (Dc 2613).
+pub const DC_S_FROM_DCS_OP: DcChar = DcChar::from_short(2613);
+/// Splits a sequence (l/T, dcs, or s) around non-overlapping occurrences of the first separator operand, returning l/Seq. (Dc 2614).
+pub const DC_SEQ_EXPLODE_OP: DcChar = DcChar::from_short(2614);
+/// Concatenates a list of sequences (l/l/T, l/dcs, or l/s) interspersed with the first separator operand, returning Seq. (Dc 2615).
+pub const DC_SEQ_IMPLODE_OP: DcChar = DcChar::from_short(2615);
 /// Fixed-slot n-ary tuple type parameterized by a Dc 310..Dc 311 list of slot types. (Dc 2672).
 pub const DC_TYPE_TUPLE: DcChar = DcChar::from_short(2672);
 /// References a declared positional or named struct type by identifier or resolved graph Dc. (Dc 2673).
 pub const DC_TYPE_STRUCT: DcChar = DcChar::from_short(2673);
+/// Parameterized optional value type option/T with variants none and some T. (Dc 2674).
+pub const DC_TYPE_OPTION: DcChar = DcChar::from_short(2674);
+/// Parameterized fallible result type result/T with variants ok T and err error. (Dc 2675).
+pub const DC_TYPE_RESULT: DcChar = DcChar::from_short(2675);
+/// Structured non-panicking StageR diagnostic error value type. (Dc 2676).
+pub const DC_TYPE_ERROR: DcChar = DcChar::from_short(2676);
+/// Immutable bounds-checked read-only window handle over a host-managed streaming extent. (Dc 2677).
+pub const DC_TYPE_VIEW: DcChar = DcChar::from_short(2677);
+/// Immutable value-typed cursor advancing functionally over a host-managed extent view. (Dc 2678).
+pub const DC_TYPE_CURSOR: DcChar = DcChar::from_short(2678);
+/// References a declared StageR brand, module-opaque type, or enum type by identifier or resolved graph Dc. (Dc 2679).
+pub const DC_TYPE_NOMINAL: DcChar = DcChar::from_short(2679);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

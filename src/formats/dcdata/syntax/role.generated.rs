@@ -476,6 +476,42 @@ pub enum DcRole {
     BeginPositionalStructValue,
     /// Terminates a positional struct value constructor begun by Dc 2219. (`2220`).
     EndPositionalStructValue,
+    /// Begins a tokenized StageR 3 module containing an optional namespace declaration, zero or more use imports, and zero or more top-level items. (`2221`).
+    BeginStagerModule,
+    /// Terminates a StageR 3 module begun by Dc 2221. (`2222`).
+    EndStagerModule,
+    /// Declares a nominal single-type wrapper with export visibility boolean, module-opacity boolean (false for transparent brand, true for module-opaque type), optional assigned graph Dc identity, underlying representation type, and identifier. (`2223`).
+    DeclareBrandType,
+    /// Declares an immutable named-field struct with export visibility boolean, optional assigned graph Dc identity, struct identifier, and one or more named field declarations. (`2224`).
+    BeginNamedStructDecl,
+    /// Terminates a named struct declaration begun by Dc 2224. (`2225`).
+    EndNamedStructDecl,
+    /// Declares one named field of a Dc 2224 struct with its static field type and field identifier. (`2226`).
+    NamedStructFieldDecl,
+    /// Evaluates named field initializers in source order and constructs an instance of the referenced named struct. (`2227`).
+    BeginNamedStructValue,
+    /// Terminates a named struct value constructor begun by Dc 2227. (`2228`).
+    EndNamedStructValue,
+    /// Initializes one named field within a Dc 2227 struct value constructor with its field identifier and value expression. (`2229`).
+    NamedStructFieldInit,
+    /// Declares a closed nominal tagged-union enum with export visibility boolean, optional assigned graph Dc identity, enum identifier, and zero or more variant declarations. (`2230`).
+    BeginEnumDecl,
+    /// Terminates an enum declaration begun by Dc 2230. (`2231`).
+    EndEnumDecl,
+    /// Declares one variant of a Dc 2230 enum with an optional payload type (absent for unit variants) and variant identifier. (`2232`).
+    EnumVariantDecl,
+    /// Constructs a value of the referenced enum with the specified variant identifier and optional payload expression. (`2233`).
+    EnumVariantValue,
+    /// Constructs the absent none variant of option/T for the specified payload type T. (`2234`).
+    OptionNoneValue,
+    /// Constructs the present some variant of option/T for the specified payload type T and payload expression. (`2235`).
+    OptionSomeValue,
+    /// Constructs the success ok variant of result/T for the specified success type T and payload expression. (`2236`).
+    ResultOkValue,
+    /// Constructs the failure err variant of result/T for the specified success type T and error-typed operand expression. (`2237`).
+    ResultErrValue,
+    /// Constructs a structured diagnostic error value identified by its tag identifier. (`2238`).
+    ErrorTagValue,
     /// Evaluates a boolean condition expression and branches to either the second operand (then) or third operand (else). (`2448`).
     IfConditional,
     /// Repeatedly evaluates the boolean condition expression and executes the void body expression while true. (`2449`).
@@ -492,6 +528,14 @@ pub enum DcRole {
     FaultTrap,
     /// Evaluates to the unit value without side effects (type Void). (`2455`).
     NoOp,
+    /// Evaluates a tagged scrutinee expression (enum, option/T, or result/T) and dispatches to the matching Dc 2458 case arm or optional trailing fallback expression. (`2456`).
+    BeginMatch,
+    /// Terminates a match expression begun by Dc 2456. (`2457`).
+    EndMatch,
+    /// Defines one variant arm of a Dc 2456 match expression with variant tag identifier, optional payload binding type, optional payload binding identifier, and arm body expression. (`2458`).
+    MatchCaseArm,
+    /// Unwraps ok/some from a result/T or option/T operand expression, or returns early from the enclosing routine on err/none. (`2459`).
+    PropagateOp,
     /// Checked numeric addition of two operands of matching type; faults on overflow. (`2512`).
     AddOp,
     /// Checked subtraction of the second operand from the first operand; faults on overflow. (`2513`).
@@ -566,6 +610,54 @@ pub enum DcRole {
     GetPositionalFieldOp,
     /// Evaluates the base tuple or positional struct expression then the replacement expression, returning a new value with the zero-based slot replaced. (`2548`).
     WithPositionalFieldOp,
+    /// Projects the named field specified by the second identifier operand from the first named-struct expression. (`2549`).
+    GetNamedFieldOp,
+    /// Evaluates the base named-struct expression then the replacement expression, returning a new struct value with the named field replaced. (`2550`).
+    WithNamedFieldOp,
+    /// Wraps an underlying representation expression into the target brand or in-module opaque nominal type. (`2551`).
+    WrapNominalOp,
+    /// Extracts the underlying representation value from a brand or in-module opaque nominal value expression. (`2552`).
+    UnwrapNominalOp,
+    /// Total numeric addition: returns result/T on bounded fixed-width integers (err on overflow) and exact T on arbitrary-precision int and rat. (`2553`).
+    TotalAddOp,
+    /// Total numeric subtraction: returns result/T on bounded fixed-width integers (err on overflow) and exact T on arbitrary-precision int and rat. (`2554`).
+    TotalSubOp,
+    /// Total numeric multiplication: returns result/T on bounded fixed-width integers (err on overflow) and exact T on arbitrary-precision int and rat. (`2555`).
+    TotalMulOp,
+    /// Total numeric division: returns result/T (err on zero divisor, or signed MIN / -1 on fixed-width integers; truncating toward zero on integers, exact reduced quotient on rat). (`2556`).
+    TotalDivOp,
+    /// Total Euclidean modulo on integers: returns result/T with remainder r satisfying 0 <= r < |rhs| (err on zero divisor; ok 0 for signed MIN mod -1). (`2557`).
+    TotalModOp,
+    /// Total truncating remainder on integers: returns result/T matching truncating division (err on zero divisor; ok 0 for signed MIN truncRem -1). (`2558`).
+    TotalTruncRemOp,
+    /// Total arithmetic negation: returns result/T on bounded signed integers (err on two's-complement MIN) and exact T on int and rat. (`2559`).
+    TotalNegOp,
+    /// Total bitwise left shift of a fixed-width integer by a u32 bit count, returning result/T (err if count >= bit width). (`2560`).
+    TotalShlOp,
+    /// Total bitwise right shift of a fixed-width integer by a u32 bit count (logical on unsigned, arithmetic on signed), returning result/T (err if count >= bit width). (`2561`).
+    TotalShrOp,
+    /// Converts the first numeric operand to the target type: infallible T when strictly widening, or result/T when narrowing or bounds-checked. (`2562`).
+    TotalConvertOp,
+    /// Reads the element of a sequence or buffer at a zero-based u64 index, returning option/Elem (none when out of bounds). (`2563`).
+    TotalSeqGetOp,
+    /// Extracts half-open sub-sequence [start..end) using u64 indices, returning option/Seq (none unless start <= end <= length). (`2564`).
+    TotalSeqSliceOp,
+    /// Overwrites a linear un-frozen StageR buffer at a zero-based u64 index, returning result/void (err outOfBounds when index >= length). (`2565`).
+    TotalBufSetOp,
+    /// Tests whether an option/T operand holds a present some value. (`2566`).
+    OptionIsSomeOp,
+    /// Tests whether an option/T operand is none. (`2567`).
+    OptionIsNoneOp,
+    /// Tests whether a result/T operand holds a success ok value. (`2568`).
+    ResultIsOkOp,
+    /// Tests whether a result/T operand holds a failure err value. (`2569`).
+    ResultIsErrOp,
+    /// Evaluates an option/T or result/T expression and a fallback T expression, returning the unwrapped payload or the fallback value. (`2570`).
+    UnwrapOrOp,
+    /// Converts an option/T operand into result/T, mapping some v to ok v and none to err of the second error operand. (`2571`).
+    OptionOkOrOp,
+    /// Returns the encoded DcMixed payload byte length of an s (DcMst) value as a u64. (`2572`).
+    ByteLenOp,
     /// Parameterized immutable value-semantics StageL list type l/T over element type T. (`2576`).
     StagelListType,
     /// Parameterized mutable local StageL buffer type buf/T over element type T for linear-time construction and O(1) indexed updates. (`2577`).
@@ -588,10 +680,36 @@ pub enum DcRole {
     StagelBufFreeze,
     /// Compiles the quoted Dc document inside [string] (Dc 260..Dc 261) into an executable WASM program (Dc 1927..Dc 1928) without executing the target program. (`2608`).
     ConvertDcStringToWasm,
+    /// Constructs a canonical reduced rational rat from numerator int and denominator int, returning result/rat (err divisionByZero when denominator is 0). (`2609`).
+    MakeRatOp,
+    /// Validates a raw u128 scalar value as a legal Document Character, returning result/dc (err invalidDc on unpaired surrogates or invalid codepoints). (`2610`).
+    DcFromU128Op,
+    /// Extracts the raw 128-bit numeric identifier of a dc value as an infallible u128. (`2611`).
+    U128FromDcOp,
+    /// Validates that an s (DcMst) value contains no encapsulated binary runs, returning result/dcs (err invalidEncoding if binary segments are present). (`2612`).
+    DcsFromSOp,
+    /// Widens a pure-character dcs string infallibly into a mixed-mode s (DcMst) string. (`2613`).
+    SFromDcsOp,
+    /// Splits a sequence (l/T, dcs, or s) around non-overlapping occurrences of the first separator operand, returning l/Seq. (`2614`).
+    SeqExplodeOp,
+    /// Concatenates a list of sequences (l/l/T, l/dcs, or l/s) interspersed with the first separator operand, returning Seq. (`2615`).
+    SeqImplodeOp,
     /// Fixed-slot n-ary tuple type parameterized by a Dc 310..Dc 311 list of slot types. (`2672`).
     TypeTuple,
     /// References a declared positional or named struct type by identifier or resolved graph Dc. (`2673`).
     TypeStruct,
+    /// Parameterized optional value type option/T with variants none and some T. (`2674`).
+    TypeOption,
+    /// Parameterized fallible result type result/T with variants ok T and err error. (`2675`).
+    TypeResult,
+    /// Structured non-panicking StageR diagnostic error value type. (`2676`).
+    TypeError,
+    /// Immutable bounds-checked read-only window handle over a host-managed streaming extent. (`2677`).
+    TypeView,
+    /// Immutable value-typed cursor advancing functionally over a host-managed extent view. (`2678`).
+    TypeCursor,
+    /// References a declared StageR brand, module-opaque type, or enum type by identifier or resolved graph Dc. (`2679`).
+    TypeNominal,
     /// Base64 encapsulation digit character (0..=63).
 Base64Digit,
 /// Built-in type token, format token, or type operator.
@@ -825,6 +943,24 @@ match self {
             Self::EndPositionalStructDecl => Some(2218),
             Self::BeginPositionalStructValue => Some(2219),
             Self::EndPositionalStructValue => Some(2220),
+            Self::BeginStagerModule => Some(2221),
+            Self::EndStagerModule => Some(2222),
+            Self::DeclareBrandType => Some(2223),
+            Self::BeginNamedStructDecl => Some(2224),
+            Self::EndNamedStructDecl => Some(2225),
+            Self::NamedStructFieldDecl => Some(2226),
+            Self::BeginNamedStructValue => Some(2227),
+            Self::EndNamedStructValue => Some(2228),
+            Self::NamedStructFieldInit => Some(2229),
+            Self::BeginEnumDecl => Some(2230),
+            Self::EndEnumDecl => Some(2231),
+            Self::EnumVariantDecl => Some(2232),
+            Self::EnumVariantValue => Some(2233),
+            Self::OptionNoneValue => Some(2234),
+            Self::OptionSomeValue => Some(2235),
+            Self::ResultOkValue => Some(2236),
+            Self::ResultErrValue => Some(2237),
+            Self::ErrorTagValue => Some(2238),
             Self::IfConditional => Some(2448),
             Self::WhileLoop => Some(2449),
             Self::ForEach => Some(2450),
@@ -833,6 +969,10 @@ match self {
             Self::ReturnRoutine => Some(2453),
             Self::FaultTrap => Some(2454),
             Self::NoOp => Some(2455),
+            Self::BeginMatch => Some(2456),
+            Self::EndMatch => Some(2457),
+            Self::MatchCaseArm => Some(2458),
+            Self::PropagateOp => Some(2459),
             Self::AddOp => Some(2512),
             Self::SubOp => Some(2513),
             Self::MulOp => Some(2514),
@@ -870,6 +1010,30 @@ match self {
             Self::SeqConcatOp => Some(2546),
             Self::GetPositionalFieldOp => Some(2547),
             Self::WithPositionalFieldOp => Some(2548),
+            Self::GetNamedFieldOp => Some(2549),
+            Self::WithNamedFieldOp => Some(2550),
+            Self::WrapNominalOp => Some(2551),
+            Self::UnwrapNominalOp => Some(2552),
+            Self::TotalAddOp => Some(2553),
+            Self::TotalSubOp => Some(2554),
+            Self::TotalMulOp => Some(2555),
+            Self::TotalDivOp => Some(2556),
+            Self::TotalModOp => Some(2557),
+            Self::TotalTruncRemOp => Some(2558),
+            Self::TotalNegOp => Some(2559),
+            Self::TotalShlOp => Some(2560),
+            Self::TotalShrOp => Some(2561),
+            Self::TotalConvertOp => Some(2562),
+            Self::TotalSeqGetOp => Some(2563),
+            Self::TotalSeqSliceOp => Some(2564),
+            Self::TotalBufSetOp => Some(2565),
+            Self::OptionIsSomeOp => Some(2566),
+            Self::OptionIsNoneOp => Some(2567),
+            Self::ResultIsOkOp => Some(2568),
+            Self::ResultIsErrOp => Some(2569),
+            Self::UnwrapOrOp => Some(2570),
+            Self::OptionOkOrOp => Some(2571),
+            Self::ByteLenOp => Some(2572),
             Self::StagelListType => Some(2576),
             Self::StagelBufType => Some(2577),
             Self::BeginStagelList => Some(2578),
@@ -881,8 +1045,21 @@ match self {
             Self::StagelBufSet => Some(2584),
             Self::StagelBufFreeze => Some(2585),
             Self::ConvertDcStringToWasm => Some(2608),
+            Self::MakeRatOp => Some(2609),
+            Self::DcFromU128Op => Some(2610),
+            Self::U128FromDcOp => Some(2611),
+            Self::DcsFromSOp => Some(2612),
+            Self::SFromDcsOp => Some(2613),
+            Self::SeqExplodeOp => Some(2614),
+            Self::SeqImplodeOp => Some(2615),
             Self::TypeTuple => Some(2672),
             Self::TypeStruct => Some(2673),
+            Self::TypeOption => Some(2674),
+            Self::TypeResult => Some(2675),
+            Self::TypeError => Some(2676),
+            Self::TypeView => Some(2677),
+            Self::TypeCursor => Some(2678),
+            Self::TypeNominal => Some(2679),
             _ => None,
 }
 }
@@ -1119,6 +1296,24 @@ match self {
             Self::EndPositionalStructDecl => short == Some(2218),
             Self::BeginPositionalStructValue => short == Some(2219),
             Self::EndPositionalStructValue => short == Some(2220),
+            Self::BeginStagerModule => short == Some(2221),
+            Self::EndStagerModule => short == Some(2222),
+            Self::DeclareBrandType => short == Some(2223),
+            Self::BeginNamedStructDecl => short == Some(2224),
+            Self::EndNamedStructDecl => short == Some(2225),
+            Self::NamedStructFieldDecl => short == Some(2226),
+            Self::BeginNamedStructValue => short == Some(2227),
+            Self::EndNamedStructValue => short == Some(2228),
+            Self::NamedStructFieldInit => short == Some(2229),
+            Self::BeginEnumDecl => short == Some(2230),
+            Self::EndEnumDecl => short == Some(2231),
+            Self::EnumVariantDecl => short == Some(2232),
+            Self::EnumVariantValue => short == Some(2233),
+            Self::OptionNoneValue => short == Some(2234),
+            Self::OptionSomeValue => short == Some(2235),
+            Self::ResultOkValue => short == Some(2236),
+            Self::ResultErrValue => short == Some(2237),
+            Self::ErrorTagValue => short == Some(2238),
             Self::IfConditional => short == Some(2448),
             Self::WhileLoop => short == Some(2449),
             Self::ForEach => short == Some(2450),
@@ -1127,6 +1322,10 @@ match self {
             Self::ReturnRoutine => short == Some(2453),
             Self::FaultTrap => short == Some(2454),
             Self::NoOp => short == Some(2455),
+            Self::BeginMatch => short == Some(2456),
+            Self::EndMatch => short == Some(2457),
+            Self::MatchCaseArm => short == Some(2458),
+            Self::PropagateOp => short == Some(2459),
             Self::AddOp => short == Some(2512),
             Self::SubOp => short == Some(2513),
             Self::MulOp => short == Some(2514),
@@ -1164,6 +1363,30 @@ match self {
             Self::SeqConcatOp => short == Some(2546),
             Self::GetPositionalFieldOp => short == Some(2547),
             Self::WithPositionalFieldOp => short == Some(2548),
+            Self::GetNamedFieldOp => short == Some(2549),
+            Self::WithNamedFieldOp => short == Some(2550),
+            Self::WrapNominalOp => short == Some(2551),
+            Self::UnwrapNominalOp => short == Some(2552),
+            Self::TotalAddOp => short == Some(2553),
+            Self::TotalSubOp => short == Some(2554),
+            Self::TotalMulOp => short == Some(2555),
+            Self::TotalDivOp => short == Some(2556),
+            Self::TotalModOp => short == Some(2557),
+            Self::TotalTruncRemOp => short == Some(2558),
+            Self::TotalNegOp => short == Some(2559),
+            Self::TotalShlOp => short == Some(2560),
+            Self::TotalShrOp => short == Some(2561),
+            Self::TotalConvertOp => short == Some(2562),
+            Self::TotalSeqGetOp => short == Some(2563),
+            Self::TotalSeqSliceOp => short == Some(2564),
+            Self::TotalBufSetOp => short == Some(2565),
+            Self::OptionIsSomeOp => short == Some(2566),
+            Self::OptionIsNoneOp => short == Some(2567),
+            Self::ResultIsOkOp => short == Some(2568),
+            Self::ResultIsErrOp => short == Some(2569),
+            Self::UnwrapOrOp => short == Some(2570),
+            Self::OptionOkOrOp => short == Some(2571),
+            Self::ByteLenOp => short == Some(2572),
             Self::StagelListType => short == Some(2576),
             Self::StagelBufType => short == Some(2577),
             Self::BeginStagelList => short == Some(2578),
@@ -1175,15 +1398,28 @@ match self {
             Self::StagelBufSet => short == Some(2584),
             Self::StagelBufFreeze => short == Some(2585),
             Self::ConvertDcStringToWasm => short == Some(2608),
+            Self::MakeRatOp => short == Some(2609),
+            Self::DcFromU128Op => short == Some(2610),
+            Self::U128FromDcOp => short == Some(2611),
+            Self::DcsFromSOp => short == Some(2612),
+            Self::SFromDcsOp => short == Some(2613),
+            Self::SeqExplodeOp => short == Some(2614),
+            Self::SeqImplodeOp => short == Some(2615),
             Self::TypeTuple => short == Some(2672),
             Self::TypeStruct => short == Some(2673),
+            Self::TypeOption => short == Some(2674),
+            Self::TypeResult => short == Some(2675),
+            Self::TypeError => short == Some(2676),
+            Self::TypeView => short == Some(2677),
+            Self::TypeCursor => short == Some(2678),
+            Self::TypeNominal => short == Some(2679),
             Self::Base64Digit => matches!(short, Some(127..=190)),
 Self::TypeToken => {
 (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token)
-|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 640 | 643 | 2672 | 2673))
+|| matches!(short, Some(264 | 275 | 278 | 280 | 300 | 306 | 513 | 516 | 535 | 640 | 643 | 2672..=2679))
 }
 Self::EvaluableExpressionStarter => {
-matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561 | 1938 | 2215 | 2608))
+matches!(short, Some(256 | 265 | 266 | 268 | 276 | 279 | 307 | 397 | 511 | 540 | 561 | 1938 | 2215 | 2608..=2615))
 }
 }
 }
