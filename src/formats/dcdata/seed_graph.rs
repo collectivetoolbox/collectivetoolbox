@@ -51,7 +51,7 @@ use crate::dc::{
     DC_COLLECTIVE_TOOLBOX_SEED_GRAPH_DATA_SOURCE, DC_DATA_FORMAT_DESCRIPTION,
     DC_DC_GENERAL_CATEGORY, DC_DECLARE_CONST, DC_DECLARE_PUB,
     DC_DECOMPOSITION, DC_ENCLOSING_DOCUMENT, DC_END_ASSOCIATIVITY_GROUP,
-    DC_END_LIST, DC_ENTITY_TYPE,
+    DC_END_LIST, DC_END_WASM_PROGRAM, DC_ENTITY_TYPE,
     DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID, DC_HAS_A, DC_HAS_VALUE,
     DC_IN_CONTEXT_OF, DC_IS_BASED_ON, DC_IS_INSTANCE_OF, DC_IS_STABLE,
     DC_MANUAL_ENTRY,
@@ -2030,6 +2030,69 @@ impl SeedGraphIndex {
             }
         }
         best.map(|(_, tokens)| tokens)
+    }
+
+    /// Lists all active context-scoped `.WASM` (`Dc 1927`..`Dc 1928`) definitions attached to
+    /// `subj` in this snapshot (`(context_tokens, expanded_wasm_tokens)`), expanding interned
+    /// Unicode runs and wrapping standalone `Dc 260`..`Dc 261` routines in `Dc 1927`..`Dc 1928`.
+    #[must_use]
+    pub fn list_active_contextual_wasm_definitions(
+        &self,
+        subj: DcShorthand,
+    ) -> Vec<(Vec<DcShorthand>, Vec<DcShorthand>)> {
+        let mut out: Vec<(Vec<DcShorthand>, Vec<DcShorthand>)> = Vec::new();
+        for prop_dc in [
+            DC_CANONICAL_DECOMPOSITION,
+            DC_DECOMPOSITION,
+            DC_SEMANTIC_DECOMPOSITION,
+        ] {
+            for entry in self.get_multi_properties(subj, sh(prop_dc)) {
+                let DcShorthand::Long(node_id) = entry.value else {
+                    continue;
+                };
+                if let Some(pin_id) = self.system_block_most_recent_node_id
+                    && node_id > pin_id
+                {
+                    continue;
+                }
+                let Some(node) = self.get_active_node(node_id) else {
+                    continue;
+                };
+                if !self.tokens_are_wasm_helper_or_definition(&node.tokens) {
+                    continue;
+                }
+                let ctx_objs = self.get_direct_objects(
+                    sh(DC_IN_CONTEXT_OF),
+                    DcShorthand::Long(entry.has_a_id),
+                );
+                if ctx_objs.is_empty() {
+                    continue;
+                }
+                let mut expanded =
+                    self.expand_interned_unicode_runs(&node.tokens);
+                if expanded.first() != Some(&sh(DC_BEGIN_WASM_PROGRAM)) {
+                    let mut wrapped =
+                        Vec::with_capacity(expanded.len().saturating_add(2));
+                    wrapped.push(sh(DC_BEGIN_WASM_PROGRAM));
+                    wrapped.extend(expanded);
+                    wrapped.push(sh(DC_END_WASM_PROGRAM));
+                    expanded = wrapped;
+                }
+                for &ctx_obj in ctx_objs {
+                    let ctx_vec =
+                        if let Some(slice) = self.context_object_tokens(ctx_obj)
+                        {
+                            slice.to_vec()
+                        } else {
+                            vec![ctx_obj]
+                        };
+                    if !out.iter().any(|(existing, _)| existing == &ctx_vec) {
+                        out.push((ctx_vec, expanded.clone()));
+                    }
+                }
+            }
+        }
+        out
     }
 
     fn context_object_tokens(&self, ctx_obj: DcShorthand) -> Option<&[DcShorthand]> {

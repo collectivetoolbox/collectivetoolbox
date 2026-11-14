@@ -676,10 +676,17 @@ pub fn link_parsed_modules_with_seed_graph(
     link_parsed_modules_with_seed_graph_and_flags(tagged, seed_graph)
 }
 
-fn link_parsed_modules_with_seed_graph_and_flags(
+struct AssembledGraphModules {
+    all_modules: Vec<Module>,
+    all_forbid_flags: Vec<bool>,
+    module_extra_dc_imports: Vec<HashMap<DcChar, ImportedSymbol>>,
+    order: Vec<usize>,
+}
+
+fn assemble_topo_sorted_modules_with_seed_graph(
     caller_modules: Vec<(Module, bool)>,
     seed_graph: &SeedGraphIndex,
-) -> Result<ValidatedWorkspace> {
+) -> Result<AssembledGraphModules> {
     let mut dc_owners: HashMap<DcChar, GraphDcOwner> = HashMap::new();
     let mut caller_ns_set: HashSet<String> = HashSet::new();
     let mut local_dcs: HashSet<DcChar> = HashSet::new();
@@ -1036,17 +1043,35 @@ fn link_parsed_modules_with_seed_graph_and_flags(
     }
 
     let order = topo_sort_all_modules(&labels, &deps)?;
-    let mut ns_exports: HashMap<String, NamespaceExports> = HashMap::new();
-    let mut validated_modules = Vec::with_capacity(all_modules.len());
+    Ok(AssembledGraphModules {
+        all_modules,
+        all_forbid_flags,
+        module_extra_dc_imports,
+        order,
+    })
+}
 
-    for idx in order {
-        let m = all_modules
+fn link_parsed_modules_with_seed_graph_and_flags(
+    caller_modules: Vec<(Module, bool)>,
+    seed_graph: &SeedGraphIndex,
+) -> Result<ValidatedWorkspace> {
+    let assembled =
+        assemble_topo_sorted_modules_with_seed_graph(caller_modules, seed_graph)?;
+    let mut ns_exports: HashMap<String, NamespaceExports> = HashMap::new();
+    let mut validated_modules =
+        Vec::with_capacity(assembled.all_modules.len());
+
+    for idx in assembled.order {
+        let m = assembled
+            .all_modules
             .get(idx)
             .context("Invalid topological module index")?;
-        let extra_dc = module_extra_dc_imports
+        let extra_dc = assembled
+            .module_extra_dc_imports
             .get(idx)
             .context("Invalid module extra dc_imports index")?;
-        let forbid_stagel_internal = all_forbid_flags
+        let forbid_stagel_internal = assembled
+            .all_forbid_flags
             .get(idx)
             .copied()
             .context("Invalid module forbid_stagel_internal index")?;
@@ -1371,4 +1396,138 @@ pub fn eval_workspace_inline_tests_with_seed_graph(
 ) -> Result<TestSuiteReport> {
     let ws = parse_and_validate_workspace_with_seed_graph(inputs, seed_graph)?;
     run_validated_workspace_inline_tests(&ws)
+}
+
+const STAGE0_WASM_OPERATOR_DCS: &[DcChar] = &[
+    crate::dc::DC_ADD_OP,
+    crate::dc::DC_SUB_OP,
+    crate::dc::DC_MUL_OP,
+    crate::dc::DC_DIV_OP,
+    crate::dc::DC_REM_OP,
+    crate::dc::DC_NEG_OP,
+    crate::dc::DC_WRAP_ADD_OP,
+    crate::dc::DC_WRAP_SUB_OP,
+    crate::dc::DC_WRAP_MUL_OP,
+    crate::dc::DC_BIT_AND_OP,
+    crate::dc::DC_BIT_OR_OP,
+    crate::dc::DC_BIT_XOR_OP,
+    crate::dc::DC_BIT_NOT_OP,
+    crate::dc::DC_SHL_OP,
+    crate::dc::DC_SHR_OP,
+    crate::dc::DC_ROTL_OP,
+    crate::dc::DC_ROTR_OP,
+    crate::dc::DC_CLZ_OP,
+    crate::dc::DC_CTZ_OP,
+    crate::dc::DC_POPCNT_OP,
+    crate::dc::DC_LOGICAL_NOT_OP,
+    crate::dc::DC_EQ_OP,
+    crate::dc::DC_NE_OP,
+    crate::dc::DC_LT_OP,
+    crate::dc::DC_LE_OP,
+    crate::dc::DC_GT_OP,
+    crate::dc::DC_GE_OP,
+    crate::dc::DC_CONVERT_OP,
+    crate::dc::DC_BITCAST_OP,
+    crate::dc::DC_SEQ_LEN_OP,
+    crate::dc::DC_SEQ_GET_OP,
+    crate::dc::DC_SEQ_SLICE_OP,
+    crate::dc::DC_SEQ_CONCAT_OP,
+    crate::dc::DC_STAGEL_BUF_NEW,
+    crate::dc::DC_STAGEL_BUF_FILL,
+    crate::dc::DC_STAGEL_BUF_PUSH,
+    crate::dc::DC_STAGEL_BUF_EXTEND,
+    crate::dc::DC_STAGEL_BUF_SET,
+    crate::dc::DC_STAGEL_BUF_FREEZE,
+];
+
+/// Bundles an entry StageL 3 Token-Dc module (`Dc 2192`..`Dc 2193`) with its
+/// transitive `use` / `dc/<shorthand>` StageL Token-Dc dependency modules and
+/// active contextual Stage 0 `.WASM` built-ins from `seed_graph` so the pure
+/// linear-memory `stagel3_to_wasm.wat` converter routine can compile the
+/// document deterministically at `seed_graph`'s pinned snapshot without host
+/// callbacks or Rust AST validation.
+pub fn bundle_dc_module_for_wasm_converter(
+    entry_tokens: &[DcChar],
+    seed_graph: &SeedGraphIndex,
+    resolver: &dyn crate::syntax::SyntaxRuleResolver,
+) -> Result<Vec<DcChar>> {
+    use crate::dc::{
+        DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LIST, DC_END_KV_MAP,
+        DC_END_KV_PAIR, DC_END_LIST, DC_EQ_OP, DC_LIST_ELEMENT_SEPARATOR,
+        DC_NE_OP, DC_STAGEL_BUF_NEW, DC_TYPE_ANY,
+    };
+
+    let mut module_stream: Vec<DcChar> = Vec::new();
+    if let Ok(entry_mod) = decode_module_from_dc_tokens(entry_tokens) {
+        let assembled = assemble_topo_sorted_modules_with_seed_graph(
+            vec![(entry_mod, false)],
+            seed_graph,
+        )?;
+        let entry_idx = assembled.all_modules.len().saturating_sub(1);
+        for idx in assembled.order {
+            if idx == entry_idx {
+                continue;
+            }
+            let dep_mod = assembled
+                .all_modules
+                .get(idx)
+                .context("Invalid dependency module index")?;
+            module_stream.extend(encode_module_to_dc_tokens(dep_mod)?);
+        }
+        module_stream.extend_from_slice(entry_tokens);
+    } else {
+        // Malformed Token-Dc input is forwarded directly so `stagel3_to_wasm.wat`
+        // traps under the active task quota rather than failing in host Rust.
+        module_stream.extend_from_slice(entry_tokens);
+    }
+
+    let mut present_ops: HashSet<DcChar> = HashSet::new();
+    present_ops.insert(DC_STAGEL_BUF_NEW);
+    for &tok in &module_stream {
+        for &op_dc in STAGE0_WASM_OPERATOR_DCS {
+            if tok == op_dc
+                || resolver.is_equivalent_to(tok.to_u128(), op_dc.to_u128())
+            {
+                present_ops.insert(op_dc);
+                if op_dc == DC_EQ_OP || op_dc == DC_NE_OP {
+                    present_ops.insert(DC_EQ_OP);
+                    present_ops.insert(DC_NE_OP);
+                }
+            }
+        }
+    }
+
+    let mut out = Vec::new();
+    out.push(DC_BEGIN_KV_MAP);
+    out.push(DC_TYPE_ANY);
+    out.push(DC_TYPE_ANY);
+
+    for &op_dc in STAGE0_WASM_OPERATOR_DCS {
+        if !present_ops.contains(&op_dc) {
+            continue;
+        }
+        let op_sh = DcShorthand::from_global_id(op_dc.to_u128());
+        for (ctx_tokens, wasm_tokens) in
+            seed_graph.list_active_contextual_wasm_definitions(op_sh)
+        {
+            out.push(DC_BEGIN_KV_PAIR);
+            out.push(DC_BEGIN_LIST);
+            out.push(DC_TYPE_ANY);
+            out.push(op_dc);
+            for ctx_sh in ctx_tokens {
+                out.push(DC_LIST_ELEMENT_SEPARATOR);
+                out.push(DcChar::from_u128(ctx_sh.to_global_id()?));
+            }
+            out.push(DC_END_LIST);
+            out.push(DC_LIST_ELEMENT_SEPARATOR);
+            for w_sh in wasm_tokens {
+                out.push(DcChar::from_u128(w_sh.to_global_id()?));
+            }
+            out.push(DC_END_KV_PAIR);
+        }
+    }
+
+    out.push(DC_END_KV_MAP);
+    out.extend(module_stream);
+    Ok(out)
 }

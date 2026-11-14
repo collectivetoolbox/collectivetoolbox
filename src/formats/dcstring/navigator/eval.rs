@@ -727,10 +727,27 @@ fn eval_convert_dc_string_to_wasm(
         );
     };
 
+    let bundled_storage: Option<Vec<DcChar>> =
+        if first_body.fills_role_with(DcRole::BeginModule, resolver) {
+            Some(
+                ctb_formats_dcdata::stagel3::seed_linker::bundle_dc_module_for_wasm_converter(
+                    body_chars, sg, resolver,
+                )?,
+            )
+        } else {
+            None
+        };
+    let converter_input: &[DcChar] =
+        if let Some(ref bundled) = bundled_storage {
+            bundled.as_slice()
+        } else {
+            body_chars
+        };
+
     let raw_wasm_doc =
         crate::converters::wasm::run_graph_wasm_tokens_on_dc_slice_with_quota(
             converter_wasm_tokens,
-            body_chars,
+            converter_input,
             resolver,
             shared_quota,
         )?;
