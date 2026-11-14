@@ -64,6 +64,17 @@ pub const DCMM_HEADER_V1: [u8; 21] = [
     0xad, 0xbc, 0x93, 0x3e, 0x88, 0x51, 0xe7, 0x9a,
 ];
 
+const DC_203_DCTF_BYTES: [u8; 4] = [0xF4, 0x90, 0x83, 0x8B];
+const DC_203_UTF8E128_BYTES: [u8; 5] = [0xF8, 0x88, 0xA0, 0x83, 0x8B];
+const DCMM_TYPE_BINARY: u8 = 0;
+const DCMM_TYPE_LEGACY_TEXT: u8 = 1;
+const DCMM_TYPE_BINARY_METADATA: u8 = 2;
+const DCMM_TYPE_BINARY_SHA256: u8 = 3;
+const DCMM_TYPE_LEGACY_SHA256: u8 = 4;
+const BASE64_DIGIT_START: u32 = 127;
+const BASE64_DIGIT_END: u32 = 190;
+const BASE64_PADDING_DC: u32 = 195;
+
 /// `Dc 641` (`Global graph system block most recent node ID at time of document creation`).
 pub const DC_SYSTEM_BLOCK_MOST_RECENT_NODE_ID: DcShorthand =
     DcShorthand::Short(641);
@@ -764,6 +775,236 @@ pub fn encode_node_definition_tokens_with(
     out
 }
 
+fn push_dctf_token(out: &mut Vec<u8>, tok: DcShorthand) -> Result<()> {
+    let mut char_buf = [0u8; 24];
+    let gid = tok.to_global_id()?;
+    let n = encode_dctf_buf(&mut char_buf, gid);
+    if let Some(slice) = char_buf.get(..n) {
+        out.extend_from_slice(slice);
+    }
+    Ok(())
+}
+
+fn decode_dc_base64_payload(tokens: &[DcShorthand]) -> Result<Vec<u8>> {
+    if tokens.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut vals: Vec<u8> = Vec::with_capacity(tokens.len());
+    let mut padding = 0usize;
+    for &tok in tokens {
+        match tok {
+            DcShorthand::Short(n)
+                if (BASE64_DIGIT_START..=BASE64_DIGIT_END).contains(&n) =>
+            {
+                ensure!(
+                    padding == 0,
+                    "Base64 digit {tok} after padding in Dc 203 encapsulation"
+                );
+                let digit = u8::try_from(n.saturating_sub(BASE64_DIGIT_START))?;
+                vals.push(digit);
+            }
+            DcShorthand::Short(BASE64_PADDING_DC) => {
+                padding = padding.saturating_add(1);
+                ensure!(
+                    padding <= 2,
+                    "Too many base64 padding characters in Dc 203 encapsulation"
+                );
+            }
+            _ => bail!(
+                "Unexpected token {tok} inside base64 payload of Dc 203 encapsulation"
+            ),
+        }
+    }
+
+    let total_chars = vals.len().saturating_add(padding);
+    ensure!(
+        total_chars.is_multiple_of(4) && !vals.is_empty(),
+        "Invalid base64 length ({total_chars} chars) in Dc 203 encapsulation"
+    );
+
+    let mut out = Vec::with_capacity(total_chars.saturating_div(4).saturating_mul(3));
+    let mut idx = 0usize;
+    while idx < vals.len() {
+        let a = *vals.get(idx).context("Missing base64 char 0")?;
+        let b = *vals.get(idx.saturating_add(1)).context("Missing base64 char 1")?;
+        let c_opt = vals.get(idx.saturating_add(2)).copied();
+        let d_opt = vals.get(idx.saturating_add(3)).copied();
+
+        let b0 = (a << 2) | (b >> 4);
+        out.push(b0);
+        if let Some(c) = c_opt {
+            let b1 = ((b & 0x0F) << 4) | (c >> 2);
+            out.push(b1);
+            if let Some(d) = d_opt {
+                let b2 = ((c & 0x03) << 6) | d;
+                out.push(b2);
+            }
+        }
+        idx = idx.saturating_add(4);
+    }
+    Ok(out)
+}
+
+fn encode_dc_base64_u128(mut val: u128, out: &mut Vec<DcShorthand>) {
+    if val == 0 {
+        out.push(DcShorthand::Short(BASE64_DIGIT_START));
+        return;
+    }
+    let mut digits = Vec::new();
+    while val > 0 {
+        let rem = u32::try_from(val & 0x3F).unwrap_or(0);
+        digits.push(DcShorthand::Short(BASE64_DIGIT_START.saturating_add(rem)));
+        val >>= 6;
+    }
+    for d in digits.into_iter().rev() {
+        out.push(d);
+    }
+}
+
+fn encode_dc_base64_payload(bytes: &[u8], out: &mut Vec<DcShorthand>) {
+    let mut idx = 0usize;
+    while idx < bytes.len() {
+        let b0 = *bytes.get(idx).unwrap_or(&0);
+        let b1_opt = bytes.get(idx.saturating_add(1)).copied();
+        let b2_opt = bytes.get(idx.saturating_add(2)).copied();
+
+        let c0 = u32::from(b0 >> 2);
+        let c1 = u32::from(((b0 & 0x03) << 4) | (b1_opt.unwrap_or(0) >> 4));
+        out.push(DcShorthand::Short(BASE64_DIGIT_START.saturating_add(c0)));
+        out.push(DcShorthand::Short(BASE64_DIGIT_START.saturating_add(c1)));
+
+        if let Some(b1) = b1_opt {
+            let c2 = u32::from(((b1 & 0x0F) << 2) | (b2_opt.unwrap_or(0) >> 6));
+            out.push(DcShorthand::Short(BASE64_DIGIT_START.saturating_add(c2)));
+            if let Some(b2) = b2_opt {
+                let c3 = u32::from(b2 & 0x3F);
+                out.push(DcShorthand::Short(
+                    BASE64_DIGIT_START.saturating_add(c3),
+                ));
+            } else {
+                out.push(DcShorthand::Short(BASE64_PADDING_DC));
+            }
+        } else {
+            out.push(DcShorthand::Short(BASE64_PADDING_DC));
+            out.push(DcShorthand::Short(BASE64_PADDING_DC));
+        }
+        idx = idx.saturating_add(3);
+    }
+}
+
+fn try_parse_textual_encapsulation(
+    tokens: &[DcShorthand],
+    start: usize,
+) -> Result<Option<(Vec<u8>, usize)>> {
+    if tokens.get(start) != Some(&DcShorthand::Short(203)) {
+        return Ok(None);
+    }
+    let mut pos = start.saturating_add(1);
+    let mut expected_len: Option<u128> = None;
+
+    match tokens.get(pos) {
+        Some(&DcShorthand::Short(6)) => {
+            pos = pos.saturating_add(1);
+            if tokens.get(pos) == Some(&DcShorthand::Format(199)) {
+                pos = pos.saturating_add(1);
+            }
+            let mut len_val = 0u128;
+            let mut digit_count = 0usize;
+            while let Some(&DcShorthand::Short(n)) = tokens.get(pos) {
+                if (BASE64_DIGIT_START..=BASE64_DIGIT_END).contains(&n) {
+                    let d = u128::from(n.saturating_sub(BASE64_DIGIT_START));
+                    len_val = len_val
+                        .checked_mul(64)
+                        .and_then(|v| v.checked_add(d))
+                        .context("Length overflow in Dc 203 encapsulation")?;
+                    digit_count = digit_count.saturating_add(1);
+                    pos = pos.saturating_add(1);
+                } else {
+                    break;
+                }
+            }
+            ensure!(
+                digit_count > 0 && tokens.get(pos) == Some(&DcShorthand::Short(7)),
+                "Malformed length block in Dc 203 textual encapsulation"
+            );
+            pos = pos.saturating_add(1);
+            expected_len = Some(len_val);
+        }
+        Some(&DcShorthand::Short(n))
+            if (BASE64_DIGIT_START..=BASE64_DIGIT_END).contains(&n)
+                || n == BASE64_PADDING_DC
+                || n == 204 => {}
+        _ => return Ok(None),
+    }
+
+    let payload_start = pos;
+    while let Some(&tok) = tokens.get(pos) {
+        if tok == DcShorthand::Short(204) {
+            let payload_slice = tokens
+                .get(payload_start..pos)
+                .context("Invalid textual encapsulation slice")?;
+            let raw_bytes = decode_dc_base64_payload(payload_slice)?;
+            if let Some(exp) = expected_len {
+                ensure!(
+                    u128::try_from(raw_bytes.len())? == exp,
+                    "Dc 203 textual encapsulation declared length {exp} bytes, decoded {} bytes",
+                    raw_bytes.len()
+                );
+            }
+            return Ok(Some((raw_bytes, pos.saturating_add(1))));
+        }
+        pos = pos.saturating_add(1);
+    }
+
+    bail!("Unterminated Dc 203 textual encapsulation (missing Dc 204)");
+}
+
+fn encode_node_definition_dcmm2_bytes_with(
+    node: &LedgerNode,
+    framing: CtbnbdlFramingDcs,
+) -> Result<Vec<u8>> {
+    let mut out = Vec::with_capacity(
+        node.tokens.len().saturating_add(4).saturating_mul(4),
+    );
+    push_dctf_token(&mut out, framing.begin_node)?;
+
+    let mut id_tokens = Vec::with_capacity(2);
+    push_atom_dc_with(
+        &mut id_tokens,
+        DcShorthand::from_global_id(node.id),
+        framing,
+    );
+    for tok in id_tokens {
+        push_dctf_token(&mut out, tok)?;
+    }
+
+    let mut i = 0usize;
+    while let Some(&tok) = node.tokens.get(i) {
+        if tok == framing.escape || tok == framing.end_node {
+            push_dctf_token(&mut out, framing.escape)?;
+            push_dctf_token(&mut out, tok)?;
+            i = i.saturating_add(1);
+        } else if tok == DcShorthand::Short(203)
+            && let Some((raw_bytes, next_i)) =
+                try_parse_textual_encapsulation(&node.tokens, i)?
+        {
+            out.extend_from_slice(&DC_203_DCTF_BYTES);
+            out.push(DCMM_TYPE_BINARY_METADATA);
+            let payload_len = u128::try_from(raw_bytes.len())?;
+            out.extend_from_slice(&payload_len.to_be_bytes());
+            out.extend_from_slice(&0u128.to_be_bytes());
+            out.extend_from_slice(&raw_bytes);
+            i = next_i;
+        } else {
+            push_dctf_token(&mut out, tok)?;
+            i = i.saturating_add(1);
+        }
+    }
+
+    push_dctf_token(&mut out, framing.end_node)?;
+    Ok(out)
+}
+
 fn encode_ctbnbdl_header_bytes(
     most_recent_node_id: Option<u128>,
     framing: CtbnbdlFramingDcs,
@@ -815,15 +1056,9 @@ pub fn encode_nodes_to_ctbnbdl_bytes_with(
             .saturating_add(nodes.len().saturating_mul(32)),
     );
     bytes.extend_from_slice(&header_bytes);
-    let mut char_buf = [0u8; 24];
     for node in nodes {
-        for tok in encode_node_definition_tokens_with(node, framing) {
-            let gid = tok.to_global_id()?;
-            let n = encode_dctf_buf(&mut char_buf, gid);
-            if let Some(slice) = char_buf.get(..n) {
-                bytes.extend_from_slice(slice);
-            }
-        }
+        let node_bytes = encode_node_definition_dcmm2_bytes_with(node, framing)?;
+        bytes.extend_from_slice(&node_bytes);
     }
     Ok(bytes)
 }
@@ -864,7 +1099,96 @@ pub fn decode_ctbnbdl_bundle_with(
 
     let mut payload = bytes.get(header_len..).unwrap_or_default();
     let mut all_tokens = Vec::new();
+    let dc203_bytes: &[u8] = if is_v2 {
+        &DC_203_DCTF_BYTES
+    } else {
+        &DC_203_UTF8E128_BYTES
+    };
+    let escape_id = framing.escape.to_global_id()?;
+    let mut escaped = false;
+
     while !payload.is_empty() {
+        if !escaped
+            && let Some(after_dc203) = payload.strip_prefix(dc203_bytes)
+            && let Some(&type_byte) = after_dc203.first()
+            && matches!(
+                type_byte,
+                DCMM_TYPE_BINARY
+                    | DCMM_TYPE_LEGACY_TEXT
+                    | DCMM_TYPE_BINARY_METADATA
+                    | DCMM_TYPE_BINARY_SHA256
+                    | DCMM_TYPE_LEGACY_SHA256
+            )
+        {
+            let size_bytes: [u8; 16] = after_dc203
+                .get(1..17)
+                .context("Truncated DcMixed encapsulation size in .ctbnbdl")?
+                .try_into()?;
+            let payload_len_u128 = u128::from_be_bytes(size_bytes);
+            let payload_len = usize::try_from(payload_len_u128)
+                .context("DcMixed encapsulation payload size overflow in .ctbnbdl")?;
+
+            let mut cursor = 17usize;
+            let mut meta_bytes: &[u8] = &[];
+            if type_byte == DCMM_TYPE_BINARY_METADATA {
+                let meta_len_bytes: [u8; 16] = after_dc203
+                    .get(cursor..cursor.saturating_add(16))
+                    .context("Truncated DcMixed metadata length in .ctbnbdl")?
+                    .try_into()?;
+                let meta_len = usize::try_from(u128::from_be_bytes(meta_len_bytes))
+                    .context("DcMixed metadata length overflow in .ctbnbdl")?;
+                cursor = cursor.saturating_add(16);
+                let meta_end = cursor
+                    .checked_add(meta_len)
+                    .context("DcMixed metadata offset overflow in .ctbnbdl")?;
+                meta_bytes = after_dc203
+                    .get(cursor..meta_end)
+                    .context("Truncated DcMixed metadata in .ctbnbdl")?;
+                cursor = meta_end;
+            } else if type_byte == DCMM_TYPE_BINARY_SHA256
+                || type_byte == DCMM_TYPE_LEGACY_SHA256
+            {
+                let sha_end = cursor.saturating_add(32);
+                ensure!(
+                    after_dc203.len() >= sha_end,
+                    "Truncated DcMixed SHA-256 checksum in .ctbnbdl"
+                );
+                cursor = sha_end;
+            }
+
+            let payload_end = cursor
+                .checked_add(payload_len)
+                .context("DcMixed payload offset overflow in .ctbnbdl")?;
+            let bin_payload = after_dc203
+                .get(cursor..payload_end)
+                .context("Truncated DcMixed binary payload in .ctbnbdl")?;
+
+            all_tokens.push(DcShorthand::Short(203));
+            let mut meta_rem = meta_bytes;
+            while !meta_rem.is_empty() {
+                let decoded = if is_v2 {
+                    decode_dctf_buf(meta_rem)
+                } else {
+                    decode_utf_8e_128_buf(meta_rem)
+                };
+                let Some((cp, consumed)) = decoded else {
+                    bail!("Invalid character sequence in .ctbnbdl encapsulation metadata");
+                };
+                all_tokens.push(DcShorthand::from_global_id(cp));
+                meta_rem = meta_rem.get(consumed..).unwrap_or_default();
+            }
+            all_tokens.push(DcShorthand::Short(6));
+            all_tokens.push(DcShorthand::Format(199));
+            encode_dc_base64_u128(payload_len_u128, &mut all_tokens);
+            all_tokens.push(DcShorthand::Short(7));
+            encode_dc_base64_payload(bin_payload, &mut all_tokens);
+            all_tokens.push(DcShorthand::Short(204));
+
+            payload = after_dc203.get(payload_end..).unwrap_or_default();
+            escaped = false;
+            continue;
+        }
+
         let decoded = if is_v2 {
             decode_dctf_buf(payload)
         } else {
@@ -874,6 +1198,7 @@ pub fn decode_ctbnbdl_bundle_with(
             bail!("Invalid character sequence in .ctbnbdl stream");
         };
         all_tokens.push(DcShorthand::from_global_id(codepoint));
+        escaped = !escaped && codepoint == escape_id;
         payload = payload.get(consumed..).unwrap_or_default();
     }
 
@@ -1000,19 +1325,9 @@ pub fn encode_nodes_to_ctbnbdl_bundles_with_limits_and_most_recent(
     let mut current_first_id: Option<u128> = None;
     let mut current_bucket: u128 = 0;
     let mut current_bytes: Vec<u8> = Vec::new();
-    let mut char_buf = [0u8; 24];
 
     for node in nodes {
-        let mut node_bytes = Vec::with_capacity(
-            node.tokens.len().saturating_add(4).saturating_mul(4),
-        );
-        for tok in encode_node_definition_tokens_with(node, framing) {
-            let gid = tok.to_global_id()?;
-            let n = encode_dctf_buf(&mut char_buf, gid);
-            if let Some(slice) = char_buf.get(..n) {
-                node_bytes.extend_from_slice(slice);
-            }
-        }
+        let node_bytes = encode_node_definition_dcmm2_bytes_with(node, framing)?;
         ensure!(
             header_len.saturating_add(node_bytes.len()) <= max_bytes_per_bundle,
             "Single encoded node l{} ({} bytes + {header_len}-byte header) exceeds max_bytes_per_bundle ({max_bytes_per_bundle})",
@@ -1658,4 +1973,80 @@ pub fn compile_inactive_ctbnodes_dir_to_ctbnbdl(
         MAX_NODES_PER_BUNDLE,
         MAX_BYTES_PER_BUNDLE,
     )
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    fn test_framing() -> CtbnbdlFramingDcs {
+        CtbnbdlFramingDcs {
+            begin_node: DcShorthand::Short(617),
+            end_node: DcShorthand::Short(618),
+            escape: DcShorthand::Short(255),
+            evaluate_as_atom: DcShorthand::Short(616),
+            has_a: DcShorthand::Short(584),
+            has_value: DcShorthand::Short(610),
+            preferred: DcShorthand::Short(570),
+            supersedes: DcShorthand::Short(591),
+            retracts: DcShorthand::Short(592),
+            enclosing_document: DcShorthand::Short(615),
+            is_instance_of: DcShorthand::Short(586),
+            is_subtype_of: DcShorthand::Short(587),
+            is_based_on: DcShorthand::Short(588),
+            is_deprecated: DcShorthand::Short(589),
+            is_closing_delimiter_for: DcShorthand::Short(590),
+            is_associated_with: DcShorthand::Short(605),
+        }
+    }
+
+    #[test]
+    fn test_ctbnbdl_roundtrips_standalone_and_encapsulated_dc203() -> Result<()> {
+        let framing = test_framing();
+        let node = LedgerNode {
+            id: SYSTEM_REGION_START + 1,
+            tokens: vec![
+                // Standalone Dc 203 token
+                DcShorthand::Short(584),
+                DcShorthand::Short(203),
+                DcShorthand::Short(572),
+                // Textual base64 encapsulation: b"," (length 1)
+                DcShorthand::Short(203),
+                DcShorthand::Short(6),
+                DcShorthand::Format(199),
+                DcShorthand::Short(128),
+                DcShorthand::Short(7),
+                DcShorthand::Short(138),
+                DcShorthand::Short(127),
+                DcShorthand::Short(195),
+                DcShorthand::Short(195),
+                DcShorthand::Short(204),
+                // Empty textual base64 encapsulation: b"" (length 0)
+                DcShorthand::Short(203),
+                DcShorthand::Short(6),
+                DcShorthand::Format(199),
+                DcShorthand::Short(127),
+                DcShorthand::Short(7),
+                DcShorthand::Short(204),
+            ],
+            comment: String::new(),
+        };
+
+        let encoded = encode_nodes_to_ctbnbdl_bytes_with(&[node.clone()], framing)?;
+        let (_, decoded) = decode_ctbnbdl_bundle_with(&encoded, framing)?;
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(decoded[0].id, node.id);
+        assert_eq!(decoded[0].tokens, node.tokens);
+        Ok(())
+    }
 }
