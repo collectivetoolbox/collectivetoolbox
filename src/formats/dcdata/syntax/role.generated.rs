@@ -434,9 +434,9 @@ pub enum DcRole {
     DeclareConst,
     /// Declares an exported module-level immutable binding with an optional assigned graph Dc identity, static type, name, and initializer expression. (`2200`).
     DeclarePub,
-    /// Assigns a new value expression to an existing mutable local variable of matching type. (`2201`).
+    /// Assigns a new value expression to an existing mutable local variable (with an optional explicit static type matching its declaration). (`2201`).
     AssignSet,
-    /// References a lexically bound variable or constant (by identifier or resolved graph Dc) with its explicit static type. (`2202`).
+    /// References a lexically bound variable or constant (by identifier or resolved graph Dc) with an optional explicit static type. (`2202`).
     TypedValueRef,
     /// Declares a named routine with a boolean export visibility flag (true for public, false for private), optional assigned graph Dc identity, return type, name, typed parameters, optional test block, and body expression. (`2203`).
     BeginRoutineDecl,
@@ -476,6 +476,8 @@ pub enum DcRole {
     ReturnRoutine,
     /// Deterministically aborts execution with an unrecoverable trap (type Never). (`2454`).
     FaultTrap,
+    /// Evaluates to the unit value without side effects (type Void). (`2455`).
+    NoOp,
     /// Checked numeric addition of two operands of matching type; faults on overflow. (`2512`).
     AddOp,
     /// Checked subtraction of the second operand from the first operand; faults on overflow. (`2513`).
@@ -799,6 +801,7 @@ match self {
             Self::ContinueLoop => Some(2452),
             Self::ReturnRoutine => Some(2453),
             Self::FaultTrap => Some(2454),
+            Self::NoOp => Some(2455),
             Self::AddOp => Some(2512),
             Self::SubOp => Some(2513),
             Self::MulOp => Some(2514),
@@ -1080,6 +1083,7 @@ match self {
             Self::ContinueLoop => short == Some(2452),
             Self::ReturnRoutine => short == Some(2453),
             Self::FaultTrap => short == Some(2454),
+            Self::NoOp => short == Some(2455),
             Self::AddOp => short == Some(2512),
             Self::SubOp => short == Some(2513),
             Self::MulOp => short == Some(2514),

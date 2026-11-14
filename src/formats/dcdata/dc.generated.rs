@@ -432,9 +432,9 @@ pub const DC_DECLARE_LET: DcChar = DcChar::from_short(2198);
 pub const DC_DECLARE_CONST: DcChar = DcChar::from_short(2199);
 /// Declares an exported module-level immutable binding with an optional assigned graph Dc identity, static type, name, and initializer expression. (Dc 2200).
 pub const DC_DECLARE_PUB: DcChar = DcChar::from_short(2200);
-/// Assigns a new value expression to an existing mutable local variable of matching type. (Dc 2201).
+/// Assigns a new value expression to an existing mutable local variable (with an optional explicit static type matching its declaration). (Dc 2201).
 pub const DC_ASSIGN_SET: DcChar = DcChar::from_short(2201);
-/// References a lexically bound variable or constant (by identifier or resolved graph Dc) with its explicit static type. (Dc 2202).
+/// References a lexically bound variable or constant (by identifier or resolved graph Dc) with an optional explicit static type. (Dc 2202).
 pub const DC_TYPED_VALUE_REF: DcChar = DcChar::from_short(2202);
 /// Declares a named routine with a boolean export visibility flag (true for public, false for private), optional assigned graph Dc identity, return type, name, typed parameters, optional test block, and body expression. (Dc 2203).
 pub const DC_BEGIN_ROUTINE_DECL: DcChar = DcChar::from_short(2203);
@@ -474,6 +474,8 @@ pub const DC_CONTINUE_LOOP: DcChar = DcChar::from_short(2452);
 pub const DC_RETURN_ROUTINE: DcChar = DcChar::from_short(2453);
 /// Deterministically aborts execution with an unrecoverable trap (type Never). (Dc 2454).
 pub const DC_FAULT_TRAP: DcChar = DcChar::from_short(2454);
+/// Evaluates to the unit value without side effects (type Void). (Dc 2455).
+pub const DC_NO_OP: DcChar = DcChar::from_short(2455);
 /// Checked numeric addition of two operands of matching type; faults on overflow. (Dc 2512).
 pub const DC_ADD_OP: DcChar = DcChar::from_short(2512);
 /// Checked subtraction of the second operand from the first operand; faults on overflow. (Dc 2513).
