@@ -46,13 +46,13 @@ use ctb_formats_dcdata::dc::{
     DC_BEGIN_DATE_DURATION, DC_BEGIN_DATE_MAGNITUDE,
     DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
     DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BEGIN_LITERAL,
-    DC_BEGIN_TIME_MOMENT, DC_BEGIN_TYPE_DEF, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
-    DC_END_DATE_DURATION, DC_END_DATE_MAGNITUDE, DC_END_FORMAT_REPRESENTATION,
-    DC_END_KV_MAP, DC_END_KV_PAIR, DC_END_LIST, DC_END_LITERAL,
-    DC_END_TIME_MOMENT, DC_END_TYPE_DEF, DC_EQUIVALENT_REPRESENTATIONS,
-    DC_FILE_PATH_DELIMITER, DC_LIST_ELEMENT_SEPARATOR, DC_NEGATIVE,
-    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_POSITIVE,
+    DC_BEGIN_TIME_MOMENT, DC_BEGIN_TUPLE, DC_BEGIN_TYPE_DEF, DC_BOOLEAN_FALSE,
+    DC_BOOLEAN_TRUE, DC_END_DATE_DURATION, DC_END_DATE_MAGNITUDE,
+    DC_END_FORMAT_REPRESENTATION, DC_END_KV_MAP, DC_END_KV_PAIR, DC_END_LIST,
+    DC_END_LITERAL, DC_END_TIME_MOMENT, DC_END_TUPLE, DC_END_TYPE_DEF,
+    DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
+    DC_LIST_ELEMENT_SEPARATOR, DC_NEGATIVE, DC_OPTIONAL_ABSENT,
+    DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_POSITIVE,
     DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT,
     DC_START_ENCAPSULATION_BINARY, DC_TYPE_ANY, DC_TYPE_INTERSECTION,
     DC_TYPE_STRING, DC_TYPE_UNION,
@@ -2376,6 +2376,125 @@ impl DcMixedDecode for malachite::Integer {
     }
 }
 
+fn extract_tuple_element_nodes(
+    ctx: &mut DcProjectionContext<'_, '_>,
+    children: &[NodeId],
+    expected_len: usize,
+) -> Result<Vec<NodeId>> {
+    let len_id = children
+        .first()
+        .copied()
+        .context("Tuple container (Dc 2215) missing length number")?;
+    let declared_len = usize::decode_dc_node(ctx, len_id)?;
+    ensure!(
+        declared_len == expected_len,
+        "Tuple container (Dc 2215) length mismatch: expected {expected_len}, found {declared_len}"
+    );
+    let rest = children
+        .get(1..)
+        .context("Tuple container (Dc 2215) missing children slice")?;
+    if expected_len == 0 {
+        ctx.handle_remaining_nodes(rest)?;
+        return Ok(Vec::new());
+    }
+    let mut groups: Vec<Vec<NodeId>> = vec![Vec::new()];
+    for &child_id in rest {
+        let child_node = ctx.node(child_id)?;
+        if !child_node.is_escaped_atom()
+            && let DcSyntaxKind::Atom(ch) = child_node.kind
+            && ctx.token_fills_role(ch, DcRole::ListElementSeparator)
+        {
+            groups.push(Vec::new());
+            continue;
+        }
+        if let Some(last_group) = groups.last_mut() {
+            last_group.push(child_id);
+        }
+    }
+    ensure!(
+        groups.len() == expected_len,
+        "Tuple container (Dc 2215) declared length {declared_len} but has {} element group(s)",
+        groups.len()
+    );
+    let mut elem_ids = Vec::with_capacity(expected_len);
+    for (group_idx, group) in groups.iter().enumerate() {
+        if group_idx == 0 {
+            let header_count = group.len().checked_sub(1).context(
+                "Tuple container (Dc 2215) missing first element value",
+            )?;
+            ensure!(
+                header_count == 0 || header_count == expected_len,
+                "Tuple container (Dc 2215) expected 0 or {expected_len} slot type headers before element 0, found {header_count}"
+            );
+            let &first_elem =
+                group.last().context("Missing first tuple element")?;
+            elem_ids.push(first_elem);
+        } else {
+            let &[elem_id] = group.as_slice() else {
+                bail!(
+                    "Tuple container (Dc 2215) element {group_idx} expected 1 value node, found {}",
+                    group.len()
+                );
+            };
+            elem_ids.push(elem_id);
+        }
+    }
+    Ok(elem_ids)
+}
+
+impl DcMixedEncode for () {
+    fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+        self.encode_dc_mixed_to_with_context(
+            mst,
+            &crate::SharedValueContext::default(),
+        )
+    }
+
+    fn encode_dc_mixed_to_with_context(
+        &self,
+        mst: &mut crate::DcWriter<'_>,
+        context: &crate::SharedValueContext,
+    ) -> Result<()> {
+        mst.push_char(DC_BEGIN_TUPLE)?;
+        0_u64.encode_dc_mixed_to_with_context(mst, context)?;
+        mst.push_char(DC_END_TUPLE)?;
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for () {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        ctx.decode_transparent(node_id, |ctx, mut node_id| {
+            if let Ok(Some((_fmt, payload_id))) =
+                ctx.unwrap_format_representation(node_id)
+            {
+                let candidate = ctx.unwrap_transparent(payload_id)?;
+                let cand_node = ctx.node(candidate)?;
+                if cand_node.is_structural_container_with(ctx.resolver()) {
+                    node_id = candidate;
+                }
+            }
+            let node = ctx.node(node_id)?;
+            if let DcSyntaxKind::Container {
+                opener, children, ..
+            } = &node.kind
+                && ctx.token_fills_role(*opener, DcRole::BeginTuple)
+            {
+                let children = children.clone();
+                let _ = extract_tuple_element_nodes(ctx, &children, 0)?;
+                return Ok(());
+            }
+            bail!(
+                "Expected empty Tuple container (Dc 2215) for (), found {:?}",
+                node.kind
+            )
+        })
+    }
+}
+
 impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
     fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
         self.encode_dc_mixed_to_with_context(
@@ -2455,6 +2574,18 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
             let node = ctx.node(node_id)?;
             match &node.kind {
                 DcSyntaxKind::Container { opener, children, .. }
+                    if ctx.token_fills_role(*opener, DcRole::BeginTuple) =>
+                {
+                    let children = children.clone();
+                    let elem_ids = extract_tuple_element_nodes(ctx, &children, 2)?;
+                    let &[first, second] = elem_ids.as_slice() else {
+                        bail!("Internal error: 2-tuple length mismatch");
+                    };
+                    let a = A::decode_dc_node(ctx, first)?;
+                    let b = B::decode_dc_node(ctx, second)?;
+                    return Ok((a, b));
+                }
+                DcSyntaxKind::Container { opener, children, .. }
                     if !node.is_leaf_value_container_with(ctx.resolver()) =>
                 {
                     let child_slice = if ctx.token_fills_role(*opener, DcRole::BeginFormatRepresentation) && children.len() >= 3 {
@@ -2503,6 +2634,123 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         })
     }
 }
+
+macro_rules! impl_dc_mixed_n_ary_tuple {
+    ($len:literal : $( $idx:tt => $ty:ident ),+ $(,)?) => {
+        impl<$( $ty: DcMixedEncode ),+> DcMixedEncode for ( $( $ty, )+ ) {
+            fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
+                self.encode_dc_mixed_to_with_context(
+                    mst,
+                    &crate::SharedValueContext::default(),
+                )
+            }
+
+            fn encode_dc_mixed_to_with_context(
+                &self,
+                mst: &mut crate::DcWriter<'_>,
+                context: &crate::SharedValueContext,
+            ) -> Result<()> {
+                mst.push_char(DC_BEGIN_TUPLE)?;
+                let len_u64: u64 = $len;
+                len_u64.encode_dc_mixed_to_with_context(mst, context)?;
+                $(
+                    let _ = stringify!($ty);
+                    mst.push_char(DC_BEGIN_TYPE_DEF)?;
+                    mst.push_char(DC_TYPE_ANY)?;
+                    mst.push_char(DC_END_TYPE_DEF)?;
+                )+
+                let mut first = true;
+                $(
+                    if !first {
+                        mst.push_char(DC_LIST_ELEMENT_SEPARATOR)?;
+                    }
+                    first = false;
+                    self.$idx.encode_dc_mixed_to_with_context(mst, context)?;
+                )+
+                let _ = first;
+                mst.push_char(DC_END_TUPLE)?;
+                Ok(())
+            }
+
+            fn encode_format_elements_to_with_context(
+                &self,
+                format: DcChar,
+                mst: &mut crate::DcWriter<'_>,
+                context: &crate::SharedValueContext,
+            ) -> Result<()> {
+                let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+                let canon = resolver.canonical_token(format.to_u128());
+                let is_matching_arity = FormatId::from_dc_id(canon)
+                    .and_then(|fid| resolver.format_rule_payload_arity(fid))
+                    == Some($len);
+                if is_matching_arity {
+                    $(
+                        self.$idx.encode_dc_mixed_to_with_context(mst, context)?;
+                    )+
+                    Ok(())
+                } else {
+                    self.encode_dc_mixed_to_with_context(mst, context)
+                }
+            }
+        }
+
+        impl<$( $ty: DcMixedDecode ),+> DcMixedDecode for ( $( $ty, )+ ) {
+            fn decode_dc_node(
+                ctx: &mut DcProjectionContext<'_, '_>,
+                node_id: NodeId,
+            ) -> Result<Self> {
+                ctx.with_projection_depth(node_id, |ctx| {
+                    ctx.decode_transparent(node_id, |ctx, mut node_id| {
+                        if let Ok(Some((_fmt, payload_id))) =
+                            ctx.unwrap_format_representation(node_id)
+                        {
+                            let candidate = ctx.unwrap_transparent(payload_id)?;
+                            let cand_node = ctx.node(candidate)?;
+                            if cand_node.is_structural_container_with(ctx.resolver()) {
+                                node_id = candidate;
+                            }
+                        }
+                        let node = ctx.node(node_id)?;
+                        if let DcSyntaxKind::Container {
+                            opener, children, ..
+                        } = &node.kind
+                            && ctx.token_fills_role(*opener, DcRole::BeginTuple)
+                        {
+                            let children = children.clone();
+                            let elem_ids = extract_tuple_element_nodes(ctx, &children, $len)?;
+                            let mut iter = elem_ids.into_iter();
+                            return Ok((
+                                $(
+                                    <$ty>::decode_dc_node(
+                                        ctx,
+                                        iter.next().context("Missing tuple element node")?,
+                                    )?,
+                                )+
+                            ));
+                        }
+                        bail!(
+                            "Expected Tuple container (Dc 2215) of length {} for tuple, found {:?}",
+                            $len,
+                            node.kind
+                        )
+                    })
+                })
+            }
+        }
+    };
+}
+
+impl_dc_mixed_n_ary_tuple!(1 : 0 => T0);
+impl_dc_mixed_n_ary_tuple!(3 : 0 => T0, 1 => T1, 2 => T2);
+impl_dc_mixed_n_ary_tuple!(4 : 0 => T0, 1 => T1, 2 => T2, 3 => T3);
+impl_dc_mixed_n_ary_tuple!(5 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4);
+impl_dc_mixed_n_ary_tuple!(6 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4, 5 => T5);
+impl_dc_mixed_n_ary_tuple!(7 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4, 5 => T5, 6 => T6);
+impl_dc_mixed_n_ary_tuple!(8 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4, 5 => T5, 6 => T6, 7 => T7);
+impl_dc_mixed_n_ary_tuple!(9 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4, 5 => T5, 6 => T6, 7 => T7, 8 => T8);
+impl_dc_mixed_n_ary_tuple!(10 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4, 5 => T5, 6 => T6, 7 => T7, 8 => T8, 9 => T9);
+impl_dc_mixed_n_ary_tuple!(11 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4, 5 => T5, 6 => T6, 7 => T7, 8 => T8, 9 => T9, 10 => T10);
+impl_dc_mixed_n_ary_tuple!(12 : 0 => T0, 1 => T1, 2 => T2, 3 => T3, 4 => T4, 5 => T5, 6 => T6, 7 => T7, 8 => T8, 9 => T9, 10 => T10, 11 => T11);
 
 impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
     fn encode_dc_mixed_to(&self, mst: &mut crate::DcWriter<'_>) -> Result<()> {
@@ -5519,6 +5767,52 @@ mod tests {
                 nested: expected_nested,
             }
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_n_ary_tuple_strict_roundtrips_and_pair_compat() -> Result<()> {
+        use super::{
+            DC_BEGIN_KV_PAIR, DC_BEGIN_TUPLE, DC_BEGIN_TYPE_DEF, DC_END_KV_PAIR,
+            DC_END_TUPLE, DC_END_TYPE_DEF, DC_LIST_ELEMENT_SEPARATOR,
+            DC_TYPE_ANY, DcMixedEncode, assert_dc_document_roundtrip,
+        };
+        use crate::DcMstring;
+
+        assert_dc_document_roundtrip(&())?;
+        assert_dc_document_roundtrip(&(42_u32,))?;
+        assert_dc_document_roundtrip(&("alpha".to_owned(), -7_i64, true))?;
+        assert_dc_document_roundtrip(&(
+            1_u8,
+            (20_u16, "nested".to_owned(), false),
+            vec![3_u64, 4_u64],
+            (),
+        ))?;
+
+        // 2-tuples continue encoding via `Dc 514`..`Dc 515`, while decoding also accepts `Dc 2215`..`Dc 2216`.
+        let mut pair_mstr = DcMstring::new();
+        (10_u32, "ten".to_owned()).encode_dc_mixed(&mut pair_mstr)?;
+        let pair_dc = pair_mstr.to_dc_string()?;
+        assert_eq!(pair_dc.chars().next(), Some(DC_BEGIN_KV_PAIR));
+        assert_eq!(pair_dc.chars().last(), Some(DC_END_KV_PAIR));
+        assert_dc_document_roundtrip(&(10_u32, "ten".to_owned()))?;
+
+        let mut tuple2_doc = DcMstring::new();
+        tuple2_doc.push_char(DC_BEGIN_TUPLE);
+        2_u64.encode_dc_mixed(&mut tuple2_doc)?;
+        for _ in 0..2 {
+            tuple2_doc.push_char(DC_BEGIN_TYPE_DEF);
+            tuple2_doc.push_char(DC_TYPE_ANY);
+            tuple2_doc.push_char(DC_END_TYPE_DEF);
+        }
+        99_u32.encode_dc_mixed(&mut tuple2_doc)?;
+        tuple2_doc.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        "ninety-nine".encode_dc_mixed(&mut tuple2_doc)?;
+        tuple2_doc.push_char(DC_END_TUPLE);
+        crate::validate_dc_mixed_strict(&tuple2_doc)?;
+        let strict = crate::DcProjectionPolicy::strict();
+        let decoded_pair = tuple2_doc.decode::<(u32, String)>(&strict)?;
+        assert_eq!(decoded_pair, (99_u32, "ninety-nine".to_owned()));
         Ok(())
     }
 }
