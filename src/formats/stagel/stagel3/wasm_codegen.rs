@@ -30,6 +30,8 @@ use crate::utilities::*;
 
 pub mod linker;
 pub mod runner;
+#[cfg(test)]
+mod self_hosted_tests;
 
 pub use runner::{
     WasmTestConfig, compile_and_run_pure_converter_sl3,

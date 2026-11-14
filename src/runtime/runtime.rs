@@ -4410,7 +4410,7 @@ mod tests {
         );
 
         // 2. Construct an in-memory graph snapshot extending `shared_sg` with two revisions
-        //    of a standalone `[Dc 302 2192 1927]` converter routine (`pin_v1 < pin_v2`).
+        //    of a standalone `[Dc 302 262 1927]` converter routine (`pin_v1 < pin_v2`).
         let mut nodes = shared_sg.nodes().to_vec();
         let mut next_id = head_pin.checked_add(1).unwrap();
         let mut alloc_node = |tokens: Vec<DcShorthand>| -> u128 {
@@ -4433,7 +4433,7 @@ mod tests {
 
         let fmt_node_id = alloc_node(vec![
             DcShorthand::Short(302),
-            DcShorthand::Short(2192),
+            DcShorthand::Short(262),
             DcShorthand::Short(1927),
         ]);
         let conv_ent_v1 = alloc_node(vec![
@@ -4464,7 +4464,7 @@ mod tests {
         ]);
         let pin_v1 = decomp_val_v1;
 
-        // Revision 2 adds a Preferred (`Dc 570`) standalone converter routine for `2192 -> 1927`.
+        // Revision 2 adds a Preferred (`Dc 570`) standalone converter routine for `262 -> 1927`.
         let conv_ent_v2 = alloc_node(vec![
             DcShorthand::Short(586),
             DcShorthand::Short(615),
@@ -4506,8 +4506,9 @@ mod tests {
         let mut doc_v1 = DcMstring::new();
         doc_v1.push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
         doc_v1.push_char(DcChar::from_u128(pin_v1));
-        doc_v1.push_char(dc::DC_BEGIN_MODULE);
-        doc_v1.push_char(dc::DC_END_MODULE);
+        doc_v1.push_char(dc::DC_BEGIN_TYPE_DEF);
+        doc_v1.push_char(dc::DC_TYPE_STRING);
+        doc_v1.push_char(dc::DC_END_TYPE_DEF);
         let mut env_v1 = ExecutionContext::new(false);
         let trace_v1 = env_v1.execute_dc_document_default_with_trace(
             &doc_v1,
@@ -4520,8 +4521,9 @@ mod tests {
         let mut doc_v2 = DcMstring::new();
         doc_v2.push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
         doc_v2.push_char(DcChar::from_u128(pin_v2));
-        doc_v2.push_char(dc::DC_BEGIN_MODULE);
-        doc_v2.push_char(dc::DC_END_MODULE);
+        doc_v2.push_char(dc::DC_BEGIN_TYPE_DEF);
+        doc_v2.push_char(dc::DC_TYPE_STRING);
+        doc_v2.push_char(dc::DC_END_TYPE_DEF);
         let mut env_v2 = ExecutionContext::new(false);
         let trace_v2 = env_v2.execute_dc_document_default_with_trace(
             &doc_v2,
@@ -4531,8 +4533,9 @@ mod tests {
         assert_eq!(trace_v2.result.output.to_dc_string()?.to_string(), "B");
 
         let mut doc_unpinned = DcMstring::new();
-        doc_unpinned.push_char(dc::DC_BEGIN_MODULE);
-        doc_unpinned.push_char(dc::DC_END_MODULE);
+        doc_unpinned.push_char(dc::DC_BEGIN_TYPE_DEF);
+        doc_unpinned.push_char(dc::DC_TYPE_STRING);
+        doc_unpinned.push_char(dc::DC_END_TYPE_DEF);
         let mut env_unpinned = ExecutionContext::new(false);
         let trace_unpinned = env_unpinned
             .execute_dc_document_default_with_trace(
@@ -4550,8 +4553,9 @@ mod tests {
         doc_future
             .push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
         doc_future.push_char(DcChar::from_u128(pin_v2 + 1));
-        doc_future.push_char(dc::DC_BEGIN_MODULE);
-        doc_future.push_char(dc::DC_END_MODULE);
+        doc_future.push_char(dc::DC_BEGIN_TYPE_DEF);
+        doc_future.push_char(dc::DC_TYPE_STRING);
+        doc_future.push_char(dc::DC_END_TYPE_DEF);
         let mut env_future = ExecutionContext::new(false);
         assert!(
             env_future
@@ -4593,7 +4597,7 @@ mod tests {
         )?;
         let fmt_node_id = alloc_node(vec![
             DcShorthand::Short(302),
-            DcShorthand::Short(2192),
+            DcShorthand::Short(262),
             DcShorthand::Short(1927),
         ]);
         let conv_ent = alloc_node(vec![
@@ -4631,8 +4635,9 @@ mod tests {
         let mut doc = DcMstring::new();
         doc.push_char(dc::DC_GLOBAL_GRAPH_SYSTEM_BLOCK_MOST_RECENT_NODE_ID);
         doc.push_char(DcChar::from_u128(pin));
-        doc.push_char(dc::DC_BEGIN_MODULE);
-        doc.push_char(dc::DC_END_MODULE);
+        doc.push_char(dc::DC_BEGIN_TYPE_DEF);
+        doc.push_char(dc::DC_TYPE_STRING);
+        doc.push_char(dc::DC_END_TYPE_DEF);
 
         // Measure standalone target execution cost:
         let mut probe_session = DcWasmSession::from_dc_wasm_with_resolver(
